@@ -1,7 +1,7 @@
 /**
  * EmptyState Component
  * 
- * Apple-inspired empty state components with proper visual hierarchy,
+ * Premium empty state components with proper visual hierarchy,
  * iconography, and call-to-action patterns. Automatically follows design system.
  */
 

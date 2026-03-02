@@ -83,7 +83,7 @@ interface EntrySyncMetricsProps {
 }
 
 /**
- * EntrySyncMetrics - Comprehensive metrics dashboard for entry sync operations with Apple-inspired design
+ * EntrySyncMetrics - Comprehensive metrics dashboard for entry sync operations with Premium design
  * 
  * Displays real-time sync performance, payment processing status, and operational metrics.
  * Provides insights into sync efficiency, error patterns, and system health.

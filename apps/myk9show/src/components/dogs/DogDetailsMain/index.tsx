@@ -8,7 +8,7 @@ import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { mockPedigreeData } from '@/data/mockPedigreeData';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
 import type { ExtendedAncestor } from '@/components/dogs/DogDetails/Pedigree/PedigreeAncestorAddDialog';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 import HeroProfileCard from './HeroProfileCard';
 import DogInfoCards from './DogInfoCards';

@@ -15,7 +15,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Click on the first person in the sidebar
-      const firstPerson = page.locator('.apple-people-sidebar-item').first();
+      const firstPerson = page.locator('.myk9-people-sidebar-item').first();
       if (await firstPerson.isVisible()) {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
@@ -42,7 +42,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
-      const firstPerson = page.locator('.apple-people-sidebar-item').first();
+      const firstPerson = page.locator('.myk9-people-sidebar-item').first();
       if (await firstPerson.isVisible()) {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
@@ -63,7 +63,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
-      const firstPerson = page.locator('.apple-people-sidebar-item').first();
+      const firstPerson = page.locator('.myk9-people-sidebar-item').first();
       if (await firstPerson.isVisible()) {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
@@ -102,7 +102,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
-      const firstPerson = page.locator('.apple-people-sidebar-item').first();
+      const firstPerson = page.locator('.myk9-people-sidebar-item').first();
       if (await firstPerson.isVisible()) {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
@@ -122,7 +122,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
-      const firstPerson = page.locator('.apple-people-sidebar-item').first();
+      const firstPerson = page.locator('.myk9-people-sidebar-item').first();
       if (await firstPerson.isVisible()) {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
@@ -164,7 +164,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Get initial count
-      const initialCount = await page.locator('.apple-people-sidebar-item').count();
+      const initialCount = await page.locator('.myk9-people-sidebar-item').count();
 
       // Click Judges filter
       await page.locator('button:has-text("Judges")').click();
@@ -173,7 +173,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForTimeout(300);
 
       // Filtered count should be different (less than or equal)
-      const filteredCount = await page.locator('.apple-people-sidebar-item').count();
+      const filteredCount = await page.locator('.myk9-people-sidebar-item').count();
       expect(filteredCount).toBeLessThanOrEqual(initialCount);
     });
 
@@ -221,7 +221,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
-      const firstPerson = page.locator('.apple-people-sidebar-item').first();
+      const firstPerson = page.locator('.myk9-people-sidebar-item').first();
       if (await firstPerson.isVisible()) {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
@@ -240,7 +240,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Click on the first person
-      const firstPerson = page.locator('.apple-people-sidebar-item').first();
+      const firstPerson = page.locator('.myk9-people-sidebar-item').first();
       if (await firstPerson.isVisible()) {
         await firstPerson.click();
         await page.waitForLoadState('networkidle');
@@ -262,7 +262,7 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Find a non-judge person (marked as Member in sidebar)
-      const memberItem = page.locator('.apple-people-sidebar-item:has(.apple-people-sidebar-role:has-text("Member"))').first();
+      const memberItem = page.locator('.myk9-people-sidebar-item:has(.myk9-people-sidebar-role:has-text("Member"))').first();
 
       if (await memberItem.isVisible()) {
         await memberItem.click();

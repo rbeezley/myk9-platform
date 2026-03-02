@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { ShowCloneDialog } from '@/components/shows/cloning';
-import ShowDetailsEnhancedApple from './ShowDetails/ShowDetailsEnhancedApple';
-import '@/styles/apple-show-details.css';
+import ShowDetailsEnhanced from './ShowDetails/ShowDetailsEnhanced';
+import '@/styles/myk9-show-details.css';
 
 interface ShowDetailsMainProps {
   showData: Show;
@@ -26,7 +26,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
 
   return (
     <>
-      <ShowDetailsEnhancedApple
+      <ShowDetailsEnhanced
         showData={showData}
         associatedTrials={associatedTrials}
         onEditShow={onEditShow}

@@ -1,7 +1,7 @@
 /**
  * StatsCard Component
  *
- * Apple-inspired stats card with premium styling and animations.
+ * Premium stats card with premium styling and animations.
  */
 
 import { TrendingUp } from 'lucide-react';

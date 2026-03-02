@@ -114,12 +114,12 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
       <div
         key={person.id}
         className={cn(
-          "apple-people-sidebar-item",
+          "myk9-people-sidebar-item",
           isSelected && "selected"
         )}
         onClick={() => onSelect(person.id)}
       >
-        <div className="apple-people-sidebar-name">
+        <div className="myk9-people-sidebar-name">
           {nameMatches ? (
             highlightMatches(
               `${person.firstName} ${person.lastName}`,
@@ -137,7 +137,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
             `${person.firstName} ${person.lastName}`
           )}
         </div>
-        <div className="apple-people-sidebar-email">
+        <div className="myk9-people-sidebar-email">
           {emailMatches ? (
             highlightMatches(
               person.email || 'No email',
@@ -155,7 +155,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
             person.email || 'No email'
           )}
         </div>
-        <div className="apple-people-sidebar-role">
+        <div className="myk9-people-sidebar-role">
           {role}
         </div>
       </div>

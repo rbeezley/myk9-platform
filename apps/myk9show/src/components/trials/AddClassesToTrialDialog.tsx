@@ -297,52 +297,52 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
           </div>
 
           {selectedTemplate && (
-            <div className="apple-template-card">
-              <div className="apple-template-header">
-                <div className="apple-template-title-section">
-                  <FileText className="apple-template-icon" />
-                  <h3 className="apple-template-title">
+            <div className="myk9-template-card">
+              <div className="myk9-template-header">
+                <div className="myk9-template-title-section">
+                  <FileText className="myk9-template-icon" />
+                  <h3 className="myk9-template-title">
                     {selectedTemplate.templateName || 'Unnamed Template'}
                   </h3>
                 </div>
               </div>
 
-              <div className="apple-template-content">
-                <div className="apple-template-details">
-                  <div className="apple-template-detail-item">
-                    <span className="apple-template-label">Organization:</span>
-                    <span className="apple-template-value">
+              <div className="myk9-template-content">
+                <div className="myk9-template-details">
+                  <div className="myk9-template-detail-item">
+                    <span className="myk9-template-label">Organization:</span>
+                    <span className="myk9-template-value">
                       {typeof selectedTemplate.organization === 'object'
                         ? String(Object.values(selectedTemplate.organization)[0] || 'Unknown')
                         : String(selectedTemplate.organization || 'Unknown')}
                     </span>
                   </div>
-                  <div className="apple-template-detail-item">
-                    <span className="apple-template-label">Show Type:</span>
-                    <span className="apple-template-value">
+                  <div className="myk9-template-detail-item">
+                    <span className="myk9-template-label">Show Type:</span>
+                    <span className="myk9-template-value">
                       {typeof selectedTemplate.trialType === 'object'
                         ? String(Object.values(selectedTemplate.trialType)[0] || 'Unknown')
                         : String(selectedTemplate.trialType || 'Unknown')}
                     </span>
                   </div>
-                  <div className="apple-template-detail-item">
-                    <span className="apple-template-label">Version:</span>
-                    <span className="apple-template-value">
+                  <div className="myk9-template-detail-item">
+                    <span className="myk9-template-label">Version:</span>
+                    <span className="myk9-template-value">
                       {selectedTemplate.version || 'N/A'}
                     </span>
                   </div>
-                  <div className="apple-template-detail-item">
-                    <span className="apple-template-label">Classes Available:</span>
-                    <span className="apple-template-value">
+                  <div className="myk9-template-detail-item">
+                    <span className="myk9-template-label">Classes Available:</span>
+                    <span className="myk9-template-value">
                       {selectedTemplate.classDefinitions?.length || 0} classes
                     </span>
                   </div>
                 </div>
 
                 {selectedTemplate.description && (
-                  <div className="apple-template-description">
-                    <span className="apple-template-description-label">Description:</span>
-                    <p className="apple-template-description-text">
+                  <div className="myk9-template-description">
+                    <span className="myk9-template-description-label">Description:</span>
+                    <p className="myk9-template-description-text">
                       {selectedTemplate.description}
                     </p>
                   </div>
@@ -390,61 +390,61 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
     );
 
     return (
-      <div className="apple-confirmation-container">
+      <div className="myk9-confirmation-container">
         {/* Summary Cards */}
-        <div className="apple-confirmation-summary">
-          <div className="apple-summary-card">
-            <div className="apple-summary-icon apple-summary-icon-classes">
+        <div className="myk9-confirmation-summary">
+          <div className="myk9-summary-card">
+            <div className="myk9-summary-icon myk9-summary-icon-classes">
               <CheckCircle className="h-6 w-6" />
             </div>
-            <div className="apple-summary-content">
-              <div className="apple-summary-number">{selectedClasses.length}</div>
-              <div className="apple-summary-label">Classes Selected</div>
+            <div className="myk9-summary-content">
+              <div className="myk9-summary-number">{selectedClasses.length}</div>
+              <div className="myk9-summary-label">Classes Selected</div>
             </div>
           </div>
 
-          <div className="apple-summary-card">
-            <div className="apple-summary-icon apple-summary-icon-time">
+          <div className="myk9-summary-card">
+            <div className="myk9-summary-icon myk9-summary-icon-time">
               <Clock className="h-6 w-6" />
             </div>
-            <div className="apple-summary-content">
-              <div className="apple-summary-number">{estimatedTime} min</div>
-              <div className="apple-summary-label">Est. Judging Time</div>
-              <div className="apple-summary-note">Setup time not included</div>
+            <div className="myk9-summary-content">
+              <div className="myk9-summary-number">{estimatedTime} min</div>
+              <div className="myk9-summary-label">Est. Judging Time</div>
+              <div className="myk9-summary-note">Setup time not included</div>
             </div>
           </div>
 
-          <div className="apple-summary-card">
-            <div className="apple-summary-icon apple-summary-icon-template">
+          <div className="myk9-summary-card">
+            <div className="myk9-summary-icon myk9-summary-icon-template">
               <FileText className="h-6 w-6" />
             </div>
-            <div className="apple-summary-content">
-              <div className="apple-summary-text">{selectedTemplate.templateName}</div>
-              <div className="apple-summary-label">Template Used</div>
+            <div className="myk9-summary-content">
+              <div className="myk9-summary-text">{selectedTemplate.templateName}</div>
+              <div className="myk9-summary-label">Template Used</div>
             </div>
           </div>
         </div>
 
         {/* Selected Classes */}
-        <div className="apple-confirmation-classes">
-          <div className="apple-confirmation-header">
-            <h3 className="apple-confirmation-title">Selected Classes</h3>
-            <div className="apple-confirmation-subtitle">
+        <div className="myk9-confirmation-classes">
+          <div className="myk9-confirmation-header">
+            <h3 className="myk9-confirmation-title">Selected Classes</h3>
+            <div className="myk9-confirmation-subtitle">
               Review your selection before adding to the trial
             </div>
           </div>
 
-          <div className="apple-classes-by-element">
+          <div className="myk9-classes-by-element">
             {Object.entries(classesByElement).map(([element, classes]) => (
-              <div key={element} className="apple-element-group">
-                <div className="apple-element-header">
-                  <div className="apple-element-badge">{element}</div>
-                  <div className="apple-element-count">
+              <div key={element} className="myk9-element-group">
+                <div className="myk9-element-header">
+                  <div className="myk9-element-badge">{element}</div>
+                  <div className="myk9-element-count">
                     {classes.length} class{classes.length !== 1 ? 'es' : ''}
                   </div>
                 </div>
 
-                <div className="apple-classes-grid">
+                <div className="myk9-classes-grid">
                   {classes.map((cls, index) => {
                     // Find judge assignment for this class from the state object
                     const judgeId = judgeAssignments[cls.className];
@@ -452,19 +452,19 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
                     const judgeName = judge?.judgeName;
 
                     return (
-                      <div key={index} className="apple-class-item">
-                        <div className="apple-class-check">
+                      <div key={index} className="myk9-class-item">
+                        <div className="myk9-class-check">
                           <CheckCircle className="h-4 w-4" />
                         </div>
-                        <div className="apple-class-info">
-                          <div className="apple-class-name">
+                        <div className="myk9-class-info">
+                          <div className="myk9-class-name">
                             {cls.level || element}
                             {cls.section && (
-                              <span className="apple-class-section">{cls.section}</span>
+                              <span className="myk9-class-section">{cls.section}</span>
                             )}
                           </div>
                           {judgeName && (
-                            <div className="apple-class-judge">
+                            <div className="myk9-class-judge">
                               <User className="h-3 w-3" />
                               <span>{judgeName}</span>
                             </div>

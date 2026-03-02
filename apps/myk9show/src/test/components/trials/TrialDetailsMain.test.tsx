@@ -172,8 +172,8 @@ describe('TrialDetailsMain', () => {
       );
 
       // Should have Total Classes label in the info card
-      const infoCard = document.querySelector('.apple-show-info-card');
-      const labels = infoCard?.querySelectorAll('.apple-show-info-label') || [];
+      const infoCard = document.querySelector('.myk9-show-info-card');
+      const labels = infoCard?.querySelectorAll('.myk9-show-info-label') || [];
       const hasLabel = Array.from(labels).some(label => label.textContent === 'Total Classes');
       expect(hasLabel).toBe(true);
     });
@@ -348,8 +348,8 @@ describe('TrialDetailsMain', () => {
       );
 
       // Use container query to find the status badge in the header
-      const badge = document.querySelector('.apple-show-info-header .apple-show-status');
-      expect(badge).toHaveClass('apple-show-status-upcoming');
+      const badge = document.querySelector('.myk9-show-info-header .myk9-show-status');
+      expect(badge).toHaveClass('myk9-show-status-upcoming');
     });
 
     it('renders status badge with correct class for In Progress', () => {
@@ -362,8 +362,8 @@ describe('TrialDetailsMain', () => {
       );
 
       // Use container query to find the status badge in the header
-      const badge = document.querySelector('.apple-show-info-header .apple-show-status');
-      expect(badge).toHaveClass('apple-show-status-in-progress');
+      const badge = document.querySelector('.myk9-show-info-header .myk9-show-status');
+      expect(badge).toHaveClass('myk9-show-status-in-progress');
     });
   });
 });

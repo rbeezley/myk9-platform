@@ -18,7 +18,7 @@ export interface PageTransitionConfig {
 
 const defaultConfig: PageTransitionConfig = {
   duration: 300,
-  easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // Apple easing
+  easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // standard easing
   type: 'fade',
 };
 

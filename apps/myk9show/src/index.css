@@ -8,10 +8,10 @@
 
 /* Import custom styles */
 @import './styles/calendar.css';
-@import './styles/apple-template-management.css';
-@import './styles/apple-dog-details.css';
-@import './styles/apple-user-details.css';
-@import './styles/apple-table.css';
+@import './styles/myk9-template-management.css';
+@import './styles/myk9-dog-details.css';
+@import './styles/myk9-user-details.css';
+@import './styles/myk9-table.css';
 @import './styles/theme-preferences.css';
 
 @tailwind base;
@@ -210,14 +210,14 @@
     scrollbar-width: none;
   }
 
-  /* Apple-inspired semantic colors */
+  /* myK9 semantic colors */
   :root {
     --success-green: 52 199 89;
     --warning-orange: 255 149 0;
     --error-red: 255 59 48;
   }
 
-  /* Apple color utilities */
+  /* Color utilities */
   .bg-success-green\/10 {
     background-color: rgba(52, 199, 89, 0.1);
   }

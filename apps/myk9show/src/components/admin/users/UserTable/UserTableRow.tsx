@@ -60,23 +60,23 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
 
   return (
     <TableRow
-      className={`apple-table-row ${density.rowHeight} group relative ${isSelected ? 'selected' : ''}`}
+      className={`myk9-table-row ${density.rowHeight} group relative ${isSelected ? 'selected' : ''}`}
       onClick={() => onUserClick(user)}
     >
       {/* Selection Checkbox */}
       <TableCell
         onClick={(e) => e.stopPropagation()}
-        className="apple-table-cell"
+        className="myk9-table-cell"
       >
         <Checkbox
           checked={isSelected}
           onCheckedChange={(checked) => onSelectUser(user, !!checked)}
-          className="apple-table-checkbox"
+          className="myk9-table-checkbox"
         />
       </TableCell>
 
       {/* User Information */}
-      <TableCell className="apple-table-cell">
+      <TableCell className="myk9-table-cell">
         <div className={`flex items-center ${density.spacing}`}>
           <div className="relative">
             <Avatar
@@ -117,7 +117,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       </TableCell>
 
       {/* Contact Information */}
-      <TableCell className="apple-table-cell">
+      <TableCell className="myk9-table-cell">
         <div className="space-y-2">
           {user.email && (
             <div
@@ -162,7 +162,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       </TableCell>
 
       {/* Roles and Affiliations */}
-      <TableCell className="apple-table-cell">
+      <TableCell className="myk9-table-cell">
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             {user.roles?.map((role) => {
@@ -217,7 +217,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       </TableCell>
 
       {/* Last Activity */}
-      <TableCell className="apple-table-cell">
+      <TableCell className="myk9-table-cell">
         <div
           className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}
         >
@@ -239,7 +239,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       </TableCell>
 
       {/* Status Badge */}
-      <TableCell className="apple-table-cell">
+      <TableCell className="myk9-table-cell">
         <Badge
           variant="outline"
           className="text-xs font-[590] px-3 py-1 rounded-full border-0 flex items-center gap-1.5 transition-all duration-200"
@@ -256,7 +256,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       {/* Actions Menu */}
       <TableCell
         onClick={(e) => e.stopPropagation()}
-        className="apple-table-cell text-center"
+        className="myk9-table-cell text-center"
       >
         <RowActions
           user={user}

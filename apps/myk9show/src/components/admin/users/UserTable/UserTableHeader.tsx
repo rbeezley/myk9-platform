@@ -49,14 +49,14 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
     'group h-auto p-0 font-[650] text-sm text-muted-foreground transition-all duration-300 uppercase tracking-[0.04em] flex items-center gap-2';
 
   return (
-    <TableHeader className="apple-table-header">
-      <TableRow className="apple-table-header-row">
+    <TableHeader className="myk9-table-header">
+      <TableRow className="myk9-table-header-row">
         {/* Select All Checkbox */}
-        <TableHead className="apple-table-header-cell w-16">
+        <TableHead className="myk9-table-header-cell w-16">
           <Checkbox
             checked={allSelected}
             onCheckedChange={(checked) => onSelectAll(!!checked)}
-            className="apple-table-checkbox"
+            className="myk9-table-checkbox"
             data-state={
               someSelected
                 ? 'indeterminate'
@@ -68,7 +68,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
         </TableHead>
 
         {/* User Column */}
-        <TableHead className="apple-table-header-cell">
+        <TableHead className="myk9-table-header-cell">
           <Button
             variant="ghost"
             className={sortButtonClass}
@@ -80,7 +80,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
         </TableHead>
 
         {/* Contact Column */}
-        <TableHead className="apple-table-header-cell">
+        <TableHead className="myk9-table-header-cell">
           <Button
             variant="ghost"
             className={sortButtonClass}
@@ -92,7 +92,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
         </TableHead>
 
         {/* Roles Column */}
-        <TableHead className="apple-table-header-cell">
+        <TableHead className="myk9-table-header-cell">
           <Button
             variant="ghost"
             className={sortButtonClass}
@@ -104,7 +104,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
         </TableHead>
 
         {/* Last Activity Column */}
-        <TableHead className="apple-table-header-cell">
+        <TableHead className="myk9-table-header-cell">
           <Button
             variant="ghost"
             className={sortButtonClass}
@@ -116,14 +116,14 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
         </TableHead>
 
         {/* Status Column */}
-        <TableHead className="apple-table-header-cell">
+        <TableHead className="myk9-table-header-cell">
           <span className="font-[650] text-sm text-muted-foreground uppercase tracking-[0.04em]">
             Status
           </span>
         </TableHead>
 
         {/* Actions Column */}
-        <TableHead className="apple-table-header-cell w-16 text-center">
+        <TableHead className="myk9-table-header-cell w-16 text-center">
           <span className="font-[650] text-sm text-muted-foreground uppercase tracking-[0.04em]">
             Actions
           </span>

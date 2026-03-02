@@ -20,8 +20,8 @@ import AccountSummaryCard from './AccountSummaryCard';
 
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
-import '@/styles/apple-user-details.css';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-user-details.css';
+import '@/styles/myk9-show-details.css';
 
 interface UserDetailsViewProps {
   person: UserType;

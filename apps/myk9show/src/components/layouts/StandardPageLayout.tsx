@@ -1,7 +1,7 @@
 /**
  * StandardPageLayout Component
  *
- * Apple-inspired standard page layout for non-dashboard pages.
+ * Premium standard page layout for non-dashboard pages.
  * Provides consistent structure, spacing, and navigation clearance.
  */
 

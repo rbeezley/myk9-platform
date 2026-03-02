@@ -16,10 +16,10 @@ export function HeaderActions({
   onCSVImport
 }: HeaderActionsProps) {
   return (
-    <div className="apple-show-info-card">
-      <div className="apple-show-info-header">
+    <div className="myk9-show-info-card">
+      <div className="myk9-show-info-header">
         <div>
-          <div className="apple-show-info-title">Bulk Result Entry</div>
+          <div className="myk9-show-info-title">Bulk Result Entry</div>
           <p className="text-sm text-muted-foreground mt-1">
             Enter results for multiple entries quickly
           </p>
@@ -29,7 +29,7 @@ export function HeaderActions({
           <Button
             variant="outline"
             onClick={onDownloadTemplate}
-            className="apple-action-button"
+            className="myk9-action-button"
           >
             <Download className="h-4 w-4" />
             <span>Download Template</span>
@@ -38,7 +38,7 @@ export function HeaderActions({
           <Button
             variant="outline"
             onClick={onImportClick}
-            className="apple-action-button"
+            className="myk9-action-button"
           >
             <Upload className="h-4 w-4" />
             <span>Import CSV</span>

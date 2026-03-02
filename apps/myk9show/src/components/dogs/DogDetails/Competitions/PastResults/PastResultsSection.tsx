@@ -56,14 +56,14 @@ const PastResultsSection: React.FC<{ addDialogOpen: boolean; setAddDialogOpen: (
   }, [addDialogOpen]);
 
   return (
-    <div className="apple-section-content">
+    <div className="myk9-section-content">
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {results.map((result) => (
-          <div key={result.id} className="apple-record-card">
-            <div className="apple-record-header">
+          <div key={result.id} className="myk9-record-card">
+            <div className="myk9-record-header">
               <div className="flex items-center gap-2">
                 <ShowSourceBadge source={result.source === 'external' ? 'external' : 'myK9Show'} />
-                <span className="apple-record-title">{result.showName}</span>
+                <span className="myk9-record-title">{result.showName}</span>
               </div>
               <ThreeDotMenu
                 items={[
@@ -73,8 +73,8 @@ const PastResultsSection: React.FC<{ addDialogOpen: boolean; setAddDialogOpen: (
                 ]}
               />
             </div>
-            <div className="apple-record-content">
-              <div className="apple-record-meta mb-2">
+            <div className="myk9-record-content">
+              <div className="myk9-record-meta mb-2">
                 Class: {result.className} • Judge: {result.judge || 'N/A'}
               </div>
               <div className="flex gap-2 flex-wrap mb-2">
@@ -85,7 +85,7 @@ const PastResultsSection: React.FC<{ addDialogOpen: boolean; setAddDialogOpen: (
                   {result.points} pts
                 </span>
               </div>
-              <div className="apple-record-meta">
+              <div className="myk9-record-meta">
                 {result.date ? formatDateMMDDYYYY(result.date) : ''}
               </div>
             </div>

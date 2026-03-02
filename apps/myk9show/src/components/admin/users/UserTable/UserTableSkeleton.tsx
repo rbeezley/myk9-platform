@@ -1,5 +1,5 @@
 /**
- * UserTableSkeleton - Loading state with Apple-inspired shimmer effect
+ * UserTableSkeleton - Loading state with Premium shimmer effect
  */
 
 import React from 'react';
@@ -39,43 +39,43 @@ export const UserTableSkeleton: React.FC<UserTableSkeletonProps> = ({
       </div>
 
       {/* Table skeleton */}
-      <div className="apple-table-container">
-        <Table className="apple-table">
-          <TableHeader className="apple-table-header">
-            <TableRow className="apple-table-header-row">
-              <TableHead className="apple-table-header-cell w-16">
+      <div className="myk9-table-container">
+        <Table className="myk9-table">
+          <TableHeader className="myk9-table-header">
+            <TableRow className="myk9-table-header-row">
+              <TableHead className="myk9-table-header-cell w-16">
                 <Skeleton className="h-5 w-5 rounded-md" />
               </TableHead>
-              <TableHead className="apple-table-header-cell">
+              <TableHead className="myk9-table-header-cell">
                 <Skeleton className="h-4 w-16 rounded-md" />
               </TableHead>
-              <TableHead className="apple-table-header-cell">
+              <TableHead className="myk9-table-header-cell">
                 <Skeleton className="h-4 w-20 rounded-md" />
               </TableHead>
-              <TableHead className="apple-table-header-cell">
+              <TableHead className="myk9-table-header-cell">
                 <Skeleton className="h-4 w-16 rounded-md" />
               </TableHead>
-              <TableHead className="apple-table-header-cell">
+              <TableHead className="myk9-table-header-cell">
                 <Skeleton className="h-4 w-24 rounded-md" />
               </TableHead>
-              <TableHead className="apple-table-header-cell">
+              <TableHead className="myk9-table-header-cell">
                 <Skeleton className="h-4 w-16 rounded-md" />
               </TableHead>
-              <TableHead className="apple-table-header-cell w-16">
+              <TableHead className="myk9-table-header-cell w-16">
                 <Skeleton className="h-4 w-12 rounded-md" />
               </TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="apple-table-body">
+          <TableBody className="myk9-table-body">
             {Array.from({ length: 8 }).map((_, i) => (
               <TableRow
                 key={i}
-                className={`apple-table-skeleton-row ${density.rowHeight}`}
+                className={`myk9-table-skeleton-row ${density.rowHeight}`}
               >
-                <TableCell className="apple-table-cell">
+                <TableCell className="myk9-table-cell">
                   <Skeleton className="h-5 w-5 rounded-md" />
                 </TableCell>
-                <TableCell className="apple-table-cell">
+                <TableCell className="myk9-table-cell">
                   <div className={`flex items-center ${density.spacing}`}>
                     <Skeleton
                       className={`${density.avatarSize} rounded-full ring-2 ring-border/20 ring-offset-2 ring-offset-background`}
@@ -86,7 +86,7 @@ export const UserTableSkeleton: React.FC<UserTableSkeletonProps> = ({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="apple-table-cell">
+                <TableCell className="myk9-table-cell">
                   <div className="space-y-2">
                     <div
                       className={`flex items-center ${density.spacing}`}
@@ -102,13 +102,13 @@ export const UserTableSkeleton: React.FC<UserTableSkeletonProps> = ({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="apple-table-cell">
+                <TableCell className="myk9-table-cell">
                   <div className="flex flex-wrap gap-2">
                     <Skeleton className="h-6 w-16 rounded-full" />
                     <Skeleton className="h-6 w-20 rounded-full" />
                   </div>
                 </TableCell>
-                <TableCell className="apple-table-cell">
+                <TableCell className="myk9-table-cell">
                   <div
                     className={`flex items-center ${density.spacing}`}
                   >
@@ -116,10 +116,10 @@ export const UserTableSkeleton: React.FC<UserTableSkeletonProps> = ({
                     <Skeleton className="h-3 w-24 rounded-md" />
                   </div>
                 </TableCell>
-                <TableCell className="apple-table-cell">
+                <TableCell className="myk9-table-cell">
                   <Skeleton className="h-6 w-16 rounded-full" />
                 </TableCell>
-                <TableCell className="apple-table-cell">
+                <TableCell className="myk9-table-cell">
                   <Skeleton className="h-9 w-9 rounded-xl" />
                 </TableCell>
               </TableRow>

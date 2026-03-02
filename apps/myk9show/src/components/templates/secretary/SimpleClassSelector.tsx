@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { logger } from '@/services/LoggingService';
 import { Search, CheckSquare, Square, Filter, User } from 'lucide-react';
-import '@/styles/apple-class-selection.css';
+import '@/styles/myk9-class-selection.css';
 
 interface SimpleClassSelectorProps {
   template: ClassTemplate;
@@ -208,20 +208,20 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   };
 
   return (
-    <div className="apple-class-selector w-full">
+    <div className="myk9-class-selector w-full">
       {/* Streamlined Filters and Search */}
-      <div className="apple-class-filters">
-        <div className="apple-class-filters-row">
+      <div className="myk9-class-filters">
+        <div className="myk9-class-filters-row">
           {/* Search with Selection Count */}
-          <div className="apple-class-search">
-            <div className="apple-class-search-wrapper relative">
-              <Search className="apple-class-search-icon" />
+          <div className="myk9-class-search">
+            <div className="myk9-class-search-wrapper relative">
+              <Search className="myk9-class-search-icon" />
               <input
                 type="text"
                 placeholder="Search classes..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="apple-class-search-input pr-20"
+                className="myk9-class-search-input pr-20"
               />
               {selectedClasses.length > 0 && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium">
@@ -232,7 +232,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
           </div>
 
           {/* Element Filter */}
-          <div className="apple-class-filter-select">
+          <div className="myk9-class-filter-select">
             <Select value={filterElement} onValueChange={setFilterElement}>
               <SelectTrigger className="select-trigger">
                 <SelectValue placeholder="Element" />
@@ -249,7 +249,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
           </div>
 
           {/* Level Filter */}
-          <div className="apple-class-filter-select">
+          <div className="myk9-class-filter-select">
             <Select value={filterLevel} onValueChange={setFilterLevel}>
               <SelectTrigger className="select-trigger">
                 <SelectValue placeholder="Level" />
@@ -266,11 +266,11 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
           </div>
 
           {/* Bulk Actions */}
-          <div className="apple-class-bulk-actions">
+          <div className="myk9-class-bulk-actions">
             <button
               type="button"
               onClick={allSelected ? clearAll : selectAll}
-              className="apple-class-bulk-button"
+              className="myk9-class-bulk-button"
             >
               {allSelected ? (
                 <>
@@ -288,7 +288,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
         </div>
       </div>
 
-      {/* Classes by Element - Apple-inspired design */}
+      {/* Classes by Element - Premium design */}
       <div className="space-y-5">
         {Object.keys(classesByElement).length > 0 ? (
           Object.entries(classesByElement).map(([element, elementClasses]) => {
@@ -330,12 +330,12 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
             };
 
             return (
-              <div key={element} className="apple-class-element-section">
+              <div key={element} className="myk9-class-element-section">
                 {/* Element Header */}
-                <div className="apple-class-element-header">
-                  <div className="apple-class-element-info flex-wrap">
+                <div className="myk9-class-element-header">
+                  <div className="myk9-class-element-info flex-wrap">
                     <div
-                      className={`apple-class-element-checkbox ${
+                      className={`myk9-class-element-checkbox ${
                         allElementClassesSelected
                           ? 'checked'
                           : someElementClassesSelected
@@ -353,10 +353,10 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                         }
                       }}
                     />
-                    <h3 className="apple-class-element-title" onClick={toggleAllElementClasses}>
+                    <h3 className="myk9-class-element-title" onClick={toggleAllElementClasses}>
                       {element}
                     </h3>
-                    <div className="apple-class-element-count">{elementClasses.length} classes</div>
+                    <div className="myk9-class-element-count">{elementClasses.length} classes</div>
 
                     {/* Judge Assignment for Element - moved here */}
                     {availableJudges.length > 0 && (
@@ -383,7 +383,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                   </div>
 
                   <span
-                    className="apple-class-element-select-all"
+                    className="myk9-class-element-select-all"
                     onClick={toggleAllElementClasses}
                   >
                     Select All {element}
@@ -392,7 +392,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
 
                 {/* Classes Grid - Use fewer columns when judges are being assigned */}
                 <div
-                  className={`apple-class-cards-grid ${availableJudges.length > 0 ? 'judge-mode' : ''}`}
+                  className={`myk9-class-cards-grid ${availableJudges.length > 0 ? 'judge-mode' : ''}`}
                 >
                   {elementClasses.map((classDefinition, index) => {
                     const isSelected = isClassSelected(classDefinition);
@@ -414,7 +414,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                     return (
                       <div
                         key={`${element}-${classDefinition.level}-${classDefinition.section}-${index}`}
-                        className={`apple-class-card ${isSelected ? 'selected' : ''} ${isExisting ? 'existing' : ''}`}
+                        className={`myk9-class-card ${isSelected ? 'selected' : ''} ${isExisting ? 'existing' : ''}`}
                         onClick={handleCardClick}
                         role="checkbox"
                         aria-checked={isSelected}
@@ -429,17 +429,17 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                       >
                         {/* Checkbox */}
                         <div
-                          className={`apple-class-card-checkbox ${isExisting ? 'disabled' : ''}`}
+                          className={`myk9-class-card-checkbox ${isExisting ? 'disabled' : ''}`}
                           onClick={handleCheckboxClick}
                         />
 
                         {/* Class content */}
-                        <div className="apple-class-card-content">
-                          <div className={`apple-class-card-level ${isExisting ? 'disabled' : ''}`}>
+                        <div className="myk9-class-card-content">
+                          <div className={`myk9-class-card-level ${isExisting ? 'disabled' : ''}`}>
                             {classDefinition.level || element}
                             {classDefinition.section && (
                               <span
-                                className={`apple-class-card-section-inline ${isExisting ? 'disabled' : ''}`}
+                                className={`myk9-class-card-section-inline ${isExisting ? 'disabled' : ''}`}
                               >
                                 {classDefinition.section}
                               </span>
@@ -486,7 +486,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                           )}
 
                           {isExisting && (
-                            <div className="apple-class-card-existing-badge">Already in trial</div>
+                            <div className="myk9-class-card-existing-badge">Already in trial</div>
                           )}
                         </div>
                       </div>
@@ -497,10 +497,10 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
             );
           })
         ) : (
-          <div className="apple-class-empty-state">
-            <Filter className="apple-class-empty-icon" />
-            <h3 className="apple-class-empty-title">No Classes Found</h3>
-            <p className="apple-class-empty-description">
+          <div className="myk9-class-empty-state">
+            <Filter className="myk9-class-empty-icon" />
+            <h3 className="myk9-class-empty-title">No Classes Found</h3>
+            <p className="myk9-class-empty-description">
               {searchTerm || filterElement !== 'all' || filterLevel !== 'all'
                 ? 'No classes match your current filters.'
                 : "This template doesn't have any classes defined."}
@@ -508,7 +508,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
             {(searchTerm || filterElement !== 'all' || filterLevel !== 'all') && (
               <button
                 type="button"
-                className="apple-class-clear-filters"
+                className="myk9-class-clear-filters"
                 onClick={() => {
                   setSearchTerm('');
                   setFilterElement('all');

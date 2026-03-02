@@ -1,10 +1,10 @@
-/* Apple-Inspired Class Details Styles */
+/* myK9 Class Details Styles */
 
-/* Extend apple-show-details.css for class-specific styling */
-@import './apple-show-details.css';
+/* Extend myk9-show-details.css for class-specific styling */
+@import './myk9-show-details.css';
 
 /* Class Page Layout */
-.apple-class-page {
+.myk9-class-page {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
@@ -12,7 +12,7 @@
 }
 
 /* Class Sidebar Specific Styling */
-.apple-class-sidebar {
+.myk9-class-sidebar {
   background: var(--card);
   border-right: 0.5px solid var(--border);
   backdrop-filter: blur(40px);
@@ -20,12 +20,12 @@
   max-width: 400px;
 }
 
-.apple-class-sidebar-header {
+.myk9-class-sidebar-header {
   padding: 20px 16px 12px 16px;
   border-bottom: 0.5px solid var(--border);
 }
 
-.apple-class-sidebar-title {
+.myk9-class-sidebar-title {
   font-size: 22px;
   font-weight: 650;
   color: var(--foreground);
@@ -34,12 +34,12 @@
   gap: 8px;
 }
 
-.apple-class-sidebar-search {
+.myk9-class-sidebar-search {
   padding: 12px 16px;
   border-bottom: 0.5px solid var(--border);
 }
 
-.apple-class-sidebar-search-input {
+.myk9-class-sidebar-search-input {
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -49,18 +49,18 @@
   width: 100%;
 }
 
-.apple-class-sidebar-search-input:focus {
+.myk9-class-sidebar-search-input:focus {
   outline: none;
   border-color: #007AFF;
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
 /* Class Group Sections */
-.apple-class-group {
+.myk9-class-group {
   margin-bottom: 4px;
 }
 
-.apple-class-group-header {
+.myk9-class-group-header {
   width: 100%;
   justify-content: space-between;
   padding: 12px 16px;
@@ -77,12 +77,12 @@
   letter-spacing: 0.02em;
 }
 
-.apple-class-group-header:hover {
+.myk9-class-group-header:hover {
   background: var(--muted);
   color: var(--foreground);
 }
 
-.apple-class-sidebar-item {
+.myk9-class-sidebar-item {
   padding: 12px 16px;
   margin: 2px 8px;
   border-radius: 10px;
@@ -91,32 +91,32 @@
   border: 1px solid transparent;
 }
 
-.apple-class-sidebar-item:hover {
+.myk9-class-sidebar-item:hover {
   background: var(--muted);
   transform: translateX(2px);
 }
 
-.apple-class-sidebar-item.selected {
+.myk9-class-sidebar-item.selected {
   background: rgba(0, 122, 255, 0.1);
   border-color: rgba(0, 122, 255, 0.3);
   color: #007AFF;
 }
 
-.apple-class-sidebar-name {
+.myk9-class-sidebar-name {
   font-size: 14px;
   font-weight: 590;
   margin-bottom: 2px;
   line-height: 1.2;
 }
 
-.apple-class-sidebar-details {
+.myk9-class-sidebar-details {
   font-size: 11px;
   color: var(--muted-foreground);
   line-height: 1.2;
 }
 
 /* Class Information Card */
-.apple-class-info-card {
+.myk9-class-info-card {
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 20px;
@@ -127,7 +127,7 @@
   overflow: hidden;
 }
 
-.apple-class-info-card::before {
+.myk9-class-info-card::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -139,7 +139,7 @@
   opacity: 0.3;
 }
 
-.apple-class-info-header {
+.myk9-class-info-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -148,7 +148,7 @@
   z-index: 10;
 }
 
-.apple-class-info-title {
+.myk9-class-info-title {
   font-size: 24px;
   font-weight: 650;
   line-height: 1.2;
@@ -156,13 +156,13 @@
   margin-bottom: 8px;
 }
 
-.apple-class-info-subtitle {
+.myk9-class-info-subtitle {
   font-size: 16px;
   color: var(--muted-foreground);
   margin-bottom: 4px;
 }
 
-.apple-class-status-badge {
+.myk9-class-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -174,25 +174,25 @@
   letter-spacing: 0.02em;
 }
 
-.apple-class-status-scheduled {
+.myk9-class-status-scheduled {
   background: rgba(52, 199, 89, 0.1);
   color: #34C759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
-.apple-class-status-in-progress {
+.myk9-class-status-in-progress {
   background: rgba(255, 149, 0, 0.1);
   color: #FF9500;
   border: 1px solid rgba(255, 149, 0, 0.2);
 }
 
-.apple-class-status-completed {
+.myk9-class-status-completed {
   background: rgba(88, 86, 214, 0.1);
   color: #5856D6;
   border: 1px solid rgba(88, 86, 214, 0.2);
 }
 
-.apple-class-info-grid {
+.myk9-class-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 24px;
@@ -200,13 +200,13 @@
   z-index: 10;
 }
 
-.apple-class-info-item {
+.myk9-class-info-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.apple-class-info-label {
+.myk9-class-info-label {
   font-size: 13px;
   font-weight: 590;
   text-transform: uppercase;
@@ -214,21 +214,21 @@
   color: var(--muted-foreground);
 }
 
-.apple-class-info-value {
+.myk9-class-info-value {
   font-size: 16px;
   font-weight: 500;
   color: var(--foreground);
 }
 
 /* Enhanced Statistics Cards */
-.apple-class-stats-grid {
+.myk9-class-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 24px;
   margin-bottom: 32px;
 }
 
-.apple-class-stat-card {
+.myk9-class-stat-card {
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 16px;
@@ -239,20 +239,20 @@
   overflow: hidden;
 }
 
-.apple-class-stat-card:hover {
+.myk9-class-stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
   border-color: rgba(0, 122, 255, 0.2);
 }
 
-.apple-class-stat-layout {
+.myk9-class-stat-layout {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
 }
 
-.apple-class-stat-icon {
+.myk9-class-stat-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -264,28 +264,28 @@
   flex-shrink: 0;
 }
 
-.apple-class-stat-icon.entries {
+.myk9-class-stat-icon.entries {
   background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
 }
 
-.apple-class-stat-icon.qualified {
+.myk9-class-stat-icon.qualified {
   background: linear-gradient(135deg, #5856D6 0%, #AF52DE 100%);
 }
 
-.apple-class-stat-icon.score {
+.myk9-class-stat-icon.score {
   background: linear-gradient(135deg, #FF9500 0%, #FF6200 100%);
 }
 
-.apple-class-stat-icon.time {
+.myk9-class-stat-icon.time {
   background: linear-gradient(135deg, #007AFF 0%, #00C7BE 100%);
 }
 
-.apple-class-stat-content {
+.myk9-class-stat-content {
   text-align: left;
   flex: 1;
 }
 
-.apple-class-stat-title {
+.myk9-class-stat-title {
   font-size: 13px;
   font-weight: 590;
   text-transform: uppercase;
@@ -294,7 +294,7 @@
   margin-bottom: 4px;
 }
 
-.apple-class-stat-number {
+.myk9-class-stat-number {
   font-size: 32px;
   font-weight: 700;
   line-height: 1.0;
@@ -302,7 +302,7 @@
   margin-bottom: 12px;
 }
 
-.apple-class-stat-details {
+.myk9-class-stat-details {
   display: flex;
   justify-content: space-between;
   font-size: 13px;
@@ -310,7 +310,7 @@
   margin-bottom: 12px;
 }
 
-.apple-class-stat-progress {
+.myk9-class-stat-progress {
   width: 100%;
   height: 4px;
   background: var(--muted);
@@ -318,30 +318,30 @@
   overflow: hidden;
 }
 
-.apple-class-stat-progress-bar {
+.myk9-class-stat-progress-bar {
   height: 100%;
   border-radius: 2px;
   transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.apple-class-stat-progress-bar.entries {
+.myk9-class-stat-progress-bar.entries {
   background: linear-gradient(90deg, #34C759 0%, #30D158 100%);
 }
 
-.apple-class-stat-progress-bar.qualified {
+.myk9-class-stat-progress-bar.qualified {
   background: linear-gradient(90deg, #5856D6 0%, #AF52DE 100%);
 }
 
-.apple-class-stat-progress-bar.score {
+.myk9-class-stat-progress-bar.score {
   background: linear-gradient(90deg, #FF9500 0%, #FF6200 100%);
 }
 
-.apple-class-stat-progress-bar.time {
+.myk9-class-stat-progress-bar.time {
   background: linear-gradient(90deg, #007AFF 0%, #00C7BE 100%);
 }
 
 /* Entries Section */
-.apple-class-entries-section {
+.myk9-class-entries-section {
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 20px;
@@ -349,14 +349,14 @@
   backdrop-filter: blur(20px);
 }
 
-.apple-class-entries-header {
+.myk9-class-entries-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.apple-class-entries-title {
+.myk9-class-entries-title {
   font-size: 22px;
   font-weight: 650;
   color: var(--foreground);
@@ -365,7 +365,7 @@
   gap: 12px;
 }
 
-.apple-class-entries-icon {
+.myk9-class-entries-icon {
   width: 32px;
   height: 32px;
   border-radius: 8px;
@@ -378,7 +378,7 @@
 }
 
 /* Photo Section */
-.apple-class-photo-section {
+.myk9-class-photo-section {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -386,7 +386,7 @@
   margin-bottom: 24px;
 }
 
-.apple-class-photo {
+.myk9-class-photo {
   width: 120px;
   height: 120px;
   border-radius: 20px;
@@ -399,7 +399,7 @@
   color: var(--muted-foreground);
 }
 
-.apple-class-photo-button {
+.myk9-class-photo-button {
   font-size: 13px;
   font-weight: 590;
   color: #007AFF;
@@ -409,41 +409,41 @@
   transition: all 0.2s ease;
 }
 
-.apple-class-photo-button:hover {
+.myk9-class-photo-button:hover {
   color: #0056CC;
   transform: translateY(-1px);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .apple-class-sidebar {
+  .myk9-class-sidebar {
     min-width: 280px;
   }
   
-  .apple-class-info-card,
-  .apple-class-entries-section {
+  .myk9-class-info-card,
+  .myk9-class-entries-section {
     padding: 24px;
     border-radius: 16px;
   }
   
-  .apple-class-stats-grid {
+  .myk9-class-stats-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
   
-  .apple-class-info-grid {
+  .myk9-class-info-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
   
-  .apple-class-stat-card:hover {
+  .myk9-class-stat-card:hover {
     transform: none;
   }
 }
 
 /* Dark mode adjustments */
-.dark .apple-class-info-card,
-.dark .apple-class-stat-card,
-.dark .apple-class-entries-section {
+.dark .myk9-class-info-card,
+.dark .myk9-class-stat-card,
+.dark .myk9-class-entries-section {
   backdrop-filter: blur(40px);
 }

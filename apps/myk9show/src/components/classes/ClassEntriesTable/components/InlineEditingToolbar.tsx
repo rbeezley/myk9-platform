@@ -43,7 +43,7 @@ export const InlineEditingToolbar: React.FC<InlineEditingToolbarProps> = ({
               variant={enableInlineEditing ? 'default' : 'outline'}
               size="sm"
               onClick={onToggleInlineEditing}
-              className="apple-action-button"
+              className="myk9-action-button"
               disabled={!canBulkEdit}
             >
               <Pencil className="h-4 w-4 mr-2" />
@@ -60,7 +60,7 @@ export const InlineEditingToolbar: React.FC<InlineEditingToolbarProps> = ({
                     size="sm"
                     onClick={onToggleAutoSave}
                     className={cn(
-                      'apple-action-button',
+                      'myk9-action-button',
                       autoSaveEnabled && 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
                     )}
                   >

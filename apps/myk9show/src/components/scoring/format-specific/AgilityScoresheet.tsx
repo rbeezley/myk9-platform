@@ -9,7 +9,7 @@ import { useState, useCallback } from 'react';
 import { Clock, Zap, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 // UI Components
 import { Button } from '@/components/ui/button';

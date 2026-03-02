@@ -29,14 +29,14 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
         return (
           <div
             key={dog.id}
-            className="apple-browse-card cursor-pointer"
+            className="myk9-browse-card cursor-pointer"
             onClick={() => navigate(`/dogs/${dog.id}`)}
             role="link"
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && navigate(`/dogs/${dog.id}`)}
           >
-            <div className="apple-browse-card-header">
-              <div className="apple-browse-card-badges">
+            <div className="myk9-browse-card-header">
+              <div className="myk9-browse-card-badges">
                 {sexLabel && (
                   <Badge
                     variant="secondary"
@@ -72,7 +72,7 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
               </div>
             </div>
 
-            <div className="apple-browse-card-content">
+            <div className="myk9-browse-card-content">
               {/* Dog identity: photo/initial + call name */}
               <div className="flex items-center gap-3 mb-2">
                 {dog.imageUrl ? (
@@ -86,20 +86,20 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
                     {getDogInitial(dog)}
                   </div>
                 )}
-                <h3 className="apple-browse-card-title">{dog.callName || dog.name}</h3>
+                <h3 className="myk9-browse-card-title">{dog.callName || dog.name}</h3>
               </div>
 
-              <div className="apple-browse-card-details">
+              <div className="myk9-browse-card-details">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {dog.breed && (
-                    <div className="apple-browse-card-detail-item">
+                    <div className="myk9-browse-card-detail-item">
                       <PawPrint className="h-4 w-4" />
                       <span>{dog.breed}</span>
                     </div>
                   )}
 
                   {dog.ownerName && (
-                    <div className="apple-browse-card-detail-item">
+                    <div className="myk9-browse-card-detail-item">
                       <User className="h-4 w-4" />
                       <span>{dog.ownerName}</span>
                     </div>
@@ -107,12 +107,12 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
                 </div>
               </div>
 
-              <div className="apple-browse-card-footer">
+              <div className="myk9-browse-card-footer">
                 <div />
                 <Button
                   variant="outline"
                   size="sm"
-                  className="apple-browse-view-details-btn"
+                  className="myk9-browse-view-details-btn"
                   onClick={e => {
                     e.stopPropagation();
                     navigate(`/dogs/${dog.id}`);

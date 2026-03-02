@@ -41,7 +41,7 @@ import type {
   ScentWorkClassConfig,
   QualificationStatus,
 } from '@/types/scent-work-types';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 interface ClassDetailsMainProps {
   classData: ClassData;
@@ -224,13 +224,13 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   const getStatusClass = useCallback((status: string) => {
     switch (status) {
       case CLASS_STATUS.SCHEDULED:
-        return 'apple-show-status-upcoming';
+        return 'myk9-show-status-upcoming';
       case CLASS_STATUS.IN_PROGRESS:
-        return 'apple-show-status-in-progress';
+        return 'myk9-show-status-in-progress';
       case CLASS_STATUS.COMPLETED:
-        return 'apple-show-status-completed';
+        return 'myk9-show-status-completed';
       default:
-        return 'apple-show-status-upcoming';
+        return 'myk9-show-status-upcoming';
     }
   }, []);
 
@@ -405,19 +405,19 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   );
 
   return (
-    <div className="apple-show-container">
+    <div className="myk9-show-container">
       {/* Breadcrumb Navigation */}
       <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
 
       {/* Class Information Card - using CLASS-SPECIFIC fields */}
-      <div className="apple-show-info-card">
-        <div className="apple-show-info-header">
+      <div className="myk9-show-info-card">
+        <div className="myk9-show-info-header">
           <div>
             <div className="flex items-center gap-3">
-              <div className="apple-show-info-title">{formatClassTitle()}</div>
+              <div className="myk9-show-info-title">{formatClassTitle()}</div>
               <button
                 onClick={isResultsView ? undefined : handleStatusClick}
-                className={`apple-show-status ${getStatusClass(classData.status)} ${onStatusChange && !isResultsView ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                className={`myk9-show-status ${getStatusClass(classData.status)} ${onStatusChange && !isResultsView ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                 disabled={!onStatusChange || isResultsView}
                 title={onStatusChange && !isResultsView ? 'Click to change status' : undefined}
               >
@@ -449,40 +449,40 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
         </div>
 
         {/* Essential Information - Always Visible */}
-        <div className="apple-show-info-grid">
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Trial</div>
-            <div className="apple-show-info-value">{classData.trial}</div>
+        <div className="myk9-show-info-grid">
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Trial</div>
+            <div className="myk9-show-info-value">{classData.trial}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Trial Date</div>
-            <div className="apple-show-info-value">
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Trial Date</div>
+            <div className="myk9-show-info-value">
               {new Date(classData.trialDate).toLocaleDateString()}
             </div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Judge</div>
-            <div className="apple-show-info-value">{classData.judge}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Judge</div>
+            <div className="myk9-show-info-value">{classData.judge}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Class Order</div>
-            <div className="apple-show-info-value">#{classData.classOrder}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Class Order</div>
+            <div className="myk9-show-info-value">#{classData.classOrder}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Entry Fee</div>
-            <div className="apple-show-info-value">${classData.entryFee}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Entry Fee</div>
+            <div className="myk9-show-info-value">${classData.entryFee}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Max Entries</div>
-            <div className="apple-show-info-value">{classData.maxEntries}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Max Entries</div>
+            <div className="myk9-show-info-value">{classData.maxEntries}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Time Limit</div>
-            <div className="apple-show-info-value">{classData.timeLimit1}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Time Limit</div>
+            <div className="myk9-show-info-value">{classData.timeLimit1}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Trial Number</div>
-            <div className="apple-show-info-value">{classData.trialNumber}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Trial Number</div>
+            <div className="myk9-show-info-value">{classData.trialNumber}</div>
           </div>
         </div>
 
@@ -504,41 +504,41 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             forceCollapsed={forceCollapseAll}
           >
             {classData.estimatedJudgingTime && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Estimated Judging Time</div>
-                <div className="apple-show-info-value">{classData.estimatedJudgingTime}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Estimated Judging Time</div>
+                <div className="myk9-show-info-value">{classData.estimatedJudgingTime}</div>
               </div>
             )}
             {classData.timeLimit1 && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Time Limit 1</div>
-                <div className="apple-show-info-value">{classData.timeLimit1}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Time Limit 1</div>
+                <div className="myk9-show-info-value">{classData.timeLimit1}</div>
               </div>
             )}
             {classData.timeLimit2 && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Time Limit 2</div>
-                <div className="apple-show-info-value">{classData.timeLimit2}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Time Limit 2</div>
+                <div className="myk9-show-info-value">{classData.timeLimit2}</div>
               </div>
             )}
             {classData.timeLimit3 && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Time Limit 3</div>
-                <div className="apple-show-info-value">{classData.timeLimit3}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Time Limit 3</div>
+                <div className="myk9-show-info-value">{classData.timeLimit3}</div>
               </div>
             )}
             {classData.startTime && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Start Time</div>
-                <div className="apple-show-info-value">
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Start Time</div>
+                <div className="myk9-show-info-value">
                   {new Date(classData.startTime).toLocaleTimeString()}
                 </div>
               </div>
             )}
             {classData.endTime && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">End Time</div>
-                <div className="apple-show-info-value">
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">End Time</div>
+                <div className="myk9-show-info-value">
                   {new Date(classData.endTime).toLocaleTimeString()}
                 </div>
               </div>
@@ -556,39 +556,39 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             forceCollapsed={forceCollapseAll}
           >
             {classData.gateSteward && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Gate Steward</div>
-                <div className="apple-show-info-value">{classData.gateSteward}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Gate Steward</div>
+                <div className="myk9-show-info-value">{classData.gateSteward}</div>
               </div>
             )}
             {classData.tableSteward && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Table Steward</div>
-                <div className="apple-show-info-value">{classData.tableSteward}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Table Steward</div>
+                <div className="myk9-show-info-value">{classData.tableSteward}</div>
               </div>
             )}
             {classData.timerSteward && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Timer Steward</div>
-                <div className="apple-show-info-value">{classData.timerSteward}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Timer Steward</div>
+                <div className="myk9-show-info-value">{classData.timerSteward}</div>
               </div>
             )}
             {classData.ringSteward1 && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Ring Steward 1</div>
-                <div className="apple-show-info-value">{classData.ringSteward1}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Ring Steward 1</div>
+                <div className="myk9-show-info-value">{classData.ringSteward1}</div>
               </div>
             )}
             {classData.ringSteward2 && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Ring Steward 2</div>
-                <div className="apple-show-info-value">{classData.ringSteward2}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Ring Steward 2</div>
+                <div className="myk9-show-info-value">{classData.ringSteward2}</div>
               </div>
             )}
             {classData.ringSteward3 && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Ring Steward 3</div>
-                <div className="apple-show-info-value">{classData.ringSteward3}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Ring Steward 3</div>
+                <div className="myk9-show-info-value">{classData.ringSteward3}</div>
               </div>
             )}
           </ExpandableSection>
@@ -604,27 +604,27 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             forceCollapsed={forceCollapseAll}
           >
             {classData.hidesUsed && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Hides Used</div>
-                <div className="apple-show-info-value">{classData.hidesUsed}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Hides Used</div>
+                <div className="myk9-show-info-value">{classData.hidesUsed}</div>
               </div>
             )}
             {classData.distractionsUsed && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Distractions Used</div>
-                <div className="apple-show-info-value">{classData.distractionsUsed}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Distractions Used</div>
+                <div className="myk9-show-info-value">{classData.distractionsUsed}</div>
               </div>
             )}
             {classData.itemsUsed && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Items Used</div>
-                <div className="apple-show-info-value">{classData.itemsUsed}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Items Used</div>
+                <div className="myk9-show-info-value">{classData.itemsUsed}</div>
               </div>
             )}
             {classData.requiresJumpHeight && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Requires Jump Height</div>
-                <div className="apple-show-info-value">Yes</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Requires Jump Height</div>
+                <div className="myk9-show-info-value">Yes</div>
               </div>
             )}
           </ExpandableSection>
@@ -640,21 +640,21 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             forceCollapsed={forceCollapseAll}
           >
             {classData.preEntryFee && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Pre Entry Fee</div>
-                <div className="apple-show-info-value">${classData.preEntryFee}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Pre Entry Fee</div>
+                <div className="myk9-show-info-value">${classData.preEntryFee}</div>
               </div>
             )}
             {classData.dayOfShowFee && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Day of Show Fee</div>
-                <div className="apple-show-info-value">${classData.dayOfShowFee}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Day of Show Fee</div>
+                <div className="myk9-show-info-value">${classData.dayOfShowFee}</div>
               </div>
             )}
             {classData.entryFee && classData.entryFee !== classData.preEntryFee && (
-              <div className="apple-show-info-item">
-                <div className="apple-show-info-label">Standard Entry Fee</div>
-                <div className="apple-show-info-value">${classData.entryFee}</div>
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Standard Entry Fee</div>
+                <div className="myk9-show-info-value">${classData.entryFee}</div>
               </div>
             )}
           </ExpandableSection>
@@ -672,11 +672,11 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             >
               {classData.customFields &&
                 Object.entries(classData.customFields).map(([key, value]) => (
-                  <div key={key} className="apple-show-info-item">
-                    <div className="apple-show-info-label">
+                  <div key={key} className="myk9-show-info-item">
+                    <div className="myk9-show-info-label">
                       {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                     </div>
-                    <div className="apple-show-info-value">{value}</div>
+                    <div className="myk9-show-info-value">{value}</div>
                   </div>
                 ))}
             </ExpandableSection>
@@ -685,27 +685,27 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
       </div>
 
       {/* Statistics Cards - CLASS-SPECIFIC */}
-      <div className="apple-show-stats-section">
-        <div className="apple-show-stats-grid">
+      <div className="myk9-show-stats-section">
+        <div className="myk9-show-stats-grid">
           {stats.map((stat, index) => (
-            <div key={index} className="apple-show-stat-card">
-              <div className="apple-show-stat-layout">
-                <div className={`apple-show-stat-icon ${stat.type}`}>
+            <div key={index} className="myk9-show-stat-card">
+              <div className="myk9-show-stat-layout">
+                <div className={`myk9-show-stat-icon ${stat.type}`}>
                   {stat.type === 'trials' && <Calendar className="w-5 h-5" />}
                   {stat.type === 'classes' && <Trophy className="w-5 h-5" />}
                   {stat.type === 'entries' && <Users className="w-5 h-5" />}
                 </div>
 
-                <div className="apple-show-stat-content">
-                  <div className="apple-show-stat-header">
-                    <div className="apple-show-stat-title">{stat.title}</div>
-                    {stat.trend && <div className="apple-show-stat-trend">{stat.trend}</div>}
+                <div className="myk9-show-stat-content">
+                  <div className="myk9-show-stat-header">
+                    <div className="myk9-show-stat-title">{stat.title}</div>
+                    {stat.trend && <div className="myk9-show-stat-trend">{stat.trend}</div>}
                   </div>
-                  <div className="apple-show-stat-number">{stat.value}</div>
+                  <div className="myk9-show-stat-number">{stat.value}</div>
                 </div>
               </div>
 
-              <div className="apple-show-stat-details">
+              <div className="myk9-show-stat-details">
                 <span>{stat.detail1}</span>
                 <span>{stat.detail2}</span>
                 {stat.detail3 && (
@@ -713,9 +713,9 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
                 )}
               </div>
 
-              <div className="apple-show-stat-progress">
+              <div className="myk9-show-stat-progress">
                 <div
-                  className={`apple-show-stat-progress-bar ${stat.type}`}
+                  className={`myk9-show-stat-progress-bar ${stat.type}`}
                   style={{ width: `${stat.progress}%` }}
                 ></div>
               </div>

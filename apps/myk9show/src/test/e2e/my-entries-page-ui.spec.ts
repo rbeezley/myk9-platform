@@ -47,18 +47,18 @@ test.describe('My Entries Page - Fake Trend Data Removal', () => {
 
   test('should not display hardcoded trend percentages', async ({ page }) => {
     // Wait for stat cards to load
-    await page.waitForSelector('.apple-show-stat-card', { timeout: 5000 });
+    await page.waitForSelector('.myk9-show-stat-card', { timeout: 5000 });
 
     // Check that no fake trend percentages exist
     const fakeTrends = ['+5%', '+12%', '-3%', '+8%'];
     for (const trend of fakeTrends) {
-      const trendElement = page.locator(`.apple-show-stat-card:has-text("${trend}")`);
+      const trendElement = page.locator(`.myk9-show-stat-card:has-text("${trend}")`);
       await expect(trendElement).toHaveCount(0);
     }
   });
 
   test('should display meaningful stat card titles', async ({ page }) => {
-    await page.waitForSelector('.apple-show-stat-card', { timeout: 5000 });
+    await page.waitForSelector('.myk9-show-stat-card', { timeout: 5000 });
 
     // Verify meaningful stat card titles
     await expect(page.locator('text=Total Entries')).toBeVisible();
@@ -68,10 +68,10 @@ test.describe('My Entries Page - Fake Trend Data Removal', () => {
   });
 
   test('should show real contextual information in stat cards', async ({ page }) => {
-    await page.waitForSelector('.apple-show-stat-card', { timeout: 5000 });
+    await page.waitForSelector('.myk9-show-stat-card', { timeout: 5000 });
 
     // Should show "upcoming" count or "paid" count instead of fake trends
-    const statDetails = page.locator('.apple-show-stat-details');
+    const statDetails = page.locator('.myk9-show-stat-details');
     await expect(statDetails.first()).toBeVisible();
 
     // Check for meaningful context (e.g., "X upcoming", "X paid", etc.)
@@ -207,7 +207,7 @@ test.describe('My Entries Page - Status Stepper', () => {
     await expect(oldProgressLabel).toHaveCount(0);
 
     // Should not have percentage displays like "75%"
-    const percentageDisplay = page.locator('.apple-entries-progress-value');
+    const percentageDisplay = page.locator('.myk9-entries-progress-value');
     await expect(percentageDisplay).toHaveCount(0);
   });
 
@@ -216,7 +216,7 @@ test.describe('My Entries Page - Status Stepper', () => {
     await page.waitForTimeout(1000);
 
     // If there are entries, status stepper should be visible
-    const entryCards = page.locator('.apple-entries-card');
+    const entryCards = page.locator('.myk9-entries-card');
     const entryCount = await entryCards.count();
 
     if (entryCount > 0) {
@@ -238,7 +238,7 @@ test.describe('My Entries Page - Empty State', () => {
 
     // Check if empty state is shown
     const emptyState = page.locator('text=/no entries found|haven\'t entered any shows/i');
-    const entryCards = page.locator('.apple-entries-card');
+    const entryCards = page.locator('.myk9-entries-card');
 
     const cardCount = await entryCards.count();
     if (cardCount === 0) {
@@ -250,7 +250,7 @@ test.describe('My Entries Page - Empty State', () => {
   test('should have Browse All Shows button in empty state', async ({ page }) => {
     await page.waitForTimeout(500);
 
-    const entryCards = page.locator('.apple-entries-card');
+    const entryCards = page.locator('.myk9-entries-card');
     const cardCount = await entryCards.count();
 
     if (cardCount === 0) {
@@ -269,12 +269,12 @@ test.describe('My Entries Page - Context-Aware Messaging', () => {
   test('should display context-aware status messages for entries', async ({ page }) => {
     await page.waitForTimeout(500);
 
-    const entryCards = page.locator('.apple-entries-card');
+    const entryCards = page.locator('.myk9-entries-card');
     const cardCount = await entryCards.count();
 
     if (cardCount > 0) {
       // Check for context-aware messaging (not just "Last updated: date")
-      const lastUpdatedSection = page.locator('.apple-entries-last-updated');
+      const lastUpdatedSection = page.locator('.myk9-entries-last-updated');
       await expect(lastUpdatedSection.first()).toBeVisible();
 
       // Should have relative time or context (e.g., "Accepted 2 days ago", "Show is tomorrow")

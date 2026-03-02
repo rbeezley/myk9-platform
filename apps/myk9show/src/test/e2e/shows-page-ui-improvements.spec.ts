@@ -254,10 +254,10 @@ test.describe('Shows Page - Card Visual Status Cues', () => {
 
   test('should display show cards with appropriate styling', async ({ page }) => {
     // Wait for cards to load
-    await page.waitForSelector('.apple-browse-card, [class*="Card"]', { timeout: 10000 });
+    await page.waitForSelector('.myk9-browse-card, [class*="Card"]', { timeout: 10000 });
 
-    // Cards should have the apple-browse-card class or similar
-    const showCards = page.locator('.apple-browse-card');
+    // Cards should have the myk9-browse-card class or similar
+    const showCards = page.locator('.myk9-browse-card');
     const cardCount = await showCards.count();
 
     // Should have at least some cards (may be 0 if no shows)
@@ -276,9 +276,9 @@ test.describe('Shows Page - Card Visual Status Cues', () => {
 
   test('should show card title with increased font size', async ({ page }) => {
     // Wait for cards
-    await page.waitForSelector('.apple-browse-card-title', { timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('.myk9-browse-card-title', { timeout: 10000 }).catch(() => {});
 
-    const cardTitle = page.locator('.apple-browse-card-title').first();
+    const cardTitle = page.locator('.myk9-browse-card-title').first();
 
     if (await cardTitle.isVisible()) {
       // Get computed style - font-size should be 22px

@@ -42,8 +42,8 @@ import { EntryActionsMenu } from './components/EntryActionsMenu';
 // Statistics panel
 import { EntriesStatisticsPanel } from '../EntriesStatisticsPanel';
 
-// Apple styles
-import '@/styles/apple-show-details.css';
+// styles
+import '@/styles/myk9-show-details.css';
 
 const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   entries,

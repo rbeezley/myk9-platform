@@ -1,7 +1,7 @@
 /**
  * PremiumButton Component
  * 
- * Apple-inspired button components with gradient backgrounds, enhanced hover effects,
+ * Premium button components with gradient backgrounds, enhanced hover effects,
  * and sophisticated animations. Automatically follows design system.
  */
 

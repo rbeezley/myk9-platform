@@ -32,14 +32,14 @@ export const ClubsGridView: React.FC<ClubsGridViewProps> = ({ clubs, clubShowCou
         return (
           <div
             key={club.id}
-            className="apple-browse-card cursor-pointer"
+            className="myk9-browse-card cursor-pointer"
             onClick={() => navigate(`/clubs/${club.id}`)}
             role="link"
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && navigate(`/clubs/${club.id}`)}
           >
-            <div className="apple-browse-card-header">
-              <div className="apple-browse-card-badges">
+            <div className="myk9-browse-card-header">
+              <div className="myk9-browse-card-badges">
                 {typeLabel && (
                   <Badge variant="secondary" className="text-xs">
                     {typeLabel}
@@ -48,7 +48,7 @@ export const ClubsGridView: React.FC<ClubsGridViewProps> = ({ clubs, clubShowCou
               </div>
             </div>
 
-            <div className="apple-browse-card-content">
+            <div className="myk9-browse-card-content">
               {/* Club identity: logo/initials + name */}
               <div className="flex items-center gap-3 mb-2">
                 {club.logo ? (
@@ -62,30 +62,30 @@ export const ClubsGridView: React.FC<ClubsGridViewProps> = ({ clubs, clubShowCou
                     {getClubInitials(club.name)}
                   </div>
                 )}
-                <h3 className="apple-browse-card-title">{club.name}</h3>
+                <h3 className="myk9-browse-card-title">{club.name}</h3>
               </div>
 
               {club.description && (
-                <p className="apple-browse-card-description line-clamp-2">{club.description}</p>
+                <p className="myk9-browse-card-description line-clamp-2">{club.description}</p>
               )}
 
-              <div className="apple-browse-card-details">
+              <div className="myk9-browse-card-details">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {location && (
-                    <div className="apple-browse-card-detail-item">
+                    <div className="myk9-browse-card-detail-item">
                       <MapPin className="h-4 w-4" />
                       <span>{location}</span>
                     </div>
                   )}
 
-                  <div className="apple-browse-card-detail-item">
+                  <div className="myk9-browse-card-detail-item">
                     <Users className="h-4 w-4" />
                     <span>
                       {memberCount} member{memberCount !== 1 ? 's' : ''}
                     </span>
                   </div>
 
-                  <div className="apple-browse-card-detail-item">
+                  <div className="myk9-browse-card-detail-item">
                     <Calendar className="h-4 w-4" />
                     <span>
                       {upcomingCount} upcoming show{upcomingCount !== 1 ? 's' : ''}
@@ -94,12 +94,12 @@ export const ClubsGridView: React.FC<ClubsGridViewProps> = ({ clubs, clubShowCou
                 </div>
               </div>
 
-              <div className="apple-browse-card-footer">
+              <div className="myk9-browse-card-footer">
                 <div />
                 <Button
                   variant="outline"
                   size="sm"
-                  className="apple-browse-view-details-btn"
+                  className="myk9-browse-view-details-btn"
                   onClick={e => {
                     e.stopPropagation();
                     navigate(`/clubs/${club.id}`);

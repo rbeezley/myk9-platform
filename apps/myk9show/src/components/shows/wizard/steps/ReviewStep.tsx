@@ -42,6 +42,10 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
 
+  // Calculate summary stats
+  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
+  const totalJudges = show.judgeIds.length;
+
   // Derive validation errors from current state (no useState needed)
   const errors = useMemo(() => {
     const result: string[] = [];
@@ -53,9 +57,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     if (!show.chairman?.trim()) result.push('Show chairman is required');
     if (!show.secretary?.trim()) result.push('Show secretary is required');
     if (trials.length === 0) result.push('At least one trial is required');
-
-    const classCount = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
-    if (classCount === 0) result.push('At least one class must be configured');
+    if (totalClasses === 0) result.push('At least one class must be configured');
 
     return result;
   }, [
@@ -67,6 +69,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     show.chairman,
     show.secretary,
     trials,
+    totalClasses,
   ]);
 
   // Mark step complete when valid
@@ -75,10 +78,6 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
       markStepCompleted(3);
     }
   }, [errors.length, markStepCompleted]);
-
-  // Calculate summary stats
-  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
-  const totalJudges = show.judgeIds.length;
 
   // Count unique judges assigned across all trials
   const assignedJudgeIds = trials.flatMap(trial =>

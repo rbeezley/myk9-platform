@@ -22,7 +22,7 @@ import { useOptimisticRegistration } from '@/hooks/useOptimisticRegistration';
 import { toast } from 'sonner';
 import ProgressIndicator from '../wizard/components/ProgressIndicator';
 import WizardNavigation from '../wizard/components/WizardNavigation';
-import '@/styles/apple-registration-workflow.css';
+import '@/styles/myk9-registration-workflow.css';
 import type { WorkflowMode, RegistrationWorkflowProps, StepId } from './RegistrationWorkflow.types';
 import {
   WORKFLOW_CONFIGS,
@@ -375,7 +375,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
 
   return (
     <RegistrationErrorBoundary>
-      <div className="apple-registration-workflow w-full mx-auto space-y-6">
+      <div className="myk9-registration-workflow w-full mx-auto space-y-6">
         {/* Clean Header - Only show if not in dialog */}
         {currentShow && !window.location.pathname.includes('/classes/') && (
           <div className="text-center">
@@ -387,7 +387,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
         )}
 
         {/* Step Navigation */}
-        <Card className="apple-registration-card">
+        <Card className="myk9-registration-card">
           <CardContent className="p-0">
             {/* Enhanced Progress Indicator */}
             <ProgressIndicator
@@ -411,7 +411,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                 </span>
                 <span>{currentStepData.label}</span>
               </div>
-              <div className="apple-draft-controls">
+              <div className="myk9-draft-controls">
                 <DraftManager
                   showId={showId}
                   userId={userId}
@@ -436,15 +436,15 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                 animate="visible"
                 exit="exit"
                 transition={{ duration: 0.3 }}
-                className="apple-registration-content"
+                className="myk9-registration-content"
               >
-                <div className="apple-registration-step-header">
-                  <div className="apple-registration-step-title">
+                <div className="myk9-registration-step-header">
+                  <div className="myk9-registration-step-title">
                     {currentStepData.icon}
                     {currentStepData.label}
                     {currentStepData.optional && <Badge variant="outline">Optional</Badge>}
                   </div>
-                  <p className="apple-registration-step-description">
+                  <p className="myk9-registration-step-description">
                     {currentStepData.description}
                   </p>
                 </div>

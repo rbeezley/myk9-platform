@@ -33,7 +33,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
 }) => {
   return (
     <Card className="relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80
-                     apple-subtle-card-border rounded-2xl p-8 shadow-lg backdrop-blur-xl
+                     myk9-subtle-card-border rounded-2xl p-8 shadow-lg backdrop-blur-xl
                      transition-all duration-500 hover:shadow-2xl hover:-translate-y-1
                      hover:border-primary/20">
       {/* Background glass effect */}
@@ -115,7 +115,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
               ) : (
                 <Badge className="px-4 py-2 text-sm font-medium
                                 bg-gradient-to-r from-muted/50 to-muted/30
-                                text-muted-foreground apple-subtle-card-border
+                                text-muted-foreground myk9-subtle-card-border
                                 backdrop-blur-sm">
                   Member
                 </Badge>

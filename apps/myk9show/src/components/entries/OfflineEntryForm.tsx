@@ -57,7 +57,7 @@ interface OfflineEntryFormProps {
 }
 
 /**
- * OfflineEntryForm - Optimized entry creation form for offline use with Apple-inspired design
+ * OfflineEntryForm - Optimized entry creation form for offline use with Premium design
  *
  * Provides robust offline functionality with local storage, validation, and queue management.
  * Automatically syncs when network becomes available and provides clear offline indicators.

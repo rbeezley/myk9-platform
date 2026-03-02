@@ -22,7 +22,7 @@ import { BrowsePeopleSkeleton } from '@/components/common/SkeletonLoaders';
 import { UserEditPanel } from '@/components/panels/edit';
 import { useUserStore, PersonInput } from '@/store/userStore';
 import type { User } from '@/types/user-types';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 type ViewMode = 'grid' | 'list';
 

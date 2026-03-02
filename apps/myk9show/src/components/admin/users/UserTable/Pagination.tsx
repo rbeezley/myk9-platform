@@ -1,5 +1,5 @@
 /**
- * Pagination - Apple-inspired pagination controls
+ * Pagination - Premium pagination controls
  */
 
 import React from 'react';

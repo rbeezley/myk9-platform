@@ -69,26 +69,26 @@ const ClassStatistics: React.FC<ClassStatisticsProps> = ({ classEntries }) => {
   ];
 
   return (
-    <div className="apple-class-stats-grid">
+    <div className="myk9-class-stats-grid">
       {statCards.map((card) => {
         const IconComponent = card.icon;
         return (
-          <div key={card.type} className="apple-class-stat-card">
-            <div className="apple-class-stat-layout">
-              <div className={`apple-class-stat-icon ${card.type}`}>
+          <div key={card.type} className="myk9-class-stat-card">
+            <div className="myk9-class-stat-layout">
+              <div className={`myk9-class-stat-icon ${card.type}`}>
                 <IconComponent className="h-5 w-5" />
               </div>
-              <div className="apple-class-stat-content">
-                <div className="apple-class-stat-title">{card.title}</div>
-                <div className="apple-class-stat-number">{card.value}</div>
+              <div className="myk9-class-stat-content">
+                <div className="myk9-class-stat-title">{card.title}</div>
+                <div className="myk9-class-stat-number">{card.value}</div>
               </div>
             </div>
-            <div className="apple-class-stat-details">
+            <div className="myk9-class-stat-details">
               <span>{card.details}</span>
             </div>
-            <div className="apple-class-stat-progress">
+            <div className="myk9-class-stat-progress">
               <div 
-                className={`apple-class-stat-progress-bar ${card.type}`}
+                className={`myk9-class-stat-progress-bar ${card.type}`}
                 style={{ width: `${card.progress}%` }}
               />
             </div>

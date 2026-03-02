@@ -35,8 +35,8 @@ import { Separator } from '@/components/ui/separator/separator';
 import { BulkResultEntry } from './BulkResultEntry';
 import { PlacementCalculator } from './PlacementCalculator';
 
-// Apple-inspired styling
-import '@/styles/apple-show-details.css';
+// Premium styling
+import '@/styles/myk9-show-details.css';
 
 // Types
 import type { 
@@ -300,14 +300,14 @@ export function SecretaryClassDashboard({
     }
   }, [onExportResults]);
 
-  // Apple-style status helpers
+  // Premium status helpers
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'pending': return 'apple-show-status-upcoming';
+      case 'pending': return 'myk9-show-status-upcoming';
       case 'in-progress': 
-      case 'in progress': return 'apple-show-status-in-progress';
-      case 'completed': return 'apple-show-status-completed';
-      default: return 'apple-show-status-upcoming';
+      case 'in progress': return 'myk9-show-status-in-progress';
+      case 'completed': return 'myk9-show-status-completed';
+      default: return 'myk9-show-status-upcoming';
     }
   };
 
@@ -323,28 +323,28 @@ export function SecretaryClassDashboard({
 
 
   return (
-    <div className="apple-show-container">
+    <div className="myk9-show-container">
       {/* Breadcrumb Navigation */}
       <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
 
       {/* Header */}
-      <div className="apple-show-info-card">
-        <div className="apple-show-info-header">
+      <div className="myk9-show-info-card">
+        <div className="myk9-show-info-header">
           <div className="flex items-center gap-4">
             {(showId && trialId && activeClassId) && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleExit}
-                className="apple-action-button"
+                className="myk9-action-button"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
             <div>
               <div className="flex items-center gap-3">
-                <div className="apple-show-info-title">{classInfo.name}</div>
-                <div className={`apple-show-status ${getStatusClass(classInfo.status)}`}>
+                <div className="myk9-show-info-title">{classInfo.name}</div>
+                <div className={`myk9-show-status ${getStatusClass(classInfo.status)}`}>
                   {getStatusIcon(classInfo.status)}
                   {classInfo.status}
                 </div>
@@ -358,102 +358,102 @@ export function SecretaryClassDashboard({
       </div>
 
       {/* Statistics Cards */}
-      <div className="apple-show-stats-section">
-        <div className="apple-show-stats-grid">
-          <div className="apple-show-stat-card">
-            <div className="apple-show-stat-layout">
-              <div className="apple-show-stat-icon entries">
+      <div className="myk9-show-stats-section">
+        <div className="myk9-show-stats-grid">
+          <div className="myk9-show-stat-card">
+            <div className="myk9-show-stat-layout">
+              <div className="myk9-show-stat-icon entries">
                 <Users className="w-5 h-5" />
               </div>
-              <div className="apple-show-stat-content">
-                <div className="apple-show-stat-header">
-                  <div className="apple-show-stat-title">Total Entries</div>
+              <div className="myk9-show-stat-content">
+                <div className="myk9-show-stat-header">
+                  <div className="myk9-show-stat-title">Total Entries</div>
                 </div>
-                <div className="apple-show-stat-number">{stats.totalEntries}</div>
+                <div className="myk9-show-stat-number">{stats.totalEntries}</div>
               </div>
             </div>
-            <div className="apple-show-stat-details">
+            <div className="myk9-show-stat-details">
               <span>Registered</span>
               <span>Active</span>
             </div>
-            <div className="apple-show-stat-progress">
-              <div className="apple-show-stat-progress-bar entries" style={{ width: '100%' }}></div>
+            <div className="myk9-show-stat-progress">
+              <div className="myk9-show-stat-progress-bar entries" style={{ width: '100%' }}></div>
             </div>
           </div>
 
-          <div className="apple-show-stat-card">
-            <div className="apple-show-stat-layout">
-              <div className="apple-show-stat-icon trials">
+          <div className="myk9-show-stat-card">
+            <div className="myk9-show-stat-layout">
+              <div className="myk9-show-stat-icon trials">
                 <Clock className="w-5 h-5" />
               </div>
-              <div className="apple-show-stat-content">
-                <div className="apple-show-stat-header">
-                  <div className="apple-show-stat-title">Pending Results</div>
+              <div className="myk9-show-stat-content">
+                <div className="myk9-show-stat-header">
+                  <div className="myk9-show-stat-title">Pending Results</div>
                 </div>
-                <div className="apple-show-stat-number">{stats.pendingResults}</div>
+                <div className="myk9-show-stat-number">{stats.pendingResults}</div>
               </div>
             </div>
-            <div className="apple-show-stat-details">
+            <div className="myk9-show-stat-details">
               <span>Awaiting</span>
               <span>Entry</span>
             </div>
-            <div className="apple-show-stat-progress">
-              <div className="apple-show-stat-progress-bar trials" style={{ width: `${stats.totalEntries > 0 ? Math.round((stats.pendingResults / stats.totalEntries) * 100) : 0}%` }}></div>
+            <div className="myk9-show-stat-progress">
+              <div className="myk9-show-stat-progress-bar trials" style={{ width: `${stats.totalEntries > 0 ? Math.round((stats.pendingResults / stats.totalEntries) * 100) : 0}%` }}></div>
             </div>
           </div>
 
-          <div className="apple-show-stat-card">
-            <div className="apple-show-stat-layout">
-              <div className="apple-show-stat-icon qualified">
+          <div className="myk9-show-stat-card">
+            <div className="myk9-show-stat-layout">
+              <div className="myk9-show-stat-icon qualified">
                 <Award className="w-5 h-5" />
               </div>
-              <div className="apple-show-stat-content">
-                <div className="apple-show-stat-header">
-                  <div className="apple-show-stat-title">Qualified</div>
+              <div className="myk9-show-stat-content">
+                <div className="myk9-show-stat-header">
+                  <div className="myk9-show-stat-title">Qualified</div>
                 </div>
-                <div className="apple-show-stat-number">{stats.qualifiedCount}</div>
+                <div className="myk9-show-stat-number">{stats.qualifiedCount}</div>
               </div>
             </div>
-            <div className="apple-show-stat-details">
+            <div className="myk9-show-stat-details">
               <span>Q: {stats.qualifiedCount}</span>
               <span>NQ: {stats.nqCount}</span>
             </div>
-            <div className="apple-show-stat-progress">
-              <div className="apple-show-stat-progress-bar qualified" style={{ width: `${stats.totalEntries > 0 ? Math.round((stats.qualifiedCount / stats.totalEntries) * 100) : 0}%` }}></div>
+            <div className="myk9-show-stat-progress">
+              <div className="myk9-show-stat-progress-bar qualified" style={{ width: `${stats.totalEntries > 0 ? Math.round((stats.qualifiedCount / stats.totalEntries) * 100) : 0}%` }}></div>
             </div>
           </div>
 
-          <div className="apple-show-stat-card">
-            <div className="apple-show-stat-layout">
-              <div className="apple-show-stat-icon classes">
+          <div className="myk9-show-stat-card">
+            <div className="myk9-show-stat-layout">
+              <div className="myk9-show-stat-icon classes">
                 <FileText className="w-5 h-5" />
               </div>
-              <div className="apple-show-stat-content">
-                <div className="apple-show-stat-header">
-                  <div className="apple-show-stat-title">Complete</div>
+              <div className="myk9-show-stat-content">
+                <div className="myk9-show-stat-header">
+                  <div className="myk9-show-stat-title">Complete</div>
                 </div>
-                <div className="apple-show-stat-number">{stats.completionPercentage}%</div>
+                <div className="myk9-show-stat-number">{stats.completionPercentage}%</div>
               </div>
             </div>
-            <div className="apple-show-stat-details">
+            <div className="myk9-show-stat-details">
               <span>Done: {stats.completedResults}</span>
               <span>Total: {stats.totalEntries}</span>
             </div>
-            <div className="apple-show-stat-progress">
-              <div className="apple-show-stat-progress-bar classes" style={{ width: `${stats.completionPercentage}%` }}></div>
+            <div className="myk9-show-stat-progress">
+              <div className="myk9-show-stat-progress-bar classes" style={{ width: `${stats.completionPercentage}%` }}></div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Action Bar */}
-      <div className="apple-show-info-card">
+      <div className="myk9-show-info-card">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button
               onClick={handleCalculatePlacements}
               disabled={isCalculatingPlacements || stats.completedResults === 0}
-              className="apple-action-button apple-action-button-primary"
+              className="myk9-action-button myk9-action-button-primary"
             >
               <Calculator className="h-4 w-4" />
               <span>{isCalculatingPlacements ? 'Calculating...' : 'Calculate Placements'}</span>
@@ -463,7 +463,7 @@ export function SecretaryClassDashboard({
               variant="outline"
               onClick={() => handleExport('csv')}
               disabled={isExporting || stats.completedResults === 0}
-              className="apple-action-button"
+              className="myk9-action-button"
             >
               <Download className="h-4 w-4" />
               <span>Export CSV</span>
@@ -478,7 +478,7 @@ export function SecretaryClassDashboard({
       </div>
 
       {/* Tabbed Interface */}
-      <div className="apple-trials-section">
+      <div className="myk9-trials-section">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex items-center justify-between border-b border-border mb-6">
             <TabsList className="bg-transparent border-0 rounded-none p-0 h-auto gap-6 justify-start">
@@ -506,38 +506,38 @@ export function SecretaryClassDashboard({
           <TabsContent value="overview" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Class Information */}
-              <div className="apple-show-info-card">
-                <div className="apple-show-info-header">
-                  <div className="apple-show-info-title">Class Details</div>
+              <div className="myk9-show-info-card">
+                <div className="myk9-show-info-header">
+                  <div className="myk9-show-info-title">Class Details</div>
                 </div>
-                <div className="apple-show-info-grid">
-                  <div className="apple-show-info-item">
-                    <div className="apple-show-info-label">Element</div>
-                    <div className="apple-show-info-value">{classConfig.element}</div>
+                <div className="myk9-show-info-grid">
+                  <div className="myk9-show-info-item">
+                    <div className="myk9-show-info-label">Element</div>
+                    <div className="myk9-show-info-value">{classConfig.element}</div>
                   </div>
-                  <div className="apple-show-info-item">
-                    <div className="apple-show-info-label">Level</div>
-                    <div className="apple-show-info-value">{classConfig.level}</div>
+                  <div className="myk9-show-info-item">
+                    <div className="myk9-show-info-label">Level</div>
+                    <div className="myk9-show-info-value">{classConfig.level}</div>
                   </div>
-                  <div className="apple-show-info-item">
-                    <div className="apple-show-info-label">Time Limit</div>
-                    <div className="apple-show-info-value">{Math.floor(classConfig.timeLimit / 60000)}:00</div>
+                  <div className="myk9-show-info-item">
+                    <div className="myk9-show-info-label">Time Limit</div>
+                    <div className="myk9-show-info-value">{Math.floor(classConfig.timeLimit / 60000)}:00</div>
                   </div>
-                  <div className="apple-show-info-item">
-                    <div className="apple-show-info-label">Multi-Area</div>
-                    <div className="apple-show-info-value">{classConfig.multiArea ? 'Yes' : 'No'}</div>
+                  <div className="myk9-show-info-item">
+                    <div className="myk9-show-info-label">Multi-Area</div>
+                    <div className="myk9-show-info-value">{classConfig.multiArea ? 'Yes' : 'No'}</div>
                   </div>
-                  <div className="apple-show-info-item">
-                    <div className="apple-show-info-label">Scheduled</div>
-                    <div className="apple-show-info-value">{classInfo.scheduledTime.toLocaleTimeString()}</div>
+                  <div className="myk9-show-info-item">
+                    <div className="myk9-show-info-label">Scheduled</div>
+                    <div className="myk9-show-info-value">{classInfo.scheduledTime.toLocaleTimeString()}</div>
                   </div>
                 </div>
               </div>
 
               {/* Progress Summary */}
-              <div className="apple-show-info-card">
-                <div className="apple-show-info-header">
-                  <div className="apple-show-info-title">Progress Summary</div>
+              <div className="myk9-show-info-card">
+                <div className="myk9-show-info-header">
+                  <div className="myk9-show-info-title">Progress Summary</div>
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -545,9 +545,9 @@ export function SecretaryClassDashboard({
                       <span className="text-muted-foreground">Completion Progress</span>
                       <span className="font-medium">{stats.completionPercentage}%</span>
                     </div>
-                    <div className="apple-show-stat-progress">
+                    <div className="myk9-show-stat-progress">
                       <div 
-                        className="apple-show-stat-progress-bar classes"
+                        className="myk9-show-stat-progress-bar classes"
                         style={{ width: `${stats.completionPercentage}%` }}
                       />
                     </div>

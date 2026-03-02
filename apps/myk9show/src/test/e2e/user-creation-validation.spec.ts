@@ -118,8 +118,8 @@ test.describe('User Creation Interface Validation', () => {
 
   test('should display existing users in browse grid', async ({ page }) => {
     // Verify users are displayed as cards in the browse grid
-    // The browse page shows people cards with apple-browse-card styling
-    const userCards = page.locator('.apple-browse-card');
+    // The browse page shows people cards with myk9-browse-card styling
+    const userCards = page.locator('.myk9-browse-card');
 
     // Wait for cards to render (may take a moment after data loads)
     await expect(userCards.first())

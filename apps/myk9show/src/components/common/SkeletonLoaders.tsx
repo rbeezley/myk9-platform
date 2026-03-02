@@ -246,26 +246,26 @@ export const NavigationSkeleton: React.FC = () => (
 export const ShowCardGridSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) => (
   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="apple-browse-card animate-pulse">
-        <div className="apple-browse-card-header">
-          <div className="apple-browse-card-badges">
+      <div key={i} className="myk9-browse-card animate-pulse">
+        <div className="myk9-browse-card-header">
+          <div className="myk9-browse-card-badges">
             <Skeleton className="h-5 w-16 rounded-full" />
           </div>
         </div>
-        <div className="apple-browse-card-content">
+        <div className="myk9-browse-card-content">
           <Skeleton className="h-6 w-3/4 mb-2" />
           <Skeleton className="h-4 w-1/2 mb-4" />
 
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, j) => (
-              <div key={j} className="apple-browse-card-detail-item">
+              <div key={j} className="myk9-browse-card-detail-item">
                 <Skeleton className="h-4 w-4" />
                 <Skeleton className="h-3 w-24" />
               </div>
             ))}
           </div>
 
-          <div className="apple-browse-card-footer">
+          <div className="myk9-browse-card-footer">
             <Skeleton className="h-5 w-20 rounded-full" />
             <div className="flex gap-2">
               <Skeleton className="h-8 w-20" />

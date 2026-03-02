@@ -45,7 +45,7 @@ export interface RoleConfigEntry {
   icon?: React.ComponentType<{ className?: string }>;
 }
 
-// Enhanced role configuration with Apple-inspired styling
+// Enhanced role configuration with Premium styling
 export const ROLE_CONFIG: Record<UserRoleType, RoleConfigEntry> = {
   exhibitor: {
     label: 'Exhibitor',
@@ -145,7 +145,7 @@ export const DENSITY_CONFIG: Record<DensityMode, DensityConfig> = {
   },
 };
 
-// Apple system font style (shared across components)
+// System font style (shared across components)
 export const APPLE_FONT_STYLE = {
   fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
 } as const;

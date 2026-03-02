@@ -17,7 +17,7 @@ import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import { Calendar, RefreshCw, Plus } from 'lucide-react';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 import {
   useMyEntriesData,
@@ -114,13 +114,13 @@ const MyEntriesPage: React.FC = () => {
       <div className="container mx-auto px-6 py-20 max-w-7xl">
         <div className="space-y-8">
           {/* Breadcrumb */}
-          <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="apple-breadcrumb" />
+          <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="myk9-breadcrumb" />
 
           {/* Header */}
           <div className="flex justify-between items-start gap-4">
             <div className="space-y-2">
-              <h1 className="apple-show-title">My Entries</h1>
-              <p className="apple-show-subtitle">Track and manage your show entries</p>
+              <h1 className="myk9-show-title">My Entries</h1>
+              <p className="myk9-show-subtitle">Track and manage your show entries</p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
               <Button
@@ -213,7 +213,7 @@ interface EmptyStateProps {
 }
 
 const EmptyState: React.FC<EmptyStateProps> = ({ selectedTab }) => (
-  <div className="apple-entries-card text-center">
+  <div className="myk9-entries-card text-center">
     <div className="bg-muted/50 rounded-full p-6 mb-4 inline-block">
       <Calendar className="h-12 w-12 text-muted-foreground" />
     </div>

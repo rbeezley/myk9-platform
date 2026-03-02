@@ -84,7 +84,7 @@ test.describe('User Profile Edit Tests', () => {
             '[data-testid="edit-button"]',
             'button:has([class*="edit"])',
             'button[aria-label*="edit"]',
-            '.apple-people-actions button', // From UserDetailsMain component
+            '.myk9-people-actions button', // From UserDetailsMain component
             'button:has(.lucide-more-vertical)' // Dropdown trigger
           ];
           
@@ -106,7 +106,7 @@ test.describe('User Profile Edit Tests', () => {
               'button:has(.lucide-more-vertical)',
               'button:has-text("⋮")',
               '[data-testid="dropdown-trigger"]',
-              '.apple-people-actions button'
+              '.myk9-people-actions button'
             ];
             
             for (const selector of dropdownTriggers) {
@@ -151,14 +151,14 @@ test.describe('User Profile Edit Tests', () => {
               console.log(`  ${count > 0 ? '✅' : '❌'} ${key}: ${count}`);
             });
             
-            // Check for Apple design elements
+            // Check for design system elements
             const designChecks = {
-              appleClasses: await page.locator('[class*="apple-"]').count(),
+              designClasses: await page.locator('[class*="myk9-"]').count(),
               gradientElements: await page.locator('[class*="gradient"], [style*="gradient"]').count(),
               solidBackgrounds: await page.locator('[class*="bg-"]').count()
             };
             
-            console.log('🎨 Apple Design Elements:');
+            console.log('🎨 Design System Elements:');
             Object.entries(designChecks).forEach(([key, count]) => {
               console.log(`  ${count > 0 ? '✅' : '❌'} ${key}: ${count}`);
             });

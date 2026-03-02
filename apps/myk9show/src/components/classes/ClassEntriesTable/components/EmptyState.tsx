@@ -24,7 +24,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onAddEntry, canAddEntrie
             Add the first entry to get started with this class.
           </p>
           {canAddEntries && (
-            <Button onClick={onAddEntry} className="apple-action-button apple-action-button-primary">
+            <Button onClick={onAddEntry} className="myk9-action-button myk9-action-button-primary">
               <Plus className="h-4 w-4 mr-2" />
               Add First Entry
             </Button>

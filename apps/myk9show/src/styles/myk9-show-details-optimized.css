@@ -1,43 +1,43 @@
-/* Apple-Inspired Show Details Styles - Performance Optimized Version */
+/* myK9 Show Details Styles - Performance Optimized Version */
 
 /* Use CSS custom properties to reduce redundancy and improve maintainability */
 :root {
-  /* Apple Design System Colors */
-  --apple-blue: #007AFF;
-  --apple-blue-dark: #0056CC;
-  --apple-purple: #5856D6;
-  --apple-green: #34C759;
-  --apple-orange: #FF9500;
-  --apple-red: #FF3B30;
-  --apple-yellow: #FFCC00;
+  /* Design System Colors */
+  --myk9-blue: #007AFF;
+  --myk9-blue-dark: #0056CC;
+  --myk9-purple: #5856D6;
+  --myk9-green: #34C759;
+  --myk9-orange: #FF9500;
+  --myk9-red: #FF3B30;
+  --myk9-yellow: #FFCC00;
   
   /* Optimized gradients */
-  --apple-gradient-blue: linear-gradient(135deg, var(--apple-blue) 0%, var(--apple-purple) 100%);
-  --apple-gradient-trials: linear-gradient(135deg, var(--apple-blue) 0%, #00C7BE 100%);
-  --apple-gradient-classes: linear-gradient(135deg, var(--apple-purple) 0%, #AF52DE 100%);
-  --apple-gradient-entries: linear-gradient(135deg, var(--apple-green) 0%, #30D158 100%);
+  --myk9-gradient-blue: linear-gradient(135deg, var(--myk9-blue) 0%, var(--myk9-purple) 100%);
+  --myk9-gradient-trials: linear-gradient(135deg, var(--myk9-blue) 0%, #00C7BE 100%);
+  --myk9-gradient-classes: linear-gradient(135deg, var(--myk9-purple) 0%, #AF52DE 100%);
+  --myk9-gradient-entries: linear-gradient(135deg, var(--myk9-green) 0%, #30D158 100%);
   
   /* Optimized animations - reduced complexity */
-  --apple-transition-fast: all 0.15s ease;
-  --apple-transition-standard: all 0.2s ease;
-  --apple-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --apple-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --myk9-transition-fast: all 0.15s ease;
+  --myk9-transition-standard: all 0.2s ease;
+  --myk9-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --myk9-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
   
   /* Optimized blur effects - reduced intensity for better performance */
-  --apple-blur-light: blur(8px);
-  --apple-blur-standard: blur(12px);
+  --myk9-blur-light: blur(8px);
+  --myk9-blur-standard: blur(12px);
 }
 
 /* Typography - San Francisco inspired */
-.apple-show-page {
+.myk9-show-page {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
 }
 
-/* Page Layout with Apple's 8px grid system */
-.apple-show-container {
+/* Page Layout with 8px grid system */
+.myk9-show-container {
   @apply px-6;
   max-width: 1440px;
   margin: 0 auto;
@@ -46,14 +46,14 @@
 }
 
 /* Header Section */
-.apple-show-header {
+.myk9-show-header {
   margin-bottom: 40px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
 
-.apple-show-title {
+.myk9-show-title {
   font-size: 34px;
   font-weight: 700;
   line-height: 1.15;
@@ -62,7 +62,7 @@
   color: var(--foreground);
 }
 
-.apple-show-subtitle {
+.myk9-show-subtitle {
   font-size: 19px;
   font-weight: 400;
   line-height: 1.42;
@@ -71,7 +71,7 @@
 }
 
 /* Optimized Status Badges */
-.apple-show-status {
+.myk9-show-status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -83,60 +83,60 @@
   letter-spacing: 0.02em;
 }
 
-.apple-show-status-draft {
+.myk9-show-status-draft {
   background: rgba(162, 162, 167, 0.1);
   color: #8E8E93;
   border: 1px solid rgba(162, 162, 167, 0.2);
 }
 
-.apple-show-status-published {
+.myk9-show-status-published {
   background: rgba(52, 199, 89, 0.1);
-  color: var(--apple-green);
+  color: var(--myk9-green);
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
-.apple-show-status-cancelled {
+.myk9-show-status-cancelled {
   background: rgba(255, 69, 58, 0.1);
-  color: var(--apple-red);
+  color: var(--myk9-red);
   border: 1px solid rgba(255, 69, 58, 0.2);
 }
 
 /* Optimized Stats Section - reduced visual effects for performance */
-.apple-show-stats-section {
+.myk9-show-stats-section {
   margin-bottom: 32px;
 }
 
-.apple-show-stats-grid {
+.myk9-show-stats-grid {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6;
 }
 
-.apple-show-stat-card {
+.myk9-show-stat-card {
   @apply relative overflow-hidden;
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 16px;
   padding: 24px;
-  transition: var(--apple-transition-standard);
+  transition: var(--myk9-transition-standard);
   /* Reduced backdrop-filter for better performance */
-  backdrop-filter: var(--apple-blur-light);
+  backdrop-filter: var(--myk9-blur-light);
 }
 
 /* Use will-change to optimize hover animations */
-.apple-show-stat-card:hover {
+.myk9-show-stat-card:hover {
   will-change: transform, box-shadow;
   transform: translateY(-2px);
-  box-shadow: var(--apple-shadow-hover);
+  box-shadow: var(--myk9-shadow-hover);
   border-color: rgba(0, 122, 255, 0.2);
 }
 
-.apple-show-stat-layout {
+.myk9-show-stat-layout {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
 }
 
-.apple-show-stat-icon {
+.myk9-show-stat-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -145,29 +145,29 @@
   justify-content: center;
   font-size: 20px;
   color: white;
-  background: var(--apple-gradient-blue);
+  background: var(--myk9-gradient-blue);
   flex-shrink: 0;
 }
 
 /* Optimized icon gradients using CSS variables */
-.apple-show-stat-icon.trials {
-  background: var(--apple-gradient-trials);
+.myk9-show-stat-icon.trials {
+  background: var(--myk9-gradient-trials);
 }
 
-.apple-show-stat-icon.classes {
-  background: var(--apple-gradient-classes);
+.myk9-show-stat-icon.classes {
+  background: var(--myk9-gradient-classes);
 }
 
-.apple-show-stat-icon.entries {
-  background: var(--apple-gradient-entries);
+.myk9-show-stat-icon.entries {
+  background: var(--myk9-gradient-entries);
 }
 
-.apple-show-stat-content {
+.myk9-show-stat-content {
   text-align: left;
   flex: 1;
 }
 
-.apple-show-stat-title {
+.myk9-show-stat-title {
   font-size: 13px;
   font-weight: 590;
   text-transform: uppercase;
@@ -176,7 +176,7 @@
   margin-bottom: 4px;
 }
 
-.apple-show-stat-number {
+.myk9-show-stat-number {
   font-size: 32px;
   font-weight: 700;
   line-height: 1.0;
@@ -184,7 +184,7 @@
   margin-bottom: 12px;
 }
 
-.apple-show-stat-details {
+.myk9-show-stat-details {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -194,7 +194,7 @@
   margin-bottom: 12px;
 }
 
-.apple-show-stat-progress {
+.myk9-show-stat-progress {
   width: 100%;
   height: 4px;
   background: var(--muted);
@@ -202,40 +202,40 @@
   overflow: hidden;
 }
 
-.apple-show-stat-progress-bar {
+.myk9-show-stat-progress-bar {
   height: 100%;
-  background: var(--apple-gradient-blue);
+  background: var(--myk9-gradient-blue);
   border-radius: 2px;
   transition: width 0.6s ease; /* Reduced from 0.8s for better performance */
 }
 
-.apple-show-stat-progress-bar.trials {
-  background: var(--apple-gradient-trials);
+.myk9-show-stat-progress-bar.trials {
+  background: var(--myk9-gradient-trials);
 }
 
-.apple-show-stat-progress-bar.classes {
-  background: var(--apple-gradient-classes);
+.myk9-show-stat-progress-bar.classes {
+  background: var(--myk9-gradient-classes);
 }
 
-.apple-show-stat-progress-bar.entries {
-  background: var(--apple-gradient-entries);
+.myk9-show-stat-progress-bar.entries {
+  background: var(--myk9-gradient-entries);
 }
 
 /* Optimized Info Cards */
-.apple-show-info-card {
+.myk9-show-info-card {
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 20px;
   padding: 32px;
   margin-bottom: 32px;
   /* Reduced backdrop-filter for better performance */
-  backdrop-filter: var(--apple-blur-light);
+  backdrop-filter: var(--myk9-blur-light);
   position: relative;
   overflow: hidden;
 }
 
 /* Simplified gradient border effect - less complex than original */
-.apple-show-info-card::before {
+.myk9-show-info-card::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -248,7 +248,7 @@
   pointer-events: none;
 }
 
-.apple-show-info-header {
+.myk9-show-info-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -257,7 +257,7 @@
   z-index: 10;
 }
 
-.apple-show-info-title {
+.myk9-show-info-title {
   font-size: 24px;
   font-weight: 650;
   line-height: 1.2;
@@ -265,21 +265,21 @@
   margin-bottom: 8px;
 }
 
-.apple-show-info-grid {
+.myk9-show-info-grid {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
 }
 
-.apple-show-info-grid-4col {
+.myk9-show-info-grid-4col {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
 }
 
-.apple-show-info-item {
+.myk9-show-info-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.apple-show-info-label {
+.myk9-show-info-label {
   font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
@@ -289,7 +289,7 @@
   margin-bottom: 2px;
 }
 
-.apple-show-info-value {
+.myk9-show-info-value {
   font-size: 17px;
   font-weight: 590;
   color: var(--foreground);
@@ -297,22 +297,22 @@
 }
 
 /* Optimized Trials Section */
-.apple-trials-section {
+.myk9-trials-section {
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 20px;
   padding: 32px;
-  backdrop-filter: var(--apple-blur-light);
+  backdrop-filter: var(--myk9-blur-light);
 }
 
-.apple-trials-header {
+.myk9-trials-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.apple-trials-title {
+.myk9-trials-title {
   font-size: 22px;
   font-weight: 650;
   color: var(--foreground);
@@ -321,11 +321,11 @@
   gap: 12px;
 }
 
-.apple-trials-icon {
+.myk9-trials-icon {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--apple-gradient-blue);
+  background: var(--myk9-gradient-blue);
   color: white;
   display: flex;
   align-items: center;
@@ -333,42 +333,42 @@
   font-size: 16px;
 }
 
-.apple-trials-grid {
+.myk9-trials-grid {
   @apply grid grid-cols-1 lg:grid-cols-2 gap-4;
 }
 
-.apple-trial-card {
+.myk9-trial-card {
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
-  transition: var(--apple-transition-standard);
+  transition: var(--myk9-transition-standard);
   position: relative;
   min-height: 180px;
 }
 
-.apple-trial-card:hover {
+.myk9-trial-card:hover {
   will-change: transform, box-shadow;
   transform: translateY(-2px);
-  box-shadow: var(--apple-shadow-hover);
+  box-shadow: var(--myk9-shadow-hover);
   border-color: rgba(0, 122, 255, 0.3);
 }
 
-.apple-trial-header {
+.myk9-trial-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 12px;
 }
 
-.apple-trial-title {
+.myk9-trial-title {
   font-size: 17px;
   font-weight: 590;
   color: var(--foreground);
   margin-bottom: 4px;
 }
 
-.apple-trial-status {
+.myk9-trial-status {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -381,23 +381,23 @@
   white-space: nowrap;
 }
 
-.apple-trial-status-upcoming {
+.myk9-trial-status-upcoming {
   background: rgba(52, 199, 89, 0.1);
-  color: var(--apple-green);
+  color: var(--myk9-green);
 }
 
-.apple-trial-status-in-progress {
+.myk9-trial-status-in-progress {
   background: rgba(255, 149, 0, 0.1);
-  color: var(--apple-orange);
+  color: var(--myk9-orange);
 }
 
-.apple-trial-status-completed {
+.myk9-trial-status-completed {
   background: rgba(88, 86, 214, 0.1);
-  color: var(--apple-purple);
+  color: var(--myk9-purple);
 }
 
 /* Optimized Action Buttons */
-.apple-action-button {
+.myk9-action-button {
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -405,82 +405,82 @@
   font-size: 14px;
   font-weight: 590;
   color: var(--foreground);
-  transition: var(--apple-transition-standard);
+  transition: var(--myk9-transition-standard);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.apple-action-button:hover {
+.myk9-action-button:hover {
   background: var(--muted);
   transform: translateY(-1px);
-  box-shadow: var(--apple-shadow-light);
+  box-shadow: var(--myk9-shadow-light);
 }
 
-.apple-action-button-primary {
-  background: var(--apple-blue);
+.myk9-action-button-primary {
+  background: var(--myk9-blue);
   color: white;
-  border-color: var(--apple-blue);
+  border-color: var(--myk9-blue);
 }
 
-.apple-action-button-primary:hover {
-  background: var(--apple-blue-dark);
-  border-color: var(--apple-blue-dark);
+.myk9-action-button-primary:hover {
+  background: var(--myk9-blue-dark);
+  border-color: var(--myk9-blue-dark);
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
 
 /* Breadcrumb Navigation */
-.apple-breadcrumb {
+.myk9-breadcrumb {
   margin-bottom: 24px;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .apple-show-container {
+  .myk9-show-container {
     @apply px-4 py-6;
   }
   
-  .apple-show-title {
+  .myk9-show-title {
     font-size: 28px;
   }
   
-  .apple-show-subtitle {
+  .myk9-show-subtitle {
     font-size: 17px;
   }
   
-  .apple-show-stats-grid {
+  .myk9-show-stats-grid {
     @apply grid-cols-1 gap-4;
   }
   
-  .apple-show-info-grid {
+  .myk9-show-info-grid {
     @apply grid-cols-1 gap-4;
   }
   
-  .apple-trials-grid {
+  .myk9-trials-grid {
     @apply grid-cols-1;
   }
   
   /* Disable hover effects on mobile for better performance */
-  .apple-show-stat-card:hover,
-  .apple-trial-card:hover {
+  .myk9-show-stat-card:hover,
+  .myk9-trial-card:hover {
     transform: none;
   }
 }
 
 /* Performance optimizations */
-.apple-show-page {
+.myk9-show-page {
   scroll-behavior: smooth;
 }
 
 /* Remove will-change after animations to free up GPU resources */
-.apple-show-stat-card,
-.apple-trial-card,
-.apple-action-button {
+.myk9-show-stat-card,
+.myk9-trial-card,
+.myk9-action-button {
   will-change: auto;
 }
 
 /* Focus styles for accessibility */
-.apple-action-button:focus {
-  outline: 2px solid var(--apple-blue);
+.myk9-action-button:focus {
+  outline: 2px solid var(--myk9-blue);
   outline-offset: 2px;
 }

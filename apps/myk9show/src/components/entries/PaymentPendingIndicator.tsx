@@ -47,7 +47,7 @@ interface PaymentPendingIndicatorProps {
 }
 
 /**
- * PaymentPendingIndicator - Visual indicator for payment processing status with Apple-inspired design
+ * PaymentPendingIndicator - Visual indicator for payment processing status with Premium design
  * 
  * Displays payment status with appropriate colors, icons, and optional actions.
  * Includes timeout handling and real-time status updates.
@@ -95,7 +95,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
     return () => clearInterval(interval);
   }, [status, timeoutSeconds, lastUpdated, hasTimedOut, onTimeout]);
 
-  // Status configuration with Apple design tokens
+  // Status configuration with design tokens
   const statusConfig = {
     pending: {
       icon: Clock,

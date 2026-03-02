@@ -9,7 +9,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getDogDisplayName, Dog } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
-import '@/styles/apple-registration-workflow.css';
+import '@/styles/myk9-registration-workflow.css';
 
 interface DogSelectionStepProps {
   selectedDogs: string[];
@@ -108,7 +108,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
               <Card
                 key={dog.id}
                 className={cn(
-                  'apple-dog-card cursor-pointer',
+                  'myk9-dog-card cursor-pointer',
                   isSelected && 'selected',
                   !eligible && 'opacity-60'
                 )}

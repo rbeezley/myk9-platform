@@ -16,7 +16,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 // Store and service integration
 import { logger } from '@/services/LoggingService';

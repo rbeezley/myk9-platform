@@ -25,7 +25,7 @@ import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 type ViewMode = 'grid' | 'list';
 

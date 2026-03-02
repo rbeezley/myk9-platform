@@ -27,7 +27,7 @@ import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import type { Show } from '@/types/show-types';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 interface TrialDetailsMainProps {
   trial: Trial & { classes?: TrialClass[] };
@@ -77,15 +77,15 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
     switch (status?.toLowerCase()) {
       case 'upcoming':
       case 'scheduled':
-        return 'apple-show-status-upcoming';
+        return 'myk9-show-status-upcoming';
       case 'in progress':
-        return 'apple-show-status-in-progress';
+        return 'myk9-show-status-in-progress';
       case 'completed':
-        return 'apple-show-status-completed';
+        return 'myk9-show-status-completed';
       case 'cancelled':
-        return 'apple-show-status-cancelled';
+        return 'myk9-show-status-cancelled';
       default:
-        return 'apple-show-status-upcoming';
+        return 'myk9-show-status-upcoming';
     }
   };
 
@@ -165,17 +165,17 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
       : baseStats;
 
   return (
-    <div className="apple-show-container">
+    <div className="myk9-show-container">
       {/* Breadcrumb Navigation */}
       <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="mb-6" />
 
       {/* Trial Information Card */}
-      <div className="apple-show-info-card">
-        <div className="apple-show-info-header">
+      <div className="myk9-show-info-card">
+        <div className="myk9-show-info-header">
           <div>
             <div className="flex items-center gap-3">
-              <div className="apple-show-info-title">{trial.type || 'Trial'}</div>
-              <div className={`apple-show-status ${getStatusClass(trial.status)}`}>
+              <div className="myk9-show-info-title">{trial.type || 'Trial'}</div>
+              <div className={`myk9-show-status ${getStatusClass(trial.status)}`}>
                 {getStatusIcon(trial.status)}
                 {trial.status || 'Upcoming'}
               </div>
@@ -244,24 +244,24 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
           </div>
         </div>
 
-        <div className="apple-show-info-grid">
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Trial Date</div>
-            <div className="apple-show-info-value">
+        <div className="myk9-show-info-grid">
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Trial Date</div>
+            <div className="myk9-show-info-value">
               {new Date(trial.trialDate).toLocaleDateString()}
             </div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Trial Number</div>
-            <div className="apple-show-info-value">{trial.trialNumber}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Trial Number</div>
+            <div className="myk9-show-info-value">{trial.trialNumber}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Event Number</div>
-            <div className="apple-show-info-value">{trial.eventNumber}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Event Number</div>
+            <div className="myk9-show-info-value">{trial.eventNumber}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Show Name</div>
-            <div className="apple-show-info-value">
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Show Name</div>
+            <div className="myk9-show-info-value">
               {trial.showId ? (
                 <button
                   onClick={() => startTransition(() => navigate(`/shows/${trial.showId}`))}
@@ -274,47 +274,47 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
               )}
             </div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Planned Start</div>
-            <div className="apple-show-info-value">{trial.plannedStartTime || 'TBD'}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Planned Start</div>
+            <div className="myk9-show-info-value">{trial.plannedStartTime || 'TBD'}</div>
           </div>
-          <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Total Classes</div>
-            <div className="apple-show-info-value">{trial.classes?.length || 0}</div>
+          <div className="myk9-show-info-item">
+            <div className="myk9-show-info-label">Total Classes</div>
+            <div className="myk9-show-info-value">{trial.classes?.length || 0}</div>
           </div>
         </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="apple-show-stats-section">
-        <div className="apple-show-stats-grid grid-cols-1 md:grid-cols-4">
+      <div className="myk9-show-stats-section">
+        <div className="myk9-show-stats-grid grid-cols-1 md:grid-cols-4">
           {stats.map((stat, index) => (
-            <div key={index} className="apple-show-stat-card">
-              <div className="apple-show-stat-layout">
-                <div className={`apple-show-stat-icon ${stat.type}`}>
+            <div key={index} className="myk9-show-stat-card">
+              <div className="myk9-show-stat-layout">
+                <div className={`myk9-show-stat-icon ${stat.type}`}>
                   {stat.type === 'judges' && <Gavel className="w-5 h-5" />}
                   {stat.type === 'classes' && <Trophy className="w-5 h-5" />}
                   {stat.type === 'entries' && <Users className="w-5 h-5" />}
                   {stat.type === 'qualified' && <Trophy className="w-5 h-5" />}
                 </div>
 
-                <div className="apple-show-stat-content">
-                  <div className="apple-show-stat-header">
-                    <div className="apple-show-stat-title">{stat.title}</div>
-                    <div className="apple-show-stat-subtitle">{stat.subtitle}</div>
+                <div className="myk9-show-stat-content">
+                  <div className="myk9-show-stat-header">
+                    <div className="myk9-show-stat-title">{stat.title}</div>
+                    <div className="myk9-show-stat-subtitle">{stat.subtitle}</div>
                   </div>
-                  <div className="apple-show-stat-number">{stat.value}</div>
+                  <div className="myk9-show-stat-number">{stat.value}</div>
                 </div>
               </div>
 
-              <div className="apple-show-stat-details">
+              <div className="myk9-show-stat-details">
                 <span>{stat.detail1}</span>
                 <span>{stat.detail2}</span>
               </div>
 
-              <div className="apple-show-stat-progress">
+              <div className="myk9-show-stat-progress">
                 <div
-                  className={`apple-show-stat-progress-bar ${stat.type}`}
+                  className={`myk9-show-stat-progress-bar ${stat.type}`}
                   style={{ width: `${stat.progress}%` }}
                 ></div>
               </div>
@@ -324,10 +324,10 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
       </div>
 
       {/* Classes Section */}
-      <div className="apple-trials-section">
-        <div className="apple-trials-header">
-          <div className="apple-trials-title">
-            <div className="apple-trials-icon">
+      <div className="myk9-trials-section">
+        <div className="myk9-trials-header">
+          <div className="myk9-trials-title">
+            <div className="myk9-trials-icon">
               <Trophy className="w-4 h-4" />
             </div>
             Classes

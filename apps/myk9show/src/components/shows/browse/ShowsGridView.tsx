@@ -85,7 +85,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
           <div
             key={show.id}
             className={cn(
-              'apple-browse-card relative',
+              'myk9-browse-card relative',
               entryStatus.status === 'closing_soon' &&
                 'ring-2 ring-orange-400/50 shadow-orange-200/30',
               entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50'
@@ -115,22 +115,22 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
               </div>
             )}
 
-            <div className="apple-browse-card-header">
-              <div className="apple-browse-card-badges">
+            <div className="myk9-browse-card-header">
+              <div className="myk9-browse-card-badges">
                 {getTypeBadge(show.organization)}
                 <EntryStatusBadge show={show} userHasEntries={hasUserEntries} size="sm" />
               </div>
             </div>
 
-            <div className="apple-browse-card-content">
-              <h3 className="apple-browse-card-title">{show.name}</h3>
+            <div className="myk9-browse-card-content">
+              <h3 className="myk9-browse-card-title">{show.name}</h3>
               {show.clubName && <p className="text-sm text-muted-foreground">{show.clubName}</p>}
-              <p className="apple-browse-card-description">{show.events.join(', ')}</p>
+              <p className="myk9-browse-card-description">{show.events.join(', ')}</p>
 
-              <div className="apple-browse-card-details">
+              <div className="myk9-browse-card-details">
                 {/* Date and Location grouped */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2 border-b border-border/30">
-                  <div className="apple-browse-card-detail-item">
+                  <div className="myk9-browse-card-detail-item">
                     <Calendar className="h-4 w-4" />
                     <span>
                       {new Date(show.startDate).toLocaleDateString()}
@@ -139,7 +139,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="apple-browse-card-detail-item">
+                  <div className="myk9-browse-card-detail-item">
                     <MapPin className="h-4 w-4" />
                     <span>{show.location}</span>
                   </div>
@@ -147,19 +147,19 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
 
                 {/* Fee and Deadline grouped */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                  <div className="apple-browse-card-detail-item">
+                  <div className="myk9-browse-card-detail-item">
                     <DollarSign className="h-4 w-4" />
                     <span>{show.preEntryFee} entry fee</span>
                   </div>
 
-                  <div className="apple-browse-card-detail-item">
+                  <div className="myk9-browse-card-detail-item">
                     <Clock className="h-4 w-4" />
                     <span>Closes {new Date(show.entryCloseDate).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="apple-browse-card-footer">
+              <div className="myk9-browse-card-footer">
                 {getStatusBadge(show.status)}
                 <div className="flex gap-2 flex-wrap">
                   {canEnterShow && user && (
@@ -182,7 +182,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => action.onClick(show)}
-                        className="apple-browse-view-details-btn"
+                        className="myk9-browse-view-details-btn"
                       >
                         <IconComponent className="h-4 w-4 mr-1" />
                         {action.label}

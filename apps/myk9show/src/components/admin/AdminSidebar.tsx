@@ -2,7 +2,7 @@
  * Admin Sidebar Navigation Component
  * 
  * Provides organized navigation for admin system pages
- * Features grouped navigation with Apple-inspired design
+ * Features grouped navigation with Premium design
  */
 
 import React from 'react';

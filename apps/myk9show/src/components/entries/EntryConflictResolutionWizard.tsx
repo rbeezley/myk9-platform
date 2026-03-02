@@ -57,7 +57,7 @@ interface EntryConflictResolutionWizardProps {
 }
 
 /**
- * EntryConflictResolutionWizard - Step-by-step conflict resolution with Apple-inspired design
+ * EntryConflictResolutionWizard - Step-by-step conflict resolution with Premium design
  * 
  * Provides a guided workflow for resolving sync conflicts between local and remote entry versions.
  * Supports field-by-field comparison, automatic resolution suggestions, and manual resolution.

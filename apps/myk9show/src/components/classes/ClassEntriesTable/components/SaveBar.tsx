@@ -53,7 +53,7 @@ export const SaveBar: React.FC<SaveBarProps> = ({
           <Button
             onClick={onSubmit}
             disabled={!changesSummary.canSubmit || isSubmitting}
-            className="apple-action-button apple-action-button-primary"
+            className="myk9-action-button myk9-action-button-primary"
           >
             <Save className="h-4 w-4 mr-2" />
             {isSubmitting ? 'Saving...' : `Save ${changesSummary.valid} Change${changesSummary.valid !== 1 ? 's' : ''}`}

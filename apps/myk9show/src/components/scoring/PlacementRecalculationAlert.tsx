@@ -3,7 +3,7 @@
  * 
  * Displays alerts for placement changes and recalculation events.
  * Provides clear notifications of ranking updates with smooth animations
- * and Apple-inspired design for professional competition management.
+ * and Premium design for professional competition management.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';

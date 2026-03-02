@@ -36,7 +36,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
       )
     );
     if (fromTemplates.length > 0) {
-      return [...fromTemplates, TrialType.OTHER];
+      return fromTemplates.includes(TrialType.OTHER)
+        ? fromTemplates
+        : [...fromTemplates, TrialType.OTHER];
     }
     return getTrialTypesForOrganization(show.organization);
   }, [show.organization, templates]);

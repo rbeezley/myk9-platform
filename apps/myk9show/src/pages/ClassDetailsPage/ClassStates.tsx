@@ -16,7 +16,7 @@ export function ClassNotFoundState() {
   const navigate = useNavigate();
 
   return (
-    <div className="apple-class-page flex items-center justify-center min-h-screen">
+    <div className="myk9-class-page flex items-center justify-center min-h-screen">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-foreground mb-4">Class Not Found</h1>
         <p className="text-muted-foreground mb-4">
@@ -28,7 +28,7 @@ export function ClassNotFoundState() {
               navigate('/classes');
             });
           }}
-          className="apple-action-button apple-action-button-primary"
+          className="myk9-action-button myk9-action-button-primary"
         >
           Back to Classes
         </button>

@@ -402,7 +402,7 @@ export function ScoringDemoPage() {
                 <div className="space-y-2">
                   <h4 className="font-medium text-sm">Integration Features</h4>
                   <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>• Apple-inspired design</li>
+                    <li>• Premium design</li>
                     <li>• Framer Motion animations</li>
                     <li>• Real-time event handling</li>
                     <li>• Performance optimization</li>

@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import '@/styles/apple-template-management.css';
+import '@/styles/myk9-template-management.css';
 
 interface TemplateListProps {
   templates: ClassTemplate[];
@@ -97,13 +97,13 @@ export const TemplateList: React.FC<TemplateListProps> = ({
 
   if (templates.length === 0) {
     return (
-      <div className="apple-empty-state">
-        <FileText className="apple-empty-icon" />
-        <h3 className="apple-empty-title">No templates found</h3>
-        <p className="apple-empty-description">
+      <div className="myk9-empty-state">
+        <FileText className="myk9-empty-icon" />
+        <h3 className="myk9-empty-title">No templates found</h3>
+        <p className="myk9-empty-description">
           No templates match your current filters. Try adjusting your search criteria or create a new template.
         </p>
-        <Button onClick={() => window.location.href = '/admin/templates/new'} className="apple-button-primary">
+        <Button onClick={() => window.location.href = '/admin/templates/new'} className="myk9-button-primary">
           Create Your First Template
         </Button>
       </div>
@@ -112,17 +112,17 @@ export const TemplateList: React.FC<TemplateListProps> = ({
 
   return (
     <>
-      <div className="apple-templates-grid">
+      <div className="myk9-templates-grid">
         {templates.map((template) => (
-          <div key={template.id} className={`apple-template-card ${template.isOfficial ? 'apple-template-card-official' : ''} ${!template.isActive ? 'apple-template-card-inactive' : ''}`}>
-          <div className="apple-template-card-header">
+          <div key={template.id} className={`myk9-template-card ${template.isOfficial ? 'myk9-template-card-official' : ''} ${!template.isActive ? 'myk9-template-card-inactive' : ''}`}>
+          <div className="myk9-template-card-header">
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <h3 className="apple-template-card-title">
+                <h3 className="myk9-template-card-title">
                   {template.templateName}
                 </h3>
-                <div className="apple-template-badges">
-                  <span className={template.isOfficial ? "apple-badge apple-badge-official" : "apple-badge apple-badge-custom"}>
+                <div className="myk9-template-badges">
+                  <span className={template.isOfficial ? "myk9-badge myk9-badge-official" : "myk9-badge myk9-badge-custom"}>
                     {template.isOfficial ? (
                       <span className="flex items-center gap-1">
                         <Shield className="w-3 h-3" />
@@ -133,21 +133,21 @@ export const TemplateList: React.FC<TemplateListProps> = ({
                     )}
                   </span>
                   {!template.isActive && (
-                    <span className="apple-badge apple-badge-inactive">
+                    <span className="myk9-badge myk9-badge-inactive">
                       Inactive
                     </span>
                   )}
-                  <span className="apple-badge apple-badge-outline">
+                  <span className="myk9-badge myk9-badge-outline">
                     {String(template.organization)}
                   </span>
-                  <span className="apple-badge apple-badge-outline">
+                  <span className="myk9-badge myk9-badge-outline">
                     {String(template.trialType)}
                   </span>
                 </div>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="apple-action-menu apple-menu-button">
+                  <Button variant="ghost" size="sm" className="myk9-action-menu myk9-menu-button">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -186,19 +186,19 @@ export const TemplateList: React.FC<TemplateListProps> = ({
               </div>
           </div>
           
-          <div className="apple-template-card-content">
+          <div className="myk9-template-card-content">
             {template.description && (
-              <p className="apple-template-description">
+              <p className="myk9-template-description">
                 {template.description}
               </p>
             )}
             
-            <div className="apple-template-metadata">
-              <div className="apple-metadata-item">
+            <div className="myk9-template-metadata">
+              <div className="myk9-metadata-item">
                 <Users className="h-4 w-4" />
                 <span>{template.classDefinitions.length} classes</span>
               </div>
-              <div className="apple-metadata-item">
+              <div className="myk9-metadata-item">
                 <FileText className="h-4 w-4" />
                 <span>v{template.version}</span>
               </div>
@@ -210,9 +210,9 @@ export const TemplateList: React.FC<TemplateListProps> = ({
               </div>
             )}
 
-            <div className="apple-template-divider"></div>
+            <div className="myk9-template-divider"></div>
 
-            <div className="apple-template-timestamp">
+            <div className="myk9-template-timestamp">
               <Calendar className="h-3 w-3" />
               <span>
                 Updated {formatDistanceToNow(new Date(template.updatedAt || template.createdAt || new Date()), { addSuffix: true })}

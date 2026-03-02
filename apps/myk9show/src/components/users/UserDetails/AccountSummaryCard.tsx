@@ -12,7 +12,7 @@ interface AccountSummaryCardProps {
 const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCount }) => {
   return (
     <Card
-      className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
+      className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                      rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
                      hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
     >
@@ -34,7 +34,7 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div
             className="flex flex-col items-center text-center p-4 bg-gradient-to-br
-                         from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
+                         from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
@@ -52,7 +52,7 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
 
           <div
             className="flex flex-col items-center text-center p-4 bg-gradient-to-br
-                         from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
+                         from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
@@ -68,7 +68,7 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
 
           <div
             className="flex flex-col items-center text-center p-4 bg-gradient-to-br
-                         from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
+                         from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
@@ -79,7 +79,7 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
 
           <div
             className="flex flex-col items-center text-center p-4 bg-gradient-to-br
-                         from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
+                         from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">

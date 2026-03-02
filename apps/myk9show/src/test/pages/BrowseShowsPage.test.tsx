@@ -75,7 +75,7 @@ vi.mock('@/utils/browseShowsUtils', () => ({
   LOCATION_LABELS: {} as Record<string, string>,
   DATE_RANGE_LABELS: {} as Record<string, string>,
 }));
-vi.mock('@/styles/apple-show-details.css', () => ({}));
+vi.mock('@/styles/myk9-show-details.css', () => ({}));
 
 // ---------------------------------------------------------------------------
 // Test data

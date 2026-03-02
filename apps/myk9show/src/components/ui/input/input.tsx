@@ -1,26 +1,26 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-// Apple-inspired design constants from design tokens
+// Premium design constants from design tokens
 const appleInput = {
-  // Base styling with Apple's preferred dimensions - solid design
+  // Base styling with Preferred dimensions - solid design
   base: [
     'flex h-10 w-full', // 2.5rem height from design tokens
-    'px-3.5 py-2.5', // Enhanced padding for Apple touch targets
+    'px-3.5 py-2.5', // Enhanced padding for touch targets
     'bg-input', // Solid input background - consistent with design system
-    'border-0', // No border for clean Apple design
+    'border-0', // No border for clean design system
     'rounded-xl', // 12px radius from tokens
-    'transition-all duration-200 ease-apple', // Apple easing
+    'transition-all duration-200 ease-apple', // standard easing
     'transform-gpu', // GPU acceleration for smoother animations
   ],
-  // Typography matching Apple design
+  // Typography matching design system
   typography: [
     'text-sm font-medium', // 0.875rem with medium weight
     'tracking-tight', // Tight letter spacing
     'placeholder:text-muted-foreground/60',
     'placeholder:font-normal',
   ],
-  // Focus states with Apple-inspired styling  
+  // Focus states with Premium styling  
   focus: [
     'focus-visible:outline-none',
     'focus-visible:ring-2',
@@ -59,7 +59,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       <input
         type={type}
         className={cn(
-          // Apple-inspired input styling
+          // Premium input styling
           ...appleInput.base,
           ...appleInput.typography,
           ...appleInput.focus,

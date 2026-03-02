@@ -39,7 +39,7 @@ async function navigateToTrialPage(page: Page) {
   await page.goto('/shows', { waitUntil: 'networkidle' });
 
   // Click on the first show to view its details
-  const showCard = page.locator('.apple-show-sidebar-item').first();
+  const showCard = page.locator('.myk9-show-sidebar-item').first();
   if (await showCard.isVisible()) {
     await showCard.click();
     await page.waitForLoadState('networkidle');
@@ -62,7 +62,7 @@ test.describe('Trials Page - Statistics Cards', () => {
     await navigateToTrialPage(page);
 
     // Check for contextual subtitles instead of percent changes
-    const statSubtitles = page.locator('.apple-show-stat-subtitle');
+    const statSubtitles = page.locator('.myk9-show-stat-subtitle');
 
     // If we have stat cards, they should have contextual subtitles, not percent changes
     if (await statSubtitles.first().isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -87,7 +87,7 @@ test.describe('Trials Page - Statistics Cards', () => {
     await navigateToTrialPage(page);
 
     // Get the statistics section
-    const statsSection = page.locator('.apple-show-stats-section');
+    const statsSection = page.locator('.myk9-show-stats-section');
 
     if (await statsSection.isVisible({ timeout: 5000 }).catch(() => false)) {
       // If there's a Qualified Rate card, it should have qualified data
@@ -95,7 +95,7 @@ test.describe('Trials Page - Statistics Cards', () => {
 
       if (await qualifiedCard.isVisible({ timeout: 2000 }).catch(() => false)) {
         // There should be qualified subtitle with actual data
-        const qualifiedSubtitle = page.locator('.apple-show-stat-subtitle:has-text("qualified")');
+        const qualifiedSubtitle = page.locator('.myk9-show-stat-subtitle:has-text("qualified")');
         await expect(qualifiedSubtitle).toBeVisible();
       }
     }
@@ -110,11 +110,11 @@ test.describe('Trials Page - Trial Info Card', () => {
   test('trial info card should not display Order field', async ({ page }) => {
     await navigateToTrialPage(page);
 
-    const infoCard = page.locator('.apple-show-info-card');
+    const infoCard = page.locator('.myk9-show-info-card');
 
     if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       // Look for "Order" label - it should NOT exist
-      const orderLabel = infoCard.locator('.apple-show-info-label:has-text("Order")');
+      const orderLabel = infoCard.locator('.myk9-show-info-label:has-text("Order")');
       await expect(orderLabel).not.toBeVisible();
     }
   });
@@ -122,11 +122,11 @@ test.describe('Trials Page - Trial Info Card', () => {
   test('trial info card should display Total Classes field', async ({ page }) => {
     await navigateToTrialPage(page);
 
-    const infoCard = page.locator('.apple-show-info-card');
+    const infoCard = page.locator('.myk9-show-info-card');
 
     if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       // Look for "Total Classes" label
-      const totalClassesLabel = infoCard.locator('.apple-show-info-label:has-text("Total Classes")');
+      const totalClassesLabel = infoCard.locator('.myk9-show-info-label:has-text("Total Classes")');
       await expect(totalClassesLabel).toBeVisible();
     }
   });
@@ -140,7 +140,7 @@ test.describe('Trials Page - Action Buttons', () => {
   test('Edit button should be visible without opening dropdown', async ({ page }) => {
     await navigateToTrialPage(page);
 
-    const infoCard = page.locator('.apple-show-info-card');
+    const infoCard = page.locator('.myk9-show-info-card');
 
     if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       // Look for visible Edit button with title
@@ -152,7 +152,7 @@ test.describe('Trials Page - Action Buttons', () => {
   test('Delete action should be in dropdown menu', async ({ page }) => {
     await navigateToTrialPage(page);
 
-    const infoCard = page.locator('.apple-show-info-card');
+    const infoCard = page.locator('.myk9-show-info-card');
 
     if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
       // Delete should not be immediately visible
@@ -264,7 +264,7 @@ test.describe('Trials Page - Status Badge Animation', () => {
   test('In Progress status badge should have animation', async ({ page }) => {
     await navigateToTrialPage(page);
 
-    const inProgressBadge = page.locator('.apple-show-status-in-progress');
+    const inProgressBadge = page.locator('.myk9-show-status-in-progress');
 
     if (await inProgressBadge.isVisible({ timeout: 5000 }).catch(() => false)) {
       // Check that animation is applied

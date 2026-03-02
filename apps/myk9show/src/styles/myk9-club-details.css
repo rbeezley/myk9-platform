@@ -1,24 +1,24 @@
-/* Apple-Inspired Club Details Styles - Phase 1 Foundation */
+/* myK9 Club Details Styles - Phase 1 Foundation */
 
-/* Typography - San Francisco inspired (copied from apple-show-details.css) */
-.apple-club-page {
+/* Typography - San Francisco inspired (copied from myk9-show-details.css) */
+.myk9-club-page {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
 }
 
-/* Page Layout with Apple's 8px grid system */
-.apple-club-container {
+/* Page Layout with 8px grid system */
+.myk9-club-container {
   @apply px-6;
   max-width: 1440px;
   margin: 0 auto;
-  padding-top: 80px; /* Account for fixed header - match apple-show-container */
+  padding-top: 80px; /* Account for fixed header - match myk9-show-container */
   padding-bottom: 80px;
 }
 
 /* Club Header Section */
-.apple-club-header {
+.myk9-club-header {
   margin-bottom: 40px;
   display: flex;
   flex-direction: column;
@@ -32,7 +32,7 @@
   overflow: hidden;
 }
 
-.apple-club-header::before {
+.myk9-club-header::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -45,14 +45,14 @@
 }
 
 @media (min-width: 768px) {
-  .apple-club-header {
+  .myk9-club-header {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
   }
 }
 
-.apple-club-logo-section {
+.myk9-club-logo-section {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -60,14 +60,14 @@
 }
 
 @media (min-width: 768px) {
-  .apple-club-logo-section {
+  .myk9-club-logo-section {
     flex-direction: row;
     align-items: center;
     gap: 24px;
   }
 }
 
-.apple-club-logo {
+.myk9-club-logo {
   width: 120px;
   height: 120px;
   border-radius: 50%;
@@ -79,24 +79,24 @@
   z-index: 10;
 }
 
-.apple-club-logo:hover {
+.myk9-club-logo:hover {
   transform: scale(1.05);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
   border-color: rgba(0, 122, 255, 0.3);
 }
 
-.apple-club-info {
+.myk9-club-info {
   text-align: center;
   flex: 1;
 }
 
 @media (min-width: 768px) {
-  .apple-club-info {
+  .myk9-club-info {
     text-align: left;
   }
 }
 
-.apple-club-title {
+.myk9-club-title {
   font-size: 32px;
   font-weight: 700;
   line-height: 1.15;
@@ -105,7 +105,7 @@
   color: var(--foreground);
 }
 
-.apple-club-meta {
+.myk9-club-meta {
   font-size: 15px;
   color: var(--muted-foreground);
   margin-bottom: 6px;
@@ -116,19 +116,19 @@
 }
 
 @media (min-width: 768px) {
-  .apple-club-meta {
+  .myk9-club-meta {
     justify-content: flex-start;
   }
 }
 
-.apple-club-contact-actions {
+.myk9-club-contact-actions {
   display: flex;
   align-items: center;
   margin-top: 16px;
 }
 
 @media (min-width: 768px) {
-  .apple-club-contact-actions {
+  .myk9-club-contact-actions {
     margin-top: 0;
     align-self: flex-start;
   }
@@ -136,7 +136,7 @@
 
 /* Contact action styling removed - now using 3-dot menu */
 
-.apple-club-badges {
+.myk9-club-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -145,12 +145,12 @@
 }
 
 @media (min-width: 768px) {
-  .apple-club-badges {
+  .myk9-club-badges {
     justify-content: flex-start;
   }
 }
 
-.apple-club-badge {
+.myk9-club-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -165,13 +165,13 @@
   letter-spacing: 0.02em;
 }
 
-/* Tab Navigation - Apple Style with ShadCN Override */
-.apple-club-tabs-section {
+/* Tab Navigation - myK9 Style with ShadCN Override */
+.myk9-club-tabs-section {
   margin-bottom: 24px;
 }
 
 /* Override ShadCN TabsList default styling */
-.apple-club-tabs {
+.myk9-club-tabs {
   background: transparent !important;
   border-radius: 0 !important;
   border-bottom: 1px solid var(--border);
@@ -183,7 +183,7 @@
 }
 
 /* Override ShadCN TabsTrigger default styling */
-.apple-club-tab {
+.myk9-club-tab {
   background: transparent !important;
   border-radius: 0 !important;
   border-bottom: 2px solid transparent;
@@ -199,13 +199,13 @@
   box-shadow: none !important;
 }
 
-.apple-club-tab:hover {
+.myk9-club-tab:hover {
   color: var(--foreground);
   background: transparent !important;
 }
 
 /* Active state styling with data-state attribute */
-.apple-club-tab[data-state="active"] {
+.myk9-club-tab[data-state="active"] {
   color: #007AFF !important;
   border-bottom-color: #007AFF;
   font-weight: 590;
@@ -213,31 +213,31 @@
 }
 
 /* Focus state for accessibility */
-.apple-club-tab:focus-visible {
+.myk9-club-tab:focus-visible {
   outline: 2px solid #007AFF;
   outline-offset: 2px;
   background: transparent !important;
 }
 
 /* Content Cards */
-.apple-club-content {
+.myk9-club-content {
   padding-bottom: 8px;
 }
 
 /* Shows Grid Layout */
-.apple-club-shows-grid {
+.myk9-club-shows-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
 @media (max-width: 768px) {
-  .apple-club-shows-grid {
+  .myk9-club-shows-grid {
     grid-template-columns: 1fr;
   }
 }
 
-.apple-club-show-card {
+.myk9-club-show-card {
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 16px;
@@ -248,13 +248,13 @@
   overflow: hidden;
 }
 
-.apple-club-show-card:hover {
+.myk9-club-show-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
   border-color: rgba(0, 122, 255, 0.3);
 }
 
-.apple-club-show-card::before {
+.myk9-club-show-card::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -267,31 +267,31 @@
   transition: opacity 0.3s ease;
 }
 
-.apple-club-show-card:hover::before {
+.myk9-club-show-card:hover::before {
   opacity: 0.3;
 }
 
-.apple-club-show-header {
+.myk9-club-show-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 12px;
 }
 
-.apple-club-show-title-row {
+.myk9-club-show-title-row {
   display: flex;
   align-items: center;
   gap: 12px;
   flex: 1;
 }
 
-.apple-club-show-menu {
+.myk9-club-show-menu {
   display: flex;
   align-items: flex-start;
   flex-shrink: 0;
 }
 
-.apple-club-show-title {
+.myk9-club-show-title {
   font-size: 18px;
   font-weight: 650;
   color: var(--foreground);
@@ -299,7 +299,7 @@
   margin: 0;
 }
 
-.apple-club-show-status {
+.myk9-club-show-status {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -313,25 +313,25 @@
   flex-shrink: 0;
 }
 
-.apple-club-show-status-upcoming {
+.myk9-club-show-status-upcoming {
   background: rgba(52, 199, 89, 0.1);
   color: #34C759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
-.apple-club-show-status-registration {
+.myk9-club-show-status-registration {
   background: rgba(0, 122, 255, 0.1);
   color: #007AFF;
   border: 1px solid rgba(0, 122, 255, 0.2);
 }
 
-.apple-club-show-status-completed {
+.myk9-club-show-status-completed {
   background: rgba(88, 86, 214, 0.1);
   color: #5856D6;
   border: 1px solid rgba(88, 86, 214, 0.2);
 }
 
-.apple-club-show-meta {
+.myk9-club-show-meta {
   font-size: 13px;
   color: var(--muted-foreground);
   margin-bottom: 12px;
@@ -340,20 +340,20 @@
   gap: 12px;
 }
 
-.apple-club-show-location {
+.myk9-club-show-location {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.apple-club-show-date {
+.myk9-club-show-date {
   display: flex;
   align-items: center;
   gap: 4px;
   font-weight: 500;
 }
 
-.apple-club-show-description {
+.myk9-club-show-description {
   font-size: 14px;
   color: var(--foreground);
   line-height: 1.5;
@@ -364,7 +364,7 @@
 
 /* Show action button styling removed - now using 3-dot menu */
 
-.apple-club-show-metadata {
+.myk9-club-show-metadata {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
@@ -376,26 +376,26 @@
   border: 1px solid var(--border);
 }
 
-.apple-club-show-metadata-item {
+.myk9-club-show-metadata-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.apple-club-show-metadata-label {
+.myk9-club-show-metadata-label {
   color: var(--muted-foreground);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
-.apple-club-show-metadata-value {
+.myk9-club-show-metadata-value {
   color: var(--foreground);
   font-weight: 590;
 }
 
 /* Empty State */
-.apple-club-empty {
+.myk9-club-empty {
   text-align: center;
   padding: 64px 32px;
   background: var(--muted);
@@ -404,7 +404,7 @@
   margin: 16px 0;
 }
 
-.apple-club-empty-icon {
+.myk9-club-empty-icon {
   width: 64px;
   height: 64px;
   margin: 0 auto 16px;
@@ -412,21 +412,21 @@
   opacity: 0.6;
 }
 
-.apple-club-empty-title {
+.myk9-club-empty-title {
   font-size: 18px;
   font-weight: 590;
   margin-bottom: 8px;
   color: var(--foreground);
 }
 
-.apple-club-empty-text {
+.myk9-club-empty-text {
   font-size: 14px;
   color: var(--muted-foreground);
   line-height: 1.5;
   margin-bottom: 20px;
 }
 
-.apple-club-empty-action {
+.myk9-club-empty-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -441,39 +441,39 @@
   transition: all 0.2s ease;
 }
 
-.apple-club-empty-action:hover {
+.myk9-club-empty-action:hover {
   background: #0056CC;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
 
 /* About Section */
-.apple-club-about {
+.myk9-club-about {
   line-height: 1.6;
 }
 
-.apple-club-description {
+.myk9-club-description {
   font-size: 16px;
   color: var(--foreground);
   margin-bottom: 16px;
   line-height: 1.6;
 }
 
-.apple-club-address {
+.myk9-club-address {
   font-size: 14px;
   color: var(--muted-foreground);
 }
 
 /* Micro-interactions and Advanced Animations */
-.apple-club-stat-card,
-.apple-club-show-card {
+.myk9-club-stat-card,
+.myk9-club-show-card {
   animation: fadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.apple-club-stat-card:nth-child(1) { animation-delay: 0.1s; }
-.apple-club-stat-card:nth-child(2) { animation-delay: 0.2s; }
-.apple-club-stat-card:nth-child(3) { animation-delay: 0.3s; }
-.apple-club-stat-card:nth-child(4) { animation-delay: 0.4s; }
+.myk9-club-stat-card:nth-child(1) { animation-delay: 0.1s; }
+.myk9-club-stat-card:nth-child(2) { animation-delay: 0.2s; }
+.myk9-club-stat-card:nth-child(3) { animation-delay: 0.3s; }
+.myk9-club-stat-card:nth-child(4) { animation-delay: 0.4s; }
 
 @keyframes fadeInUp {
   from {
@@ -487,7 +487,7 @@
 }
 
 /* Tab transition animations */
-.apple-club-content {
+.myk9-club-content {
   animation: fadeIn 0.4s ease-out;
 }
 
@@ -501,12 +501,12 @@
 }
 
 /* Enhanced button interactions */
-.apple-club-empty-action {
+.myk9-club-empty-action {
   position: relative;
   overflow: hidden;
 }
 
-.apple-club-empty-action::before {
+.myk9-club-empty-action::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -519,13 +519,13 @@
   transition: width 0.3s ease, height 0.3s ease;
 }
 
-.apple-club-empty-action:active::before {
+.myk9-club-empty-action:active::before {
   width: 300px;
   height: 300px;
 }
 
 /* Statistics icon pulse animation */
-.apple-club-stat-icon {
+.myk9-club-stat-icon {
   animation: iconPulse 2s infinite;
 }
 
@@ -539,11 +539,11 @@
 }
 
 /* Logo enhanced hover effect */
-.apple-club-logo {
+.myk9-club-logo {
   position: relative;
 }
 
-.apple-club-logo::after {
+.myk9-club-logo::after {
   content: '';
   position: absolute;
   inset: -3px;
@@ -554,59 +554,59 @@
   z-index: -1;
 }
 
-.apple-club-logo:hover::after {
+.myk9-club-logo:hover::after {
   opacity: 0.2;
 }
 
 /* Dark mode adjustments */
-.dark .apple-club-show-card {
+.dark .myk9-club-show-card {
   backdrop-filter: blur(20px);
 }
 
-.dark .apple-club-show-metadata {
+.dark .myk9-club-show-metadata {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Enhanced Mobile Responsiveness */
 @media (max-width: 768px) {
-  .apple-club-container {
+  .myk9-club-container {
     @apply px-4;
     padding-top: 16px;
   }
   
-  .apple-club-header {
+  .myk9-club-header {
     padding: 24px 20px;
     margin-bottom: 24px;
   }
   
-  .apple-club-title {
+  .myk9-club-title {
     font-size: 26px;
   }
   
-  .apple-club-logo {
+  .myk9-club-logo {
     width: 100px;
     height: 100px;
   }
   
-  .apple-club-stats-grid {
+  .myk9-club-stats-grid {
     @apply grid-cols-1 gap-4;
   }
   
-  .apple-club-stat-card {
+  .myk9-club-stat-card {
     padding: 20px;
   }
   
-  .apple-club-stat-number {
+  .myk9-club-stat-number {
     font-size: 28px;
   }
   
-  .apple-club-tabs {
+  .myk9-club-tabs {
     gap: 12px !important;
     padding: 0 4px !important;
   }
   
-  .apple-club-tab {
+  .myk9-club-tab {
     font-size: 14px;
     padding: 10px 0 !important;
     min-width: 0;
@@ -614,98 +614,98 @@
     text-align: center;
   }
   
-  .apple-club-show-card {
+  .myk9-club-show-card {
     padding: 16px;
   }
   
-  .apple-club-show-card:hover {
+  .myk9-club-show-card:hover {
     transform: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
   
-  .apple-club-show-title {
+  .myk9-club-show-title {
     font-size: 16px;
   }
   
-  .apple-club-show-metadata {
+  .myk9-club-show-metadata {
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     padding: 10px;
     font-size: 11px;
   }
   
-  .apple-club-show-title-row {
+  .myk9-club-show-title-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
   
-  .apple-club-show-header {
+  .myk9-club-show-header {
     align-items: flex-start;
   }
   
-  .apple-club-empty {
+  .myk9-club-empty {
     padding: 48px 20px;
   }
   
-  .apple-club-empty-icon {
+  .myk9-club-empty-icon {
     width: 48px;
     height: 48px;
   }
   
-  .apple-club-empty-title {
+  .myk9-club-empty-title {
     font-size: 16px;
   }
   
-  .apple-club-empty-text {
+  .myk9-club-empty-text {
     font-size: 13px;
   }
   
-  .apple-club-contact-actions {
+  .myk9-club-contact-actions {
     justify-content: center;
   }
   
   /* Disable animations on mobile for better performance */
-  .apple-club-stat-card,
-  .apple-club-show-card {
+  .myk9-club-stat-card,
+  .myk9-club-show-card {
     animation: none;
   }
   
-  .apple-club-stat-icon {
+  .myk9-club-stat-icon {
     animation: none;
   }
 }
 
 /* Large screens optimization */
 @media (min-width: 1200px) {
-  .apple-club-container {
+  .myk9-club-container {
     padding-left: 48px;
     padding-right: 48px;
   }
   
-  .apple-club-stats-grid {
+  .myk9-club-stats-grid {
     gap: 8px;
   }
   
-  .apple-club-stat-card {
+  .myk9-club-stat-card {
     padding: 28px;
   }
   
-  .apple-club-show-card {
+  .myk9-club-show-card {
     padding: 24px;
   }
 }
 
-/* Statistics Section - copied from apple-show-details.css */
-.apple-club-stats-section {
+/* Statistics Section - copied from myk9-show-details.css */
+.myk9-club-stats-section {
   margin-bottom: 32px;
 }
 
-.apple-club-stats-grid {
+.myk9-club-stats-grid {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
 }
 
-.apple-club-stat-card {
+.myk9-club-stat-card {
   @apply relative overflow-hidden;
   background: var(--card);
   border: 0.5px solid var(--border);
@@ -715,20 +715,20 @@
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.apple-club-stat-card:hover {
+.myk9-club-stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
   border-color: rgba(0, 122, 255, 0.2);
 }
 
-.apple-club-stat-layout {
+.myk9-club-stat-layout {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
 }
 
-.apple-club-stat-icon {
+.myk9-club-stat-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -741,30 +741,30 @@
   flex-shrink: 0;
 }
 
-.apple-club-stat-icon.shows {
+.myk9-club-stat-icon.shows {
   background: linear-gradient(135deg, #007AFF 0%, #00C7BE 100%);
 }
 
-.apple-club-stat-icon.members {
+.myk9-club-stat-icon.members {
   background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
 }
 
-.apple-club-stat-icon.events {
+.myk9-club-stat-icon.events {
   background: linear-gradient(135deg, #5856D6 0%, #AF52DE 100%);
 }
 
-.apple-club-stat-icon.rating {
+.myk9-club-stat-icon.rating {
   background: linear-gradient(135deg, #FF9500 0%, #FF6200 100%);
 }
 
-.apple-club-stat-header {
+.myk9-club-stat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 4px;
 }
 
-.apple-club-stat-trend {
+.myk9-club-stat-trend {
   font-size: 13px;
   font-weight: 590;
   padding: 4px 8px;
@@ -773,12 +773,12 @@
   color: #34C759;
 }
 
-.apple-club-stat-content {
+.myk9-club-stat-content {
   text-align: left;
   flex: 1;
 }
 
-.apple-club-stat-title {
+.myk9-club-stat-title {
   font-size: 13px;
   font-weight: 590;
   text-transform: uppercase;
@@ -787,7 +787,7 @@
   margin-bottom: 4px;
 }
 
-.apple-club-stat-number {
+.myk9-club-stat-number {
   font-size: 32px;
   font-weight: 700;
   line-height: 1.0;
@@ -795,7 +795,7 @@
   margin-bottom: 12px;
 }
 
-.apple-club-stat-details {
+.myk9-club-stat-details {
   display: flex;
   justify-content: space-between;
   font-size: 13px;
@@ -803,7 +803,7 @@
   margin-bottom: 12px;
 }
 
-.apple-club-stat-progress {
+.myk9-club-stat-progress {
   width: 100%;
   height: 4px;
   background: var(--muted);
@@ -811,31 +811,31 @@
   overflow: hidden;
 }
 
-.apple-club-stat-progress-bar {
+.myk9-club-stat-progress-bar {
   height: 100%;
   background: linear-gradient(90deg, #007AFF 0%, #5856D6 100%);
   border-radius: 2px;
   transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.apple-club-stat-progress-bar.shows {
+.myk9-club-stat-progress-bar.shows {
   background: linear-gradient(90deg, #007AFF 0%, #00C7BE 100%);
 }
 
-.apple-club-stat-progress-bar.members {
+.myk9-club-stat-progress-bar.members {
   background: linear-gradient(90deg, #34C759 0%, #30D158 100%);
 }
 
-.apple-club-stat-progress-bar.events {
+.myk9-club-stat-progress-bar.events {
   background: linear-gradient(90deg, #5856D6 0%, #AF52DE 100%);
 }
 
-.apple-club-stat-progress-bar.rating {
+.myk9-club-stat-progress-bar.rating {
   background: linear-gradient(90deg, #FF9500 0%, #FF6200 100%);
 }
 
-/* Dropdown trigger styling - matches apple-show-details.css */
-.apple-club-dropdown-trigger {
+/* Dropdown trigger styling - matches myk9-show-details.css */
+.myk9-club-dropdown-trigger {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
@@ -848,23 +848,23 @@
   z-index: 20;
 }
 
-.apple-club-dropdown-trigger:hover {
+.myk9-club-dropdown-trigger:hover {
   background: var(--muted);
   color: var(--foreground);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.dark .apple-club-dropdown-trigger {
+.dark .myk9-club-dropdown-trigger {
   background: rgba(30, 30, 30, 0.9);
 }
 
-.dark .apple-club-dropdown-trigger:hover {
+.dark .myk9-club-dropdown-trigger:hover {
   background: rgba(60, 60, 60, 1);
 }
 
 /* Focus styles for accessibility */
-.apple-club-tab:focus {
+.myk9-club-tab:focus {
   outline: 2px solid #007AFF;
   outline-offset: 2px;
 }

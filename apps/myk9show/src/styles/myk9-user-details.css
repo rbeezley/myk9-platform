@@ -1,15 +1,15 @@
-/* Apple-Inspired People Details Styles */
+/* myK9 People Details Styles */
 
 /* Typography - San Francisco inspired */
-.apple-people-page {
+.myk9-people-page {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
 }
 
-/* Page Layout with Apple's 8px grid system */
-.apple-people-container {
+/* Page Layout with 8px grid system */
+.myk9-people-container {
   @apply px-6;
   max-width: 1440px;
   margin: 0 auto;
@@ -18,7 +18,7 @@
 }
 
 /* Enhanced Header with photo and person info */
-.apple-people-header {
+.myk9-people-header {
   background: var(--card);
   border: 0.5px solid var(--border);
   border-radius: 20px;
@@ -32,7 +32,7 @@
   align-items: flex-start;
 }
 
-.apple-people-header::before {
+.myk9-people-header::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -44,7 +44,7 @@
   opacity: 0.3;
 }
 
-.apple-people-photo-section {
+.myk9-people-photo-section {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -53,20 +53,20 @@
   flex-shrink: 0;
 }
 
-.apple-people-info-section {
+.myk9-people-info-section {
   flex: 1;
   position: relative;
   z-index: 10;
 }
 
-.apple-people-actions {
+.myk9-people-actions {
   position: relative;
   z-index: 10;
   flex-shrink: 0;
 }
 
 /* Profile Photo Container */
-.apple-people-photo-container {
+.myk9-people-photo-container {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -74,14 +74,14 @@
 }
 
 /* Title and Info Section */
-.apple-people-title-group {
+.myk9-people-title-group {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.apple-people-title {
+.myk9-people-title {
   font-size: 28px;
   font-weight: 700;
   line-height: 1.15;
@@ -89,7 +89,7 @@
   margin: 0;
 }
 
-.apple-people-role-badge {
+.myk9-people-role-badge {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
@@ -104,7 +104,7 @@
 }
 
 
-.apple-people-contact-link {
+.myk9-people-contact-link {
   color: var(--foreground);
   text-decoration: none;
   font-size: 15px;
@@ -112,17 +112,17 @@
   transition: color 0.2s ease;
 }
 
-.apple-people-contact-link:hover {
+.myk9-people-contact-link:hover {
   color: #007AFF;
 }
 
-.apple-people-contact-text {
+.myk9-people-contact-text {
   color: var(--foreground);
   font-size: 15px;
   font-weight: 500;
 }
 
-.apple-people-photo {
+.myk9-people-photo {
   width: 120px;
   height: 120px;
   border-radius: 28px;
@@ -133,13 +133,13 @@
   cursor: pointer;
 }
 
-.apple-people-photo:hover {
+.myk9-people-photo:hover {
   transform: scale(1.02);
   border-color: rgba(0, 122, 255, 0.4);
   box-shadow: 0 12px 40px rgba(0, 122, 255, 0.15);
 }
 
-.apple-people-photo-placeholder {
+.myk9-people-photo-placeholder {
   width: 120px;
   height: 120px;
   border-radius: 28px;
@@ -156,26 +156,26 @@
   transition: all 0.3s ease;
 }
 
-.apple-people-photo-placeholder:hover {
+.myk9-people-photo-placeholder:hover {
   transform: scale(1.02);
   border-color: rgba(0, 122, 255, 0.4);
   box-shadow: 0 12px 40px rgba(0, 122, 255, 0.15);
 }
 
-.apple-people-photo-edit-btn {
+.myk9-people-photo-edit-btn {
   border-radius: 8px;
   font-size: 13px;
   font-weight: 590;
   transition: all 0.2s ease;
 }
 
-.apple-people-photo-edit-btn:hover {
+.myk9-people-photo-edit-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* Dropdown Menu Styling */
-.apple-people-dropdown-trigger {
+.myk9-people-dropdown-trigger {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
@@ -185,22 +185,22 @@
   cursor: pointer;
 }
 
-.apple-people-dropdown-trigger:hover {
+.myk9-people-dropdown-trigger:hover {
   background: var(--muted);
   color: var(--foreground);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.dark .apple-people-dropdown-trigger {
+.dark .myk9-people-dropdown-trigger {
   background: rgba(30, 30, 30, 0.9);
 }
 
-.dark .apple-people-dropdown-trigger:hover {
+.dark .myk9-people-dropdown-trigger:hover {
   background: rgba(60, 60, 60, 1);
 }
 
-.apple-people-name {
+.myk9-people-name {
   font-size: 24px;
   font-weight: 650;
   color: var(--foreground);
@@ -208,7 +208,7 @@
   text-align: center;
 }
 
-.apple-people-role {
+.myk9-people-role {
   font-size: 14px;
   color: var(--muted-foreground);
   text-align: center;
@@ -216,21 +216,21 @@
 }
 
 /* Contact Information Grid */
-.apple-people-contact-grid {
+.myk9-people-contact-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px 32px;
   align-items: start;
 }
 
-.apple-people-contact-item {
+.myk9-people-contact-item {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 24px;
 }
 
-.apple-people-contact-label {
+.myk9-people-contact-label {
   font-size: 13px;
   font-weight: 590;
   text-transform: uppercase;
@@ -239,7 +239,7 @@
   opacity: 0.8;
 }
 
-.apple-people-contact-value {
+.myk9-people-contact-value {
   font-size: 16px;
   font-weight: 500;
   color: var(--foreground);
@@ -247,37 +247,37 @@
 }
 
 /* Dark mode support for field values */
-.dark .apple-people-contact-value {
+.dark .myk9-people-contact-value {
   color: white;
 }
 
-.apple-people-contact-value.email {
+.myk9-people-contact-value.email {
   color: #007AFF;
   text-decoration: none;
 }
 
-.dark .apple-people-contact-value.email {
+.dark .myk9-people-contact-value.email {
   color: white;
 }
 
-.apple-people-contact-value.email:hover {
+.myk9-people-contact-value.email:hover {
   text-decoration: underline;
 }
 
-.apple-people-contact-value.phone {
+.myk9-people-contact-value.phone {
   color: #34C759;
   text-decoration: none;
 }
 
-.dark .apple-people-contact-value.phone {
+.dark .myk9-people-contact-value.phone {
   color: white;
 }
 
-.apple-people-contact-value.phone:hover {
+.myk9-people-contact-value.phone:hover {
   text-decoration: underline;
 }
 
-.apple-people-contact-link {
+.myk9-people-contact-link {
   font-size: 15px;
   font-weight: 500;
   color: #007AFF;
@@ -285,12 +285,12 @@
   transition: all 0.2s ease;
 }
 
-.apple-people-contact-link:hover {
+.myk9-people-contact-link:hover {
   text-decoration: underline;
   color: #0056CC;
 }
 
-.apple-people-contact-text {
+.myk9-people-contact-text {
   font-size: 15px;
   font-weight: 500;
   color: var(--foreground);
@@ -298,26 +298,26 @@
 }
 
 /* Address Section */
-.apple-people-address {
+.myk9-people-address {
   grid-column: 1 / -1;
   margin-top: 8px;
 }
 
-.apple-people-address-text {
+.myk9-people-address-text {
   line-height: 1.5;
 }
 
 /* Tabs Card */
-.apple-people-tabs {
+.myk9-people-tabs {
   flex: 1;
 }
 
-.apple-people-tabs .apple-people-card-content {
+.myk9-people-tabs .myk9-people-card-content {
   padding: 0;
 }
 
 /* Status Indicators */
-.apple-people-status {
+.myk9-people-status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -330,20 +330,20 @@
   margin-bottom: 12px;
 }
 
-.apple-people-status-active {
+.myk9-people-status-active {
   background: rgba(52, 199, 89, 0.1);
   color: #34C759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
-.apple-people-status-inactive {
+.myk9-people-status-inactive {
   background: rgba(142, 142, 147, 0.1);
   color: #8E8E93;
   border: 1px solid rgba(142, 142, 147, 0.2);
 }
 
 /* Action Buttons */
-.apple-people-action-button {
+.myk9-people-action-button {
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -359,26 +359,26 @@
   text-decoration: none;
 }
 
-.apple-people-action-button:hover {
+.myk9-people-action-button:hover {
   background: var(--muted);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 
-.apple-people-action-button-primary {
+.myk9-people-action-button-primary {
   background: #007AFF;
   color: white;
   border-color: #007AFF;
 }
 
-.apple-people-action-button-primary:hover {
+.myk9-people-action-button-primary:hover {
   background: #0056CC;
   border-color: #0056CC;
   box-shadow: 0 6px 20px rgba(0, 122, 255, 0.3);
 }
 
 /* Dogs Section in Tabs */
-.apple-people-dogs-grid {
+.myk9-people-dogs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
@@ -386,7 +386,7 @@
 }
 
 /* Dog Cards - Keep animations for these */
-.apple-people-dog-card {
+.myk9-people-dog-card {
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -395,13 +395,13 @@
   cursor: pointer;
 }
 
-.apple-people-dog-card:hover {
+.myk9-people-dog-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
   border-color: rgba(0, 122, 255, 0.4);
 }
 
-.apple-people-dog-photo {
+.myk9-people-dog-photo {
   width: 60px;
   height: 60px;
   border-radius: 12px;
@@ -410,20 +410,20 @@
   border: 2px solid var(--border);
 }
 
-.apple-people-dog-name {
+.myk9-people-dog-name {
   font-size: 16px;
   font-weight: 590;
   color: var(--foreground);
   margin-bottom: 4px;
 }
 
-.apple-people-dog-breed {
+.myk9-people-dog-breed {
   font-size: 13px;
   color: var(--muted-foreground);
   margin-bottom: 8px;
 }
 
-.apple-people-dog-stats {
+.myk9-people-dog-stats {
   display: flex;
   gap: 12px;
   font-size: 11px;
@@ -431,7 +431,7 @@
 }
 
 /* Sidebar Styles */
-.apple-people-sidebar-container {
+.myk9-people-sidebar-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -440,7 +440,7 @@
   backdrop-filter: blur(40px);
 }
 
-.apple-people-sidebar-item {
+.myk9-people-sidebar-item {
   padding: 12px 16px;
   margin: 2px 8px;
   border-radius: 12px;
@@ -449,25 +449,25 @@
   border: 1px solid transparent;
 }
 
-.apple-people-sidebar-item:hover {
+.myk9-people-sidebar-item:hover {
   background: var(--muted);
   transform: translateX(2px);
 }
 
-.apple-people-sidebar-item.selected {
+.myk9-people-sidebar-item.selected {
   background: rgba(0, 122, 255, 0.1);
   border-color: rgba(0, 122, 255, 0.3);
   color: #007AFF;
 }
 
-.apple-people-sidebar-name {
+.myk9-people-sidebar-name {
   font-size: 14px;
   font-weight: 590;
   margin-bottom: 2px;
   line-height: 1.2;
 }
 
-.apple-people-sidebar-email {
+.myk9-people-sidebar-email {
   font-size: 11px;
   color: var(--muted-foreground);
   margin-bottom: 1px;
@@ -475,7 +475,7 @@
   opacity: 0.8;
 }
 
-.apple-people-sidebar-role {
+.myk9-people-sidebar-role {
   font-size: 10px;
   color: var(--muted-foreground);
   text-transform: uppercase;
@@ -485,7 +485,7 @@
 }
 
 /* Empty State */
-.apple-people-empty {
+.myk9-people-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -495,7 +495,7 @@
   padding: 48px 32px;
 }
 
-.apple-people-empty-icon {
+.myk9-people-empty-icon {
   width: 80px;
   height: 80px;
   margin-bottom: 24px;
@@ -503,14 +503,14 @@
   opacity: 0.4;
 }
 
-.apple-people-empty-title {
+.myk9-people-empty-title {
   font-size: 24px;
   font-weight: 650;
   margin-bottom: 12px;
   color: var(--foreground);
 }
 
-.apple-people-empty-description {
+.myk9-people-empty-description {
   font-size: 16px;
   color: var(--muted-foreground);
   line-height: 1.5;
@@ -519,105 +519,105 @@
 }
 
 /* Dark mode adjustments */
-.dark .apple-people-card {
+.dark .myk9-people-card {
   backdrop-filter: blur(40px);
 }
 
-.dark .apple-people-dog-card {
+.dark .myk9-people-dog-card {
   background: rgba(30, 30, 30, 0.6);
 }
 
 /* Responsive Design */
 @media (max-width: 1024px) {
-  .apple-people-container {
+  .myk9-people-container {
     padding: 24px;
   }
   
-  .apple-people-header {
+  .myk9-people-header {
     flex-direction: column;
     gap: 24px;
     text-align: center;
   }
   
-  .apple-people-photo-section {
+  .myk9-people-photo-section {
     align-items: center;
   }
   
-  .apple-people-info-section {
+  .myk9-people-info-section {
     text-align: center;
   }
   
-  .apple-people-actions {
+  .myk9-people-actions {
     align-self: center;
   }
   
-  .apple-people-dogs-grid {
+  .myk9-people-dogs-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 12px;
   }
 }
 
 @media (max-width: 768px) {
-  .apple-people-container {
+  .myk9-people-container {
     padding: 20px;
     padding-top: 60px;
   }
   
-  .apple-people-header {
+  .myk9-people-header {
     padding: 24px;
     gap: 20px;
   }
   
-  .apple-people-title {
+  .myk9-people-title {
     font-size: 24px;
   }
   
-  .apple-people-photo {
+  .myk9-people-photo {
     width: 100px;
     height: 100px;
   }
   
-  .apple-people-photo-placeholder {
+  .myk9-people-photo-placeholder {
     width: 100px;
     height: 100px;
     font-size: 40px;
   }
   
-  .apple-people-contact-grid {
+  .myk9-people-contact-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
   
-  .apple-people-contact-item {
+  .myk9-people-contact-item {
     justify-content: flex-start;
   }
   
-  .apple-people-dogs-grid {
+  .myk9-people-dogs-grid {
     grid-template-columns: 1fr;
     padding: 16px;
   }
 }
 
 /* Focus styles for accessibility */
-.apple-people-action-button:focus {
+.myk9-people-action-button:focus {
   outline: 2px solid #007AFF;
   outline-offset: 2px;
 }
 
 /* Smooth animations */
-.apple-people-page {
+.myk9-people-page {
   scroll-behavior: smooth;
 }
 
 /* Loading States */
-.apple-people-loading {
+.myk9-people-loading {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 60vh;
 }
 
-.apple-people-loading-spinner {
+.myk9-people-loading-spinner {
   width: 40px;
   height: 40px;
   border: 3px solid var(--muted);
@@ -631,12 +631,12 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Apple-style subtle borders for user details */
-.apple-subtle-card-border {
+/* myK9 subtle borders for user details */
+.myk9-subtle-card-border {
   border: 0.5px solid var(--border) !important;
 }
 
-.apple-subtle-field-separator {
+.myk9-subtle-field-separator {
   border-bottom: 0.5px solid var(--border) !important;
   opacity: 0.3;
 }
@@ -662,7 +662,7 @@
 }
 
 /* Override any other rules that might affect our labels */
-.dark .max-w-7xl .apple-subtle-field-separator span.text-xs[class*="muted-foreground"] {
+.dark .max-w-7xl .myk9-subtle-field-separator span.text-xs[class*="muted-foreground"] {
   color: rgb(156 163 175 / 0.8) !important;
 }
 
@@ -673,7 +673,7 @@
 }
 
 /* Keep labels properly muted - highest specificity */
-.dark .apple-subtle-field-separator span[class*="text-muted-foreground"].tracking-wide.uppercase,
+.dark .myk9-subtle-field-separator span[class*="text-muted-foreground"].tracking-wide.uppercase,
 .dark span[class*="text-muted-foreground"].tracking-wide.uppercase,
 .dark span.text-muted-foreground.tracking-wide.uppercase {
   color: rgb(156 163 175 / 0.8) !important;

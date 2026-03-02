@@ -1,7 +1,7 @@
 /**
  * DashboardLayout Component
  *
- * Apple-inspired dashboard layout with proper spacing, navigation clearance,
+ * Premium dashboard layout with proper spacing, navigation clearance,
  * and consistent structure. Automatically follows design system.
  */
 

@@ -35,14 +35,14 @@ export const PeopleGridView: React.FC<PeopleGridViewProps> = ({ people }) => {
         return (
           <div
             key={person.id}
-            className="apple-browse-card cursor-pointer"
+            className="myk9-browse-card cursor-pointer"
             onClick={() => navigate(`/users/${person.id}`)}
             role="link"
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && navigate(`/users/${person.id}`)}
           >
-            <div className="apple-browse-card-header">
-              <div className="apple-browse-card-badges">
+            <div className="myk9-browse-card-header">
+              <div className="myk9-browse-card-badges">
                 {person.roles &&
                   person.roles.slice(0, 2).map(role => (
                     <Badge
@@ -61,7 +61,7 @@ export const PeopleGridView: React.FC<PeopleGridViewProps> = ({ people }) => {
               </div>
             </div>
 
-            <div className="apple-browse-card-content">
+            <div className="myk9-browse-card-content">
               {/* Person identity: photo/initial + full name */}
               <div className="flex items-center gap-3 mb-2">
                 {profileImage ? (
@@ -75,13 +75,13 @@ export const PeopleGridView: React.FC<PeopleGridViewProps> = ({ people }) => {
                     {getPersonInitial(person)}
                   </div>
                 )}
-                <h3 className="apple-browse-card-title">{fullName}</h3>
+                <h3 className="myk9-browse-card-title">{fullName}</h3>
               </div>
 
-              <div className="apple-browse-card-details">
+              <div className="myk9-browse-card-details">
                 <div className="grid grid-cols-1 gap-2">
                   {person.email && (
-                    <div className="apple-browse-card-detail-item">
+                    <div className="myk9-browse-card-detail-item">
                       <Mail className="h-4 w-4" />
                       <span className="truncate">{person.email}</span>
                     </div>
@@ -89,12 +89,12 @@ export const PeopleGridView: React.FC<PeopleGridViewProps> = ({ people }) => {
                 </div>
               </div>
 
-              <div className="apple-browse-card-footer">
+              <div className="myk9-browse-card-footer">
                 <div />
                 <Button
                   variant="outline"
                   size="sm"
-                  className="apple-browse-view-details-btn"
+                  className="myk9-browse-view-details-btn"
                   onClick={e => {
                     e.stopPropagation();
                     navigate(`/users/${person.id}`);

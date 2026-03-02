@@ -257,7 +257,7 @@ const TrialDetailsPage: React.FC = () => {
   // Handle case where trial doesn't exist - moved after hooks
   if (trialId && !currentTrial && trials.length > 0) {
     return (
-      <div className="apple-show-page flex items-center justify-center min-h-screen">
+      <div className="myk9-show-page flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Trial Not Found</h1>
           <p className="text-muted-foreground mb-4">The trial you're looking for doesn't exist.</p>
@@ -266,7 +266,7 @@ const TrialDetailsPage: React.FC = () => {
               const url = showId ? `/shows/${showId}` : '/trials';
               navigate(url);
             }}
-            className="apple-action-button apple-action-button-primary"
+            className="myk9-action-button myk9-action-button-primary"
           >
             {showId ? 'Back to Show' : 'Back to Trials'}
           </button>
@@ -505,7 +505,7 @@ const TrialDetailsPage: React.FC = () => {
             totalTrials={showTrials.length}
           />
         ) : (
-          <div className="apple-show-container flex items-center justify-center min-h-[60vh]">
+          <div className="myk9-show-container flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <p className="text-muted-foreground text-lg mb-2">No trial selected</p>
               <p className="text-muted-foreground text-sm">
@@ -558,7 +558,7 @@ const TrialDetailsPage: React.FC = () => {
         cancelLabel="Cancel"
         saveButtonProps={{
           variant: 'destructive',
-          className: 'apple-action-button apple-action-button-danger',
+          className: 'myk9-action-button myk9-action-button-danger',
         }}
         hideSave={false}
       >

@@ -40,7 +40,7 @@ import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { joinWaitlist } from '@/services/database/queries/waitlistQueries';
 import { toast } from 'sonner';
 import { getShowEntryFee } from './PaymentStep/utils';
-import '@/styles/apple-registration-workflow.css';
+import '@/styles/myk9-registration-workflow.css';
 
 interface ClassSelectionStepProps {
   selectedDogs: string[];
@@ -480,7 +480,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     <div key={`${dogId}-${classData.id}`} className="space-y-2">
                                       <div
                                         className={cn(
-                                          'apple-class-card apple-class-card-compact',
+                                          'myk9-class-card myk9-class-card-compact',
                                           (isSelected || isAlreadyEntered) && 'selected',
                                           isAlreadyEntered && 'bg-green-50 border-green-300',
                                           isFull &&
@@ -519,7 +519,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                                 <div className="flex items-center gap-2">
                                                   <span
                                                     className={cn(
-                                                      'apple-class-card-title-compact',
+                                                      'myk9-class-card-title-compact',
                                                       isAlreadyEntered && 'text-green-700',
                                                       isFull &&
                                                         !isAlreadyEntered &&
@@ -677,7 +677,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                                   )}
                                                   <div
                                                     className={cn(
-                                                      'apple-class-card-price-compact',
+                                                      'myk9-class-card-price-compact',
                                                       isAlreadyEntered &&
                                                         'bg-green-100 text-green-700',
                                                       isFull &&
@@ -693,7 +693,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                           </div>
                                         </div>
                                         {classData.description && (
-                                          <div className="apple-class-card-details-compact">
+                                          <div className="myk9-class-card-details-compact">
                                             {classData.description}
                                           </div>
                                         )}

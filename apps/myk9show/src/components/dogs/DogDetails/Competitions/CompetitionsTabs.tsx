@@ -34,24 +34,24 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = () => {
     'Add External Achievement';
 
   return (
-    <div className="apple-section-card">
-      <div className="apple-section-header">
-        <h2 className="apple-section-title">Competitions</h2>
+    <div className="myk9-section-card">
+      <div className="myk9-section-header">
+        <h2 className="myk9-section-title">Competitions</h2>
         <button 
           onClick={handleAdd}
-          className="apple-add-button"
+          className="myk9-add-button"
         >
           <Plus className="w-4 h-4" /> 
           {addButtonLabel}
         </button>
       </div>
       <Tabs defaultValue="upcoming" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="apple-sub-tabs">
+        <TabsList className="myk9-sub-tabs">
           {tabs.map(tab => (
             <TabsTrigger 
               key={tab.key} 
               value={tab.key}
-              className="apple-sub-tab"
+              className="myk9-sub-tab"
             >
               {tab.label}
             </TabsTrigger>

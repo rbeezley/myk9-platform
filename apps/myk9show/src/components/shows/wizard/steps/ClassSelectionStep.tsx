@@ -356,22 +356,22 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                           </div>
 
                           {currentTrialState.selectedTemplate && (
-                            <div className="apple-template-card">
-                              <div className="apple-template-header">
-                                <div className="apple-template-title-section">
-                                  <FileText className="apple-template-icon" />
-                                  <h3 className="apple-template-title">
+                            <div className="myk9-template-card">
+                              <div className="myk9-template-header">
+                                <div className="myk9-template-title-section">
+                                  <FileText className="myk9-template-icon" />
+                                  <h3 className="myk9-template-title">
                                     {currentTrialState.selectedTemplate.templateName ||
                                       'Unnamed Template'}
                                   </h3>
                                 </div>
                               </div>
 
-                              <div className="apple-template-content">
-                                <div className="apple-template-details">
-                                  <div className="apple-template-detail-item">
-                                    <span className="apple-template-label">Classes Available:</span>
-                                    <span className="apple-template-value">
+                              <div className="myk9-template-content">
+                                <div className="myk9-template-details">
+                                  <div className="myk9-template-detail-item">
+                                    <span className="myk9-template-label">Classes Available:</span>
+                                    <span className="myk9-template-value">
                                       {currentTrialState.selectedTemplate.classDefinitions
                                         ?.length || 0}{' '}
                                       classes

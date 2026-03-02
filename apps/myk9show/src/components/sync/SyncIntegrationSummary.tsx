@@ -212,7 +212,7 @@ export const SyncIntegrationSummary: React.FC = () => {
               <li>• Entity-specific sync status with retry functionality</li>
               <li>• Comprehensive sync dashboard for admin/settings pages</li>
               <li>• Real-time sync status updates using hooks</li>
-              <li>• Apple-inspired design with backdrop blur effects</li>
+              <li>• Premium design with backdrop blur effects</li>
               <li>• Tooltip integration for detailed sync information</li>
               <li>• Network-aware sync status (online/offline)</li>
             </ul>

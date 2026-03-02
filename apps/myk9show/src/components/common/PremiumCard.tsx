@@ -1,7 +1,7 @@
 /**
  * PremiumCard Components
  * 
- * Apple-inspired card components with gradient backgrounds, backdrop blur,
+ * Premium card components with gradient backgrounds, backdrop blur,
  * and sophisticated hover effects. Automatically follows design system.
  */
 

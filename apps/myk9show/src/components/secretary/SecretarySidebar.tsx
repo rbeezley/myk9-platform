@@ -2,7 +2,7 @@
  * Secretary Sidebar Navigation Component
  *
  * Provides organized navigation for secretary dashboard pages
- * Features grouped navigation with Apple-inspired design
+ * Features grouped navigation with Premium design
  * Based on the Admin sidebar pattern
  */
 

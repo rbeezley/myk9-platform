@@ -16,6 +16,8 @@ import type { PaymentMethod } from '@/types/show-registration-types';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
 
 interface OptimisticRegistrationState {
@@ -47,6 +49,8 @@ interface WorkflowStepContentProps {
   ) => Promise<unknown>;
   setPaymentStatus: (status: PaymentStatus) => void;
   setEntryStatus: (status: EntryStatus) => void;
+  /** True while dogs are loading (used for auto-select loading state) */
+  dogsLoading?: boolean;
 }
 
 export function WorkflowStepContent({
@@ -66,7 +70,10 @@ export function WorkflowStepContent({
   onEntryStatusChange,
   setPaymentStatus,
   setEntryStatus,
+  dogsLoading,
 }: WorkflowStepContentProps) {
+  const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
+  const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
   return (
     <div className="min-h-[300px]">
       {currentStepId === 'dog-selection' && (
@@ -85,14 +92,44 @@ export function WorkflowStepContent({
         </SearchErrorBoundary>
       )}
 
-      {currentStepId === 'class-selection' && (
-        <ClassSelectionStep
-          selectedDogs={optimisticState.formData.selectedDogs}
-          classSelections={optimisticState.classSelections}
-          onSelectionChange={onClassSelectionChange}
-          showId={showId}
-        />
-      )}
+      {currentStepId === 'class-selection' &&
+        (!hasDogSelectionStep && optimisticState.formData.selectedDogs.length === 0 ? (
+          dogsLoading ? (
+            // Loading skeleton while dogs are being auto-selected
+            <div className="space-y-4">
+              <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
+              <div className="h-10 bg-muted/50 rounded-lg animate-pulse" />
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-16 bg-muted/50 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            </div>
+          ) : (
+            // Exhibitor has 0 registered dogs
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                No dogs registered yet. Please{' '}
+                <a href="/dogs" className="underline font-medium text-primary">
+                  register a dog
+                </a>{' '}
+                before entering a show.
+              </AlertDescription>
+            </Alert>
+          )
+        ) : (
+          <ClassSelectionStep
+            selectedDogs={optimisticState.formData.selectedDogs}
+            classSelections={optimisticState.classSelections}
+            onSelectionChange={onClassSelectionChange}
+            showId={showId}
+            {...(!hasHandlerStep && {
+              handlerAssignments: optimisticState.handlerAssignments,
+              onHandlerAssignmentChange,
+            })}
+          />
+        ))}
 
       {currentStepId === 'handler-assignment' && (
         <HandlerAssignmentStep

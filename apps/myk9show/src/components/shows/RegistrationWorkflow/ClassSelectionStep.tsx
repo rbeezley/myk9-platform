@@ -39,6 +39,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { joinWaitlist } from '@/services/database/queries/waitlistQueries';
 import { toast } from 'sonner';
+import { HandlerInfo } from '@/types/show-registration-types';
+import { InlineHandlerSection } from './InlineHandlerSection';
 import { getShowEntryFee } from './PaymentStep/utils';
 import '@/styles/myk9-registration-workflow.css';
 
@@ -47,6 +49,9 @@ interface ClassSelectionStepProps {
   classSelections: ClassSelectionData[];
   onSelectionChange: (selections: ClassSelectionData[]) => void;
   showId: string;
+  /** When provided, renders an inline handler section (used when handler-assignment step is removed) */
+  handlerAssignments?: Record<string, HandlerInfo>;
+  onHandlerAssignmentChange?: (assignments: Record<string, HandlerInfo>) => void;
 }
 
 interface ClassWithTrial {
@@ -71,6 +76,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   classSelections,
   onSelectionChange,
   showId,
+  handlerAssignments,
+  onHandlerAssignmentChange,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
@@ -802,6 +809,15 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           );
         })}
       </Tabs>
+
+      {handlerAssignments && onHandlerAssignmentChange && (
+        <InlineHandlerSection
+          selectedDogs={selectedDogs}
+          classSelections={classSelections}
+          handlerAssignments={handlerAssignments}
+          onHandlerAssignmentChange={onHandlerAssignmentChange}
+        />
+      )}
 
       {cartItems.length > 0 && (
         <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">

@@ -5,7 +5,7 @@
  * Replaces the old dialog-based RegistrationWorkflow.
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ function RegistrationWizardContent() {
   const { user } = useAuthContext();
 
   // Data stores
-  const { dogs } = useDogStoreCompat();
+  const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
@@ -98,6 +98,7 @@ function RegistrationWizardContent() {
   const [isCreatingRegistration, setIsCreatingRegistration] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
+  const hasAutoSelectedDogs = useRef(false);
 
   const {
     createRegistration,
@@ -238,15 +239,39 @@ function RegistrationWizardContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classSelectionsKey, dogs, currentWorkflowConfig.smartDefaults.autoAssignHandler]);
 
+  // Auto-select all dogs when dog-selection step is not in the workflow (exhibitor flow).
+  // Runs once after dogs load; draft loading restores selectedDogs so hasAutoSelectedDogs
+  // prevents re-triggering.
+  useEffect(() => {
+    if (hasAutoSelectedDogs.current) return;
+    if (dogsLoading) return;
+    if (currentWorkflowConfig.steps.includes('dog-selection')) return;
+    if (registrationData.selectedDogs.length > 0) return;
+    if (dogs.length === 0) return;
+
+    hasAutoSelectedDogs.current = true;
+    const allDogIds = dogs.map(d => d.id);
+    handleDogSelectionChange(allDogIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
+
   // Validation
   const canProceed = () => {
     switch (currentStepId) {
       case 'dog-selection':
         return registrationData.selectedDogs.length > 0;
-      case 'class-selection':
-        return (
-          classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0)
+      case 'class-selection': {
+        const hasClasses =
+          classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0);
+        if (!hasClasses) return false;
+        // When handler-assignment is a separate step, don't validate handlers here
+        if (currentWorkflowConfig.steps.includes('handler-assignment')) return true;
+        // Otherwise, verify all handlers are assigned (safety net — auto-assign fills these)
+        const allKeys = classSelections.flatMap(s =>
+          s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
         );
+        return allKeys.every(key => handlerAssignments[key]?.handlerId);
+      }
       case 'handler-assignment': {
         const allEntryKeys = classSelections.flatMap(s =>
           s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
@@ -343,7 +368,12 @@ function RegistrationWizardContent() {
       setPaymentStatus(workflowState.paymentStatus || PaymentStatus.PENDING);
       setEntryStatus(workflowState.entryStatus || EntryStatus.PENDING);
 
-      const stepIndex = currentWorkflowConfig.steps.findIndex(s => s === workflowState.currentStep);
+      // Map steps that may have been removed from the current workflow config
+      let targetStep = workflowState.currentStep;
+      if (!currentWorkflowConfig.steps.includes(targetStep as StepId)) {
+        targetStep = 'class-selection';
+      }
+      const stepIndex = currentWorkflowConfig.steps.findIndex(s => s === targetStep);
       if (stepIndex >= 0) {
         setCurrentStep(stepIndex);
       }
@@ -481,6 +511,7 @@ function RegistrationWizardContent() {
                     onEntryStatusChange={updateEntryStatusOptimistic}
                     setPaymentStatus={setPaymentStatus}
                     setEntryStatus={setEntryStatus}
+                    dogsLoading={dogsLoading}
                   />
                 </div>
 

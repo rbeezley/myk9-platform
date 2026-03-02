@@ -8,7 +8,10 @@ import type {
 
 export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
   exhibitor: {
-    steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+    // INTENT: Exhibitors only see their own dogs (max 5) — auto-select all and show
+    // one tab per dog in class selection. Dogs with no classes selected produce no entries.
+    // Handler auto-assigned to dog owner; inline collapsible in class selection to change.
+    steps: ['class-selection', 'payment', 'confirmation'],
     features: {
       bulkSelection: false,
       createNew: false,
@@ -107,7 +110,8 @@ export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'comple
     label: 'Handlers',
     description: 'Assign handlers for entries',
     icon: <UserCheck className="h-5 w-5" />,
-    // Visible to all roles — everyone can assign a different handler per entry
+    // Secretary/admin roles get a dedicated step. Exhibitors use an inline
+    // collapsible in ClassSelectionStep instead (see InlineHandlerSection).
   },
   payment: {
     id: 3,

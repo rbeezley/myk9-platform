@@ -78,13 +78,6 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/account': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/entries': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
-  '/exhibitor/results': () => import('@/pages/BrowseShowsPage'),
-  '/exhibitor/favorites': () => import('@/pages/BrowseShowsPage'),
-  '/exhibitor/health-records': () => import('@/pages/BrowseDogsPage'),
-  '/exhibitor/training': () => import('@/pages/BrowseDogsPage'),
-  '/exhibitor/forms': () => import('@/pages/ExhibitorDashboard'),
-  '/exhibitor/standards': () => import('@/pages/ExhibitorDashboard'),
-  '/exhibitor/help': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
 
   // Users and dogs management

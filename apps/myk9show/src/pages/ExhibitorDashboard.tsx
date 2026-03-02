@@ -12,47 +12,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Heart,
   FileText,
-  TrendingUp,
   Calendar,
-  Trophy,
-  Star,
   Search,
   Activity,
   MapPin,
   DollarSign,
   Award,
-  Bell,
   ChevronRight,
   FolderOpen,
-  Sparkles,
 } from 'lucide-react';
 import { ExhibitorLayout } from '@/components/exhibitor/ExhibitorLayout';
-import { useShowStore } from '@/store/showStore';
-import { useDogStore } from '@/store/dogStore';
+import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { format } from 'date-fns';
 
-interface ExhibitorEntry {
+interface DashboardEntry {
   id: string;
   showId: string;
   showName: string;
   dogId: string;
   dogName: string;
-  class: string;
+  className: string;
   entryFee: number;
-  status: 'pending' | 'confirmed' | 'cancelled';
-  showDate: Date;
+  status: string;
+  showDate: Date | null;
   location: string;
+  classId: string;
 }
 
 const ExhibitorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState('entries');
-  const [hasNewNotifications] = useState(true);
 
   // Redirect if user switches to a different role while on this dashboard
   useRoleRedirect({
@@ -60,47 +55,47 @@ const ExhibitorDashboard: React.FC = () => {
     redirectOnRoleChange: true, // Only redirect when roles change
   });
 
-  // Get real data from stores
-  const { shows } = useShowStore();
-  const { dogs } = useDogStore();
+  // Real data from React Query hooks
+  const { user } = useAuthContext();
+  const { data: rawEntries = [], isLoading: entriesLoading, error: entriesError } = useEntriesQuery();
+  const { data: stats } = useEntryStatisticsQuery();
+  const { data: dogs = [] } = useDogsQuery();
 
-  // Mock exhibitor entries (in real app, this would come from an entries store)
-  const mockEntries: ExhibitorEntry[] = useMemo(
-    () => [
-      {
-        id: '1',
-        showId: shows[0]?.id || '1',
-        showName: shows[0]?.name || 'Spring Specialty Show',
-        dogId: dogs[0]?.id || '1',
-        dogName: dogs[0]?.name || 'Bella',
-        class: 'Open Bitches',
-        entryFee: 35,
-        status: 'confirmed',
-        showDate: new Date('2024-03-15'),
-        location: 'Springfield, IL',
-      },
-      {
-        id: '2',
-        showId: shows[1]?.id || '2',
-        showName: shows[1]?.name || 'Regional Championship',
-        dogId: dogs[1]?.id || '2',
-        dogName: dogs[1]?.name || 'Max',
-        class: 'Champion Dogs',
-        entryFee: 40,
-        status: 'pending',
-        showDate: new Date('2024-03-22'),
-        location: 'Chicago, IL',
-      },
-    ],
-    [shows, dogs]
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';
+
+  // Map DB entries to dashboard display shape
+  const entries: DashboardEntry[] = useMemo(
+    () =>
+      rawEntries.map((entry: Record<string, unknown>) => ({
+        id: (entry.id as string) || '',
+        showId: (entry.show_id as string) || '',
+        showName: (entry.show as Record<string, unknown>)?.name as string || 'Unknown Show',
+        dogId: (entry.dog_id as string) || '',
+        dogName:
+          ((entry.dog as Record<string, unknown>)?.call_name as string) ||
+          ((entry.dog as Record<string, unknown>)?.name as string) ||
+          'Unknown Dog',
+        className: (entry.class as Record<string, unknown>)?.name as string || 'Unknown Class',
+        entryFee:
+          ((entry.class as Record<string, unknown>)?.entry_fee as number) ??
+          (entry.entry_fee as number) ??
+          0,
+        status: (entry.entry_status as string) || 'pending',
+        showDate: (entry.show as Record<string, unknown>)?.start_date
+          ? new Date((entry.show as Record<string, unknown>).start_date as string)
+          : null,
+        location: ((entry.show as Record<string, unknown>)?.location as string) || 'TBD',
+        classId: (entry.class_id as string) || '',
+      })),
+    [rawEntries]
   );
 
-  // Calculate statistics
+  // Calculate statistics from real data
   const statistics = useMemo(() => {
-    const activeEntries = mockEntries.filter(e => e.status === 'confirmed').length;
-    const pendingEntries = mockEntries.filter(e => e.status === 'pending').length;
-    const totalFees = mockEntries.reduce((sum, entry) => sum + entry.entryFee, 0);
-    const upcomingShows = mockEntries.filter(e => e.showDate > new Date()).length;
+    const activeEntries = entries.filter(e => e.status === 'confirmed').length;
+    const pendingEntries = entries.filter(e => e.status === 'pending' || e.status === 'draft').length;
+    const totalFees = stats?.totalRevenue ?? entries.reduce((sum, entry) => sum + entry.entryFee, 0);
+    const upcomingShows = entries.filter(e => e.showDate && e.showDate > new Date()).length;
 
     return {
       activeEntries,
@@ -108,9 +103,8 @@ const ExhibitorDashboard: React.FC = () => {
       totalFees,
       upcomingShows,
       totalDogs: dogs.length,
-      winRate: 78, // Mock win rate
     };
-  }, [mockEntries, dogs]);
+  }, [entries, stats, dogs]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -135,12 +129,49 @@ const ExhibitorDashboard: React.FC = () => {
     }
   };
 
-  const handleViewEntry = (entry: ExhibitorEntry) => {
+  const handleViewEntry = (entry: DashboardEntry) => {
     navigate(`/shows/${entry.showId}`);
   };
 
-  const upcomingEntries = mockEntries.filter(e => e.showDate > new Date());
-  const recentEntries = mockEntries.filter(e => e.showDate <= new Date());
+  const handleEditEntry = (entry: DashboardEntry) => {
+    navigate(`/shows/${entry.showId}`);
+  };
+
+  const handleViewResults = (entry: DashboardEntry) => {
+    navigate(entry.classId ? `/classes/${entry.classId}` : `/shows/${entry.showId}`);
+  };
+
+  const upcomingEntries = entries.filter(e => e.showDate && e.showDate > new Date());
+  const recentEntries = entries.filter(e => e.showDate && e.showDate <= new Date());
+
+  // Loading state
+  if (entriesLoading) {
+    return (
+      <ExhibitorLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+        </div>
+      </ExhibitorLayout>
+    );
+  }
+
+  // Error state
+  if (entriesError) {
+    return (
+      <ExhibitorLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-muted-foreground">Unable to load entries. Please try again later.</p>
+              <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </ExhibitorLayout>
+    );
+  }
 
   return (
     <ExhibitorLayout>
@@ -152,7 +183,7 @@ const ExhibitorDashboard: React.FC = () => {
               <div className="relative">
                 <Avatar className="h-12 w-12 border-2 border-primary/20">
                   <AvatarFallback className="bg-gradient-to-br from-primary/20 to-secondary/20 text-primary font-semibold text-lg">
-                    EX
+                    {displayName.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -top-1 -right-1 h-4 w-4 bg-success-green rounded-full border-2 border-background flex items-center justify-center">
@@ -164,7 +195,7 @@ const ExhibitorDashboard: React.FC = () => {
                   Exhibitor Dashboard
                 </h1>
                 <p className="text-muted-foreground text-lg font-medium">
-                  Welcome back, Alex • {statistics.totalDogs} dogs registered
+                  Welcome back, {displayName} • {statistics.totalDogs} dog{statistics.totalDogs !== 1 ? 's' : ''} registered
                 </p>
               </div>
             </div>
@@ -173,12 +204,8 @@ const ExhibitorDashboard: React.FC = () => {
                 <Activity className="h-3 w-3" />
                 <span className="font-medium">Active</span>
               </div>
-              <span className="text-muted-foreground">Last entry 3 days ago</span>
-              {hasNewNotifications && (
-                <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full animate-pulse">
-                  <Bell className="h-3 w-3" />
-                  <span className="font-medium text-sm">New results</span>
-                </div>
+              {entries.length > 0 && (
+                <span className="text-muted-foreground">{entries.length} total entries</span>
               )}
             </div>
           </div>
@@ -249,14 +276,12 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground font-medium">
-                  Next in{' '}
-                  {upcomingEntries[0]
-                    ? Math.ceil(
+                  {upcomingEntries[0]?.showDate
+                    ? `Next in ${Math.ceil(
                         (upcomingEntries[0].showDate.getTime() - new Date().getTime()) /
                           (1000 * 3600 * 24)
-                      )
-                    : 0}{' '}
-                  days
+                      )} days`
+                    : 'No upcoming shows'}
                 </p>
               </div>
             </CardContent>
@@ -268,26 +293,21 @@ const ExhibitorDashboard: React.FC = () => {
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                    <Trophy className="h-5 w-5 text-success-green" />
+                    <Heart className="h-5 w-5 text-success-green" />
                   </div>
-                  Win Rate
+                  My Dogs
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0 relative">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                {statistics.winRate}%
+                {statistics.totalDogs}
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground font-medium">
-                  Above average performance
+                  Registered dogs
                 </p>
-                <div className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3 text-success-green" />
-                  <span className="text-sm text-success-green font-medium">+12%</span>
-                </div>
               </div>
-              <Progress value={statistics.winRate} className="mt-3 h-1" />
             </CardContent>
           </Card>
 
@@ -364,7 +384,7 @@ const ExhibitorDashboard: React.FC = () => {
                               </div>
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                <span>{format(entry.showDate, 'MMM d, yyyy')}</span>
+                                <span>{entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}</span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <DollarSign className="h-3 w-3" />
@@ -381,7 +401,7 @@ const ExhibitorDashboard: React.FC = () => {
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-muted-foreground">Class</p>
-                            <p className="font-semibold">{entry.class}</p>
+                            <p className="font-semibold">{entry.className}</p>
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-muted-foreground">Status</p>
@@ -390,11 +410,12 @@ const ExhibitorDashboard: React.FC = () => {
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-muted-foreground">Days Until</p>
                             <p className="font-semibold text-primary">
-                              {Math.ceil(
-                                (entry.showDate.getTime() - new Date().getTime()) /
-                                  (1000 * 3600 * 24)
-                              )}{' '}
-                              days
+                              {entry.showDate
+                                ? `${Math.ceil(
+                                    (entry.showDate.getTime() - new Date().getTime()) /
+                                      (1000 * 3600 * 24)
+                                  )} days`
+                                : '—'}
                             </p>
                           </div>
                         </div>
@@ -408,6 +429,7 @@ const ExhibitorDashboard: React.FC = () => {
                         <Button
                           variant="outline"
                           className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                          onClick={() => handleEditEntry(entry)}
                         >
                           Edit Entry
                         </Button>
@@ -453,13 +475,10 @@ const ExhibitorDashboard: React.FC = () => {
                           </h3>
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                             <span>
-                              {entry.dogName} • {entry.class}
+                              {entry.dogName} • {entry.className}
                             </span>
                             <span>•</span>
-                            <span>{format(entry.showDate, 'MMM d, yyyy')}</span>
-                            <Badge className="bg-success-green/10 text-success-green border-success-green/20">
-                              2nd Place
-                            </Badge>
+                            <span>{entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}</span>
                           </div>
                         </div>
                       </div>
@@ -467,6 +486,7 @@ const ExhibitorDashboard: React.FC = () => {
                         <Button
                           variant="outline"
                           className="border-success-green/20 text-success-green hover:bg-success-green/5 hover:border-success-green/40"
+                          onClick={() => handleViewResults(entry)}
                         >
                           View Results
                         </Button>
@@ -478,7 +498,7 @@ const ExhibitorDashboard: React.FC = () => {
                 {recentEntries.length === 0 && (
                   <div className="text-center py-16">
                     <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
-                      <Trophy className="h-12 w-12 text-success-green" />
+                      <Award className="h-12 w-12 text-success-green" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">
                       No Recent Results
@@ -515,9 +535,9 @@ const ExhibitorDashboard: React.FC = () => {
             <CardContent className="relative">
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Shows this month</span>
+                  <span className="text-muted-foreground">Upcoming entries</span>
                   <Badge className="bg-primary/10 text-primary border-primary/20">
-                    {shows.length}
+                    {statistics.upcomingShows}
                   </Badge>
                 </div>
               </div>
@@ -568,18 +588,15 @@ const ExhibitorDashboard: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-warning-orange/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-6 relative">
               <CardTitle className="text-xl font-bold flex items-center gap-4">
-                <div className="p-4 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300 relative">
-                  <Star className="h-6 w-6 text-warning-orange" />
-                  <div className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full">
-                    <Sparkles className="h-2 w-2 text-white m-0.5" />
-                  </div>
+                <div className="p-4 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
+                  <FileText className="h-6 w-6 text-warning-orange" />
                 </div>
                 <div>
                   <div className="text-foreground group-hover:text-warning-orange transition-colors duration-300">
-                    Favorites
+                    My Entries
                   </div>
                   <div className="text-sm font-normal text-muted-foreground mt-1">
-                    Saved shows and events
+                    Track and manage entries
                   </div>
                 </div>
               </CardTitle>
@@ -587,18 +604,18 @@ const ExhibitorDashboard: React.FC = () => {
             <CardContent className="relative">
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Saved shows</span>
+                  <span className="text-muted-foreground">Total entries</span>
                   <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20">
-                    3
+                    {entries.length}
                   </Badge>
                 </div>
               </div>
               <Button
-                onClick={() => navigate('/exhibitor/favorites')}
+                onClick={() => navigate('/exhibitor/entries')}
                 className="w-full mt-6 font-semibold py-3"
               >
-                <Star className="h-4 w-4 mr-2" />
-                View Favorites
+                <FileText className="h-4 w-4 mr-2" />
+                View Entries
               </Button>
             </CardContent>
           </Card>

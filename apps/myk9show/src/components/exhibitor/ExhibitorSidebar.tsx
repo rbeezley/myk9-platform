@@ -8,19 +8,13 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
+import {
   LayoutDashboard,
   FileText,
   History,
-  Trophy,
   Search,
   Calendar,
-  Star,
   Heart,
-  Activity,
-  FileCheck,
-  BookOpen,
-  HelpCircle,
   X,
   User
 } from 'lucide-react';
@@ -78,12 +72,6 @@ const navigationGroups: NavGroup[] = [
         icon: History,
         description: 'Past entries and records'
       },
-      {
-        title: 'Results',
-        href: '/exhibitor/results',
-        icon: Trophy,
-        description: 'Competition results and placements'
-      }
     ]
   },
   {
@@ -101,12 +89,6 @@ const navigationGroups: NavGroup[] = [
         icon: Calendar,
         description: 'Show calendar and schedules'
       },
-      {
-        title: 'Favorites',
-        href: '/exhibitor/favorites',
-        icon: Star,
-        description: 'Saved shows and events'
-      }
     ]
   },
   {
@@ -118,43 +100,8 @@ const navigationGroups: NavGroup[] = [
         icon: Heart,
         description: 'Manage your dogs'
       },
-      {
-        title: 'Health Records',
-        href: '/exhibitor/health-records',
-        icon: Activity,
-        description: 'Vaccination and health tracking'
-      },
-      {
-        title: 'Training Log',
-        href: '/exhibitor/training',
-        icon: FileCheck,
-        description: 'Training progress and notes'
-      }
     ]
   },
-  {
-    title: 'Resources',
-    items: [
-      {
-        title: 'Entry Forms',
-        href: '/exhibitor/forms',
-        icon: FileText,
-        description: 'Download entry forms'
-      },
-      {
-        title: 'Show Standards',
-        href: '/exhibitor/standards',
-        icon: BookOpen,
-        description: 'Breed standards and rules'
-      },
-      {
-        title: 'Help Center',
-        href: '/exhibitor/help',
-        icon: HelpCircle,
-        description: 'Support and tutorials'
-      }
-    ]
-  }
 ];
 
 export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobile }) => {

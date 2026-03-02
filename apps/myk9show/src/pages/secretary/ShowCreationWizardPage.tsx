@@ -299,7 +299,22 @@ const ShowCreationWizardPage: React.FC = () => {
       case 1:
         return <TrialConfigurationStep {...stepProps} />;
       case 2:
-        return <ClassSelectionStep {...stepProps} />;
+        return (
+          <ClassSelectionStep
+            {...stepProps}
+            existingDBClasses={
+              editMode?.mode === 'add-classes'
+                ? existingClasses.map(c => ({
+                    trialId: c.trialId,
+                    className: c.className || '',
+                    element: c.element || '',
+                    level: c.level || '',
+                    section: c.section || '',
+                  }))
+                : undefined
+            }
+          />
+        );
       case 3:
         return (
           <ReviewStep

@@ -16,7 +16,7 @@ interface SimpleClassSelectorProps {
   template: ClassTemplate;
   selectedClasses: ClassDefinition[];
   onSelectionChange: (classes: ClassDefinition[]) => void;
-  existingClasses?: { element: string; level: string; section: string }[]; // Classes already in trial to show as disabled
+  existingClasses?: { className?: string; element: string; level: string; section: string }[]; // Classes already in trial to show as disabled
   availableJudges?: ShowJudgeAssignment[];
   judgeAssignments?: Record<string, string>; // classId -> judgeId
   onJudgeAssignmentChange?: (assignments: Record<string, string>) => void;
@@ -106,13 +106,15 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
     );
   };
 
-  // Check if a class already exists in the trial
+  // Check if a class already exists in the trial.
+  // Prefer className match (reliable), fall back to element+level+section.
   const isClassExisting = (classDefinition: ClassDefinition) => {
     return existingClasses.some(
       existing =>
-        existing.element === classDefinition.element &&
-        existing.level === (classDefinition.level || '') &&
-        existing.section === (classDefinition.section || '')
+        (existing.className && existing.className === classDefinition.className) ||
+        (existing.element === classDefinition.element &&
+          existing.level === (classDefinition.level || '') &&
+          existing.section === (classDefinition.section || ''))
     );
   };
 
@@ -382,10 +384,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                     )}
                   </div>
 
-                  <span
-                    className="myk9-class-element-select-all"
-                    onClick={toggleAllElementClasses}
-                  >
+                  <span className="myk9-class-element-select-all" onClick={toggleAllElementClasses}>
                     Select All {element}
                   </span>
                 </div>

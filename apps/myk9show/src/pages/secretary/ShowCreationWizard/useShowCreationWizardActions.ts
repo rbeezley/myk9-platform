@@ -24,6 +24,7 @@ import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import type { ClassData } from '@/components/classes/types/classTypes';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import {
   createClassDataFromWizard,
   showToShowInput,
@@ -79,6 +80,7 @@ export function useShowCreationWizardActions({
   const { addShow, updateShow } = useShowStore();
   const { clubs } = useClubStore();
   const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
+  const { classes: existingDBClasses } = useClassStoreCompat();
   const { user } = useAuthContext();
 
   /**
@@ -148,7 +150,7 @@ export function useShowCreationWizardActions({
     async (showId: string, trialIdMap: Record<string, string>) => {
       logger.debug('createClasses called', 'wizard', { showId, trialIdMap });
 
-      const classesToCreate = createClassDataFromWizard(
+      const allClasses = createClassDataFromWizard(
         trials,
         trialIdMap,
         judgeDetails,
@@ -156,6 +158,23 @@ export function useShowCreationWizardActions({
         existingTrials,
         editMode
       );
+
+      // In add-classes mode, trial.classes includes both existing and new classes.
+      // Filter out classes that already exist in the DB to avoid duplicates.
+      let classesToCreate = allClasses;
+      if (editMode?.mode === 'add-classes') {
+        const existingClassNames = new Set(
+          existingDBClasses.map(c => `${c.trialId}|${c.className}`)
+        );
+        classesToCreate = allClasses.filter(
+          c => !existingClassNames.has(`${c.trialId}|${c.className}`)
+        );
+        logger.debug('Filtered existing classes for add-classes mode', 'wizard', {
+          total: allClasses.length,
+          new: classesToCreate.length,
+          existing: allClasses.length - classesToCreate.length,
+        });
+      }
 
       // Build a lookup map of sport_class_rules by (templateId, element, level)
       // so we can bake rule fields into each class record at creation time.
@@ -198,7 +217,7 @@ export function useShowCreationWizardActions({
 
       logger.debug(`Created ${classesToCreate.length} classes`, 'wizard');
     },
-    [trials, judgeDetails, existingTrials, editMode]
+    [trials, judgeDetails, existingTrials, editMode, existingDBClasses]
   );
 
   /**

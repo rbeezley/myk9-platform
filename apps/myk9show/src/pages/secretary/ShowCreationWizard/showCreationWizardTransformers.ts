@@ -105,13 +105,15 @@ export function createClassDataFromWizard(
 ): ClassData[] {
   const classes: ClassData[] = [];
 
-  // In edit mode, only create classes for NEW trials
-  const trialsToProcess = editMode
-    ? (() => {
-        const existingTrialIds = existingTrials.filter(t => t.showId === showId).map(t => t.id);
-        return wizardTrials.filter(wizardTrial => !existingTrialIds.includes(wizardTrial.id));
-      })()
-    : wizardTrials;
+  // In add-classes mode, process ALL trials (we're adding classes to existing trials).
+  // In other edit modes, only create classes for NEW trials.
+  const trialsToProcess =
+    editMode && editMode.mode !== 'add-classes'
+      ? (() => {
+          const existingTrialIds = existingTrials.filter(t => t.showId === showId).map(t => t.id);
+          return wizardTrials.filter(wizardTrial => !existingTrialIds.includes(wizardTrial.id));
+        })()
+      : wizardTrials;
 
   trialsToProcess.forEach(wizardTrial => {
     const trialId = trialIdMap[wizardTrial.id];

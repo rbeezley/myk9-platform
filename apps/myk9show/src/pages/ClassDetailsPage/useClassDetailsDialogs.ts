@@ -24,9 +24,6 @@ export function useClassDetailsDialogs() {
   const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
-  // Search state (sidebar)
-  const [searchTerm, setSearchTerm] = useState('');
-
   return {
     // Edit class
     editClassPanelOpen,
@@ -73,9 +70,5 @@ export function useClassDetailsDialogs() {
       setDeleteEntryDialogOpen(false);
       setEntryToDelete(null);
     },
-
-    // Search
-    searchTerm,
-    setSearchTerm,
   };
 }

@@ -17,8 +17,18 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 
+interface ExistingClassInfo {
+  trialId: string;
+  className: string;
+  element: string;
+  level: string;
+  section: string;
+}
+
 interface ClassSelectionStepProps {
   className?: string;
+  /** Classes that already exist in the DB (for add-classes mode). */
+  existingDBClasses?: ExistingClassInfo[] | undefined;
 }
 
 interface TrialClassState {
@@ -26,7 +36,10 @@ interface TrialClassState {
   selectedClasses: ClassDefinition[];
 }
 
-export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ className }) => {
+export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
+  className,
+  existingDBClasses = [],
+}) => {
   const { trials, updateTrial, show, judgeDetails, judgeAssignments, assignJudgeToClass } =
     useWizardStore(
       useShallow(state => ({
@@ -147,6 +160,19 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     selectedTemplate: null,
     selectedClasses: [],
   };
+
+  // Filter DB existing classes to the current trial for the SimpleClassSelector prop
+  const existingClassesForTrial = useMemo(() => {
+    if (existingDBClasses.length === 0 || !currentTrialId) return [];
+    return existingDBClasses
+      .filter(c => c.trialId === currentTrialId)
+      .map(c => ({
+        className: c.className,
+        element: c.element,
+        level: c.level,
+        section: c.section,
+      }));
+  }, [existingDBClasses, currentTrialId]);
 
   // Get total classes across all trials
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
@@ -397,7 +423,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                           template={currentTrialState.selectedTemplate}
                           selectedClasses={currentTrialState.selectedClasses}
                           onSelectionChange={handleClassSelectionChange}
-                          existingClasses={[]} // No existing classes in wizard
+                          existingClasses={existingClassesForTrial}
                           availableJudges={availableJudges}
                           judgeAssignments={judgeAssignments}
                           onJudgeAssignmentChange={handleJudgeAssignmentChange}

@@ -7,7 +7,6 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
 import { useShowStore } from '@/store/showStore';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
-import { TrialSidebar } from '@/components/trials/TrialSidebar';
 import AddClassesToTrialDialog from '@/components/trials/AddClassesToTrialDialog';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -52,9 +51,6 @@ const TrialDetailsPage: React.FC = () => {
   const [deleteClassDialogOpen, setDeleteClassDialogOpen] = useState(false);
   const [selectedClassForDelete, setSelectedClassForDelete] = useState<TrialClass | null>(null);
 
-  // State for sidebar and selection
-  const [searchTerm, setSearchTerm] = useState('');
-
   // Get classes store
   const {
     addClass,
@@ -73,16 +69,6 @@ const TrialDetailsPage: React.FC = () => {
       selectTrial(trialId);
     }
   }, [trialId, selectTrial]);
-
-  // Separate effect for initial data loading - only when no trialId in URL
-  useEffect(() => {
-    if (!trialId && trials.length > 0 && !selectedTrialId) {
-      const firstTrial = trials[0];
-      // Use the appropriate URL pattern based on whether we have a showId
-      const url = showId ? `/shows/${showId}/trials/${firstTrial.id}` : `/trials/${firstTrial.id}`;
-      navigate(url, { replace: true });
-    }
-  }, [trials, navigate, selectedTrialId, trialId, showId]);
 
   // Get current trial with proper type
   const currentTrial = trials.find(trial => trial.id === selectedTrialId) as
@@ -466,55 +452,40 @@ const TrialDetailsPage: React.FC = () => {
 
   // Layout assembly only
   return (
-    <div className="flex min-h-screen bg-background">
-      <TrialSidebar
-        trials={showTrials}
-        selectedId={selectedTrialId}
-        onSelect={id => {
-          const url = showId ? `/shows/${showId}/trials/${id}` : `/trials/${id}`;
-          navigate(url);
-        }}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-      />
-
-      <main className="flex-1 overflow-auto">
-        {currentTrial ? (
-          <TrialDetailsMain
-            trial={currentTrial}
-            statistics={trialStatistics}
-            parentShow={
-              parentShow
-                ? {
-                    id: parentShow.id,
-                    name: parentShow.name,
-                    organization: parentShow.organization,
-                  }
-                : undefined
-            }
-            onEdit={handleEditTrial}
-            onDelete={handleDeleteTrial}
-            onAddClassesFromTemplate={handleAddClassesFromTemplate}
-            onEditClass={handleEditClass}
-            onDeleteClass={handleDeleteClass}
-            onPrevTrial={handlePrevTrial}
-            onNextTrial={handleNextTrial}
-            prevTrialId={prevTrialId}
-            nextTrialId={nextTrialId}
-            currentTrialIndex={currentTrialIndex}
-            totalTrials={showTrials.length}
-          />
-        ) : (
-          <div className="myk9-show-container flex items-center justify-center min-h-[60vh]">
-            <div className="text-center">
-              <p className="text-muted-foreground text-lg mb-2">No trial selected</p>
-              <p className="text-muted-foreground text-sm">
-                Select a trial from the sidebar to view details
-              </p>
-            </div>
+    <div className="min-h-screen bg-background">
+      {trialWithClasses ? (
+        <TrialDetailsMain
+          trial={trialWithClasses}
+          statistics={trialStatistics}
+          parentShow={
+            parentShow
+              ? {
+                  id: parentShow.id,
+                  name: parentShow.name,
+                  organization: parentShow.organization,
+                }
+              : undefined
+          }
+          onEdit={handleEditTrial}
+          onDelete={handleDeleteTrial}
+          onAddClassesFromTemplate={handleAddClassesFromTemplate}
+          onEditClass={handleEditClass}
+          onDeleteClass={handleDeleteClass}
+          onPrevTrial={handlePrevTrial}
+          onNextTrial={handleNextTrial}
+          prevTrialId={prevTrialId}
+          nextTrialId={nextTrialId}
+          currentTrialIndex={currentTrialIndex}
+          totalTrials={showTrials.length}
+        />
+      ) : (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground text-lg">Loading trial...</p>
           </div>
-        )}
-      </main>
+        </div>
+      )}
 
       {/* Dialogs */}
 
@@ -525,7 +496,7 @@ const TrialDetailsPage: React.FC = () => {
         availableTemplates={templates}
         trialName={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
         trialOrganization={showOrganization}
-        existingClasses={currentTrial?.classes || []}
+        existingClasses={trialWithClasses?.classes || []}
         showId={currentTrial?.showId}
       />
 

@@ -444,7 +444,7 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({
             <p className="text-sm text-gray-600">{format(new Date(), 'EEEE, MMMM d')}</p>
           </div>
           <Button
-            size="sm"
+            size="default"
             variant="ghost"
             className="relative"
             onClick={() => {/* Navigate to notifications */}}
@@ -549,21 +549,21 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({
       {/* Bottom Navigation Placeholder */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2">
         <div className="flex justify-around">
-          <Button variant="ghost" size="sm" className="flex-1">
+          <Button variant="ghost" size="default" className="flex-1">
             <Calendar className="h-5 w-5" />
-            <span className="text-xs mt-1">Schedule</span>
+            <span className="text-sm mt-1">Schedule</span>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1">
+          <Button variant="ghost" size="default" className="flex-1">
             <Dog className="h-5 w-5" />
-            <span className="text-xs mt-1">My Dogs</span>
+            <span className="text-sm mt-1">My Dogs</span>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1">
+          <Button variant="ghost" size="default" className="flex-1">
             <Trophy className="h-5 w-5" />
-            <span className="text-xs mt-1">Results</span>
+            <span className="text-sm mt-1">Results</span>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1">
+          <Button variant="ghost" size="default" className="flex-1">
             <Bell className="h-5 w-5" />
-            <span className="text-xs mt-1">Alerts</span>
+            <span className="text-sm mt-1">Alerts</span>
           </Button>
         </div>
       </div>

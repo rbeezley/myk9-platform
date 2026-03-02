@@ -19,19 +19,19 @@ export function ProfileDisplay({ person }: ProfileDisplayProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-1">
-        <Label className="text-muted-foreground text-xs">Name</Label>
+        <Label className="text-muted-foreground text-sm">Name</Label>
         <p className="font-medium">
           {person.first_name} {person.last_name}
         </p>
       </div>
       <div className="space-y-1">
-        <Label className="text-muted-foreground text-xs flex items-center gap-1">
+        <Label className="text-muted-foreground text-sm flex items-center gap-1">
           <Mail className="h-3 w-3" /> Email
         </Label>
         <p>{person.email}</p>
       </div>
       <div className="space-y-1">
-        <Label className="text-muted-foreground text-xs flex items-center gap-1">
+        <Label className="text-muted-foreground text-sm flex items-center gap-1">
           <Phone className="h-3 w-3" /> Phone
         </Label>
         <p>
@@ -43,7 +43,7 @@ export function ProfileDisplay({ person }: ProfileDisplayProps) {
         </p>
       </div>
       <div className="space-y-1">
-        <Label className="text-muted-foreground text-xs flex items-center gap-1">
+        <Label className="text-muted-foreground text-sm flex items-center gap-1">
           <MapPin className="h-3 w-3" /> Address
         </Label>
         <p>

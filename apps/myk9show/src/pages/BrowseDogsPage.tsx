@@ -236,9 +236,9 @@ const BrowseDogsPage: React.FC = () => {
                       )}
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="default"
                         onClick={clearAllFilters}
-                        className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                        className="h-10 px-3 text-sm text-muted-foreground hover:text-primary"
                       >
                         Clear all
                       </Button>
@@ -297,9 +297,9 @@ const BrowseDogsPage: React.FC = () => {
                         <Button
                           key={mode}
                           variant={viewMode === mode ? 'default' : 'ghost'}
-                          size="sm"
+                          size="default"
                           onClick={() => handleViewModeChange(mode)}
-                          className="h-8 px-3 transition-all duration-200"
+                          className="h-10 px-3 transition-all duration-200"
                         >
                           <Icon className="h-4 w-4 sm:mr-2" />
                           <span className="hidden sm:inline">{label}</span>

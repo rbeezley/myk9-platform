@@ -140,7 +140,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       const enterShowButton = screen.getByRole('link', { name: /enter a show/i });
       expect(enterShowButton).toBeInTheDocument();
-      expect(enterShowButton).toHaveAttribute('href', '/shows/browse');
+      expect(enterShowButton).toHaveAttribute('href', '/shows');
     });
 
     it('should display Refresh button alongside Enter a Show', async () => {

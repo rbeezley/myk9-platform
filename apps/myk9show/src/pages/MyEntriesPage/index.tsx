@@ -127,7 +127,7 @@ const MyEntriesPage: React.FC = () => {
                 asChild
                 className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
               >
-                <Link to="/shows/browse">
+                <Link to="/shows">
                   <Plus className="h-4 w-4 mr-2" />
                   Enter a Show
                 </Link>
@@ -227,7 +227,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ selectedTab }) => (
       asChild
       className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
     >
-      <Link to="/shows/browse">Browse All Shows</Link>
+      <Link to="/shows">Browse All Shows</Link>
     </Button>
   </div>
 );

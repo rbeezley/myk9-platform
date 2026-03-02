@@ -55,7 +55,7 @@ export function DogCard({ dog, onEdit, onDelete }: DogCardProps) {
             })()}
           </p>
           {dog.akc_number && (
-            <p className="text-xs text-muted-foreground font-mono">AKC: {dog.akc_number}</p>
+            <p className="text-sm text-muted-foreground font-mono">AKC: {dog.akc_number}</p>
           )}
         </div>
       </div>

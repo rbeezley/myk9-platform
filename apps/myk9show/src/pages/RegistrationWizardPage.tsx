@@ -384,7 +384,7 @@ function RegistrationWizardContent() {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                size="sm"
+                size="default"
                 onClick={() => navigate(-1)}
                 className="gap-2 hover:-translate-y-0.5 transition-all duration-300"
               >

@@ -126,7 +126,7 @@ export default function CartPage() {
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
-              size="sm"
+              size="default"
               onClick={() => navigate(-1)}
               className="gap-1"
             >
@@ -155,7 +155,7 @@ export default function CartPage() {
           {items.length > 0 && (
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => setShowClearDialog(true)}
               className="text-muted-foreground hover:text-destructive"
             >

@@ -254,7 +254,7 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobil
                           {item.title}
                         </div>
                         {item.description && (
-                          <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                          <div className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
                             {item.description}
                           </div>
                         )}
@@ -282,7 +282,7 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobil
               Exhibitor Access
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Show entry and dog management privileges
           </p>
         </div>

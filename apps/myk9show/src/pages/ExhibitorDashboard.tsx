@@ -177,7 +177,7 @@ const ExhibitorDashboard: React.FC = () => {
               {hasNewNotifications && (
                 <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full animate-pulse">
                   <Bell className="h-3 w-3" />
-                  <span className="font-medium text-xs">New results</span>
+                  <span className="font-medium text-sm">New results</span>
                 </div>
               )}
             </div>
@@ -224,7 +224,7 @@ const ExhibitorDashboard: React.FC = () => {
                 {statistics.activeEntries > 0 && (
                   <div className="flex items-center gap-1">
                     <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
-                    <span className="text-xs text-success-green font-medium">Active</span>
+                    <span className="text-sm text-success-green font-medium">Active</span>
                   </div>
                 )}
               </div>
@@ -284,7 +284,7 @@ const ExhibitorDashboard: React.FC = () => {
                 </p>
                 <div className="flex items-center gap-1">
                   <TrendingUp className="h-3 w-3 text-success-green" />
-                  <span className="text-xs text-success-green font-medium">+12%</span>
+                  <span className="text-sm text-success-green font-medium">+12%</span>
                 </div>
               </div>
               <Progress value={statistics.winRate} className="mt-3 h-1" />

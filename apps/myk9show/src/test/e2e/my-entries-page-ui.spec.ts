@@ -93,7 +93,7 @@ test.describe('My Entries Page - Enter a Show CTA', () => {
   test('should display "Enter a Show" button in header', async ({ page }) => {
     const enterShowButton = page.locator('a:has-text("Enter a Show")');
     await expect(enterShowButton).toBeVisible();
-    await expect(enterShowButton).toHaveAttribute('href', '/shows/browse');
+    await expect(enterShowButton).toHaveAttribute('href', '/shows');
   });
 
   test('should navigate to Browse Shows when clicking "Enter a Show"', async ({ page }) => {

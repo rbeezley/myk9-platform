@@ -361,7 +361,7 @@ const BrowseShowsPage: React.FC = () => {
                       <PermissionGuard key={action.id} permission={action.permission}>
                         <Button
                           variant={action.variant}
-                          size="sm"
+                          size="default"
                           onClick={() => action.onClick({} as Show)}
                         >
                           <IconComponent className="h-4 w-4 mr-2" />
@@ -373,7 +373,7 @@ const BrowseShowsPage: React.FC = () => {
                       <Button
                         key={action.id}
                         variant={action.variant}
-                        size="sm"
+                        size="default"
                         onClick={() => action.onClick({} as Show)}
                       >
                         <IconComponent className="h-4 w-4 mr-2" />
@@ -388,7 +388,7 @@ const BrowseShowsPage: React.FC = () => {
                       <Link to="/calendar">
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="default"
                           className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full"
                         >
                           <Calendar className="h-4 w-4 mr-2" />
@@ -494,9 +494,9 @@ const BrowseShowsPage: React.FC = () => {
                       )}
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="default"
                         onClick={clearAllFilters}
-                        className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                        className="h-10 px-3 text-sm text-muted-foreground hover:text-primary"
                       >
                         Clear all
                       </Button>
@@ -595,9 +595,9 @@ const BrowseShowsPage: React.FC = () => {
                           <TooltipTrigger asChild>
                             <Button
                               variant={viewMode === mode ? 'default' : 'ghost'}
-                              size="sm"
+                              size="default"
                               onClick={() => handleViewModeChange(mode)}
-                              className="h-8 px-3 transition-all duration-200"
+                              className="h-10 px-3 transition-all duration-200"
                               disabled={isViewModeChanging}
                             >
                               <Icon className="h-4 w-4 sm:mr-2" />
@@ -620,7 +620,7 @@ const BrowseShowsPage: React.FC = () => {
                     {hasActiveFilters && ' (filtered)'}
                   </span>
                   {shows.length > 0 && (
-                    <div className="hidden sm:flex items-center gap-3 text-xs">
+                    <div className="hidden sm:flex items-center gap-3 text-sm">
                       <span className="flex items-center gap-1.5 px-2 py-0.5 bg-muted/50 rounded-full">
                         <Calendar className="h-3 w-3 text-primary" />
                         <span className="font-medium">{quickStats.upcoming}</span>

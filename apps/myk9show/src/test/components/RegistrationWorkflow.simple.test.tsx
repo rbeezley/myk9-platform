@@ -2,55 +2,37 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// This test demonstrates the errors that would have been caught
+// These tests verify the registration architecture is correct
 
 describe('RegistrationWorkflow Error Detection Tests', () => {
   describe('Context Provider Error Detection', () => {
-    it('should catch missing RegistrationProvider error via static analysis', () => {
-      // Static analysis: verify RegistrationProvider is used in CalendarPage where RegistrationWorkflow is used.
-      const calendarPagePath = path.join(__dirname, '../../pages/CalendarPage.tsx');
-      const calendarPageContent = fs.readFileSync(calendarPagePath, 'utf8');
-      // CalendarPage must import RegistrationProvider to wrap RegistrationWorkflow
-      expect(calendarPageContent.includes('RegistrationProvider')).toBe(true);
+    it('should verify RegistrationWizardPage wraps content with RegistrationProvider', () => {
+      const wizardPagePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
+      const wizardPageContent = fs.readFileSync(wizardPagePath, 'utf8');
+      expect(wizardPageContent.includes('RegistrationProvider')).toBe(true);
     });
 
-    it('should pass when provider is present via static analysis', () => {
-      // Verify the RegistrationProvider is not just imported but actually used in JSX
-      const calendarPagePath = path.join(__dirname, '../../pages/CalendarPage.tsx');
-      const calendarPageContent = fs.readFileSync(calendarPagePath, 'utf8');
-      expect(calendarPageContent.includes('<RegistrationProvider>')).toBe(true);
+    it('should verify RegistrationProvider is used in JSX', () => {
+      const wizardPagePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
+      const wizardPageContent = fs.readFileSync(wizardPagePath, 'utf8');
+      expect(wizardPageContent.includes('<RegistrationProvider>')).toBe(true);
     });
   });
 
   describe('Function Initialization Order Detection', () => {
-    it('should validate isStepCompleted is defined in the component', () => {
-      // Static analysis test - check source code structure
-      const filePath = path.join(
-        __dirname,
-        '../../components/shows/RegistrationWorkflow/RegistrationWorkflow.tsx'
-      );
+    it('should validate isStepCompleted is defined in the wizard page', () => {
+      const filePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
       const fileContent = fs.readFileSync(filePath, 'utf8');
 
-      // Find position of isStepCompleted declaration
       const isStepCompletedPos = fileContent.indexOf('const isStepCompleted');
-
-      // Verify isStepCompleted is defined in the component
       expect(isStepCompletedPos).toBeGreaterThan(0);
-
-      console.log(`✓ isStepCompleted defined at position ${isStepCompletedPos}`);
-      console.log(`✓ Function definition is present`);
     });
 
     it('should not use isStepCompleted before its definition', () => {
-      // This test checks for temporal dead zone issues by analyzing the code
-      const filePath = path.join(
-        __dirname,
-        '../../components/shows/RegistrationWorkflow/RegistrationWorkflow.tsx'
-      );
+      const filePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
       const fileContent = fs.readFileSync(filePath, 'utf8');
 
-      // Extract the function body after the component definition
-      const functionStart = fileContent.indexOf('export function RegistrationWorkflow');
+      const functionStart = fileContent.indexOf('function RegistrationWizardContent');
       const functionBody = fileContent.substring(functionStart);
 
       const lines = functionBody.split('\n');
@@ -62,13 +44,11 @@ describe('RegistrationWorkflow Error Detection Tests', () => {
 
         if (line.includes('const isStepCompleted')) {
           isStepCompletedDefined = true;
-          console.log(`✓ isStepCompleted defined at line ${lineNumber}`);
         } else if (
           line.includes('isStepCompleted(') &&
           !isStepCompletedDefined &&
           !line.includes('const')
         ) {
-          // Found usage before definition
           throw new Error(
             `Temporal dead zone error: isStepCompleted used before definition at line ${lineNumber}: ${line.trim()}`
           );
@@ -76,60 +56,51 @@ describe('RegistrationWorkflow Error Detection Tests', () => {
       }
 
       expect(isStepCompletedDefined).toBe(true);
-      console.log(`✓ No temporal dead zone issues found`);
     });
   });
 
   describe('Component Structure Validation', () => {
-    it('should verify CalendarPage includes RegistrationProvider', () => {
-      const calendarPagePath = path.join(__dirname, '../../pages/CalendarPage.tsx');
-      const calendarPageContent = fs.readFileSync(calendarPagePath, 'utf8');
+    it('should verify RegistrationWizardPage includes RegistrationProvider', () => {
+      const wizardPagePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
+      const wizardPageContent = fs.readFileSync(wizardPagePath, 'utf8');
 
-      // Check required imports and structure
-      const hasProviderImport = calendarPageContent.includes('import { RegistrationProvider }');
-      const hasProviderWrapper = calendarPageContent.includes('<RegistrationProvider>');
-      const hasWorkflowComponent = calendarPageContent.includes('<RegistrationWorkflow');
+      const hasProviderImport = wizardPageContent.includes('import { RegistrationProvider }');
+      const hasProviderWrapper = wizardPageContent.includes('<RegistrationProvider>');
 
       expect(hasProviderImport).toBe(true);
       expect(hasProviderWrapper).toBe(true);
-      expect(hasWorkflowComponent).toBe(true);
-
-      console.log(`✓ RegistrationProvider import: ${hasProviderImport}`);
-      console.log(`✓ RegistrationProvider wrapper: ${hasProviderWrapper}`);
-      console.log(`✓ RegistrationWorkflow component: ${hasWorkflowComponent}`);
     });
 
-    it('should verify proper component nesting', () => {
+    it('should verify CalendarPage navigates to registration page instead of using dialog', () => {
       const calendarPagePath = path.join(__dirname, '../../pages/CalendarPage.tsx');
       const calendarPageContent = fs.readFileSync(calendarPagePath, 'utf8');
 
-      const providerPos = calendarPageContent.indexOf('<RegistrationProvider>');
-      const workflowPos = calendarPageContent.indexOf('<RegistrationWorkflow');
-      const providerClosePos = calendarPageContent.indexOf('</RegistrationProvider>');
+      // CalendarPage should NOT contain RegistrationWorkflow dialog anymore
+      expect(calendarPageContent.includes('<RegistrationWorkflow')).toBe(false);
+      expect(calendarPageContent.includes('<RegistrationProvider>')).toBe(false);
 
-      // Verify proper nesting order
-      expect(providerPos).toBeGreaterThan(0);
-      expect(workflowPos).toBeGreaterThan(providerPos);
-      expect(providerClosePos).toBeGreaterThan(workflowPos);
+      // It should navigate to the registration wizard page
+      expect(calendarPageContent.includes('/register')).toBe(true);
+    });
 
-      console.log(`✓ Component nesting order is correct`);
+    it('should verify route exists for registration wizard', () => {
+      const routesPath = path.join(__dirname, '../../routes/publicRoutes.tsx');
+      const routesContent = fs.readFileSync(routesPath, 'utf8');
+
+      expect(routesContent.includes('/shows/:showId/register')).toBe(true);
+      expect(routesContent.includes('RegistrationWizardPage')).toBe(true);
     });
   });
 });
 
 describe('Error Prevention Summary', () => {
   it('should summarize what these tests prevent', () => {
-    console.log('\n📋 THESE TESTS WOULD HAVE PREVENTED:');
-    console.log('1. ✓ RegistrationProvider context error');
-    console.log('2. ✓ Temporal dead zone initialization error');
-    console.log('3. ✓ Missing provider wrapper in CalendarPage');
-    console.log('4. ✓ Incorrect component nesting structure');
-    console.log('\n🔍 TEST COVERAGE ANALYSIS:');
-    console.log('- Provider requirement validation');
-    console.log('- Function declaration order checking');
-    console.log('- Component integration verification');
-    console.log('- Static code structure analysis');
+    console.log('\n📋 THESE TESTS PREVENT:');
+    console.log('1. ✓ Missing RegistrationProvider context in wizard page');
+    console.log('2. ✓ Temporal dead zone initialization errors');
+    console.log('3. ✓ Registration route missing from router');
+    console.log('4. ✓ Regression to dialog-based registration');
 
-    expect(true).toBe(true); // Always pass - this is just for logging
+    expect(true).toBe(true);
   });
 });

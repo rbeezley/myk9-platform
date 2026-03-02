@@ -7,7 +7,7 @@ export enum EntryStatus {
   REJECTED = 'rejected',
   WAITLIST = 'waitlist',
   CANCELLED = 'cancelled',
-  MISSING_INFO = 'missing_info'
+  MISSING_INFO = 'missing_info',
 }
 
 // Enhanced Payment Status with refund support
@@ -17,7 +17,7 @@ export enum PaymentStatus {
   PAID_BY_CHECK = 'paid_by_check',
   PAID_BY_CASH = 'paid_by_cash',
   REFUNDED = 'refunded',
-  PARTIAL_REFUND = 'partial_refund'
+  PARTIAL_REFUND = 'partial_refund',
 }
 
 // Registration context for role-based workflows
@@ -62,12 +62,20 @@ export interface Handler {
   validatedAt?: Date | undefined; // When handler was validated
 }
 
-// Simple handler info for assignments
+// Simple handler info for assignments.
+// Keyed by handler key (dogId|classId) for per-entry granularity.
 export interface HandlerInfo {
   handlerId: string;
   handlerName: string;
   isOwner: boolean;
 }
+
+// Handler key helpers for per-entry (dog+class) handler assignments
+export const makeHandlerKey = (dogId: string, classId: string): string => `${dogId}|${classId}`;
+export const parseHandlerKey = (key: string): { dogId: string; classId: string } => {
+  const [dogId, classId] = key.split('|');
+  return { dogId, classId };
+};
 
 // Armband assignment types
 export interface ArmbandAssignment {
@@ -152,14 +160,16 @@ export interface RegistrationFormData {
   specialRequests?: string | undefined;
   registrationNumber?: string | undefined;
   // Optional workflow state for draft persistence
-  _workflowState?: {
-    currentStep: string;
-    stepCompletionState: Record<string, boolean>;
-    classSelections: ClassSelectionData[];
-    handlerAssignments: Record<string, HandlerInfo>;
-    paymentStatus: PaymentStatus;
-    entryStatus: EntryStatus;
-  } | undefined;
+  _workflowState?:
+    | {
+        currentStep: string;
+        stepCompletionState: Record<string, boolean>;
+        classSelections: ClassSelectionData[];
+        handlerAssignments: Record<string, HandlerInfo>;
+        paymentStatus: PaymentStatus;
+        entryStatus: EntryStatus;
+      }
+    | undefined;
 }
 
 export interface ClassSelectionData {
@@ -218,9 +228,9 @@ export interface NotificationPreferences {
 // Migration helpers for backward compatibility
 export const migratePaymentStatus = (oldStatus: string): PaymentStatus => {
   const statusMap: Record<string, PaymentStatus> = {
-    'pending': PaymentStatus.PENDING,
-    'paid': PaymentStatus.PAID_ONLINE, // Default paid to online
-    'refunded': PaymentStatus.REFUNDED
+    pending: PaymentStatus.PENDING,
+    paid: PaymentStatus.PAID_ONLINE, // Default paid to online
+    refunded: PaymentStatus.REFUNDED,
   };
   return statusMap[oldStatus] || PaymentStatus.PENDING;
 };

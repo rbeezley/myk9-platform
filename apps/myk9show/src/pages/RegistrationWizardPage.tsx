@@ -1,7 +1,15 @@
+/**
+ * Registration Wizard Page
+ *
+ * Full-page wizard for show registration with vertical step indicator.
+ * Replaces the old dialog-based RegistrationWorkflow.
+ */
+
 import { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import {
   ClassSelectionData,
@@ -16,36 +24,39 @@ import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
-import { DraftManager } from './DraftManager';
+import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptimisticRegistration } from '@/hooks/useOptimisticRegistration';
-import { toast } from 'sonner';
-import ProgressIndicator from '../wizard/components/ProgressIndicator';
-import WizardNavigation from '../wizard/components/WizardNavigation';
-import '@/styles/myk9-registration-workflow.css';
-import type { WorkflowMode, RegistrationWorkflowProps, StepId } from './RegistrationWorkflow.types';
+import { RegistrationProvider } from '@/context/RegistrationContext';
+import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
+import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
+import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/WorkflowStepContent';
+import type {
+  WorkflowMode,
+  StepId,
+} from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import {
   WORKFLOW_CONFIGS,
   ALL_STEP_DEFINITIONS,
-  STEP_ANIMATION_VARIANTS,
-} from './RegistrationWorkflow.constants';
-import { WorkflowStepContent } from './WorkflowStepContent';
+} from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
 
-export type { RegistrationWorkflowProps } from './RegistrationWorkflow.types';
+function RegistrationWizardContent() {
+  const { showId } = useParams<{ showId: string }>();
+  const navigate = useNavigate();
 
-export function RegistrationWorkflow({ showId, onComplete, onCancel }: RegistrationWorkflowProps) {
-  // Get user permissions and context
+  // Auth and permissions
   const { canCreateExhibitor, isSecretary, isClubAdmin, isSiteAdmin } =
     useRegistrationPermissions();
   const { mode } = useRegistrationContext();
   const { user } = useAuthContext();
 
-  // Get data stores
+  // Data stores
   const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
+  const currentShow = shows.find(s => s.id === showId);
 
-  // Determine workflow mode based on permissions
+  // Determine workflow mode
   const currentWorkflowMode: WorkflowMode = useMemo(() => {
     if (mode) return mode as WorkflowMode;
     if (isSiteAdmin) return 'site_admin';
@@ -57,15 +68,16 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
 
-  // Build steps based on workflow configuration
+  // Build steps for VerticalProgressIndicator
   const steps = useMemo(() => {
     return currentWorkflowConfig.steps.map((stepId, index) => ({
       ...ALL_STEP_DEFINITIONS[stepId],
-      id: index, // Ensure sequential IDs for ProgressIndicator
+      id: index,
       completed: false,
     }));
   }, [currentWorkflowConfig.steps]);
 
+  // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
   const [stepCompletionState, setStepCompletionState] = useState<Record<string, boolean>>({});
   const [registrationData, setRegistrationData] = useState<RegistrationFormData>({
@@ -80,8 +92,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
   const [registrationId, setRegistrationId] = useState<string | undefined>();
   const [registrationNumber, setRegistrationNumber] = useState<string | undefined>();
   const [isCreatingRegistration, setIsCreatingRegistration] = useState(false);
-
-  // Payment and Entry Status State
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
 
@@ -97,8 +107,8 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
   const userId = user?.id || 'anonymous';
   const currentStepId: StepId = currentWorkflowConfig.steps[currentStep] ?? 'dog-selection';
 
-  useDraftPersistence(showId, userId, currentStepId, {
-    autoSaveInterval: 30000, // 30 seconds
+  useDraftPersistence(showId || '', userId, currentStepId, {
+    autoSaveInterval: 30000,
     debug: process.env.NODE_ENV === 'development',
   });
 
@@ -111,7 +121,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     updatePaymentStatus: updatePaymentStatusOptimistic,
     updateEntryStatus: updateEntryStatusOptimistic,
     batchUpdate,
-  } = useOptimisticRegistration(showId, {
+  } = useOptimisticRegistration(showId || '', {
     formData: registrationData,
     classSelections,
     handlerAssignments,
@@ -120,10 +130,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     stepCompletionState,
   });
 
-  // Merge local state into optimistic state. The optimistic layer captures
-  // initialData on first render only; local state (registrationData,
-  // handlerAssignments, classSelections) is always more current for fields
-  // updated outside the optimistic update methods.
+  // Merge local state into optimistic state
   const effectiveOptimisticState = useMemo(
     () => ({
       ...optimisticState,
@@ -134,7 +141,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     [optimisticState, registrationData, handlerAssignments, classSelections]
   );
 
-  // Define helper functions first
+  // Step helpers
   const isStepCompleted = (stepIndex: number) => {
     const stepId = currentWorkflowConfig.steps[stepIndex];
     return stepId ? stepCompletionState[stepId] || false : false;
@@ -147,7 +154,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     }
   };
 
-  // Helper to get completed step indices for ProgressIndicator
   const getCompletedSteps = () => {
     return steps
       .map((step, index) => ({ step, index }))
@@ -155,18 +161,13 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
       .map(({ index }) => index);
   };
 
-  const currentStepData = steps[currentStep];
-  const totalSteps = steps.length;
-  const currentShow = shows.find(s => s.id === showId);
-
-  // Sync registration data with draft data for auto-save
+  // Sync draft data
   useEffect(() => {
     const draftFormData: Partial<RegistrationFormData> = {
       selectedDogs: registrationData.selectedDogs,
       entries: registrationData.entries,
       paymentMethod: registrationData.paymentMethod,
       specialRequests: registrationData.specialRequests,
-      // Include additional workflow state
       _workflowState: {
         currentStep: currentStepId,
         stepCompletionState,
@@ -176,7 +177,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
         entryStatus,
       },
     };
-
     setDraftData(draftFormData);
   }, [
     registrationData,
@@ -189,8 +189,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     setDraftData,
   ]);
 
-  // Auto-assign dog owners as handlers for each entry (dog+class) when selections change.
-  // Uses render-time sync pattern: compare a derived key to detect changes.
+  // Auto-assign handlers for each entry (dog+class) when class selections change
   const classSelectionsKey = classSelections
     .flatMap(s => s.selectedClasses.map(c => `${s.dogId}|${c.classId}`))
     .sort()
@@ -227,6 +226,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     }
   }
 
+  // Validation
   const canProceed = () => {
     switch (currentStepId) {
       case 'dog-selection':
@@ -236,7 +236,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
           classSelections.length > 0 && classSelections.some(s => s.selectedClasses.length > 0)
         );
       case 'handler-assignment': {
-        // Every entry (dog+class) must have a handler assigned
         const allEntryKeys = classSelections.flatMap(s =>
           s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
         );
@@ -255,17 +254,13 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
 
   const isLastStep = currentStep === steps.length - 1;
 
+  // Navigation handlers
   const handleNext = async () => {
     if (!canProceed()) return;
-
-    // Mark current step as complete
     markStepComplete(currentStep);
 
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
-      // Submit the registration after payment step
       await submitRegistration(registrationId);
-
-      // If credit card payment, mark as confirmed
       if (registrationData.paymentMethod === 'credit_card') {
         confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');
         setRegistrationNumber(currentRegistration.registrationNumber);
@@ -275,33 +270,30 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     if (!isLastStep) {
       setCurrentStep(prev => prev + 1);
     } else {
-      onComplete({
-        ...registrationData,
-        registrationNumber,
-      });
+      toast.success('Registration completed successfully');
+      navigate(`/shows/${showId}`);
     }
   };
 
-  const handlePrevious = () => {
+  const handleBack = () => {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
+    } else {
+      navigate(-1);
     }
   };
 
-  // Create registration when first dog is selected
+  // Dog selection handler
   const handleDogSelectionChange = async (selectedDogs: string[]) => {
-    // Update local state immediately for UI responsiveness
     setRegistrationData(prev => ({ ...prev, selectedDogs }));
 
-    // Create registration on first dog selection
     if (selectedDogs.length > 0 && !registrationId && !isCreatingRegistration) {
       setIsCreatingRegistration(true);
-      const reg = createRegistration(showId, userId || 'current-user-id');
+      const reg = createRegistration(showId || '', userId || 'current-user-id');
       setRegistrationId(reg.id);
       setIsCreatingRegistration(false);
     }
 
-    // Trigger optimistic update
     try {
       await updateDogSelection(selectedDogs);
     } catch (error: unknown) {
@@ -311,10 +303,9 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     }
   };
 
-  // Handle class selection changes with optimistic updates
+  // Class selection handler
   const handleClassSelectionChange = async (selections: ClassSelectionData[]) => {
     setClassSelections(selections);
-
     try {
       await updateClassSelections(selections);
     } catch (error: unknown) {
@@ -324,10 +315,9 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     }
   };
 
-  // Handle handler assignment changes with optimistic updates
+  // Handler assignment handler
   const handleHandlerAssignmentChange = async (assignments: Record<string, HandlerInfo>) => {
     setHandlerAssignments(assignments);
-
     try {
       await updateHandlerAssignments(assignments);
     } catch (error: unknown) {
@@ -337,8 +327,8 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     }
   };
 
+  // Draft loading handler
   const handleDraftLoaded = (draft: SavedDraft) => {
-    // Restore workflow state from draft
     if (draft.data._workflowState) {
       const workflowState = draft.data._workflowState;
       setStepCompletionState(workflowState.stepCompletionState || {});
@@ -347,14 +337,12 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
       setPaymentStatus(workflowState.paymentStatus || PaymentStatus.PENDING);
       setEntryStatus(workflowState.entryStatus || EntryStatus.PENDING);
 
-      // Find and set current step
       const stepIndex = currentWorkflowConfig.steps.findIndex(s => s === workflowState.currentStep);
       if (stepIndex >= 0) {
         setCurrentStep(stepIndex);
       }
     }
 
-    // Restore registration data
     setRegistrationData({
       selectedDogs: draft.data.selectedDogs || [],
       entries: draft.data.entries || [],
@@ -363,7 +351,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
       specialRequests: draft.data.specialRequests,
     });
 
-    // Also update the optimistic state to reflect the loaded data
     batchUpdate({
       formData: {
         selectedDogs: draft.data.selectedDogs || [],
@@ -379,130 +366,166 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
       stepCompletionState: draft.data._workflowState?.stepCompletionState || {},
     });
 
-    // Show success notification
-    toast.success('Draft loaded successfully', {
-      description: `Restored to ${currentStepData.label} step`,
-    });
+    toast.success('Draft loaded successfully');
   };
+
+  if (!showId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">No show selected.</p>
+      </div>
+    );
+  }
 
   return (
     <RegistrationErrorBoundary>
-      <div className="myk9-registration-workflow w-full mx-auto space-y-6">
-        {/* Clean Header - Only show if not in dialog */}
-        {currentShow && !window.location.pathname.includes('/classes/') && (
-          <div className="text-center">
-            <h1 className="text-lg font-semibold text-foreground mb-1">{currentShow.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              Complete all required steps to finalize your registration
-            </p>
-          </div>
-        )}
-
-        {/* Step Navigation */}
-        <Card className="myk9-registration-card">
-          <CardContent className="p-0">
-            {/* Enhanced Progress Indicator */}
-            <ProgressIndicator
-              steps={steps}
-              currentStep={currentStep}
-              completedSteps={getCompletedSteps()}
-              onStepClick={(step: number) => {
-                // Allow navigation to completed steps or next step
-                if (isStepCompleted(step) || step <= Math.max(-1, ...getCompletedSteps()) + 1) {
-                  setCurrentStep(step);
-                }
-              }}
-              className="border-b py-4 mb-8"
-            />
-
-            {/* Draft Controls - Better positioned within workflow context */}
-            <div className="flex items-center justify-between py-4">
+      <div className="min-h-screen bg-background">
+        {/* Header with back button and breadcrumb */}
+        <div className="border-b bg-card/95 backdrop-blur-xl sticky top-16 z-40">
+          <div className="container mx-auto px-6 py-4 max-w-7xl">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(-1)}
+                className="gap-2 hover:-translate-y-0.5 transition-all duration-300"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-medium">
-                  Step {currentStep + 1} of {steps.length}:
-                </span>
-                <span>{currentStepData.label}</span>
+                <span>Shows</span>
+                <span>/</span>
+                <span className="truncate max-w-[200px]">{currentShow?.name || 'Show'}</span>
+                <span>/</span>
+                <span className="text-foreground font-medium">Register</span>
               </div>
-              <div className="myk9-draft-controls">
-                <DraftManager
-                  showId={showId}
-                  userId={userId}
-                  currentStep={currentStepId}
-                  onDraftLoaded={handleDraftLoaded}
-                  onDraftSaved={() => {
-                    toast.success('Draft saved successfully');
-                  }}
-                />
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 sm:gap-6 lg:gap-8">
+            {/* Sidebar - Progress Indicator */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-28 lg:top-32">
+                <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="relative">
+                    <h2 className="text-xl font-semibold mb-2 text-foreground group-hover:text-primary transition-colors duration-300">
+                      Register for Show
+                    </h2>
+                    {currentShow && (
+                      <p className="text-sm text-muted-foreground mb-6 truncate">
+                        {currentShow.name}
+                      </p>
+                    )}
+                    <VerticalProgressIndicator
+                      steps={steps}
+                      currentStep={currentStep}
+                      completedSteps={getCompletedSteps()}
+                      onStepClick={(step: number) => {
+                        if (
+                          isStepCompleted(step) ||
+                          step <= Math.max(-1, ...getCompletedSteps()) + 1
+                        ) {
+                          setCurrentStep(step);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Divider between controls and content */}
-            <div className="border-t border-border mb-4"></div>
+            {/* Main Content */}
+            <div className="lg:col-span-1">
+              <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[600px] flex flex-col transition-all duration-300 hover:shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-            {/* Current Step Content */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentStep}
-                variants={STEP_ANIMATION_VARIANTS}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                transition={{ duration: 0.3 }}
-                className="myk9-registration-content"
-              >
-                <div className="myk9-registration-step-header">
-                  <div className="myk9-registration-step-title">
-                    {currentStepData.icon}
-                    {currentStepData.label}
-                    {currentStepData.optional && <Badge variant="outline">Optional</Badge>}
+                <div className="relative flex-1 p-6 sm:p-8">
+                  {/* Draft controls */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="font-medium">
+                        Step {currentStep + 1} of {steps.length}:
+                      </span>
+                      <span>{steps[currentStep]?.label}</span>
+                    </div>
+                    <DraftManager
+                      showId={showId}
+                      userId={userId}
+                      currentStep={currentStepId}
+                      onDraftLoaded={handleDraftLoaded}
+                      onDraftSaved={() => toast.success('Draft saved')}
+                    />
                   </div>
-                  <p className="myk9-registration-step-description">
-                    {currentStepData.description}
-                  </p>
+
+                  <div className="border-t border-border mb-6" />
+
+                  {/* Step content */}
+                  <WorkflowStepContent
+                    currentStepId={currentStepId}
+                    currentWorkflowConfig={currentWorkflowConfig}
+                    registrationData={registrationData}
+                    optimisticState={effectiveOptimisticState}
+                    showId={showId}
+                    registrationId={registrationId}
+                    registrationNumber={registrationNumber}
+                    currentRegistrationTotalFees={currentRegistration?.totalFees || 0}
+                    onDogSelectionChange={handleDogSelectionChange}
+                    onClassSelectionChange={handleClassSelectionChange}
+                    onHandlerAssignmentChange={handleHandlerAssignmentChange}
+                    onPaymentMethodChange={method =>
+                      setRegistrationData(prev => ({
+                        ...prev,
+                        paymentMethod: method as 'credit_card' | 'check' | 'cash',
+                      }))
+                    }
+                    onPaymentStatusChange={updatePaymentStatusOptimistic}
+                    onEntryStatusChange={updateEntryStatusOptimistic}
+                    setPaymentStatus={setPaymentStatus}
+                    setEntryStatus={setEntryStatus}
+                  />
                 </div>
 
-                {/* Step-specific content */}
-                <WorkflowStepContent
-                  currentStepId={currentStepId}
-                  currentWorkflowConfig={currentWorkflowConfig}
-                  registrationData={registrationData}
-                  optimisticState={effectiveOptimisticState}
-                  showId={showId}
-                  registrationId={registrationId}
-                  registrationNumber={registrationNumber}
-                  currentRegistrationTotalFees={currentRegistration?.totalFees || 0}
-                  onDogSelectionChange={handleDogSelectionChange}
-                  onClassSelectionChange={handleClassSelectionChange}
-                  onHandlerAssignmentChange={handleHandlerAssignmentChange}
-                  onPaymentMethodChange={method =>
-                    setRegistrationData(prev => ({
-                      ...prev,
-                      paymentMethod: method as 'credit_card' | 'check' | 'cash',
-                    }))
-                  }
-                  onPaymentStatusChange={updatePaymentStatusOptimistic}
-                  onEntryStatusChange={updateEntryStatusOptimistic}
-                  setPaymentStatus={setPaymentStatus}
-                  setEntryStatus={setEntryStatus}
-                />
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Enhanced Navigation */}
-            <WizardNavigation
-              currentStep={currentStep}
-              totalSteps={totalSteps}
-              canGoBack={true}
-              canGoNext={canProceed()}
-              onBack={currentStep === 0 ? onCancel : handlePrevious}
-              onNext={handleNext}
-              nextLabel={isLastStep ? 'Complete Registration' : 'Next'}
-              backLabel={currentStep === 0 ? 'Cancel' : 'Previous'}
-              className="pt-8 border-t border-border mt-8"
-            />
-          </CardContent>
-        </Card>
+                {/* Navigation */}
+                <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
+                  <WizardNavigation
+                    currentStep={currentStep}
+                    totalSteps={steps.length}
+                    canGoBack={true}
+                    canGoNext={canProceed()}
+                    onBack={handleBack}
+                    onNext={handleNext}
+                    nextLabel={isLastStep ? 'Complete Registration' : 'Next'}
+                    backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </RegistrationErrorBoundary>
+  );
+}
+
+// Wrap with RegistrationProvider for RBAC context
+export default function RegistrationWizardPage() {
+  const { showId } = useParams<{ showId: string }>();
+
+  if (!showId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">No show selected.</p>
+      </div>
+    );
+  }
+
+  return (
+    <RegistrationProvider>
+      <RegistrationWizardContent />
+    </RegistrationProvider>
   );
 }

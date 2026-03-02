@@ -6,7 +6,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClubAdminService } from '@/services/clubAdminService';
 import { ScopeType } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
-import { RegistrationFormData } from '@/types/show-registration-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
@@ -48,12 +47,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [showPhotoDialog, setShowPhotoDialog] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-
-  // Registration dialog state
-  const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
-  const [selectedShowForRegistration, setSelectedShowForRegistration] = useState<string | null>(
-    null
-  );
 
   // Delete club dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -300,23 +293,13 @@ export function useClubDetailsState(selectedClub: Club | null) {
     [selectedClub, updateClub]
   );
 
-  // Registration handlers
-  const handleRegisterForShow = useCallback((showId: string) => {
-    setSelectedShowForRegistration(showId);
-    setShowRegistrationDialog(true);
-  }, []);
-
-  const handleRegistrationComplete = useCallback((data: RegistrationFormData) => {
-    logger.info('Registration completed', 'clubs', { registrationData: data });
-    notifications.success('Registration submitted successfully');
-    setShowRegistrationDialog(false);
-    setSelectedShowForRegistration(null);
-  }, []);
-
-  const handleRegistrationCancel = useCallback(() => {
-    setShowRegistrationDialog(false);
-    setSelectedShowForRegistration(null);
-  }, []);
+  // Registration handler — navigate to full-page registration wizard
+  const handleRegisterForShow = useCallback(
+    (showId: string) => {
+      navigate(`/shows/${showId}/register`);
+    },
+    [navigate]
+  );
 
   // Add Show handler — navigate to full-page wizard with club pre-selected
   const handleAddShow = useCallback(() => {
@@ -364,12 +347,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     handlePhotoCancel,
     handlePhotoSave,
     // Registration
-    showRegistrationDialog,
-    setShowRegistrationDialog,
-    selectedShowForRegistration,
     handleRegisterForShow,
-    handleRegistrationComplete,
-    handleRegistrationCancel,
     // Show wizard
     handleAddShow,
     // Members

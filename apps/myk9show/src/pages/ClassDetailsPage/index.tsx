@@ -20,7 +20,6 @@ import { useClassDetailsDialogs } from './useClassDetailsDialogs';
 import { ClassNotFoundState, EmptyClassState, LoadingClassState } from './ClassStates';
 import { DeleteClassDialog } from './DeleteClassDialog';
 import { EditEntryDialog } from './EditEntryDialog';
-import { AddEntryDialog } from './AddEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
 
 const ClassDetailsPage: React.FC = () => {
@@ -204,7 +203,11 @@ const ClassDetailsPage: React.FC = () => {
         onDeleteClass={dialogs.openDeleteDialog}
         onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
         onViewTrial={handleViewTrial}
-        onAddEntry={dialogs.openAddEntryDialog}
+        onAddEntry={() => {
+          if (parentShow?.id) {
+            navigate(`/shows/${parentShow.id}/register`);
+          }
+        }}
         onDeleteEntry={handleDeleteEntry}
         onStatusChange={handleStatusChange}
         onResultUpdate={handleResultUpdate}
@@ -240,13 +243,6 @@ const ClassDetailsPage: React.FC = () => {
         rawEntries={rawEntries}
         dogs={dogs}
         onSave={handleSaveEntryEdit}
-      />
-
-      <AddEntryDialog
-        open={dialogs.addEntryDialogOpen}
-        onOpenChange={dialogs.setAddEntryDialogOpen}
-        parentShow={parentShow}
-        currentClass={currentClass}
       />
 
       <DeleteEntryDialog

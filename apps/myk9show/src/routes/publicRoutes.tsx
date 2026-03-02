@@ -21,6 +21,7 @@ const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
+const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 
@@ -65,6 +66,19 @@ export const PublicRoutes = () => (
             <ShowDetailsPage />
           </PageTransition>
         </SuspenseWrapper>
+      }
+    />
+
+    <Route
+      path="/shows/:showId/register"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <RegistrationWizardPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 

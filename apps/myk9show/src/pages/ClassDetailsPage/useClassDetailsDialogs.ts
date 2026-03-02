@@ -17,9 +17,6 @@ export function useClassDetailsDialogs() {
   // Delete class dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Add entry dialog
-  const [addEntryDialogOpen, setAddEntryDialogOpen] = useState(false);
-
   // Delete entry dialog
   const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
@@ -50,12 +47,6 @@ export function useClassDetailsDialogs() {
     setDeleteDialogOpen,
     openDeleteDialog: () => setDeleteDialogOpen(true),
     closeDeleteDialog: () => setDeleteDialogOpen(false),
-
-    // Add entry
-    addEntryDialogOpen,
-    setAddEntryDialogOpen,
-    openAddEntryDialog: () => setAddEntryDialogOpen(true),
-    closeAddEntryDialog: () => setAddEntryDialogOpen(false),
 
     // Delete entry
     deleteEntryDialogOpen,

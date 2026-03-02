@@ -4,9 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
-import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
-import { RegistrationProvider } from '@/context/RegistrationContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTrialStore } from '@/store/trialStore';
 import type { ShowInput } from '@/store/showStore';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
@@ -14,7 +11,6 @@ import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDa
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import type { Show } from '@/types/show-types';
-import type { RegistrationFormData } from '@/types/show-registration-types';
 import { buildClasses } from '@/utils/designTokens';
 
 const ShowDetailsPage: React.FC = () => {
@@ -62,16 +58,12 @@ const ShowDetailsPage: React.FC = () => {
 
   // Clean up the ?edit param from the URL after using it on mount
   useEffect(() => {
-    if (searchParams.get('edit') === 'true' || searchParams.get('register') === 'true') {
+    if (searchParams.get('edit') === 'true') {
       searchParams.delete('edit');
-      searchParams.delete('register');
       setSearchParams(searchParams, { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showRegistration, setShowRegistration] = useState(
-    () => new URLSearchParams(window.location.search).get('register') === 'true'
-  );
 
   // Fallback: Find current show from database if scoped data doesn't have it
   const actualCurrentShow = React.useMemo(() => {
@@ -132,14 +124,11 @@ const ShowDetailsPage: React.FC = () => {
     }, 100);
   };
 
-  // Handler for registering for show
+  // Handler for registering for show — navigate to wizard page
   function handleRegisterForShow(): void {
-    setShowRegistration(true);
-  }
-
-  // Handler for registration completion
-  function handleRegistrationComplete(_registrationData: RegistrationFormData): void {
-    setShowRegistration(false);
+    if (showId) {
+      navigate(`/shows/${showId}/register`);
+    }
   }
 
   // Render main content based on loading/data state
@@ -256,31 +245,6 @@ const ShowDetailsPage: React.FC = () => {
           showName={actualCurrentShow.name || 'Unknown Show'}
         />
       )}
-
-      {/* Registration Dialog */}
-      <Dialog open={showRegistration} onOpenChange={setShowRegistration}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-background border border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Show Registration</DialogTitle>
-          </DialogHeader>
-          <RegistrationProvider>
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center p-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-3 text-muted-foreground">Loading registration...</span>
-                </div>
-              }
-            >
-              <RegistrationWorkflow
-                showId={showId || ''}
-                onComplete={data => handleRegistrationComplete(data as RegistrationFormData)}
-                onCancel={() => setShowRegistration(false)}
-              />
-            </Suspense>
-          </RegistrationProvider>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

@@ -99,6 +99,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/calendar': () => import('@/pages/CalendarPage'),
   '/subscription': () => import('@/pages/SubscriptionPage'),
   '/registration': () => import('@/pages/CalendarPage'),
+  '/shows/:showId/register': () => import('@/pages/RegistrationWizardPage'),
 
   // Cart and checkout
   '/cart': () => import('@/pages/CartPage'),

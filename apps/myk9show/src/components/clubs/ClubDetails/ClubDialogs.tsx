@@ -2,9 +2,6 @@ import React from 'react';
 import { Club } from '@/types/club-types';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import ClubPhotoDialog from '../ClubPhotoDialog';
-import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { RegistrationFormData } from '@/types/show-registration-types';
 import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
 import { AddMemberDialog } from '../members/AddMemberDialog';
 
@@ -25,12 +22,6 @@ interface ClubDialogsProps {
   onPhotoFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onPhotoCancel: () => void;
   onPhotoSave: (savedImage: string | null) => Promise<void>;
-  // Registration dialog
-  showRegistrationDialog: boolean;
-  onRegistrationDialogChange: (open: boolean) => void;
-  selectedShowForRegistration: string | null;
-  onRegistrationComplete: (data: RegistrationFormData) => void;
-  onRegistrationCancel: () => void;
   // Delete dialog
   showDeleteDialog: boolean;
   onDeleteDialogChange: (open: boolean) => void;
@@ -56,11 +47,6 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
   onPhotoFileInput,
   onPhotoCancel,
   onPhotoSave,
-  showRegistrationDialog,
-  onRegistrationDialogChange,
-  selectedShowForRegistration,
-  onRegistrationComplete,
-  onRegistrationCancel,
   showDeleteDialog,
   onDeleteDialogChange,
   onConfirmDelete,
@@ -94,19 +80,6 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
         onCancel={onPhotoCancel}
         onSave={onPhotoSave}
       />
-
-      {/* Registration Workflow Dialog */}
-      <Dialog open={showRegistrationDialog} onOpenChange={onRegistrationDialogChange}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0">
-          {selectedShowForRegistration && (
-            <RegistrationWorkflow
-              showId={selectedShowForRegistration}
-              onComplete={onRegistrationComplete}
-              onCancel={onRegistrationCancel}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Club Confirmation Dialog */}
       <DeleteConfirmationDialog

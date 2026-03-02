@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: Generate a handoff document with resume prompt for continuing work in a fresh session
+model: sonnet
 allowed-tools:
   - Read
   - Write
@@ -27,6 +28,7 @@ Use this exact structure:
 
 ```markdown
 # Project Handoff Document
+
 ## Generated: [current date and time]
 
 ---
@@ -38,6 +40,7 @@ Use this exact structure:
 ### 2. Work Completed
 
 [Everything accomplished in detail:]
+
 - Artifacts created/modified with **file paths and line numbers**
 - Specific changes made (code, content, config) with reasoning
 - Commands run, APIs called, tools used
@@ -48,6 +51,7 @@ Use this exact structure:
 ### 3. Work Remaining
 
 [Specific, actionable steps:]
+
 - Tasks with precise file paths, locations, or references
 - Dependencies and ordering requirements
 - Validation or verification steps needed
@@ -56,6 +60,7 @@ Use this exact structure:
 ### 4. Attempted Approaches
 
 [Everything tried, including failures:]
+
 - Approaches that didn't work and **why they failed**
 - Errors encountered, blockers hit, limitations discovered
 - Dead ends to avoid repeating
@@ -64,19 +69,22 @@ Use this exact structure:
 ### 5. Critical Context & Guardrails
 
 #### Key Decisions & Trade-offs
+
 [Decisions made and the reasoning behind them — this prevents the next session from undoing your work]
 
 #### Do Not Touch
+
 [Explicit list of stable code, systems, or patterns that must NOT be refactored or redesigned without being asked. Include the reason each item is protected.]
 
 #### Known Risks & Edge Cases
+
 [Gotchas, non-obvious behaviors, fragile areas, assumptions that could be wrong]
 
 ### 6. Current State
 
-| Deliverable | Status | Details |
-|------------|--------|---------|
-| [item] | COMPLETE / IN PROGRESS / NOT STARTED | [commit hash, branch, notes] |
+| Deliverable | Status                               | Details                      |
+| ----------- | ------------------------------------ | ---------------------------- |
+| [item]      | COMPLETE / IN PROGRESS / NOT STARTED | [commit hash, branch, notes] |
 
 - **What's committed/finalized:** [list]
 - **What's temporary/draft:** [list]
@@ -85,14 +93,14 @@ Use this exact structure:
 
 ### 7. Confidence Ratings
 
-| Section | Confidence | Notes |
-|---------|-----------|-------|
-| Original Task | ✅ / ⚠️ / ❓ | [brief note] |
-| Work Completed | ✅ / ⚠️ / ❓ | [brief note] |
-| Work Remaining | ✅ / ⚠️ / ❓ | [brief note] |
+| Section              | Confidence   | Notes        |
+| -------------------- | ------------ | ------------ |
+| Original Task        | ✅ / ⚠️ / ❓ | [brief note] |
+| Work Completed       | ✅ / ⚠️ / ❓ | [brief note] |
+| Work Remaining       | ✅ / ⚠️ / ❓ | [brief note] |
 | Attempted Approaches | ✅ / ⚠️ / ❓ | [brief note] |
-| Critical Context | ✅ / ⚠️ / ❓ | [brief note] |
-| Current State | ✅ / ⚠️ / ❓ | [brief note] |
+| Critical Context     | ✅ / ⚠️ / ❓ | [brief note] |
+| Current State        | ✅ / ⚠️ / ❓ | [brief note] |
 
 Legend: ✅ HIGH — verified or built this session | ⚠️ MEDIUM — carried forward, not re-verified | ❓ LOW — assumed or inferred, should be validated
 

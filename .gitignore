@@ -63,6 +63,7 @@ supabase/.temp/
 
 # Session handoff
 save-next.md
+handoff.md
 
 # Claude Code local settings
 .claude_settings.json

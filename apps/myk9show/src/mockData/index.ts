@@ -11,9 +11,3 @@ export {
   MOCK_MEDICATIONS,
   MOCK_ALLERGIES,
 } from './mockHealthRecords';
-
-// Training Entries
-export { MOCK_TRAINING_ENTRIES } from './mockTrainingEntries';
-
-// Re-export types for convenience
-export type { TrainingEntry } from '@/components/dogs/DogDetails/TrainingJournal/AddTrainingEntryDialog';

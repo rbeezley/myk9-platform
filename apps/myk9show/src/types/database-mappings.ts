@@ -127,6 +127,15 @@ export type DbWaitlistEntry = Tables['waitlist_entries']['Row'];
 export type DbWaitlistEntryInsert = Tables['waitlist_entries']['Insert'];
 export type DbWaitlistEntryUpdate = Tables['waitlist_entries']['Update'];
 
+// Training types
+export type DbTrainingJournalEntry = Tables['training_journal_entries']['Row'];
+export type DbTrainingJournalEntryInsert = Tables['training_journal_entries']['Insert'];
+export type DbTrainingJournalEntryUpdate = Tables['training_journal_entries']['Update'];
+
+export type DbTrainingMilestone = Tables['training_milestones']['Row'];
+export type DbTrainingMilestoneInsert = Tables['training_milestones']['Insert'];
+export type DbTrainingMilestoneUpdate = Tables['training_milestones']['Update'];
+
 // Exhibitor types
 export type DbExhibitorProfile = Tables['exhibitor_profiles']['Row'];
 export type DbExhibitorProfileInsert = Tables['exhibitor_profiles']['Insert'];
@@ -134,22 +143,47 @@ export type DbExhibitorProfileUpdate = Tables['exhibitor_profiles']['Update'];
 
 // Type guards for safer type checking
 export const isDogRecord = (record: unknown): record is DbDog => {
-  return record !== null && typeof record === 'object' && 'id' in record && typeof (record as { id: unknown }).id === 'string' && 'name' in record;
+  return (
+    record !== null &&
+    typeof record === 'object' &&
+    'id' in record &&
+    typeof (record as { id: unknown }).id === 'string' &&
+    'name' in record
+  );
 };
 
 export const isPersonRecord = (record: unknown): record is DbPerson => {
-  return record !== null && typeof record === 'object' && 'id' in record && typeof (record as { id: unknown }).id === 'string' && ('first_name' in record || 'last_name' in record);
+  return (
+    record !== null &&
+    typeof record === 'object' &&
+    'id' in record &&
+    typeof (record as { id: unknown }).id === 'string' &&
+    ('first_name' in record || 'last_name' in record)
+  );
 };
 
 // Legacy alias
 export const isUserRecord = isPersonRecord;
 
 export const isShowRecord = (record: unknown): record is DbShow => {
-  return record !== null && typeof record === 'object' && 'id' in record && typeof (record as { id: unknown }).id === 'string' && 'name' in record && 'start_date' in record;
+  return (
+    record !== null &&
+    typeof record === 'object' &&
+    'id' in record &&
+    typeof (record as { id: unknown }).id === 'string' &&
+    'name' in record &&
+    'start_date' in record
+  );
 };
 
 export const isClubRecord = (record: unknown): record is DbClub => {
-  return record !== null && typeof record === 'object' && 'id' in record && typeof (record as { id: unknown }).id === 'string' && 'name' in record;
+  return (
+    record !== null &&
+    typeof record === 'object' &&
+    'id' in record &&
+    typeof (record as { id: unknown }).id === 'string' &&
+    'name' in record
+  );
 };
 
 // Utility functions for common database operations
@@ -217,7 +251,11 @@ export const TABLE_NAMES = {
 
   // Exhibitor
   EXHIBITOR_PROFILES: 'exhibitor_profiles',
+
+  // Training
+  TRAINING_JOURNAL_ENTRIES: 'training_journal_entries',
+  TRAINING_MILESTONES: 'training_milestones',
 } as const;
 
 // Type for table names
-export type TableName = typeof TABLE_NAMES[keyof typeof TABLE_NAMES];
+export type TableName = (typeof TABLE_NAMES)[keyof typeof TABLE_NAMES];

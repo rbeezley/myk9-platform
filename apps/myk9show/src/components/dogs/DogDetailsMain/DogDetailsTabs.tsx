@@ -176,7 +176,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           <TabsContent value="training-journal" className="pt-6">
             {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
-                <TrainingSection />
+                <TrainingSection dogId={dog.id} />
               </Suspense>
             ) : (
               <PremiumGate

@@ -3071,6 +3071,115 @@ export type Database = {
           },
         ];
       };
+      training_journal_entries: {
+        Row: {
+          id: string;
+          dog_id: string;
+          owner_id: string;
+          title: string;
+          content: string | null;
+          date: string;
+          duration_minutes: number | null;
+          location: string | null;
+          sport_tag: string | null;
+          assessment: string | null;
+          linked_result_id: string | null;
+          notes: string | null;
+          goals: string[] | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          dog_id: string;
+          owner_id: string;
+          title: string;
+          content?: string | null;
+          date?: string;
+          duration_minutes?: number | null;
+          location?: string | null;
+          sport_tag?: string | null;
+          assessment?: string | null;
+          linked_result_id?: string | null;
+          notes?: string | null;
+          goals?: string[] | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          dog_id?: string;
+          owner_id?: string;
+          title?: string;
+          content?: string | null;
+          date?: string;
+          duration_minutes?: number | null;
+          location?: string | null;
+          sport_tag?: string | null;
+          assessment?: string | null;
+          linked_result_id?: string | null;
+          notes?: string | null;
+          goals?: string[] | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'training_journal_entries_dog_id_fkey';
+            columns: ['dog_id'];
+            isOneToOne: false;
+            referencedRelation: 'dogs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      training_milestones: {
+        Row: {
+          id: string;
+          dog_id: string;
+          owner_id: string;
+          title: string;
+          description: string | null;
+          date: string;
+          source: string;
+          linked_title_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          dog_id: string;
+          owner_id: string;
+          title: string;
+          description?: string | null;
+          date?: string;
+          source?: string;
+          linked_title_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          dog_id?: string;
+          owner_id?: string;
+          title?: string;
+          description?: string | null;
+          date?: string;
+          source?: string;
+          linked_title_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'training_milestones_dog_id_fkey';
+            columns: ['dog_id'];
+            isOneToOne: false;
+            referencedRelation: 'dogs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       trials: {
         Row: {
           actual_end_time: string | null;

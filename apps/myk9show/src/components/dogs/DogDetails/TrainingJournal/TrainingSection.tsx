@@ -2,10 +2,31 @@ import { useState, useMemo } from 'react';
 import { EnhancedTrainingJournal } from './EnhancedTrainingJournal';
 import { Button } from '@/components/ui/button';
 import { BookOpen, Calendar, List } from 'lucide-react';
-import { MOCK_TRAINING_ENTRIES } from '@/mockData/mockTrainingEntries';
-import type { TrainingEntry } from './AddTrainingEntryDialog';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  useTrainingEntriesQuery,
+  useCreateTrainingEntryMutation,
+  useUpdateTrainingEntryMutation,
+  useDeleteTrainingEntryMutation,
+} from '@/hooks/queries/useTrainingDatabase';
+import type { TrainingJournalEntry, TrainingAssessment } from '@/types/training';
 
-// Enhanced TrainingEntry type for journal display
+// Map DB assessment to UI progress labels
+const assessmentToProgress: Record<TrainingAssessment, string> = {
+  breakthrough: 'excellent',
+  solid: 'good',
+  needs_work: 'fair',
+  regression: 'needs_work',
+};
+
+const progressToAssessment: Record<string, TrainingAssessment> = {
+  excellent: 'breakthrough',
+  good: 'solid',
+  fair: 'needs_work',
+  needs_work: 'regression',
+};
+
+// Enhanced entry type for journal display
 interface EnhancedTrainingEntry {
   id: string;
   title: string;
@@ -20,60 +41,104 @@ interface EnhancedTrainingEntry {
   goals?: string[];
 }
 
-// Convert mock training entries to our enhanced format
-const convertToEnhancedFormat = (mockEntries: Array<{ id: number; exerciseName?: string; notes?: string; date: string; duration?: number; skills?: string; difficulty?: number; progress?: string }>): EnhancedTrainingEntry[] => {
-  return mockEntries.map(entry => ({
-    id: String(entry.id),
-    title: entry.exerciseName || 'Training Session',
-    content: entry.notes || 'Training session completed',
-    date: new Date(entry.date),
-    duration: entry.duration || 30,
-    skills: entry.skills ? entry.skills.split(',').map((s: string) => s.trim()) : ['Basic Training'],
-    difficulty: (entry.difficulty || 3) as 1 | 2 | 3 | 4 | 5,
-    progress: (entry.progress || 'good') as 'excellent' | 'good' | 'fair' | 'needs_work',
-    photos: [],
-    notes: entry.notes || '',
-    goals: []
-  }));
-};
+const dbToEnhanced = (entry: TrainingJournalEntry): EnhancedTrainingEntry => ({
+  id: entry.id,
+  title: entry.title,
+  content: entry.content || '',
+  date: new Date(entry.date + 'T00:00:00'),
+  duration: entry.duration_minutes ?? 30,
+  skills: entry.sport_tag ? [entry.sport_tag] : [],
+  difficulty: 3,
+  progress: entry.assessment
+    ? (assessmentToProgress[entry.assessment] as EnhancedTrainingEntry['progress'])
+    : 'good',
+  photos: [],
+  notes: entry.notes ?? '',
+  goals: entry.goals,
+});
 
-export default function TrainingSection() {
+interface TrainingSectionProps {
+  dogId: string;
+}
+
+export default function TrainingSection({ dogId }: TrainingSectionProps) {
   const [viewMode, setViewMode] = useState<'enhanced' | 'traditional'>('enhanced');
-  const [trainingEntries, setTrainingEntries] = useState(MOCK_TRAINING_ENTRIES);
-  
-  const enhancedEntries = useMemo(() => 
-    convertToEnhancedFormat(trainingEntries),
-    [trainingEntries]
-  );
+  const { user } = useAuth();
 
-  const handleAddEntry = (entry: { title: string; content?: string; notes?: string; skills?: string[] }) => {
-    const newEntry = {
-      id: Date.now(),
+  const { data: entries = [], isLoading, isError, error } = useTrainingEntriesQuery(dogId);
+  const createMutation = useCreateTrainingEntryMutation();
+  const updateMutation = useUpdateTrainingEntryMutation();
+  const deleteMutation = useDeleteTrainingEntryMutation();
+
+  const enhancedEntries = useMemo(() => entries.map(dbToEnhanced), [entries]);
+
+  const handleAddEntry = (entry: {
+    title: string;
+    content?: string;
+    notes?: string;
+    skills?: string[];
+    duration?: number;
+    progress?: string;
+  }) => {
+    if (!user) return;
+    createMutation.mutate({
+      dog_id: dogId,
+      owner_id: user.id,
       title: entry.title,
-      notes: entry.content || entry.notes || '',
+      content: entry.content || entry.notes || null,
       date: new Date().toISOString().split('T')[0],
-      tags: entry.skills || []
-    };
-    setTrainingEntries(prev => [...prev, newEntry]);
+      duration_minutes: entry.duration ?? null,
+      location: null,
+      sport_tag: entry.skills?.[0] ?? null,
+      assessment: entry.progress ? (progressToAssessment[entry.progress] ?? null) : null,
+      linked_result_id: null,
+      notes: entry.notes ?? null,
+      goals: entry.skills ?? [],
+    });
   };
 
   const handleUpdateEntry = (id: string, entry: Partial<EnhancedTrainingEntry>) => {
-    // Convert EnhancedTrainingEntry to proper TrainingEntry format for storage
-    const updatedEntry: TrainingEntry = {
-      id: parseInt(id),
-      title: entry.title || '',
-      notes: entry.content || entry.notes || '',
-      date: entry.date ? entry.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      tags: entry.skills || []
-    };
-    setTrainingEntries(prev => prev.map(e => 
-      String(e.id) === id ? updatedEntry : e
-    ));
+    updateMutation.mutate({
+      id,
+      updates: {
+        ...(entry.title !== undefined ? { title: entry.title } : {}),
+        ...(entry.content !== undefined ? { content: entry.content } : {}),
+        ...(entry.date !== undefined ? { date: entry.date.toISOString().split('T')[0] } : {}),
+        ...(entry.duration !== undefined ? { duration_minutes: entry.duration } : {}),
+        ...(entry.skills !== undefined ? { sport_tag: entry.skills[0] ?? null } : {}),
+        ...(entry.progress !== undefined
+          ? { assessment: progressToAssessment[entry.progress] ?? null }
+          : {}),
+        ...(entry.notes !== undefined ? { notes: entry.notes ?? null } : {}),
+        ...(entry.goals !== undefined ? { goals: entry.goals ?? [] } : {}),
+      },
+    });
   };
 
-  // const handleDeleteEntry = (id: string) => {
-  //   setTrainingEntries(prev => prev.filter(e => String(e.id) !== id));
-  // };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading training journal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <BookOpen className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
+          <h3 className="text-lg font-semibold mb-2">Unable to load training journal</h3>
+          <p className="text-muted-foreground mb-4">
+            {error?.message || 'There was an error loading the training journal.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (viewMode === 'enhanced') {
     return (
@@ -88,12 +153,8 @@ export default function TrainingSection() {
               Track training sessions, progress, and achievements with our enhanced journal
             </p>
           </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setViewMode('traditional')}
-          >
+
+          <Button variant="outline" size="sm" onClick={() => setViewMode('traditional')}>
             <List className="h-4 w-4 mr-2" />
             Traditional View
           </Button>
@@ -108,7 +169,7 @@ export default function TrainingSection() {
     );
   }
 
-  // Traditional view (simplified fallback)
+  // Traditional view
   return (
     <div className="bg-background rounded-xl shadow-sm p-6 border">
       <div className="flex justify-between items-center mb-4">
@@ -117,40 +178,52 @@ export default function TrainingSection() {
           Training Journal
         </h2>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setViewMode('enhanced')}
-          >
+          <Button variant="outline" size="sm" onClick={() => setViewMode('enhanced')}>
             <Calendar className="h-4 w-4 mr-2" />
             Enhanced View
           </Button>
-          <Button variant="default" size="sm">
-            + Add Entry
-          </Button>
         </div>
       </div>
-      
-      <div className="grid gap-4">
-        {trainingEntries.map(entry => (
-          <div key={entry.id} className="p-4 border rounded-lg">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="font-medium">{entry.title}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(entry.date).toLocaleDateString()}
-                </p>
-                {entry.notes && (
-                  <p className="text-sm mt-2">{entry.notes}</p>
-                )}
+
+      {entries.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>No training sessions recorded yet.</p>
+          <p className="text-sm mt-1">
+            Switch to Enhanced View to add your first training session.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {entries.map(entry => (
+            <div key={entry.id} className="p-4 border rounded-lg">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-medium">{entry.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(entry.date).toLocaleDateString()}
+                    {entry.duration_minutes && ` \u2022 ${entry.duration_minutes}min`}
+                  </p>
+                  {entry.content && <p className="text-sm mt-2">{entry.content}</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                  {entry.sport_tag && (
+                    <span className="text-xs text-muted-foreground">{entry.sport_tag}</span>
+                  )}
+                  {entry.assessment && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted">
+                      {entry.assessment}
+                    </span>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(entry.id)}>
+                    Delete
+                  </Button>
+                </div>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {entry.tags?.join(', ')}
-              </span>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { HealthTimeline, type HealthEvent } from './HealthTimeline';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Heart, Calendar, List, Plus } from 'lucide-react';
-import type { VaccinationRecord, VetVisitRecord, MedicationRecord, AllergyRecord } from '../../../../types/health';
-import { useDogHealthDataQuery } from '@/hooks/queries/useHealthDatabase';
-import { logger } from '@/services/LoggingService';
+import { Heart, Calendar, List, Plus, AlertTriangle } from 'lucide-react';
+import type {
+  VaccinationRecord,
+  VetVisitRecord,
+  MedicationRecord,
+  AllergyRecord,
+} from '../../../../types/health';
+import {
+  useDogHealthDataQuery,
+  useCreateVaccinationMutation,
+  useCreateMedicationMutation,
+  useCreateAllergyMutation,
+  useCreateVetVisitMutation,
+} from '@/hooks/queries/useHealthDatabase';
+
+const AddHealthItemDialog = lazy(() => import('./AddHealthItemDialog'));
+
+type HealthItemType = 'vaccination' | 'medication' | 'allergy' | 'vet_visit';
 
 interface HealthRecordsSectionProps {
   user: { isPremium: boolean };
@@ -21,7 +35,6 @@ const convertToTimelineEvents = (
 ) => {
   const events: HealthEvent[] = [];
 
-  // Add vaccinations
   vaccinations.forEach(vacc => {
     events.push({
       id: `vacc-${vacc.id}`,
@@ -31,14 +44,16 @@ const convertToTimelineEvents = (
       date: new Date(vacc.date_given),
       vetName: vacc.vet_name || '',
       clinic: vacc.clinic_name || '',
-      status: vacc.expiration_date && new Date(vacc.expiration_date) < new Date() ? 'overdue' : 'completed',
+      status:
+        vacc.expiration_date && new Date(vacc.expiration_date) < new Date()
+          ? 'overdue'
+          : 'completed',
       expiration: vacc.expiration_date ? new Date(vacc.expiration_date) : undefined,
       notes: vacc.notes || '',
-      attachments: []
+      attachments: [],
     });
   });
 
-  // Add vet visits
   vetVisits.forEach(visit => {
     events.push({
       id: `visit-${visit.id}`,
@@ -51,11 +66,10 @@ const convertToTimelineEvents = (
       cost: visit.cost || 0,
       status: 'completed' as const,
       notes: visit.notes || '',
-      attachments: []
+      attachments: [],
     });
   });
 
-  // Add medications
   medications.forEach(med => {
     events.push({
       id: `med-${med.id}`,
@@ -66,11 +80,10 @@ const convertToTimelineEvents = (
       vetName: med.frequency || '',
       status: 'scheduled' as const,
       notes: med.notes || '',
-      attachments: []
+      attachments: [],
     });
   });
 
-  // Add allergies
   allergies.forEach(allergy => {
     events.push({
       id: `allergy-${allergy.id}`,
@@ -81,45 +94,109 @@ const convertToTimelineEvents = (
       vetName: allergy.discovered_by || '',
       status: 'completed' as const,
       notes: allergy.reaction || '',
-      attachments: []
+      attachments: [],
     });
   });
 
   return events.sort((a, b) => b.date.getTime() - a.date.getTime());
 };
 
+// Check for upcoming/overdue vaccinations
+const getVaccinationAlerts = (vaccinations: VaccinationRecord[]) => {
+  const now = new Date();
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(now.getDate() + 30);
+
+  return vaccinations.filter(v => {
+    if (!v.expiration_date) return false;
+    const exp = new Date(v.expiration_date);
+    return exp <= thirtyDaysFromNow;
+  });
+};
+
 const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId = '' }) => {
   const [viewMode, setViewMode] = useState<'timeline' | 'traditional'>('timeline');
-  
-  // Use database hooks instead of mock data
-  const {
-    vaccinations,
-    medications, 
-    allergies,
-    vetVisits,
-    isLoading,
-    isError,
-    error,
-  } = useDogHealthDataQuery(dogId, user.isPremium);
+  const [addDialogType, setAddDialogType] = useState<HealthItemType | null>(null);
+
+  const { vaccinations, medications, allergies, vetVisits, isLoading, isError, error } =
+    useDogHealthDataQuery(dogId, user.isPremium);
+
+  const createVaccination = useCreateVaccinationMutation();
+  const createMedication = useCreateMedicationMutation();
+  const createAllergy = useCreateAllergyMutation();
+  const createVetVisit = useCreateVetVisitMutation();
 
   const vaccinationsData = useMemo(() => vaccinations.data || [], [vaccinations.data]);
   const medicationsData = useMemo(() => medications.data || [], [medications.data]);
   const allergiesData = useMemo(() => allergies.data || [], [allergies.data]);
   const vetVisitsData = useMemo(() => vetVisits.data || [], [vetVisits.data]);
 
-  const timelineEvents = useMemo(() => 
-    convertToTimelineEvents(vaccinationsData, vetVisitsData, medicationsData, allergiesData),
+  const vaccinationAlerts = useMemo(
+    () => getVaccinationAlerts(vaccinationsData),
+    [vaccinationsData]
+  );
+
+  // Pre-compute dates for vaccination status badges (avoid Date.now() during render)
+  const now = useMemo(() => new Date(), []);
+  const thirtyDaysFromNow = useMemo(
+    () => new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+    [now]
+  );
+
+  const timelineEvents = useMemo(
+    () => convertToTimelineEvents(vaccinationsData, vetVisitsData, medicationsData, allergiesData),
     [vaccinationsData, vetVisitsData, medicationsData, allergiesData]
   );
 
-  const handleEventClick = (event: HealthEvent) => {
-    logger.debug('Event clicked:', 'dogs', { data: event });
-    // In real app, this would open detailed view/edit dialog
-  };
-
-  const handleAddEvent = () => {
-    logger.debug('Add new health event', 'dogs', {});
-    // In real app, this would open add health record dialog
+  const handleAddItem = (type: HealthItemType, data: Record<string, unknown>) => {
+    switch (type) {
+      case 'vaccination':
+        createVaccination.mutate({
+          dog_id: data.dog_id as string,
+          vaccine_name: data.vaccine_name as string,
+          date_given: data.date_given as string,
+          expiration_date: (data.expiration_date as string) || undefined,
+          vet_name: (data.vet_name as string) || undefined,
+          lot_number: (data.lot_number as string) || undefined,
+          notes: (data.notes as string) || undefined,
+        });
+        break;
+      case 'medication':
+        createMedication.mutate({
+          dog_id: data.dog_id as string,
+          medication_name: data.medication_name as string,
+          dosage: (data.dosage as string) || undefined,
+          frequency: (data.frequency as string) || undefined,
+          start_date: (data.start_date as string) || undefined,
+          end_date: (data.end_date as string) || undefined,
+          is_active: true,
+          notes: (data.notes as string) || undefined,
+        });
+        break;
+      case 'allergy':
+        createAllergy.mutate({
+          dog_id: data.dog_id as string,
+          allergen: data.allergen as string,
+          reaction: (data.reaction as string) || undefined,
+          severity:
+            (data.severity as 'mild' | 'moderate' | 'severe' | 'life_threatening') || undefined,
+          discovered_date: (data.discovered_date as string) || undefined,
+          notes: (data.notes as string) || undefined,
+        });
+        break;
+      case 'vet_visit':
+        createVetVisit.mutate({
+          dog_id: data.dog_id as string,
+          visit_date: data.visit_date as string,
+          reason: data.reason as string,
+          diagnosis: (data.diagnosis as string) || undefined,
+          treatment: (data.treatment as string) || undefined,
+          vet_name: (data.vet_name as string) || undefined,
+          cost: data.cost as number | undefined,
+          notes: (data.notes as string) || undefined,
+        });
+        break;
+    }
   };
 
   if (!user.isPremium) {
@@ -130,9 +207,6 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
         <p className="text-muted-foreground mb-4">
           Track vaccinations, vet visits, medications, and more with our enhanced timeline view.
         </p>
-        <Button onClick={() => logger.debug('Upgrade to Premium', 'dogs')}>
-          Upgrade to Premium
-        </Button>
       </div>
     );
   }
@@ -160,9 +234,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
             <p className="text-muted-foreground mb-4">
               {error?.message || 'There was an error loading the health records.'}
             </p>
-            <Button onClick={() => window.location.reload()}>
-              Try Again
-            </Button>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
           </div>
         </div>
       </div>
@@ -171,6 +243,31 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
 
   return (
     <div className="myk9-section-card">
+      {/* Vaccination Alerts */}
+      {vaccinationAlerts.length > 0 && (
+        <div className="mb-4 p-3 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
+          <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-sm font-medium">Vaccination Reminders</span>
+          </div>
+          <ul className="mt-1 space-y-1">
+            {vaccinationAlerts.map(v => {
+              const exp = new Date(v.expiration_date!);
+              const isOverdue = exp < new Date();
+              return (
+                <li
+                  key={v.id}
+                  className={`text-sm ${isOverdue ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}
+                >
+                  {v.vaccine_name} — {isOverdue ? 'overdue since' : 'due'}{' '}
+                  {exp.toLocaleDateString()}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {/* View Toggle */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -179,10 +276,10 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
             Health Records
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Track your dog's health history and upcoming care needs
+            Track your dog&apos;s health history and upcoming care needs
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           <Button
             variant={viewMode === 'timeline' ? 'default' : 'outline'}
@@ -205,42 +302,59 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
 
       {viewMode === 'timeline' ? (
         <HealthTimeline
-          dogId="current-dog"
+          dogId={dogId}
           events={timelineEvents}
-          onEventClick={handleEventClick}
-          onAddEvent={handleAddEvent}
+          onEventClick={() => {}}
+          onAddEvent={() => setAddDialogType('vaccination')}
         />
       ) : (
         <Tabs defaultValue="vetVisits" className="w-full">
           <TabsList className="myk9-sub-tabs">
-            <TabsTrigger value="vetVisits" className="myk9-sub-tab">Vet Visits</TabsTrigger>
-            <TabsTrigger value="vaccinations" className="myk9-sub-tab">Vaccinations</TabsTrigger>
-            <TabsTrigger value="medications" className="myk9-sub-tab">Medications</TabsTrigger>
-            <TabsTrigger value="allergies" className="myk9-sub-tab">Allergies</TabsTrigger>
+            <TabsTrigger value="vetVisits" className="myk9-sub-tab">
+              Vet Visits
+            </TabsTrigger>
+            <TabsTrigger value="vaccinations" className="myk9-sub-tab">
+              Vaccinations
+              {vaccinationAlerts.length > 0 && (
+                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[10px] font-bold text-white">
+                  {vaccinationAlerts.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="medications" className="myk9-sub-tab">
+              Medications
+            </TabsTrigger>
+            <TabsTrigger value="allergies" className="myk9-sub-tab">
+              Allergies
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="vetVisits" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Vet Visits</h3>
-              <button className="myk9-add-button">
-                <Plus className="h-4 w-4" />
+              <Button size="sm" onClick={() => setAddDialogType('vet_visit')}>
+                <Plus className="h-4 w-4 mr-1" />
                 Add Vet Visit
-              </button>
+              </Button>
             </div>
             <div className="grid gap-4">
+              {vetVisitsData.length === 0 && (
+                <p className="text-muted-foreground text-sm py-4 text-center">
+                  No vet visits recorded yet.
+                </p>
+              )}
               {vetVisitsData.map(visit => (
                 <div key={visit.id} className="p-4 border rounded-lg">
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-medium">{visit.reason}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(visit.visit_date).toLocaleDateString()} • {visit.vet_name || 'Unknown'}
+                        {new Date(visit.visit_date).toLocaleDateString()} &bull;{' '}
+                        {visit.vet_name || 'Unknown'}
                       </p>
-                      {visit.notes && (
-                        <p className="text-sm mt-1">{visit.notes}</p>
-                      )}
+                      {visit.notes && <p className="text-sm mt-1">{visit.notes}</p>}
                     </div>
-                    {visit.cost && (
+                    {visit.cost != null && visit.cost > 0 && (
                       <span className="text-sm font-medium">${visit.cost}</span>
                     )}
                   </div>
@@ -248,78 +362,104 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
               ))}
             </div>
           </TabsContent>
-          
+
           <TabsContent value="vaccinations" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Vaccinations</h3>
-              <button className="myk9-add-button">
-                <Plus className="h-4 w-4" />
+              <Button size="sm" onClick={() => setAddDialogType('vaccination')}>
+                <Plus className="h-4 w-4 mr-1" />
                 Add Vaccination
-              </button>
+              </Button>
             </div>
             <div className="grid gap-4">
-              {vaccinationsData.map(vacc => (
-                <div key={vacc.id} className="p-4 border rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">{vacc.vaccine_name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Given: {new Date(vacc.date_given).toLocaleDateString()}
-                      </p>
-                      {vacc.expiration_date && (
+              {vaccinationsData.length === 0 && (
+                <p className="text-muted-foreground text-sm py-4 text-center">
+                  No vaccinations recorded yet.
+                </p>
+              )}
+              {vaccinationsData.map(vacc => {
+                const isExpiringSoon =
+                  vacc.expiration_date && new Date(vacc.expiration_date) <= thirtyDaysFromNow;
+                const isOverdue = vacc.expiration_date && new Date(vacc.expiration_date) < now;
+                return (
+                  <div
+                    key={vacc.id}
+                    className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-red-50 dark:bg-red-950/10' : isExpiringSoon ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/10' : ''}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{vacc.vaccine_name}</h4>
                         <p className="text-sm text-muted-foreground">
-                          Next Due: {new Date(vacc.expiration_date).toLocaleDateString()}
+                          Given: {new Date(vacc.date_given).toLocaleDateString()}
                         </p>
-                      )}
+                        {vacc.expiration_date && (
+                          <p
+                            className={`text-sm ${isOverdue ? 'text-red-600 font-medium' : isExpiringSoon ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}`}
+                          >
+                            {isOverdue ? 'Overdue since' : 'Next Due'}:{' '}
+                            {new Date(vacc.expiration_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {vacc.vet_name || 'Unknown'}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {vacc.vet_name || 'Unknown'}
-                    </span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </TabsContent>
-          
+
           <TabsContent value="medications" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Medications</h3>
-              <button className="myk9-add-button">
-                <Plus className="h-4 w-4" />
+              <Button size="sm" onClick={() => setAddDialogType('medication')}>
+                <Plus className="h-4 w-4 mr-1" />
                 Add Medication
-              </button>
+              </Button>
             </div>
             <div className="grid gap-4">
+              {medicationsData.length === 0 && (
+                <p className="text-muted-foreground text-sm py-4 text-center">
+                  No medications recorded yet.
+                </p>
+              )}
               {medicationsData.map(med => (
                 <div key={med.id} className="p-4 border rounded-lg">
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-medium">{med.medication_name}</h4>
                       <p className="text-sm text-muted-foreground">
-                        {med.dosage} • {med.frequency}
+                        {med.dosage} &bull; {med.frequency}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {med.notes}
-                      </p>
+                      {med.notes && <p className="text-sm text-muted-foreground">{med.notes}</p>}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {med.frequency}
-                    </span>
+                    {med.is_active && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        Active
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </TabsContent>
-          
+
           <TabsContent value="allergies" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Allergies</h3>
-              <button className="myk9-add-button">
-                <Plus className="h-4 w-4" />
+              <Button size="sm" onClick={() => setAddDialogType('allergy')}>
+                <Plus className="h-4 w-4 mr-1" />
                 Add Allergy
-              </button>
+              </Button>
             </div>
             <div className="grid gap-4">
+              {allergiesData.length === 0 && (
+                <p className="text-muted-foreground text-sm py-4 text-center">
+                  No allergies recorded yet.
+                </p>
+              )}
               {allergiesData.map(allergy => (
                 <div key={allergy.id} className="p-4 border rounded-lg">
                   <div className="flex justify-between items-start">
@@ -329,15 +469,38 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
                         {allergy.reaction || 'No description'}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      Allergy
-                    </span>
+                    {allergy.severity && (
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          allergy.severity === 'life_threatening'
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                            : allergy.severity === 'severe'
+                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
+                              : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {allergy.severity.replace('_', ' ')}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </TabsContent>
         </Tabs>
+      )}
+
+      {/* Add Health Item Dialog */}
+      {addDialogType && (
+        <Suspense fallback={null}>
+          <AddHealthItemDialog
+            open={!!addDialogType}
+            type={addDialogType}
+            dogId={dogId}
+            onClose={() => setAddDialogType(null)}
+            onAdd={handleAddItem}
+          />
+        </Suspense>
       )}
     </div>
   );

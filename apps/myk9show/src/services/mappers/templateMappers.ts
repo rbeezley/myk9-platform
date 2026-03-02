@@ -17,9 +17,6 @@ import type {
   TrialType,
 } from '@/types/show-template-types';
 import type {
-  DbClassTemplate,
-  DbClassTemplateInsert,
-  DbClassTemplateUpdate,
   DbShowTemplate,
   DbShowTemplateInsert,
   DbShowTemplateUpdate,
@@ -27,6 +24,28 @@ import type {
   DbTemplateFieldInsert,
 } from '@/types/database-mappings';
 import type { Json } from '@/types/supabase';
+
+// class_templates table was dropped (migration 032), replaced by sport_templates.
+// These local types preserve backward compat for mapper functions still in use.
+interface DbClassTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  level: string | null;
+  element: string | null;
+  competition_type: string | null;
+  default_entry_fee: number | null;
+  default_max_entries: number | null;
+  default_time_limit_seconds: number | null;
+  template_data: Json | null;
+  is_public: boolean | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+type DbClassTemplateInsert = Partial<DbClassTemplate> & { name: string };
+type DbClassTemplateUpdate = Partial<DbClassTemplate>;
 
 // ===== TEMPLATE DATA JSONB INTERFACES =====
 
@@ -155,7 +174,7 @@ export const mapDatabaseToClassTemplate = (
   const templateData = parseClassTemplateData(dbTemplate.template_data);
 
   // Fields can come from template_fields relation or template_data JSON
-  const templateFields = Array.isArray(dbTemplate.template_fields)
+  const templateFields: ClassTemplateField[] = Array.isArray(dbTemplate.template_fields)
     ? dbTemplate.template_fields.map(mapDatabaseToClassTemplateField)
     : Array.isArray(templateData.fields)
       ? templateData.fields

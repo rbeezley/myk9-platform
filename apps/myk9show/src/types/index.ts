@@ -33,7 +33,6 @@ export type {
   DbTrial,
   DbTrialInsert,
   DbTrialUpdate,
-  DbClassTemplate,
   DbShowTemplate,
   DbHealthRecord,
   DbVaccination,
@@ -69,12 +68,7 @@ export {
 export type { Dog, Owner, Registration } from './dog-types';
 export type { User } from './user-types';
 export type { Show, ShowStat, ShowTrial } from './show-types';
-export type {
-  VaccinationRecord,
-  VetVisitRecord,
-  MedicationRecord,
-  AllergyRecord
-} from './health';
+export type { VaccinationRecord, VetVisitRecord, MedicationRecord, AllergyRecord } from './health';
 export type { Achievement } from './achievement-types';
 
 // Achievement System Types - explicit exports
@@ -158,7 +152,7 @@ export type {
   RegistrationDocument,
   RegistrationFormData,
   ClassSelectionData,
-  FeeCalculation
+  FeeCalculation,
 } from './show-registration-types';
 
 // Entry Types - explicit exports
@@ -212,7 +206,7 @@ export type {
   SystemMetrics,
   ErrorMetric,
   NotificationMessage,
-  NotificationSubscription
+  NotificationSubscription,
 } from './audit-types';
 export { AuditAction, NotificationType } from './audit-types';
 

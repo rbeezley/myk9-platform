@@ -41,9 +41,8 @@ export type DbTrialInsert = Tables['trials']['Insert'];
 export type DbTrialUpdate = Tables['trials']['Update'];
 
 // Template system types
-export type DbClassTemplate = Tables['class_templates']['Row'];
-export type DbClassTemplateInsert = Tables['class_templates']['Insert'];
-export type DbClassTemplateUpdate = Tables['class_templates']['Update'];
+// Note: class_templates table was dropped (migration 032), replaced by sport_templates.
+// DbClassTemplate types are defined locally in templateMappers.ts for backward compat.
 
 export type DbShowTemplate = Tables['show_templates']['Row'];
 export type DbShowTemplateInsert = Tables['show_templates']['Insert'];
@@ -209,7 +208,6 @@ export const TABLE_NAMES = {
   TRIALS: 'trials',
 
   // Templates
-  CLASS_TEMPLATES: 'class_templates',
   SHOW_TEMPLATES: 'show_templates',
   TEMPLATE_FIELDS: 'template_fields',
 

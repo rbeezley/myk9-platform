@@ -1,7 +1,20 @@
 -- Rename shows.type → shows.organization
 -- The "type" column stores sanctioning body codes (AKC, UKC, etc.),
 -- which are organizations, not show types. Renaming for clarity.
-ALTER TABLE shows RENAME COLUMN type TO organization;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'shows' AND column_name = 'type'
+  ) THEN
+    ALTER TABLE shows RENAME COLUMN type TO organization;
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'shows' AND column_name = 'organization'
+  ) THEN
+    ALTER TABLE shows ADD COLUMN organization TEXT;
+  END IF;
+END $$;
 
 -- Add trial_type column for the discipline (Scent Work, Agility, etc.)
 -- This was previously only in TypeScript types, not persisted to DB.

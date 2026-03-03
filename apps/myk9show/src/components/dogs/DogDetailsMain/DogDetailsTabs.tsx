@@ -46,21 +46,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
               <FileText className="w-4 h-4" />
               Registrations
             </TabsTrigger>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <TabsTrigger
-                  value="competitions"
-                  disabled={!isPremium}
-                  onClick={!isPremium ? handlePremiumTabClick : undefined}
-                >
-                  <Crown className="w-4 h-4" />
-                  Competitions
-                </TabsTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Access Competitions - Premium Feature</p>
-              </TooltipContent>
-            </Tooltip>
+            <TabsTrigger value="competitions">Competitions</TabsTrigger>
             <Tooltip>
               <TooltipTrigger asChild>
                 <TabsTrigger
@@ -144,17 +130,9 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
           </TabsContent>
 
           <TabsContent value="competitions" className="pt-6">
-            {isPremium ? (
-              <Suspense fallback={<TabContentSkeleton />}>
-                <CompetitionsTabs dogId={dog.id} />
-              </Suspense>
-            ) : (
-              <PremiumGate
-                title="Competitions"
-                description="Track your dog's competition history and achievements with our premium features."
-                trackingContext="competitions"
-              />
-            )}
+            <Suspense fallback={<TabContentSkeleton />}>
+              <CompetitionsTabs dogId={dog.id} isPremium={isPremium} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="title-progress" className="pt-6">

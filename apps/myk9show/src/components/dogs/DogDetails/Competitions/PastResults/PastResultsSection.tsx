@@ -35,12 +35,14 @@ function manualToPastResult(mr: ManualResult): PastResult {
 
 interface PastResultsSectionProps {
   dogId: string;
+  isPremium: boolean;
   addDialogOpen: boolean;
   setAddDialogOpen: (open: boolean) => void;
 }
 
 const PastResultsSection: React.FC<PastResultsSectionProps> = ({
   dogId,
+  isPremium,
   addDialogOpen,
   setAddDialogOpen,
 }) => {
@@ -56,8 +58,8 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
 
   const { user } = useAuthContext();
 
-  // Manual results from DB
-  const { data: manualResults = [] } = useManualResultsQuery(dogId);
+  // Manual/external results — premium only
+  const { data: manualResults = [] } = useManualResultsQuery(isPremium ? dogId : '');
   const createMutation = useCreateManualResultMutation();
   const updateMutation = useUpdateManualResultMutation();
   const deleteMutation = useDeleteManualResultMutation();
@@ -171,29 +173,31 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
                   <ShowSourceBadge source="external" />
                   <span className="myk9-record-title">{result.show_name}</span>
                 </div>
-                <ThreeDotMenu
-                  items={[
-                    {
-                      label: 'View',
-                      icon: <Eye className="w-4 h-4 mr-2" />,
-                      onClick: () => handleView(pastResult),
-                    },
-                    {
-                      label: 'Edit',
-                      icon: <Edit className="w-4 h-4 mr-2" />,
-                      onClick: () => handleEdit(pastResult, result.id),
-                    },
-                    {
-                      label: 'Delete',
-                      icon: <Trash2 className="w-4 h-4 mr-2" />,
-                      onClick: () => {
-                        setResultToDelete({ id: result.id, name: result.show_name });
-                        setDeleteDialogOpen(true);
+                {isPremium && (
+                  <ThreeDotMenu
+                    items={[
+                      {
+                        label: 'View',
+                        icon: <Eye className="w-4 h-4 mr-2" />,
+                        onClick: () => handleView(pastResult),
                       },
-                      className: 'text-red-600',
-                    },
-                  ]}
-                />
+                      {
+                        label: 'Edit',
+                        icon: <Edit className="w-4 h-4 mr-2" />,
+                        onClick: () => handleEdit(pastResult, result.id),
+                      },
+                      {
+                        label: 'Delete',
+                        icon: <Trash2 className="w-4 h-4 mr-2" />,
+                        onClick: () => {
+                          setResultToDelete({ id: result.id, name: result.show_name });
+                          setDeleteDialogOpen(true);
+                        },
+                        className: 'text-red-600',
+                      },
+                    ]}
+                  />
+                )}
               </div>
               <div className="myk9-record-content">
                 <div className="myk9-record-meta mb-2">
@@ -222,7 +226,9 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
 
       {platformResults.length === 0 && manualResults.length === 0 && (
         <div className="text-center text-muted-foreground py-8">
-          No results yet. Add a manual result or enter shows through the platform.
+          {isPremium
+            ? 'No results yet. Add an external result or enter shows through the platform.'
+            : 'No results yet. Results from shows run on myK9Show will appear here automatically.'}
         </div>
       )}
 
@@ -231,45 +237,49 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
         onClose={() => setViewDialogOpen(false)}
         result={selectedResult}
       />
-      <PastResultEditDialog
-        open={editDialogOpen || addDialogOpen}
-        onClose={() => {
-          setEditDialogOpen(false);
-          setAddDialogOpen(false);
-          setSelectedResult(null);
-          setSelectedManualId(null);
-        }}
-        onSave={handleSave}
-        initialResult={selectedResult || undefined}
-      />
-      <StandardDialog
-        open={deleteDialogOpen}
-        title="Delete Past Result"
-        description=""
-        onClose={() => {
-          setDeleteDialogOpen(false);
-          setResultToDelete(null);
-        }}
-        onSave={() => {
-          if (resultToDelete) {
-            deleteMutation.mutate({ id: resultToDelete.id, dogId });
-          }
-          setDeleteDialogOpen(false);
-          setResultToDelete(null);
-        }}
-        saveLabel="Delete"
-        cancelLabel="Cancel"
-        saveButtonProps={{ variant: 'destructive' }}
-      >
-        <div className="text-base text-foreground">
-          {resultToDelete ? (
-            <>
-              Are you sure you want to delete <b>&quot;{resultToDelete.name}&quot;</b>? This action
-              cannot be undone.
-            </>
-          ) : null}
-        </div>
-      </StandardDialog>
+      {isPremium && (
+        <>
+          <PastResultEditDialog
+            open={editDialogOpen || addDialogOpen}
+            onClose={() => {
+              setEditDialogOpen(false);
+              setAddDialogOpen(false);
+              setSelectedResult(null);
+              setSelectedManualId(null);
+            }}
+            onSave={handleSave}
+            initialResult={selectedResult || undefined}
+          />
+          <StandardDialog
+            open={deleteDialogOpen}
+            title="Delete Past Result"
+            description=""
+            onClose={() => {
+              setDeleteDialogOpen(false);
+              setResultToDelete(null);
+            }}
+            onSave={() => {
+              if (resultToDelete) {
+                deleteMutation.mutate({ id: resultToDelete.id, dogId });
+              }
+              setDeleteDialogOpen(false);
+              setResultToDelete(null);
+            }}
+            saveLabel="Delete"
+            cancelLabel="Cancel"
+            saveButtonProps={{ variant: 'destructive' }}
+          >
+            <div className="text-base text-foreground">
+              {resultToDelete ? (
+                <>
+                  Are you sure you want to delete <b>&quot;{resultToDelete.name}&quot;</b>? This
+                  action cannot be undone.
+                </>
+              ) : null}
+            </div>
+          </StandardDialog>
+        </>
+      )}
     </div>
   );
 };

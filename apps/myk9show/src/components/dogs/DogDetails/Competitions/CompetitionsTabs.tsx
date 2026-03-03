@@ -7,6 +7,7 @@ import AchievementsSection from './Achievements/AchievementsSection';
 
 interface CompetitionsTabsProps {
   dogId: string;
+  isPremium: boolean;
 }
 
 const tabs = [
@@ -15,7 +16,7 @@ const tabs = [
   { label: 'Achievements', key: 'achievements' },
 ];
 
-const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId }) => {
+const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium }) => {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [showAddDialog, setShowAddDialog] = useState(false);
 
@@ -36,10 +37,12 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId }) => {
     <div className="myk9-section-card">
       <div className="myk9-section-header">
         <h2 className="myk9-section-title">Competitions</h2>
-        <button onClick={handleAdd} className="myk9-add-button">
-          <Plus className="w-4 h-4" />
-          {addButtonLabel}
-        </button>
+        {isPremium && (
+          <button onClick={handleAdd} className="myk9-add-button">
+            <Plus className="w-4 h-4" />
+            {addButtonLabel}
+          </button>
+        )}
       </div>
       <Tabs
         defaultValue="upcoming"
@@ -61,7 +64,7 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId }) => {
           />
         </TabsContent>
         <TabsContent value="past">
-          <PastResultsSection dogId={dogId} addDialogOpen={false} setAddDialogOpen={() => {}} />
+          <PastResultsSection dogId={dogId} isPremium={isPremium} addDialogOpen={false} setAddDialogOpen={() => {}} />
         </TabsContent>
         <TabsContent value="achievements">
           <AchievementsSection dogId={dogId} />

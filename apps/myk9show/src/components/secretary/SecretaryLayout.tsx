@@ -12,9 +12,10 @@ import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 interface SecretaryLayoutProps {
   children?: React.ReactNode;
+  fullWidth?: boolean;
 }
 
-export function SecretaryLayout({ children }: SecretaryLayoutProps): React.ReactElement {
+export function SecretaryLayout({ children, fullWidth }: SecretaryLayoutProps): React.ReactElement {
   const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
 
   return (
@@ -25,7 +26,7 @@ export function SecretaryLayout({ children }: SecretaryLayoutProps): React.React
       mobileOpen={mobileOpen}
       onMobileOpenChange={setMobileOpen}
     >
-      <div className="px-6 py-8 max-w-7xl mx-auto">
+      <div className={fullWidth ? 'px-6 py-6' : 'px-6 py-8 max-w-7xl mx-auto'}>
         {children ?? <Outlet />}
       </div>
     </SidebarLayout>

@@ -7,8 +7,6 @@ import { cn } from '@/lib/utils';
 import type { ClassPipelineData } from '../types';
 
 interface ScoringDaySummaryProps {
-  trialId: string;
-  showId: string;
   classes: ClassPipelineData[];
 }
 

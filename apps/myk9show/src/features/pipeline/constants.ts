@@ -187,12 +187,26 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
   },
 ];
 
+// Pre-computed per-stage lookup (avoids re-filtering the static array on each call)
+const CANNED_BY_STAGE = new Map<PipelineStage, CannedChecklistDef[]>();
+const BLOCKING_BY_STAGE = new Map<PipelineStage, CannedChecklistDef[]>();
+for (const item of CANNED_CHECKLIST) {
+  const arr = CANNED_BY_STAGE.get(item.stage) ?? [];
+  arr.push(item);
+  CANNED_BY_STAGE.set(item.stage, arr);
+  if (item.blocking) {
+    const bArr = BLOCKING_BY_STAGE.get(item.stage) ?? [];
+    bArr.push(item);
+    BLOCKING_BY_STAGE.set(item.stage, bArr);
+  }
+}
+
 /** Get canned items for a specific stage */
 export function getCannedItemsForStage(stage: PipelineStage): CannedChecklistDef[] {
-  return CANNED_CHECKLIST.filter((item) => item.stage === stage);
+  return CANNED_BY_STAGE.get(stage) ?? [];
 }
 
 /** Get all blocking items for a stage */
 export function getBlockingItemsForStage(stage: PipelineStage): CannedChecklistDef[] {
-  return CANNED_CHECKLIST.filter((item) => item.stage === stage && item.blocking);
+  return BLOCKING_BY_STAGE.get(stage) ?? [];
 }

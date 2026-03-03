@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,10 +19,11 @@ import {
   MessageSquare,
   Loader2,
 } from 'lucide-react';
+import { formatRelativeTime } from '@/utils/format';
 import { useActivityLog } from '../hooks/useActivityLog';
-import type { ActivityLogFilters } from '../types';
+import type { ActivityActionType, ActivityLogFilters } from '../types';
 
-const ACTION_ICONS: Record<string, React.ReactNode> = {
+const ACTION_ICONS: Record<ActivityActionType, React.ReactNode> = {
   stage_transition: <ArrowRightLeft className="h-3.5 w-3.5 text-blue-500" />,
   checklist_completed: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
   checklist_uncompleted: <Minus className="h-3.5 w-3.5 text-orange-500" />,
@@ -49,19 +50,10 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
     isLoading,
   } = useActivityLog(trialId, filters);
 
-  const entries = data?.pages.flatMap((p) => p.entries) ?? [];
-
-  const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    return d.toLocaleDateString();
-  };
+  const entries = useMemo(
+    () => data?.pages.flatMap((p) => p.entries) ?? [],
+    [data?.pages]
+  );
 
   return (
     <Card>
@@ -72,7 +64,10 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
         <Select
           value={filters.actionType ?? 'all'}
           onValueChange={(v) =>
-            setFilters((f) => ({ ...f, actionType: v === 'all' ? undefined : v }))
+            setFilters((f) => ({
+              ...f,
+              actionType: v === 'all' ? undefined : (v as ActivityActionType),
+            }))
           }
         >
           <SelectTrigger className="h-7 text-xs w-full">
@@ -115,7 +110,7 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
                       </span>
                     )}
                     <span className="text-[10px] text-muted-foreground">
-                      {formatTime(entry.created_at)}
+                      {formatRelativeTime(new Date(entry.created_at))}
                     </span>
                   </div>
                 </div>

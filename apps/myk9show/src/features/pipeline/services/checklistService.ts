@@ -1,6 +1,7 @@
 import { supabase } from '@/services/database/supabaseClient';
 import type { ChecklistItemRow, PipelineStage } from '../types';
 
+// Cast needed: trial_checklist_state not yet in app's local Database type (src/types/supabase.ts)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
@@ -8,7 +9,7 @@ export const checklistService = {
   async getByTrial(trialId: string): Promise<ChecklistItemRow[]> {
     const { data, error } = await db
       .from('trial_checklist_state')
-      .select('*')
+      .select('id, trial_id, stage, item_key, item_type, label, completed, completed_at, completed_by, auto_completed, sort_order, created_at, updated_at')
       .eq('trial_id', trialId)
       .order('stage')
       .order('sort_order');

@@ -1,12 +1,27 @@
 import React from 'react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
+import type { PanelKey } from '../../types';
 
 interface ChecklistPanelRouterProps {
-  panelKey: string | null;
+  panelKey: PanelKey | null;
   trialId: string;
   showId: string;
   onClose: () => void;
 }
+
+const panelConfig: Record<PanelKey, { title: string; subtitle: string }> = {
+  venue: { title: 'Venue Assignment', subtitle: 'Set the trial venue' },
+  dates: { title: 'Trial Dates', subtitle: 'Confirm dates and start times' },
+  judges: { title: 'Judge Assignment', subtitle: 'Assign judges to this trial' },
+  fees: { title: 'Entry Fees', subtitle: 'Configure fee schedule' },
+  classes: { title: 'Class Configuration', subtitle: 'Create and configure classes' },
+  'entry-dates': { title: 'Entry Period', subtitle: 'Set open and close dates' },
+  entries: { title: 'Entry Management', subtitle: 'View and manage entries' },
+  'run-order': { title: 'Running Order', subtitle: 'Generate and review run order' },
+  waitlist: { title: 'Waitlist', subtitle: 'Process waitlist entries' },
+  'scoring-day': { title: 'Scoring Day', subtitle: 'Monitor scoring progress' },
+  results: { title: 'Results', subtitle: 'Publish and review results' },
+};
 
 /**
  * Routes a checklist item's navigateTo key to the correct slide-over panel content.
@@ -21,22 +36,7 @@ export const ChecklistPanelRouter: React.FC<ChecklistPanelRouterProps> = ({
 }) => {
   if (!panelKey) return null;
 
-  const panelConfig: Record<string, { title: string; subtitle: string }> = {
-    venue: { title: 'Venue Assignment', subtitle: 'Set the trial venue' },
-    dates: { title: 'Trial Dates', subtitle: 'Confirm dates and start times' },
-    judges: { title: 'Judge Assignment', subtitle: 'Assign judges to this trial' },
-    fees: { title: 'Entry Fees', subtitle: 'Configure fee schedule' },
-    classes: { title: 'Class Configuration', subtitle: 'Create and configure classes' },
-    'entry-dates': { title: 'Entry Period', subtitle: 'Set open and close dates' },
-    entries: { title: 'Entry Management', subtitle: 'View and manage entries' },
-    'run-order': { title: 'Running Order', subtitle: 'Generate and review run order' },
-    waitlist: { title: 'Waitlist', subtitle: 'Process waitlist entries' },
-    'scoring-day': { title: 'Scoring Day', subtitle: 'Monitor scoring progress' },
-    results: { title: 'Results', subtitle: 'Publish and review results' },
-  };
-
   const config = panelConfig[panelKey];
-  if (!config) return null;
 
   return (
     <SlideOverPanel

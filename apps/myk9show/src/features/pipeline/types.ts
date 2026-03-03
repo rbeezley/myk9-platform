@@ -3,6 +3,33 @@ export type PipelineStage = 1 | 2 | 3 | 4 | 5 | 6;
 
 export const PIPELINE_STAGES = [1, 2, 3, 4, 5, 6] as const;
 
+/** Activity log action types (matches DB CHECK constraint) */
+export type ActivityActionType =
+  | 'stage_transition'
+  | 'checklist_completed'
+  | 'checklist_uncompleted'
+  | 'custom_item_added'
+  | 'custom_item_removed'
+  | 'entry_added'
+  | 'entry_removed'
+  | 'score_submitted'
+  | 'config_changed'
+  | 'note';
+
+/** Panel keys for checklist item navigation */
+export type PanelKey =
+  | 'venue'
+  | 'dates'
+  | 'judges'
+  | 'fees'
+  | 'classes'
+  | 'entry-dates'
+  | 'entries'
+  | 'run-order'
+  | 'waitlist'
+  | 'scoring-day'
+  | 'results';
+
 export interface PipelineStageMeta {
   stage: PipelineStage;
   label: string;
@@ -36,7 +63,7 @@ export interface CannedChecklistDef {
   /** Returns true if the item should auto-complete based on trial data */
   evaluate: (ctx: ChecklistEvalContext) => boolean;
   /** Panel key to open when clicking this item */
-  navigateTo?: string;
+  navigateTo?: PanelKey;
   /** Only show this item when the condition is true */
   conditional?: (ctx: ChecklistEvalContext) => boolean;
 }
@@ -98,7 +125,7 @@ export interface ResolvedChecklistItem {
   completedBy: string | null;
   autoCompleted: boolean;
   blocking: boolean;
-  navigateTo?: string | undefined;
+  navigateTo?: PanelKey | undefined;
   sortOrder: number;
 }
 
@@ -106,7 +133,7 @@ export interface ResolvedChecklistItem {
 export interface ActivityLogEntry {
   id: string;
   trial_id: string;
-  action_type: string;
+  action_type: ActivityActionType;
   description: string;
   actor_id: string | null;
   actor_name: string | null;
@@ -116,7 +143,7 @@ export interface ActivityLogEntry {
 
 /** Filters for the activity log feed */
 export interface ActivityLogFilters {
-  actionType?: string | undefined;
+  actionType?: ActivityActionType | undefined;
   actorId?: string | undefined;
   dateFrom?: string | undefined;
   dateTo?: string | undefined;

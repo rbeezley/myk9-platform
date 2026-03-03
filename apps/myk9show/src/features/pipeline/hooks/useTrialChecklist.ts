@@ -74,7 +74,7 @@ export function useTrialChecklist(
   evalCtx: ChecklistEvalContext | undefined
 ) {
   return useQuery({
-    queryKey: queryKeys.trialChecklist(trialId ?? ''),
+    queryKey: [...queryKeys.trialChecklist(trialId ?? ''), stage],
     queryFn: () => checklistService.getByTrial(trialId!),
     enabled: !!trialId,
     ...cacheStrategies.dynamic,
@@ -86,7 +86,7 @@ export function useTrialChecklist(
 }
 
 /** Check whether all blocking items are complete for a stage */
-export function useCanAdvanceStage(
+export function canAdvanceStage(
   items: ResolvedChecklistItem[] | undefined
 ): boolean {
   if (!items) return false;

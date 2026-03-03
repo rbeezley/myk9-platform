@@ -4,13 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Trash2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ResolvedChecklistItem } from '../types';
+import type { ResolvedChecklistItem, PanelKey } from '../types';
 
 interface ChecklistItemProps {
   item: ResolvedChecklistItem;
   onToggle: (key: string, completed: boolean) => void;
   onDelete?: ((key: string) => void) | undefined;
-  onNavigate?: ((navigateTo: string) => void) | undefined;
+  onNavigate?: ((navigateTo: PanelKey) => void) | undefined;
   disabled?: boolean | undefined;
 }
 

@@ -6,17 +6,12 @@ import type { PipelineStage } from '../types';
 export function usePipelineMutations(trialId: string) {
   const qc = useQueryClient();
 
-  const invalidate = () => {
-    qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });
-    qc.invalidateQueries({ queryKey: queryKeys.trialActivityLog(trialId) });
-    qc.invalidateQueries({ queryKey: queryKeys.trial(trialId) });
-    qc.invalidateQueries({ queryKey: queryKeys.pipelineOverview });
-  };
-
   const toggleItem = useMutation({
     mutationFn: (args: { itemKey: string; completed: boolean; userId: string }) =>
       checklistService.toggleItem(trialId, args.itemKey, args.completed, args.userId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });
+    },
   });
 
   const addCustomItem = useMutation({
@@ -27,40 +22,46 @@ export function usePipelineMutations(trialId: string) {
       userName: string;
     }) => {
       const itemKey = `custom_${crypto.randomUUID()}`;
-      return checklistService
-        .upsert({
+      return Promise.all([
+        checklistService.upsert({
           trial_id: trialId,
           stage: args.stage,
           item_key: itemKey,
           item_type: 'custom',
           label: args.label,
           completed: false,
-        })
-        .then(() =>
-          activityLogService.log({
-            trial_id: trialId,
-            action_type: 'custom_item_added',
-            description: `Custom item added: "${args.label}"`,
-            actor_id: args.userId,
-            actor_name: args.userName,
-          })
-        );
+        }),
+        activityLogService.log({
+          trial_id: trialId,
+          action_type: 'custom_item_added',
+          description: `Custom item added: "${args.label}"`,
+          actor_id: args.userId,
+          actor_name: args.userName,
+        }),
+      ]);
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });
+      qc.invalidateQueries({ queryKey: queryKeys.trialActivityLog(trialId) });
+    },
   });
 
   const deleteCustomItem = useMutation({
     mutationFn: (args: { itemKey: string; userId: string; userName: string }) =>
-      checklistService.deleteCustomItem(trialId, args.itemKey).then(() =>
+      Promise.all([
+        checklistService.deleteCustomItem(trialId, args.itemKey),
         activityLogService.log({
           trial_id: trialId,
           action_type: 'custom_item_removed',
           description: 'Custom checklist item removed',
           actor_id: args.userId,
           actor_name: args.userName,
-        })
-      ),
-    onSuccess: invalidate,
+        }),
+      ]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });
+      qc.invalidateQueries({ queryKey: queryKeys.trialActivityLog(trialId) });
+    },
   });
 
   const advanceStage = useMutation({
@@ -70,7 +71,11 @@ export function usePipelineMutations(trialId: string) {
       userName: string;
     }) =>
       pipelineService.advanceStage(trialId, args.currentStage, args.userId, args.userName),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });
+      qc.invalidateQueries({ queryKey: queryKeys.trialActivityLog(trialId) });
+      qc.invalidateQueries({ queryKey: queryKeys.trial(trialId) });
+    },
   });
 
   const revertStage = useMutation({
@@ -80,7 +85,11 @@ export function usePipelineMutations(trialId: string) {
       userName: string;
     }) =>
       pipelineService.revertStage(trialId, args.targetStage, args.userId, args.userName),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });
+      qc.invalidateQueries({ queryKey: queryKeys.trialActivityLog(trialId) });
+      qc.invalidateQueries({ queryKey: queryKeys.trial(trialId) });
+    },
   });
 
   return { toggleItem, addCustomItem, deleteCustomItem, advanceStage, revertStage };

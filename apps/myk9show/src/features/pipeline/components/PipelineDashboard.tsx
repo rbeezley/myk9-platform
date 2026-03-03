@@ -28,6 +28,7 @@ export const PipelineDashboard: React.FC = () => {
       show_id: t.showId,
       name: t.name ?? 'Trial',
       date: t.date instanceof Date ? t.date.toISOString() : String(t.date),
+      // Cast needed: pipeline_stage not yet in SyncableTrial type
       pipeline_stage: (
         (t as unknown as { pipeline_stage?: number }).pipeline_stage ?? 1
       ) as PipelineStage,

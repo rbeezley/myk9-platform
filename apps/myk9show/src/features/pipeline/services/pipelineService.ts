@@ -1,8 +1,40 @@
 import { supabase } from '@/services/database/supabaseClient';
-import type { PipelineStage } from '../types';
+import { activityLogService } from './activityLogService';
+import type { PipelineStage, ActivityActionType } from '../types';
 
+// Cast needed: pipeline_stage column not yet in app's local Database type (src/types/supabase.ts)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
+
+/** Shared stage update: updates trial + logs the transition in parallel */
+async function updateStage(
+  trialId: string,
+  targetStage: PipelineStage,
+  userId: string,
+  userName: string,
+  description: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  const [updateResult, logResult] = await Promise.allSettled([
+    db.from('trials').update({ pipeline_stage: targetStage }).eq('id', trialId),
+    activityLogService.log({
+      trial_id: trialId,
+      action_type: 'stage_transition' as ActivityActionType,
+      description,
+      actor_id: userId,
+      actor_name: userName,
+      metadata,
+    }),
+  ]);
+
+  if (updateResult.status === 'rejected') throw updateResult.reason;
+  const { error } = updateResult.value;
+  if (error) throw error;
+
+  if (logResult.status === 'rejected') {
+    console.error('Failed to log stage transition:', logResult.reason);
+  }
+}
 
 export const pipelineService = {
   async advanceStage(
@@ -14,25 +46,10 @@ export const pipelineService = {
     if (currentStage >= 6) throw new Error('Trial is already closed');
     const nextStage = (currentStage + 1) as PipelineStage;
 
-    const { error: updateError } = await db
-      .from('trials')
-      .update({ pipeline_stage: nextStage })
-      .eq('id', trialId);
-
-    if (updateError) throw updateError;
-
-    const { error: logError } = await db.from('activity_log').insert({
-      trial_id: trialId,
-      action_type: 'stage_transition',
-      description: `Trial moved to stage ${nextStage}`,
-      actor_id: userId,
-      actor_name: userName,
-      metadata: { from_stage: currentStage, to_stage: nextStage },
+    await updateStage(trialId, nextStage, userId, userName, `Trial moved to stage ${nextStage}`, {
+      from_stage: currentStage,
+      to_stage: nextStage,
     });
-
-    if (logError) {
-      console.error('Failed to log stage transition:', logError);
-    }
 
     return nextStage;
   },
@@ -43,24 +60,13 @@ export const pipelineService = {
     userId: string,
     userName: string
   ): Promise<void> {
-    const { error: updateError } = await db
-      .from('trials')
-      .update({ pipeline_stage: targetStage })
-      .eq('id', trialId);
-
-    if (updateError) throw updateError;
-
-    const { error: logError } = await db.from('activity_log').insert({
-      trial_id: trialId,
-      action_type: 'stage_transition',
-      description: `Trial reverted to stage ${targetStage}`,
-      actor_id: userId,
-      actor_name: userName,
-      metadata: { to_stage: targetStage, reverted: true },
-    });
-
-    if (logError) {
-      console.error('Failed to log stage revert:', logError);
-    }
+    await updateStage(
+      trialId,
+      targetStage,
+      userId,
+      userName,
+      `Trial reverted to stage ${targetStage}`,
+      { to_stage: targetStage, reverted: true }
+    );
   },
 };

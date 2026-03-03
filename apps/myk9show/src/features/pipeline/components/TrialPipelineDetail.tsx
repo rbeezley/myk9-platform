@@ -12,10 +12,10 @@ import { ChecklistSection } from './ChecklistSection';
 import { ActivityLogFeed } from './ActivityLogFeed';
 import { ChecklistPanelRouter } from './panels/ChecklistPanelRouter';
 import { ScoringDaySummary } from './ScoringDaySummary';
-import { useTrialChecklist, useCanAdvanceStage } from '../hooks/useTrialChecklist';
+import { useTrialChecklist, canAdvanceStage } from '../hooks/useTrialChecklist';
 import { usePipelineMutations } from '../hooks/usePipelineMutations';
 import { STAGE_META } from '../constants';
-import type { PipelineStage, ChecklistEvalContext } from '../types';
+import type { PipelineStage, PanelKey, ChecklistEvalContext } from '../types';
 
 export const TrialPipelineDetail: React.FC = () => {
   const { trialId } = useParams<{ trialId: string }>();
@@ -24,11 +24,12 @@ export const TrialPipelineDetail: React.FC = () => {
   const getTrialById = useTrialStore((s) => s.getTrialById);
 
   const trial = trialId ? getTrialById(trialId) : null;
+  // Cast needed: pipeline_stage not yet in SyncableTrial type
   const pipelineStage = (
     (trial as unknown as { pipeline_stage?: number })?.pipeline_stage ?? 1
   ) as PipelineStage;
   const [viewingStage, setViewingStage] = useState<PipelineStage>(pipelineStage);
-  const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
 
   // Build evaluation context
   const evalCtx = useMemo<ChecklistEvalContext | undefined>(() => {
@@ -59,7 +60,7 @@ export const TrialPipelineDetail: React.FC = () => {
   }, [trial, pipelineStage]);
 
   const { data: checklistItems } = useTrialChecklist(trialId, viewingStage, evalCtx);
-  const canAdvance = useCanAdvanceStage(checklistItems);
+  const canAdvance = canAdvanceStage(checklistItems);
   const mutations = usePipelineMutations(trialId ?? '');
 
   const isViewingCurrentStage = viewingStage === pipelineStage;
@@ -154,11 +155,7 @@ export const TrialPipelineDetail: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {viewingStage === 4 && evalCtx && evalCtx.classes.length > 0 && (
-                  <ScoringDaySummary
-                    trialId={trialId!}
-                    showId={trial.showId}
-                    classes={evalCtx.classes}
-                  />
+                  <ScoringDaySummary classes={evalCtx.classes} />
                 )}
 
                 <ChecklistSection

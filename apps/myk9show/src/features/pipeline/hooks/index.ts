@@ -1,3 +1,3 @@
-export { useTrialChecklist, useCanAdvanceStage } from './useTrialChecklist';
+export { useTrialChecklist, canAdvanceStage } from './useTrialChecklist';
 export { useActivityLog } from './useActivityLog';
 export { usePipelineMutations } from './usePipelineMutations';

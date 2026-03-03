@@ -1,14 +1,14 @@
 import React from 'react';
 import { ChecklistItem } from './ChecklistItem';
 import { AddCustomItemForm } from './AddCustomItemForm';
-import type { ResolvedChecklistItem } from '../types';
+import type { ResolvedChecklistItem, PanelKey } from '../types';
 
 interface ChecklistSectionProps {
   items: ResolvedChecklistItem[];
   onToggle: (key: string, completed: boolean) => void;
   onDeleteCustom: (key: string) => void;
   onAddCustom: (label: string) => void;
-  onNavigate?: ((navigateTo: string) => void) | undefined;
+  onNavigate?: ((navigateTo: PanelKey) => void) | undefined;
   disabled?: boolean | undefined;
 }
 

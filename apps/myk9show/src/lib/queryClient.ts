@@ -169,8 +169,6 @@ export const queryKeys = {
   // Pipeline
   trialChecklist: (trialId: string) => ['trials', trialId, 'checklist'] as const,
   trialActivityLog: (trialId: string) => ['trials', trialId, 'activity-log'] as const,
-  trialPipeline: (trialId: string) => ['trials', trialId, 'pipeline'] as const,
-  pipelineOverview: ['pipeline', 'overview'] as const,
 
   // Sport Templates (DB-driven)
   sportTemplates: ['sport-templates'] as const,

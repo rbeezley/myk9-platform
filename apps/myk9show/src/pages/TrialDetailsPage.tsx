@@ -21,6 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PromoCodesSection } from '@/components/secretary/PromoCodesSection';
+import { FinancialSummary } from '@/components/secretary/FinancialSummary';
 import { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
@@ -454,30 +457,54 @@ const TrialDetailsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       {trialWithClasses ? (
-        <TrialDetailsMain
-          trial={trialWithClasses}
-          statistics={trialStatistics}
-          parentShow={
-            parentShow
-              ? {
-                  id: parentShow.id,
-                  name: parentShow.name,
-                  organization: parentShow.organization,
-                }
-              : undefined
-          }
-          onEdit={handleEditTrial}
-          onDelete={handleDeleteTrial}
-          onAddClassesFromTemplate={handleAddClassesFromTemplate}
-          onEditClass={handleEditClass}
-          onDeleteClass={handleDeleteClass}
-          onPrevTrial={handlePrevTrial}
-          onNextTrial={handleNextTrial}
-          prevTrialId={prevTrialId}
-          nextTrialId={nextTrialId}
-          currentTrialIndex={currentTrialIndex}
-          totalTrials={showTrials.length}
-        />
+        <Tabs defaultValue="overview" className="w-full">
+          <div className="myk9-show-container">
+            <TabsList className="mb-6">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="promo-codes">Promo Codes</TabsTrigger>
+              <TabsTrigger value="financials">Financials</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="overview">
+            <TrialDetailsMain
+              trial={trialWithClasses}
+              statistics={trialStatistics}
+              parentShow={
+                parentShow
+                  ? {
+                      id: parentShow.id,
+                      name: parentShow.name,
+                      organization: parentShow.organization,
+                    }
+                  : undefined
+              }
+              onEdit={handleEditTrial}
+              onDelete={handleDeleteTrial}
+              onAddClassesFromTemplate={handleAddClassesFromTemplate}
+              onEditClass={handleEditClass}
+              onDeleteClass={handleDeleteClass}
+              onPrevTrial={handlePrevTrial}
+              onNextTrial={handleNextTrial}
+              prevTrialId={prevTrialId}
+              nextTrialId={nextTrialId}
+              currentTrialIndex={currentTrialIndex}
+              totalTrials={showTrials.length}
+            />
+          </TabsContent>
+
+          <TabsContent value="promo-codes">
+            <div className="myk9-show-container">
+              <PromoCodesSection trialId={trialWithClasses.id} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="financials">
+            <div className="myk9-show-container">
+              <FinancialSummary trialId={trialWithClasses.id} />
+            </div>
+          </TabsContent>
+        </Tabs>
       ) : (
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">

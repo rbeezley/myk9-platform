@@ -5,7 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
-import { Users, CheckCircle2, Hash, MessageSquare } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Users, CheckCircle2, Hash, MessageSquare, Gift } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
@@ -18,6 +24,8 @@ interface EntryListCardProps {
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   onOpenCheckInDialog: (entry: EntryManagementEntry, classEntry: EntryClass) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
+  onCompEntry?: (entryId: string) => void;
+  onUncompEntry?: (entryId: string) => void;
 }
 
 /**
@@ -32,6 +40,8 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onStatusChange,
   onOpenCheckInDialog,
   onOpenArmbandDialog,
+  onCompEntry,
+  onUncompEntry,
 }) => {
   return (
     <Card>
@@ -81,6 +91,21 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     <div className="flex items-center gap-2">
                       {getEntryStatusBadge(entry.entryStatus)}
                       {getPaymentStatusBadge(entry.paymentStatus)}
+                      {entry.comped && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                <Gift className="h-3 w-3 mr-1" />
+                                Comped
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{entry.compedReason || 'No reason provided'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                       {entry.notes && (
                         <Badge variant="outline" className="text-blue-600">
                           <MessageSquare className="h-3 w-3 mr-1" />
@@ -139,6 +164,28 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   >
                     <Hash className="h-4 w-4" />
                   </Button>
+
+                  {onCompEntry && !entry.comped && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onCompEntry(entry.id)}
+                      title="Comp Entry"
+                    >
+                      <Gift className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onUncompEntry && entry.comped && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onUncompEntry(entry.id)}
+                      title="Remove Comp"
+                      className="text-destructive"
+                    >
+                      <Gift className="h-4 w-4" />
+                    </Button>
+                  )}
 
                   <Select onValueChange={(value) => onStatusChange(entry.id, value as EntryStatus)}>
                     <SelectTrigger className="w-32">

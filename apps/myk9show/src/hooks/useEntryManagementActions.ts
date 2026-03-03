@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { logger } from '@/services/LoggingService';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
   updateEntryStatus,
@@ -12,6 +12,10 @@ import {
   autoAssignArmbands,
   getEntriesForExport,
 } from '@/services/database/queries/secretaryEntryQueries';
+import {
+  compEntry,
+  uncompEntry,
+} from '@/services/database/queries/entry-query-mutations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import type {
   EntryManagementEntry,
@@ -55,6 +59,8 @@ interface UseEntryManagementActionsReturn {
   handleCheckInStatusUpdate: (status: CheckInStatus, notes?: string) => Promise<void>;
   handleBulkAction: (action: BulkAction) => Promise<void>;
   handleExportCSV: () => Promise<void>;
+  handleCompEntry: (entryId: string, reason: string) => Promise<void>;
+  handleUncompEntry: (entryId: string) => Promise<void>;
 }
 
 /**
@@ -440,6 +446,70 @@ export function useEntryManagementActions({
     }
   }, [selectedShowId, setError, user]);
 
+  // Handle comp entry
+  const handleCompEntry = useCallback(async (entryId: string, reason: string) => {
+    setIsProcessing(true);
+    try {
+      const { error: dbError } = await compEntry({ entryId, reason });
+
+      if (dbError) {
+        setError('Failed to comp entry');
+        return;
+      }
+
+      setEntries(prev => prev.map(e =>
+        e.id === entryId
+          ? { ...e, comped: true, compedReason: reason, paymentStatus: 'waived' as unknown as PaymentStatus }
+          : e
+      ));
+
+      await auditService.log({
+        action: AuditAction.UPDATE,
+        entityType: 'entry',
+        entityId: entryId,
+        changes: { comped: { from: false, to: true } },
+        metadata: { action: 'comp_entry', reason, secretaryId: user?.id },
+      });
+    } catch (err) {
+      setError('Failed to comp entry');
+      logger.error('Error comping entry:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [setEntries, setError, user]);
+
+  // Handle uncomp entry
+  const handleUncompEntry = useCallback(async (entryId: string) => {
+    setIsProcessing(true);
+    try {
+      const { error: dbError } = await uncompEntry(entryId);
+
+      if (dbError) {
+        setError('Failed to remove comp');
+        return;
+      }
+
+      setEntries(prev => prev.map((e): EntryManagementEntry => {
+        if (e.id !== entryId) return e;
+        const { compedReason: _, ...rest } = e;
+        return { ...rest, comped: false, paymentStatus: PaymentStatus.PENDING };
+      }));
+
+      await auditService.log({
+        action: AuditAction.UPDATE,
+        entityType: 'entry',
+        entityId: entryId,
+        changes: { comped: { from: true, to: false } },
+        metadata: { action: 'uncomp_entry', secretaryId: user?.id },
+      });
+    } catch (err) {
+      setError('Failed to remove comp');
+      logger.error('Error uncomping entry:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [setEntries, setError, user]);
+
   return {
     isProcessing,
     checkInDialog,
@@ -457,5 +527,7 @@ export function useEntryManagementActions({
     handleCheckInStatusUpdate,
     handleBulkAction,
     handleExportCSV,
+    handleCompEntry,
+    handleUncompEntry,
   };
 }

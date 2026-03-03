@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -39,6 +39,7 @@ import {
   EntryStatsCards,
   EntryFiltersCard,
   EntryListCard,
+  CompEntryDialog,
 } from '@/components/entries/management';
 
 // Extracted utilities
@@ -104,6 +105,8 @@ const EntryManagementPage: React.FC = () => {
     handleCheckInStatusUpdate,
     handleBulkAction,
     handleExportCSV,
+    handleCompEntry,
+    handleUncompEntry,
   } = useEntryManagementActions({
     entries,
     setEntries,
@@ -113,6 +116,11 @@ const EntryManagementPage: React.FC = () => {
     selectedEntries,
     setSelectedEntries,
     user,
+  });
+
+  // Comp dialog state
+  const [compDialog, setCompDialog] = useState<{ open: boolean; entryId: string; entryNumber: string; dogName: string }>({
+    open: false, entryId: '', entryNumber: '', dogName: '',
   });
 
   // Audit log page access
@@ -341,6 +349,13 @@ const EntryManagementPage: React.FC = () => {
                 onOpenArmbandDialog={(entry) =>
                   setArmbandDialog({ open: true, entry, value: entry.armbandNumber || '' })
                 }
+                onCompEntry={(entryId) => {
+                  const entry = entries.find(e => e.id === entryId);
+                  if (entry) {
+                    setCompDialog({ open: true, entryId, entryNumber: entry.entryNumber, dogName: entry.dogName });
+                  }
+                }}
+                onUncompEntry={handleUncompEntry}
               />
             </TabsContent>
 
@@ -410,6 +425,21 @@ const EntryManagementPage: React.FC = () => {
         setDialogState={setBulkActionDialog}
         selectedCount={selectedEntries.size}
         onBulkCheckIn={handleBulkCheckIn}
+        isProcessing={isProcessing}
+      />
+
+      {/* Comp Entry Dialog */}
+      <CompEntryDialog
+        open={compDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '' });
+        }}
+        entryNumber={compDialog.entryNumber}
+        dogName={compDialog.dogName}
+        onConfirm={(reason) => {
+          handleCompEntry(compDialog.entryId, reason);
+          setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '' });
+        }}
         isProcessing={isProcessing}
       />
     </div>

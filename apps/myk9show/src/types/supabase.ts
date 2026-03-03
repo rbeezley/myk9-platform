@@ -702,9 +702,12 @@ export type Database = {
           armband: string | null
           bonus_points: number | null
           class_id: string | null
+          comped: boolean | null
+          comped_reason: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
+          discount_amount: number | null
           disqualification_reason: string | null
           dog_id: string | null
           entry_fee: number | null
@@ -730,6 +733,7 @@ export type Database = {
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
+          promo_code_id: string | null
           result_status: string | null
           ring_entry_time: string | null
           ring_exit_time: string | null
@@ -768,9 +772,12 @@ export type Database = {
           armband?: string | null
           bonus_points?: number | null
           class_id?: string | null
+          comped?: boolean | null
+          comped_reason?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          discount_amount?: number | null
           disqualification_reason?: string | null
           dog_id?: string | null
           entry_fee?: number | null
@@ -796,6 +803,7 @@ export type Database = {
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
+          promo_code_id?: string | null
           result_status?: string | null
           ring_entry_time?: string | null
           ring_exit_time?: string | null
@@ -834,9 +842,12 @@ export type Database = {
           armband?: string | null
           bonus_points?: number | null
           class_id?: string | null
+          comped?: boolean | null
+          comped_reason?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          discount_amount?: number | null
           disqualification_reason?: string | null
           dog_id?: string | null
           entry_fee?: number | null
@@ -862,6 +873,7 @@ export type Database = {
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
+          promo_code_id?: string | null
           result_status?: string | null
           ring_entry_time?: string | null
           ring_exit_time?: string | null
@@ -903,6 +915,13 @@ export type Database = {
             columns: ["handler_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entries_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
             referencedColumns: ["id"]
           },
           {
@@ -2236,6 +2255,56 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          discount_type: string
+          discount_value: number
+          expires_at: string | null
+          id: string
+          trial_id: string
+          updated_at: string
+          usage_count: number
+          usage_limit: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          discount_type: string
+          discount_value: number
+          expires_at?: string | null
+          id?: string
+          trial_id: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string | null
+          id?: string
+          trial_id?: string
+          updated_at?: string
+          usage_count?: number
+          usage_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_notification_queue: {
         Row: {

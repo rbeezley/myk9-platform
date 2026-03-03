@@ -324,3 +324,110 @@ export const withdrawEntry = async (entryId: string) => {
     updates: { entry_status: 'withdrawn' },
   });
 };
+
+// Comp an entry (mark as comped with reason, set payment_status to waived)
+export const compEntry = async (params: {
+  entryId: string;
+  reason: string;
+}) => {
+  const { entryId, reason } = params;
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('entries')
+      .update({
+        comped: true,
+        comped_reason: reason,
+        payment_status: 'waived',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('entries', 'comp_entry', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'entries', 'comp_entry');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'entries', 'comp_entry');
+    logQuery('entries', 'comp_entry', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+// Remove comp from an entry (restore to pending payment status)
+export const uncompEntry = async (entryId: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('entries')
+      .update({
+        comped: false,
+        comped_reason: null,
+        payment_status: 'pending',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('entries', 'uncomp_entry', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'entries', 'uncomp_entry');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'entries', 'uncomp_entry');
+    logQuery('entries', 'uncomp_entry', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+// Apply a promo code to an entry
+export const applyPromoCodeToEntry = async (params: {
+  entryId: string;
+  promoCodeId: string;
+  discountAmount: number;
+}) => {
+  const { entryId, promoCodeId, discountAmount } = params;
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('entries')
+      .update({
+        promo_code_id: promoCodeId,
+        discount_amount: discountAmount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('entries', 'apply_promo_code', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'entries', 'apply_promo_code');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'entries', 'apply_promo_code');
+    logQuery('entries', 'apply_promo_code', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};

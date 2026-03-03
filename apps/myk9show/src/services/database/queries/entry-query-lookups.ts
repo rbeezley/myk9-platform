@@ -181,6 +181,62 @@ export const getEntriesByShow = async (showId: string) => {
   }
 };
 
+// Get entries by trial ID (for financial summary)
+export const getEntriesByTrial = async (trialId: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('entries')
+      .select(
+        `
+        *,
+        dog:dog_id (
+          id,
+          name,
+          call_name,
+          breed,
+          owner:owner_id (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number,
+          entry_fee
+        ),
+        promo_code:promo_code_id (
+          id,
+          code,
+          discount_type,
+          discount_value
+        )
+      `
+      )
+      .eq('trial_id', trialId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+
+    const duration = Date.now() - startTime;
+    logQuery('entries', 'select_by_trial', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'entries', 'select_by_trial');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'entries', 'select_by_trial');
+    logQuery('entries', 'select_by_trial', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
 // Get entries by class ID
 export const getEntriesByClass = async (classId: string) => {
   const startTime = Date.now();

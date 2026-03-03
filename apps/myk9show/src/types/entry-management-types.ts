@@ -35,6 +35,8 @@ export interface EntryManagementEntry {
   lastUpdated: Date;
   notes?: string;
   armbandNumber?: string;
+  comped?: boolean;
+  compedReason?: string;
 }
 
 export interface EntryManagementShow {

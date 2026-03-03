@@ -160,6 +160,11 @@ export type DbGeneticScreening = Tables['genetic_screenings']['Row'];
 export type DbGeneticScreeningInsert = Tables['genetic_screenings']['Insert'];
 export type DbGeneticScreeningUpdate = Tables['genetic_screenings']['Update'];
 
+// Promo code types
+export type DbPromoCode = Tables['promo_codes']['Row'];
+export type DbPromoCodeInsert = Tables['promo_codes']['Insert'];
+export type DbPromoCodeUpdate = Tables['promo_codes']['Update'];
+
 // Type guards for safer type checking
 export const isDogRecord = (record: unknown): record is DbDog => {
   return (
@@ -283,6 +288,9 @@ export const TABLE_NAMES = {
   // Health screenings
   OFA_SCREENINGS: 'ofa_screenings',
   GENETIC_SCREENINGS: 'genetic_screenings',
+
+  // Promo codes
+  PROMO_CODES: 'promo_codes',
 } as const;
 
 // Type for table names

@@ -5,7 +5,11 @@ import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Plus } from 'lucide-react';
 import { parseLocalDateString, formatDateLocal } from '@/utils/dateLocal';
-import { Ancestor } from '@/types/pedigree-types';
+import {
+  POSITION_DISPLAY_NAMES,
+  type PedigreePosition,
+  type CreatePedigreeAncestorData,
+} from '@/types/pedigree-types';
 import {
   Select,
   SelectContent,
@@ -14,103 +18,215 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-export interface ExtendedAncestor extends Ancestor {
-  role: string;
-  dob: string;
-  photoUrl?: string;
-}
-
-interface AddAncestorDialogProps {
+interface PedigreeAncestorAddDialogProps {
   open: boolean;
+  position: PedigreePosition | null;
+  dogId: string;
+  ownerId: string;
   onClose: () => void;
-  onAdd: (ancestor: ExtendedAncestor) => void;
+  onAdd: (data: CreatePedigreeAncestorData) => void;
 }
 
-const AddAncestorDialog: React.FC<AddAncestorDialogProps> = ({ open, onClose, onAdd }) => {
-  const [name, setName] = useState('');
-  const [title, setTitle] = useState('');
-  const [role, setRole] = useState('');
-  const [registration, setRegistration] = useState('');
+const PedigreeAncestorAddDialog: React.FC<PedigreeAncestorAddDialogProps> = ({
+  open,
+  position,
+  dogId,
+  ownerId,
+  onClose,
+  onAdd,
+}) => {
+  const [registeredName, setRegisteredName] = useState('');
+  const [callName, setCallName] = useState('');
+  const [titles, setTitles] = useState('');
+  const [breed, setBreed] = useState('');
+  const [color, setColor] = useState('');
+  const [sex, setSex] = useState<'male' | 'female' | ''>('');
   const [dob, setDob] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
-  const [, setFormErrors] = useState<{ [key: string]: string }>({});
+  const [healthInfo, setHealthInfo] = useState('');
+  // Multi-org registration: one row for now, editable as org + number
+  const [regOrg, setRegOrg] = useState('');
+  const [regNumber, setRegNumber] = useState('');
+
+  const resetForm = () => {
+    setRegisteredName('');
+    setCallName('');
+    setTitles('');
+    setBreed('');
+    setColor('');
+    setSex('');
+    setDob('');
+    setPhotoUrl('');
+    setHealthInfo('');
+    setRegOrg('');
+    setRegNumber('');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: { [key: string]: string } = {};
-    if (!name) errors.name = 'Name is required.';
-    if (!title) errors.title = 'Title is required.';
-    if (!role) errors.role = 'Role is required.';
-    if (!registration) errors.registration = 'Registration is required.';
-    if (!dob) errors.dob = 'Date of Birth is required.';
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    onAdd({ id: '', name, title, role, registration, dob, dateOfBirth: dob, imageUrl: photoUrl, photoUrl });
-    setName('');
-    setTitle('');
-    setRole('');
-    setRegistration('');
-    setDob('');
-    setPhotoUrl('');
+    if (!position) return;
+
+    const registrationNumbers: Record<string, string> = {};
+    if (regOrg && regNumber) {
+      registrationNumbers[regOrg] = regNumber;
+    }
+
+    onAdd({
+      dog_id: dogId,
+      owner_id: ownerId,
+      position,
+      linked_dog_id: null,
+      registered_name: registeredName,
+      call_name: callName || null,
+      titles: titles || null,
+      breed: breed || null,
+      color: color || null,
+      sex: sex || null,
+      date_of_birth: dob || null,
+      photo_url: photoUrl || null,
+      registration_numbers: registrationNumbers,
+      health_info: healthInfo || null,
+    });
+    resetForm();
+  };
+
+  const handleClose = () => {
+    resetForm();
     onClose();
   };
 
   return (
     <StandardDialog
       open={open}
-      onClose={onClose}
-      onSave={() => document.getElementById('add-ancestor-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
-      title="Add Ancestor"
-      description="All fields except photo are required."
+      onClose={handleClose}
+      onSave={() =>
+        document
+          .getElementById('add-ancestor-form')
+          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+      }
+      title={position ? `Add ${POSITION_DISPLAY_NAMES[position]}` : 'Add Ancestor'}
+      description="Required fields are marked with *. Other fields are optional."
       formId="add-ancestor-form"
-      saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
+      saveLabel={
+        <>
+          <Plus className="mr-2 h-4 w-4" /> Add
+        </>
+      }
     >
       <form id="add-ancestor-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <RequiredLabel required>Name</RequiredLabel>
-          <Input type="text" value={name} onChange={e => setName(e.target.value)} required />
+          <RequiredLabel required>Registered Name</RequiredLabel>
+          <Input
+            type="text"
+            value={registeredName}
+            onChange={e => setRegisteredName(e.target.value)}
+            required
+          />
         </div>
         <div>
-          <RequiredLabel required>Title</RequiredLabel>
-          <Input type="text" value={title} onChange={e => setTitle(e.target.value)} required />
+          <RequiredLabel>Call Name</RequiredLabel>
+          <Input
+            type="text"
+            value={callName}
+            onChange={e => setCallName(e.target.value)}
+            placeholder="Optional"
+          />
         </div>
         <div>
-          <RequiredLabel required>Role</RequiredLabel>
-          <Select value={role} onValueChange={val => setRole(val)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Sire">Sire</SelectItem>
-              <SelectItem value="Dam">Dam</SelectItem>
-              <SelectItem value="Grandsire">Grandsire</SelectItem>
-              <SelectItem value="Granddam">Granddam</SelectItem>
-            </SelectContent>
-          </Select>
+          <RequiredLabel>Titles</RequiredLabel>
+          <Input
+            type="text"
+            value={titles}
+            onChange={e => setTitles(e.target.value)}
+            placeholder="e.g. CH, GCH, MACH"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <RequiredLabel>Sex</RequiredLabel>
+            <Select value={sex} onValueChange={val => setSex(val as 'male' | 'female' | '')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select sex" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <RequiredLabel>DOB</RequiredLabel>
+            <DatePicker
+              date={dob ? parseLocalDateString(dob) : undefined}
+              setDate={date => setDob(date ? formatDateLocal(date) : '')}
+              className="dialog-input-bg"
+              id="dob"
+              name="dob"
+              placeholder="YYYY-MM-DD"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <RequiredLabel>Breed</RequiredLabel>
+            <Input
+              type="text"
+              value={breed}
+              onChange={e => setBreed(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+          <div>
+            <RequiredLabel>Color</RequiredLabel>
+            <Input
+              type="text"
+              value={color}
+              onChange={e => setColor(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <RequiredLabel>Registry Org</RequiredLabel>
+            <Input
+              type="text"
+              value={regOrg}
+              onChange={e => setRegOrg(e.target.value)}
+              placeholder="e.g. AKC, UKC"
+            />
+          </div>
+          <div>
+            <RequiredLabel>Registration #</RequiredLabel>
+            <Input
+              type="text"
+              value={regNumber}
+              onChange={e => setRegNumber(e.target.value)}
+              placeholder="e.g. SS12345"
+            />
+          </div>
         </div>
         <div>
-          <RequiredLabel required>Registration</RequiredLabel>
-          <Input type="text" value={registration} onChange={e => setRegistration(e.target.value)} required />
+          <RequiredLabel>Health Info</RequiredLabel>
+          <Input
+            type="text"
+            value={healthInfo}
+            onChange={e => setHealthInfo(e.target.value)}
+            placeholder="Optional"
+          />
         </div>
-        <div>
-  <RequiredLabel required>DOB</RequiredLabel>
-  <DatePicker
-    date={dob ? parseLocalDateString(dob) : undefined}
-    setDate={(date) => setDob(date ? formatDateLocal(date) : '')}
-    required
-    className="dialog-input-bg"
-    id="dob"
-    name="dob"
-    placeholder="YYYY-MM-DD"
-  />
-</div>
         <div>
           <RequiredLabel>Photo URL</RequiredLabel>
-          <Input type="text" value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} placeholder="Optional" />
+          <Input
+            type="text"
+            value={photoUrl}
+            onChange={e => setPhotoUrl(e.target.value)}
+            placeholder="Optional"
+          />
         </div>
       </form>
     </StandardDialog>
   );
 };
 
-export default AddAncestorDialog;
+export default PedigreeAncestorAddDialog;

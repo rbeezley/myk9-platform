@@ -1,7 +1,6 @@
 import type { Dog, DogInput, Owner } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import type { UserRole } from '@/types/auth-types';
-import type { ExtendedAncestor } from '@/components/dogs/DogDetails/Pedigree/PedigreeAncestorAddDialog';
 
 export interface DogDetailsMainProps {
   dog: Dog;
@@ -45,8 +44,6 @@ export interface DogSummaryCardProps {
 export interface DogDetailsTabsProps {
   dog: Dog;
   autoOpenAddRegistration: boolean;
-  ancestors: ExtendedAncestor[];
-  onSetAncestors: React.Dispatch<React.SetStateAction<ExtendedAncestor[]>>;
 }
 
 export interface DogDialogsProps {

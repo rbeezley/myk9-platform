@@ -5,9 +5,7 @@ import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import { mockPedigreeData } from '@/data/mockPedigreeData';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
-import type { ExtendedAncestor } from '@/components/dogs/DogDetails/Pedigree/PedigreeAncestorAddDialog';
 import '@/styles/myk9-show-details.css';
 
 import HeroProfileCard from './HeroProfileCard';
@@ -61,8 +59,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
-  const [ancestors, setAncestors] = useState<ExtendedAncestor[]>(mockPedigreeData);
-
   // Photo Dialog State
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -179,12 +175,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       <DogSummaryCard dog={updatedDog} />
 
       {/* Navigation Tabs */}
-      <DogDetailsTabs
-        dog={updatedDog}
-        autoOpenAddRegistration={autoOpenAddRegistration}
-        ancestors={ancestors}
-        onSetAncestors={setAncestors}
-      />
+      <DogDetailsTabs dog={updatedDog} autoOpenAddRegistration={autoOpenAddRegistration} />
 
       {/* Dialogs (Edit, Delete, Photo) */}
       <DogDialogs

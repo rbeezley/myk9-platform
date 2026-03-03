@@ -5,7 +5,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
 import { PremiumGate } from '@/components/common/PremiumGate';
-import { mockPedigreeData } from '@/data/mockPedigreeData';
 import { TabContentSkeleton } from './Skeletons';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import type { DogDetailsTabsProps } from './types';
@@ -24,13 +23,11 @@ const TitleProgressSection = lazy(
   () => import('@/components/dogs/DogDetails/TitleTracking/TitleProgressSection')
 );
 const PedigreeSection = lazy(() => import('@/components/dogs/DogDetails/Pedigree/PedigreeSection'));
+const PerformanceStatisticsSection = lazy(
+  () => import('@/components/dogs/DogDetails/Statistics/PerformanceStatisticsSection')
+);
 
-const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
-  dog,
-  autoOpenAddRegistration,
-  ancestors,
-  onSetAncestors,
-}) => {
+const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistration }) => {
   const { isPremium } = useSubscriptionGate();
 
   const handlePremiumTabClick = (e: React.MouseEvent) => {
@@ -77,6 +74,21 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p>Access Title Progress - Premium Feature</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger
+                  value="statistics"
+                  disabled={!isPremium}
+                  onClick={!isPremium ? handlePremiumTabClick : undefined}
+                >
+                  <Crown className="w-4 h-4" />
+                  Statistics
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Access Statistics - Premium Feature</p>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -159,6 +171,20 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             )}
           </TabsContent>
 
+          <TabsContent value="statistics" className="pt-6">
+            {isPremium ? (
+              <Suspense fallback={<TabContentSkeleton />}>
+                <PerformanceStatisticsSection dogId={dog.id} />
+              </Suspense>
+            ) : (
+              <PremiumGate
+                title="Statistics"
+                description="Visualize your dog's performance trends, qualification rates, and achievements."
+                trackingContext="statistics"
+              />
+            )}
+          </TabsContent>
+
           <TabsContent value="health-records" className="pt-6">
             {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
@@ -190,19 +216,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           <TabsContent value="pedigree" className="pt-6">
             {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
-                <PedigreeSection
-                  header={<h2 className="text-lg font-semibold flex items-center">Pedigree</h2>}
-                  pedigree={ancestors.length > 0 ? ancestors : mockPedigreeData}
-                  addAncestor={ancestor =>
-                    onSetAncestors(prev => [...prev, { ...ancestor, id: String(Date.now()) }])
-                  }
-                  editAncestor={(id, updated) =>
-                    onSetAncestors(prev => prev.map(a => (String(a.id) === id ? updated : a)))
-                  }
-                  deleteAncestor={id =>
-                    onSetAncestors(prev => prev.filter(a => String(a.id) !== id))
-                  }
-                />
+                <PedigreeSection dogId={dog.id} />
               </Suspense>
             ) : (
               <PremiumGate

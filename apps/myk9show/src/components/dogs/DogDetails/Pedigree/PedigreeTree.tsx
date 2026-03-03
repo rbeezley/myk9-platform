@@ -1,89 +1,59 @@
 import React from 'react';
-import type { ExtendedAncestor } from './PedigreeAncestorAddDialog';
+import type { PedigreeAncestor, PedigreePosition } from '@/types/pedigree-types';
+import { POSITION_SHORT_NAMES } from '@/types/pedigree-types';
 import PedigreeCard from './PedigreeCard';
 
 interface PedigreeTreeProps {
-  ancestors: ExtendedAncestor[];
-  onView: (ancestor: ExtendedAncestor | undefined) => void;
-  onEdit: (ancestor: ExtendedAncestor | undefined) => void;
-  onDelete: (ancestor: ExtendedAncestor | undefined) => void;
+  ancestors: PedigreeAncestor[];
+  onAdd: (position: PedigreePosition) => void;
+  onView: (ancestor: PedigreeAncestor) => void;
+  onEdit: (ancestor: PedigreeAncestor) => void;
+  onDelete: (ancestor: PedigreeAncestor) => void;
 }
 
-const PedigreeTree: React.FC<PedigreeTreeProps> = ({ ancestors, onView, onEdit, onDelete }) => {
-  // Utility to find ancestor by role and index (for grandparents)
-  const getAncestor = (role: string, idx?: number) => {
-    if (idx !== undefined) {
-      return ancestors.filter(a => a.role === role)[idx];
-    }
-    return ancestors.find(a => a.role === role);
+const PedigreeTree: React.FC<PedigreeTreeProps> = ({
+  ancestors,
+  onAdd,
+  onView,
+  onEdit,
+  onDelete,
+}) => {
+  const byPosition = new Map(ancestors.map(a => [a.position, a]));
+
+  const renderCard = (position: PedigreePosition) => {
+    const ancestor = byPosition.get(position);
+    return (
+      <PedigreeCard
+        ancestor={ancestor}
+        position={position}
+        displayRole={POSITION_SHORT_NAMES[position]}
+        onAdd={() => onAdd(position)}
+        onView={ancestor ? () => onView(ancestor) : undefined}
+        onEdit={ancestor ? () => onEdit(ancestor) : undefined}
+        onDelete={ancestor ? () => onDelete(ancestor) : undefined}
+      />
+    );
   };
 
   return (
     <div className="w-full flex flex-col items-center gap-8 mt-4 relative">
-      {/* Row 1: Dog */}
-      <div className="flex justify-center relative z-10" style={{ minHeight: 120 }}>
-        <PedigreeCard
-          ancestor={getAncestor('Dog')}
-          role="Dog"
-          highlight
-          onView={() => onView(getAncestor('Dog'))}
-          onEdit={() => onEdit(getAncestor('Dog'))}
-          onDelete={() => onDelete(getAncestor('Dog'))}
-        />
-      </div>
-      {/* Row 2 & 3: Sire/Dam and Grandparents, aligned as tree */}
+      {/* Row 1: Sire / Dam */}
       <div className="flex justify-center gap-8 w-full">
-        {/* Sire side */}
-        <div className="flex flex-col items-center">
-          <PedigreeCard
-            ancestor={getAncestor('Sire')}
-            role="Sire"
-            onView={() => onView(getAncestor('Sire'))}
-            onEdit={() => onEdit(getAncestor('Sire'))}
-            onDelete={() => onDelete(getAncestor('Sire'))}
-          />
-          <div className="flex gap-4 mt-4">
-            <PedigreeCard
-              ancestor={getAncestor('Grandsire', 0)}
-              role="Grandsire"
-              onView={() => onView(getAncestor('Grandsire', 0))}
-              onEdit={() => onEdit(getAncestor('Grandsire', 0))}
-              onDelete={() => onDelete(getAncestor('Grandsire', 0))}
-            />
-            <PedigreeCard
-              ancestor={getAncestor('Granddam', 0)}
-              role="Granddam"
-              onView={() => onView(getAncestor('Granddam', 0))}
-              onEdit={() => onEdit(getAncestor('Granddam', 0))}
-              onDelete={() => onDelete(getAncestor('Granddam', 0))}
-            />
-          </div>
+        <div className="flex flex-col items-center">{renderCard('sire')}</div>
+        <div className="flex flex-col items-center">{renderCard('dam')}</div>
+      </div>
+
+      {/* Row 2: Grandparents */}
+      <div className="flex justify-center gap-8 w-full">
+        {/* Sire's parents */}
+        <div className="flex gap-4">
+          {renderCard('sire_grandsire')}
+          {renderCard('sire_granddam')}
         </div>
-        {/* Dam side */}
-        <div className="flex flex-col items-center">
-          <PedigreeCard
-            ancestor={getAncestor('Dam')}
-            role="Dam"
-            onView={() => onView(getAncestor('Dam'))}
-            onEdit={() => onEdit(getAncestor('Dam'))}
-            onDelete={() => onDelete(getAncestor('Dam'))}
-          />
-          <div className="flex gap-4 mt-4">
-            <PedigreeCard
-              ancestor={getAncestor('Grandsire', 1)}
-              role="Grandsire"
-              onView={() => onView(getAncestor('Grandsire', 1))}
-              onEdit={() => onEdit(getAncestor('Grandsire', 1))}
-              onDelete={() => onDelete(getAncestor('Grandsire', 1))}
-            />
-            <PedigreeCard
-              ancestor={getAncestor('Granddam', 1)}
-              role="Granddam"
-              onView={() => onView(getAncestor('Granddam', 1))}
-              onEdit={() => onEdit(getAncestor('Granddam', 1))}
-              onDelete={() => onDelete(getAncestor('Granddam', 1))}
-            />
-          </div>
+        {/* Dam's parents */}
+        <div className="flex gap-4">
+          {renderCard('dam_grandsire')}
+          {renderCard('dam_granddam')}
         </div>
       </div>
     </div>

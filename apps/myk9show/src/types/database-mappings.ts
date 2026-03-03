@@ -145,6 +145,11 @@ export type DbManualResult = Tables['manual_results']['Row'];
 export type DbManualResultInsert = Tables['manual_results']['Insert'];
 export type DbManualResultUpdate = Tables['manual_results']['Update'];
 
+// Pedigree ancestors types
+export type DbPedigreeAncestor = Tables['pedigree_ancestors']['Row'];
+export type DbPedigreeAncestorInsert = Tables['pedigree_ancestors']['Insert'];
+export type DbPedigreeAncestorUpdate = Tables['pedigree_ancestors']['Update'];
+
 // Type guards for safer type checking
 export const isDogRecord = (record: unknown): record is DbDog => {
   return (
@@ -261,6 +266,9 @@ export const TABLE_NAMES = {
 
   // Manual results
   MANUAL_RESULTS: 'manual_results',
+
+  // Pedigree
+  PEDIGREE_ANCESTORS: 'pedigree_ancestors',
 } as const;
 
 // Type for table names

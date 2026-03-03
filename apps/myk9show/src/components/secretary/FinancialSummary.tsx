@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys, cacheStrategies } from '@/lib/queryClient';
+import { exportToCSV } from '@/lib/export';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,14 +60,14 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: rawEntries = [], isLoading } = useQuery({
-    queryKey: ['financial-summary', trialId],
+    queryKey: queryKeys.trialFinancialSummary(trialId),
     queryFn: async () => {
       const { data, error } = await getEntriesByTrial(trialId);
       if (error) throw error;
       return data;
     },
     enabled: !!trialId,
-    staleTime: 60 * 1000,
+    ...cacheStrategies.dynamic,
   });
 
   // Map raw entries to display rows
@@ -119,69 +121,60 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
     return result;
   }, [entries, searchTerm, statusFilter]);
 
-  // Summary calculations
+  // Summary calculations (single pass)
   const summary = useMemo(() => {
-    const totalEntries = entries.length;
-    const totalFees = entries.reduce((sum, e) => sum + e.entryFee, 0);
-    const totalDiscounts = entries.reduce((sum, e) => sum + e.discountAmount, 0);
-    const totalComped = entries.filter(e => e.comped).reduce((sum, e) => sum + e.entryFee, 0);
-    const netAmount = totalFees - totalDiscounts - totalComped;
-
-    const paid = entries.filter(e => e.paymentStatus === 'paid' && !e.comped);
-    const pending = entries.filter(e => e.paymentStatus === 'pending' && !e.comped);
-    const refunded = entries.filter(e => e.paymentStatus === 'refunded');
-    const comped = entries.filter(e => e.comped);
-
-    return {
-      totalEntries,
-      totalFees,
-      totalDiscounts,
-      totalComped,
-      netAmount,
-      paidCount: paid.length,
-      paidAmount: paid.reduce((sum, e) => sum + e.entryFee - e.discountAmount, 0),
-      pendingCount: pending.length,
-      pendingAmount: pending.reduce((sum, e) => sum + e.entryFee - e.discountAmount, 0),
-      refundedCount: refunded.length,
-      refundedAmount: refunded.reduce((sum, e) => sum + e.entryFee, 0),
-      compedCount: comped.length,
+    const acc = {
+      totalEntries: entries.length,
+      totalFees: 0,
+      totalDiscounts: 0,
+      totalComped: 0,
+      netAmount: 0,
+      paidCount: 0,
+      paidAmount: 0,
+      pendingCount: 0,
+      pendingAmount: 0,
+      refundedCount: 0,
+      refundedAmount: 0,
+      compedCount: 0,
     };
+
+    for (const e of entries) {
+      acc.totalFees += e.entryFee;
+      acc.totalDiscounts += e.discountAmount;
+
+      if (e.comped) {
+        acc.compedCount++;
+        acc.totalComped += e.entryFee;
+      } else if (e.paymentStatus === 'paid') {
+        acc.paidCount++;
+        acc.paidAmount += e.entryFee - e.discountAmount;
+      } else if (e.paymentStatus === 'pending') {
+        acc.pendingCount++;
+        acc.pendingAmount += e.entryFee - e.discountAmount;
+      } else if (e.paymentStatus === 'refunded') {
+        acc.refundedCount++;
+        acc.refundedAmount += e.entryFee;
+      }
+    }
+
+    acc.netAmount = acc.totalFees - acc.totalDiscounts - acc.totalComped;
+    return acc;
   }, [entries]);
 
   const handleExportCSV = () => {
-    const headers = [
-      'Dog',
-      'Owner',
-      'Handler',
-      'Class',
-      'Entry Fee',
-      'Discount',
-      'Promo Code',
-      'Payment Status',
-      'Comped',
-      'Comp Reason',
-    ];
-    const rows = filteredEntries.map(e => [
-      e.dogName,
-      e.ownerName,
-      e.handler || '',
-      e.className,
-      e.entryFee.toFixed(2),
-      e.discountAmount.toFixed(2),
-      e.promoCode || '',
-      e.comped ? 'Comped' : e.paymentStatus,
-      e.comped ? 'Yes' : 'No',
-      e.compedReason || '',
-    ]);
-
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `financial-summary-${trialId.slice(0, 8)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const exportData = filteredEntries.map(e => ({
+      Dog: e.dogName,
+      Owner: e.ownerName,
+      Handler: e.handler || '',
+      Class: e.className,
+      'Entry Fee': e.entryFee.toFixed(2),
+      Discount: e.discountAmount.toFixed(2),
+      'Promo Code': e.promoCode || '',
+      'Payment Status': e.comped ? 'Comped' : e.paymentStatus,
+      Comped: e.comped ? 'Yes' : 'No',
+      'Comp Reason': e.compedReason || '',
+    }));
+    exportToCSV(exportData, `financial-summary-${trialId.slice(0, 8)}`);
   };
 
   if (isLoading) {
@@ -356,48 +349,48 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
               {entries.length === 0 ? 'No entries for this trial yet.' : 'No entries match your filters.'}
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dog</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead className="text-right">Fee</TableHead>
-                  <TableHead className="text-right">Discount</TableHead>
-                  <TableHead>Promo</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEntries.map(entry => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-medium">{entry.dogName}</TableCell>
-                    <TableCell>{entry.ownerName}</TableCell>
-                    <TableCell>{entry.className}</TableCell>
-                    <TableCell className="text-right">
-                      ${entry.entryFee.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {entry.discountAmount > 0 ? (
-                        <span className="text-orange-600">
-                          -${entry.discountAmount.toFixed(2)}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {entry.promoCode ? (
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {entry.promoCode}
-                        </Badge>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {entry.comped ? (
-                        <TooltipProvider>
+            <TooltipProvider>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Dog</TableHead>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead className="text-right">Fee</TableHead>
+                    <TableHead className="text-right">Discount</TableHead>
+                    <TableHead>Promo</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEntries.map(entry => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium">{entry.dogName}</TableCell>
+                      <TableCell>{entry.ownerName}</TableCell>
+                      <TableCell>{entry.className}</TableCell>
+                      <TableCell className="text-right">
+                        ${entry.entryFee.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {entry.discountAmount > 0 ? (
+                          <span className="text-orange-600">
+                            -${entry.discountAmount.toFixed(2)}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {entry.promoCode ? (
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {entry.promoCode}
+                          </Badge>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {entry.comped ? (
                           <Tooltip>
                             <TooltipTrigger>
                               <Badge className={paymentStatusColors.waived}>Comped</Badge>
@@ -406,17 +399,17 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
                               <p>{entry.compedReason || 'No reason provided'}</p>
                             </TooltipContent>
                           </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <Badge className={paymentStatusColors[entry.paymentStatus] || ''}>
-                          {entry.paymentStatus}
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        ) : (
+                          <Badge className={paymentStatusColors[entry.paymentStatus] || ''}>
+                            {entry.paymentStatus}
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>

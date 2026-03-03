@@ -3,10 +3,8 @@
 // ========================================
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type { Database } from '@/types/supabase';
+import type { DbPromoCodeInsert } from '@/types/database-mappings';
 import type { PromoCodeValidationResult } from '@/types/promo-codes';
-
-export type DbPromoCodeInsert = Database['public']['Tables']['promo_codes']['Insert'];
 
 export const getPromoCodesByTrial = async (trialId: string) => {
   const startTime = Date.now();

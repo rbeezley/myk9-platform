@@ -44,6 +44,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onUncompEntry,
 }) => {
   return (
+    <TooltipProvider>
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
@@ -92,19 +93,17 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       {getEntryStatusBadge(entry.entryStatus)}
                       {getPaymentStatusBadge(entry.paymentStatus)}
                       {entry.comped && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                <Gift className="h-3 w-3 mr-1" />
-                                Comped
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{entry.compedReason || 'No reason provided'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              <Gift className="h-3 w-3 mr-1" />
+                              Comped
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{entry.compedReason || 'No reason provided'}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {entry.notes && (
                         <Badge variant="outline" className="text-blue-600">
@@ -212,6 +211,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
         </div>
       </CardContent>
     </Card>
+    </TooltipProvider>
   );
 };
 

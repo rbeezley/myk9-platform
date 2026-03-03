@@ -163,6 +163,8 @@ export const queryKeys = {
   trials: ['trials'] as const,
   trial: (id: string) => ['trials', id] as const,
   trialClasses: (trialId: string) => ['trials', trialId, 'classes'] as const,
+  trialPromoCodes: (trialId: string) => ['trials', trialId, 'promo-codes'] as const,
+  trialFinancialSummary: (trialId: string) => ['trials', trialId, 'financial-summary'] as const,
 
   // Sport Templates (DB-driven)
   sportTemplates: ['sport-templates'] as const,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,6 +71,8 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId })
   const { data: promoCodes = [], isLoading } = usePromoCodesByTrialQuery(trialId);
   const createMutation = useCreatePromoCodeMutation();
   const deleteMutation = useDeletePromoCodeMutation();
+
+  const existingCodes = useMemo(() => promoCodes.map(pc => pc.code), [promoCodes]);
 
   const handleCreate = (form: PromoCodeFormData) => {
     if (!user?.id) return;
@@ -170,7 +172,7 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId })
         onOpenChange={setAddDialogOpen}
         onSubmit={handleCreate}
         isLoading={createMutation.isPending}
-        existingCodes={promoCodes.map(pc => pc.code)}
+        existingCodes={existingCodes}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>

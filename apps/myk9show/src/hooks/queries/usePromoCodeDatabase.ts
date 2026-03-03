@@ -1,34 +1,27 @@
 // React Query hooks for promo code database operations
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import {
   getPromoCodesByTrial,
   createPromoCode,
   deletePromoCode,
   incrementPromoCodeUsage,
-  validatePromoCode,
 } from '@/services/database/queries/promoCodeQueries';
 import { mapDbPromoCodeToApp, mapAppPromoCodeToDbInsert } from '@/services/mappers/promoCodeMappers';
 import type { PromoCodeFormData } from '@/types/promo-codes';
 
-// Query key factory
-export const promoCodeQueryKeys = {
-  all: ['promo-codes'] as const,
-  byTrial: (trialId: string) => [...promoCodeQueryKeys.all, 'trial', trialId] as const,
-};
-
 // List promo codes for a trial
 export const usePromoCodesByTrialQuery = (trialId: string) => {
   return useQuery({
-    queryKey: promoCodeQueryKeys.byTrial(trialId),
+    queryKey: queryKeys.trialPromoCodes(trialId),
     queryFn: async () => {
       const { data, error } = await getPromoCodesByTrial(trialId);
       if (error) throw error;
       return data.map(mapDbPromoCodeToApp);
     },
     enabled: !!trialId,
-    staleTime: 5 * 60 * 1000, // 5 min
-    gcTime: 10 * 60 * 1000,
+    ...cacheStrategies.moderate,
   });
 };
 
@@ -53,7 +46,7 @@ export const useCreatePromoCodeMutation = () => {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: promoCodeQueryKeys.byTrial(variables.trialId),
+        queryKey: queryKeys.trialPromoCodes(variables.trialId),
       });
     },
   });
@@ -71,7 +64,7 @@ export const useDeletePromoCodeMutation = () => {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: promoCodeQueryKeys.byTrial(variables.trialId),
+        queryKey: queryKeys.trialPromoCodes(variables.trialId),
       });
     },
   });
@@ -89,15 +82,8 @@ export const useIncrementPromoCodeUsageMutation = () => {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: promoCodeQueryKeys.byTrial(variables.trialId),
+        queryKey: queryKeys.trialPromoCodes(variables.trialId),
       });
     },
   });
-};
-
-// Validate promo code (non-mutation, can be called imperatively)
-export const useValidatePromoCode = () => {
-  return {
-    validate: validatePromoCode,
-  };
 };

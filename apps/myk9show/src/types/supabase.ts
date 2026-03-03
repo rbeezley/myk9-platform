@@ -1241,6 +1241,50 @@ export type Database = {
         }
         Relationships: []
       }
+      genetic_screenings: {
+        Row: {
+          created_at: string
+          dog_id: string
+          id: string
+          notes: string | null
+          owner_id: string
+          provider: string
+          results: Json
+          test_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dog_id: string
+          id?: string
+          notes?: string | null
+          owner_id: string
+          provider: string
+          results?: Json
+          test_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dog_id?: string
+          id?: string
+          notes?: string | null
+          owner_id?: string
+          provider?: string
+          results?: Json
+          test_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genetic_screenings_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       health_records: {
         Row: {
           attachments: string[] | null
@@ -1837,6 +1881,59 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ofa_screenings: {
+        Row: {
+          certification_number: string | null
+          created_at: string
+          dog_id: string
+          id: string
+          notes: string | null
+          owner_id: string
+          result: string | null
+          status: string
+          test_date: string
+          test_type: string
+          updated_at: string
+          veterinarian: string | null
+        }
+        Insert: {
+          certification_number?: string | null
+          created_at?: string
+          dog_id: string
+          id?: string
+          notes?: string | null
+          owner_id: string
+          result?: string | null
+          status?: string
+          test_date: string
+          test_type: string
+          updated_at?: string
+          veterinarian?: string | null
+        }
+        Update: {
+          certification_number?: string | null
+          created_at?: string
+          dog_id?: string
+          id?: string
+          notes?: string | null
+          owner_id?: string
+          result?: string | null
+          status?: string
+          test_date?: string
+          test_type?: string
+          updated_at?: string
+          veterinarian?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ofa_screenings_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
             referencedColumns: ["id"]
           },
         ]

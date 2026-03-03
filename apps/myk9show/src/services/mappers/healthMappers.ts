@@ -15,13 +15,22 @@ import type {
   DbVetVisit,
   DbVetVisitInsert,
   DbVetVisitUpdate,
+  DbOFAScreening,
+  DbOFAScreeningInsert,
+  DbOFAScreeningUpdate,
+  DbGeneticScreening,
+  DbGeneticScreeningInsert,
+  DbGeneticScreeningUpdate,
 } from '@/types/database-mappings';
+import type { Json } from '@/types/supabase';
 import type {
   HealthRecord,
   VaccinationRecord,
   MedicationRecord,
   AllergyRecord,
   VetVisitRecord,
+  OFAScreeningRecord,
+  GeneticScreeningRecord,
   HealthTimelineEntry,
   HealthAlert,
   HealthStatistics
@@ -597,4 +606,111 @@ export const mapStatusToColor = (status?: string): string => {
   };
 
   return colorMap[status ?? ''] ?? 'gray';
+};
+
+// ========================================
+// OFA SCREENING MAPPERS
+// ========================================
+
+const OFA_TEST_TYPES = ['hips', 'elbows', 'eyes', 'heart', 'patella', 'thyroid'] as const;
+type OFATestType = (typeof OFA_TEST_TYPES)[number];
+
+function isOFATestType(value: string): value is OFATestType {
+  return (OFA_TEST_TYPES as readonly string[]).includes(value);
+}
+
+const OFA_STATUSES = ['normal', 'carrier', 'affected', 'pending'] as const;
+type OFAStatus = (typeof OFA_STATUSES)[number];
+
+function isOFAStatus(value: string): value is OFAStatus {
+  return (OFA_STATUSES as readonly string[]).includes(value);
+}
+
+export const mapDbOFAScreeningToApp = (db: DbOFAScreening): OFAScreeningRecord => ({
+  id: db.id,
+  dog_id: db.dog_id,
+  owner_id: db.owner_id,
+  test_type: isOFATestType(db.test_type) ? db.test_type : 'hips',
+  test_date: db.test_date,
+  status: isOFAStatus(db.status) ? db.status : 'pending',
+  ...(db.result != null ? { result: db.result } : {}),
+  ...(db.certification_number != null ? { certification_number: db.certification_number } : {}),
+  ...(db.veterinarian != null ? { veterinarian: db.veterinarian } : {}),
+  ...(db.notes != null ? { notes: db.notes } : {}),
+  created_at: db.created_at,
+  updated_at: db.updated_at,
+});
+
+export const mapAppOFAScreeningToDbInsert = (
+  app: Omit<OFAScreeningRecord, 'id' | 'created_at' | 'updated_at'>
+): DbOFAScreeningInsert => ({
+  dog_id: app.dog_id,
+  owner_id: app.owner_id,
+  test_type: app.test_type,
+  test_date: app.test_date,
+  result: app.result ?? null,
+  certification_number: app.certification_number ?? null,
+  status: app.status,
+  veterinarian: app.veterinarian ?? null,
+  notes: app.notes ?? null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+});
+
+export const mapAppOFAScreeningToDbUpdate = (
+  app: Partial<OFAScreeningRecord>
+): DbOFAScreeningUpdate => {
+  const update: DbOFAScreeningUpdate = { updated_at: new Date().toISOString() };
+  if (app.test_type !== undefined) update.test_type = app.test_type;
+  if (app.test_date !== undefined) update.test_date = app.test_date;
+  if (app.result !== undefined) update.result = app.result ?? null;
+  if (app.certification_number !== undefined)
+    update.certification_number = app.certification_number ?? null;
+  if (app.status !== undefined) update.status = app.status;
+  if (app.veterinarian !== undefined) update.veterinarian = app.veterinarian ?? null;
+  if (app.notes !== undefined) update.notes = app.notes ?? null;
+  return update;
+};
+
+// ========================================
+// GENETIC SCREENING MAPPERS
+// ========================================
+
+export const mapDbGeneticScreeningToApp = (db: DbGeneticScreening): GeneticScreeningRecord => ({
+  id: db.id,
+  dog_id: db.dog_id,
+  owner_id: db.owner_id,
+  provider: db.provider,
+  test_date: db.test_date,
+  results: Array.isArray(db.results)
+    ? (db.results as Array<{ marker: string; result: string; status?: string }>)
+    : [],
+  ...(db.notes != null ? { notes: db.notes } : {}),
+  created_at: db.created_at,
+  updated_at: db.updated_at,
+});
+
+export const mapAppGeneticScreeningToDbInsert = (
+  app: Omit<GeneticScreeningRecord, 'id' | 'created_at' | 'updated_at'>
+): DbGeneticScreeningInsert => ({
+  dog_id: app.dog_id,
+  owner_id: app.owner_id,
+  provider: app.provider,
+  test_date: app.test_date,
+  results: app.results as unknown as Json,
+  notes: app.notes ?? null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+});
+
+export const mapAppGeneticScreeningToDbUpdate = (
+  app: Partial<GeneticScreeningRecord>
+): DbGeneticScreeningUpdate => {
+  const update: DbGeneticScreeningUpdate = { updated_at: new Date().toISOString() };
+  if (app.provider !== undefined) update.provider = app.provider;
+  if (app.test_date !== undefined) update.test_date = app.test_date;
+  if (app.results !== undefined)
+    update.results = app.results as unknown as Json;
+  if (app.notes !== undefined) update.notes = app.notes ?? null;
+  return update;
 };

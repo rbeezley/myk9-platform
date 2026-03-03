@@ -78,3 +78,28 @@ export {
   getHealthTimeline,
   searchHealthRecords,
 } from './healthStatisticsQueries';
+
+// OFA Screenings
+export {
+  getAllOFAScreenings,
+  getOFAScreeningById,
+  createOFAScreening,
+  updateOFAScreening,
+  deleteOFAScreening,
+} from './ofaScreeningQueries';
+
+export type { DbOFAScreeningInsert, DbOFAScreeningUpdate } from './ofaScreeningQueries';
+
+// Genetic Screenings
+export {
+  getAllGeneticScreenings,
+  getGeneticScreeningById,
+  createGeneticScreening,
+  updateGeneticScreening,
+  deleteGeneticScreening,
+} from './geneticScreeningQueries';
+
+export type {
+  DbGeneticScreeningInsert,
+  DbGeneticScreeningUpdate,
+} from './geneticScreeningQueries';

@@ -1,14 +1,14 @@
 // React Query hooks for health database operations
 // Phase 4.2: Health Records System Integration
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import {
   // Health Records
   getAllHealthRecords,
   getHealthRecordById,
   createHealthRecord,
   updateHealthRecord,
   deleteHealthRecord,
-  
+
   // Vaccinations
   getAllVaccinations,
   getVaccinationById,
@@ -16,35 +16,47 @@ import {
   updateVaccination,
   deleteVaccination,
   getUpcomingVaccinations,
-  
+
   // Medications
   getAllMedications,
   getActiveMedications,
   createMedication,
   updateMedication,
   deleteMedication,
-  
+
   // Allergies
   getAllAllergies,
   getActiveAllergies,
   createAllergy,
   updateAllergy,
   deleteAllergy,
-  
+
   // Vet Visits
   getAllVetVisits,
   getVetVisitsRequiringFollowUp,
   createVetVisit,
   updateVetVisit,
   deleteVetVisit,
-  
+
+  // OFA Screenings
+  getAllOFAScreenings,
+  createOFAScreening,
+  updateOFAScreening,
+  deleteOFAScreening,
+
+  // Genetic Screenings
+  getAllGeneticScreenings,
+  createGeneticScreening,
+  updateGeneticScreening,
+  deleteGeneticScreening,
+
   // Analytics
   getHealthStatistics,
   getHealthTimeline,
   searchHealthRecords
 } from '@/services/database/queries/healthQueries';
 
-import { 
+import {
   mapDbHealthRecordToApp,
   mapAppHealthRecordToDbInsert,
   mapAppHealthRecordToDbUpdate,
@@ -60,15 +72,23 @@ import {
   mapDbVetVisitToApp,
   mapAppVetVisitToDbInsert,
   mapAppVetVisitToDbUpdate,
+  mapDbOFAScreeningToApp,
+  mapAppOFAScreeningToDbInsert,
+  mapAppOFAScreeningToDbUpdate,
+  mapDbGeneticScreeningToApp,
+  mapAppGeneticScreeningToDbInsert,
+  mapAppGeneticScreeningToDbUpdate,
   generateHealthAlerts
 } from '@/services/mappers/healthMappers';
 
-import type { 
-  HealthRecord, 
-  VaccinationRecord, 
-  MedicationRecord, 
-  AllergyRecord, 
+import type {
+  HealthRecord,
+  VaccinationRecord,
+  MedicationRecord,
+  AllergyRecord,
   VetVisitRecord,
+  OFAScreeningRecord,
+  GeneticScreeningRecord,
   HealthFilters
 } from '@/types/health';
 
@@ -105,6 +125,16 @@ export const healthQueryKeys = {
   dogVetVisits: (dogId: string) => [...healthQueryKeys.vetVisits(), 'dog', dogId] as const,
   followUpVisits: (dogId?: string) => [...healthQueryKeys.vetVisits(), 'follow-up', dogId] as const,
   
+  // OFA Screenings
+  ofaScreenings: () => [...healthQueryKeys.all, 'ofa-screenings'] as const,
+  ofaScreening: (id: string) => [...healthQueryKeys.ofaScreenings(), id] as const,
+  dogOFAScreenings: (dogId: string) => [...healthQueryKeys.ofaScreenings(), 'dog', dogId] as const,
+
+  // Genetic Screenings
+  geneticScreenings: () => [...healthQueryKeys.all, 'genetic-screenings'] as const,
+  geneticScreening: (id: string) => [...healthQueryKeys.geneticScreenings(), id] as const,
+  dogGeneticScreenings: (dogId: string) => [...healthQueryKeys.geneticScreenings(), 'dog', dogId] as const,
+
   // Analytics
   healthStatistics: (dogId: string) => [...healthQueryKeys.all, 'statistics', dogId] as const,
   healthTimeline: (dogId: string, filters?: HealthFilters) => [...healthQueryKeys.all, 'timeline', dogId, filters] as const,
@@ -668,6 +698,152 @@ export const useDeleteVetVisitMutation = () => {
 };
 
 // ========================================
+// OFA SCREENING HOOKS
+// ========================================
+
+export const useOFAScreeningsQuery = (dogId?: string) => {
+  return useQuery({
+    queryKey: dogId ? healthQueryKeys.dogOFAScreenings(dogId) : healthQueryKeys.ofaScreenings(),
+    queryFn: async () => {
+      const { data, error } = await getAllOFAScreenings(dogId);
+      if (error) throw error;
+      return data?.map(mapDbOFAScreeningToApp) || [];
+    },
+    ...cacheStrategies.stable,
+  });
+};
+
+export const useCreateOFAScreeningMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (screening: Omit<OFAScreeningRecord, 'id' | 'created_at' | 'updated_at'>) => {
+      const dbInsert = mapAppOFAScreeningToDbInsert(screening);
+      const { data, error } = await createOFAScreening(dbInsert);
+      if (error) throw error;
+      return data ? mapDbOFAScreeningToApp(data) : null;
+    },
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.ofaScreenings() });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogOFAScreenings(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+      }
+    },
+  });
+};
+
+export const useUpdateOFAScreeningMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<OFAScreeningRecord> }) => {
+      const dbUpdate = mapAppOFAScreeningToDbUpdate(updates);
+      const { data, error } = await updateOFAScreening(id, dbUpdate);
+      if (error) throw error;
+      return data ? mapDbOFAScreeningToApp(data) : null;
+    },
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogOFAScreenings(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+      }
+    },
+  });
+};
+
+export const useDeleteOFAScreeningMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await deleteOFAScreening(id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: healthQueryKeys.ofaScreenings() });
+      queryClient.invalidateQueries({ queryKey: healthQueryKeys.all });
+    },
+  });
+};
+
+// ========================================
+// GENETIC SCREENING HOOKS
+// ========================================
+
+export const useGeneticScreeningsQuery = (dogId?: string) => {
+  return useQuery({
+    queryKey: dogId ? healthQueryKeys.dogGeneticScreenings(dogId) : healthQueryKeys.geneticScreenings(),
+    queryFn: async () => {
+      const { data, error } = await getAllGeneticScreenings(dogId);
+      if (error) throw error;
+      return data?.map(mapDbGeneticScreeningToApp) || [];
+    },
+    ...cacheStrategies.stable,
+  });
+};
+
+export const useCreateGeneticScreeningMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (screening: Omit<GeneticScreeningRecord, 'id' | 'created_at' | 'updated_at'>) => {
+      const dbInsert = mapAppGeneticScreeningToDbInsert(screening);
+      const { data, error } = await createGeneticScreening(dbInsert);
+      if (error) throw error;
+      return data ? mapDbGeneticScreeningToApp(data) : null;
+    },
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.geneticScreenings() });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogGeneticScreenings(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+      }
+    },
+  });
+};
+
+export const useUpdateGeneticScreeningMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<GeneticScreeningRecord> }) => {
+      const dbUpdate = mapAppGeneticScreeningToDbUpdate(updates);
+      const { data, error } = await updateGeneticScreening(id, dbUpdate);
+      if (error) throw error;
+      return data ? mapDbGeneticScreeningToApp(data) : null;
+    },
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.dogGeneticScreenings(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthStatistics(data.dog_id) });
+        queryClient.invalidateQueries({ queryKey: healthQueryKeys.healthTimeline(data.dog_id) });
+      }
+    },
+  });
+};
+
+export const useDeleteGeneticScreeningMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await deleteGeneticScreening(id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: healthQueryKeys.geneticScreenings() });
+      queryClient.invalidateQueries({ queryKey: healthQueryKeys.all });
+    },
+  });
+};
+
+// ========================================
 // CONVENIENCE HOOKS
 // ========================================
 
@@ -677,6 +853,8 @@ export const useDogHealthDataQuery = (dogId: string, enabled = true) => {
   const medications = useMedicationsQuery(dogId);
   const allergies = useAllergiesQuery(dogId);
   const vetVisits = useVetVisitsQuery(dogId);
+  const ofaScreenings = useOFAScreeningsQuery(dogId);
+  const geneticScreenings = useGeneticScreeningsQuery(dogId);
   const statistics = useHealthStatisticsQuery(dogId, enabled);
   const alerts = useHealthAlertsQuery(dogId, enabled);
 
@@ -685,10 +863,12 @@ export const useDogHealthDataQuery = (dogId: string, enabled = true) => {
     medications,
     allergies,
     vetVisits,
+    ofaScreenings,
+    geneticScreenings,
     statistics,
     alerts,
-    isLoading: vaccinations.isLoading || medications.isLoading || allergies.isLoading || vetVisits.isLoading,
-    isError: vaccinations.isError || medications.isError || allergies.isError || vetVisits.isError,
-    error: vaccinations.error || medications.error || allergies.error || vetVisits.error,
+    isLoading: vaccinations.isLoading || medications.isLoading || allergies.isLoading || vetVisits.isLoading || ofaScreenings.isLoading || geneticScreenings.isLoading,
+    isError: vaccinations.isError || medications.isError || allergies.isError || vetVisits.isError || ofaScreenings.isError || geneticScreenings.isError,
+    error: vaccinations.error || medications.error || allergies.error || vetVisits.error || ofaScreenings.error || geneticScreenings.error,
   };
 };

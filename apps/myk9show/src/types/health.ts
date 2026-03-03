@@ -84,11 +84,11 @@ export interface AllergyRecord {
 // Combined health timeline entry
 export interface HealthTimelineEntry {
   id: string;
-  type: 'vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'health_record';
+  type: 'vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'health_record' | 'ofa_screening' | 'genetic_screening';
   date: string;
   title: string;
   description?: string | undefined;
-  details: VaccinationRecord | MedicationRecord | AllergyRecord | VetVisitRecord | HealthRecord;
+  details: VaccinationRecord | MedicationRecord | AllergyRecord | VetVisitRecord | HealthRecord | OFAScreeningRecord | GeneticScreeningRecord;
   dog_id: string;
   urgent?: boolean | undefined;
   status?: 'completed' | 'scheduled' | 'overdue' | 'upcoming' | undefined;
@@ -122,9 +122,38 @@ export interface HealthStatistics {
   next_vaccination_due?: string | undefined;
 }
 
+// OFA/Health Screening Record
+export interface OFAScreeningRecord {
+  id: string;
+  dog_id: string;
+  owner_id: string;
+  test_type: 'hips' | 'elbows' | 'eyes' | 'heart' | 'patella' | 'thyroid';
+  test_date: string;
+  result?: string | undefined;
+  certification_number?: string | undefined;
+  status: 'normal' | 'carrier' | 'affected' | 'pending';
+  veterinarian?: string | undefined;
+  notes?: string | undefined;
+  created_at: string;
+  updated_at: string;
+}
+
+// Genetic Screening Record
+export interface GeneticScreeningRecord {
+  id: string;
+  dog_id: string;
+  owner_id: string;
+  provider: string;
+  test_date: string;
+  results: Array<{ marker: string; result: string; status?: string }>;
+  notes?: string | undefined;
+  created_at: string;
+  updated_at: string;
+}
+
 // Health search filters
 export interface HealthFilters {
-  record_type?: ('vaccination' | 'medication' | 'allergy' | 'vet_visit')[] | undefined;
+  record_type?: ('vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'ofa_screening' | 'genetic_screening')[] | undefined;
   date_range?: {
     start: string;
     end: string;

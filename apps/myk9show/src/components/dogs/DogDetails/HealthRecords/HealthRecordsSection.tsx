@@ -8,30 +8,52 @@ import type {
   VetVisitRecord,
   MedicationRecord,
   AllergyRecord,
+  OFAScreeningRecord,
+  GeneticScreeningRecord,
 } from '../../../../types/health';
+import type { HealthItemType } from './AddHealthItemDialog';
 import {
   useDogHealthDataQuery,
   useCreateVaccinationMutation,
   useCreateMedicationMutation,
   useCreateAllergyMutation,
   useCreateVetVisitMutation,
+  useCreateOFAScreeningMutation,
+  useCreateGeneticScreeningMutation,
 } from '@/hooks/queries/useHealthDatabase';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 const AddHealthItemDialog = lazy(() => import('./AddHealthItemDialog'));
-
-type HealthItemType = 'vaccination' | 'medication' | 'allergy' | 'vet_visit';
 
 interface HealthRecordsSectionProps {
   user: { isPremium: boolean };
   dogId?: string;
 }
 
+// Status badge colors for OFA screenings
+const ofaStatusColors: Record<string, string> = {
+  normal: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  carrier: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+  affected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  pending: 'bg-muted text-muted-foreground',
+};
+
+// Status badge colors for genetic marker statuses
+const geneticStatusColors: Record<string, string> = {
+  clear: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  carrier: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+  affected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  at_risk: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+};
+
 // Convert health records to timeline events
 const convertToTimelineEvents = (
   vaccinations: VaccinationRecord[],
   vetVisits: VetVisitRecord[],
   medications: MedicationRecord[],
-  allergies: AllergyRecord[]
+  allergies: AllergyRecord[],
+  ofaScreenings: OFAScreeningRecord[],
+  geneticScreenings: GeneticScreeningRecord[]
 ) => {
   const events: HealthEvent[] = [];
 
@@ -98,6 +120,35 @@ const convertToTimelineEvents = (
     });
   });
 
+  ofaScreenings.forEach(ofa => {
+    events.push({
+      id: `ofa-${ofa.id}`,
+      type: 'vaccination' as const, // Reuse closest timeline icon type
+      title: `OFA ${ofa.test_type.charAt(0).toUpperCase() + ofa.test_type.slice(1)} Screening`,
+      description: `Status: ${ofa.status}${ofa.result ? ` — ${ofa.result}` : ''}`,
+      date: new Date(ofa.test_date),
+      vetName: ofa.veterinarian || '',
+      status: ofa.status === 'pending' ? 'scheduled' : 'completed',
+      notes: ofa.notes || '',
+      attachments: [],
+    });
+  });
+
+  geneticScreenings.forEach(gen => {
+    const markerCount = gen.results.length;
+    events.push({
+      id: `genetic-${gen.id}`,
+      type: 'vaccination' as const, // Reuse closest timeline icon type
+      title: `${gen.provider} Genetic Test`,
+      description: `${markerCount} marker${markerCount !== 1 ? 's' : ''} tested`,
+      date: new Date(gen.test_date),
+      vetName: gen.provider,
+      status: 'completed' as const,
+      notes: gen.notes || '',
+      attachments: [],
+    });
+  });
+
   return events.sort((a, b) => b.date.getTime() - a.date.getTime());
 };
 
@@ -118,18 +169,36 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
   const [viewMode, setViewMode] = useState<'timeline' | 'traditional'>('timeline');
   const [addDialogType, setAddDialogType] = useState<HealthItemType | null>(null);
 
-  const { vaccinations, medications, allergies, vetVisits, isLoading, isError, error } =
-    useDogHealthDataQuery(dogId, user.isPremium);
+  const { user: authUser } = useAuthContext();
+
+  const {
+    vaccinations,
+    medications,
+    allergies,
+    vetVisits,
+    ofaScreenings,
+    geneticScreenings,
+    isLoading,
+    isError,
+    error,
+  } = useDogHealthDataQuery(dogId, user.isPremium);
 
   const createVaccination = useCreateVaccinationMutation();
   const createMedication = useCreateMedicationMutation();
   const createAllergy = useCreateAllergyMutation();
   const createVetVisit = useCreateVetVisitMutation();
+  const createOFAScreening = useCreateOFAScreeningMutation();
+  const createGeneticScreening = useCreateGeneticScreeningMutation();
 
   const vaccinationsData = useMemo(() => vaccinations.data || [], [vaccinations.data]);
   const medicationsData = useMemo(() => medications.data || [], [medications.data]);
   const allergiesData = useMemo(() => allergies.data || [], [allergies.data]);
   const vetVisitsData = useMemo(() => vetVisits.data || [], [vetVisits.data]);
+  const ofaScreeningsData = useMemo(() => ofaScreenings.data || [], [ofaScreenings.data]);
+  const geneticScreeningsData = useMemo(
+    () => geneticScreenings.data || [],
+    [geneticScreenings.data]
+  );
 
   const vaccinationAlerts = useMemo(
     () => getVaccinationAlerts(vaccinationsData),
@@ -144,11 +213,27 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
   );
 
   const timelineEvents = useMemo(
-    () => convertToTimelineEvents(vaccinationsData, vetVisitsData, medicationsData, allergiesData),
-    [vaccinationsData, vetVisitsData, medicationsData, allergiesData]
+    () =>
+      convertToTimelineEvents(
+        vaccinationsData,
+        vetVisitsData,
+        medicationsData,
+        allergiesData,
+        ofaScreeningsData,
+        geneticScreeningsData
+      ),
+    [
+      vaccinationsData,
+      vetVisitsData,
+      medicationsData,
+      allergiesData,
+      ofaScreeningsData,
+      geneticScreeningsData,
+    ]
   );
 
   const handleAddItem = (type: HealthItemType, data: Record<string, unknown>) => {
+    const ownerId = authUser?.id;
     switch (type) {
       case 'vaccination':
         createVaccination.mutate({
@@ -193,6 +278,31 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
           treatment: (data.treatment as string) || undefined,
           vet_name: (data.vet_name as string) || undefined,
           cost: data.cost as number | undefined,
+          notes: (data.notes as string) || undefined,
+        });
+        break;
+      case 'ofa_screening':
+        if (!ownerId) break;
+        createOFAScreening.mutate({
+          dog_id: data.dog_id as string,
+          owner_id: ownerId,
+          test_type: data.test_type as OFAScreeningRecord['test_type'],
+          test_date: data.test_date as string,
+          result: (data.result as string) || undefined,
+          certification_number: (data.certification_number as string) || undefined,
+          status: data.status as OFAScreeningRecord['status'],
+          veterinarian: (data.veterinarian as string) || undefined,
+          notes: (data.notes as string) || undefined,
+        });
+        break;
+      case 'genetic_screening':
+        if (!ownerId) break;
+        createGeneticScreening.mutate({
+          dog_id: data.dog_id as string,
+          owner_id: ownerId,
+          provider: data.provider as string,
+          test_date: data.test_date as string,
+          results: data.results as GeneticScreeningRecord['results'],
           notes: (data.notes as string) || undefined,
         });
         break;
@@ -326,6 +436,12 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
             </TabsTrigger>
             <TabsTrigger value="allergies" className="myk9-sub-tab">
               Allergies
+            </TabsTrigger>
+            <TabsTrigger value="ofaScreenings" className="myk9-sub-tab">
+              OFA Screenings
+            </TabsTrigger>
+            <TabsTrigger value="geneticScreenings" className="myk9-sub-tab">
+              Genetic Tests
             </TabsTrigger>
           </TabsList>
 
@@ -483,6 +599,105 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
                       </span>
                     )}
                   </div>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ofaScreenings" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">OFA / Health Screenings</h3>
+              <Button size="sm" onClick={() => setAddDialogType('ofa_screening')}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add OFA Screening
+              </Button>
+            </div>
+            <div className="grid gap-4">
+              {ofaScreeningsData.length === 0 && (
+                <p className="text-muted-foreground text-sm py-4 text-center">
+                  No OFA screenings recorded yet.
+                </p>
+              )}
+              {ofaScreeningsData.map(ofa => (
+                <div key={ofa.id} className="p-4 border rounded-lg">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium capitalize">{ofa.test_type}</h4>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full capitalize ${ofaStatusColors[ofa.status] || 'bg-muted text-muted-foreground'}`}
+                        >
+                          {ofa.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(ofa.test_date).toLocaleDateString()}
+                        {ofa.veterinarian ? ` \u2022 ${ofa.veterinarian}` : ''}
+                      </p>
+                      {ofa.result && (
+                        <p className="text-sm mt-1">
+                          Result: {ofa.result}
+                        </p>
+                      )}
+                      {ofa.notes && (
+                        <p className="text-sm text-muted-foreground mt-1">{ofa.notes}</p>
+                      )}
+                    </div>
+                    {ofa.certification_number && (
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {ofa.certification_number}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="geneticScreenings" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Genetic Tests</h3>
+              <Button size="sm" onClick={() => setAddDialogType('genetic_screening')}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Genetic Test
+              </Button>
+            </div>
+            <div className="grid gap-4">
+              {geneticScreeningsData.length === 0 && (
+                <p className="text-muted-foreground text-sm py-4 text-center">
+                  No genetic screenings recorded yet.
+                </p>
+              )}
+              {geneticScreeningsData.map(gen => (
+                <div key={gen.id} className="p-4 border rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium">{gen.provider}</h4>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          {gen.results.length} marker{gen.results.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(gen.test_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  {gen.results.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {gen.results.map((marker, idx) => (
+                        <span
+                          key={idx}
+                          className={`text-xs px-2 py-0.5 rounded-full ${geneticStatusColors[marker.status || ''] || 'bg-muted text-muted-foreground'}`}
+                        >
+                          {marker.marker}: {marker.result}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {gen.notes && (
+                    <p className="text-sm text-muted-foreground mt-2">{gen.notes}</p>
+                  )}
                 </div>
               ))}
             </div>

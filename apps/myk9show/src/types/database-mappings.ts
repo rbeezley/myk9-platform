@@ -150,6 +150,16 @@ export type DbPedigreeAncestor = Tables['pedigree_ancestors']['Row'];
 export type DbPedigreeAncestorInsert = Tables['pedigree_ancestors']['Insert'];
 export type DbPedigreeAncestorUpdate = Tables['pedigree_ancestors']['Update'];
 
+// OFA screening types
+export type DbOFAScreening = Tables['ofa_screenings']['Row'];
+export type DbOFAScreeningInsert = Tables['ofa_screenings']['Insert'];
+export type DbOFAScreeningUpdate = Tables['ofa_screenings']['Update'];
+
+// Genetic screening types
+export type DbGeneticScreening = Tables['genetic_screenings']['Row'];
+export type DbGeneticScreeningInsert = Tables['genetic_screenings']['Insert'];
+export type DbGeneticScreeningUpdate = Tables['genetic_screenings']['Update'];
+
 // Type guards for safer type checking
 export const isDogRecord = (record: unknown): record is DbDog => {
   return (
@@ -269,6 +279,10 @@ export const TABLE_NAMES = {
 
   // Pedigree
   PEDIGREE_ANCESTORS: 'pedigree_ancestors',
+
+  // Health screenings
+  OFA_SCREENINGS: 'ofa_screenings',
+  GENETIC_SCREENINGS: 'genetic_screenings',
 } as const;
 
 // Type for table names

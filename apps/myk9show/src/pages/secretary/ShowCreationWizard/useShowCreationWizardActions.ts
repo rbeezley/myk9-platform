@@ -274,8 +274,12 @@ export function useShowCreationWizardActions({
           resetWizard();
         }
 
-        // Navigate to the new show using the real DB UUID
-        navigate(`/shows/${realShowId}`);
+        // Navigate: drafts go to show detail, created shows go to pipeline (mission control)
+        if (status === 'draft') {
+          navigate(`/shows/${realShowId}`);
+        } else {
+          navigate('/secretary/dashboard');
+        }
 
         // Show success toast
         if (status === 'draft') {

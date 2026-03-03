@@ -11,8 +11,9 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
-// Secretary page lazy imports
-const SecretaryDashboard = lazy(() => import('@/pages/SecretaryDashboard'));
+// Mission Control (replaces old SecretaryDashboard)
+const SecretaryDashboard = lazy(() => import('@/features/pipeline/components/PipelineDashboard'));
+const TrialPipelineDetail = lazy(() => import('@/features/pipeline/components/TrialPipelineDetail'));
 // Lazy import for better performance
 const CreateShowPage = lazy(() => import('@/pages/secretary/CreateShowPage'));
 const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
@@ -45,6 +46,15 @@ export const SecretaryRoutes = () => (
       <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
         <SuspenseWrapper>
           <PageTransition><SecretaryDashboard /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    {/* Pipeline Trial Detail */}
+    <Route path="/secretary/pipeline/:trialId" element={
+      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <SuspenseWrapper>
+          <PageTransition><TrialPipelineDetail /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />

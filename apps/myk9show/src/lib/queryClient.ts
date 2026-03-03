@@ -166,6 +166,12 @@ export const queryKeys = {
   trialPromoCodes: (trialId: string) => ['trials', trialId, 'promo-codes'] as const,
   trialFinancialSummary: (trialId: string) => ['trials', trialId, 'financial-summary'] as const,
 
+  // Pipeline
+  trialChecklist: (trialId: string) => ['trials', trialId, 'checklist'] as const,
+  trialActivityLog: (trialId: string) => ['trials', trialId, 'activity-log'] as const,
+  trialPipeline: (trialId: string) => ['trials', trialId, 'pipeline'] as const,
+  pipelineOverview: ['pipeline', 'overview'] as const,
+
   // Sport Templates (DB-driven)
   sportTemplates: ['sport-templates'] as const,
   sportTemplate: (code: string) => ['sport-templates', code] as const,

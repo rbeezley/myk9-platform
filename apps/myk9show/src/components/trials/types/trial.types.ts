@@ -16,6 +16,7 @@ export interface Trial {
   order?: string | undefined;
   name?: string | undefined;
   trialType?: string | undefined;
+  pipelineStage?: number | undefined;
 }
 
 export interface TrialClass {

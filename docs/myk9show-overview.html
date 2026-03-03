@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>myK9Show — The Complete Picture</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Typography ── */
+    h1 { font-size: 2.75rem; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; }
+    h2 { font-size: 2rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.015em; }
+    h3 { font-size: 1.35rem; font-weight: 600; line-height: 1.35; }
+    p, li { font-size: 1.05rem; color: #475569; }
+
+    /* ── Layout ── */
+    .container { max-width: 880px; margin: 0 auto; padding: 0 2rem; }
+    section { padding: 4.5rem 0; }
+    section:nth-child(even) { background: #f8fafc; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0c4a6e 100%);
+      color: #fff;
+      padding: 5rem 0 4rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 70%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 30%, rgba(168, 85, 247, 0.06) 0%, transparent 50%);
+    }
+    .hero * { position: relative; z-index: 1; }
+    .hero .eyebrow {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #38bdf8;
+      margin-bottom: 1.25rem;
+      padding: 0.35rem 1rem;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 999px;
+    }
+    .hero h1 { color: #fff; margin-bottom: 1.25rem; }
+    .hero p { color: #94a3b8; font-size: 1.2rem; max-width: 600px; margin: 0 auto; }
+
+    /* ── Paw accent ── */
+    .paw {
+      display: inline-block;
+      font-size: 1.4rem;
+      margin: 0 0.15rem;
+      opacity: 0.7;
+    }
+
+    /* ── Section headers ── */
+    .section-header { text-align: center; margin-bottom: 3rem; }
+    .section-header .label {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #0369a1;
+      background: #e0f2fe;
+      padding: 0.3rem 0.85rem;
+      border-radius: 999px;
+      margin-bottom: 0.75rem;
+    }
+    .section-header p { max-width: 620px; margin: 0.75rem auto 0; }
+
+    /* ── Feature cards ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .feature-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1.75rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .feature-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+    }
+    .feature-card .icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+    }
+    .feature-card h3 { margin-bottom: 0.5rem; font-size: 1.1rem; }
+    .feature-card p { font-size: 0.95rem; }
+
+    /* ── Icon backgrounds ── */
+    .icon-blue { background: #dbeafe; }
+    .icon-green { background: #dcfce7; }
+    .icon-purple { background: #f3e8ff; }
+    .icon-orange { background: #ffedd5; }
+    .icon-teal { background: #ccfbf1; }
+    .icon-rose { background: #ffe4e6; }
+
+    /* ── Callout box ── */
+    .callout {
+      background: linear-gradient(135deg, #eff6ff, #f0f9ff);
+      border-left: 4px solid #0ea5e9;
+      border-radius: 0 12px 12px 0;
+      padding: 1.5rem 2rem;
+      margin: 2rem 0;
+    }
+    .callout p { color: #1e40af; font-size: 1rem; }
+    .callout strong { color: #0c4a6e; }
+
+    /* ── Flow steps ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 2rem 0;
+      position: relative;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.25rem;
+      padding: 1.25rem 0;
+    }
+    .flow-step .number {
+      min-width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #0369a1, #0ea5e9);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+    .flow-step .content h3 { font-size: 1.05rem; margin-bottom: 0.25rem; }
+    .flow-step .content p { font-size: 0.95rem; }
+
+    /* ── Comparison table ── */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 2rem 0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .comparison-table th {
+      background: #0f172a;
+      color: #fff;
+      padding: 0.85rem 1.25rem;
+      text-align: left;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .comparison-table td {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 0.95rem;
+    }
+    .comparison-table tr:last-child td { border-bottom: none; }
+    .comparison-table tr:nth-child(even) td { background: #f8fafc; }
+    .check { color: #16a34a; font-weight: 700; }
+    .x-mark { color: #dc2626; }
+
+    /* ── Pricing cards ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-top: 2.5rem;
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    @media (max-width: 768px) { .pricing-grid { grid-template-columns: 1fr; } }
+    .pricing-card {
+      background: #fff;
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+      position: relative;
+      transition: transform 0.2s;
+    }
+    .pricing-card:hover { transform: translateY(-3px); }
+    .pricing-card.featured {
+      border-color: #0ea5e9;
+      box-shadow: 0 8px 30px rgba(14, 165, 233, 0.15);
+    }
+    .pricing-card .badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #0369a1, #0ea5e9);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.3rem 1rem;
+      border-radius: 999px;
+    }
+    .pricing-card .tier-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .pricing-card .tier-audience {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #0ea5e9;
+      margin-bottom: 0.75rem;
+    }
+    .pricing-card .price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.1;
+    }
+    .pricing-card .price span { font-size: 1rem; font-weight: 500; color: #64748b; }
+    .pricing-card .desc { font-size: 0.9rem; color: #64748b; margin: 0.5rem 0 1.25rem; }
+    .pricing-card ul { list-style: none; text-align: left; margin: 0; }
+    .pricing-card li {
+      font-size: 0.9rem;
+      padding: 0.4rem 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .pricing-card li::before { content: '\2713'; color: #16a34a; font-weight: 700; flex-shrink: 0; }
+
+    /* ── Sports badges ── */
+    .sport-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+      margin: 2rem 0;
+    }
+    .sport-badge {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+      padding: 0.5rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* ── Blockquote ── */
+    .quote {
+      text-align: center;
+      padding: 3rem 2rem;
+      margin: 2rem 0;
+    }
+    .quote blockquote {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #0f172a;
+      font-style: italic;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+    .quote cite {
+      display: block;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      font-style: normal;
+      color: #64748b;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 3rem 0;
+      text-align: center;
+    }
+    .footer p { color: #94a3b8; font-size: 0.9rem; }
+    .footer a { color: #38bdf8; text-decoration: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.6rem; }
+      section { padding: 3rem 0; }
+      .hero { padding: 3.5rem 0 3rem; }
+      .container { padding: 0 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── HERO ─── -->
+  <section class="hero">
+    <div class="container">
+      <div class="eyebrow">Early Preview &mdash; For Our Friends</div>
+      <h1>myK9Show</h1>
+      <p>
+        You asked about online entries. Here's the full picture &mdash; and it's bigger than entries alone.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─── THE VISION ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label">The Vision</div>
+        <h2>One platform, from entry to ribbon</h2>
+        <p>
+          myK9Show is the companion to the scoring app you already know. Where myK9Q handles the ring,
+          myK9Show handles everything around it &mdash; entries, payments, show management,
+          results, and the exhibitor experience.
+        </p>
+      </div>
+
+      <div class="callout">
+        <p>
+          <strong>What you've been asking for is being built.</strong>
+          Online entries, financial tracking, club management, exhibitor self-service &mdash; we're working toward
+          a single system. No integrations to manage. No separate vendor. One platform that knows
+          your shows, your dogs, and your people.
+        </p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="icon icon-blue">&#128221;</div>
+          <h3>Online Entries</h3>
+          <p>Exhibitors enter shows from their phone in under 30 seconds. Dog info pre-fills. Fees are clear. Done.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-green">&#128176;</div>
+          <h3>Integrated Payments</h3>
+          <p>Stripe-powered checkout with per-entry fees, automatic receipts, and full financial tracking for clubs.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-purple">&#128202;</div>
+          <h3>Real-Time Results</h3>
+          <p>As judges score in myK9Q, results appear instantly for exhibitors. No waiting for paper scorecards.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-orange">&#128247;</div>
+          <h3>Works Offline</h3>
+          <p>Show day Wi-Fi is unreliable. The platform works without it and syncs automatically when reconnected.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── THE EXHIBITOR EXPERIENCE ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label"><span class="paw">&#128062;</span> For Exhibitors</div>
+        <h2>Entering a show should take seconds, not minutes</h2>
+        <p>
+          The exhibitor experience is designed around one principle: respect their time.
+          Pre-filled forms, smart defaults, and a mobile-first interface mean exhibitors spend
+          less time on logistics and more time with their dogs.
+        </p>
+      </div>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="number">1</div>
+          <div class="content">
+            <h3>Browse &amp; discover shows</h3>
+            <p>Filter by date, location, sport, or class level. See what's open, what's filling up, and what's closed &mdash; in real time.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="number">2</div>
+          <div class="content">
+            <h3>Add entries to your cart</h3>
+            <p>Select your dog, pick your classes, review fees. The system remembers your dogs and pre-fills registration numbers, call names, and breed info.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="number">3</div>
+          <div class="content">
+            <h3>Checkout with Stripe</h3>
+            <p>Secure, PCI-compliant payment. Entry fees are itemized with a transparent platform fee. Automatic receipt emailed to you.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="number">4</div>
+          <div class="content">
+            <h3>Track everything from your dashboard</h3>
+            <p>View upcoming entries, past results, and payment history. Your personal exhibitor dashboard shows the full picture at a glance.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="number">5</div>
+          <div class="content">
+            <h3>See results as they happen</h3>
+            <p>No more waiting by the ring. As judges score in myK9Q, results flow into your dashboard automatically.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <p>
+          <strong>Smart waitlists planned.</strong> If a class fills up, exhibitors would land on the waitlist automatically.
+          When a spot opens, the next person gets an offer. If they don't respond, it moves to the next &mdash; hands-free for secretaries.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── PREMIUM EXHIBITOR FEATURES ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label">&#11088; Premium Features</div>
+        <h2>More for exhibitors who want more</h2>
+        <p>
+          The core entry experience is planned to be free for everyone. For exhibitors who are serious about
+          tracking their progress, we're building a Premium tier with additional tools.
+          <span style="color: #94a3b8; font-style: italic;">Pricing and feature availability subject to change.</span>
+        </p>
+      </div>
+
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="tier-name">Free</div>
+          <div class="tier-audience">All Exhibitors</div>
+          <div class="price">Free</div>
+          <div class="desc">Everything you need to enter shows</div>
+          <ul>
+            <li>Browse and enter shows online</li>
+            <li>Digital entry management</li>
+            <li>Real-time results &amp; scorecards</li>
+            <li>Show calendar &amp; notifications</li>
+            <li>Dog profile management</li>
+            <li>Email support</li>
+          </ul>
+        </div>
+
+        <div class="pricing-card featured">
+          <div class="badge">For Serious Exhibitors</div>
+          <div class="tier-name">Premium</div>
+          <div class="tier-audience">Track &amp; Improve</div>
+          <div class="price">$4.99<span>/mo</span></div>
+          <div class="desc">Everything in Free, plus tools to level up</div>
+          <ul>
+            <li>Competition history tracking</li>
+            <li>Title progression tracking</li>
+            <li>Training journal</li>
+            <li>Advanced entry statistics</li>
+            <li>Premium notifications</li>
+            <li>Priority support</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── THE SECRETARY EXPERIENCE ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label"><span class="paw">&#128203;</span> For Trial Secretaries</div>
+        <h2>Day-of operations, without the chaos</h2>
+        <p>
+          Secretaries already love myK9Q at ringside. myK9Show is being built to give them the same streamlined
+          experience for everything before and after the ring &mdash; entries, armbands,
+          waitlists, scratches, and financials.
+        </p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="icon icon-teal">&#9889;</div>
+          <h3>One-Tap Operations</h3>
+          <p>Scratch an entry, move someone up from the waitlist, assign armbands &mdash; each one a single tap. No confirmation dialogs for routine actions.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-blue">&#128209;</div>
+          <h3>Automatic Waitlist Management</h3>
+          <p>When someone scratches, the next person on the waitlist gets an offer automatically. 24-hour expiration. Zero secretary intervention needed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-green">&#128178;</div>
+          <h3>Financial Dashboard</h3>
+          <p>See entry fees collected, pending payments, revenue per class, and payout summaries. All the financial visibility you've been wanting.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-rose">&#128200;</div>
+          <h3>Bulk Result Entry</h3>
+          <p>Import or manually enter results in bulk after a trial. Publish per-class, per-trial, or per-show &mdash; you control the timing.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── THE CLUB EXPERIENCE ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label"><span class="paw">&#127942;</span> For Clubs</div>
+        <h2>Show creation and revenue tracking for clubs</h2>
+        <p>
+          We're building club tools for show management &mdash; templates, judge assignment,
+          fee configuration, and financial oversight &mdash; so clubs can move away from spreadsheets.
+        </p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="icon icon-purple">&#128736;</div>
+          <h3>Show Creation Wizard</h3>
+          <p>Step-by-step guided setup. Configure trials, classes, levels, fees, and judges. Clone previous shows to save time.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-green">&#128176;</div>
+          <h3>Revenue Tracking</h3>
+          <p>Entry fees flow directly through Stripe. Track revenue per show, per class, and per trial. Transparent platform fee of 3% per entry.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-orange">&#128101;</div>
+          <h3>Team Management</h3>
+          <p>Invite trial secretaries, assign permissions, manage who can see what. Role-based access controls keep things clean.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-blue">&#128197;</div>
+          <h3>Templates &amp; Cloning</h3>
+          <p>Created a show format that works? Clone it. Reuse class structures, fee schedules, and judge assignments across events.</p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <p>
+          <strong>No upfront licensing fees for clubs.</strong> The platform charges a small per-entry fee (3%) instead of
+          expensive annual licenses. You pay when exhibitors pay. If no one enters, it costs you nothing.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SPORTS SUPPORTED ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label">Sports</div>
+        <h2>Multiple organizations. Sport-specific scoring.</h2>
+        <p>
+          Each sport gets its own optimized scoresheet &mdash; not a generic form builder.
+          The scoring engine understands pass/fail, timed events, and fault deductions natively.
+        </p>
+      </div>
+
+      <div class="sport-badges">
+        <div class="sport-badge">&#128062; AKC</div>
+        <div class="sport-badge">&#128062; UKC</div>
+        <div class="sport-badge">&#128062; ASCA</div>
+      </div>
+
+      <p style="text-align: center; color: #475569; font-size: 0.95rem; max-width: 520px; margin: 0.5rem auto 0;">
+        Planned trial types include Scent Work, Agility, Obedience, and Conformation.
+        We're building formats based on what clubs and exhibitors actually need &mdash; starting with the sports
+        our community uses most.
+      </p>
+      <p style="text-align: center; color: #94a3b8; font-size: 0.8rem; font-style: italic; margin-top: 0.75rem;">
+        Specific sport support is subject to change as we refine the platform.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─── BUILT FOR SHOW DAY ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label">&#128272; Reliability</div>
+        <h2>Built for the realities of show day</h2>
+        <p>
+          Dog shows happen in fields, barns, and convention centers &mdash; places where Wi-Fi is a suggestion, not a guarantee.
+          The entire platform is designed around that reality.
+        </p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="icon icon-orange">&#128268;</div>
+          <h3>Offline-First Architecture</h3>
+          <p>Every critical operation works without internet. Scores, entries, and updates are cached locally and sync automatically when connectivity returns.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-teal">&#128259;</div>
+          <h3>Background Sync</h3>
+          <p>No "syncing..." spinners. No error popups. Changes flow silently in the background. The technology is invisible &mdash; by design.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-blue">&#128274;</div>
+          <h3>Security Built In</h3>
+          <p>Row-level security on every database query. Role-based permissions. Audit logging. Data isolation between shows.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-purple">&#128241;</div>
+          <h3>Works on Any Device</h3>
+          <p>Progressive Web App &mdash; install it like a native app from your browser. No app store. Optimized for tablets at ringside and phones in the field.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── HOW IT CONNECTS TO MYK9Q ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label">&#128279; The Connection</div>
+        <h2>myK9Q + myK9Show = the complete picture</h2>
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>myK9Q (what you have)</th>
+            <th>myK9Show (what's coming)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Primary users</strong></td>
+            <td>Judges &amp; stewards</td>
+            <td>Exhibitors, secretaries &amp; clubs</td>
+          </tr>
+          <tr>
+            <td><strong>When it's used</strong></td>
+            <td>During the trial &mdash; at ringside</td>
+            <td>Before &amp; after &mdash; entries, results, management</td>
+          </tr>
+          <tr>
+            <td><strong>Online entries</strong></td>
+            <td class="x-mark">&mdash;</td>
+            <td class="check">&#10003;</td>
+          </tr>
+          <tr>
+            <td><strong>Payment processing</strong></td>
+            <td class="x-mark">&mdash;</td>
+            <td class="check">&#10003; Stripe integration</td>
+          </tr>
+          <tr>
+            <td><strong>Financial reports</strong></td>
+            <td class="x-mark">&mdash;</td>
+            <td class="check">&#10003; Revenue, fees, payouts</td>
+          </tr>
+          <tr>
+            <td><strong>Scoring</strong></td>
+            <td class="check">&#10003; Optimized for speed</td>
+            <td>Results display &amp; publishing</td>
+          </tr>
+          <tr>
+            <td><strong>Offline support</strong></td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003; Same architecture</td>
+          </tr>
+          <tr>
+            <td><strong>Shared database</strong></td>
+            <td colspan="2" style="text-align: center; color: #0ea5e9; font-weight: 600;">Same database &mdash; data flows between both apps automatically</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <p>
+          <strong>They share the same database.</strong> When a judge scores an entry in myK9Q,
+          the exhibitor sees that result in myK9Show. When a secretary processes an entry in myK9Show,
+          it appears on the judge's run order in myK9Q. No CSV exports. No manual syncing. It just works.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── VS COMPETITORS ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label">Comparison</div>
+        <h2>What makes this different</h2>
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>myK9 Platform</th>
+            <th>Traditional Systems</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Offline scoring</strong></td>
+            <td class="check">&#10003; Full offline with auto-sync</td>
+            <td class="x-mark">Requires internet</td>
+          </tr>
+          <tr>
+            <td><strong>Online entries</strong></td>
+            <td class="check">&#10003; Entry + payment flow (in development)</td>
+            <td class="x-mark">Manual processing or no online option</td>
+          </tr>
+          <tr>
+            <td><strong>Financial tracking</strong></td>
+            <td class="check">&#10003; Stripe with full revenue visibility</td>
+            <td>Limited or spreadsheet-based</td>
+          </tr>
+          <tr>
+            <td><strong>Judge &harr; Secretary sync</strong></td>
+            <td class="check">&#10003; Real-time WebSocket sync</td>
+            <td class="x-mark">No synchronization</td>
+          </tr>
+          <tr>
+            <td><strong>Multi-sport scoring</strong></td>
+            <td class="check">&#10003; Sport-specific scoresheets (AKC, UKC, ASCA)</td>
+            <td>Generic forms or single sport</td>
+          </tr>
+          <tr>
+            <td><strong>Mobile experience</strong></td>
+            <td class="check">&#10003; PWA, installs like native app</td>
+            <td>Desktop-only or clunky mobile</td>
+          </tr>
+          <tr>
+            <td><strong>Pricing model</strong></td>
+            <td class="check">&#10003; Per-entry fee (3%) &mdash; pay as you go</td>
+            <td>Annual license fees regardless of usage</td>
+          </tr>
+          <tr>
+            <td><strong>Smart waitlists</strong></td>
+            <td class="check">&#10003; Planned: auto-offer with expiration</td>
+            <td class="x-mark">Manual tracking</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─── QUOTE ─── -->
+  <section>
+    <div class="container">
+      <div class="quote">
+        <blockquote>
+          &ldquo;The software disappears so the dogs can shine.&rdquo;
+        </blockquote>
+        <cite>&mdash; The design principle behind everything we build</cite>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── WHAT'S NEXT ─── -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="label">&#128640; Status</div>
+        <h2>Where we are right now</h2>
+      </div>
+
+      <div class="feature-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="feature-card" style="border-color: #16a34a; border-width: 2px;">
+          <div class="icon icon-green">&#9989;</div>
+          <h3>myK9Q &mdash; Live in Production</h3>
+          <p>
+            Already being used at real shows. Judges and stewards are scoring entries, managing run orders,
+            and working offline. This is the foundation everything else builds on.
+          </p>
+        </div>
+        <div class="feature-card" style="border-color: #0ea5e9; border-width: 2px;">
+          <div class="icon icon-blue">&#128736;</div>
+          <h3>myK9Show &mdash; In Active Development</h3>
+          <p>
+            Exhibitor dashboard, show browsing, and Stripe payment integration are built and in staging.
+            Entry management, club tools, and premium features are being developed and refined.
+          </p>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top: 2rem;">
+        <p>
+          <strong>You're seeing this early because you've been part of the journey.</strong>
+          Your feedback on myK9Q has directly shaped how we're building myK9Show. When online entries
+          go live, the clubs and exhibitors who've been with us from the start will be the first to know.
+        </p>
+      </div>
+
+      <p style="text-align: center; color: #94a3b8; font-size: 0.85rem; font-style: italic; margin-top: 2rem; max-width: 560px; margin-left: auto; margin-right: auto;">
+        Features, pricing, and timelines described in this document are subject to change as we
+        continue developing the platform. We'd rather under-promise and over-deliver.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─── FOOTER ─── -->
+  <section class="footer">
+    <div class="container">
+      <p style="font-size: 1.1rem; color: #e2e8f0; font-weight: 600; margin-bottom: 0.5rem;">
+        myK9 Platform
+      </p>
+      <p>
+        Questions? Ideas? Just reply to the email that brought you here.
+      </p>
+      <p style="margin-top: 1rem; font-size: 0.8rem; color: #64748b;">
+        This is an early preview shared with friends of the platform. All features and pricing subject to change. &copy; 2026 myK9
+      </p>
+    </div>
+  </section>
+
+</body>
+</html>

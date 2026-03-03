@@ -10,7 +10,7 @@ import type { TrialOverview, DashboardStatistics } from './secretary-dashboard-t
  * Hook to transform shows data into trials format
  */
 export function useTrialsData() {
-  const { shows } = useShowStore();
+  const { shows, isLoading } = useShowStore();
 
   const allTrials = useMemo(() => {
     const trials: TrialOverview[] = [];
@@ -75,6 +75,7 @@ export function useTrialsData() {
 
   return {
     shows,
+    isLoading,
     allTrials,
     activeTrials,
     upcomingTrials,

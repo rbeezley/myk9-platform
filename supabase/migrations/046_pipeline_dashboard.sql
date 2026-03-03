@@ -34,10 +34,11 @@ CREATE TABLE IF NOT EXISTS trial_checklist_state (
   CONSTRAINT trial_checklist_unique UNIQUE (trial_id, item_key)
 );
 
-CREATE INDEX idx_checklist_trial_id ON trial_checklist_state(trial_id);
-CREATE INDEX idx_checklist_trial_stage ON trial_checklist_state(trial_id, stage);
+CREATE INDEX IF NOT EXISTS idx_checklist_trial_id ON trial_checklist_state(trial_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_trial_stage ON trial_checklist_state(trial_id, stage);
 
-CREATE OR REPLACE TRIGGER set_trial_checklist_state_updated_at
+DROP TRIGGER IF EXISTS set_trial_checklist_state_updated_at ON trial_checklist_state;
+CREATE TRIGGER set_trial_checklist_state_updated_at
   BEFORE UPDATE ON trial_checklist_state
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -62,9 +63,9 @@ CREATE TABLE IF NOT EXISTS activity_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_activity_log_trial_id ON activity_log(trial_id);
-CREATE INDEX idx_activity_log_trial_created ON activity_log(trial_id, created_at DESC);
-CREATE INDEX idx_activity_log_action_type ON activity_log(action_type);
+CREATE INDEX IF NOT EXISTS idx_activity_log_trial_id ON activity_log(trial_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_trial_created ON activity_log(trial_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_action_type ON activity_log(action_type);
 
 -- =============================================
 -- ROW LEVEL SECURITY
@@ -72,23 +73,29 @@ CREATE INDEX idx_activity_log_action_type ON activity_log(action_type);
 
 ALTER TABLE trial_checklist_state ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "checklist_select" ON trial_checklist_state;
 CREATE POLICY "checklist_select" ON trial_checklist_state
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "checklist_insert" ON trial_checklist_state;
 CREATE POLICY "checklist_insert" ON trial_checklist_state
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "checklist_update" ON trial_checklist_state;
 CREATE POLICY "checklist_update" ON trial_checklist_state
   FOR UPDATE USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "checklist_delete" ON trial_checklist_state;
 CREATE POLICY "checklist_delete" ON trial_checklist_state
   FOR DELETE USING (auth.uid() IS NOT NULL);
 
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "activity_log_select" ON activity_log;
 CREATE POLICY "activity_log_select" ON activity_log
   FOR SELECT USING (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "activity_log_insert" ON activity_log;
 CREATE POLICY "activity_log_insert" ON activity_log
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 

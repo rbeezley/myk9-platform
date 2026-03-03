@@ -426,6 +426,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       } else {
         // Load from replicated table (IndexedDB)
         const replicatedShows = await replicatedShowsTable.getAllShows();
+
         const currentShows = get().shows;
 
         // Merge replicated data with existing local-only fields
@@ -512,6 +513,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
 
     // Subscribe to replicated table changes
     const unsubscribe = replicatedShowsTable.subscribe(shows => {
+
       const currentShows = get().shows;
 
       // Merge replicated data with existing local-only fields
@@ -521,6 +523,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       });
 
       set({ shows: mergedShows });
+
       reportDebug('store', 'Shows updated from replicated table', { count: mergedShows.length });
     });
 

@@ -93,6 +93,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const queryClient = useQueryClient();
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
+  const triggerSyncRef = useRef<() => Promise<void>>();
 
   // Subscribe all Zustand stores to replicated table changes
   useStoreSubscriptions();
@@ -249,6 +250,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     }
   }, [isOnline, status.isSyncing, licenseKey, queryClient]);
 
+  // Keep ref in sync so effects always call latest version without re-triggering
+  triggerSyncRef.current = triggerSync;
+
   // Initial sync on startup
   useEffect(() => {
     if (autoSync && isOnline && !hasInitialSynced.current) {
@@ -256,13 +260,16 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // Delay initial sync to not block app startup
       const timer = setTimeout(() => {
         logger.info('Starting initial sync', 'replication');
-        triggerSync();
+        triggerSyncRef.current?.();
       }, 2000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        hasInitialSynced.current = false; // Reset so StrictMode remount can re-trigger
+      };
     }
     return undefined;
-  }, [autoSync, isOnline, triggerSync]);
+  }, [autoSync, isOnline]);
 
   // Sync when coming back online + restore localStorage backup
   useEffect(() => {
@@ -274,13 +281,13 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         logger.info('Back online - restoring mutations and triggering sync', 'replication');
         const timer = setTimeout(async () => {
           await mutationManager.restoreMutationsFromLocalStorage();
-          triggerSync();
+          triggerSyncRef.current?.();
         }, 0);
         return () => clearTimeout(timer);
       }
     }
     return undefined;
-  }, [isOnline, syncOnReconnect, triggerSync]);
+  }, [isOnline, syncOnReconnect]);
 
   // Startup: flush pending mutations from previous session (runs once)
   const hasStartedFlush = useRef(false);
@@ -293,11 +300,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const pendingCount = await mutationManager.getPendingCount();
       if (pendingCount > 0) {
         logger.info('Startup: flushing pending mutations', 'replication', { pendingCount });
-        triggerSync();
+        triggerSyncRef.current?.();
       }
     };
     const startupTimer = setTimeout(startupUpload, 2000);
-    return () => clearTimeout(startupTimer);
+    return () => {
+      clearTimeout(startupTimer);
+      hasStartedFlush.current = false; // Reset so StrictMode remount can re-trigger
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -305,11 +315,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   useEffect(() => {
     const handleSyncRequest = () => {
       logger.info('Sync requested via event', 'replication');
-      triggerSync();
+      triggerSyncRef.current?.();
     };
     window.addEventListener('replication:sync-requested', handleSyncRequest);
     return () => window.removeEventListener('replication:sync-requested', handleSyncRequest);
-  }, [triggerSync]);
+  }, []);
 
   const contextValue: ReplicationSyncContextValue = {
     status,

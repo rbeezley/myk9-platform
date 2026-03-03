@@ -17,9 +17,7 @@ export const PipelineDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [showCloneDialog, setShowCloneDialog] = useState(false);
 
-  const { shows, allTrials, activeTrials, statistics } = useSecretaryDashboardData();
-
-  const isLoading = allTrials.length === 0 && shows.length === 0;
+  const { isLoading, allTrials, activeTrials, statistics } = useSecretaryDashboardData();
 
   // Map trials into pipeline data format
   const pipelineTrials = useMemo<TrialPipelineData[]>(() => {

@@ -1,126 +1,131 @@
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Plus, Copy } from 'lucide-react';
+/**
+ * PipelineDashboard — Mission Control for trial secretaries.
+ *
+ * Show-focused workstation: select a show and trial, see class-level
+ * pipeline progress across 5 columns.
+ */
+
+import React from 'react';
 import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
-import { ShowCloneDialog } from '@/components/shows/cloning';
-import { StatisticsCards } from '@/pages/SecretaryDashboard/StatisticsCards';
-import { useSecretaryDashboardData } from '@/pages/SecretaryDashboard/useSecretaryDashboardData';
-import { PipelineColumn } from './PipelineColumn';
-import { MissionControlSidebar } from './MissionControlSidebar';
-import { getCannedItemsForStage } from '../constants';
-import type { PipelineStage, TrialPipelineData } from '../types';
-import { PIPELINE_STAGES } from '../types';
+import { useMissionControlData } from '../hooks/useMissionControlData';
+import { ClassPipelineColumn } from './ClassPipelineColumn';
+import { ShowContextRow } from './ShowContextRow';
+import { TrialContextRow } from './TrialContextRow';
+import { CLASS_PIPELINE_STAGES } from '../mission-control-types';
 
 export const PipelineDashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const [showCloneDialog, setShowCloneDialog] = useState(false);
-
-  const { isLoading, allTrials, activeTrials, statistics } = useSecretaryDashboardData();
-
-  // Map trials into pipeline data format
-  const pipelineTrials = useMemo<TrialPipelineData[]>(() => {
-    return allTrials.map((t) => ({
-      id: t.id,
-      show_id: t.showId,
-      name: t.name ?? 'Trial',
-      date: t.date instanceof Date ? t.date.toISOString() : String(t.date),
-      // Cast needed: pipeline_stage not yet in SyncableTrial type
-      pipeline_stage: (
-        (t as unknown as { pipeline_stage?: number }).pipeline_stage ?? 1
-      ) as PipelineStage,
-      status: t.status,
-      venue_name: null,
-      planned_start_time: null,
-      judge_count: 0,
-      has_fee_schedule: false,
-      entry_open_date: null,
-      entry_close_date: null,
-      entry_count: 0,
-      results_visible: false,
-    }));
-  }, [allTrials]);
-
-  // Group by stage
-  const trialsByStage = useMemo(() => {
-    const map = new Map<PipelineStage, TrialPipelineData[]>();
-    for (const s of PIPELINE_STAGES) map.set(s, []);
-    for (const t of pipelineTrials) {
-      const bucket = map.get(t.pipeline_stage) ?? [];
-      bucket.push(t);
-      map.set(t.pipeline_stage, bucket);
-    }
-    return map;
-  }, [pipelineTrials]);
-
-  // Progress per trial (placeholder -- real progress needs DB data)
-  const checklistProgressMap = useMemo(() => {
-    const map = new Map<string, { completed: number; total: number }>();
-    for (const t of pipelineTrials) {
-      const cannedCount = getCannedItemsForStage(t.pipeline_stage).length;
-      map.set(t.id, { completed: 0, total: cannedCount });
-    }
-    return map;
-  }, [pipelineTrials]);
+  const {
+    isLoading,
+    classesLoading,
+    shows,
+    selectedShow,
+    selectedTrial,
+    trials,
+    handleShowChange,
+    handleTrialChange,
+    classesByStage,
+    hasLiveClasses,
+    showStats,
+    trialStats,
+  } = useMissionControlData();
 
   if (isLoading) {
     return (
-      <SecretaryLayout>
+      <SecretaryLayout fullWidth>
         <DelightfulLoading message="Loading mission control..." />
       </SecretaryLayout>
     );
   }
 
+  const showId = selectedShow?.id ?? '';
+  const trialId = selectedTrial?.id ?? '';
+
   return (
-    <SecretaryLayout>
-      <div className="space-y-6 pt-6">
+    <SecretaryLayout fullWidth>
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Mission Control</h1>
-            <p className="text-muted-foreground mt-1">
-              {statistics.activeTrials} active trial
-              {statistics.activeTrials !== 1 ? 's' : ''} &bull; {statistics.totalEntries}{' '}
-              total entries
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowCloneDialog(true)}>
-              <Copy className="h-4 w-4 mr-1.5" />
-              Clone Show
-            </Button>
-            <Button size="sm" onClick={() => navigate('/secretary/create-show/wizard')}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Show
-            </Button>
+          <h1 className="text-2xl font-bold tracking-tight">Mission Control</h1>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </div>
+            {hasLiveClasses && (
+              <div className="flex items-center gap-1 justify-end mt-0.5">
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-xs text-green-400 font-medium">Show Day</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Compact stats bar */}
-        <StatisticsCards statistics={statistics} totalTrialsCount={allTrials.length} />
+        {/* Show context row */}
+        <ShowContextRow
+          shows={shows}
+          selectedShow={selectedShow}
+          onShowChange={handleShowChange}
+          stats={showStats}
+        />
 
-        {/* Main content: Pipeline + Sidebar */}
-        <div className="flex gap-6">
-          {/* Kanban pipeline */}
-          <div className="flex-1 overflow-x-auto">
-            <div className="flex gap-3 pb-4 min-w-0">
-              {PIPELINE_STAGES.map((stage) => (
-                <PipelineColumn
-                  key={stage}
-                  stage={stage}
-                  trials={trialsByStage.get(stage) ?? []}
-                  checklistProgressMap={checklistProgressMap}
-                />
-              ))}
+        {/* Trial context row */}
+        {trials.length > 0 && (
+          <TrialContextRow
+            trials={trials}
+            selectedTrial={selectedTrial}
+            onTrialChange={handleTrialChange}
+            stats={trialStats}
+          />
+        )}
+
+        {/* Empty state: no shows */}
+        {shows.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <p className="text-lg font-medium mb-1">No shows yet</p>
+            <p className="text-sm">Create a show to get started with Mission Control.</p>
+          </div>
+        )}
+
+        {/* Empty state: show selected but no trials */}
+        {selectedShow && trials.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <p className="text-lg font-medium mb-1">No trials for this show</p>
+            <p className="text-sm">Add a trial to see the class pipeline.</p>
+          </div>
+        )}
+
+        {/* Class pipeline */}
+        {selectedTrial && (
+          <div>
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              Class Pipeline
+              {classesLoading && (
+                <span className="ml-2 text-muted-foreground/50 normal-case font-normal">
+                  Loading classes...
+                </span>
+              )}
+            </h2>
+            <div className="overflow-x-auto">
+              <div className="flex gap-3 pb-4">
+                {CLASS_PIPELINE_STAGES.map((stage) => (
+                  <ClassPipelineColumn
+                    key={stage}
+                    stage={stage}
+                    classes={classesByStage.get(stage) ?? []}
+                    showId={showId}
+                    trialId={trialId}
+                    isLive={stage === 'in-progress' && hasLiveClasses}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-
-          {/* Mission control sidebar */}
-          <MissionControlSidebar statistics={statistics} activeTrials={activeTrials} />
-        </div>
-
-        <ShowCloneDialog open={showCloneDialog} onOpenChange={setShowCloneDialog} />
+        )}
       </div>
     </SecretaryLayout>
   );

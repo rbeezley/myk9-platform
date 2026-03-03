@@ -241,9 +241,7 @@ export function computePerformanceStats(
     fastestTime = { seconds: fastest.searchTimeSeconds!, className: fastest.className };
   }
 
-  const allTimes = qResults.map(r => r.searchTimeSeconds!);
-  const avgTime =
-    allTimes.length > 0 ? allTimes.reduce((s, t) => s + t, 0) / allTimes.length : null;
+  const avgTime = computeAvgTime(normalized);
 
   const dates = normalized
     .map(r => r.date)

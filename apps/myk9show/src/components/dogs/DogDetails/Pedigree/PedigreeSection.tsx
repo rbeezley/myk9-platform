@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   usePedigreeQuery,
@@ -24,7 +24,7 @@ interface PedigreeSectionProps {
 
 export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
   const { user } = useAuthContext();
-  const { data: ancestors = [], isLoading } = usePedigreeQuery(dogId);
+  const { data: ancestors = [], isLoading, isError } = usePedigreeQuery(dogId);
   const upsertMutation = useUpsertPedigreeAncestorMutation();
   const updateMutation = useUpdatePedigreeAncestorMutation();
   const deleteMutation = useDeletePedigreeAncestorMutation();
@@ -45,9 +45,13 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
   };
 
   const handleAddSave = (data: CreatePedigreeAncestorData) => {
-    upsertMutation.mutate(data);
-    setAddDialogOpen(false);
-    setAddPosition(null);
+    if (!user?.id) return;
+    upsertMutation.mutate(data, {
+      onSuccess: () => {
+        setAddDialogOpen(false);
+        setAddPosition(null);
+      },
+    });
   };
 
   const handleEdit = (ancestor: PedigreeAncestor) => {
@@ -56,24 +60,24 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
   };
 
   const handleEditSave = (ancestor: PedigreeAncestor) => {
-    updateMutation.mutate({
-      id: ancestor.id,
-      dogId: ancestor.dog_id,
-      updates: {
-        registered_name: ancestor.registered_name,
-        call_name: ancestor.call_name,
-        titles: ancestor.titles,
-        breed: ancestor.breed,
-        color: ancestor.color,
-        sex: ancestor.sex,
-        date_of_birth: ancestor.date_of_birth,
-        photo_url: ancestor.photo_url,
-        registration_numbers: ancestor.registration_numbers,
-        health_info: ancestor.health_info,
-      },
-    });
-    setEditDialogOpen(false);
-    setEditAncestor(null);
+    const {
+      id,
+      dog_id,
+      owner_id: _ownerId,
+      created_at: _c,
+      updated_at: _u,
+      position: _p,
+      ...updates
+    } = ancestor;
+    updateMutation.mutate(
+      { id, dogId: dog_id, updates },
+      {
+        onSuccess: () => {
+          setEditDialogOpen(false);
+          setEditAncestor(null);
+        },
+      }
+    );
   };
 
   const handleView = (ancestor: PedigreeAncestor) => {
@@ -87,17 +91,31 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
   };
 
   const handleDeleteConfirm = () => {
-    if (deleteAncestor) {
-      deleteMutation.mutate({ id: deleteAncestor.id, dogId: deleteAncestor.dog_id });
-    }
-    setDeleteDialogOpen(false);
-    setDeleteAncestorObj(null);
+    if (!deleteAncestor) return;
+    deleteMutation.mutate(
+      { id: deleteAncestor.id, dogId: deleteAncestor.dog_id },
+      {
+        onSuccess: () => {
+          setDeleteDialogOpen(false);
+          setDeleteAncestorObj(null);
+        },
+      }
+    );
   };
 
   if (isLoading) {
     return (
       <div className="bg-background rounded-xl shadow-sm p-6 border flex items-center justify-center min-h-[200px]">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-background rounded-xl shadow-sm p-6 border flex flex-col items-center justify-center min-h-[200px] gap-2">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-muted-foreground">Failed to load pedigree data.</p>
       </div>
     );
   }
@@ -120,7 +138,7 @@ export default function PedigreeSection({ dogId }: PedigreeSectionProps) {
         open={addDialogOpen}
         position={addPosition}
         dogId={dogId}
-        ownerId={user?.id || ''}
+        ownerId={user?.id ?? ''}
         onClose={() => {
           setAddDialogOpen(false);
           setAddPosition(null);

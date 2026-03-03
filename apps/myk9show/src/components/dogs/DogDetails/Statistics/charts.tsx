@@ -20,6 +20,7 @@ import type {
   JudgeStats,
   TimelinePoint,
 } from '@/services/performanceStatsEngine';
+import { formatDateShortMonth } from '@/utils/dateFormat';
 
 // Recharts v3 uses readonly arrays in tooltip props, causing strict TS errors.
 // Use the same type-cast pattern from PerformanceGraphs.tsx.
@@ -267,18 +268,13 @@ interface ProgressTimelineChartProps {
 export const ProgressTimelineChart: React.FC<ProgressTimelineChartProps> = ({ timeline }) => {
   if (timeline.length < 2) return null;
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-  };
-
   return (
     <div className="border rounded-xl p-4">
       <h3 className="text-sm font-semibold mb-3">Cumulative Qualifying Legs</h3>
       <ResponsiveContainer width="100%" height={250}>
         <AreaChart data={timeline} margin={{ left: 10, right: 10 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-          <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
+          <XAxis dataKey="date" tickFormatter={formatDateShortMonth} tick={{ fontSize: 11 }} />
           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
           <Tooltip
             content={({ active, payload }: TooltipPayload<TimelinePoint>) => {
@@ -286,7 +282,7 @@ export const ProgressTimelineChart: React.FC<ProgressTimelineChartProps> = ({ ti
               const d = payload[0].payload;
               return (
                 <div style={tooltipStyle}>
-                  <p className="text-xs text-muted-foreground">{formatDate(d.date)}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateShortMonth(d.date)}</p>
                   <p className="font-semibold text-foreground text-sm">
                     {d.cumulativeQLegs} qualifying legs
                   </p>

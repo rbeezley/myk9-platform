@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, BarChart3 } from 'lucide-react';
+import { AlertCircle, Loader2, BarChart3 } from 'lucide-react';
 import { usePerformanceStatistics } from '@/hooks/usePerformanceStatistics';
 import StatsSummaryCards from './StatsSummaryCards';
 import {
@@ -14,12 +14,21 @@ interface PerformanceStatisticsSectionProps {
 }
 
 const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> = ({ dogId }) => {
-  const { stats, isLoading } = usePerformanceStatistics(dogId);
+  const { stats, isLoading, isError } = usePerformanceStatistics(dogId);
 
   if (isLoading) {
     return (
       <div className="bg-background rounded-xl shadow-sm p-6 border flex items-center justify-center min-h-[200px]">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-background rounded-xl shadow-sm p-6 border flex flex-col items-center justify-center min-h-[200px] gap-2">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-muted-foreground">Failed to load performance statistics.</p>
       </div>
     );
   }

@@ -11,20 +11,14 @@ import {
   mapAppPedigreeAncestorToDbInsert,
   mapAppPedigreeAncestorToDbUpdate,
 } from '@/services/mappers/pedigreeMappers';
-import { cacheStrategies } from '@/lib/queryClient';
+import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type {
   CreatePedigreeAncestorData,
   UpdatePedigreeAncestorData,
 } from '@/types/pedigree-types';
 
-// Query key factory
-export const pedigreeQueryKeys = {
-  all: ['pedigree-ancestors'] as const,
-  dog: (dogId: string) => [...pedigreeQueryKeys.all, 'dog', dogId] as const,
-};
-
 function invalidatePedigreeCaches(queryClient: QueryClient, dogId: string) {
-  queryClient.invalidateQueries({ queryKey: pedigreeQueryKeys.dog(dogId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.dogPedigree(dogId) });
 }
 
 // ========================================
@@ -33,7 +27,7 @@ function invalidatePedigreeCaches(queryClient: QueryClient, dogId: string) {
 
 export const usePedigreeQuery = (dogId: string, enabled = true) => {
   return useQuery({
-    queryKey: pedigreeQueryKeys.dog(dogId),
+    queryKey: queryKeys.dogPedigree(dogId),
     queryFn: async () => {
       const { data, error } = await getPedigreeAncestors(dogId);
       if (error) throw error;

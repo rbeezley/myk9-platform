@@ -14,7 +14,11 @@ import {
 
 function parseRegistrationNumbers(raw: unknown): RegistrationNumbers {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    return raw as RegistrationNumbers;
+    const result: RegistrationNumbers = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === 'string') result[k] = v;
+    }
+    return result;
   }
   return {};
 }
@@ -62,7 +66,7 @@ export const mapAppPedigreeAncestorToDbInsert = (
     sex: app.sex,
     date_of_birth: app.date_of_birth,
     photo_url: app.photo_url,
-    registration_numbers: app.registration_numbers as Record<string, unknown>,
+    registration_numbers: app.registration_numbers as Record<string, string>,
     health_info: app.health_info,
   };
 };
@@ -83,7 +87,7 @@ export const mapAppPedigreeAncestorToDbUpdate = (
   if (app.date_of_birth !== undefined) update.date_of_birth = app.date_of_birth;
   if (app.photo_url !== undefined) update.photo_url = app.photo_url;
   if (app.registration_numbers !== undefined)
-    update.registration_numbers = app.registration_numbers as Record<string, unknown>;
+    update.registration_numbers = app.registration_numbers as Record<string, string>;
   if (app.health_info !== undefined) update.health_info = app.health_info;
 
   return update;

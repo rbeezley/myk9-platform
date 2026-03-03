@@ -1,6 +1,7 @@
 import React from 'react';
 import { CommonDialog } from '@/components/common/CommonDialog';
 import { Button } from '@/components/ui/button';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import {
   POSITION_DISPLAY_NAMES,
   formatRegistrationNumbers,
@@ -44,14 +45,7 @@ const AncestorDetailsDialog: React.FC<AncestorDetailsDialogProps> = ({
         )}
         {regDisplay && <div className="text-xs">Registration: {regDisplay}</div>}
         {ancestor.date_of_birth && (
-          <div className="text-xs">
-            DOB:{' '}
-            {new Date(ancestor.date_of_birth).toLocaleDateString(undefined, {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })}
-          </div>
+          <div className="text-xs">DOB: {formatDateMMDDYYYY(ancestor.date_of_birth)}</div>
         )}
         {ancestor.health_info && <div className="text-xs">Health: {ancestor.health_info}</div>}
         {ancestor.linked_dog_id && (

@@ -55,6 +55,7 @@ pnpm-debug.log*
 **/.claude/*
 !**/.claude/skills/
 !**/.claude/commands/
+**/.claude/skills/*-workspace/
 supabase/.temp/
 **/supabase/.temp/
 

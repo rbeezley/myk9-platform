@@ -9,14 +9,22 @@
 import { useNavigate } from 'react-router-dom';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
-import { Circle, Settings, Play, CheckCircle, Lock } from 'lucide-react';
+import { Circle, Settings, Play, CheckCircle, Lock, Printer } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { useUpdateClassMutation } from '@/hooks/queries/useClassesDatabase';
+import type { UsePipelinePrintReturn } from '../print/usePipelinePrint';
 import type { ClassPipelineItem } from '../mission-control-types';
 
 interface ClassPipelineCardProps {
   item: ClassPipelineItem;
   showId: string;
   trialId: string;
+  print: UsePipelinePrintReturn;
 }
 
 // Two result sub-states: 'results' (done, needs review) and
@@ -70,10 +78,16 @@ const STAGE_STYLE: Record<
   },
 };
 
-export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({ item, showId, trialId }) => {
+export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
+  item,
+  showId,
+  trialId,
+  print,
+}) => {
   const navigate = useNavigate();
   const updateClass = useUpdateClassMutation();
   const isMutating = updateClass.isPending;
+  const { isPrinting, printRunOrder, printScoreSheet, printResults } = print;
 
   // Resolve style key: results cards distinguish Done vs Reviewed
   const styleKey =
@@ -190,10 +204,42 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({ item, show
           {isClosed && ' \u2022 Results published'}
         </div>
 
-        {/* Action buttons for Results stage cards */}
-        {isResults && (
-          <div className="flex gap-2 pt-0.5">
-            {item.is_results_reviewed ? (
+        {/* Action row: print dropdown + stage-specific buttons */}
+        <div className="flex items-center gap-2 pt-0.5">
+          {/* Print dropdown — visible on all stages when entries exist */}
+          {item.total_entries > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isPrinting}
+                  onClick={e => e.stopPropagation()}
+                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors disabled:opacity-50"
+                  aria-label="Print reports"
+                >
+                  <Printer className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" onClick={e => e.stopPropagation()}>
+                <DropdownMenuItem onClick={() => printRunOrder(item)}>
+                  Run Order / Check-In
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => printScoreSheet(item)}>
+                  Blank Score Sheet
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={item.stage !== 'results' && item.stage !== 'closed'}
+                  onClick={() => printResults(item)}
+                >
+                  Results Report
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Action buttons for Results stage cards */}
+          {isResults &&
+            (item.is_results_reviewed ? (
               <button
                 type="button"
                 disabled={isMutating}
@@ -211,13 +257,10 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({ item, show
               >
                 {isMutating ? 'Reviewing...' : 'Review'}
               </button>
-            )}
-          </div>
-        )}
+            ))}
 
-        {/* Reopen button for Closed stage cards */}
-        {isClosed && (
-          <div className="flex gap-2 pt-0.5">
+          {/* Reopen button for Closed stage cards */}
+          {isClosed && (
             <button
               type="button"
               disabled={isMutating}
@@ -226,8 +269,8 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({ item, show
             >
               {isMutating ? 'Reopening...' : 'Reopen'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

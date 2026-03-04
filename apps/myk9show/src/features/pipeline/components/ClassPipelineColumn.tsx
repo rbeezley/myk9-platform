@@ -6,6 +6,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ClassPipelineCard } from './ClassPipelineCard';
+import { usePipelinePrint } from '../print/usePipelinePrint';
 import { CLASS_STAGE_META } from '../mission-control-types';
 import type { ClassPipelineItem, ClassPipelineStage } from '../mission-control-types';
 
@@ -26,6 +27,7 @@ export const ClassPipelineColumn: React.FC<ClassPipelineColumnProps> = ({
 }) => {
   const meta = CLASS_STAGE_META[stage];
   const isEmpty = classes.length === 0;
+  const print = usePipelinePrint(showId, trialId);
 
   return (
     <div
@@ -65,7 +67,13 @@ export const ClassPipelineColumn: React.FC<ClassPipelineColumnProps> = ({
       {!isEmpty && (
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {classes.map(item => (
-            <ClassPipelineCard key={item.id} item={item} showId={showId} trialId={trialId} />
+            <ClassPipelineCard
+              key={item.id}
+              item={item}
+              showId={showId}
+              trialId={trialId}
+              print={print}
+            />
           ))}
         </div>
       )}

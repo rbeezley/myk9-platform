@@ -203,10 +203,6 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Restyle trial tabs in wizard Class Selection step** — Fixed: root cause was `data-[selected]` CSS selectors that don't match Base UI's `aria-selected` attribute — active state never applied. Replaced with `aria-selected:` selectors and aligned styling with app-wide tab pattern (gradient active state, rounded-xl container, transition animations). **File:** `ClassSelectionStep.tsx`.
 
-## Format Fee Fields with Dollar Sign and Decimal Places - 2026-02-27 14:27
-
-- **Add dollar sign prefix and auto-format fees to 2 decimal places** — Fee input fields (Pre-Entry Fee, Day of Show Fee) should display a "$" prefix and auto-format values to 2 decimal places on blur (e.g., typing "10" should display "$10.00"). Applies to both the Create Show wizard and the Edit Show dialog. **Problem:** Fee fields are plain number inputs with no currency formatting. Users must manually type the dollar sign and decimal places. If a user enters "10", it stays as "10" with no currency indicator or decimal formatting, which looks unprofessional and can cause confusion. **Files:** `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx:611-636` (Pre-Entry Fee and Day of Show Fee inputs in create wizard), `apps/myk9show/src/components/shows/ShowDetails/dialogs/EditShowDialog.tsx:490-500` (fee inputs in edit dialog). **Solution:** Add a "$" prefix to fee input fields (via an input group with a leading "$" indicator or an `InputAdornment`). On blur, auto-format the value to 2 decimal places using `Number(value).toFixed(2)`. Store the numeric value internally but display the formatted string. Also ensure display components (`ShowDetailsMain.tsx:347-351`, `ReviewStep.tsx:261-266`, `ShowInfoCard.tsx:63`, etc.) consistently show "$X.00" format.
-
 ## Club Page Shows No Clubs via Breadcrumb - 2026-02-27 14:40
 
 - [x] **Fix ClubsPage showing "No Clubs" when navigated via breadcrumb** — Fixed: ClubsPage now calls `loadClubs()` on mount when the store is empty. Same pattern as ShowEditForm fix. **File:** `ClubsPage.tsx`.

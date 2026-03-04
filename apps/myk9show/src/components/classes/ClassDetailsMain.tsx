@@ -41,6 +41,7 @@ import type {
   ScentWorkClassConfig,
   QualificationStatus,
 } from '@/types/scent-work-types';
+import { formatFee } from '@/utils/format';
 import '@/styles/myk9-show-details.css';
 
 interface ClassDetailsMainProps {
@@ -642,13 +643,13 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             {classData.preEntryFee && (
               <div className="myk9-show-info-item">
                 <div className="myk9-show-info-label">Pre Entry Fee</div>
-                <div className="myk9-show-info-value">${classData.preEntryFee}</div>
+                <div className="myk9-show-info-value">{formatFee(classData.preEntryFee)}</div>
               </div>
             )}
             {classData.dayOfShowFee && (
               <div className="myk9-show-info-item">
                 <div className="myk9-show-info-label">Day of Show Fee</div>
-                <div className="myk9-show-info-value">${classData.dayOfShowFee}</div>
+                <div className="myk9-show-info-value">{formatFee(classData.dayOfShowFee)}</div>
               </div>
             )}
             {classData.entryFee && classData.entryFee !== classData.preEntryFee && (

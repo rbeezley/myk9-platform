@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -662,7 +663,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  Pre-Entry Fee ($)
+                  Pre-Entry Fee
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -677,19 +678,16 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     </Tooltip>
                   </TooltipProvider>
                 </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={show.preEntryFee || ''}
-                  onChange={e => updateShowData({ preEntryFee: parseFloat(e.target.value) || 0 })}
+                <CurrencyInput
+                  value={show.preEntryFee}
+                  onChange={v => updateShowData({ preEntryFee: v })}
                   placeholder="0.00"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  Day-of-Show Fee ($)
+                  Day-of-Show Fee
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -704,12 +702,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     </Tooltip>
                   </TooltipProvider>
                 </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={show.dayOfShowFee || ''}
-                  onChange={e => updateShowData({ dayOfShowFee: parseFloat(e.target.value) || 0 })}
+                <CurrencyInput
+                  value={show.dayOfShowFee}
+                  onChange={v => updateShowData({ dayOfShowFee: v })}
                   placeholder="0.00"
                 />
               </div>

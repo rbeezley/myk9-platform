@@ -20,6 +20,7 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { format } from 'date-fns';
+import { formatFee } from '@/utils/format';
 
 interface ReviewStepProps {
   className?: string;
@@ -260,12 +261,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
                 <div>
                   <div className="text-sm text-muted-foreground">Pre-Entry Fee</div>
-                  <div className="text-foreground font-medium">${show.preEntryFee || 0}</div>
+                  <div className="text-foreground font-medium">{formatFee(show.preEntryFee)}</div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Day of Show Fee</div>
-                  <div className="text-foreground font-medium">${show.dayOfShowFee || 0}</div>
+                  <div className="text-foreground font-medium">{formatFee(show.dayOfShowFee)}</div>
                 </div>
               </div>
             </CardContent>

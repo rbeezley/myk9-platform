@@ -2,6 +2,7 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
+import { formatFee } from '@/utils/format';
 
 interface ShowInfoCardProps {
   showData: {
@@ -36,7 +37,10 @@ const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Dates</div>
-          <div className="font-medium">{new Date(showData.startDate).toLocaleDateString()} - {new Date(showData.endDate).toLocaleDateString()}</div>
+          <div className="font-medium">
+            {new Date(showData.startDate).toLocaleDateString()} -{' '}
+            {new Date(showData.endDate).toLocaleDateString()}
+          </div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Chairman</div>
@@ -60,7 +64,7 @@ const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Pre-Entry Fee</div>
-          <div className="font-medium">{showData.preEntryFee}</div>
+          <div className="font-medium">{formatFee(showData.preEntryFee)}</div>
         </div>
       </div>
     </Card>

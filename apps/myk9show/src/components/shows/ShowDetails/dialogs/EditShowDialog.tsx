@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import {
   Select,
   SelectContent,
@@ -558,19 +559,19 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
             <div className="grid grid-cols-2 gap-4 max-w-md">
               <div className="form-field">
                 <label className="form-label">Pre-Entry Fee</label>
-                <Input
-                  value={formData.preEntryFee || ''}
-                  onChange={e => handleInputChange('preEntryFee', e.target.value)}
-                  placeholder="$25.00"
+                <CurrencyInput
+                  value={formData.preEntryFee}
+                  onChange={v => handleInputChange('preEntryFee', String(v))}
+                  placeholder="0.00"
                   className="form-input h-10"
                 />
               </div>
               <div className="form-field">
                 <label className="form-label">Day of Show Fee</label>
-                <Input
-                  value={formData.dayOfShowFee || ''}
-                  onChange={e => handleInputChange('dayOfShowFee', e.target.value)}
-                  placeholder="$35.00"
+                <CurrencyInput
+                  value={formData.dayOfShowFee}
+                  onChange={v => handleInputChange('dayOfShowFee', String(v))}
+                  placeholder="0.00"
                   className="form-input h-10"
                 />
               </div>

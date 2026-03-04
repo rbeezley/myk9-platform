@@ -24,22 +24,22 @@ export function formatDuration(ms: number): string {
   if (ms < 1000) {
     return `${ms}ms`;
   }
-  
+
   const seconds = Math.floor(ms / 1000);
   if (seconds < 60) {
     return `${seconds}s`;
   }
-  
+
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
-  
+
   if (minutes < 60) {
     return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
   }
-  
+
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  
+
   return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
 }
 
@@ -84,11 +84,19 @@ export function formatRelativeTime(date: Date): string {
 /**
  * Format currency amount
  */
+const usdFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
 export function formatCurrency(amount: number, currency: string = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency
-  }).format(amount);
+  if (currency === 'USD') return usdFormatter.format(amount);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+}
+
+/**
+ * Format a fee value that may be a string, number, or undefined.
+ * Handles the common coercion pattern for fee fields stored as strings.
+ */
+export function formatFee(value: string | number | undefined | null): string {
+  return formatCurrency(Number(value) || 0);
 }
 
 /**
@@ -110,7 +118,7 @@ export function formatCompressionRatio(ratio: number): string {
  */
 export function formatNetworkSpeed(bytesPerSecond: number): string {
   const bitsPerSecond = bytesPerSecond * 8;
-  
+
   if (bitsPerSecond < 1000) {
     return `${bitsPerSecond} bps`;
   } else if (bitsPerSecond < 1000000) {

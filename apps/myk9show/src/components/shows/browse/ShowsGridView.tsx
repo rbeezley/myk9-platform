@@ -31,6 +31,7 @@ import { getTypeBadge, getStatusBadge } from '@/utils/browseShowsUtils';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import type { UserWithRoles } from '@/types/auth-types';
+import { formatFee } from '@/utils/format';
 
 /**
  * Icon component map for show actions
@@ -149,7 +150,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                   <div className="myk9-browse-card-detail-item">
                     <DollarSign className="h-4 w-4" />
-                    <span>{show.preEntryFee} entry fee</span>
+                    <span>{formatFee(show.preEntryFee)} entry fee</span>
                   </div>
 
                   <div className="myk9-browse-card-detail-item">

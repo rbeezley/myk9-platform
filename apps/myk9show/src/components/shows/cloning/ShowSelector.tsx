@@ -24,6 +24,7 @@ import {
   SortDesc,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { formatFee } from '@/utils/format';
 
 // Show selector type that matches the ShowCloneDialog interface expectations
 interface ShowSelectorShow {
@@ -364,7 +365,11 @@ export const ShowSelector: React.FC<ShowSelectorProps> = ({ shows, onShowSelecte
                             </div>
                             <div className="flex items-center gap-2">
                               <DollarSign className="h-4 w-4 text-muted-foreground" />
-                              <span>${show.entryFee || show.preEntryFee || 'TBD'} entry fee</span>
+                              <span>
+                                {show.entryFee || show.preEntryFee
+                                  ? `${formatFee(show.entryFee || show.preEntryFee)} entry fee`
+                                  : 'TBD entry fee'}
+                              </span>
                             </div>
                           </div>
 

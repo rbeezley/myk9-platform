@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,11 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   handleInputChange,
   handleCheckboxChange,
 }) => {
+  const handleFeeChange = (field: keyof ShowEditFormData) => (value: number) => {
+    const handler = handleInputChange(field);
+    handler({ target: { value: String(value) } } as React.ChangeEvent<HTMLInputElement>);
+  };
+
   return (
     <TabsContent
       value="fees"
@@ -49,11 +55,11 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               >
                 Pre-Entry Fee
               </Label>
-              <Input
+              <CurrencyInput
                 id="preEntryFee"
                 value={data.preEntryFee}
-                onChange={handleInputChange('preEntryFee')}
-                placeholder="$25.00"
+                onChange={handleFeeChange('preEntryFee')}
+                placeholder="0.00"
                 className={cn(
                   errors.some(e => e.includes('Pre-entry fee')) && 'border-destructive'
                 )}
@@ -67,11 +73,11 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               >
                 Day of Show Fee
               </Label>
-              <Input
+              <CurrencyInput
                 id="dayOfShowFee"
                 value={data.dayOfShowFee}
-                onChange={handleInputChange('dayOfShowFee')}
-                placeholder="$35.00"
+                onChange={handleFeeChange('dayOfShowFee')}
+                placeholder="0.00"
                 className={cn(
                   errors.some(e => e.includes('Day of show fee')) && 'border-destructive'
                 )}

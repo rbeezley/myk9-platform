@@ -46,6 +46,7 @@ import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { ClassAvailability } from '@/components/shows/ClassAvailability';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { formatFee } from '@/utils/format';
 
 // Types for extracted components
 interface RegistrationState {
@@ -136,12 +137,12 @@ const ExhibitorView = React.memo(
         </div>
         <div className="myk9-show-info-item">
           <div className="myk9-show-info-label">Pre-Entry Fee</div>
-          <div className="myk9-show-info-value">${showData.preEntryFee}</div>
+          <div className="myk9-show-info-value">{formatFee(showData.preEntryFee)}</div>
         </div>
         <div className="myk9-show-info-item">
           <div className="myk9-show-info-label">Day of Show Fee</div>
           <div className="myk9-show-info-value">
-            ${showData.dayOfShowFee || showData.preEntryFee}
+            {formatFee(showData.dayOfShowFee || showData.preEntryFee)}
           </div>
         </div>
       </div>
@@ -499,9 +500,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                 </div>
                 <div className="myk9-show-info-item">
                   <div className="myk9-show-info-label">Chairman</div>
-                  <div className="myk9-show-info-value">
-                    {resolvePersonName(showData.chairman)}
-                  </div>
+                  <div className="myk9-show-info-value">{resolvePersonName(showData.chairman)}</div>
                 </div>
                 <div className="myk9-show-info-item">
                   <div className="myk9-show-info-label">Secretary</div>
@@ -512,7 +511,8 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                 <div className="myk9-show-info-item">
                   <div className="myk9-show-info-label">Entry Fees</div>
                   <div className="myk9-show-info-value">
-                    ${showData.preEntryFee} / ${showData.dayOfShowFee || showData.preEntryFee}
+                    {formatFee(showData.preEntryFee)} /{' '}
+                    {formatFee(showData.dayOfShowFee || showData.preEntryFee)}
                   </div>
                 </div>
               </div>

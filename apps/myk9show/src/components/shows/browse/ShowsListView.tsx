@@ -33,6 +33,7 @@ import { getTypeBadge } from '@/utils/browseShowsUtils';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import type { UserWithRoles } from '@/types/auth-types';
+import { formatFee } from '@/utils/format';
 
 /**
  * Icon component map for show actions
@@ -140,7 +141,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
 
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span>{show.preEntryFee} entry fee</span>
+                      <span>{formatFee(show.preEntryFee)} entry fee</span>
                     </div>
 
                     <div className="flex items-center gap-2">

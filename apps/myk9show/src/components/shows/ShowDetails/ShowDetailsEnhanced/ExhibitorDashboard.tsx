@@ -15,6 +15,7 @@ import {
 import { isAfter, isBefore } from 'date-fns';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import type { ExhibitorDashboardProps } from './types';
+import { formatFee } from '@/utils/format';
 
 /** Milliseconds in one day */
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -144,13 +145,15 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, on
               <div className="absolute top-2 right-2">
                 <Star className="w-4 h-4 text-green-500" />
               </div>
-              <div className="text-3xl font-bold text-green-700 mb-2">${show.preEntryFee}</div>
+              <div className="text-3xl font-bold text-green-700 mb-2">
+                {formatFee(show.preEntryFee)}
+              </div>
               <div className="text-sm font-medium text-green-800 mb-1">Pre-Entry Fee</div>
               <div className="text-xs text-green-600">Save by registering early!</div>
             </div>
             <div className="p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100 shadow-sm">
               <div className="text-3xl font-bold text-orange-700 mb-2">
-                ${show.dayOfShowFee || show.preEntryFee}
+                {formatFee(show.dayOfShowFee || show.preEntryFee)}
               </div>
               <div className="text-sm font-medium text-orange-800 mb-1">Day of Show</div>
               <div className="text-xs text-orange-600">Subject to availability</div>

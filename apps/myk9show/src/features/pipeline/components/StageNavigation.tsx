@@ -18,7 +18,7 @@ export const StageNavigation: React.FC<StageNavigationProps> = ({
 }) => {
   return (
     <div className="flex items-center gap-1 overflow-x-auto pb-2">
-      {PIPELINE_STAGES.map((stage) => {
+      {PIPELINE_STAGES.map(stage => {
         const meta = STAGE_META[stage];
         const isCompleted = stage < currentStage;
         const isCurrent = stage === currentStage;
@@ -31,17 +31,16 @@ export const StageNavigation: React.FC<StageNavigationProps> = ({
             onClick={() => onSelectStage(stage)}
             disabled={isFuture}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap',
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap',
               isViewing && 'ring-2 ring-primary ring-offset-1',
-              isCompleted &&
-                'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+              isCompleted && 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
               isCurrent && !isViewing && 'bg-primary/10 text-primary',
               isFuture && 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed',
               !isViewing &&
                 !isCompleted &&
                 !isCurrent &&
                 !isFuture &&
-                'bg-muted/50 text-muted-foreground hover:bg-muted',
+                'bg-muted/50 text-muted-foreground hover:bg-muted'
             )}
           >
             {isCompleted && <Check className="h-3 w-3" />}

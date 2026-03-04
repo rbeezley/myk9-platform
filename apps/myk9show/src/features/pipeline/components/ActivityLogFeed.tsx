@@ -42,18 +42,12 @@ interface ActivityLogFeedProps {
 
 export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => {
   const [filters, setFilters] = useState<ActivityLogFilters>({});
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-  } = useActivityLog(trialId, filters);
-
-  const entries = useMemo(
-    () => data?.pages.flatMap((p) => p.entries) ?? [],
-    [data?.pages]
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useActivityLog(
+    trialId,
+    filters
   );
+
+  const entries = useMemo(() => data?.pages.flatMap(p => p.entries) ?? [], [data?.pages]);
 
   return (
     <Card>
@@ -63,14 +57,14 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
         </div>
         <Select
           value={filters.actionType ?? 'all'}
-          onValueChange={(v) =>
-            setFilters((f) => ({
+          onValueChange={v =>
+            setFilters(f => ({
               ...f,
               actionType: v === 'all' ? undefined : (v as ActivityActionType),
             }))
           }
         >
-          <SelectTrigger className="h-7 text-xs w-full">
+          <SelectTrigger className="h-8 text-sm w-full">
             <SelectValue placeholder="All activity" />
           </SelectTrigger>
           <SelectContent>
@@ -89,12 +83,10 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">
-            No activity yet
-          </p>
+          <p className="text-sm text-muted-foreground text-center py-6">No activity yet</p>
         ) : (
           <div className="space-y-3">
-            {entries.map((entry) => (
+            {entries.map(entry => (
               <div key={entry.id} className="flex items-start gap-2.5">
                 <div className="mt-0.5 flex-shrink-0">
                   {ACTION_ICONS[entry.action_type] ?? (
@@ -102,14 +94,14 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs leading-relaxed">{entry.description}</p>
+                  <p className="text-sm leading-relaxed">{entry.description}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {entry.actor_name && (
-                      <span className="text-[10px] text-muted-foreground font-medium">
+                      <span className="text-sm text-muted-foreground font-medium">
                         {entry.actor_name}
                       </span>
                     )}
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-sm text-muted-foreground">
                       {formatRelativeTime(new Date(entry.created_at))}
                     </span>
                   </div>
@@ -121,13 +113,11 @@ export const ActivityLogFeed: React.FC<ActivityLogFeedProps> = ({ trialId }) => 
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full text-xs"
+                className="w-full text-sm"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
               >
-                {isFetchingNextPage ? (
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                ) : null}
+                {isFetchingNextPage ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                 Load more
               </Button>
             )}

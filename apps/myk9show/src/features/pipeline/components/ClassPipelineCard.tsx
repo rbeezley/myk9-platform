@@ -158,7 +158,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({ item, show
 
         {/* Judge */}
         {item.judge_name && (
-          <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <div className="text-sm text-muted-foreground flex items-center gap-1">
             <svg
               className="h-3 w-3 flex-shrink-0"
               fill="none"

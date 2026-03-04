@@ -46,10 +46,10 @@ export const ClassPipelineColumn: React.FC<ClassPipelineColumnProps> = ({
         )}
       >
         <div className={cn('flex items-center gap-2', isEmpty && 'flex-col gap-1 w-full')}>
-          <h3 className={cn('font-semibold text-sm', isEmpty && 'text-xs text-muted-foreground')}>
+          <h3 className={cn('font-semibold text-sm', isEmpty && 'text-muted-foreground')}>
             {isEmpty ? meta.shortLabel : meta.label}
           </h3>
-          <Badge variant="secondary" className="text-xs px-1.5 py-0">
+          <Badge variant="secondary" className="text-sm px-1.5 py-0">
             {classes.length}
           </Badge>
           {isLive && (

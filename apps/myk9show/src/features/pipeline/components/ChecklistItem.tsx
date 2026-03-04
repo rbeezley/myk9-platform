@@ -26,19 +26,19 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
         'hover:bg-muted/50',
-        item.completed && 'opacity-70',
+        item.completed && 'opacity-70'
       )}
     >
       <Checkbox
         checked={item.completed}
-        onCheckedChange={(checked) => {
+        onCheckedChange={checked => {
           if (item.autoCompleted) return;
           onToggle(item.key, !!checked);
         }}
         disabled={disabled || item.autoCompleted}
         className={cn(
           item.autoCompleted &&
-            'data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500',
+            'data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500'
         )}
       />
 
@@ -50,7 +50,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
           className={cn(
             'text-sm',
             item.completed && 'line-through text-muted-foreground',
-            item.navigateTo && 'hover:underline hover:text-primary',
+            item.navigateTo && 'hover:underline hover:text-primary'
           )}
         >
           {item.label}
@@ -61,7 +61,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         {item.autoCompleted && (
           <Badge
             variant="outline"
-            className="text-[10px] gap-0.5 px-1.5 py-0 text-green-600 border-green-200"
+            className="text-sm gap-0.5 px-1.5 py-0 text-green-600 border-green-200"
           >
             <Zap className="h-2.5 w-2.5" />
             Auto
@@ -77,7 +77,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               onDelete(item.key);
             }}

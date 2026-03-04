@@ -125,6 +125,9 @@ const navigationGroups: NavGroup[] = [
   },
 ];
 
+// Pre-compute all hrefs once (used for active-path detection)
+const ALL_NAV_HREFS = navigationGroups.flatMap(group => group.items.map(item => item.href));
+
 export const SecretarySidebar: React.FC<SecretarySidebarProps> = ({
   onCloseMobile,
   isCollapsed,
@@ -139,8 +142,7 @@ export const SecretarySidebar: React.FC<SecretarySidebarProps> = ({
 
     // Special handling for routes with sub-routes
     // Don't mark parent routes as active if a more specific child route exists
-    const allHrefs = navigationGroups.flatMap(group => group.items.map(item => item.href));
-    const hasMoreSpecificRoute = allHrefs.some(
+    const hasMoreSpecificRoute = ALL_NAV_HREFS.some(
       otherHref =>
         otherHref !== href &&
         otherHref.startsWith(href + '/') &&

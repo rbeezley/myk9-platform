@@ -14,7 +14,7 @@
  * - Supports both fixed-width and dynamic-width (collapsible) sidebars
  */
 
-import React, { ReactNode, useCallback, useRef, useState } from 'react';
+import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
@@ -48,7 +48,7 @@ export interface SidebarLayoutProps {
   isCollapsible?: boolean;
   /** Whether the sidebar is currently collapsed (controlled) */
   isCollapsed?: boolean;
-  /** Callback when collapse state changes */
+  /** Callback when collapse state changes (reserved for future use) */
   onCollapseChange?: (collapsed: boolean) => void;
   /** Label for the mobile menu button */
   mobileMenuLabel?: string;
@@ -73,7 +73,6 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
   sidebarWidth = SIDEBAR_LAYOUT_CONSTANTS.DEFAULT_WIDTH,
   isCollapsible = false,
   isCollapsed = false,
-  onCollapseChange: _onCollapseChange,
   mobileMenuLabel = 'Menu',
   showMobileMenuButton = true,
   mobileHeaderContent,
@@ -95,18 +94,23 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
 
   // Hover handlers with 150ms delay on expand, immediate collapse
   const handleMouseEnter = useCallback(() => {
-    if (!hoverToExpand) return;
     hoverTimerRef.current = setTimeout(() => setIsHoverExpanded(true), 150);
-  }, [hoverToExpand]);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
-    if (!hoverToExpand) return;
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
     setIsHoverExpanded(false);
-  }, [hoverToExpand]);
+  }, []);
+
+  // Clean up hover timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
 
   // Calculate actual sidebar width based on collapse state
   const effectivelyCollapsed = isCollapsible && isCollapsed && !isHoverExpanded;
@@ -145,8 +149,8 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         style={{ width: actualWidth }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={hoverToExpand ? handleMouseEnter : undefined}
+        onMouseLeave={hoverToExpand ? handleMouseLeave : undefined}
       >
         {/* Clone sidebar and inject onCloseMobile prop if it accepts it */}
         {React.isValidElement(sidebar)

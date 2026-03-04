@@ -5,13 +5,20 @@
  * Standalone routes (different URL prefix) render without the layout.
  */
 
-import { lazy, useEffect } from 'react';
+import React, { lazy, useEffect } from 'react';
 import { Route, useParams, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
+
+/** Strips standalone page chrome (min-height, padding) so pages fit inside sidebar layout */
+const EmbeddedPageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
+    {children}
+  </div>
+);
 
 // Mission Control (replaces old SecretaryDashboard)
 const SecretaryDashboard = lazy(() => import('@/features/pipeline/components/PipelineDashboard'));
@@ -106,45 +113,35 @@ export const SecretaryRoutes = () => (
       <Route path="shows" element={
         <SuspenseWrapper>
           <PageTransition>
-            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
-              <BrowseShowsPage />
-            </div>
+            <EmbeddedPageWrapper><BrowseShowsPage /></EmbeddedPageWrapper>
           </PageTransition>
         </SuspenseWrapper>
       } />
       <Route path="users" element={
         <SuspenseWrapper>
           <PageTransition>
-            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
-              <BrowsePeoplePage />
-            </div>
+            <EmbeddedPageWrapper><BrowsePeoplePage /></EmbeddedPageWrapper>
           </PageTransition>
         </SuspenseWrapper>
       } />
       <Route path="dogs" element={
         <SuspenseWrapper>
           <PageTransition>
-            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
-              <BrowseDogsPage />
-            </div>
+            <EmbeddedPageWrapper><BrowseDogsPage /></EmbeddedPageWrapper>
           </PageTransition>
         </SuspenseWrapper>
       } />
       <Route path="clubs" element={
         <SuspenseWrapper>
           <PageTransition>
-            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
-              <BrowseClubsPage />
-            </div>
+            <EmbeddedPageWrapper><BrowseClubsPage /></EmbeddedPageWrapper>
           </PageTransition>
         </SuspenseWrapper>
       } />
       <Route path="calendar" element={
         <SuspenseWrapper>
           <PageTransition>
-            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
-              <CalendarPage />
-            </div>
+            <EmbeddedPageWrapper><CalendarPage /></EmbeddedPageWrapper>
           </PageTransition>
         </SuspenseWrapper>
       } />

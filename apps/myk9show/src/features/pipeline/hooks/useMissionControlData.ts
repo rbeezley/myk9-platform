@@ -31,7 +31,7 @@ export function useMissionControlData() {
   // Derive trials for selected show from trialStore
   const trials = useMemo(
     () => (selectedShow ? allTrials.filter((t) => t.showId === selectedShow.id) : []),
-    [allTrials, selectedShow],
+    [allTrials, selectedShow?.id],
   );
 
   // Derive selected trial

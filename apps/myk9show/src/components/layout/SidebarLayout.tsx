@@ -14,7 +14,7 @@
  * - Supports both fixed-width and dynamic-width (collapsible) sidebars
  */
 
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useCallback, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
@@ -60,6 +60,10 @@ export interface SidebarLayoutProps {
   mobileOpen?: boolean;
   /** Callback when mobile sidebar open state changes */
   onMobileOpenChange?: (open: boolean) => void;
+  /** Custom collapsed width in pixels (default: SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH) */
+  collapsedWidth?: number;
+  /** Whether to enable hover-driven expand/collapse */
+  hoverToExpand?: boolean;
 }
 
 export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
@@ -75,17 +79,39 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
   mobileHeaderContent,
   mobileOpen: controlledMobileOpen,
   onMobileOpenChange,
+  collapsedWidth: customCollapsedWidth,
+  hoverToExpand = false,
 }) => {
   // Internal mobile state (uncontrolled mode)
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+
+  // Hover-to-expand state
+  const [isHoverExpanded, setIsHoverExpanded] = useState(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Use controlled or uncontrolled mobile state
   const mobileOpen = controlledMobileOpen !== undefined ? controlledMobileOpen : internalMobileOpen;
   const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
 
+  // Hover handlers with 150ms delay on expand, immediate collapse
+  const handleMouseEnter = useCallback(() => {
+    if (!hoverToExpand) return;
+    hoverTimerRef.current = setTimeout(() => setIsHoverExpanded(true), 150);
+  }, [hoverToExpand]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!hoverToExpand) return;
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setIsHoverExpanded(false);
+  }, [hoverToExpand]);
+
   // Calculate actual sidebar width based on collapse state
-  const actualWidth = isCollapsible && isCollapsed
-    ? SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH
+  const effectivelyCollapsed = isCollapsible && isCollapsed && !isHoverExpanded;
+  const actualWidth = effectivelyCollapsed
+    ? (customCollapsedWidth ?? SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH)
     : sidebarWidth;
 
   return (
@@ -119,11 +145,14 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         style={{ width: actualWidth }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Clone sidebar and inject onCloseMobile prop if it accepts it */}
         {React.isValidElement(sidebar)
-          ? React.cloneElement(sidebar as React.ReactElement<{ onCloseMobile?: () => void }>, {
+          ? React.cloneElement(sidebar as React.ReactElement<{ onCloseMobile?: () => void; isCollapsed?: boolean }>, {
               onCloseMobile: () => setMobileOpen(false),
+              isCollapsed: effectivelyCollapsed,
             })
           : sidebar}
       </div>

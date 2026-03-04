@@ -46,7 +46,9 @@ export const ShowContextRow: React.FC<ShowContextRowProps> = ({
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
               Show
             </div>
-            <SelectValue placeholder="Select a show" />
+            <SelectValue placeholder="Select a show">
+              {selectedShow ? selectedShow.name : undefined}
+            </SelectValue>
           </div>
         </SelectTrigger>
         <SelectContent>

@@ -1,7 +1,8 @@
 /**
  * Secretary Routes - Lazy loaded routes for secretary functionality
- * 
- * Includes class management, run order, and show administration
+ *
+ * Uses SecretaryLayout with collapsible sidebar for all /secretary/* pages.
+ * Standalone routes (different URL prefix) render without the layout.
  */
 
 import { lazy, useEffect } from 'react';
@@ -10,6 +11,7 @@ import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
+import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
 
 // Mission Control (replaces old SecretaryDashboard)
 const SecretaryDashboard = lazy(() => import('@/features/pipeline/components/PipelineDashboard'));
@@ -30,6 +32,13 @@ const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagement
 const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistManagementPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 
+// Shared pages rendered within secretary layout
+const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
+const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
+const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
+const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
+const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
+
 const ShowEditRedirect = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
@@ -41,52 +50,107 @@ const ShowEditRedirect = () => {
 
 export const SecretaryRoutes = () => (
   <>
-    {/* Secretary Dashboard */}
-    <Route path="/secretary/dashboard" element={
+    {/* Secretary Layout route — persistent collapsible sidebar for /secretary/* */}
+    <Route path="/secretary" element={
       <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <SecretaryLayout />
+      </ProtectedRoute>
+    }>
+      <Route path="dashboard" element={
         <SuspenseWrapper>
           <PageTransition><SecretaryDashboard /></PageTransition>
         </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Pipeline Trial Detail */}
-    <Route path="/secretary/pipeline/:trialId" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+      } />
+      <Route path="pipeline/:trialId" element={
         <SuspenseWrapper>
           <PageTransition><TrialPipelineDetail /></PageTransition>
         </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Create Show Route */}
-    <Route path="/secretary/create-show" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+      } />
+      <Route path="create-show" element={
         <SuspenseWrapper>
           <PageTransition><CreateShowPage /></PageTransition>
         </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Show Creation Wizard Page */}
-    <Route path="/secretary/create-show/wizard" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+      } />
+      <Route path="create-show/wizard" element={
         <SuspenseWrapper>
           <PageTransition><ShowCreationWizardPage /></PageTransition>
         </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Show Edit Redirect - opens ShowDetailsPage with edit panel */}
-    <Route path="/secretary/shows/:showId/edit" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+      } />
+      <Route path="run-order" element={
+        <SuspenseWrapper>
+          <PageTransition><RunOrderPage /></PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="entries" element={
+        <SuspenseWrapper>
+          <PageTransition><EntryManagementPage /></PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="waitlist" element={
+        <SuspenseWrapper>
+          <PageTransition><WaitlistManagementPage /></PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="day-of" element={
+        <SuspenseWrapper>
+          <PageTransition><DayOfOperationsPage /></PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="shows/:showId/edit" element={
         <SuspenseWrapper>
           <ShowEditRedirect />
         </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
+      } />
 
-    {/* Class Management Routes */}
+      {/* Shared pages — strip standalone padding/min-height so they fit the sidebar layout */}
+      <Route path="shows" element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
+              <BrowseShowsPage />
+            </div>
+          </PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="users" element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
+              <BrowsePeoplePage />
+            </div>
+          </PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="dogs" element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
+              <BrowseDogsPage />
+            </div>
+          </PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="clubs" element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
+              <BrowseClubsPage />
+            </div>
+          </PageTransition>
+        </SuspenseWrapper>
+      } />
+      <Route path="calendar" element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
+              <CalendarPage />
+            </div>
+          </PageTransition>
+        </SuspenseWrapper>
+      } />
+    </Route>
+
+    {/* Standalone routes — different URL prefix, no secretary sidebar */}
     <Route path="/trials/:trialId/classes/create" element={
       <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
         <SuspenseWrapper>
@@ -103,15 +167,6 @@ export const SecretaryRoutes = () => (
       </ProtectedRoute>
     } />
 
-    <Route path="/secretary/run-order" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-        <SuspenseWrapper>
-          <PageTransition><RunOrderPage /></PageTransition>
-        </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Class-specific Secretary Management */}
     <Route path="/shows/:showId/trials/:trialId/classes/:classId/secretary" element={
       <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
         <SuspenseWrapper>
@@ -120,34 +175,6 @@ export const SecretaryRoutes = () => (
       </ProtectedRoute>
     } />
 
-    {/* Entry Management */}
-    <Route path="/secretary/entries" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-        <SuspenseWrapper>
-          <PageTransition><EntryManagementPage /></PageTransition>
-        </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Waitlist Management */}
-    <Route path="/secretary/waitlist" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-        <SuspenseWrapper>
-          <PageTransition><WaitlistManagementPage /></PageTransition>
-        </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Day-of Operations */}
-    <Route path="/secretary/day-of" element={
-      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-        <SuspenseWrapper>
-          <PageTransition><DayOfOperationsPage /></PageTransition>
-        </SuspenseWrapper>
-      </ProtectedRoute>
-    } />
-
-    {/* Sync Management for Secretaries */}
     <Route path="/sync/dashboard" element={
       <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
         <SuspenseWrapper>

@@ -18,11 +18,16 @@ import {
 } from '@/components/ui/select';
 import { StatChip } from './StatChip';
 import type { ContextStats } from '../mission-control-types';
-import type { ShowTrial } from '@/types/show-types';
+
+/** Minimal trial shape — works with both ShowTrial and trialStore's SyncableTrial */
+interface TrialLike {
+  id: string;
+  name?: string | undefined;
+}
 
 interface TrialContextRowProps {
-  trials: ShowTrial[];
-  selectedTrial: ShowTrial | null;
+  trials: TrialLike[];
+  selectedTrial: TrialLike | null;
   onTrialChange: (trialId: string) => void;
   stats: ContextStats;
 }
@@ -45,13 +50,15 @@ export const TrialContextRow: React.FC<TrialContextRowProps> = ({
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
               Trial
             </div>
-            <SelectValue placeholder="Select a trial" />
+            <SelectValue placeholder="Select a trial">
+              {selectedTrial ? (selectedTrial.name || 'Unnamed Trial') : undefined}
+            </SelectValue>
           </div>
         </SelectTrigger>
         <SelectContent>
           {trials.map((trial) => (
             <SelectItem key={trial.id} value={trial.id}>
-              {trial.name}
+              {trial.name || 'Unnamed Trial'}
             </SelectItem>
           ))}
         </SelectContent>

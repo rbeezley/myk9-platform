@@ -6,6 +6,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
 import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
 import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping';
 import type {
@@ -15,6 +16,7 @@ import type {
 
 export function useMissionControlData() {
   const { shows, isLoading: showsLoading } = useShowStore();
+  const allTrials = useTrialStore((s) => s.trials);
 
   // Selection state
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
@@ -26,10 +28,10 @@ export function useMissionControlData() {
     [shows, selectedShowId],
   );
 
-  // Derive trials for selected show
+  // Derive trials for selected show from trialStore
   const trials = useMemo(
-    () => selectedShow?.trials ?? [],
-    [selectedShow],
+    () => (selectedShow ? allTrials.filter((t) => t.showId === selectedShow.id) : []),
+    [allTrials, selectedShow],
   );
 
   // Derive selected trial

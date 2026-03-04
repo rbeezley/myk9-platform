@@ -1,8 +1,8 @@
 /**
  * Secretary Layout Component
  *
- * Provides sidebar navigation layout specifically for secretary pages.
- * Uses SidebarLayout for consistent sidebar behavior across the app.
+ * Provides collapsible sidebar navigation for secretary pages.
+ * Uses SidebarLayout with hover-to-expand: 56px icon rail → 240px expanded.
  */
 
 import { Outlet } from 'react-router-dom';
@@ -12,23 +12,24 @@ import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 interface SecretaryLayoutProps {
   children?: React.ReactNode;
-  fullWidth?: boolean;
 }
 
-export function SecretaryLayout({ children, fullWidth }: SecretaryLayoutProps): React.ReactElement {
+export function SecretaryLayout({ children }: SecretaryLayoutProps): React.ReactElement {
   const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
 
   return (
     <SidebarLayout
       sidebar={<SecretarySidebar onCloseMobile={closeMobile} />}
-      sidebarWidth={288}
-      mobileMenuLabel="Secretary Dashboard"
+      sidebarWidth={240}
+      collapsedWidth={56}
+      isCollapsible={true}
+      isCollapsed={true}
+      hoverToExpand={true}
+      mobileMenuLabel="Secretary Console"
       mobileOpen={mobileOpen}
       onMobileOpenChange={setMobileOpen}
     >
-      <div className={fullWidth ? 'px-6 py-6' : 'px-6 py-8 max-w-7xl mx-auto'}>
-        {children ?? <Outlet />}
-      </div>
+      {children ?? <Outlet />}
     </SidebarLayout>
   );
 }

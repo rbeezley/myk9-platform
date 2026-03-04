@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, ArrowRight, ChevronLeft, Lock } from 'lucide-react';
-import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { useTrialStore } from '@/store/trialStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -68,11 +67,7 @@ export const TrialPipelineDetail: React.FC = () => {
   const stageMeta = STAGE_META[viewingStage];
 
   if (!trial) {
-    return (
-      <SecretaryLayout>
-        <DelightfulLoading message="Loading trial..." />
-      </SecretaryLayout>
-    );
+    return <DelightfulLoading message="Loading trial..." />;
   }
 
   const handleToggle = (key: string, completed: boolean) => {
@@ -109,8 +104,8 @@ export const TrialPipelineDetail: React.FC = () => {
   };
 
   return (
-    <SecretaryLayout>
-      <div className="space-y-6 pt-6 max-w-4xl mx-auto">
+    <>
+      <div className="space-y-6 px-6 py-4 max-w-4xl mx-auto">
         <Button
           variant="ghost"
           size="sm"
@@ -223,7 +218,7 @@ export const TrialPipelineDetail: React.FC = () => {
         showId={trial.showId}
         onClose={() => setActivePanel(null)}
       />
-    </SecretaryLayout>
+    </>
   );
 };
 

@@ -19,6 +19,8 @@ export const CLASS_STAGE_META: Record<
   ClassPipelineStage,
   {
     label: string;
+    /** Abbreviated label for collapsed/empty columns */
+    shortLabel: string;
     description: string;
     /** Subtle column background tint */
     columnBg: string;
@@ -28,30 +30,35 @@ export const CLASS_STAGE_META: Record<
 > = {
   'not-started': {
     label: 'Not Started',
+    shortLabel: 'Not Started',
     description: 'Awaiting setup',
     columnBg: 'bg-muted-foreground/5',
     headerBorder: 'border-muted-foreground/20',
   },
   setup: {
     label: 'Setup / Briefing / Break',
+    shortLabel: 'Setup',
     description: 'Judge is setting up, briefing handlers, or on break',
     columnBg: 'bg-yellow-500/10',
     headerBorder: 'border-yellow-500/40',
   },
   'in-progress': {
     label: 'In Progress',
+    shortLabel: 'In Progress',
     description: 'Scoring underway',
     columnBg: 'bg-green-500/10',
     headerBorder: 'border-green-500/40',
   },
   results: {
     label: 'Review / Reporting',
+    shortLabel: 'Review',
     description: 'Scoring complete — review and report',
     columnBg: 'bg-blue-500/10',
     headerBorder: 'border-blue-500/40',
   },
   closed: {
     label: 'Closed',
+    shortLabel: 'Closed',
     description: 'Results finalized',
     columnBg: 'bg-muted-foreground/3',
     headerBorder: 'border-muted-foreground/15',

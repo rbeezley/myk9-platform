@@ -109,10 +109,10 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
   // Only triggers when the sidebar is collapsed — tapping the narrow rail expands it.
   // A second tap anywhere outside collapses it via the overlay.
   const handleSidebarClick = useCallback(() => {
-    if (isCollapsible && isCollapsed && !isHoverExpanded) {
+    if (isCollapsible && isCollapsed) {
       setIsHoverExpanded(true);
     }
-  }, [isCollapsible, isCollapsed, isHoverExpanded]);
+  }, [isCollapsible, isCollapsed]);
 
   // Clean up hover timer on unmount
   useEffect(() => {

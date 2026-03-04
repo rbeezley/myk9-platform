@@ -1,0 +1,66 @@
+{
+  "expectations": [
+    {
+      "text": "Output contains a markdown table with Requirement, Status, and Evidence columns",
+      "passed": true,
+      "evidence": "Full markdown table with 'Requirement | Status | Evidence' columns, 21 rows covering explicit requirements, implied constraints, and edge cases."
+    },
+    {
+      "text": "At least 5 distinct requirements are identified in the audit (explicit + implied)",
+      "passed": true,
+      "evidence": "21 requirements identified: 4 explicit, 10 implied constraints (no downtime, type safety, auth, error handling, performance, tests, rollback, ops, security, caching), and 5 from stress-testing + edge cases (stale data, partial migration, partial resolver failure, concurrent mutations, schema versioning, file uploads, empty states)."
+    },
+    {
+      "text": "Every 'Covered' status has a specific citation (section name or quote), not vague references",
+      "passed": true,
+      "evidence": "All 16 Covered items cite specific phases and sections: e.g., 'Summary table maps all 12 endpoints; Phases 2.1 and 2.2 detail each resolver', 'Phase 7 covers feature flag rollback (7.1), server kill switch (7.2), no data rollback needed (7.3), per-domain scoping (7.4)'."
+    },
+    {
+      "text": "Output includes a numerical coverage score between 0-100",
+      "passed": true,
+      "evidence": "Coverage: 82/100 with detailed rationale explaining that core migration is solid but edge cases have gaps."
+    },
+    {
+      "text": "At least 1 requirement is marked Partial or Missing",
+      "passed": true,
+      "evidence": "5 gaps found: 4 Partial (partial resolver failure, concurrent mutations, schema versioning, empty states) and 1 Missing (file upload handling). All have specific evidence explaining what's lacking."
+    },
+    {
+      "text": "Output includes a patched plan section that addresses identified gaps",
+      "passed": true,
+      "evidence": "Comprehensive patches: Phase 2.3 [EXPANDED] (partial resolver failures + not-found handling), Phase 2.5 [ADDED] (file upload handling with two options), Phase 2.6 [ADDED] (concurrent/batched mutation ordering), Phase 5.1 [EXPANDED] (schema evolution policy), Phase 6.4 [EXPANDED] (empty state handling). All preserve original structure."
+    },
+    {
+      "text": "Surfaces non-obvious requirements like N+1 query prevention, auth middleware migration, deprecation timeline, or schema versioning",
+      "passed": true,
+      "evidence": "N+1/DataLoader (Phases 2.1, 2.2, 6.2), auth middleware migration (Phase 2.4), deprecation timeline (Phase 5.1), schema versioning (gap + Phase 5.1 [EXPANDED] patch). Also surfaces: file uploads, query complexity limiting, partial resolver failures, concurrent mutation ordering."
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7,
+    "pass_rate": 1.0
+  },
+  "timing": {
+    "total_duration_seconds": 163.7
+  },
+  "claims": [
+    {
+      "claim": "Coverage score is 82/100",
+      "type": "quality",
+      "verified": true,
+      "evidence": "21 requirements audited, 16 Covered + 4 Partial + 1 Missing. Score is well-calibrated — the Missing item (file uploads) could genuinely be blocking."
+    },
+    {
+      "claim": "The stress-test gap categories were systematically applied",
+      "type": "process",
+      "verified": true,
+      "evidence": "Step 2 contains an explicit 8-category assessment table matching the skill's gap categories, with specific findings per category."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Best result of iteration 2. Found the most gaps (5), including a genuinely blocking Missing item (file uploads). The 82/100 score shows the calibration check is working — the model is no longer defaulting to 100%. The patches are concrete and well-integrated."
+  }
+}

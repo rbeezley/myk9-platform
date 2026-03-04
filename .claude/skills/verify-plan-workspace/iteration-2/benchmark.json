@@ -1,0 +1,331 @@
+{
+  "metadata": {
+    "skill_name": "verify-plan",
+    "skill_path": "/Users/richardbeezley/AI Projects/myk9-platform/.claude/skills/verify-plan/SKILL.md",
+    "executor_model": "claude-opus-4-6",
+    "timestamp": "2026-03-04T19:35:00Z",
+    "evals_run": ["stripe-webhooks", "rest-to-graphql", "dark-mode"],
+    "runs_per_configuration": 1,
+    "notes": "with_skill runs use iteration-2 revised skill. without_skill baselines reused from iteration-1."
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "stripe-webhooks",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 115.4,
+        "tokens": 64930,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "has-requirements-table",
+          "passed": true,
+          "evidence": "Full markdown table with Requirement | Status | Evidence columns, 16 rows."
+        },
+        {
+          "text": "all-requirements-extracted",
+          "passed": true,
+          "evidence": "16 requirements identified (4 explicit + 12 implied)."
+        },
+        {
+          "text": "citations-present",
+          "passed": true,
+          "evidence": "All Covered items cite specific steps with descriptions."
+        },
+        { "text": "coverage-score-present", "passed": true, "evidence": "Coverage: 90/100" },
+        {
+          "text": "gaps-identified",
+          "passed": true,
+          "evidence": "2 Partial items: async failure recovery, data rollback procedure."
+        },
+        {
+          "text": "auto-patch-present",
+          "passed": true,
+          "evidence": "3 [ADDED] sections: Steps 7, 8, 9 addressing monitoring, race condition, retry."
+        },
+        {
+          "text": "implied-requirements-found",
+          "passed": true,
+          "evidence": "Signature verification, idempotency, async retry/reconciliation, customer race condition, monitoring/audit."
+        }
+      ]
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "stripe-webhooks",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.43,
+        "passed": 3,
+        "failed": 4,
+        "total": 7,
+        "time_seconds": 104.5,
+        "tokens": 57644,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "has-requirements-table",
+          "passed": false,
+          "evidence": "Table uses different column names (Covered? | Notes)."
+        },
+        {
+          "text": "all-requirements-extracted",
+          "passed": true,
+          "evidence": "4 explicit + 10 gaps + 5 implied = well over 5."
+        },
+        {
+          "text": "citations-present",
+          "passed": false,
+          "evidence": "Brief notes, not structured citations."
+        },
+        { "text": "coverage-score-present", "passed": false, "evidence": "No numerical score." },
+        {
+          "text": "gaps-identified",
+          "passed": true,
+          "evidence": "10 gaps identified including HIGH severity idempotency and deployment issues."
+        },
+        {
+          "text": "auto-patch-present",
+          "passed": false,
+          "evidence": "Gaps listed but no patched plan section."
+        },
+        {
+          "text": "implied-requirements-found",
+          "passed": true,
+          "evidence": "Surfaces idempotency, race conditions, secret rotation, retry logic."
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "rest-to-graphql",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 163.7,
+        "tokens": 47750,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "has-requirements-table",
+          "passed": true,
+          "evidence": "Full audit table with correct columns, 21 rows."
+        },
+        {
+          "text": "all-requirements-extracted",
+          "passed": true,
+          "evidence": "21 requirements (4 explicit + 10 implied + 5 stress-test + 2 edge cases)."
+        },
+        {
+          "text": "citations-present",
+          "passed": true,
+          "evidence": "Detailed citations with phase references and specific section numbers."
+        },
+        { "text": "coverage-score-present", "passed": true, "evidence": "Coverage: 82/100" },
+        {
+          "text": "gaps-identified",
+          "passed": true,
+          "evidence": "5 gaps: 4 Partial + 1 Missing (file upload handling)."
+        },
+        {
+          "text": "auto-patch-present",
+          "passed": true,
+          "evidence": "5 patches: Phase 2.3 [EXPANDED], Phase 2.5 [ADDED], Phase 2.6 [ADDED], Phase 5.1 [EXPANDED], Phase 6.4 [EXPANDED]."
+        },
+        {
+          "text": "implied-requirements-found",
+          "passed": true,
+          "evidence": "N+1/DataLoader, auth middleware, deprecation timeline, schema versioning, file uploads, query complexity, concurrent mutations."
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "rest-to-graphql",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.57,
+        "passed": 4,
+        "failed": 3,
+        "total": 7,
+        "time_seconds": 109.9,
+        "tokens": 40921,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "has-requirements-table",
+          "passed": false,
+          "evidence": "Table uses Addressed? | Where columns."
+        },
+        {
+          "text": "all-requirements-extracted",
+          "passed": true,
+          "evidence": "4 explicit + 11 gaps + 4 implied = well over 5."
+        },
+        {
+          "text": "citations-present",
+          "passed": false,
+          "evidence": "Brief phase references, not structured citations."
+        },
+        { "text": "coverage-score-present", "passed": false, "evidence": "No numerical score." },
+        {
+          "text": "gaps-identified",
+          "passed": true,
+          "evidence": "11 gaps: file uploads, rate limiting, subscriptions, schema evolution, monitoring, etc."
+        },
+        {
+          "text": "auto-patch-present",
+          "passed": true,
+          "evidence": "Recommended Additions section with 7 concrete additions mapped to phases."
+        },
+        {
+          "text": "implied-requirements-found",
+          "passed": true,
+          "evidence": "All 4 target items plus file uploads, rate limiting, monitoring, batch ops."
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "dark-mode",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 116.9,
+        "tokens": 51559,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "has-requirements-table",
+          "passed": true,
+          "evidence": "Full audit table with correct columns, 13 rows."
+        },
+        {
+          "text": "all-requirements-extracted",
+          "passed": true,
+          "evidence": "13 requirements (4 explicit + 9 implied)."
+        },
+        {
+          "text": "citations-present",
+          "passed": true,
+          "evidence": "Specific citations with step numbers and mechanisms."
+        },
+        { "text": "coverage-score-present", "passed": true, "evidence": "Coverage: 88/100" },
+        {
+          "text": "gaps-identified",
+          "passed": true,
+          "evidence": "2 Partial items: hardcoded color audit completeness, no feature flag/kill switch."
+        },
+        {
+          "text": "auto-patch-present",
+          "passed": true,
+          "evidence": "Step 4a [ADDED] (ESLint rule), Step 7a [ADDED] (feature flag), Step 4 [EXPANDED] (two-pass audit)."
+        },
+        {
+          "text": "implied-requirements-found",
+          "passed": true,
+          "evidence": "FOWT prevention, WCAG contrast, OS preference tracking, prefers-reduced-motion, feature flag rollback."
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "dark-mode",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.57,
+        "passed": 4,
+        "failed": 3,
+        "total": 7,
+        "time_seconds": 102.9,
+        "tokens": 49842,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "has-requirements-table",
+          "passed": false,
+          "evidence": "Table uses Status | Notes, close but not exact format."
+        },
+        {
+          "text": "all-requirements-extracted",
+          "passed": true,
+          "evidence": "4 explicit + 7 gaps + 4 edge cases + 4 implied = well over 5."
+        },
+        {
+          "text": "citations-present",
+          "passed": false,
+          "evidence": "Brief COVERED status with notes, not structured citations."
+        },
+        {
+          "text": "coverage-score-present",
+          "passed": false,
+          "evidence": "No numerical coverage score."
+        },
+        {
+          "text": "gaps-identified",
+          "passed": true,
+          "evidence": "7 gaps: FOUC, competing providers, duplicate hooks, hardcoded colors, meta theme-color, etc."
+        },
+        {
+          "text": "auto-patch-present",
+          "passed": true,
+          "evidence": "The entire plan IS the patch — phases directly address each gap."
+        },
+        {
+          "text": "implied-requirements-found",
+          "passed": true,
+          "evidence": "FOUC, system preference, transition animation, cross-tab sync, meta theme-color, print styles."
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": { "mean": 1.0, "stddev": 0.0, "min": 1.0, "max": 1.0 },
+      "time_seconds": { "mean": 132.0, "stddev": 27.1, "min": 115.4, "max": 163.7 },
+      "tokens": { "mean": 54746, "stddev": 8920, "min": 47750, "max": 64930 }
+    },
+    "without_skill": {
+      "pass_rate": { "mean": 0.52, "stddev": 0.08, "min": 0.43, "max": 0.57 },
+      "time_seconds": { "mean": 105.8, "stddev": 3.8, "min": 102.9, "max": 109.9 },
+      "tokens": { "mean": 49469, "stddev": 8600, "min": 40921, "max": 57644 }
+    },
+    "delta": {
+      "pass_rate": "+0.48",
+      "time_seconds": "+26.2",
+      "tokens": "+5277"
+    }
+  },
+  "notes": [
+    "MAJOR IMPROVEMENT: with_skill pass rate jumped from 0.71 (iteration 1) to 1.00 (iteration 2). All 7 assertions now pass for all 3 evals.",
+    "The critical 'gaps-identified' assertion now passes 100% for with_skill (was 0% in iteration 1). The skill no longer rubber-stamps plans as 100% complete.",
+    "Coverage scores are well-calibrated: 82, 88, 90 — reflecting genuine gap detection with scores under 100.",
+    "'auto-patch-present' also now passes 100% (was 0% in iteration 1), with concrete [ADDED] and [EXPANDED] sections.",
+    "Format assertions continue to pass 100% for with_skill. Without-skill baselines unchanged at 0.52 average.",
+    "Time cost: with_skill is now slower (132s vs 106s average, +26s). The stress-test gap categories add analysis time. Token usage also up (+5277 tokens).",
+    "The gap between with_skill (1.00) and without_skill (0.52) is now +0.48, up from +0.19 in iteration 1. The skill provides substantial value over baseline."
+  ]
+}

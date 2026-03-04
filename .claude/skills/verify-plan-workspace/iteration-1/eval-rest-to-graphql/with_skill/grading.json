@@ -1,0 +1,60 @@
+{
+  "expectations": [
+    {
+      "text": "Output contains a markdown table with Requirement, Status, and Evidence columns",
+      "passed": true,
+      "evidence": "Lines 181-192: Full audit table with 'Requirement | Status | Evidence' columns, 10 rows."
+    },
+    {
+      "text": "At least 5 distinct requirements are identified in the audit (explicit + implied)",
+      "passed": true,
+      "evidence": "10 requirements: 5 explicit (migrate APIs, 12 endpoints, React/RQ frontend, keep REST working, nothing breaks) and 5 implied (rollback, type safety, testing, auth/authz, performance)."
+    },
+    {
+      "text": "Every 'Covered' status has a specific citation (section name or quote), not vague references",
+      "passed": true,
+      "evidence": "All entries have detailed citations, e.g., 'Phase 2a table explicitly lists all 12 (6 User, 6 Product)', 'Phase 3c: \"feature flag... toggles between old REST hook and new GraphQL hook\"'."
+    },
+    {
+      "text": "Output includes a numerical coverage score between 0-100",
+      "passed": true,
+      "evidence": "Line 194: 'Coverage: 100/100'"
+    },
+    {
+      "text": "At least 1 requirement is marked Partial or Missing",
+      "passed": false,
+      "evidence": "All 10 requirements marked 'Covered'. Line 200: 'No gaps identified.' The baseline run found 11 gaps (file uploads, rate limiting, subscriptions, schema versioning, monitoring, batch ops, etc.) that this verification missed entirely."
+    },
+    {
+      "text": "Output includes a patched plan section that addresses identified gaps",
+      "passed": false,
+      "evidence": "Line 204: 'No patches needed — coverage is 100%.' Auto-patch step skipped."
+    },
+    {
+      "text": "Surfaces non-obvious requirements like N+1 query prevention, auth middleware migration, deprecation timeline, or schema versioning",
+      "passed": true,
+      "evidence": "Plan includes N+1/DataLoader (Phase 4.2), auth context (Phase 2c), deprecation (Phase 5), and performance benchmarks. However, schema versioning is not mentioned. Pass because 3 of 4 listed items are present."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 2,
+    "total": 7,
+    "pass_rate": 0.71
+  },
+  "timing": {
+    "total_duration_seconds": 83.5
+  },
+  "claims": [
+    {
+      "claim": "All requirements fully covered with citations",
+      "type": "quality",
+      "verified": false,
+      "evidence": "The baseline identified 11 gaps (file uploads, rate limiting, real-time subscriptions, schema evolution, external consumers, monitoring, batch operations, codegen watch mode, CI freshness checks, rollback runbook) that this verification did not surface."
+    }
+  ],
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Same pattern as other with-skill runs: excellent structure, poor gap detection."
+  }
+}

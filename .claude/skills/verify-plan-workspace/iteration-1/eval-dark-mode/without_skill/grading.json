@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "Output contains a markdown table with Requirement, Status, and Evidence columns",
+      "passed": false,
+      "evidence": "Has 'Requirements Checklist' table with 'Requirement | Status | Notes' — close but 'Notes' instead of 'Evidence'."
+    },
+    {
+      "text": "At least 5 distinct requirements are identified in the audit (explicit + implied)",
+      "passed": true,
+      "evidence": "4 explicit requirements + 7 identified gaps + 4 edge cases + 4 implied requirements = well over 5."
+    },
+    {
+      "text": "Every 'Covered' status has a specific citation (section name or quote), not vague references",
+      "passed": false,
+      "evidence": "Uses 'COVERED' with brief notes like 'Multiple toggle mechanisms exist; need consolidation' — not specific section quotes."
+    },
+    {
+      "text": "Output includes a numerical coverage score between 0-100",
+      "passed": false,
+      "evidence": "No numerical coverage score in the output."
+    },
+    {
+      "text": "At least 1 requirement is marked Partial or Missing",
+      "passed": true,
+      "evidence": "7 gaps identified: FOUC (biggest gap), three competing providers, duplicate useTheme hooks, hardcoded colors, third-party styling, meta theme-color, and transition smoothness."
+    },
+    {
+      "text": "Output includes a patched plan section that addresses identified gaps",
+      "passed": true,
+      "evidence": "The entire plan IS the patch — Phases 1-5 directly address each identified gap with specific action items, code snippets, and priority ordering."
+    },
+    {
+      "text": "Surfaces non-obvious requirements like SSR flash-of-wrong-theme prevention, contrast accessibility, system preference change detection, or transition animations",
+      "passed": true,
+      "evidence": "FOUC prevention (Phase 3 + Gap #1), system preference changes (covered in multiple providers), transition animation (Gap #7). Also surfaces non-obvious issues: competing providers, cross-tab sync, meta theme-color, print styles. Accessibility not explicitly called out as WCAG contrast check."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 3,
+    "total": 7,
+    "pass_rate": 0.57
+  },
+  "timing": {
+    "total_duration_seconds": 102.9
+  },
+  "claims": [],
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Found the most real-world gaps of any dark mode run. Identified the three-provider problem that the with-skill version missed entirely."
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "expectations": [
+    {
+      "text": "Output contains a markdown table with Requirement, Status, and Evidence columns",
+      "passed": false,
+      "evidence": "Has two tables: 'Requirements Coverage' (Requirement | Covered? | Notes) and 'Edge Cases & Gaps' (Gap | Severity | Status). Column names don't match the expected format."
+    },
+    {
+      "text": "At least 5 distinct requirements are identified in the audit (explicit + implied)",
+      "passed": true,
+      "evidence": "4 explicit requirements in coverage table + 10 gaps in edge case table + 5 implied requirements section = well over 5 distinct requirements identified."
+    },
+    {
+      "text": "Every 'Covered' status has a specific citation (section name or quote), not vague references",
+      "passed": false,
+      "evidence": "Coverage table uses brief notes like 'Existing handler routes to entry, subscription, or one-time payment' but doesn't cite specific plan section names or quote plan text."
+    },
+    {
+      "text": "Output includes a numerical coverage score between 0-100",
+      "passed": false,
+      "evidence": "No numerical coverage score present anywhere in the output."
+    },
+    {
+      "text": "At least 1 requirement is marked Partial or Missing",
+      "passed": true,
+      "evidence": "10 gaps identified in the 'Edge Cases & Gaps' table, including HIGH severity items like 'No idempotency protection', 'Edge Function location mismatch', and 'Webhook endpoint not registered in Stripe'."
+    },
+    {
+      "text": "Output includes a patched plan section that addresses identified gaps",
+      "passed": false,
+      "evidence": "Gaps are listed with severity and status references to plan phases, but there's no explicit 'patched plan' section that updates the original plan with fixes."
+    },
+    {
+      "text": "Surfaces non-obvious requirements like webhook signature verification, idempotency handling, retry logic, or event ordering",
+      "passed": true,
+      "evidence": "Surfaces idempotency (HIGH), race conditions on customer record creation (MEDIUM), webhook secret rotation, Stripe response time requirements, pro tier mapping gap, and retry logic."
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 4,
+    "total": 7,
+    "pass_rate": 0.43
+  },
+  "timing": {
+    "total_duration_seconds": 104.5
+  },
+  "claims": [],
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Baseline lacks structured format (expected, since no skill was used) but excels at finding real gaps. Found more actionable issues than the with-skill version."
+  }
+}

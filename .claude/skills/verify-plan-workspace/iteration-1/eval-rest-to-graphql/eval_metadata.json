@@ -1,0 +1,35 @@
+{
+  "eval_id": 1,
+  "eval_name": "rest-to-graphql",
+  "prompt": "Plan the migration of our user and product APIs from REST to GraphQL. We have 12 REST endpoints across two routers. The frontend is React with React Query. We need to keep the REST endpoints working during migration so nothing breaks for existing clients.\n\nAfter creating the plan, verify it covers all requirements using /verify-plan.",
+  "assertions": [
+    {
+      "name": "has-requirements-table",
+      "description": "Output contains a markdown table with Requirement, Status, and Evidence columns"
+    },
+    {
+      "name": "all-requirements-extracted",
+      "description": "At least 5 distinct requirements are identified in the audit (explicit + implied)"
+    },
+    {
+      "name": "citations-present",
+      "description": "Every 'Covered' status has a specific citation (section name or quote), not vague references"
+    },
+    {
+      "name": "coverage-score-present",
+      "description": "Output includes a numerical coverage score between 0-100"
+    },
+    {
+      "name": "gaps-identified",
+      "description": "At least 1 requirement is marked Partial or Missing"
+    },
+    {
+      "name": "auto-patch-present",
+      "description": "Output includes a patched plan section that addresses identified gaps"
+    },
+    {
+      "name": "implied-requirements-found",
+      "description": "Surfaces non-obvious requirements like N+1 query prevention, auth middleware migration, deprecation timeline, or schema versioning"
+    }
+  ]
+}

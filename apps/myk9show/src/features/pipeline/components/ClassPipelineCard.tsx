@@ -7,14 +7,10 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
-import {
-  Circle,
-  Settings,
-  Play,
-  CheckCircle,
-  Lock,
-} from 'lucide-react';
+import { Circle, Settings, Play, CheckCircle, Lock } from 'lucide-react';
+import { useUpdateClassMutation } from '@/hooks/queries/useClassesDatabase';
 import type { ClassPipelineItem } from '../mission-control-types';
 
 interface ClassPipelineCardProps {
@@ -74,36 +70,60 @@ const STAGE_STYLE: Record<
   },
 };
 
-export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
-  item,
-  showId,
-  trialId,
-}) => {
+export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({ item, showId, trialId }) => {
   const navigate = useNavigate();
+  const updateClass = useUpdateClassMutation();
+  const isMutating = updateClass.isPending;
+
   // Resolve style key: results cards distinguish Done vs Reviewed
   const styleKey =
-    item.stage === 'results' && item.is_results_reviewed
-      ? 'results-reviewed'
-      : item.stage;
+    item.stage === 'results' && item.is_results_reviewed ? 'results-reviewed' : item.stage;
   const style = STAGE_STYLE[styleKey] ?? STAGE_STYLE['not-started'];
   const Icon = style.icon;
   const progress =
-    item.total_entries > 0
-      ? Math.round((item.scored_count / item.total_entries) * 100)
-      : 0;
+    item.total_entries > 0 ? Math.round((item.scored_count / item.total_entries) * 100) : 0;
   const isClosed = item.stage === 'closed';
   const isResults = item.stage === 'results';
+
+  const handleReview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateClass.mutate(
+      { id: item.id, updates: { is_results_reviewed: true } },
+      {
+        onSuccess: () => notifications.success(`${item.name} marked as reviewed`),
+        onError: () => notifications.error(`Failed to mark ${item.name} as reviewed`),
+      }
+    );
+  };
+
+  const handlePublish = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateClass.mutate(
+      { id: item.id, updates: { is_scoring_finalized: true } },
+      {
+        onSuccess: () => notifications.success(`${item.name} results published`),
+        onError: () => notifications.error(`Failed to publish ${item.name} results`),
+      }
+    );
+  };
+
+  const handleReopen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateClass.mutate(
+      { id: item.id, updates: { is_scoring_finalized: false, is_results_reviewed: false } },
+      {
+        onSuccess: () => notifications.success(`${item.name} reopened for review`),
+        onError: () => notifications.error(`Failed to reopen ${item.name}`),
+      }
+    );
+  };
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() =>
-        navigate(
-          `/shows/${showId}/trials/${trialId}/classes/${item.id}/secretary`,
-        )
-      }
-      onKeyDown={(e) => {
+      onClick={() => navigate(`/shows/${showId}/trials/${trialId}/classes/${item.id}/secretary`)}
+      onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           navigate(`/shows/${showId}/trials/${trialId}/classes/${item.id}/secretary`);
@@ -113,7 +133,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
         'relative w-full text-left rounded-lg border border-border/60 bg-card overflow-hidden',
         'transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
-        isClosed && 'opacity-60',
+        isClosed && 'opacity-60'
       )}
     >
       {/* Left accent bar */}
@@ -122,9 +142,9 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
       {/* Status badge (top-right) */}
       <div
         className={cn(
-          'absolute top-0 right-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-bl-lg',
+          'absolute top-0 right-0 flex items-center gap-1 px-2.5 py-1 text-sm font-semibold rounded-bl-lg',
           style.badgeBg,
-          style.badgeText,
+          style.badgeText
         )}
       >
         <Icon className="h-3 w-3" />
@@ -134,9 +154,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
       {/* Card body */}
       <div className="p-4 pl-5 pt-5 space-y-2">
         {/* Class name */}
-        <div className="font-semibold text-sm pr-20 leading-tight">
-          {item.name}
-        </div>
+        <div className="font-semibold text-sm pr-20 leading-tight">{item.name}</div>
 
         {/* Judge */}
         {item.judge_name && (
@@ -159,7 +177,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
         )}
 
         {/* Progress bar */}
-        <div className="h-[3px] bg-muted rounded-full overflow-hidden">
+        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-all duration-500', style.accent)}
             style={{ width: `${progress}%` }}
@@ -167,7 +185,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
         </div>
 
         {/* Scored summary */}
-        <div className="text-[11px] text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           {item.scored_count}/{item.total_entries} scored
           {isClosed && ' \u2022 Results published'}
         </div>
@@ -178,26 +196,35 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
             {item.is_results_reviewed ? (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); /* TODO: publish action */ }}
-                className="px-2.5 py-1.5 text-xs bg-green-500/15 text-green-400 rounded-md hover:bg-green-500/25 font-medium"
+                disabled={isMutating}
+                onClick={handlePublish}
+                className="px-4 py-2.5 text-sm bg-green-500/15 text-green-400 rounded-md hover:bg-green-500/25 font-medium disabled:opacity-50"
               >
-                Publish
+                {isMutating ? 'Publishing...' : 'Publish'}
               </button>
             ) : (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); /* TODO: review action */ }}
-                className="px-2.5 py-1.5 text-xs bg-primary/15 text-primary rounded-md hover:bg-primary/25 font-medium"
+                disabled={isMutating}
+                onClick={handleReview}
+                className="px-4 py-2.5 text-sm bg-primary/15 text-primary rounded-md hover:bg-primary/25 font-medium disabled:opacity-50"
               >
-                Review
+                {isMutating ? 'Reviewing...' : 'Review'}
               </button>
             )}
+          </div>
+        )}
+
+        {/* Reopen button for Closed stage cards */}
+        {isClosed && (
+          <div className="flex gap-2 pt-0.5">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); /* TODO: print action */ }}
-              className="px-2.5 py-1.5 text-xs border border-border rounded-md hover:bg-muted/50"
+              disabled={isMutating}
+              onClick={handleReopen}
+              className="px-4 py-2.5 text-sm border border-border rounded-md hover:bg-muted/50 font-medium disabled:opacity-50"
             >
-              Print
+              {isMutating ? 'Reopening...' : 'Reopen'}
             </button>
           </div>
         )}

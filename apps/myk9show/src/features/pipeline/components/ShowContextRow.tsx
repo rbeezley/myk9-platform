@@ -2,14 +2,7 @@
  * ShowContextRow — Show selector + show-level stats in a single row.
  */
 
-import {
-  Calendar,
-  Zap,
-  Grid3X3,
-  CheckCircle,
-  TrendingUp,
-  Award,
-} from 'lucide-react';
+import { Calendar, Zap, Grid3X3, CheckCircle, TrendingUp, Award } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -43,7 +36,7 @@ export const ShowContextRow: React.FC<ShowContextRowProps> = ({
       <Select value={selectedShow?.id ?? ''} onValueChange={onShowChange}>
         <SelectTrigger className="w-[260px] border-border/60 bg-card">
           <div className="text-left">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+            <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">
               Show
             </div>
             <SelectValue placeholder="Select a show">
@@ -52,7 +45,7 @@ export const ShowContextRow: React.FC<ShowContextRowProps> = ({
           </div>
         </SelectTrigger>
         <SelectContent>
-          {shows.map((show) => (
+          {shows.map(show => (
             <SelectItem key={show.id} value={show.id}>
               {show.name}
             </SelectItem>

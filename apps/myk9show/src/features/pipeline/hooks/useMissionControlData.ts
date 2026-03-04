@@ -9,14 +9,11 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
 import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping';
-import type {
-  ClassPipelineItem,
-  ContextStats,
-} from '../mission-control-types';
+import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
 
 export function useMissionControlData() {
   const { shows, isLoading: showsLoading } = useShowStore();
-  const allTrials = useTrialStore((s) => s.trials);
+  const allTrials = useTrialStore(s => s.trials);
 
   // Selection state
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
@@ -24,28 +21,28 @@ export function useMissionControlData() {
 
   // Derive selected show
   const selectedShow = useMemo(
-    () => shows.find((s) => s.id === selectedShowId) ?? shows[0] ?? null,
-    [shows, selectedShowId],
+    () => shows.find(s => s.id === selectedShowId) ?? shows[0] ?? null,
+    [shows, selectedShowId]
   );
 
   // Derive trials for selected show from trialStore
   const trials = useMemo(
-    () => (selectedShow ? allTrials.filter((t) => t.showId === selectedShow.id) : []),
-    [allTrials, selectedShow?.id],
+    () => (selectedShow ? allTrials.filter(t => t.showId === selectedShow.id) : []),
+    [allTrials, selectedShow]
   );
 
   // Derive selected trial
   const selectedTrial = useMemo(
-    () => trials.find((t) => t.id === selectedTrialId) ?? trials[0] ?? null,
-    [trials, selectedTrialId],
+    () => trials.find(t => t.id === selectedTrialId) ?? trials[0] ?? null,
+    [trials, selectedTrialId]
   );
 
   // Fetch classes for the selected trial
   const effectiveTrialId = selectedTrial?.id ?? '';
-  const {
-    data: rawClasses,
-    isLoading: classesLoading,
-  } = useClassesByTrialQuery(effectiveTrialId, !!effectiveTrialId);
+  const { data: rawClasses, isLoading: classesLoading } = useClassesByTrialQuery(
+    effectiveTrialId,
+    !!effectiveTrialId
+  );
 
   // Map raw DB classes → ClassPipelineItem[]
   const pipelineClasses = useMemo<ClassPipelineItem[]>(() => {
@@ -63,7 +60,7 @@ export function useMissionControlData() {
         status: cls.status ? String(cls.status) : null,
         stage: mapClassToStage(
           cls.status as string | null,
-          cls.is_scoring_finalized as boolean | null,
+          cls.is_scoring_finalized as boolean | null
         ),
         scored_count: Number(cls.scored_count ?? 0),
         total_entries: totalEntries,
@@ -76,10 +73,7 @@ export function useMissionControlData() {
   }, [rawClasses]);
 
   // Group by stage
-  const classesByStage = useMemo(
-    () => groupClassesByStage(pipelineClasses),
-    [pipelineClasses],
-  );
+  const classesByStage = useMemo(() => groupClassesByStage(pipelineClasses), [pipelineClasses]);
 
   // Show-level stats (across ALL trials for the selected show)
   const showStats = useMemo<ContextStats>(() => {
@@ -127,7 +121,7 @@ export function useMissionControlData() {
   }, []);
 
   // Determine if any class is actively being scored
-  const hasLiveClasses = pipelineClasses.some((c) => c.stage === 'in-progress');
+  const hasLiveClasses = pipelineClasses.some(c => c.stage === 'in-progress');
 
   return {
     // Loading

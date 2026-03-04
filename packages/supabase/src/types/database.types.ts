@@ -377,6 +377,7 @@ export type Database = {
           height_max: number | null;
           height_min: number | null;
           id: string;
+          is_results_reviewed: boolean | null;
           is_scoring_finalized: boolean | null;
           jump_heights: string[] | null;
           level: string | null;
@@ -421,6 +422,7 @@ export type Database = {
           height_max?: number | null;
           height_min?: number | null;
           id?: string;
+          is_results_reviewed?: boolean | null;
           is_scoring_finalized?: boolean | null;
           jump_heights?: string[] | null;
           level?: string | null;
@@ -465,6 +467,7 @@ export type Database = {
           height_max?: number | null;
           height_min?: number | null;
           id?: string;
+          is_results_reviewed?: boolean | null;
           is_scoring_finalized?: boolean | null;
           jump_heights?: string[] | null;
           level?: string | null;

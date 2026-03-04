@@ -21,7 +21,7 @@ export const StatChip: React.FC<StatChipProps> = ({
     <div className={cn('p-1 rounded', iconBgClass)}>{icon}</div>
     <div>
       <div className="text-sm font-bold leading-none">{value}</div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-sm text-muted-foreground">{label}</div>
     </div>
   </div>
 );

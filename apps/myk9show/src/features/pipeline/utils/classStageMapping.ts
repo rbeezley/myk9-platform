@@ -8,14 +8,14 @@ import type { ClassPipelineStage } from '../mission-control-types';
  *
  * Pipeline columns:
  *   not-started  <- no-status (or null)
- *   setup        <- setup
- *   in-progress  <- briefing, start_time, in_progress, break, offline-scoring
+ *   setup        <- setup, briefing, break
+ *   in-progress  <- start_time, in_progress, offline-scoring
  *   results      <- completed AND NOT finalized
  *   closed       <- completed AND finalized (is_scoring_finalized = true)
  */
 export function mapClassToStage(
   status: string | null | undefined,
-  isScoringFinalized: boolean | null | undefined,
+  isScoringFinalized: boolean | null | undefined
 ): ClassPipelineStage {
   const s = status ?? 'no-status';
 
@@ -25,11 +25,11 @@ export function mapClassToStage(
 
   switch (s) {
     case 'setup':
-      return 'setup';
     case 'briefing':
+    case 'break':
+      return 'setup';
     case 'start_time':
     case 'in_progress':
-    case 'break':
     case 'offline-scoring':
       return 'in-progress';
     case 'no-status':
@@ -42,7 +42,7 @@ export function mapClassToStage(
  * Groups an array of class items by their pipeline stage.
  */
 export function groupClassesByStage<T extends { stage: ClassPipelineStage }>(
-  classes: T[],
+  classes: T[]
 ): Map<ClassPipelineStage, T[]> {
   const map = new Map<ClassPipelineStage, T[]>();
   for (const stage of [

@@ -3,12 +3,7 @@
  */
 
 /** Visual pipeline columns for classes */
-export type ClassPipelineStage =
-  | 'not-started'
-  | 'setup'
-  | 'in-progress'
-  | 'results'
-  | 'closed';
+export type ClassPipelineStage = 'not-started' | 'setup' | 'in-progress' | 'results' | 'closed';
 
 /** Ordered list of class pipeline stages for rendering columns */
 export const CLASS_PIPELINE_STAGES: ClassPipelineStage[] = [
@@ -22,13 +17,45 @@ export const CLASS_PIPELINE_STAGES: ClassPipelineStage[] = [
 /** Display metadata for each class pipeline stage */
 export const CLASS_STAGE_META: Record<
   ClassPipelineStage,
-  { label: string; description: string }
+  {
+    label: string;
+    description: string;
+    /** Subtle column background tint */
+    columnBg: string;
+    /** Header bottom-border accent */
+    headerBorder: string;
+  }
 > = {
-  'not-started': { label: 'Not Started', description: 'Awaiting setup' },
-  setup: { label: 'Setup', description: 'Judge is setting up hides' },
-  'in-progress': { label: 'In Progress', description: 'Scoring underway' },
-  results: { label: 'Results', description: 'Scoring complete — review needed' },
-  closed: { label: 'Closed', description: 'Results finalized' },
+  'not-started': {
+    label: 'Not Started',
+    description: 'Awaiting setup',
+    columnBg: 'bg-muted-foreground/5',
+    headerBorder: 'border-muted-foreground/20',
+  },
+  setup: {
+    label: 'Setup / Briefing / Break',
+    description: 'Judge is setting up, briefing handlers, or on break',
+    columnBg: 'bg-yellow-500/10',
+    headerBorder: 'border-yellow-500/40',
+  },
+  'in-progress': {
+    label: 'In Progress',
+    description: 'Scoring underway',
+    columnBg: 'bg-green-500/10',
+    headerBorder: 'border-green-500/40',
+  },
+  results: {
+    label: 'Review / Reporting',
+    description: 'Scoring complete — review and report',
+    columnBg: 'bg-blue-500/10',
+    headerBorder: 'border-blue-500/40',
+  },
+  closed: {
+    label: 'Closed',
+    description: 'Results finalized',
+    columnBg: 'bg-muted-foreground/3',
+    headerBorder: 'border-muted-foreground/15',
+  },
 };
 
 /** Class data shaped for pipeline display */

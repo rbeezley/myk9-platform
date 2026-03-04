@@ -2,13 +2,7 @@
  * TrialContextRow — Trial selector + trial-level stats in a single row.
  */
 
-import {
-  Zap,
-  Grid3X3,
-  CheckCircle,
-  TrendingUp,
-  Award,
-} from 'lucide-react';
+import { Zap, Grid3X3, CheckCircle, TrendingUp, Award } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -47,16 +41,16 @@ export const TrialContextRow: React.FC<TrialContextRowProps> = ({
       <Select value={selectedTrial?.id ?? ''} onValueChange={onTrialChange}>
         <SelectTrigger className="w-[260px] border-border/60 bg-card">
           <div className="text-left">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+            <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">
               Trial
             </div>
             <SelectValue placeholder="Select a trial">
-              {selectedTrial ? (selectedTrial.name || 'Unnamed Trial') : undefined}
+              {selectedTrial ? selectedTrial.name || 'Unnamed Trial' : undefined}
             </SelectValue>
           </div>
         </SelectTrigger>
         <SelectContent>
-          {trials.map((trial) => (
+          {trials.map(trial => (
             <SelectItem key={trial.id} value={trial.id}>
               {trial.name || 'Unnamed Trial'}
             </SelectItem>

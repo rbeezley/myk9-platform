@@ -15,12 +15,13 @@ describe('mapClassToStage', () => {
     expect(mapClassToStage('setup', false)).toBe('setup');
   });
 
-  it.each(['briefing', 'start_time', 'in_progress', 'break', 'offline-scoring'])(
-    'maps %s to in-progress',
-    (status) => {
-      expect(mapClassToStage(status, false)).toBe('in-progress');
-    },
-  );
+  it.each(['briefing', 'break'])('maps %s to setup', status => {
+    expect(mapClassToStage(status, false)).toBe('setup');
+  });
+
+  it.each(['start_time', 'in_progress', 'offline-scoring'])('maps %s to in-progress', status => {
+    expect(mapClassToStage(status, false)).toBe('in-progress');
+  });
 
   it('maps completed + not finalized to results', () => {
     expect(mapClassToStage('completed', false)).toBe('results');

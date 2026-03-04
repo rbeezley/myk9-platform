@@ -93,7 +93,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const queryClient = useQueryClient();
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
-  const triggerSyncRef = useRef<() => Promise<void>>();
+  const triggerSyncRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
   // Subscribe all Zustand stores to replicated table changes
   useStoreSubscriptions();
@@ -251,7 +251,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   }, [isOnline, status.isSyncing, licenseKey, queryClient]);
 
   // Keep ref in sync so effects always call latest version without re-triggering
-  triggerSyncRef.current = triggerSync;
+  useEffect(() => {
+    triggerSyncRef.current = triggerSync;
+  });
 
   // Initial sync on startup
   useEffect(() => {
@@ -308,7 +310,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       clearTimeout(startupTimer);
       hasStartedFlush.current = false; // Reset so StrictMode remount can re-trigger
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Listen for sync-requested events (e.g., from wizard after publish)

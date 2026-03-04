@@ -12,6 +12,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Calendar,
+  CalendarDays,
   Plus,
   FileText,
   List,
@@ -118,7 +119,7 @@ const navigationGroups: NavGroup[] = [
       {
         title: 'Calendar',
         href: '/secretary/calendar',
-        icon: Calendar,
+        icon: CalendarDays,
         description: 'Event scheduling',
       },
     ],

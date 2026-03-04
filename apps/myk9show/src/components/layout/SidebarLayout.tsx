@@ -105,6 +105,15 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
     setIsHoverExpanded(false);
   }, []);
 
+  // Tap-to-expand fallback for touch devices (no hover events).
+  // Only triggers when the sidebar is collapsed — tapping the narrow rail expands it.
+  // A second tap anywhere outside collapses it via the overlay.
+  const handleSidebarClick = useCallback(() => {
+    if (isCollapsible && isCollapsed && !isHoverExpanded) {
+      setIsHoverExpanded(true);
+    }
+  }, [isCollapsible, isCollapsed, isHoverExpanded]);
+
   // Clean up hover timer on unmount
   useEffect(() => {
     return () => {
@@ -134,6 +143,19 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
         />
       )}
 
+      {/* Dismiss overlay for touch-expanded sidebar (desktop only) */}
+      {hoverToExpand && isHoverExpanded && isCollapsed && (
+        <div
+          className={cn(
+            'fixed inset-0',
+            SIDEBAR_LAYOUT_CONSTANTS.HEADER_OFFSET_CLASS,
+            'z-30 hidden md:block'
+          )}
+          onClick={() => setIsHoverExpanded(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar container - positioned below header */}
       <div
         className={cn(
@@ -149,15 +171,19 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         style={{ width: actualWidth }}
+        onClick={hoverToExpand ? handleSidebarClick : undefined}
         onMouseEnter={hoverToExpand ? handleMouseEnter : undefined}
         onMouseLeave={hoverToExpand ? handleMouseLeave : undefined}
       >
         {/* Clone sidebar and inject onCloseMobile prop if it accepts it */}
         {React.isValidElement(sidebar)
-          ? React.cloneElement(sidebar as React.ReactElement<{ onCloseMobile?: () => void; isCollapsed?: boolean }>, {
-              onCloseMobile: () => setMobileOpen(false),
-              isCollapsed: effectivelyCollapsed,
-            })
+          ? React.cloneElement(
+              sidebar as React.ReactElement<{ onCloseMobile?: () => void; isCollapsed?: boolean }>,
+              {
+                onCloseMobile: () => setMobileOpen(false),
+                isCollapsed: effectivelyCollapsed,
+              }
+            )
           : sidebar}
       </div>
 
@@ -173,11 +199,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
         {showMobileMenuButton && (
           <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMobileOpen(true)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setMobileOpen(true)}>
                 <Menu className="h-4 w-4 mr-2" />
                 {mobileMenuLabel}
               </Button>

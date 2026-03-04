@@ -25,22 +25,30 @@ export const ClassPipelineColumn: React.FC<ClassPipelineColumnProps> = ({
   isLive,
 }) => {
   const meta = CLASS_STAGE_META[stage];
+  const isEmpty = classes.length === 0;
 
   return (
     <div
       className={cn(
-        'flex flex-col flex-1 min-w-[220px] max-w-[350px] rounded-lg',
+        'flex flex-col rounded-lg',
         meta.columnBg,
         'border border-border/40',
+        isEmpty ? 'min-w-[100px] max-w-[100px] flex-none' : 'flex-1 min-w-[220px] max-w-[350px]',
         isLive && 'ring-2 ring-green-500/20'
       )}
     >
       {/* Column header */}
       <div
-        className={cn('flex items-center justify-between px-4 py-3 border-b', meta.headerBorder)}
+        className={cn(
+          'flex items-center justify-between px-4 py-3',
+          !isEmpty && 'border-b',
+          meta.headerBorder
+        )}
       >
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-sm">{meta.label}</h3>
+        <div className={cn('flex items-center gap-2', isEmpty && 'flex-col gap-1 w-full')}>
+          <h3 className={cn('font-semibold text-sm', isEmpty && 'text-xs text-muted-foreground')}>
+            {isEmpty ? meta.label.split(' / ')[0] : meta.label}
+          </h3>
           <Badge variant="secondary" className="text-xs px-1.5 py-0">
             {classes.length}
           </Badge>
@@ -53,16 +61,14 @@ export const ClassPipelineColumn: React.FC<ClassPipelineColumnProps> = ({
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {classes.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">No classes</p>
-        ) : (
-          classes.map(item => (
+      {/* Cards — hidden when column is empty (header-only) */}
+      {!isEmpty && (
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {classes.map(item => (
             <ClassPipelineCard key={item.id} item={item} showId={showId} trialId={trialId} />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

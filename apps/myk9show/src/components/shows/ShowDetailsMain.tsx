@@ -33,7 +33,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
         onDeleteShow={onDeleteShow}
         onRegisterForShow={onRegisterForShow}
         onManageEntries={() => {
-          navigate('/secretary/entries', { state: { showId: showData.id } });
+          navigate(`/secretary/entries/${showData.id}`);
         }}
         onViewResults={() => {
           navigate('/results/dashboard', { state: { showId: showData.id } });

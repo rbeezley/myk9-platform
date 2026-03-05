@@ -1,9 +1,23 @@
 import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
@@ -51,6 +65,8 @@ import { formatDate } from '@/utils/entryManagementUtils';
  * Original: 1,428 lines -> Refactored: ~400 lines (72% reduction)
  */
 const EntryManagementPage: React.FC = () => {
+  const { showId: urlShowId } = useParams<{ showId?: string }>();
+
   // Data hook
   const {
     user,
@@ -66,7 +82,7 @@ const EntryManagementPage: React.FC = () => {
     setError,
     loadEntries,
     stats,
-  } = useEntryManagementData();
+  } = useEntryManagementData(urlShowId);
 
   // Filter hook
   const {
@@ -119,8 +135,16 @@ const EntryManagementPage: React.FC = () => {
   });
 
   // Comp dialog state
-  const [compDialog, setCompDialog] = useState<{ open: boolean; entryId: string; entryNumber: string; dogName: string }>({
-    open: false, entryId: '', entryNumber: '', dogName: '',
+  const [compDialog, setCompDialog] = useState<{
+    open: boolean;
+    entryId: string;
+    entryNumber: string;
+    dogName: string;
+  }>({
+    open: false,
+    entryId: '',
+    entryNumber: '',
+    dogName: '',
   });
 
   // Audit log page access
@@ -131,13 +155,17 @@ const EntryManagementPage: React.FC = () => {
       entityId: user?.id || 'unknown',
       metadata: {
         page: 'entry_management',
-        loadTime: new Date().toISOString()
-      }
+        loadTime: new Date().toISOString(),
+      },
     });
   }, [user?.id]);
 
   // Verify secretary role access
-  if (!hasRole(UserRole.SECRETARY) && !hasRole(UserRole.CLUB_ADMIN) && !hasRole(UserRole.SITE_ADMIN)) {
+  if (
+    !hasRole(UserRole.SECRETARY) &&
+    !hasRole(UserRole.CLUB_ADMIN) &&
+    !hasRole(UserRole.SITE_ADMIN)
+  ) {
     return (
       <div className="container mx-auto p-6">
         <Card>
@@ -180,7 +208,11 @@ const EntryManagementPage: React.FC = () => {
             <Hash className="h-4 w-4 mr-2" />
             Auto-Assign Armbands
           </Button>
-          <Button variant="outline" onClick={handleExportCSV} disabled={!selectedShowId || isProcessing}>
+          <Button
+            variant="outline"
+            onClick={handleExportCSV}
+            disabled={!selectedShowId || isProcessing}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
@@ -214,7 +246,7 @@ const EntryManagementPage: React.FC = () => {
               <SelectValue placeholder={isLoadingShows ? 'Loading shows...' : 'Select a show'} />
             </SelectTrigger>
             <SelectContent>
-              {shows.map((show) => (
+              {shows.map(show => (
                 <SelectItem key={show.id} value={show.id}>
                   {show.name || 'Unnamed Show'} ({formatDate(show.start_date)})
                 </SelectItem>
@@ -266,15 +298,18 @@ const EntryManagementPage: React.FC = () => {
             <Card className="border-blue-200 bg-blue-50">
               <CardContent className="p-4">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium">
-                    {selectedEntries.size} entries selected
-                  </span>
+                  <span className="font-medium">{selectedEntries.size} entries selected</span>
                   <div className="flex gap-2">
-                    <Dialog open={bulkActionDialog.open && bulkActionDialog.action === 'status_change'} onOpenChange={(open) => setBulkActionDialog({ ...bulkActionDialog, open })}>
+                    <Dialog
+                      open={bulkActionDialog.open && bulkActionDialog.action === 'status_change'}
+                      onOpenChange={open => setBulkActionDialog({ ...bulkActionDialog, open })}
+                    >
                       <DialogTrigger asChild>
                         <Button
                           size="sm"
-                          onClick={() => setBulkActionDialog({ open: true, action: 'status_change' })}
+                          onClick={() =>
+                            setBulkActionDialog({ open: true, action: 'status_change' })
+                          }
                         >
                           Change Status
                         </Button>
@@ -286,7 +321,11 @@ const EntryManagementPage: React.FC = () => {
                             Change status for {selectedEntries.size} selected entries
                           </DialogDescription>
                         </DialogHeader>
-                        <Select onValueChange={(value) => handleBulkAction({ type: 'status_change', data: { status: value } })}>
+                        <Select
+                          onValueChange={value =>
+                            handleBulkAction({ type: 'status_change', data: { status: value } })
+                          }
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select new status" />
                           </SelectTrigger>
@@ -346,13 +385,18 @@ const EntryManagementPage: React.FC = () => {
                 onOpenCheckInDialog={(entry, classEntry) =>
                   setCheckInDialog({ open: true, entry, classEntry })
                 }
-                onOpenArmbandDialog={(entry) =>
+                onOpenArmbandDialog={entry =>
                   setArmbandDialog({ open: true, entry, value: entry.armbandNumber || '' })
                 }
-                onCompEntry={(entryId) => {
+                onCompEntry={entryId => {
                   const entry = entries.find(e => e.id === entryId);
                   if (entry) {
-                    setCompDialog({ open: true, entryId, entryNumber: entry.entryNumber, dogName: entry.dogName });
+                    setCompDialog({
+                      open: true,
+                      entryId,
+                      entryNumber: entry.entryNumber,
+                      dogName: entry.dogName,
+                    });
                   }
                 }}
                 onUncompEntry={handleUncompEntry}
@@ -363,7 +407,10 @@ const EntryManagementPage: React.FC = () => {
             <TabsContent value="move-ups" className="mt-6">
               <Card>
                 <CardContent className="pt-6">
-                  <MoveUpRequestsTab showId={selectedShowId} onRefresh={() => loadEntries(selectedShowId)} />
+                  <MoveUpRequestsTab
+                    showId={selectedShowId}
+                    onRefresh={() => loadEntries(selectedShowId)}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -372,7 +419,10 @@ const EntryManagementPage: React.FC = () => {
             <TabsContent value="scratches" className="mt-6">
               <Card>
                 <CardContent className="pt-6">
-                  <ScratchManagementTab showId={selectedShowId} onRefresh={() => loadEntries(selectedShowId)} />
+                  <ScratchManagementTab
+                    showId={selectedShowId}
+                    onRefresh={() => loadEntries(selectedShowId)}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -382,7 +432,7 @@ const EntryManagementPage: React.FC = () => {
           {checkInDialog.entry && checkInDialog.classEntry && (
             <CheckInStatusDialog
               open={checkInDialog.open}
-              onOpenChange={(open) => {
+              onOpenChange={open => {
                 if (!open) {
                   setCheckInDialog({ open: false, entry: null, classEntry: null });
                 }
@@ -393,7 +443,7 @@ const EntryManagementPage: React.FC = () => {
                 dogName: checkInDialog.entry.dogName,
                 handlerName: checkInDialog.entry.handlerName,
                 className: checkInDialog.classEntry.name,
-                classNumber: checkInDialog.classEntry.number
+                classNumber: checkInDialog.classEntry.number,
               }}
               onUpdateStatus={handleCheckInStatusUpdate}
               readOnly={false}
@@ -431,12 +481,12 @@ const EntryManagementPage: React.FC = () => {
       {/* Comp Entry Dialog */}
       <CompEntryDialog
         open={compDialog.open}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open) setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '' });
         }}
         entryNumber={compDialog.entryNumber}
         dogName={compDialog.dogName}
-        onConfirm={(reason) => {
+        onConfirm={reason => {
           handleCompEntry(compDialog.entryId, reason);
           setCompDialog({ open: false, entryId: '', entryNumber: '', dogName: '' });
         }}

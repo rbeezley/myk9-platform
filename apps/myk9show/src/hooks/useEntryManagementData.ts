@@ -47,13 +47,15 @@ interface UseEntryManagementDataReturn {
  * Custom hook for managing entry data loading
  * Extracted from EntryManagementPage.tsx as part of DEBT-002 refactoring
  */
-export function useEntryManagementData(): UseEntryManagementDataReturn {
+export function useEntryManagementData(initialShowId?: string): UseEntryManagementDataReturn {
   const { user, hasRole } = useAuthContext();
 
-  // Show selection
+  // Show selection — defer initialShowId until shows have loaded so the
+  // Select component can resolve the UUID to a display name.
   const [shows, setShows] = useState<EntryManagementShow[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>('');
   const [isLoadingShows, setIsLoadingShows] = useState(true);
+  const [didApplyInitial, setDidApplyInitial] = useState(false);
 
   // Entry data
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
@@ -90,33 +92,41 @@ export function useEntryManagementData(): UseEntryManagementDataReturn {
 
       // Transform database entries to UI format
       // SecretaryEntry is a flat row (one per class entry), not a grouped structure
-      const transformedEntries: EntryManagementEntry[] = (data || []).map((entry: SecretaryEntry) => ({
-        id: entry.id,
-        registrationId: entry.id,
-        entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
-        showId: entry.show_id || '',
-        dogName: entry.dog?.name || 'Unknown Dog',
-        ownerName: entry.handler || 'Unknown',
-        ownerEmail: '',
-        handlerName: entry.handler || 'Not specified',
-        classes: entry.class ? [{
-          id: entry.class.id,
-          name: entry.class.name || 'Unknown Class',
-          number: entry.class.class_number || '',
-          fee: entry.entry_fee || 0,
-          ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
-          status: mapClassEntryStatus(entry.entry_status),
-          checkInStatus: (entry.is_in_ring ? 'checked-in' : 'none') as CheckInStatus,
-        }] : [],
-        totalFee: entry.entry_fee || 0,
-        paidAmount: entry.payment_status === 'paid' ? (entry.entry_fee || 0) : 0,
-        entryStatus: mapEntryStatus(entry.entry_status),
-        paymentStatus: mapPaymentStatus(entry.payment_status),
-        submittedAt: entry.submitted_at ? new Date(entry.submitted_at) : new Date(entry.created_at || Date.now()),
-        lastUpdated: new Date(entry.updated_at || Date.now()),
-        ...(entry.special_requests ? { notes: entry.special_requests } : {}),
-        ...(entry.armband ? { armbandNumber: entry.armband } : {}),
-      }));
+      const transformedEntries: EntryManagementEntry[] = (data || []).map(
+        (entry: SecretaryEntry) => ({
+          id: entry.id,
+          registrationId: entry.id,
+          entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
+          showId: entry.show_id || '',
+          dogName: entry.dog?.name || 'Unknown Dog',
+          ownerName: entry.handler || 'Unknown',
+          ownerEmail: '',
+          handlerName: entry.handler || 'Not specified',
+          classes: entry.class
+            ? [
+                {
+                  id: entry.class.id,
+                  name: entry.class.name || 'Unknown Class',
+                  number: entry.class.class_number || '',
+                  fee: entry.entry_fee || 0,
+                  ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
+                  status: mapClassEntryStatus(entry.entry_status),
+                  checkInStatus: (entry.is_in_ring ? 'checked-in' : 'none') as CheckInStatus,
+                },
+              ]
+            : [],
+          totalFee: entry.entry_fee || 0,
+          paidAmount: entry.payment_status === 'paid' ? entry.entry_fee || 0 : 0,
+          entryStatus: mapEntryStatus(entry.entry_status),
+          paymentStatus: mapPaymentStatus(entry.payment_status),
+          submittedAt: entry.submitted_at
+            ? new Date(entry.submitted_at)
+            : new Date(entry.created_at || Date.now()),
+          lastUpdated: new Date(entry.updated_at || Date.now()),
+          ...(entry.special_requests ? { notes: entry.special_requests } : {}),
+          ...(entry.armband ? { armbandNumber: entry.armband } : {}),
+        })
+      );
 
       setEntries(transformedEntries);
     } catch (err) {
@@ -132,6 +142,15 @@ export function useEntryManagementData(): UseEntryManagementDataReturn {
     loadShows();
   }, [loadShows]);
 
+  // Apply initialShowId once shows have loaded (so Select can resolve the name)
+  useEffect(() => {
+    if (!didApplyInitial && initialShowId && shows.length > 0) {
+      const match = shows.find(s => s.id === initialShowId);
+      if (match) setSelectedShowId(initialShowId);
+      setDidApplyInitial(true);
+    }
+  }, [didApplyInitial, initialShowId, shows]);
+
   // Load entries when show changes
   useEffect(() => {
     if (selectedShowId) {
@@ -144,10 +163,12 @@ export function useEntryManagementData(): UseEntryManagementDataReturn {
   // Calculate stats
   const stats: EntryStats = {
     total: entries.length,
-    pending: entries.filter(e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING).length,
+    pending: entries.filter(
+      e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
+    ).length,
     accepted: entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length,
     waitlist: entries.filter(e => e.entryStatus === EntryStatus.WAITLIST).length,
-    revenue: entries.reduce((sum, e) => sum + e.paidAmount, 0)
+    revenue: entries.reduce((sum, e) => sum + e.paidAmount, 0),
   };
 
   return {

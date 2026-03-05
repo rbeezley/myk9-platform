@@ -243,7 +243,16 @@ const EntryManagementPage: React.FC = () => {
             disabled={isLoadingShows}
           >
             <SelectTrigger className="w-full md:w-96">
-              <SelectValue placeholder={isLoadingShows ? 'Loading shows...' : 'Select a show'} />
+              <SelectValue placeholder={isLoadingShows ? 'Loading shows...' : 'Select a show'}>
+                {selectedShowId
+                  ? (() => {
+                      const show = shows.find(s => s.id === selectedShowId);
+                      return show
+                        ? `${show.name || 'Unnamed Show'} (${formatDate(show.start_date)})`
+                        : undefined;
+                    })()
+                  : undefined}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {shows.map(show => (

@@ -43,6 +43,8 @@ interface UseEntryManagementDataReturn {
   stats: EntryStats;
 }
 
+const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
+
 /**
  * Custom hook for managing entry data loading
  * Extracted from EntryManagementPage.tsx as part of DEBT-002 refactoring
@@ -50,8 +52,8 @@ interface UseEntryManagementDataReturn {
 export function useEntryManagementData(initialShowId?: string): UseEntryManagementDataReturn {
   const { user, hasRole } = useAuthContext();
 
-  // Show selection — defer initialShowId until shows have loaded so the
-  // Select component can resolve the UUID to a display name.
+  // Show selection — resolve from URL param, localStorage, or empty.
+  // Defer applying until shows load so the Select can resolve the display name.
   const [shows, setShows] = useState<EntryManagementShow[]>([]);
   const [selectedShowId, setSelectedShowId] = useState<string>('');
   const [isLoadingShows, setIsLoadingShows] = useState(true);
@@ -142,14 +144,23 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     loadShows();
   }, [loadShows]);
 
-  // Apply initialShowId once shows have loaded (so Select can resolve the name)
+  // Apply initial show once shows have loaded: URL param > localStorage > none.
+  // Deferred so the Select component has items to resolve the display name.
   useEffect(() => {
-    if (!didApplyInitial && initialShowId && shows.length > 0) {
-      const match = shows.find(s => s.id === initialShowId);
-      if (match) setSelectedShowId(initialShowId);
-      setDidApplyInitial(true);
+    if (didApplyInitial || shows.length === 0) return;
+    const candidate = initialShowId || localStorage.getItem(LAST_SHOW_KEY) || '';
+    if (candidate && shows.some(s => s.id === candidate)) {
+      setSelectedShowId(candidate);
     }
+    setDidApplyInitial(true);
   }, [didApplyInitial, initialShowId, shows]);
+
+  // Persist selection to localStorage so sidebar navigation remembers it
+  useEffect(() => {
+    if (selectedShowId) {
+      localStorage.setItem(LAST_SHOW_KEY, selectedShowId);
+    }
+  }, [selectedShowId]);
 
   // Load entries when show changes
   useEffect(() => {

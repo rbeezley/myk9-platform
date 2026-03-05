@@ -4,7 +4,7 @@
  * Manages show/trial selection and computes class pipeline data.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
@@ -119,6 +119,13 @@ export function useMissionControlData() {
   const handleTrialChange = useCallback((trialId: string) => {
     setSelectedTrialId(trialId);
   }, []);
+
+  // Persist selected show so other secretary pages (Entry Management) can pick it up
+  useEffect(() => {
+    if (selectedShow) {
+      localStorage.setItem('myk9show:entryMgmt:lastShowId', selectedShow.id);
+    }
+  }, [selectedShow]);
 
   // Determine if any class is actively being scored
   const hasLiveClasses = pipelineClasses.some(c => c.stage === 'in-progress');

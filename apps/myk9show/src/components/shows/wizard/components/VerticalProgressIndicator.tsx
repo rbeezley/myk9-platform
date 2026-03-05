@@ -51,7 +51,7 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
             <li key={step.id} className="relative">
               {/* Connecting line (not on last item) */}
               {!isLast && (
-                <div className="absolute left-4 top-8 bottom-0 w-0.5 -translate-x-1/2">
+                <div className="absolute left-3.5 top-7 bottom-0 w-0.5 -translate-x-1/2">
                   {/* Background line */}
                   <div className="absolute inset-0 bg-border/40 rounded-full" />
                   {/* Filled progress line */}
@@ -70,7 +70,7 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
               )}
 
               {/* Step row */}
-              <div className="relative flex items-start gap-4 pb-8">
+              <div className="relative flex items-start gap-3 pb-6">
                 {/* Step circle */}
                 <button
                   onClick={() => isClickable && onStepClick?.(step.id)}
@@ -78,7 +78,7 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
                   aria-current={isCurrent ? 'step' : undefined}
                   aria-label={`${step.label}${isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''}`}
                   className={cn(
-                    'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300',
+                    'relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300',
                     isCompleted && 'bg-primary border-primary text-primary-foreground shadow-md',
                     isCurrent &&
                       !isCompleted &&

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +32,7 @@ import {
   Download,
   Hash,
   Loader2,
+  Plus,
   RefreshCw,
   ArrowUpCircle,
   XCircle,
@@ -66,6 +67,7 @@ import { formatDate } from '@/utils/entryManagementUtils';
  */
 const EntryManagementPage: React.FC = () => {
   const { showId: urlShowId } = useParams<{ showId?: string }>();
+  const navigate = useNavigate();
 
   // Data hook
   const {
@@ -192,6 +194,13 @@ const EntryManagementPage: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={() => navigate(`/shows/${selectedShowId}/register`)}
+            disabled={!selectedShowId}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Entry
+          </Button>
           <Button
             variant="outline"
             onClick={() => selectedShowId && loadEntries(selectedShowId)}

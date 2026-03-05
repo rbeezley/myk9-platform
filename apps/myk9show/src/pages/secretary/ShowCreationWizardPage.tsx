@@ -357,7 +357,7 @@ const ShowCreationWizardPage: React.FC = () => {
     >
       <div className="min-h-screen bg-background">
         {/* Header with breadcrumb and back button */}
-        <div className="border-b bg-card/95 backdrop-blur-xl sticky top-16 z-40">
+        <div className="border-b bg-card/95 backdrop-blur-xl sticky top-0 z-40">
           <div className="container mx-auto px-6 py-4 max-w-7xl">
             <div className="flex items-center gap-4">
               <Button
@@ -390,15 +390,15 @@ const ShowCreationWizardPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8 max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 sm:gap-6 lg:gap-8">
+        <div className="container mx-auto px-4 sm:px-6 pt-6 pb-8 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 sm:gap-6">
             {/* Sidebar - Progress Indicator */}
             <div className="lg:col-span-1">
-              <div className="sticky top-28 lg:top-32">
-                <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg">
+              <div className="sticky top-16">
+                <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg">
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative">
-                    <h2 className="text-xl font-semibold mb-6 text-foreground group-hover:text-primary transition-colors duration-300">
+                    <h2 className="text-base font-semibold mb-4 text-foreground group-hover:text-primary transition-colors duration-300">
                       {editMode
                         ? `${
                             editMode.mode === 'add-trials'

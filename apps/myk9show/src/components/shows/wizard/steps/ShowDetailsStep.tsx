@@ -62,6 +62,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');
   const [showClubSearch, setShowClubSearch] = useState(false);
+  const [chairmanSearchTerm, setChairmanSearchTerm] = useState('');
+  const [showChairmanSearch, setShowChairmanSearch] = useState(false);
+  const [secretarySearchTerm, setSecretarySearchTerm] = useState('');
+  const [showSecretarySearch, setShowSecretarySearch] = useState(false);
   const [judgeSearchTerm, setJudgeSearchTerm] = useState('');
   const [showJudgeSearch, setShowJudgeSearch] = useState(false);
 
@@ -79,7 +83,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   }, [clubs, clubSearchTerm]);
 
   // Filter people for chairman/secretary - only show those with relevant roles
-  const filteredPeople = React.useMemo(() => {
+  const officialsPeople = React.useMemo(() => {
     return people
       .filter(
         person =>
@@ -94,6 +98,18 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         return nameA.localeCompare(nameB);
       });
   }, [people]);
+
+  const filteredChairmen = React.useMemo(() => {
+    if (!chairmanSearchTerm.trim()) return officialsPeople;
+    const term = chairmanSearchTerm.toLowerCase();
+    return officialsPeople.filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(term));
+  }, [officialsPeople, chairmanSearchTerm]);
+
+  const filteredSecretaries = React.useMemo(() => {
+    if (!secretarySearchTerm.trim()) return officialsPeople;
+    const term = secretarySearchTerm.toLowerCase();
+    return officialsPeople.filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(term));
+  }, [officialsPeople, secretarySearchTerm]);
 
   // Filter people with judge role, excluding already-selected judges
   const availableJudges = React.useMemo(() => {
@@ -285,6 +301,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   value={show.name || ''}
                   onChange={e => updateShowData({ name: e.target.value })}
                   placeholder="Enter show name"
+                  className="border border-border bg-secondary rounded-md"
                 />
               </div>
 
@@ -298,7 +315,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     updateShowData({ organization: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="!bg-secondary h-10">
                     <SelectValue placeholder="Select organization">
                       {show.organization
                         ? ORGANIZATIONS.find(t => t.value === show.organization)?.label
@@ -350,6 +367,93 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label>
+                  Entry Opens <span className="text-destructive">*</span>
+                </Label>
+                <DateTimePicker
+                  value={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
+                  onChange={date => {
+                    if (date) {
+                      updateShowData({ entryOpenDate: date.toISOString() });
+                    }
+                  }}
+                  placeholder="Select entry open date"
+                  showTime={true}
+                />
+                {!isValidEntryDates() && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Entry open date must be before close date
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  Entry Closes <span className="text-destructive">*</span>
+                </Label>
+                <DateTimePicker
+                  value={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
+                  onChange={date => {
+                    if (date) {
+                      updateShowData({ entryCloseDate: date.toISOString() });
+                    }
+                  }}
+                  placeholder="Select entry close date"
+                  showTime={true}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  Pre-Entry Fee
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p>
+                          Entry fee for registrations submitted before the entry close date. Usually
+                          lower than day-of-show fee.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <CurrencyInput
+                  value={show.preEntryFee}
+                  onChange={v => updateShowData({ preEntryFee: v })}
+                  placeholder="0.00"
+                  className="border border-border bg-secondary rounded-md"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  Day-of-Show Fee
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p>
+                          Entry fee for on-site registrations on the day of the show. Usually higher
+                          than pre-entry fee.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <CurrencyInput
+                  value={show.dayOfShowFee}
+                  onChange={v => updateShowData({ dayOfShowFee: v })}
+                  placeholder="0.00"
+                  className="border border-border bg-secondary rounded-md"
+                />
+              </div>
+
               <div className="space-y-2 col-span-2">
                 <Label>
                   Location <span className="text-destructive">*</span>
@@ -359,6 +463,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   onChange={e => updateShowData({ location: e.target.value })}
                   placeholder="Enter venue name and address"
                   rows={3}
+                  className="border border-border bg-secondary rounded-md"
                 />
               </div>
             </div>
@@ -449,23 +554,46 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   Show Chairman <span className="text-destructive">*</span>
                 </Label>
                 <div className="space-y-3">
-                  <Select
-                    value={show.chairman || ''}
-                    onValueChange={value => updateShowData({ chairman: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select chairman">
-                        {getPersonName(show.chairman)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredPeople.map(person => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.firstName} {person.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={showChairmanSearch} onOpenChange={setShowChairmanSearch}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        {getPersonName(show.chairman) || 'Select chairman'}
+                        <Search className="ml-auto h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="start">
+                      <div className="p-3 border-b">
+                        <Input
+                          placeholder="Search people..."
+                          value={chairmanSearchTerm}
+                          onChange={e => setChairmanSearchTerm(e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="max-h-60 overflow-auto">
+                        {filteredChairmen.map(person => (
+                          <div
+                            key={person.id}
+                            className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                            onClick={() => {
+                              updateShowData({ chairman: person.id });
+                              setShowChairmanSearch(false);
+                              setChairmanSearchTerm('');
+                            }}
+                          >
+                            <div className="font-medium">
+                              {person.firstName} {person.lastName}
+                            </div>
+                          </div>
+                        ))}
+                        {filteredChairmen.length === 0 && (
+                          <div className="p-3 text-sm text-muted-foreground text-center">
+                            No people found
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     type="button"
                     variant="outline"
@@ -483,23 +611,46 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   Show Secretary <span className="text-destructive">*</span>
                 </Label>
                 <div className="space-y-3">
-                  <Select
-                    value={show.secretary || ''}
-                    onValueChange={value => updateShowData({ secretary: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select secretary">
-                        {getPersonName(show.secretary)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredPeople.map(person => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.firstName} {person.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={showSecretarySearch} onOpenChange={setShowSecretarySearch}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        {getPersonName(show.secretary) || 'Select secretary'}
+                        <Search className="ml-auto h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="start">
+                      <div className="p-3 border-b">
+                        <Input
+                          placeholder="Search people..."
+                          value={secretarySearchTerm}
+                          onChange={e => setSecretarySearchTerm(e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                      <div className="max-h-60 overflow-auto">
+                        {filteredSecretaries.map(person => (
+                          <div
+                            key={person.id}
+                            className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                            onClick={() => {
+                              updateShowData({ secretary: person.id });
+                              setShowSecretarySearch(false);
+                              setSecretarySearchTerm('');
+                            }}
+                          >
+                            <div className="font-medium">
+                              {person.firstName} {person.lastName}
+                            </div>
+                          </div>
+                        ))}
+                        {filteredSecretaries.length === 0 && (
+                          <div className="p-3 text-sm text-muted-foreground text-center">
+                            No people found
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     type="button"
                     variant="outline"
@@ -612,102 +763,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               <p className="text-xs text-muted-foreground">
                 Judges added here will be available for class assignment in the next steps.
               </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Entry Information */}
-        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
-              Entry Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>
-                  Entry Opens <span className="text-destructive">*</span>
-                </Label>
-                <DateTimePicker
-                  value={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
-                  onChange={date => {
-                    if (date) {
-                      updateShowData({ entryOpenDate: date.toISOString() });
-                    }
-                  }}
-                  placeholder="Select entry open date"
-                  showTime={true}
-                />
-                {!isValidEntryDates() && (
-                  <p className="text-sm text-red-500 mt-1">
-                    Entry open date must be before close date
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Entry Closes <span className="text-destructive">*</span>
-                </Label>
-                <DateTimePicker
-                  value={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
-                  onChange={date => {
-                    if (date) {
-                      updateShowData({ entryCloseDate: date.toISOString() });
-                    }
-                  }}
-                  placeholder="Select entry close date"
-                  showTime={true}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  Pre-Entry Fee
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs">
-                        <p>
-                          Entry fee for registrations submitted before the entry close date. Usually
-                          lower than day-of-show fee.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <CurrencyInput
-                  value={show.preEntryFee}
-                  onChange={v => updateShowData({ preEntryFee: v })}
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  Day-of-Show Fee
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs">
-                        <p>
-                          Entry fee for on-site registrations on the day of the show. Usually higher
-                          than pre-entry fee.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <CurrencyInput
-                  value={show.dayOfShowFee}
-                  onChange={v => updateShowData({ dayOfShowFee: v })}
-                  placeholder="0.00"
-                />
-              </div>
             </div>
           </div>
         </div>

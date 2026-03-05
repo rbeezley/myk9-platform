@@ -1,5 +1,5 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 // Premium design constants from design tokens
 const appleInput = {
@@ -20,11 +20,11 @@ const appleInput = {
     'placeholder:text-muted-foreground/60',
     'placeholder:font-normal',
   ],
-  // Focus states with Premium styling  
+  // Focus states with Premium styling
   focus: [
     'focus-visible:outline-none',
     'focus-visible:ring-2',
-    'focus-visible:ring-primary/20',
+    'focus-visible:ring-primary',
     'focus-visible:ring-offset-0',
     'focus-visible:border-primary/15',
     'focus-visible:bg-background',
@@ -32,28 +32,20 @@ const appleInput = {
     'focus-visible:scale-[1.02]',
   ],
   // Hover and interaction states
-  interactive: [
-    'hover:border-border/10',
-    'hover:bg-background',
-    'hover:shadow-sm',
-  ],
+  interactive: ['hover:border-border/10', 'hover:bg-background', 'hover:shadow-sm'],
   // File input styling
   file: [
     'file:border-0',
-    'file:bg-transparent', 
+    'file:bg-transparent',
     'file:text-sm',
     'file:font-medium',
     'file:text-foreground',
   ],
   // Disabled state
-  disabled: [
-    'disabled:cursor-not-allowed',
-    'disabled:opacity-50',
-    'disabled:bg-muted/30',
-  ]
+  disabled: ['disabled:cursor-not-allowed', 'disabled:opacity-50', 'disabled:bg-muted/30'],
 };
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<'input'>>(
   ({ className, type, ...props }, ref) => {
     return (
       <input
@@ -71,9 +63,9 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         ref={ref}
         {...props}
       />
-    )
+    );
   }
-)
-Input.displayName = "Input"
+);
+Input.displayName = 'Input';
 
-export { Input }
+export { Input };

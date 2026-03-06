@@ -221,6 +221,30 @@ Some features exist in both apps (e.g., results viewing, show/class browsing). T
 - Minor convenience overlap (e.g., results on both dashboards) is fine — don't fight it
 - Do NOT duplicate complex features across apps to "be complete"
 
+### Cross-App Navigation
+
+The two apps should feel like one platform. Add contextual cross-links where a user's natural next step lives in the other app.
+
+**From myK9Q → myK9Show:**
+
+- Show details → "Enter this show" (registration wizard)
+- Settings/profile → "My Dashboard" (exhibitor dashboard)
+- The Podium → "Full results history" (career results)
+- Dog view → "Manage my dogs" (dog profiles)
+
+**From myK9Show → myK9Q:**
+
+- Confirmed entry card → "Show Day View" (run order for that show)
+- Show detail page → "Live Results" / "Run Order"
+- Show-day contextual prompt: "At the show? Open myK9Q" (when show date is today)
+
+**Implementation rules:**
+
+- Cross-app links open in a new tab (user stays in context in the originating app)
+- Use a subtle external-link icon or distinct style to signal "this goes to the other app"
+- Both apps share Supabase auth — no re-login required
+- URLs are environment-aware (staging vs production) via shared config
+
 ---
 
 ## How to Use This Document

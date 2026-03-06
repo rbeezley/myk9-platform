@@ -5,7 +5,6 @@
  * Offers options to return to cart or continue shopping.
  */
 
-
 import { useNavigate } from 'react-router-dom';
 import { XCircle, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,12 +13,12 @@ import { useCartStore, useCartItems } from '@/stores/cartStore';
 
 export default function CheckoutCancelPage() {
   const navigate = useNavigate();
-  const cart = useCartStore((state) => state.cart);
+  const cart = useCartStore(state => state.cart);
   const items = useCartItems();
   const itemCount = items.length;
 
   return (
-    <div className="min-h-screen bg-background pt-20">
+    <div className="bg-background pt-6">
       <div className="max-w-2xl mx-auto px-4 py-16">
         <Card>
           <CardHeader className="text-center pb-2">
@@ -79,11 +78,7 @@ export default function CheckoutCancelPage() {
                 Browse Shows
               </Button>
             )}
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={() => navigate(-1)}
-            >
+            <Button variant="ghost" className="w-full" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
             </Button>

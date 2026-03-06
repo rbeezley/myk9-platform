@@ -11,23 +11,28 @@ export const lazyLoadWithRetry = <T extends React.ComponentType>(
 ): React.LazyExoticComponent<T> => {
   return lazy(async () => {
     let attempt = 0;
-    
+
     while (attempt < retries) {
       try {
         return await importFn();
       } catch (error) {
         attempt++;
-        
+
         if (attempt >= retries) {
-          logger.error('Failed to load module after multiple attempts', 'loading', { retries }, error as Error);
+          logger.error(
+            'Failed to load module after multiple attempts',
+            'loading',
+            { retries },
+            error as Error
+          );
           throw error;
         }
-        
+
         // Wait before retrying (exponential backoff)
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
     }
-    
+
     // This should never be reached, but TypeScript needs it
     throw new Error('Unreachable code');
   });
@@ -36,14 +41,11 @@ export const lazyLoadWithRetry = <T extends React.ComponentType>(
 // Pre-cache dynamic imports for faster subsequent loads
 const importCache = new Map<string, Promise<unknown>>();
 
-export const preloadImport = async <T>(
-  key: string,
-  importFn: () => Promise<T>
-): Promise<void> => {
+export const preloadImport = async <T>(key: string, importFn: () => Promise<T>): Promise<void> => {
   if (!importCache.has(key)) {
     importCache.set(key, importFn());
   }
-  
+
   try {
     await importCache.get(key);
   } catch (error) {
@@ -61,9 +63,9 @@ export const cachedDynamicImport = async <T>(
   if (importCache.has(key)) {
     return importCache.get(key) as Promise<T>;
   }
-  
+
   let attempt = 0;
-  
+
   while (attempt < retries) {
     try {
       const importPromise = importFn();
@@ -72,17 +74,22 @@ export const cachedDynamicImport = async <T>(
     } catch (error) {
       importCache.delete(key);
       attempt++;
-      
+
       if (attempt >= retries) {
-        logger.error('Failed to import module after multiple attempts', 'loading', { key, retries }, error as Error);
+        logger.error(
+          'Failed to import module after multiple attempts',
+          'loading',
+          { key, retries },
+          error as Error
+        );
         throw error;
       }
-      
+
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
     }
   }
-  
+
   throw new Error('Unreachable code');
 };
 
@@ -90,134 +97,112 @@ export const cachedDynamicImport = async <T>(
 export const storeLazyLoaders = {
   dogs: {
     key: 'dogs-store',
-    load: () => cachedDynamicImport(
-      'dogs-store',
-      () => import('@/hooks/queries/useDogsDatabase')
-    ),
-    preload: () => preloadImport(
-      'dogs-store',
-      () => import('@/hooks/queries/useDogsDatabase')
-    ),
+    load: () => cachedDynamicImport('dogs-store', () => import('@/hooks/queries/useDogsDatabase')),
+    preload: () => preloadImport('dogs-store', () => import('@/hooks/queries/useDogsDatabase')),
   },
-  
+
   users: {
     key: 'users-store',
-    load: () => cachedDynamicImport(
-      'users-store',
-      () => import('@/hooks/queries/useUsersDatabase')
-    ),
-    preload: () => preloadImport(
-      'users-store',
-      () => import('@/hooks/queries/useUsersDatabase')
-    ),
+    load: () =>
+      cachedDynamicImport('users-store', () => import('@/hooks/queries/useUsersDatabase')),
+    preload: () => preloadImport('users-store', () => import('@/hooks/queries/useUsersDatabase')),
   },
-  
+
   shows: {
     key: 'shows-store',
-    load: () => cachedDynamicImport(
-      'shows-store',
-      () => import('@/hooks/queries/useShowsDatabase')
-    ),
-    preload: () => preloadImport(
-      'shows-store',
-      () => import('@/hooks/queries/useShowsDatabase')
-    ),
+    load: () =>
+      cachedDynamicImport('shows-store', () => import('@/hooks/queries/useShowsDatabase')),
+    preload: () => preloadImport('shows-store', () => import('@/hooks/queries/useShowsDatabase')),
   },
-  
+
   clubs: {
     key: 'clubs-store',
-    load: () => cachedDynamicImport(
-      'clubs-store',
-      () => import('@/hooks/queries/useClubsDatabase')
-    ),
-    preload: () => preloadImport(
-      'clubs-store',
-      () => import('@/hooks/queries/useClubsDatabase')
-    ),
+    load: () =>
+      cachedDynamicImport('clubs-store', () => import('@/hooks/queries/useClubsDatabase')),
+    preload: () => preloadImport('clubs-store', () => import('@/hooks/queries/useClubsDatabase')),
   },
-  
+
   classes: {
     key: 'classes-store',
-    load: () => cachedDynamicImport(
-      'classes-store',
-      () => import('@/hooks/queries/useClassesDatabase')
-    ),
-    preload: () => preloadImport(
-      'classes-store',
-      () => import('@/hooks/queries/useClassesDatabase')
-    ),
+    load: () =>
+      cachedDynamicImport('classes-store', () => import('@/hooks/queries/useClassesDatabase')),
+    preload: () =>
+      preloadImport('classes-store', () => import('@/hooks/queries/useClassesDatabase')),
   },
-  
+
   search: {
     key: 'search-hooks',
-    load: () => cachedDynamicImport(
-      'search-hooks',
-      () => import('@/hooks/queries/useOptimizedSearch')
-    ),
-    preload: () => preloadImport(
-      'search-hooks',
-      () => import('@/hooks/queries/useOptimizedSearch')
-    ),
+    load: () =>
+      cachedDynamicImport('search-hooks', () => import('@/hooks/queries/useOptimizedSearch')),
+    preload: () =>
+      preloadImport('search-hooks', () => import('@/hooks/queries/useOptimizedSearch')),
   },
-  
+
   pagination: {
     key: 'pagination-hooks',
-    load: () => cachedDynamicImport(
-      'pagination-hooks',
-      () => import('@/hooks/queries/usePaginatedQueries')
-    ),
-    preload: () => preloadImport(
-      'pagination-hooks',
-      () => import('@/hooks/queries/usePaginatedQueries')
-    ),
+    load: () =>
+      cachedDynamicImport('pagination-hooks', () => import('@/hooks/queries/usePaginatedQueries')),
+    preload: () =>
+      preloadImport('pagination-hooks', () => import('@/hooks/queries/usePaginatedQueries')),
   },
-  
 } as const;
 
 // Lazy load UI components with retry logic
 export const componentLazyLoaders = {
   // Dog components
-  dogDetailsMain: lazyLoadWithRetry(() => import('@/components/dogs/DogDetailsMain').then(module => ({ default: module.default as React.ComponentType<{dog?: unknown}> }))),
-  
-  // Show components  
-  showDetailsMain: lazyLoadWithRetry(() => import('@/components/shows/ShowDetailsMain').then(module => ({ default: module.default as React.ComponentType<{showData?: unknown; associatedTrials?: unknown[]; onEditShow?: (show: unknown) => void; onDeleteShow?: (showId: string) => void; showEditDialog?: boolean; showDeleteDialog?: boolean}> }))),
-  
-  // Core components that exist with default exports
-  adminLayout: lazyLoadWithRetry(() => import('@/components/admin/AdminLayout')),
+  dogDetailsMain: lazyLoadWithRetry(() =>
+    import('@/components/dogs/DogDetailsMain').then(module => ({
+      default: module.default as React.ComponentType<{ dog?: unknown }>,
+    }))
+  ),
+
+  // Show components
+  showDetailsMain: lazyLoadWithRetry(() =>
+    import('@/components/shows/ShowDetailsMain').then(module => ({
+      default: module.default as React.ComponentType<{
+        showData?: unknown;
+        associatedTrials?: unknown[];
+        onEditShow?: (show: unknown) => void;
+        onDeleteShow?: (showId: string) => void;
+        showEditDialog?: boolean;
+        showDeleteDialog?: boolean;
+      }>,
+    }))
+  ),
 } as const;
 
 // Intelligent preloading based on route patterns
 export class RouteBasedPreloader {
   private preloadedRoutes = new Set<string>();
   private preloadingQueue = new Set<string>();
-  
+
   constructor() {
     this.setupRouteListening();
   }
-  
+
   private setupRouteListening() {
     if (typeof window === 'undefined') return;
-    
+
     // Listen for route changes and preload likely next components
     const handleRouteChange = () => {
       const currentPath = window.location.pathname;
       this.preloadForRoute(currentPath);
     };
-    
+
     // Initial preload
     handleRouteChange();
-    
+
     // Listen for navigation
     window.addEventListener('popstate', handleRouteChange);
   }
-  
+
   private async preloadForRoute(path: string) {
     if (this.preloadedRoutes.has(path) || this.preloadingQueue.has(path)) {
       return;
     }
-    
+
     this.preloadingQueue.add(path);
-    
+
     try {
       // Preload based on current route
       if (path === '/') {
@@ -250,12 +235,9 @@ export class RouteBasedPreloader {
         ]);
       } else if (path.includes('template')) {
         // Template section: preload template components
-        await Promise.all([
-          storeLazyLoaders.classes.preload(),
-          storeLazyLoaders.shows.preload(),
-        ]);
+        await Promise.all([storeLazyLoaders.classes.preload(), storeLazyLoaders.shows.preload()]);
       }
-      
+
       this.preloadedRoutes.add(path);
     } catch (error) {
       logger.warn('Failed to preload for route', 'loading', { path }, error as Error);
@@ -263,12 +245,12 @@ export class RouteBasedPreloader {
       this.preloadingQueue.delete(path);
     }
   }
-  
+
   // Manually trigger preloading for specific route
   preloadRoute(path: string) {
     return this.preloadForRoute(path);
   }
-  
+
   // Get preloading statistics
   getStats() {
     return {
@@ -278,7 +260,7 @@ export class RouteBasedPreloader {
       cachedModules: Array.from(importCache.keys()),
     };
   }
-  
+
   // Clear preload cache
   clearCache() {
     importCache.clear();
@@ -292,26 +274,21 @@ export const bundleOptimizations = {
   // Load critical stores immediately
   preloadCriticalStores: async () => {
     try {
-      await Promise.all([
-        storeLazyLoaders.dogs.preload(),
-        storeLazyLoaders.users.preload(),
-      ]);
+      await Promise.all([storeLazyLoaders.dogs.preload(), storeLazyLoaders.users.preload()]);
     } catch (error) {
       logger.warn('Failed to preload critical stores', 'loading', {}, error as Error);
     }
   },
-  
+
   // Load all store modules (for initial app hydration)
   preloadAllStores: async () => {
     try {
-      await Promise.all(
-        Object.values(storeLazyLoaders).map(loader => loader.preload())
-      );
+      await Promise.all(Object.values(storeLazyLoaders).map(loader => loader.preload()));
     } catch (error) {
       logger.warn('Failed to preload all stores', 'loading', {}, error as Error);
     }
   },
-  
+
   // Intelligent preloading based on user patterns
   preloadByUserRole: async (userRole: string) => {
     const rolePreloadMap: Record<string, Array<keyof typeof storeLazyLoaders>> = {
@@ -321,23 +298,23 @@ export const bundleOptimizations = {
       judge: ['shows', 'classes', 'dogs'],
       viewer: ['dogs', 'shows'],
     };
-    
+
     const storesForRole = rolePreloadMap[userRole] || ['dogs', 'users'];
-    
+
     try {
-      await Promise.all(
-        storesForRole.map(store => storeLazyLoaders[store].preload())
-      );
+      await Promise.all(storesForRole.map(store => storeLazyLoaders[store].preload()));
     } catch (error) {
       logger.warn('Failed to preload stores for role', 'loading', { userRole }, error as Error);
     }
   },
-  
+
   // Memory management: periodically clean unused imports
   cleanupUnusedImports: () => {
     // This is a simplified cleanup - in production, you'd track usage timestamps
     if (importCache.size > 20) {
-      logger.debug('Cache size large, consider cleanup strategies', 'loading', { cacheSize: importCache.size });
+      logger.debug('Cache size large, consider cleanup strategies', 'loading', {
+        cacheSize: importCache.size,
+      });
     }
   },
 };
@@ -359,15 +336,17 @@ export const useLazyLoading = () => {
 export const useLazyLoadingPerformance = () => {
   const getMetrics = () => {
     const stats = routePreloader.getStats();
-    
+
     return {
       ...stats,
       importCacheSize: importCache.size,
       memoryEstimate: JSON.stringify(Array.from(importCache.keys())).length,
-      preloadEfficiency: stats.preloadedRoutes.length / (stats.preloadedRoutes.length + stats.preloadingQueue.length) || 0,
+      preloadEfficiency:
+        stats.preloadedRoutes.length /
+          (stats.preloadedRoutes.length + stats.preloadingQueue.length) || 0,
     };
   };
-  
+
   return {
     getMetrics,
     clearCache: () => routePreloader.clearCache(),

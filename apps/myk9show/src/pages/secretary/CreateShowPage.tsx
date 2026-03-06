@@ -13,8 +13,8 @@ const CreateShowPage: React.FC = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-20 max-w-4xl">
+    <div className="bg-background">
+      <div className="container mx-auto px-6 py-6 max-w-4xl">
         <div className="space-y-6">
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">Create New Show</h1>
@@ -22,11 +22,13 @@ const CreateShowPage: React.FC = () => {
               Create a new dog show with trials and classes using our step-by-step wizard
             </p>
           </div>
-          
+
           {/* Create Show Options */}
           <div className="grid gap-6 md:grid-cols-2">
-            <Card className="cursor-pointer hover:shadow-md transition-shadow" 
-                  onClick={() => navigate('/secretary/create-show/wizard')}>
+            <Card
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate('/secretary/create-show/wizard')}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Plus className="h-5 w-5 text-primary" />
@@ -37,9 +39,7 @@ const CreateShowPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button className="w-full">
-                  Start Wizard
-                </Button>
+                <Button className="w-full">Start Wizard</Button>
               </CardContent>
             </Card>
 
@@ -70,15 +70,15 @@ const CreateShowPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => navigate('/shows')}
               >
                 Browse Existing Shows
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 onClick={() => navigate('/secretary/dashboard')}
               >

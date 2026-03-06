@@ -1,7 +1,8 @@
 /**
- * Public Routes - Lazy loaded routes for public/exhibitor functionality
+ * Public & Exhibitor Routes - Lazy loaded routes
  *
- * Includes show browsing, entries, registration, and exhibitor features
+ * All routes render inside UnifiedAppLayout (sidebar provided by parent).
+ * Browse pages are public; exhibitor pages require authentication.
  */
 
 import { lazy } from 'react';
@@ -31,9 +32,6 @@ const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
 const ProfileRedirect = lazy(() => import('@/pages/ProfileRedirect'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
-
-// Exhibitor layout
-import { ExhibitorLayout } from '@/components/exhibitor/ExhibitorLayout';
 
 // Cart and checkout pages
 const CartPage = lazy(() => import('@/pages/CartPage'));
@@ -158,72 +156,75 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Exhibitor Layout route — persistent collapsible sidebar for /exhibitor/* */}
+    {/* Exhibitor pages — flat routes, no separate layout */}
     <Route
-      path="/exhibitor"
+      path="/exhibitor/dashboard"
       element={
         <ProtectedRoute>
-          <ExhibitorLayout />
-        </ProtectedRoute>
-      }
-    >
-      <Route
-        path="dashboard"
-        element={
           <SuspenseWrapper>
             <PageTransition>
               <ExhibitorDashboard />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="profile"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/exhibitor/profile"
+      element={
+        <ProtectedRoute>
           <SuspenseWrapper>
             <ProfileRedirect />
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="account"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/exhibitor/account"
+      element={
+        <ProtectedRoute>
           <SuspenseWrapper>
             <ProfileRedirect />
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="entries"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/exhibitor/entries"
+      element={
+        <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
               <MyEntriesPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="entries/history"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/exhibitor/entries/history"
+      element={
+        <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
               <MyEntriesPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="check-in/:entryId"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/exhibitor/check-in/:entryId"
+      element={
+        <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
               <ClassCheckIn />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-    </Route>
+        </ProtectedRoute>
+      }
+    />
 
     {/* /profile redirects to /users/{personId} */}
     <Route
@@ -277,7 +278,7 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Users and Dogs Management */}
+    {/* People (Users) */}
     <Route
       path="/users"
       element={
@@ -304,6 +305,7 @@ export const PublicRoutes = () => (
       }
     />
 
+    {/* Dogs */}
     <Route
       path="/dogs"
       element={
@@ -330,6 +332,7 @@ export const PublicRoutes = () => (
       }
     />
 
+    {/* Clubs */}
     <Route
       path="/clubs"
       element={

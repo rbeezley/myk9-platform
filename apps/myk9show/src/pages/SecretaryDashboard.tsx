@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Settings, Calendar, Plus, Copy, Bell, Activity } from 'lucide-react';
 import { ShowCloneDialog } from '@/components/shows/cloning';
-import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
-
 // Extracted modules
 import {
   useSecretaryDashboardData,
@@ -35,8 +33,8 @@ const SecretaryDashboard: React.FC = () => {
   };
 
   return (
-    <SecretaryLayout>
-      <div className="space-y-8 pt-8">
+    <div className="p-6">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
           <div className="space-y-3">
@@ -133,7 +131,7 @@ const SecretaryDashboard: React.FC = () => {
         {/* Show Clone Dialog */}
         <ShowCloneDialog open={showCloneDialog} onOpenChange={setShowCloneDialog} />
       </div>
-    </SecretaryLayout>
+    </div>
   );
 };
 

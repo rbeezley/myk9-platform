@@ -21,9 +21,12 @@ const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 // Organized route groups
 import { AdminRoutes } from './routes/adminRoutes';
-import { JudgeRoutes } from './routes/judgeRoutes';
+import { JudgeSidebarRoutes, JudgeScoringRoutes } from './routes/judgeRoutes';
 import { SecretaryRoutes } from './routes/secretaryRoutes';
 import { PublicRoutes } from './routes/publicRoutes';
+
+// Unified layout
+import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
 
 // Components
 import AppHeader from './components/layout/AppHeader';
@@ -269,11 +272,16 @@ function App() {
                                 }
                               />
 
-                              {/* Organized route groups */}
-                              {AdminRoutes()}
-                              {JudgeRoutes()}
-                              {SecretaryRoutes()}
-                              {PublicRoutes()}
+                              {/* Scoring routes — full screen, NO sidebar */}
+                              {JudgeScoringRoutes()}
+
+                              {/* All other routes — inside unified sidebar layout */}
+                              <Route element={<UnifiedAppLayout />}>
+                                {AdminRoutes()}
+                                {JudgeSidebarRoutes()}
+                                {SecretaryRoutes()}
+                                {PublicRoutes()}
+                              </Route>
 
                               {/* 404 catch-all */}
                               <Route

@@ -1,7 +1,7 @@
 /**
  * Judge Routes - Lazy loaded routes for judge functionality
  *
- * Uses JudgeLayout with collapsible sidebar for all /judge/* pages.
+ * All /judge/* pages render inside UnifiedAppLayout (sidebar provided by parent).
  * Scoring routes remain standalone (no sidebar — full screen for the dog).
  */
 
@@ -11,14 +11,6 @@ import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
-import { JudgeLayout } from '@/components/judge/JudgeLayout';
-
-/** Strips standalone page chrome so pages fit inside sidebar layout */
-const EmbeddedPageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
-    {children}
-  </div>
-);
 
 // Judge page lazy imports
 const JudgeDashboard = lazy(() => import('@/pages/JudgeDashboard'));
@@ -40,82 +32,65 @@ const ScoresheetPage = lazy(() => import('@/pages/scoring/ScoresheetPage'));
 const ResultEntryDashboard = lazy(() => import('@/pages/ResultEntryDashboard'));
 const JudgeStatsPage = lazy(() => import('@/pages/judge/JudgeStatsPage'));
 
-// Shared pages rendered within judge layout
-const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
-const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
-
-export const JudgeRoutes = () => (
+/** Routes rendered INSIDE UnifiedAppLayout (with sidebar) */
+export const JudgeSidebarRoutes = () => (
   <>
-    {/* Judge Layout route — persistent collapsible sidebar for /judge/* */}
     <Route
-      path="/judge"
+      path="/judge/dashboard"
       element={
         <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SITE_ADMIN]}>
-          <JudgeLayout />
-        </ProtectedRoute>
-      }
-    >
-      <Route
-        path="dashboard"
-        element={
           <SuspenseWrapper>
             <PageTransition>
               <JudgeDashboard />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="stats"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/judge/stats"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <JudgeStatsPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="check-in"
-        element={
-          <ProtectedRoute
-            requiredRole={[UserRole.JUDGE, UserRole.GATE_STEWARD, UserRole.SITE_ADMIN]}
-          >
-            <SuspenseWrapper>
-              <PageTransition>
-                <JudgeCheckInDashboard />
-              </PageTransition>
-            </SuspenseWrapper>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="shows"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/judge/check-in"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.GATE_STEWARD, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
-              <EmbeddedPageWrapper>
-                <BrowseShowsPage />
-              </EmbeddedPageWrapper>
+              <JudgeCheckInDashboard />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="people"
-        element={
-          <SuspenseWrapper>
-            <PageTransition>
-              <EmbeddedPageWrapper>
-                <BrowsePeoplePage />
-              </EmbeddedPageWrapper>
-            </PageTransition>
-          </SuspenseWrapper>
-        }
-      />
-    </Route>
+        </ProtectedRoute>
+      }
+    />
 
-    {/* Scoring routes — standalone, NO sidebar (full screen for the dog) */}
+    {/* Results Management */}
+    <Route
+      path="/results/dashboard"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ResultEntryDashboard />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+  </>
+);
+
+/** Scoring routes — standalone, NO sidebar (full screen for the dog) */
+export const JudgeScoringRoutes = () => (
+  <>
     <Route
       path="/judge-scoring"
       element={
@@ -163,20 +138,6 @@ export const JudgeRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <JudgeClassInterface />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    {/* Results Management */}
-    <Route
-      path="/results/dashboard"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ResultEntryDashboard />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

@@ -1,16 +1,16 @@
 /**
  * Admin Routes - Lazy loaded routes for admin functionality
  *
- * Uses AdminLayout with sidebar navigation for all admin pages
+ * All /admin/* pages render inside UnifiedAppLayout (sidebar provided by parent).
+ * Each route has its own ProtectedRoute guard for SITE_ADMIN.
  */
 
 import React from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
-import { AdminLayout } from '@/components/admin/AdminLayout';
 import { createEnhancedLazy, RouteLazyPresets } from '@/utils/enhancedLazyLoading';
 
 // Enhanced lazy loading with intelligent preloading and performance monitoring
@@ -152,274 +152,253 @@ const UserManagementPage = createEnhancedLazy(() => import('@/pages/admin/UserMa
   displayName: 'UserManagementPage',
 });
 
+/** Helper to wrap an element with admin ProtectedRoute */
+const adminGuard = (element: React.ReactNode) => (
+  <ProtectedRoute requiredRole={UserRole.SITE_ADMIN}>{element}</ProtectedRoute>
+);
+
+/** All admin routes — rendered inside UnifiedAppLayout */
 export const AdminRoutes = () => (
   <>
-    {/* Admin Layout - wraps all admin routes with sidebar */}
+    {/* Admin Dashboard */}
     <Route
-      path="/admin/*"
-      element={
-        <ProtectedRoute requiredRole={UserRole.SITE_ADMIN}>
-          <AdminLayout>
-            <Routes>
-              {/* Admin Dashboard Route */}
-              <Route
-                path="dashboard"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <AdminDashboard />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              {/* Template Management Routes */}
-              <Route
-                path="templates"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <TemplateManagementPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="templates/new"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <TemplateEditorPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="templates/:templateId/edit"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <TemplateEditorPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="templates/:templateId/test"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <TemplateTestingPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              {/* System Management Routes */}
-              <Route
-                path="sync"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <SyncDashboardPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="settings"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <SystemSettingsPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="users"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <UserManagementPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              {/* Permission Management Routes */}
-              <Route
-                path="permissions"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <PermissionManagementPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="permissions/roles"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <RoleListPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="permissions/roles/new"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <CreateRolePage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="permissions/roles/:roleId"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <RoleEditPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="permissions/roles/:roleId/clone"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <CloneRolePage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="permissions/users"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <UserRoleManagementPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="permissions/audit"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <PermissionAuditPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              {/* Performance and Monitoring Routes */}
-              <Route
-                path="performance"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <PerformanceDashboard />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="data-lifecycle"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <DataLifecycleManagement />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              <Route
-                path="performance-mode"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <PerformanceModeToggle />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              {/* Load testing route - only available in development */}
-              {import.meta.env.DEV && LoadTestDashboard && (
-                <Route
-                  path="load-testing"
-                  element={
-                    <SuspenseWrapper>
-                      <PageTransition>
-                        <LoadTestDashboard />
-                      </PageTransition>
-                    </SuspenseWrapper>
-                  }
-                />
-              )}
-
-              {/* Alert Management Route */}
-              <Route
-                path="alerts"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <AlertsPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              {/* Analytics Route */}
-              <Route
-                path="analytics"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <AnalyticsPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-
-              {/* Judge Analytics Route */}
-              <Route
-                path="judges/analytics"
-                element={
-                  <SuspenseWrapper>
-                    <PageTransition>
-                      <JudgeAnalyticsPage />
-                    </PageTransition>
-                  </SuspenseWrapper>
-                }
-              />
-            </Routes>
-          </AdminLayout>
-        </ProtectedRoute>
-      }
+      path="/admin/dashboard"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <AdminDashboard />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
     />
 
-    {/* Permission Testing Routes - Available to all authenticated users for testing, outside admin layout */}
+    {/* Template Management */}
+    <Route
+      path="/admin/templates"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <TemplateManagementPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/templates/new"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <TemplateEditorPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/templates/:templateId/edit"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <TemplateEditorPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/templates/:templateId/test"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <TemplateTestingPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* System Management */}
+    <Route
+      path="/admin/sync"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <SyncDashboardPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/settings"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <SystemSettingsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/users"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <UserManagementPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Permission Management */}
+    <Route
+      path="/admin/permissions"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <PermissionManagementPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/permissions/roles"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <RoleListPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/permissions/roles/new"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <CreateRolePage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/permissions/roles/:roleId"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <RoleEditPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/permissions/roles/:roleId/clone"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <CloneRolePage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/permissions/users"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <UserRoleManagementPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/permissions/audit"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <PermissionAuditPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Performance and Monitoring */}
+    <Route
+      path="/admin/performance"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <PerformanceDashboard />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/data-lifecycle"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <DataLifecycleManagement />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/performance-mode"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <PerformanceModeToggle />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Load testing route - only available in development */}
+    {import.meta.env.DEV && LoadTestDashboard && (
+      <Route
+        path="/admin/load-testing"
+        element={adminGuard(
+          <SuspenseWrapper>
+            <PageTransition>
+              <LoadTestDashboard />
+            </PageTransition>
+          </SuspenseWrapper>
+        )}
+      />
+    )}
+
+    {/* Alert Management */}
+    <Route
+      path="/admin/alerts"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <AlertsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Analytics */}
+    <Route
+      path="/admin/analytics"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <AnalyticsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+    <Route
+      path="/admin/judges/analytics"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <JudgeAnalyticsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Testing routes — available to all authenticated users */}
     <Route
       path="/admin/permission-test"
       element={
@@ -432,7 +411,6 @@ export const AdminRoutes = () => (
         </ProtectedRoute>
       }
     />
-
     <Route
       path="/admin/rbac-test"
       element={

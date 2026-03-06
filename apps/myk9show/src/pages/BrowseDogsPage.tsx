@@ -169,8 +169,8 @@ const BrowseDogsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-20 max-w-7xl">
+    <div className="bg-background">
+      <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-6">
           {/* Loading state */}
           {isLoading && dogs.length === 0 && <BrowseDogsSkeleton viewMode={viewMode} />}

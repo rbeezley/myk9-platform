@@ -1,31 +1,22 @@
 /**
  * Secretary Routes - Lazy loaded routes for secretary functionality
  *
- * Uses SecretaryLayout with collapsible sidebar for all /secretary/* pages.
- * Standalone routes (different URL prefix) render without the layout.
+ * All /secretary/* pages render inside UnifiedAppLayout (sidebar provided by parent).
+ * Standalone routes (class management, sync) also render inside the unified layout.
  */
 
-import React, { lazy, useEffect } from 'react';
+import { lazy, useEffect } from 'react';
 import { Route, useParams, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
-import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
-
-/** Strips standalone page chrome (min-height, padding) so pages fit inside sidebar layout */
-const EmbeddedPageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="[&_.min-h-screen]:min-h-0 [&_.min-h-screen]:pt-0 [&_.min-h-screen]:pb-0 [&_.container]:py-4 [&_.container]:max-w-none">
-    {children}
-  </div>
-);
 
 // Mission Control (replaces old SecretaryDashboard)
 const SecretaryDashboard = lazy(() => import('@/features/pipeline/components/PipelineDashboard'));
 const TrialPipelineDetail = lazy(
   () => import('@/features/pipeline/components/TrialPipelineDetail')
 );
-// Lazy import for better performance
 const CreateShowPage = lazy(() => import('@/pages/secretary/CreateShowPage'));
 const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
 const ClassCreationPage = lazy(() =>
@@ -58,13 +49,6 @@ const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage
 const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistManagementPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 
-// Shared pages rendered within secretary layout
-const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
-const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
-const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
-const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
-const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
-
 const ShowEditRedirect = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
@@ -74,180 +58,130 @@ const ShowEditRedirect = () => {
   return null;
 };
 
+/** All secretary routes — rendered inside UnifiedAppLayout */
 export const SecretaryRoutes = () => (
   <>
-    {/* Secretary Layout route — persistent collapsible sidebar for /secretary/* */}
+    {/* Secretary management pages */}
     <Route
-      path="/secretary"
+      path="/secretary/dashboard"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryLayout />
-        </ProtectedRoute>
-      }
-    >
-      <Route
-        path="dashboard"
-        element={
           <SuspenseWrapper>
             <PageTransition>
               <SecretaryDashboard />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="pipeline/:trialId"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/pipeline/:trialId"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <TrialPipelineDetail />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="create-show"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/create-show"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <CreateShowPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="create-show/wizard"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/create-show/wizard"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <ShowCreationWizardPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="run-order"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/run-order"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <RunOrderPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="entries/:showId?"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/entries/:showId?"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <EntryManagementPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="register/:showId"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/register/:showId"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <RegistrationWizardPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="waitlist"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/waitlist"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <WaitlistManagementPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="day-of"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/day-of"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <DayOfOperationsPage />
             </PageTransition>
           </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="shows/:showId/edit"
-        element={
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/shows/:showId/edit"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <ShowEditRedirect />
           </SuspenseWrapper>
-        }
-      />
+        </ProtectedRoute>
+      }
+    />
 
-      {/* Shared pages — strip standalone padding/min-height so they fit the sidebar layout */}
-      <Route
-        path="shows"
-        element={
-          <SuspenseWrapper>
-            <PageTransition>
-              <EmbeddedPageWrapper>
-                <BrowseShowsPage />
-              </EmbeddedPageWrapper>
-            </PageTransition>
-          </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="users"
-        element={
-          <SuspenseWrapper>
-            <PageTransition>
-              <EmbeddedPageWrapper>
-                <BrowsePeoplePage />
-              </EmbeddedPageWrapper>
-            </PageTransition>
-          </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="dogs"
-        element={
-          <SuspenseWrapper>
-            <PageTransition>
-              <EmbeddedPageWrapper>
-                <BrowseDogsPage />
-              </EmbeddedPageWrapper>
-            </PageTransition>
-          </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="clubs"
-        element={
-          <SuspenseWrapper>
-            <PageTransition>
-              <EmbeddedPageWrapper>
-                <BrowseClubsPage />
-              </EmbeddedPageWrapper>
-            </PageTransition>
-          </SuspenseWrapper>
-        }
-      />
-      <Route
-        path="calendar"
-        element={
-          <SuspenseWrapper>
-            <PageTransition>
-              <EmbeddedPageWrapper>
-                <CalendarPage />
-              </EmbeddedPageWrapper>
-            </PageTransition>
-          </SuspenseWrapper>
-        }
-      />
-    </Route>
-
-    {/* Standalone routes — different URL prefix, no secretary sidebar */}
+    {/* Class management (previously standalone, now inside unified layout) */}
     <Route
       path="/trials/:trialId/classes/create"
       element={
@@ -260,7 +194,6 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
-
     <Route
       path="/trials/:trialId/classes"
       element={
@@ -273,7 +206,6 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
-
     <Route
       path="/shows/:showId/trials/:trialId/classes/:classId/secretary"
       element={
@@ -286,7 +218,6 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
-
     <Route
       path="/sync/dashboard"
       element={

@@ -14,18 +14,10 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  Menu,
-  X,
   Palette,
   ShoppingCart,
   Info,
 } from 'lucide-react';
-import {
-  ExhibitorNavigation,
-  SecretaryNavigation,
-  JudgeNavigation,
-  AdminNavigation,
-} from './navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +50,6 @@ const AppHeader: React.FC = () => {
   const networkStatus = useNetworkStatus();
   const navigate = useNavigate();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const currentPersonId = useCurrentUserPersonId();
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -66,7 +57,7 @@ const AppHeader: React.FC = () => {
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
 
-  // Central keyboard shortcuts
+  // Central keyboard shortcuts — independent of nav UI
   const shortcuts: ShortcutDefinition[] = useMemo(
     () => [
       {
@@ -140,54 +131,25 @@ const AppHeader: React.FC = () => {
   useKeyboardShortcuts(shortcuts);
   const shortcutDisplays = useMemo(() => getShortcutDisplays(shortcuts), [shortcuts]);
 
-  // Close mobile menu
-  const closeMobileMenu = () => setMobileMenuOpen(false);
-
-  // Render appropriate navigation based on user role
-  const renderRoleBasedNavigation = (mobile = false) => {
-    if (!user) return null;
-
-    const onNavigate = mobile ? closeMobileMenu : undefined;
-
-    // Priority order: Site Admin > Club Admin > Secretary > Judge > Exhibitor
-    if (hasRole(UserRole.SITE_ADMIN)) {
-      return <AdminNavigation mobile={mobile} onNavigate={onNavigate} />;
-    } else if (hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)) {
-      return <SecretaryNavigation mobile={mobile} onNavigate={onNavigate} />;
-    } else if (hasRole(UserRole.JUDGE)) {
-      return <JudgeNavigation mobile={mobile} onNavigate={onNavigate} />;
-    } else {
-      return <ExhibitorNavigation mobile={mobile} onNavigate={onNavigate} />;
-    }
-  };
-
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-lg text-foreground border-border h-16 transition-all duration-300 supports-[backdrop-filter]:bg-background/60">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-lg text-foreground border-border h-12 transition-all duration-300 supports-[backdrop-filter]:bg-background/60">
+      <div className="px-4 sm:px-6 h-full">
         <div className="flex items-center justify-between h-full">
-          {/* Left: Logo + Primary Navigation */}
-          <div className="flex items-center gap-8">
-            {/* Logo */}
-            <Link to="/" className="flex items-center">
-              <span className="text-xl font-bold text-primary tracking-tight border-0">
-                myK9Show
-              </span>
-            </Link>
+          {/* Left: Logo */}
+          <Link to="/" className="flex items-center">
+            <span className="text-lg font-bold text-primary tracking-tight">myK9Show</span>
+          </Link>
 
-            {/* Role-Based Navigation */}
-            {renderRoleBasedNavigation()}
-          </div>
-
-          {/* Center: Search */}
+          {/* Center: Search (desktop) */}
           {user && (
-            <div className="hidden lg:flex items-center">
+            <div className="hidden md:flex items-center">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => openCommandPalette()}
-                className={`${buildClasses.button.ghost} flex items-center gap-2 px-4 py-2 bg-muted/50 hover:bg-muted/80 rounded-lg transition-colors`}
+                className={`${buildClasses.button.ghost} flex items-center gap-2 px-3 py-1.5 bg-muted/50 hover:bg-muted/80 rounded-lg transition-colors`}
               >
-                <Search className="h-4 w-4 text-muted-foreground" />
+                <Search className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Search...</span>
                 <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-xs font-mono bg-background/50 rounded border text-muted-foreground">
                   ⌘K
@@ -196,27 +158,16 @@ const AppHeader: React.FC = () => {
             </div>
           )}
 
-          {/* Right: User Controls - Simplified for 15" laptops */}
-          <div className="flex items-center gap-2">
+          {/* Right: Utility Controls */}
+          <div className="flex items-center gap-1">
             {user ? (
               <>
-                {/* Mobile Menu Toggle */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="md:hidden p-2"
-                  aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
-                >
-                  {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                </Button>
-
                 {/* Mobile Search */}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setCommandPaletteOpen(true)}
-                  className="lg:hidden p-2"
+                  className="md:hidden p-1.5"
                   aria-label="Search"
                 >
                   <Search className="h-4 w-4" />
@@ -228,7 +179,7 @@ const AppHeader: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate('/cart')}
-                    className="p-2 relative"
+                    className="p-1.5 relative"
                     aria-label="Shopping cart"
                   >
                     <ShoppingCart className="h-4 w-4" />
@@ -246,7 +197,7 @@ const AppHeader: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
-                  className="p-2 rounded-lg"
+                  className="p-1.5 rounded-lg"
                   aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                   {theme === 'dark' ? (
@@ -285,10 +236,10 @@ const AppHeader: React.FC = () => {
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      className={`${buildClasses.button.ghost} flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-muted/50`}
+                      className={`${buildClasses.button.ghost} flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg hover:bg-muted/50`}
                       aria-label="Account menu"
                     >
-                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                      <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
                         {user.email?.charAt(0).toUpperCase() || 'U'}
                       </div>
                       <ChevronDown className="h-3 w-3 text-muted-foreground hidden sm:block" />
@@ -332,7 +283,7 @@ const AppHeader: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Common menu items for all users */}
+                    {/* Common menu items */}
                     <DropdownMenuItem asChild>
                       <Link
                         to={currentPersonId ? `/users/${currentPersonId}` : '/profile'}
@@ -428,13 +379,13 @@ const AppHeader: React.FC = () => {
               <>
                 <Link
                   to="/sign-in"
-                  className={`${buildClasses.button.ghost} px-4 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors`}
+                  className={`${buildClasses.button.ghost} px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors`}
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/sign-up"
-                  className={`${buildClasses.button.primary} px-4 py-2 rounded-lg font-medium transition-colors text-sm`}
+                  className={`${buildClasses.button.primary} px-3 py-1.5 rounded-lg font-medium transition-colors text-sm`}
                 >
                   Sign Up
                 </Link>
@@ -443,13 +394,6 @@ const AppHeader: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && user && (
-        <div className="md:hidden absolute top-16 left-0 right-0 border-b bg-background shadow-lg z-40">
-          <div className="px-4 py-3">{renderRoleBasedNavigation(true)}</div>
-        </div>
-      )}
 
       {/* Command Palette */}
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />

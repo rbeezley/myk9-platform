@@ -7,7 +7,15 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, Loader2, AlertCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
+import {
+  CheckCircle,
+  Loader2,
+  AlertCircle,
+  Receipt,
+  Calendar,
+  Dog,
+  ArrowRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -41,7 +49,7 @@ export default function CheckoutSuccessPage() {
   const [entries, setEntries] = useState<EntryDetails[]>([]);
 
   // Reset cart on successful payment
-  const resetCart = useCartStore((state) => state.reset);
+  const resetCart = useCartStore(state => state.reset);
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -73,19 +81,23 @@ export default function CheckoutSuccessPage() {
           if (result.entryIds && result.entryIds.length > 0) {
             const { data } = await supabase
               .from('entries')
-              .select(`
+              .select(
+                `
                 id,
                 dogs:dog_id (name, call_name),
                 classes:class_id (name, level)
-              `)
+              `
+              )
               .in('id', result.entryIds);
 
             if (data) {
               setEntries(
-                data.map((e) => ({
+                data.map(e => ({
                   id: e.id,
-                  dog_name: (e.dogs as { call_name?: string; name: string })?.call_name ||
-                    (e.dogs as { name: string })?.name || 'Unknown',
+                  dog_name:
+                    (e.dogs as { call_name?: string; name: string })?.call_name ||
+                    (e.dogs as { name: string })?.name ||
+                    'Unknown',
                   class_name: (e.classes as { name: string })?.name || 'Unknown',
                   class_level: (e.classes as { level?: string })?.level || null,
                 }))
@@ -140,7 +152,7 @@ export default function CheckoutSuccessPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background pt-20">
+      <div className="bg-background pt-6">
         <div className="max-w-2xl mx-auto px-4 py-16">
           <Card>
             <CardContent className="py-16 text-center">
@@ -159,7 +171,7 @@ export default function CheckoutSuccessPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-background pt-20">
+      <div className="bg-background pt-6">
         <div className="max-w-2xl mx-auto px-4 py-16">
           <Card>
             <CardContent className="py-16 text-center">
@@ -172,9 +184,7 @@ export default function CheckoutSuccessPage() {
                 <Button variant="outline" onClick={() => navigate('/shows')}>
                   Browse Shows
                 </Button>
-                <Button onClick={() => window.location.reload()}>
-                  Retry Verification
-                </Button>
+                <Button onClick={() => window.location.reload()}>Retry Verification</Button>
               </div>
             </CardContent>
           </Card>
@@ -185,7 +195,7 @@ export default function CheckoutSuccessPage() {
 
   // Success state
   return (
-    <div className="min-h-screen bg-background pt-20">
+    <div className="bg-background pt-6">
       <div className="max-w-2xl mx-auto px-4 py-16">
         <Card>
           <CardHeader className="text-center pb-2">
@@ -207,9 +217,7 @@ export default function CheckoutSuccessPage() {
                   <div className="flex justify-between items-center">
                     <span>Order Total</span>
                     <span className="font-semibold">
-                      {orderDetails.totalAmount
-                        ? formatCurrency(orderDetails.totalAmount)
-                        : '—'}
+                      {orderDetails.totalAmount ? formatCurrency(orderDetails.totalAmount) : '—'}
                     </span>
                   </div>
                 </AlertDescription>
@@ -236,7 +244,7 @@ export default function CheckoutSuccessPage() {
                 Your Entries ({entries.length})
               </h3>
               <div className="space-y-2">
-                {entries.map((entry) => (
+                {entries.map(entry => (
                   <div
                     key={entry.id}
                     className="flex justify-between items-center p-3 rounded-lg bg-muted/30"
@@ -281,11 +289,7 @@ export default function CheckoutSuccessPage() {
                 View Show Details
               </Button>
             )}
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={() => navigate('/shows')}
-            >
+            <Button variant="ghost" className="w-full" onClick={() => navigate('/shows')}>
               Browse More Shows
             </Button>
           </CardFooter>

@@ -98,7 +98,7 @@ export default function CartPage() {
   // Empty cart state
   if (!cart || items.length === 0) {
     return (
-      <div className="min-h-screen bg-background pt-20">
+      <div className="bg-background pt-6">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
@@ -118,7 +118,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-20">
+    <div className="bg-background pt-6">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

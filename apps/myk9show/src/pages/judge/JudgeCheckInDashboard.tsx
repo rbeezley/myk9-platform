@@ -7,15 +7,15 @@ import { JudgeCheckInInterface } from '@/components/judges/JudgeCheckInInterface
 import { GateStewardInterface } from '@/components/stewards/GateStewardInterface';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { 
-  Users, 
+import {
+  Users,
   Clock,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
   MapPin,
   Calendar,
-  Eye
+  Eye,
 } from 'lucide-react';
 
 interface RingAssignment {
@@ -40,7 +40,7 @@ const JudgeCheckInDashboard: React.FC = () => {
   // Generate breadcrumb items
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/judge/dashboard' },
-    { label: 'Check-In Management', href: '/judge/check-in', isCurrentPage: true }
+    { label: 'Check-In Management', href: '/judge/check-in', isCurrentPage: true },
   ];
 
   const loadRingAssignments = useCallback(async () => {
@@ -55,7 +55,7 @@ const JudgeCheckInDashboard: React.FC = () => {
         checkedInCount: 18,
         conflictCount: 2,
         atGateCount: 3,
-        isActive: true
+        isActive: true,
       },
       {
         ringNumber: '3',
@@ -66,8 +66,8 @@ const JudgeCheckInDashboard: React.FC = () => {
         checkedInCount: 12,
         conflictCount: 1,
         atGateCount: 1,
-        isActive: false
-      }
+        isActive: false,
+      },
     ];
 
     setRingAssignments(mockAssignments);
@@ -103,23 +103,23 @@ const JudgeCheckInDashboard: React.FC = () => {
       totalEntries: acc.totalEntries + ring.totalEntries,
       checkedIn: acc.checkedIn + ring.checkedInCount,
       conflicts: acc.conflicts + ring.conflictCount,
-      atGate: acc.atGate + ring.atGateCount
+      atGate: acc.atGate + ring.atGateCount,
     }),
     { totalEntries: 0, checkedIn: 0, conflicts: 0, atGate: 0 }
   );
 
   if (viewMode === 'ring-detail' && selectedRing) {
     const ringAssignment = ringAssignments.find(r => r.ringNumber === selectedRing);
-    
+
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-6 py-20 max-w-7xl">
+      <div className="bg-background">
+        <div className="container mx-auto px-6 py-6 max-w-7xl">
           <div className="space-y-6">
             {/* Breadcrumb */}
-            <Breadcrumb 
+            <Breadcrumb
               items={[
                 ...breadcrumbItems,
-                { label: `Ring ${selectedRing}`, href: '', isCurrentPage: true }
+                { label: `Ring ${selectedRing}`, href: '', isCurrentPage: true },
               ]}
               showHomeIcon={true}
               className="myk9-breadcrumb"
@@ -148,14 +148,14 @@ const JudgeCheckInDashboard: React.FC = () => {
 
   if (viewMode === 'multi-ring') {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-6 py-20 max-w-7xl">
+      <div className="bg-background">
+        <div className="container mx-auto px-6 py-6 max-w-7xl">
           <div className="space-y-6">
             {/* Breadcrumb */}
-            <Breadcrumb 
+            <Breadcrumb
               items={[
                 ...breadcrumbItems,
-                { label: 'Multi-Ring View', href: '', isCurrentPage: true }
+                { label: 'Multi-Ring View', href: '', isCurrentPage: true },
               ]}
               showHomeIcon={true}
               className="myk9-breadcrumb"
@@ -172,9 +172,7 @@ const JudgeCheckInDashboard: React.FC = () => {
             </Button>
 
             {/* Multi-Ring Gate Steward Interface */}
-            <GateStewardInterface
-              assignedRings={ringAssignments.map(r => r.ringNumber)}
-            />
+            <GateStewardInterface assignedRings={ringAssignments.map(r => r.ringNumber)} />
           </div>
         </div>
       </div>
@@ -182,21 +180,15 @@ const JudgeCheckInDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-20 max-w-7xl">
+    <div className="bg-background">
+      <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-8">
           {/* Breadcrumb */}
-          <Breadcrumb 
-            items={breadcrumbItems} 
-            showHomeIcon={true}
-            className="myk9-breadcrumb"
-          />
+          <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="myk9-breadcrumb" />
 
           {/* Header */}
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Check-In Management
-            </h1>
+            <h1 className="text-3xl font-bold tracking-tight">Check-In Management</h1>
             <p className="text-muted-foreground text-lg">
               Manage exhibitor check-in status for your assigned rings
             </p>
@@ -230,16 +222,14 @@ const JudgeCheckInDashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card className={overallStats.conflicts > 0 ? "border-red-200 bg-red-50/50" : ""}>
+            <Card className={overallStats.conflicts > 0 ? 'border-red-200 bg-red-50/50' : ''}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Conflicts</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{overallStats.conflicts}</div>
-                <p className="text-xs text-muted-foreground">
-                  Need attention
-                </p>
+                <p className="text-xs text-muted-foreground">Need attention</p>
               </CardContent>
             </Card>
 
@@ -250,9 +240,7 @@ const JudgeCheckInDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{overallStats.atGate}</div>
-                <p className="text-xs text-muted-foreground">
-                  Ready to run
-                </p>
+                <p className="text-xs text-muted-foreground">Ready to run</p>
               </CardContent>
             </Card>
           </div>
@@ -279,14 +267,16 @@ const JudgeCheckInDashboard: React.FC = () => {
           {/* Ring Assignments */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Your Ring Assignments</h2>
-            
+
             <div className="grid gap-4">
-              {ringAssignments.map((ring) => (
-                <Card 
+              {ringAssignments.map(ring => (
+                <Card
                   key={ring.ringNumber}
-                  className={`transition-all duration-200 hover:shadow-md cursor-pointer ${
-                    getStatusColor(ring.checkedInCount, ring.totalEntries, ring.conflictCount)
-                  }`}
+                  className={`transition-all duration-200 hover:shadow-md cursor-pointer ${getStatusColor(
+                    ring.checkedInCount,
+                    ring.totalEntries,
+                    ring.conflictCount
+                  )}`}
                   onClick={() => handleRingSelect(ring.ringNumber)}
                 >
                   <CardContent className="p-6">
@@ -296,18 +286,14 @@ const JudgeCheckInDashboard: React.FC = () => {
                           <Badge variant="outline" className="font-mono text-lg px-3 py-1">
                             Ring {ring.ringNumber}
                           </Badge>
-                          {ring.isActive && (
-                            <Badge className="bg-green-500">
-                              Active
-                            </Badge>
-                          )}
+                          {ring.isActive && <Badge className="bg-green-500">Active</Badge>}
                           {ring.conflictCount > 0 && (
                             <Badge variant="destructive" className="animate-pulse">
                               {ring.conflictCount} Conflicts
                             </Badge>
                           )}
                         </div>
-                        
+
                         <div>
                           <div className="font-medium text-lg">{ring.className}</div>
                           <div className="text-sm text-muted-foreground flex items-center gap-4">
@@ -330,27 +316,23 @@ const JudgeCheckInDashboard: React.FC = () => {
                             <div className="text-lg font-bold text-green-600">
                               {ring.checkedInCount}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              Checked In
-                            </div>
+                            <div className="text-xs text-muted-foreground">Checked In</div>
                           </div>
                           <div>
                             <div className="text-lg font-bold text-blue-600">
                               {ring.atGateCount}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              At Gate
-                            </div>
+                            <div className="text-xs text-muted-foreground">At Gate</div>
                           </div>
                           <div>
-                            <div className={`text-lg font-bold ${
-                              ring.conflictCount > 0 ? 'text-red-600' : 'text-gray-400'
-                            }`}>
+                            <div
+                              className={`text-lg font-bold ${
+                                ring.conflictCount > 0 ? 'text-red-600' : 'text-gray-400'
+                              }`}
+                            >
                               {ring.conflictCount}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              Conflicts
-                            </div>
+                            <div className="text-xs text-muted-foreground">Conflicts</div>
                           </div>
                         </div>
 

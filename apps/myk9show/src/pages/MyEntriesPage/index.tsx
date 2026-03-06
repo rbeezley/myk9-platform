@@ -86,8 +86,8 @@ const MyEntriesPage: React.FC = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-6 py-20 max-w-7xl">
+      <div className="bg-background">
+        <div className="container mx-auto px-6 py-6 max-w-7xl">
           <div className="grid gap-8">
             <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
             <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />

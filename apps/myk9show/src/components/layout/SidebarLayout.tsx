@@ -21,10 +21,10 @@ import { Menu } from 'lucide-react';
 
 // Layout constants - single source of truth
 export const SIDEBAR_LAYOUT_CONSTANTS = {
-  /** App header height in pixels (h-16 = 4rem = 64px) */
-  HEADER_HEIGHT: 64,
+  /** App header height in pixels (h-12 = 3rem = 48px) */
+  HEADER_HEIGHT: 48,
   /** Tailwind class for header height offset */
-  HEADER_OFFSET_CLASS: 'top-16',
+  HEADER_OFFSET_CLASS: 'top-12',
   /** Default sidebar width in pixels */
   DEFAULT_WIDTH: 288, // w-72 = 18rem = 288px
   /** Collapsed sidebar width in pixels */
@@ -190,7 +190,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
       {/* Main content area with responsive left margin */}
       <main
         className={cn(
-          'flex-1 overflow-auto pt-16 transition-all duration-300 ease-in-out',
+          'flex-1 overflow-auto pt-12 transition-all duration-300 ease-in-out',
           'md:ml-[var(--sidebar-width)]'
         )}
         style={{ '--sidebar-width': `${actualWidth}px` } as React.CSSProperties}

@@ -145,8 +145,8 @@ const BrowsePeoplePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-20 max-w-7xl">
+    <div className="bg-background">
+      <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-8">
           {/* Loading state */}
           {isLoading && people.length === 0 && <BrowsePeopleSkeleton viewMode={viewMode} />}

@@ -45,7 +45,7 @@ import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { ClassAvailability } from '@/components/shows/ClassAvailability';
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { formatFee } from '@/utils/format';
 
 // Types for extracted components
@@ -264,7 +264,8 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
   const { userWithRoles } = useAuthContext();
   const resolvePersonName = useResolvePersonName();
   const [activeTab, setActiveTab] = useState('overview');
-  const { classes: allClasses, entries: allEntries } = useClassStoreCompat();
+  const classAvailabilityResult = useClassAvailability(showData.id);
+  const { classes: classAvailability, fullClasses, totalSpotsAvailable } = classAvailabilityResult;
 
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
@@ -379,25 +380,14 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
     return { total, upcoming, completed };
   }, [associatedTrials]);
 
-  // Real class/entry statistics from database
+  // Class/entry statistics from show-scoped availability query
   const classEntryStats = useMemo(() => {
-    const trialIds = new Set(associatedTrials.map(t => t.id));
-    const showClasses = allClasses.filter(c => trialIds.has(c.trialId));
-    const totalClasses = showClasses.length;
-    const completedClasses = showClasses.filter(c => c.status === 'Completed').length;
-    const activeClasses = showClasses.filter(
-      c => c.status === 'In Progress' || c.status === 'Upcoming' || c.status === 'Scheduled'
-    ).length;
+    const totalClasses = classAvailability.length;
+    const totalEntries = classAvailability.reduce((sum, c) => sum + c.currentEntries, 0);
+    const totalSpots = classAvailability.reduce((sum, c) => sum + c.entryLimit, 0);
 
-    const classIds = new Set(showClasses.map(c => c.id));
-    const showEntries = allEntries.filter(e => classIds.has(e.classId));
-    const totalEntries = showEntries.length;
-    const completedEntries = showEntries.filter(
-      e => e.status === 'Qualified' || e.status === 'Not Qualified'
-    ).length;
-
-    return { totalClasses, completedClasses, activeClasses, totalEntries, completedEntries };
-  }, [associatedTrials, allClasses, allEntries]);
+    return { totalClasses, fullClasses, totalEntries, totalSpots, totalSpotsAvailable };
+  }, [classAvailability, fullClasses, totalSpotsAvailable]);
 
   const stats = useMemo(
     () => [
@@ -415,11 +405,11 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
         title: 'Total Classes',
         value: classEntryStats.totalClasses.toString(),
         trend: '',
-        detail1: `Active: ${classEntryStats.activeClasses}`,
-        detail2: `Finished: ${classEntryStats.completedClasses}`,
+        detail1: `Full: ${classEntryStats.fullClasses}`,
+        detail2: `Spots: ${classEntryStats.totalSpots}`,
         progress:
           classEntryStats.totalClasses > 0
-            ? Math.round((classEntryStats.completedClasses / classEntryStats.totalClasses) * 100)
+            ? Math.round((classEntryStats.fullClasses / classEntryStats.totalClasses) * 100)
             : 0,
         type: 'classes',
       },
@@ -428,10 +418,10 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
         value: classEntryStats.totalEntries.toString(),
         trend: '',
         detail1: `Registered: ${classEntryStats.totalEntries}`,
-        detail2: `Judged: ${classEntryStats.completedEntries}`,
+        detail2: `Capacity: ${classEntryStats.totalSpots}`,
         progress:
-          classEntryStats.totalEntries > 0
-            ? Math.round((classEntryStats.completedEntries / classEntryStats.totalEntries) * 100)
+          classEntryStats.totalSpots > 0
+            ? Math.round((classEntryStats.totalEntries / classEntryStats.totalSpots) * 100)
             : 0,
         type: 'entries',
       },
@@ -584,6 +574,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
           <div className="mt-6">
             <ClassAvailability
               showId={showData.id}
+              prefetchedData={classAvailabilityResult}
               onEnterClass={
                 registrationState.canRegister && onRegisterForShow
                   ? () => onRegisterForShow()
@@ -694,6 +685,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
     onManageEntries,
     onEditShow,
     resolvePersonName,
+    classAvailabilityResult,
   ]);
 
   // Memoized tab change handler to prevent unnecessary re-renders

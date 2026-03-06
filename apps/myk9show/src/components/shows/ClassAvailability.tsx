@@ -9,22 +9,31 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, AlertTriangle, CheckCircle2, Clock, Ticket, Calendar } from 'lucide-react';
-import { useClassAvailability, type ClassAvailability as ClassAvailabilityData } from '@/hooks/useClassAvailability';
+import {
+  useClassAvailability,
+  type ClassAvailability as ClassAvailabilityData,
+} from '@/hooks/useClassAvailability';
 import { format, parseISO } from 'date-fns';
 
 interface ClassAvailabilityProps {
   showId: string;
   onEnterClass?: ((classId: string) => void) | undefined;
   compact?: boolean | undefined;
+  /** Pre-fetched data — when provided, skips internal hook call to avoid duplicate queries */
+  prefetchedData?:
+    | {
+        classes: ClassAvailabilityData[];
+        isLoading: boolean;
+        error: string | null;
+        totalSpotsAvailable: number;
+        fullClasses: number;
+      }
+    | undefined;
 }
 
 function getAvailabilityBadge(classData: ClassAvailabilityData) {
   if (classData.entryLimit === 0) {
-    return (
-      <Badge className="bg-muted/50 text-muted-foreground border-muted">
-        No limit
-      </Badge>
-    );
+    return <Badge className="bg-muted/50 text-muted-foreground border-muted">No limit</Badge>;
   }
 
   if (classData.isFull) {
@@ -149,13 +158,20 @@ function ClassAvailabilitySkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
-export function ClassAvailability({ showId, onEnterClass, compact = false }: ClassAvailabilityProps) {
-  const { classes, isLoading, error, totalSpotsAvailable, fullClasses } = useClassAvailability(showId);
+export function ClassAvailability({
+  showId,
+  onEnterClass,
+  compact = false,
+  prefetchedData,
+}: ClassAvailabilityProps) {
+  const hookResult = useClassAvailability(showId, { enabled: !prefetchedData });
+  const { classes, isLoading, error, totalSpotsAvailable, fullClasses } =
+    prefetchedData ?? hookResult;
 
   // Group classes by trial
   const classesGroupedByTrial = useMemo(() => {
     const groups: Record<string, ClassAvailabilityData[]> = {};
-    classes.forEach((cls) => {
+    classes.forEach(cls => {
       if (!groups[cls.trialId]) {
         groups[cls.trialId] = [];
       }
@@ -227,7 +243,7 @@ export function ClassAvailability({ showId, onEnterClass, compact = false }: Cla
               </div>
             )}
             <div className={compact ? 'space-y-2' : 'grid gap-3 md:grid-cols-2'}>
-              {trialClasses.map((cls) => (
+              {trialClasses.map(cls => (
                 <ClassAvailabilityCard
                   key={cls.classId}
                   classData={cls}

@@ -21,6 +21,14 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 7. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
 8. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate. When making UX changes, check if they preserve the role's target feeling (see `docs/INTENT.md`)
 
+## Git Operations
+
+When asked to pull from GitHub or sync, always do `git fetch` then `git pull` before any other analysis or review work.
+
+## Planning
+
+When creating implementation or remediation plans, always save them to a markdown file (e.g., `PLAN.md` or `docs/plan-<topic>.md`) rather than only outputting to chat. Follow existing plans when they exist — do not start from scratch.
+
 ## Commands
 
 ```bash
@@ -191,6 +199,8 @@ After any file refactoring or extraction, run this checklist before reporting co
 4. All extracted modules have proper TypeScript types (no `any`)
 
 ## Testing
+
+Always ensure generated test code compiles cleanly: no `await` outside `async`, no unused variables (remove them, don't underscore-prefix), and run the test suite before considering work complete.
 
 When test runners hang or appear stuck for more than 30 seconds, stop and report the issue rather than retrying in a loop. Known issue: test suite has pre-existing timeout/hanging problems.
 

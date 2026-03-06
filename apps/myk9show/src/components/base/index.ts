@@ -4,7 +4,6 @@ export type { BaseEntityDialogProps } from './BaseEntityDialog';
 export { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
 export type { DeleteConfirmationDialogProps } from './DeleteConfirmationDialog';
 
-
 export { FormDialog } from './FormDialog';
 export type { FormDialogProps } from './FormDialog';
 
@@ -13,9 +12,6 @@ export type { EntitySidebarProps, EntitySidebarItem } from './EntitySidebar';
 
 export { EntityCard } from './EntityCard';
 export type { EntityCardProps } from './EntityCard';
-
-export { EmptyStateView } from './EmptyStateView';
-export type { EmptyStateViewProps } from './EmptyStateView';
 
 export { DataTable } from './DataTable';
 export type { DataTableProps, DataTableColumn } from './DataTable';

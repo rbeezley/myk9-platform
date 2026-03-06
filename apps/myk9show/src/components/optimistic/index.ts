@@ -3,62 +3,56 @@ export { optimisticUI, OptimisticUIService } from '@/services/optimistic/Optimis
 
 // Provider and context
 export { OptimisticProvider } from './OptimisticProvider';
-export { 
-  useOptimisticUIContext, 
-  useOptimisticNotifications, 
+export {
+  useOptimisticUIContext,
+  useOptimisticNotifications,
   withOptimisticUI,
   useRollbackNotifications,
   useSuccessConfirmation,
   useUndoManager,
-  useUndoShortcut
+  useUndoShortcut,
 } from '@/utils/optimisticUtils';
 
 // Core hooks
-export { 
+export {
   useOptimisticUI,
   useOptimisticDogs,
   useOptimisticEntries,
   useOptimisticScores,
   useOptimisticShows,
-  useOptimisticForm
+  useOptimisticForm,
 } from '@/hooks/useOptimisticUI';
 
 // UI Components
-export { 
+export {
   OptimisticUpdateIndicator,
   SaveIndicator,
   BulkOperationIndicator,
-  FormSaveIndicator
+  FormSaveIndicator,
 } from './OptimisticUpdateIndicator';
 
-export { 
+export {
   SuccessConfirmation,
   EntrySavedConfirmation,
   ScoreSubmittedConfirmation,
-  BulkActionConfirmation
+  BulkActionConfirmation,
 } from './SuccessConfirmation';
 
-export { 
+export {
   RollbackNotification,
   NetworkErrorNotification,
   ConflictNotification,
-  ValidationErrorNotification
+  ValidationErrorNotification,
 } from './RollbackNotification';
 
-export { 
+export {
   ProgressOverlay,
   FormSubmissionOverlay,
   BulkOperationOverlay,
-  FileUploadOverlay
+  FileUploadOverlay,
 } from './ProgressOverlay';
 
-export { 
-  UndoToast,
-  EntryDeletedToast,
-  ScoreUpdatedToast,
-  StatusChangedToast,
-  BulkActionToast
-} from './UndoToast';
+export { UndoToast, ScoreUpdatedToast } from './UndoToast';
 
 // Types
 export * from '@/types/optimistic-types';

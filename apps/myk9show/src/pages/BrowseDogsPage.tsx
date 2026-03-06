@@ -1,20 +1,16 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Search, Filter, Grid3X3, List, Plus, ChevronDown, X } from 'lucide-react';
+import { Search, Grid3X3, List, Plus, X, Dog } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { FilterBar } from '@/components/common/FilterBar';
+import type {
+  FilterDefinition,
+  FilterBarState,
+  SortDefinition,
+} from '@/components/common/FilterBar';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
@@ -22,9 +18,14 @@ import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
 import { DogsGridView, DogsListView } from '@/components/dogs/browse';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
-import type { Dog } from '@/types/dog-types';
+import type { Dog as DogType } from '@/types/dog-types';
 
 type ViewMode = 'grid' | 'list';
+
+const SORT_DEFS: SortDefinition[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'breed', label: 'Breed' },
+];
 
 const BrowseDogsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,8 +33,9 @@ const BrowseDogsPage: React.FC = () => {
 
   const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [showCreateDogPanel, setShowCreateDogPanel] = useState(false);
+  const [showCreateDogPanel, setShowCreateDogPanel] = useState(
+    () => searchParams.get('add') === 'true'
+  );
 
   const { getUserRoles } = useAuthContext();
   const currentUserPersonId = useCurrentUserPersonId();
@@ -51,6 +53,48 @@ const BrowseDogsPage: React.FC = () => {
   } = useBrowseDogsData();
 
   const canCreateDogs = !rbacLoading && hasPermission('dog:create');
+
+  // Build filter definitions from available data
+  const filterDefs: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: 'breed',
+        label: 'Breed',
+        type: 'select',
+        icon: Dog,
+        options: availableBreeds.map(b => ({ label: b, value: b })),
+      },
+      {
+        key: 'sex',
+        label: 'Sex',
+        type: 'select',
+        options: [
+          { label: 'Male', value: 'male' },
+          { label: 'Female', value: 'female' },
+        ],
+      },
+    ],
+    [availableBreeds]
+  );
+
+  // Bridge FilterBar state to useBrowseDogsData filters
+  const filterBarState: FilterBarState = useMemo(() => {
+    const filterState: Record<string, string | string[] | boolean> = {};
+    if (filters.breed !== 'all') filterState.breed = filters.breed;
+    if (filters.sex !== 'all') filterState.sex = filters.sex;
+    return { filters: filterState, sortKey: null, sortDirection: 'asc' };
+  }, [filters.breed, filters.sex]);
+
+  const handleFilterBarChange = useCallback(
+    (newState: FilterBarState) => {
+      setFilters(prev => ({
+        ...prev,
+        breed: (newState.filters.breed as string) || 'all',
+        sex: (newState.filters.sex as string) || 'all',
+      }));
+    },
+    [setFilters]
+  );
 
   // Update URL when view mode changes
   const handleViewModeChange = useCallback(
@@ -70,19 +114,14 @@ const BrowseDogsPage: React.FC = () => {
 
   const breadcrumbItems = useMemo(() => [{ label: 'Dogs' }], []);
 
-  // Handle dog creation
   const handleDogCreated = useCallback(
-    (newDog: Dog) => {
+    (newDog: DogType) => {
       setShowCreateDogPanel(false);
       navigate(`/dogs/${newDog.id}`, { replace: true });
     },
     [navigate]
   );
 
-  // Count active filters (excluding search)
-  const activeFilterCount = (filters.breed !== 'all' ? 1 : 0) + (filters.sex !== 'all' ? 1 : 0);
-
-  // Render view content
   const renderContent = () => {
     if (filteredDogs.length === 0 && !hasActiveFilters) {
       return (
@@ -90,8 +129,7 @@ const BrowseDogsPage: React.FC = () => {
           <CardContent className="p-12 text-center">
             <h3 className="text-lg font-semibold mb-2">No dogs yet</h3>
             <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-              Get started by adding your first dog to track health records, registrations, and
-              competitions.
+              Add your first dog to track health records, registrations, and competitions.
             </p>
             {canCreateDogs && (
               <Button onClick={() => setShowCreateDogPanel(true)}>
@@ -133,7 +171,7 @@ const BrowseDogsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-20 max-w-7xl">
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Loading state */}
           {isLoading && dogs.length === 0 && <BrowseDogsSkeleton viewMode={viewMode} />}
 
@@ -156,126 +194,25 @@ const BrowseDogsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Search & Filters */}
-              <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search dogs by name, breed, or owner..."
-                        value={filters.search}
-                        onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        className="pl-9 h-10 bg-background border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                      />
-                    </div>
-                    <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200 gap-2"
-                        >
-                          <Filter className="h-4 w-4" />
-                          <span>Filters</span>
-                          {activeFilterCount > 0 && (
-                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                              {activeFilterCount}
-                            </Badge>
-                          )}
-                          <ChevronDown
-                            className={cn(
-                              'h-4 w-4 transition-transform duration-200',
-                              isFiltersOpen && 'rotate-180'
-                            )}
-                          />
-                        </Button>
-                      </CollapsibleTrigger>
-                    </Collapsible>
-                  </div>
+              {/* Search + Filter Bar */}
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search dogs by name, breed, or owner..."
+                    value={filters.search}
+                    onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                    className="pl-9 h-10 bg-background border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
+                  />
+                </div>
 
-                  {/* Active filter chips */}
-                  {hasActiveFilters && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {filters.breed !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, breed: 'all' }))}
-                        >
-                          {filters.breed}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.sex !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, sex: 'all' }))}
-                        >
-                          {filters.sex.charAt(0).toUpperCase() + filters.sex.slice(1)}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.search && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
-                        >
-                          &quot;{filters.search}&quot;
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="default"
-                        onClick={clearAllFilters}
-                        className="h-10 px-3 text-sm text-muted-foreground hover:text-primary"
-                      >
-                        Clear all
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Filter dropdowns */}
-                  <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                    <CollapsibleContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 mt-4 border-t border-border/50">
-                        <Select
-                          value={filters.breed}
-                          onValueChange={value => setFilters(prev => ({ ...prev, breed: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Breed" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Breeds</SelectItem>
-                            {availableBreeds.map(breed => (
-                              <SelectItem key={breed} value={breed}>
-                                {breed}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={filters.sex}
-                          onValueChange={value => setFilters(prev => ({ ...prev, sex: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sex" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </CardContent>
-              </Card>
+                <FilterBar
+                  filterDefs={filterDefs}
+                  sortDefs={SORT_DEFS}
+                  state={filterBarState}
+                  onStateChange={handleFilterBarChange}
+                />
+              </div>
 
               {/* View Mode Toggle + Result Count */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

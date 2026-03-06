@@ -14,13 +14,16 @@ initializeSettings();
 
 // Clear any existing service workers to prevent console spam
 if (import.meta.env.DEV && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    for (const registration of registrations) {
-      registration.unregister();
-    }
-  }).catch(error => {
-    logger.debug('Error clearing service workers:', 'app', { data: error });
-  });
+  navigator.serviceWorker
+    .getRegistrations()
+    .then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    })
+    .catch(error => {
+      logger.debug('Error clearing service workers:', 'app', { data: error });
+    });
 }
 
 logger.debug('Starting myK9Show...', 'app', {});
@@ -31,14 +34,7 @@ createRoot(document.getElementById('root')!).render(
       <QueryProvider>
         <ThemeProvider>
           <App />
-          <Toaster
-            toastOptions={{
-              style: {
-                background: '#fff',
-                color: '#000',
-              },
-            }}
-          />
+          <Toaster theme="system" richColors closeButton />
         </ThemeProvider>
       </QueryProvider>
     </BrowserRouter>

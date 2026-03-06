@@ -9,7 +9,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
   operationId,
   message,
   undoAction,
-  timeout = 8000
+  timeout = 8000,
 }) => {
   void operationId; // Suppress unused variable warning
   const [visible, setVisible] = useState(true);
@@ -54,22 +54,20 @@ export const UndoToast: React.FC<UndoToastProps> = ({
         className="fixed bottom-6 left-6 z-50 bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden min-w-[300px] max-w-md"
       >
         {/* Progress bar */}
-        <div 
+        <div
           className="absolute top-0 left-0 h-1 bg-primary/60 transition-all duration-100 ease-linear"
-          style={{ width: `${progressPercentage}%` }} 
+          style={{ width: `${progressPercentage}%` }}
         />
-        
+
         <div className="p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">
-                {message}
-              </p>
+              <p className="text-sm font-medium text-foreground">{message}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {Math.ceil(timeLeft / 1000)}s remaining
               </p>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -80,7 +78,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
                 <Undo2 className="w-3 h-3 mr-1" />
                 Undo
               </Button>
-              
+
               <Button
                 variant="ghost"
                 size="sm"
@@ -97,19 +95,6 @@ export const UndoToast: React.FC<UndoToastProps> = ({
   );
 };
 
-// Specialized undo toasts
-export const EntryDeletedToast: React.FC<{
-  entryName: string;
-  undoAction: () => void;
-}> = ({ entryName, undoAction }) => (
-  <UndoToast
-    operationId=""
-    message={`Deleted "${entryName}"`}
-    undoAction={undoAction}
-    timeout={10000}
-  />
-);
-
 export const ScoreUpdatedToast: React.FC<{
   previousScore: number;
   newScore: number;
@@ -120,35 +105,5 @@ export const ScoreUpdatedToast: React.FC<{
     message={`Score changed from ${previousScore} to ${newScore}`}
     undoAction={undoAction}
     timeout={6000}
-  />
-);
-
-export const StatusChangedToast: React.FC<{
-  itemName: string;
-  previousStatus: string;
-  newStatus: string;
-  undoAction: () => void;
-}> = ({ itemName, previousStatus, newStatus, undoAction }) => {
-  void previousStatus; // Suppress unused variable warning
-  return (
-    <UndoToast
-      operationId=""
-      message={`${itemName} status changed to ${newStatus}`}
-      undoAction={undoAction}
-      timeout={8000}
-    />
-  );
-};
-
-export const BulkActionToast: React.FC<{
-  count: number;
-  action: string;
-  undoAction: () => void;
-}> = ({ count, action, undoAction }) => (
-  <UndoToast
-    operationId=""
-    message={`${action} ${count} item${count > 1 ? 's' : ''}`}
-    undoAction={undoAction}
-    timeout={10000}
   />
 );

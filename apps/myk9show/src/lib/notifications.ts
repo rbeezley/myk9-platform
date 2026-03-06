@@ -2,6 +2,15 @@ import React from 'react';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, AlertCircle, Info, Loader2 } from 'lucide-react';
 
+/** Duration tiers (ms) — consistent across the app */
+export const TOAST_DURATIONS = {
+  success: 4000,
+  info: 4000,
+  warning: 5000,
+  error: 6000,
+  undo: 8000,
+} as const;
+
 export interface NotificationOptions {
   title?: string;
   description?: string;
@@ -12,13 +21,11 @@ export interface NotificationOptions {
   duration?: number;
 }
 
-// Enhanced notification functions
 export const notifications = {
-  // Success notifications
   success: (message: string, options?: NotificationOptions) => {
     return toast.success(message, {
       description: options?.description,
-      duration: options?.duration || 4000,
+      duration: options?.duration || TOAST_DURATIONS.success,
       action: options?.action
         ? {
             label: options.action.label,
@@ -29,11 +36,10 @@ export const notifications = {
     });
   },
 
-  // Error notifications
   error: (message: string, options?: NotificationOptions) => {
     return toast.error(message, {
       description: options?.description,
-      duration: options?.duration || 6000, // Longer for errors
+      duration: options?.duration || TOAST_DURATIONS.error,
       action: options?.action
         ? {
             label: options.action.label,
@@ -44,11 +50,10 @@ export const notifications = {
     });
   },
 
-  // Warning notifications
   warning: (message: string, options?: NotificationOptions) => {
     return toast.warning(message, {
       description: options?.description,
-      duration: options?.duration || 5000,
+      duration: options?.duration || TOAST_DURATIONS.warning,
       action: options?.action
         ? {
             label: options.action.label,
@@ -59,11 +64,10 @@ export const notifications = {
     });
   },
 
-  // Info notifications
   info: (message: string, options?: NotificationOptions) => {
     return toast.info(message, {
       description: options?.description,
-      duration: options?.duration || 4000,
+      duration: options?.duration || TOAST_DURATIONS.info,
       action: options?.action
         ? {
             label: options.action.label,
@@ -74,7 +78,6 @@ export const notifications = {
     });
   },
 
-  // Loading notifications
   loading: (message: string, options?: Omit<NotificationOptions, 'action'>) => {
     return toast.loading(message, {
       description: options?.description,
@@ -82,7 +85,6 @@ export const notifications = {
     });
   },
 
-  // Promise-based notifications for async operations
   promise: <T>(
     promise: Promise<T>,
     messages: {
@@ -100,12 +102,10 @@ export const notifications = {
     });
   },
 
-  // Dismiss all notifications
   dismiss: () => {
     toast.dismiss();
   },
 
-  // Dismiss specific notification
   dismissById: (id: string | number) => {
     toast.dismiss(id);
   },
@@ -113,7 +113,6 @@ export const notifications = {
 
 // Predefined notification templates for common actions
 export const actionNotifications = {
-  // CRUD operations
   created: (entityType: string, entityName?: string) => {
     const name = entityName ? ` "${entityName}"` : '';
     return notifications.success(`${entityType}${name} created successfully`);
@@ -124,20 +123,14 @@ export const actionNotifications = {
     return notifications.success(`${entityType}${name} updated successfully`);
   },
 
-  deleted: (entityType: string, entityName?: string) => {
+  /** Show deletion toast with undo action. Caller must provide the undo callback. */
+  deleted: (entityType: string, entityName?: string, onUndo?: () => void) => {
     const name = entityName ? ` "${entityName}"` : '';
-    return notifications.success(`${entityType}${name} deleted successfully`, {
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          // Undo logic would be implemented by the calling component
-          notifications.info('Undo functionality not implemented yet');
-        },
-      },
-    });
+    const opts: NotificationOptions = { duration: TOAST_DURATIONS.undo };
+    if (onUndo) opts.action = { label: 'Undo', onClick: onUndo };
+    return notifications.success(`${entityType}${name} deleted`, opts);
   },
 
-  // Network operations
   saveInProgress: (entityType: string) => {
     return notifications.loading(`Saving ${entityType.toLowerCase()}...`);
   },
@@ -147,60 +140,45 @@ export const actionNotifications = {
     return notifications.loading(`Uploading${file}...`);
   },
 
-  // Validation errors
   validationError: (message: string) => {
     return notifications.error('Validation Error', {
       description: message,
     });
   },
 
-  // Network errors
-  networkError: (action?: string) => {
+  networkError: (action?: string, onRetry?: () => void) => {
     const actionText = action ? ` ${action}` : '';
-    return notifications.error('Network Error', {
+    const opts: NotificationOptions = {
       description: `Failed to${actionText}. Please check your connection and try again.`,
-      action: {
-        label: 'Retry',
-        onClick: () => {
-          // Retry logic would be implemented by the calling component
-          notifications.info('Retry functionality not implemented yet');
-        },
-      },
-    });
+    };
+    if (onRetry) opts.action = { label: 'Retry', onClick: onRetry };
+    return notifications.error('Network Error', opts);
   },
 
-  // Permission errors
   permissionError: (action: string) => {
     return notifications.error('Permission Denied', {
       description: `You don't have permission to ${action}.`,
     });
   },
 
-  // Data sync
   syncSuccess: () => {
     return notifications.success('Data synchronized successfully');
   },
 
-  syncError: () => {
-    return notifications.error('Failed to sync data', {
+  syncError: (onRetry?: () => void) => {
+    const opts: NotificationOptions = {
       description: 'Some changes may not be saved. Please try again.',
-      action: {
-        label: 'Retry Sync',
-        onClick: () => {
-          notifications.info('Sync retry not implemented yet');
-        },
-      },
-    });
+    };
+    if (onRetry) opts.action = { label: 'Retry Sync', onClick: onRetry };
+    return notifications.error('Failed to sync data', opts);
   },
 
-  // Bulk operations
   bulkAction: (action: string, count: number, entityType: string) => {
     return notifications.success(
       `${action} ${count} ${entityType}${count === 1 ? '' : 's'} successfully`
     );
   },
 
-  // Import/Export
   exportSuccess: (fileName: string) => {
     return notifications.success('Export completed', {
       description: `File "${fileName}" has been downloaded.`,

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
+import { queryKeys } from '@/lib/queryClient';
 import { useUserStore } from '@/store/userStore';
 import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
@@ -29,9 +31,10 @@ interface UserDetailsViewProps {
 
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
-  useUserStore();
+  const { loadUsers } = useUserStore();
   const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
   const updateUserMutation = useUpdateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
@@ -125,6 +128,11 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           })
         )
       );
+
+      // Invalidate caches so the store and queries pick up the new data
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(person.id) });
+      loadUsers();
 
       logger.info('Qualifications saved successfully', 'users', {
         userId: person.id,

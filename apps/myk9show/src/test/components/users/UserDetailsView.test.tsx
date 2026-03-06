@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 import type { User } from '@/types/dog-types';
 
@@ -31,7 +32,9 @@ vi.mock('@/hooks/queries/useUsersQuery', () => ({
 }));
 
 vi.mock('@/store/userStore', () => ({
-  useUserStore: () => ({}),
+  useUserStore: () => ({
+    loadUsers: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -68,8 +71,16 @@ const createMockUser = (overrides: Partial<User> = {}): User => ({
   ...overrides,
 });
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
 const renderWithRouter = (component: React.ReactNode) => {
-  return render(<MemoryRouter>{component}</MemoryRouter>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{component}</MemoryRouter>
+    </QueryClientProvider>
+  );
 };
 
 describe('UserDetailsView', () => {

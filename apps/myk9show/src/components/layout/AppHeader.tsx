@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -35,6 +35,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
+import { KeyboardShortcutsOverlay } from '@/components/common/KeyboardShortcutsOverlay';
+import {
+  useKeyboardShortcuts,
+  getShortcutDisplays,
+  type ShortcutDefinition,
+} from '@/hooks/useKeyboardShortcuts';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { ResetDataButton } from '@/components/common/ResetDataButton';
 import { ClearCacheButton } from '@/components/common/ClearCacheButton';
@@ -53,27 +59,86 @@ const AppHeader: React.FC = () => {
   const navigate = useNavigate();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const currentPersonId = useCurrentUserPersonId();
   const [aboutOpen, setAboutOpen] = useState(false);
   const cartItemCount = useCartItemCount();
 
-  // Handler for opening command palette
-  const openCommandPalette = () => {
-    setCommandPaletteOpen(true);
-  };
+  const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
 
-  // Keyboard shortcut for command palette
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        openCommandPalette();
-      }
-    };
+  // Central keyboard shortcuts
+  const shortcuts: ShortcutDefinition[] = useMemo(
+    () => [
+      {
+        id: 'command-palette',
+        label: 'Open command palette',
+        keys: 'Meta+K',
+        category: 'general',
+        action: openCommandPalette,
+        global: true,
+      },
+      {
+        id: 'shortcuts-overlay',
+        label: 'Show keyboard shortcuts',
+        keys: '?',
+        category: 'general',
+        action: () => setShortcutsOverlayOpen(true),
+      },
+      {
+        id: 'go-dogs',
+        label: 'Go to Dogs',
+        keys: 'G D',
+        category: 'navigation',
+        action: () => navigate('/dogs'),
+      },
+      {
+        id: 'go-people',
+        label: 'Go to People',
+        keys: 'G P',
+        category: 'navigation',
+        action: () => navigate('/people'),
+      },
+      {
+        id: 'go-shows',
+        label: 'Go to Shows',
+        keys: 'G S',
+        category: 'navigation',
+        action: () => navigate('/shows'),
+      },
+      {
+        id: 'go-clubs',
+        label: 'Go to Clubs',
+        keys: 'G C',
+        category: 'navigation',
+        action: () => navigate('/clubs'),
+      },
+      {
+        id: 'create-dog',
+        label: 'Create Dog',
+        keys: 'C D',
+        category: 'actions',
+        action: () => navigate('/dogs?add=true'),
+      },
+      {
+        id: 'create-person',
+        label: 'Create Person',
+        keys: 'C P',
+        category: 'actions',
+        action: () => navigate('/people?add=true'),
+      },
+      {
+        id: 'create-show',
+        label: 'Create Show',
+        keys: 'C S',
+        category: 'actions',
+        action: () => navigate('/?wizard=true'),
+      },
+    ],
+    [navigate, openCommandPalette]
+  );
 
-    document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
-  }, []);
+  useKeyboardShortcuts(shortcuts);
+  const shortcutDisplays = useMemo(() => getShortcutDisplays(shortcuts), [shortcuts]);
 
   // Close mobile menu
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -388,6 +453,13 @@ const AppHeader: React.FC = () => {
 
       {/* Command Palette */}
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+
+      {/* Keyboard Shortcuts Overlay */}
+      <KeyboardShortcutsOverlay
+        open={shortcutsOverlayOpen}
+        onOpenChange={setShortcutsOverlayOpen}
+        shortcuts={shortcutDisplays}
+      />
 
       {/* About Dialog */}
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />

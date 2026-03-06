@@ -1,6 +1,6 @@
 ---
 name: SK-UX-Audit
-description: Audit existing UI/features against UX principles using a 6-pass evaluation framework. Use when analyzing current implementations, identifying UX gaps, or planning improvements to existing projects. Works with live apps, screenshots, or codebase analysis.
+description: "Required methodology for UX reviews: provides a 6-pass diagnostic checklist (mental model, IA, affordances, cognitive load, state coverage, flow integrity) that produces a structured audit document with severity-rated findings tables. You MUST read and follow this skill before doing any UX audit, UX review, usability analysis, or UI evaluation. Trigger words: 'review the UX', 'audit this page', 'UX issues', 'usability check', 'what's wrong with this UI', 'this feels off', 'users are confused', 'check edge cases', 'prepare for user testing', 'document UX problems', 'onboard to this UI'. This skill contains the project's official UX audit format and scoring rubric — without it you will produce an ad-hoc analysis that misses the required structure."
 ---
 
 # UX Audit for Existing Projects
@@ -25,12 +25,11 @@ Evaluate existing UI implementations against UX foundations using **6 diagnostic
 
 The audit can work from any of these:
 
-| Source | How to Provide | Best For |
-|--------|----------------|----------|
-| **Live app** | URL or localhost | Full interaction analysis |
-| **Screenshots** | Image files | Static layout analysis |
-| **Codebase** | File paths | Component/state analysis |
-| **User flows** | Description or recording | Journey analysis |
+| Source          | How to Provide                | Best For                 |
+| --------------- | ----------------------------- | ------------------------ |
+| **Screenshots** | Image files or pasted images  | Layout & visual analysis |
+| **Codebase**    | File paths or component names | Component/state analysis |
+| **User flows**  | Step-by-step description      | Journey analysis         |
 
 Combine sources for deeper analysis. Code + screenshots catches more than either alone.
 
@@ -39,32 +38,30 @@ Combine sources for deeper analysis. Code + screenshots catches more than either
 **Write the audit to a file in the project directory.**
 
 Naming convention:
+
 - Feature audit: `{feature-name}-ux-audit.md`
 - Full app audit: `UX-audit.md`
 - Page audit: `{page-name}-ux-audit.md`
 
 **Do not output to conversation.** Write to file so findings persist and can be tracked.
 
+## Scoping the Audit
+
+Before starting, decide the scope:
+
+- **Feature audit** (recommended): Focus on one feature or user flow for deep, actionable findings
+- **Page audit**: Evaluate a single page/screen across all passes
+- **Full app audit**: Broad sweep across the whole app — expect less detail per finding, more findings overall
+
+When in doubt, scope to a single feature. A deep audit of one flow is more useful than a shallow audit of everything.
+
+## Before You Begin: Check for Intent Documentation
+
+If the project has a `docs/INTENT.md` or `// INTENT:` comments in the code being audited, read them first. These define deliberate design choices and the emotional experience each role should have. Findings that contradict an intentional design choice are noise — flag them as "intentional per INTENT.md" rather than as issues.
+
 ## The 6 Diagnostic Passes
 
 Execute IN ORDER. Each pass produces findings before the next begins.
-
-```dot
-digraph audit_passes {
-    rankdir=TB;
-    node [shape=box];
-
-    p1 [label="Pass 1: Mental Model Alignment\n(Does UI match user expectations?)"];
-    p2 [label="Pass 2: Information Architecture\n(Is content organized logically?)"];
-    p3 [label="Pass 3: Affordance Clarity\n(Are actions obvious?)"];
-    p4 [label="Pass 4: Cognitive Load\n(Where do users get stuck?)"];
-    p5 [label="Pass 5: State Coverage\n(Are all states handled?)"];
-    p6 [label="Pass 6: Flow Integrity\n(Can users complete their goal?)"];
-    summary [label="Summary: Prioritized Findings"];
-
-    p1 -> p2 -> p3 -> p4 -> p5 -> p6 -> summary;
-}
-```
 
 ---
 
@@ -72,13 +69,17 @@ digraph audit_passes {
 
 **Diagnostic question:** "Does the UI match what users expect?"
 
+**What good looks like:** A settings page groups options the way users think about them (by task), not how the database stores them (by table).
+
 **Evaluate:**
+
 - What does the UI suggest this feature does?
 - What does it actually do?
 - Where might users have wrong assumptions?
 - Does terminology match user language or internal jargon?
 
 **Required output:**
+
 ```markdown
 ## Pass 1: Mental Model Alignment
 
@@ -100,17 +101,22 @@ digraph audit_passes {
 
 **Diagnostic question:** "Is content organized the way users think?"
 
+**What good looks like:** A dashboard shows the 3 things users check most at the top, with drill-down for details — not every field from the API response in a flat list.
+
 **Evaluate:**
+
 - How is information grouped?
 - Does grouping match user mental categories?
 - What's hidden that should be visible?
 - What's prominent that should be secondary?
 
 **Required output:**
+
 ```markdown
 ## Pass 2: Information Architecture
 
 **Current structure:**
+
 - [Group 1]: [Items]
 - [Group 2]: [Items]
 
@@ -120,6 +126,7 @@ digraph audit_passes {
 | [Type] | [Where] | [What's wrong] | [Fix] |
 
 **Visibility problems:**
+
 - Hidden but should be visible: [List]
 - Prominent but should be secondary: [List]
 ```
@@ -130,13 +137,17 @@ digraph audit_passes {
 
 **Diagnostic question:** "Can users tell what's interactive?"
 
+**What good looks like:** Every clickable element has a visible hover state, cursor change, or visual weight that distinguishes it from static text.
+
 **Evaluate:**
+
 - Are clickable elements obviously clickable?
 - Are non-interactive elements mistaken for buttons?
 - Do inputs look editable?
 - Is the difference between states visually clear?
 
 **Required output:**
+
 ```markdown
 ## Pass 3: Affordance Clarity
 
@@ -150,6 +161,7 @@ digraph audit_passes {
 **Hidden affordances:** [Interactive things that don't look it]
 
 **Recommended fixes:**
+
 - [Fix 1]
 - [Fix 2]
 ```
@@ -160,13 +172,17 @@ digraph audit_passes {
 
 **Diagnostic question:** "Where will users hesitate or abandon?"
 
+**What good looks like:** A form with 3 fields and smart defaults that auto-fills what it can, versus a 12-field form where the user must research half the answers.
+
 **Evaluate:**
+
 - How many decisions per screen?
 - Are there smart defaults?
 - What requires explanation vs. is self-evident?
 - Where is unnecessary complexity exposed?
 
 **Required output:**
+
 ```markdown
 ## Pass 4: Cognitive Load
 
@@ -176,6 +192,7 @@ digraph audit_passes {
 | [Location] | [Count & type] | [How] |
 
 **Missing defaults:**
+
 - [Field/option that should have a default]
 
 **Unnecessary complexity:**
@@ -192,7 +209,10 @@ digraph audit_passes {
 
 **Diagnostic question:** "Are all states handled gracefully?"
 
+**What good looks like:** An empty state that says "No dogs registered yet — add your first dog to get started" with a CTA button, versus a blank white screen.
+
 **Evaluate for each major component:**
+
 - Empty state
 - Loading state
 - Success state
@@ -201,18 +221,19 @@ digraph audit_passes {
 - Edge cases (permissions, offline, etc.)
 
 **Required output:**
+
 ```markdown
 ## Pass 5: State Coverage
 
 ### [Component/Screen]
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| Empty | Yes/No | Good/Poor/Missing | [Problem if any] |
-| Loading | Yes/No | Good/Poor/Missing | [Problem if any] |
-| Success | Yes/No | Good/Poor/Missing | [Problem if any] |
-| Partial | Yes/No | Good/Poor/Missing | [Problem if any] |
-| Error | Yes/No | Good/Poor/Missing | [Problem if any] |
+| State   | Implemented? | Quality           | Issue            |
+| ------- | ------------ | ----------------- | ---------------- |
+| Empty   | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Loading | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Success | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Partial | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Error   | Yes/No       | Good/Poor/Missing | [Problem if any] |
 
 **Dead ends found:** [States where user is stuck with no guidance]
 
@@ -225,13 +246,17 @@ digraph audit_passes {
 
 **Diagnostic question:** "Can users actually complete their goal?"
 
+**What good looks like:** A 4-step wizard where each step is clear, back works at every stage, and the user always knows how far along they are.
+
 **Evaluate:**
+
 - Walk through the primary use case
 - Note every friction point
 - Identify abandonment risks
 - Check recovery paths (back, undo, cancel)
 
 **Required output:**
+
 ```markdown
 ## Pass 6: Flow Integrity
 
@@ -244,9 +269,11 @@ digraph audit_passes {
 | 2 | ... | ... | ... |
 
 **Abandonment risks:**
+
 - [Where users might give up and why]
 
 **Recovery gaps:**
+
 - Missing back/undo: [Where]
 - No cancel option: [Where]
 - Destructive with no confirm: [Where]
@@ -266,26 +293,32 @@ After all passes, synthesize findings:
 **Overall UX health:** [Good / Needs Work / Critical Issues]
 
 ### Critical (Fix immediately)
-| Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
-| [Issue] | [#] | [User impact] | [Dev effort] |
+
+| Finding | Pass | Impact        | Effort       |
+| ------- | ---- | ------------- | ------------ |
+| [Issue] | [#]  | [User impact] | [Dev effort] |
 
 ### High Priority (Fix soon)
+
 | Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
+| ------- | ---- | ------ | ------ |
 
 ### Medium Priority (Plan for)
+
 | Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
+| ------- | ---- | ------ | ------ |
 
 ### Low Priority (Nice to have)
+
 | Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
+| ------- | ---- | ------ | ------ |
 
 ### Quick Wins (High impact, low effort)
+
 - [Issue]: [1-line fix description]
 
 ### Recommendations
+
 1. [Top recommendation]
 2. [Second recommendation]
 3. [Third recommendation]
@@ -293,24 +326,24 @@ After all passes, synthesize findings:
 
 ## Severity Guide
 
-| Severity | Definition | Examples |
-|----------|------------|----------|
-| **Critical** | Users cannot complete core task | Broken flow, crash, data loss |
-| **High** | Users struggle significantly | Confusing IA, missing states, unclear affordances |
-| **Medium** | Users experience friction | Extra clicks, unclear labels, missing defaults |
-| **Low** | Minor polish issues | Inconsistent spacing, suboptimal wording |
+| Severity     | Definition                      | Examples                                          |
+| ------------ | ------------------------------- | ------------------------------------------------- |
+| **Critical** | Users cannot complete core task | Broken flow, crash, data loss                     |
+| **High**     | Users struggle significantly    | Confusing IA, missing states, unclear affordances |
+| **Medium**   | Users experience friction       | Extra clicks, unclear labels, missing defaults    |
+| **Low**      | Minor polish issues             | Inconsistent spacing, suboptimal wording          |
 
 ## Red Flags - Common Issues to Watch For
 
-| Red Flag | Usually Found In | Pass |
-|----------|------------------|------|
-| "What does this button do?" | Screenshots, testing | Pass 3 |
-| Technical terms in UI | Copy, labels | Pass 1 |
-| 5+ decisions on one screen | Complex forms | Pass 4 |
-| Blank screen with no guidance | Empty states | Pass 5 |
-| No way to go back | Multi-step flows | Pass 6 |
-| Error shows "Something went wrong" | Error states | Pass 5 |
-| User asks "did it work?" | Success states | Pass 5 |
+| Red Flag                           | Usually Found In     | Pass   |
+| ---------------------------------- | -------------------- | ------ |
+| "What does this button do?"        | Screenshots, testing | Pass 3 |
+| Technical terms in UI              | Copy, labels         | Pass 1 |
+| 5+ decisions on one screen         | Complex forms        | Pass 4 |
+| Blank screen with no guidance      | Empty states         | Pass 5 |
+| No way to go back                  | Multi-step flows     | Pass 6 |
+| Error shows "Something went wrong" | Error states         | Pass 5 |
+| User asks "did it work?"           | Success states       | Pass 5 |
 
 ## Output Template
 
@@ -322,26 +355,33 @@ After all passes, synthesize findings:
 **Sources:** [What was analyzed]
 
 ## Pass 1: Mental Model Alignment
+
 [Required content]
 
 ## Pass 2: Information Architecture
+
 [Required content]
 
 ## Pass 3: Affordance Clarity
+
 [Required content]
 
 ## Pass 4: Cognitive Load
+
 [Required content]
 
 ## Pass 5: State Coverage
+
 [Required content]
 
 ## Pass 6: Flow Integrity
+
 [Required content]
 
 ---
 
 ## Summary
+
 [Prioritized findings and recommendations]
 ```
 

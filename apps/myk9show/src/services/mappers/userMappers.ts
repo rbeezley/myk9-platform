@@ -33,7 +33,7 @@ export const mapUserInputToUpdate = (input: Partial<UserInput>): DbUserUpdate =>
   if (input.lastName !== undefined) update.last_name = input.lastName;
   if (input.email !== undefined) update.email = input.email || null;
   if (input.phone !== undefined) update.phone = input.phone || null;
-  
+
   // Handle address updates
   if (input.address) {
     if (input.address.street !== undefined) update.street_address = input.address.street || null;
@@ -67,47 +67,57 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     state: dbUser.state as string,
     zipCode: dbUser.zip_code as string,
     profileImage: dbUser.profile_image_url as string,
-    user_id: dbUser.user_id as string, // Link to auth.users for RBAC
-    
+    user_id: dbUser.auth_user_id as string, // Link to auth.users for RBAC
+
     // Map associated dogs if included in query
-    dogs: Array.isArray(dbUser.dog) ? 
-      (dbUser.dog as Array<Record<string, unknown>>).map(dog => dog.id as string) : [],
-    
-    associatedDogs: Array.isArray(dbUser.dog) ? 
-      (dbUser.dog as Array<Record<string, unknown>>).map(dog => dog.id as string) : [],
-    
+    dogs: Array.isArray(dbUser.dog)
+      ? (dbUser.dog as Array<Record<string, unknown>>).map(dog => dog.id as string)
+      : [],
+
+    associatedDogs: Array.isArray(dbUser.dog)
+      ? (dbUser.dog as Array<Record<string, unknown>>).map(dog => dog.id as string)
+      : [],
+
     // Map roles from the RBAC system if available
-    roles: Array.isArray(dbUser.roles) ? 
-      dbUser.roles as Array<'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin'> : [],
-    
+    roles: Array.isArray(dbUser.roles)
+      ? (dbUser.roles as Array<
+          'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin'
+        >)
+      : [],
+
     // Judge qualifications - handle if present
-    judgeQualifications: Array.isArray(dbUser.judge_qualifications) ?
-      (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(qual => ({
-        judgeNumber: qual.judge_number as string || '',
-        organization: qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER' || 'OTHER',
-        showTypes: (qual.show_types as string[]) || [],
-        certificationDate: qual.certification_date as string || '',
-        status: qual.status as 'Active' | 'Suspended' | 'Expired' || 'Active',
-        level: qual.level as string || 'Apprentice',
-        disciplines: (qual.disciplines as string[]) || (qual.show_types as string[]) || [],
-        dateObtained: qual.date_obtained ? new Date(qual.date_obtained as string) : new Date(qual.certification_date as string || new Date()),
-        expirationDate: qual.expiration_date ? new Date(qual.expiration_date as string) : null,
-      })) : [],
-    
+    judgeQualifications: Array.isArray(dbUser.judge_qualifications)
+      ? (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(qual => ({
+          judgeNumber: (qual.judge_number as string) || '',
+          organization: (qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER') || 'OTHER',
+          showTypes: (qual.show_types as string[]) || [],
+          certificationDate: (qual.certification_date as string) || '',
+          status: (qual.status as 'Active' | 'Suspended' | 'Expired') || 'Active',
+          level: (qual.level as string) || 'Apprentice',
+          disciplines: (qual.disciplines as string[]) || (qual.show_types as string[]) || [],
+          dateObtained: qual.date_obtained
+            ? new Date(qual.date_obtained as string)
+            : new Date((qual.certification_date as string) || new Date()),
+          expirationDate: qual.expiration_date ? new Date(qual.expiration_date as string) : null,
+        }))
+      : [],
+
     // Judge info - handle if present
-    judgeInfo: dbUser.judge_info ? {
-      judgeNumber: (dbUser.judge_info as Record<string, unknown>).judge_number as string,
-      qualifications: [],
-      certifications: [],
-      availability: {
-        startDate: null,
-        endDate: null,
-        blackoutDates: [],
-        maxShowsPerMonth: 0,
-        travelRadius: 0,
-      },
-    } : undefined,
-    
+    judgeInfo: dbUser.judge_info
+      ? {
+          judgeNumber: (dbUser.judge_info as Record<string, unknown>).judge_number as string,
+          qualifications: [],
+          certifications: [],
+          availability: {
+            startDate: null,
+            endDate: null,
+            blackoutDates: [],
+            maxShowsPerMonth: 0,
+            travelRadius: 0,
+          },
+        }
+      : undefined,
+
     // Sync metadata - maintained for compatibility
     _version: 1,
     _lastModified: new Date((dbUser.updated_at as string) || (dbUser.created_at as string)),
@@ -173,5 +183,5 @@ export const mapUserForList = (dbUser: Record<string, unknown>) => ({
   email: dbUser.email as string,
   phone: dbUser.phone as string,
   dogCount: Array.isArray(dbUser.dog) ? (dbUser.dog as Array<unknown>).length : 0,
-  roles: Array.isArray(dbUser.roles) ? dbUser.roles as string[] : [],
+  roles: Array.isArray(dbUser.roles) ? (dbUser.roles as string[]) : [],
 });

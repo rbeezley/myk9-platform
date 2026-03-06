@@ -2,6 +2,7 @@ import React, { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Search, Dog, Users, Calendar, Building, Plus, Clock } from 'lucide-react';
+import { Kbd } from '@/components/ui/kbd';
 import { useNavigate } from 'react-router-dom';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
@@ -28,21 +29,16 @@ type CommandAction = {
 const MAX_DATA_RESULTS = 5;
 
 const groupHeadingClass =
-  '[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400';
+  '[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground';
 
 const itemClass =
-  'flex items-center px-2 py-2 text-sm rounded-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 aria-selected:bg-gray-100 dark:aria-selected:bg-gray-800 text-gray-900 dark:text-gray-100';
+  'flex items-center px-2 py-2 text-sm rounded-sm cursor-pointer hover:bg-muted aria-selected:bg-muted text-foreground';
 
 function ShortcutBadge({ keys }: { keys: string }) {
   return (
     <div className="flex items-center gap-0.5 ml-auto">
       {keys.split(' ').map((key, i) => (
-        <kbd
-          key={i}
-          className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400"
-        >
-          {key}
-        </kbd>
+        <Kbd key={i}>{key}</Kbd>
       ))}
     </div>
   );
@@ -274,22 +270,19 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
-        <Command className="rounded-lg border-none shadow-none bg-white dark:bg-gray-900">
-          <div
-            className="flex items-center border-b border-gray-200 dark:border-gray-700 px-3"
-            cmdk-input-wrapper=""
-          >
+      <DialogContent className="max-w-2xl p-0 bg-background border border-border">
+        <Command className="rounded-lg border-none shadow-none bg-background">
+          <div className="flex items-center border-b border-border px-3" cmdk-input-wrapper="">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <Command.Input
               placeholder="Search dogs, people, shows, or type a command..."
               value={search}
               onValueChange={setSearch}
-              className="flex h-11 w-full rounded-md bg-white dark:bg-gray-900 py-3 text-sm outline-none placeholder:text-gray-500 disabled:cursor-not-allowed disabled:opacity-50 dark:placeholder:text-gray-400 text-gray-900 dark:text-gray-100"
+              className="flex h-11 w-full rounded-md bg-background py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
             />
           </div>
-          <Command.List className="max-h-96 overflow-y-auto p-2 bg-white dark:bg-gray-900">
-            <Command.Empty className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          <Command.List className="max-h-96 overflow-y-auto p-2 bg-background">
+            <Command.Empty className="py-6 text-center text-sm text-muted-foreground">
               No results found.
             </Command.Empty>
 
@@ -301,13 +294,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     key={recent.id}
                     value={recent.query}
                     onSelect={() => setSearch(recent.query)}
-                    className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer rounded-md hover:bg-muted text-foreground"
                   >
-                    <Clock className="h-4 w-4 text-gray-500" />
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                     <div className="flex-1">
                       <div>{recent.query}</div>
                       {recent.metadata?.selectedCommand && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           → {recent.metadata.selectedCommand}
                         </div>
                       )}
@@ -326,17 +319,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                   onSelect={() => handleSelect(command.id)}
                   className={itemClass}
                 >
-                  <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                  <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     {command.icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {command.title}
-                    </div>
+                    <div className="font-medium text-foreground">{command.title}</div>
                     {command.subtitle && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {command.subtitle}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{command.subtitle}</div>
                     )}
                   </div>
                   {command.shortcut && <ShortcutBadge keys={command.shortcut} />}
@@ -354,17 +343,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     onSelect={() => handleSelect(command.id)}
                     className={itemClass}
                   >
-                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
                       {command.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">
-                        {command.title}
-                      </div>
+                      <div className="font-medium text-foreground">{command.title}</div>
                       {command.subtitle && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {command.subtitle}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{command.subtitle}</div>
                       )}
                     </div>
                   </Command.Item>
@@ -381,13 +366,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                   onSelect={() => handleSelect(command.id)}
                   className={itemClass}
                 >
-                  <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300">
+                  <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
                     {command.icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {command.title}
-                    </div>
+                    <div className="font-medium text-foreground">{command.title}</div>
                   </div>
                   {command.shortcut && <ShortcutBadge keys={command.shortcut} />}
                 </Command.Item>
@@ -396,29 +379,21 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           </Command.List>
 
           {/* Footer with keyboard hints */}
-          <div className="flex items-center gap-4 border-t border-gray-200 dark:border-gray-700 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-4 border-t border-border px-3 py-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <kbd className="inline-flex h-4 min-w-[16px] items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1 text-[10px]">
-                ↑↓
-              </kbd>
+              <Kbd size="sm">↑↓</Kbd>
               Navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="inline-flex h-4 min-w-[16px] items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1 text-[10px]">
-                ↵
-              </kbd>
+              <Kbd size="sm">↵</Kbd>
               Select
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="inline-flex h-4 min-w-[16px] items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1 text-[10px]">
-                esc
-              </kbd>
+              <Kbd size="sm">esc</Kbd>
               Close
             </span>
             <span className="ml-auto flex items-center gap-1">
-              <kbd className="inline-flex h-4 min-w-[16px] items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1 text-[10px]">
-                ?
-              </kbd>
+              <Kbd size="sm">?</Kbd>
               All shortcuts
             </span>
           </div>

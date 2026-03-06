@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Kbd } from '@/components/ui/kbd';
 import type { ShortcutDisplay } from '@/hooks/useKeyboardShortcuts';
 
 interface KeyboardShortcutsOverlayProps {
@@ -15,14 +16,6 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder = ['general', 'navigation', 'actions'];
 
-function ShortcutKey({ text }: { text: string }) {
-  return (
-    <kbd className="inline-flex h-6 min-w-[24px] items-center justify-center rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-1.5 text-xs font-medium text-gray-600 dark:text-gray-300">
-      {text}
-    </kbd>
-  );
-}
-
 function ShortcutKeys({ keys }: { keys: string }) {
   // "Meta+K" → ⌘ K, "G D" → G then D, "?" → ?
   if (keys.includes('+')) {
@@ -37,7 +30,9 @@ function ShortcutKeys({ keys }: { keys: string }) {
     return (
       <div className="flex items-center gap-0.5">
         {displayParts.map((part, i) => (
-          <ShortcutKey key={i} text={part} />
+          <Kbd key={i} size="lg">
+            {part}
+          </Kbd>
         ))}
       </div>
     );
@@ -49,15 +44,15 @@ function ShortcutKeys({ keys }: { keys: string }) {
       <div className="flex items-center gap-1">
         {parts.map((part, i) => (
           <span key={i} className="flex items-center gap-1">
-            {i > 0 && <span className="text-xs text-gray-400">then</span>}
-            <ShortcutKey text={part.toUpperCase()} />
+            {i > 0 && <span className="text-xs text-muted-foreground/60">then</span>}
+            <Kbd size="lg">{part.toUpperCase()}</Kbd>
           </span>
         ))}
       </div>
     );
   }
 
-  return <ShortcutKey text={keys} />;
+  return <Kbd size="lg">{keys}</Kbd>;
 }
 
 export function KeyboardShortcutsOverlay({
@@ -77,11 +72,11 @@ export function KeyboardShortcutsOverlay({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-lg p-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
+        className="max-w-lg p-0 bg-background border border-border"
         aria-label="Keyboard shortcuts"
       >
         <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          <DialogTitle className="text-base font-semibold text-foreground">
             Keyboard Shortcuts
           </DialogTitle>
         </DialogHeader>
@@ -89,7 +84,7 @@ export function KeyboardShortcutsOverlay({
         <div className="px-5 pb-5 space-y-5 max-h-[60vh] overflow-y-auto">
           {grouped.map(group => (
             <div key={group.category}>
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 {group.label}
               </h3>
               <div className="space-y-1">
@@ -98,9 +93,7 @@ export function KeyboardShortcutsOverlay({
                     key={shortcut.id}
                     className="flex items-center justify-between py-1.5 px-2 rounded-md"
                   >
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {shortcut.label}
-                    </span>
+                    <span className="text-sm text-foreground">{shortcut.label}</span>
                     <ShortcutKeys keys={shortcut.keys} />
                   </div>
                 ))}

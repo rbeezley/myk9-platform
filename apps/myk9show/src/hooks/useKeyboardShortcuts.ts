@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
 
 /** A shortcut definition for display and execution */
 export interface ShortcutDefinition {
@@ -28,22 +28,15 @@ function isInputFocused(): boolean {
 }
 
 function isModalOpen(): boolean {
-  // Check for open dialogs (radix/shadcn use [role="dialog"], [data-state="open"])
   return document.querySelector('[role="dialog"][data-state="open"]') !== null;
 }
 
-/**
- * Parse a shortcut key string into a normalized form.
- * - "Meta+K" → modifier shortcut
- * - "G D" → chord sequence
- * - "?" → single key
- */
-function parseKeys(
-  keys: string
-):
+type ParsedKeys =
   | { type: 'modifier'; key: string; meta: boolean; ctrl: boolean }
   | { type: 'chord'; sequence: string[] }
-  | { type: 'single'; key: string } {
+  | { type: 'single'; key: string };
+
+function parseKeys(keys: string): ParsedKeys {
   if (keys.includes('+')) {
     const parts = keys.split('+');
     const key = parts[parts.length - 1].toLowerCase();
@@ -57,6 +50,8 @@ function parseKeys(
   return { type: 'single', key: keys };
 }
 
+type ParsedShortcut = ShortcutDefinition & { parsed: ParsedKeys };
+
 /**
  * Central keyboard shortcuts hook.
  * Handles single keys, modifier combos, and chord sequences (e.g., G then D).
@@ -65,6 +60,12 @@ function parseKeys(
 export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
   const chordBufferRef = useRef<string[]>([]);
   const chordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Precompute parsed keys once, not per-keystroke
+  const parsedShortcuts: ParsedShortcut[] = useMemo(
+    () => shortcuts.map(s => ({ ...s, parsed: parseKeys(s.keys) })),
+    [shortcuts]
+  );
 
   const resetChord = useCallback(() => {
     chordBufferRef.current = [];
@@ -79,11 +80,10 @@ export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
       const inputFocused = isInputFocused();
       const modalOpen = isModalOpen();
 
-      for (const shortcut of shortcuts) {
-        // Skip non-global shortcuts when input focused or modal open
+      for (const shortcut of parsedShortcuts) {
         if (!shortcut.global && (inputFocused || modalOpen)) continue;
 
-        const parsed = parseKeys(shortcut.keys);
+        const { parsed } = shortcut;
 
         if (parsed.type === 'modifier') {
           const metaMatch = parsed.meta ? e.metaKey : true;
@@ -97,7 +97,6 @@ export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
         }
 
         if (parsed.type === 'single') {
-          // Single key shortcuts: only fire if no modifiers held
           if (e.key === parsed.key && !e.metaKey && !e.ctrlKey && !e.altKey) {
             if (inputFocused) continue;
             e.preventDefault();
@@ -112,23 +111,18 @@ export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
       if (inputFocused || modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
 
       const key = e.key.toLowerCase();
-      // Only buffer single letter/number keys
       if (key.length !== 1) return;
 
       chordBufferRef.current.push(key);
 
-      // Reset timer
       if (chordTimerRef.current) clearTimeout(chordTimerRef.current);
       chordTimerRef.current = setTimeout(resetChord, CHORD_TIMEOUT_MS);
 
-      // Check if buffer matches any chord shortcut
       const buffer = chordBufferRef.current;
-      for (const shortcut of shortcuts) {
-        const parsed = parseKeys(shortcut.keys);
-        if (parsed.type !== 'chord') continue;
+      for (const shortcut of parsedShortcuts) {
+        if (shortcut.parsed.type !== 'chord') continue;
 
-        const seq = parsed.sequence;
-        // Check if buffer ends with this sequence
+        const seq = shortcut.parsed.sequence;
         if (buffer.length >= seq.length) {
           const tail = buffer.slice(buffer.length - seq.length);
           if (tail.every((k, i) => k === seq[i])) {
@@ -146,7 +140,7 @@ export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
       document.removeEventListener('keydown', handler);
       if (chordTimerRef.current) clearTimeout(chordTimerRef.current);
     };
-  }, [shortcuts, resetChord]);
+  }, [parsedShortcuts, resetChord]);
 }
 
 /** Shortcut definitions for the overlay display (without actions, for static listing) */

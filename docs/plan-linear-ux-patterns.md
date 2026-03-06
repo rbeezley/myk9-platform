@@ -26,8 +26,8 @@
 
 **Tasks:**
 
-- [ ] Delete `CommandPaletteEnhanced.tsx` and `EnhancedCommandPalette.tsx`
-- [ ] Audit the active `CommandPalette.tsx` for improvements:
+- [x] Delete `CommandPaletteEnhanced.tsx` and `EnhancedCommandPalette.tsx`
+- [x] Audit the active `CommandPalette.tsx` for improvements:
   - Add keyboard shortcut hints next to navigation items (e.g., "G then D" for Dogs)
   - Show a footer with keyboard navigation hints ("Arrow keys to navigate, Enter to select, Esc to close")
   - Search should filter data items beyond the first 5 (currently `dogs.slice(0, 5)` — should search all, display top 5 matches)
@@ -54,9 +54,9 @@
 
 **Tasks:**
 
-- [ ] Create `useKeyboardShortcuts` hook — central registry for shortcuts with scope awareness (disabled when input/textarea focused)
-- [ ] Create `KeyboardShortcutsOverlay` component — dialog showing all registered shortcuts grouped by category
-- [ ] Register default shortcuts:
+- [x] Create `useKeyboardShortcuts` hook — central registry for shortcuts with scope awareness (disabled when input/textarea focused)
+- [x] Create `KeyboardShortcutsOverlay` component — dialog showing all registered shortcuts grouped by category
+- [x] Register default shortcuts:
   - `?` — Show shortcuts overlay
   - `Cmd+K` — Command palette (already works, just register for display)
   - `G D` — Go to Dogs
@@ -67,7 +67,7 @@
   - `C S` — Create Show
   - `C P` — Create Person
   - `Esc` — Close any open dialog/panel
-- [ ] Wire into app layout (AppHeader or root layout)
+- [x] Wire into app layout (AppHeader or root layout)
 
 **[ADDED] Chord mechanics:**
 
@@ -108,12 +108,12 @@
 
 **Tasks:**
 
-- [ ] Create `FilterBar` component — renders active filter pills + "Add filter" trigger
-- [ ] Create `FilterPill` component — individual pill with popover for editing
-- [ ] Create `SortPill` component — sort direction toggle pill
-- [ ] Create `useFilterBar` hook — manages filter state, URL sync, provides `addFilter`, `removeFilter`, `updateFilter`, `setSort`
-- [ ] Create filter type definitions: `text`, `select`, `multi-select`, `date-range`, `boolean`
-- [ ] Integrate into one pilot page (Dogs list or Shows list) as proof of concept
+- [x] Create `FilterBar` component — renders active filter pills + "Add filter" trigger
+- [x] Create `FilterPill` component — individual pill with popover for editing
+- [x] Create `SortPill` component — sort direction toggle pill
+- [x] Create `useFilterBar` hook — manages filter state, URL sync, provides `addFilter`, `removeFilter`, `updateFilter`, `setSort`
+- [x] Create filter type definitions: `text`, `select`, `multi-select`, `date-range`, `boolean`
+- [x] Integrate into one pilot page (Dogs list or Shows list) as proof of concept
 
 **[ADDED] Performance:**
 
@@ -148,12 +148,12 @@
 
 **Tasks:**
 
-- [ ] Audit usage of `EmptyStateView` (base/) — migrate consumers to `EmptyState` (common/)
-- [ ] [ADDED] **Prop migration:** `EmptyStateView` takes `action` as `ReactNode`; `EmptyState` takes `action` as `{ label, onClick, variant?, icon? }`. Each consumer must be rewritten to use the structured prop shape — this is not a simple import swap.
-- [ ] Delete `EmptyStateView` once all consumers migrated, or keep as a thin wrapper if heavily used
-- [ ] Ensure all major list pages use domain-specific empty state variants (check Shows, People, Clubs lists)
-- [ ] Review empty state copy — Linear's pattern is: simple illustration + one clear CTA, no walls of text. Our descriptions may be too verbose in some variants.
-- [ ] [ADDED] **Icons vs. illustrations:** Keep Lucide icons (not custom illustrations). Our domain variants already use meaningful icons (PawPrint, Trophy, Stethoscope) which are clearer than generic illustrations for dog show users. The "Linear look" here is about concise copy + single CTA, not illustration style.
+- [x] Audit usage of `EmptyStateView` (base/) — migrate consumers to `EmptyState` (common/)
+- [x] [ADDED] **Prop migration:** `EmptyStateView` takes `action` as `ReactNode`; `EmptyState` takes `action` as `{ label, onClick, variant?, icon? }`. Each consumer must be rewritten to use the structured prop shape — this is not a simple import swap.
+- [x] Delete `EmptyStateView` once all consumers migrated, or keep as a thin wrapper if heavily used
+- [x] Ensure all major list pages use domain-specific empty state variants (check Shows, People, Clubs lists)
+- [x] Review empty state copy — Linear's pattern is: simple illustration + one clear CTA, no walls of text. Our descriptions may be too verbose in some variants.
+- [x] [ADDED] **Icons vs. illustrations:** Keep Lucide icons (not custom illustrations). Our domain variants already use meaningful icons (PawPrint, Trophy, Stethoscope) which are clearer than generic illustrations for dog show users. The "Linear look" here is about concise copy + single CTA, not illustration style.
 
 **Files:**
 
@@ -169,11 +169,11 @@
 
 **Tasks:**
 
-- [ ] Verify toasts stack properly when multiple fire (sonner handles this, but confirm visually)
-- [ ] Wire real undo actions in `actionNotifications.deleted()` — currently has a placeholder. Make the `onUndo` callback a required parameter instead of a stub.
-- [ ] Audit `UndoToast` — it's a separate component from sonner toasts. Consider whether to consolidate into sonner's action pattern for consistency (one toast system, not two).
-- [ ] Add a brief audit of which destructive actions actually show undo toasts vs. confirmation dialogs. Per INTENT.md secretary anti-patterns: "Confirmation dialogs for routine actions" — prefer undo toasts over confirm dialogs where safe.
-- [ ] [ADDED] **Auto-dismiss strategy:** Define duration tiers — success: 4s, info: 4s, warning: 5s, error: 6s (stays longer), undo: 8-10s (needs time to react). Document in `notifications.ts` as constants so they're consistent across the app.
+- [x] Verify toasts stack properly when multiple fire (sonner handles this, but confirm visually)
+- [x] Wire real undo actions in `actionNotifications.deleted()` — currently has a placeholder. Make the `onUndo` callback a required parameter instead of a stub.
+- [x] Audit `UndoToast` — it's a separate component from sonner toasts. Consider whether to consolidate into sonner's action pattern for consistency (one toast system, not two).
+- [x] Add a brief audit of which destructive actions actually show undo toasts vs. confirmation dialogs. Per INTENT.md secretary anti-patterns: "Confirmation dialogs for routine actions" — prefer undo toasts over confirm dialogs where safe.
+- [x] [ADDED] **Auto-dismiss strategy:** Define duration tiers — success: 4s, info: 4s, warning: 5s, error: 6s (stays longer), undo: 8-10s (needs time to react). Document in `notifications.ts` as constants so they're consistent across the app.
 
 **Files:**
 

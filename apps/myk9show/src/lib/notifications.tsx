@@ -1,4 +1,3 @@
-import React from 'react';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, AlertCircle, Info, Loader2 } from 'lucide-react';
 
@@ -32,7 +31,7 @@ export const notifications = {
             onClick: options.action.onClick,
           }
         : undefined,
-      icon: React.createElement(CheckCircle),
+      icon: <CheckCircle />,
     });
   },
 
@@ -46,7 +45,7 @@ export const notifications = {
             onClick: options.action.onClick,
           }
         : undefined,
-      icon: React.createElement(XCircle),
+      icon: <XCircle />,
     });
   },
 
@@ -60,7 +59,7 @@ export const notifications = {
             onClick: options.action.onClick,
           }
         : undefined,
-      icon: React.createElement(AlertCircle),
+      icon: <AlertCircle />,
     });
   },
 
@@ -74,18 +73,18 @@ export const notifications = {
             onClick: options.action.onClick,
           }
         : undefined,
-      icon: React.createElement(Info),
+      icon: <Info />,
     });
   },
 
   loading: (message: string, options?: Omit<NotificationOptions, 'action'>) => {
     return toast.loading(message, {
       description: options?.description,
-      icon: React.createElement(Loader2),
+      icon: <Loader2 />,
     });
   },
 
-  promise: <T>(
+  promise: <T,>(
     promise: Promise<T>,
     messages: {
       loading: string;

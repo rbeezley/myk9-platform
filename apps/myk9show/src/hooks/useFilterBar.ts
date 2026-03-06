@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { isFilterActive } from '@/components/common/FilterBar/types';
 import type {
   FilterBarState,
   FilterDefinition,
@@ -72,6 +73,12 @@ interface UseFilterBarOptions {
 export function useFilterBar({ filterDefs, syncUrl = true }: UseFilterBarOptions) {
   const [searchParams, setSearchParams] = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchParamsRef = useRef(searchParams);
+
+  // Keep ref in sync without triggering the URL-write effect
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
 
   // Initialize state from URL params
   const [state, setState] = useState<FilterBarState>(() => {
@@ -81,7 +88,7 @@ export function useFilterBar({ filterDefs, syncUrl = true }: UseFilterBarOptions
     return { filters: {}, sortKey: null, sortDirection: 'asc' };
   });
 
-  // Debounced URL sync
+  // Debounced URL sync — reads searchParams via ref to avoid dependency cycle
   useEffect(() => {
     if (!syncUrl) return;
 
@@ -91,7 +98,7 @@ export function useFilterBar({ filterDefs, syncUrl = true }: UseFilterBarOptions
 
       // Preserve non-filter params (like 'view')
       const preserved = new URLSearchParams();
-      for (const [key, value] of searchParams.entries()) {
+      for (const [key, value] of searchParamsRef.current.entries()) {
         if (!key.startsWith('f_') && key !== 'sort' && key !== 'dir') {
           preserved.set(key, value);
         }
@@ -107,7 +114,7 @@ export function useFilterBar({ filterDefs, syncUrl = true }: UseFilterBarOptions
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [state, filterDefs, syncUrl, searchParams, setSearchParams]);
+  }, [state, filterDefs, syncUrl, setSearchParams]);
 
   const setFilter = useCallback((key: string, value: FilterValue) => {
     setState(prev => ({
@@ -137,11 +144,7 @@ export function useFilterBar({ filterDefs, syncUrl = true }: UseFilterBarOptions
     }));
   }, []);
 
-  const activeFilterCount = Object.entries(state.filters).filter(([, v]) => {
-    if (v === '' || v === false || v === undefined) return false;
-    if (Array.isArray(v) && v.length === 0) return false;
-    return true;
-  }).length;
+  const activeFilterCount = Object.values(state.filters).filter(isFilterActive).length;
 
   const hasActiveFilters = activeFilterCount > 0;
 

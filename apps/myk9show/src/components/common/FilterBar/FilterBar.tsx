@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { FilterPill } from './FilterPill';
 import { SortPill } from './SortPill';
+import { isFilterActive } from './types';
 import type { FilterBarProps, FilterDefinition, FilterValue } from './types';
 
 /** Get default value for a new filter */
@@ -30,15 +31,8 @@ export function FilterBar({
 }: FilterBarProps) {
   const [addFilterOpen, setAddFilterOpen] = useState(false);
 
-  // Which filter keys are currently active
   const activeFilterKeys = new Set(
-    Object.entries(state.filters)
-      .filter(([, v]) => {
-        if (v === '' || v === false || v === undefined) return false;
-        if (Array.isArray(v) && v.length === 0) return false;
-        return true;
-      })
-      .map(([k]) => k)
+    Object.keys(state.filters).filter(k => isFilterActive(state.filters[k]))
   );
 
   // Filters available to add (not yet active)

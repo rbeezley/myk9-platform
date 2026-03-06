@@ -31,6 +31,13 @@ export interface SortDefinition {
 /** Active filter value */
 export type FilterValue = string | string[] | boolean;
 
+/** Check whether a filter value represents an active (non-empty) filter */
+export function isFilterActive(value: FilterValue | undefined): boolean {
+  if (value === '' || value === false || value === undefined) return false;
+  if (Array.isArray(value) && value.length === 0) return false;
+  return true;
+}
+
 /** State shape for filter bar */
 export interface FilterBarState {
   filters: Record<string, FilterValue>;

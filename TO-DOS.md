@@ -217,7 +217,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Browse Clubs E2E Tests - 2026-02-28
 
-- **Write E2E tests for Browse Clubs page** — Old `clubs-page-ui.spec.ts` was deleted (tested sidebar layout which was replaced). New E2E tests needed for: browse page grid/list views, search/filter, card click → detail page navigation, "Add Club" flow, view mode toggle, and club detail breadcrumb navigation back to browse. **Files:** `apps/myk9show/src/test/e2e/` (new test file), `apps/myk9show/src/pages/BrowseClubsPage.tsx`, `apps/myk9show/src/pages/ClubDetailPage.tsx`.
+- [x] **Write E2E tests for Browse Clubs page** — Created `browse-clubs-page.spec.ts` with 15 tests covering: page load (heading, breadcrumb, search, Add Club button, result count), view mode toggle (grid/list switch, URL persistence), search/filter (text search, filter chips, expand panel, no results, clear all), card navigation to detail page, breadcrumb navigation back, and empty state.
 
 ## Audit Admin Console Page for Broken Functionality - 2026-02-27 19:09
 

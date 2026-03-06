@@ -19,11 +19,12 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { RoleSidebar } from '@/components/layout/sidebar';
-import type { SidebarConfig } from '@/components/layout/sidebar';
+import type { SidebarConfig, RoleSidebarWrapperProps } from '@/components/layout/sidebar';
 
 export const secretarySidebarConfig: SidebarConfig = {
   headerIcon: ClipboardList,
   headerTitle: 'Secretary Console',
+  dashboardHref: '/secretary/dashboard',
   footerIcon: ClipboardList,
   footerLabel: 'Secretary Access',
   footerDescription: 'Show management and coordination privileges',
@@ -110,12 +111,7 @@ export const secretarySidebarConfig: SidebarConfig = {
   ],
 };
 
-interface SecretarySidebarProps {
-  onCloseMobile?: () => void;
-  isCollapsed?: boolean;
-}
-
-export const SecretarySidebar: React.FC<SecretarySidebarProps> = props => (
+export const SecretarySidebar: React.FC<RoleSidebarWrapperProps> = props => (
   <RoleSidebar config={secretarySidebarConfig} {...props} />
 );
 

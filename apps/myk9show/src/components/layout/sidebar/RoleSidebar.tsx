@@ -31,8 +31,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
 
   // Pre-computed once per config identity (stable across renders since config is a module-level constant)
   const allHrefs = React.useMemo(() => collectNavHrefs(groups), [groups]);
-  const dashboardHref = groups[0]?.items[0]?.href ?? '';
-  const isActive = useActivePath(allHrefs, dashboardHref);
+  const isActive = useActivePath(allHrefs, config.dashboardHref);
 
   return (
     <div className="flex h-full flex-col bg-card overflow-hidden">

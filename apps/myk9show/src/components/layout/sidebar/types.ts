@@ -16,13 +16,14 @@ export interface NavItem {
 
 export interface NavGroup {
   title: string;
-  icon?: React.ComponentType<{ className?: string }>;
   items: NavItem[];
 }
 
 export interface SidebarConfig {
   /** Navigation groups with items */
   groups: NavGroup[];
+  /** The dashboard route for this role (used for exact-match active detection) */
+  dashboardHref: string;
   /** Icon shown in sidebar header and collapsed footer */
   headerIcon: React.ComponentType<{ className?: string }>;
   /** Title shown in sidebar header (e.g. "Judge Console") */

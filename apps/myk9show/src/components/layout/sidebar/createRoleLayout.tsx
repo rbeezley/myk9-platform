@@ -47,11 +47,11 @@ export function createRoleLayout(options: RoleLayoutOptions) {
     : {};
 
   const RoleLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-    const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
+    const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
 
     return (
       <SidebarLayout
-        sidebar={<RoleSidebar config={config} onCloseMobile={closeMobile} />}
+        sidebar={<RoleSidebar config={config} />}
         sidebarWidth={sidebarWidth}
         {...collapsibleProps}
         mobileMenuLabel={mobileMenuLabel}

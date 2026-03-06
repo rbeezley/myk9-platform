@@ -8,11 +8,12 @@
 import React from 'react';
 import { LayoutDashboard, FileText, History, Search, Calendar, Heart, User } from 'lucide-react';
 import { RoleSidebar } from '@/components/layout/sidebar';
-import type { SidebarConfig } from '@/components/layout/sidebar';
+import type { SidebarConfig, RoleSidebarWrapperProps } from '@/components/layout/sidebar';
 
 export const exhibitorSidebarConfig: SidebarConfig = {
   headerIcon: Heart,
   headerTitle: 'Exhibitor Console',
+  dashboardHref: '/exhibitor/dashboard',
   footerIcon: Heart,
   footerLabel: 'Exhibitor Access',
   footerDescription: 'Show entry and dog management privileges',
@@ -82,12 +83,7 @@ export const exhibitorSidebarConfig: SidebarConfig = {
   ],
 };
 
-interface ExhibitorSidebarProps {
-  onCloseMobile?: () => void;
-  isCollapsed?: boolean;
-}
-
-export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = props => (
+export const ExhibitorSidebar: React.FC<RoleSidebarWrapperProps> = props => (
   <RoleSidebar config={exhibitorSidebarConfig} {...props} />
 );
 

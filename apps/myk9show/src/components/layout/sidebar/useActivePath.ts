@@ -39,6 +39,6 @@ export function useActivePath(allHrefs: string[], dashboardHref: string) {
 
     if (href === dashboardHref) return location.pathname === href;
 
-    return location.pathname.startsWith(href + '/') || location.pathname === href;
+    return location.pathname.startsWith(href + '/');
   };
 }

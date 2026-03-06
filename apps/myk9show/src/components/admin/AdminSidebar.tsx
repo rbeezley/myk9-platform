@@ -23,11 +23,12 @@ import {
   Crown,
 } from 'lucide-react';
 import { RoleSidebar } from '@/components/layout/sidebar';
-import type { SidebarConfig } from '@/components/layout/sidebar';
+import type { SidebarConfig, RoleSidebarWrapperProps } from '@/components/layout/sidebar';
 
 export const adminSidebarConfig: SidebarConfig = {
   headerIcon: Crown,
   headerTitle: 'Admin Console',
+  dashboardHref: '/admin/dashboard',
   footerIcon: Shield,
   footerLabel: 'Admin Access',
   footerDescription: 'Full system administration privileges',
@@ -138,12 +139,7 @@ export const adminSidebarConfig: SidebarConfig = {
   ],
 };
 
-interface AdminSidebarProps {
-  onCloseMobile?: () => void;
-  isCollapsed?: boolean;
-}
-
-export const AdminSidebar: React.FC<AdminSidebarProps> = props => (
+export const AdminSidebar: React.FC<RoleSidebarWrapperProps> = props => (
   <RoleSidebar config={adminSidebarConfig} {...props} />
 );
 

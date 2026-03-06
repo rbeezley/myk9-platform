@@ -9,11 +9,12 @@
 import React from 'react';
 import { LayoutDashboard, Scale, ClipboardCheck, Calendar, Users } from 'lucide-react';
 import { RoleSidebar } from '@/components/layout/sidebar';
-import type { SidebarConfig } from '@/components/layout/sidebar';
+import type { SidebarConfig, RoleSidebarWrapperProps } from '@/components/layout/sidebar';
 
 export const judgeSidebarConfig: SidebarConfig = {
   headerIcon: Scale,
   headerTitle: 'Judge Console',
+  dashboardHref: '/judge/dashboard',
   footerIcon: Scale,
   footerLabel: 'Judge Access',
   footerDescription: 'Scoring and evaluation privileges',
@@ -60,12 +61,7 @@ export const judgeSidebarConfig: SidebarConfig = {
   ],
 };
 
-interface JudgeSidebarProps {
-  onCloseMobile?: () => void;
-  isCollapsed?: boolean;
-}
-
-export const JudgeSidebar: React.FC<JudgeSidebarProps> = props => (
+export const JudgeSidebar: React.FC<RoleSidebarWrapperProps> = props => (
   <RoleSidebar config={judgeSidebarConfig} {...props} />
 );
 

@@ -179,7 +179,7 @@ const ExhibitorDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
         <div className="space-y-3">
@@ -195,7 +195,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </div>
             <div>
-              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 Exhibitor Dashboard
               </h1>
               <p className="text-muted-foreground text-lg font-medium">
@@ -366,33 +366,33 @@ const ExhibitorDashboard: React.FC = () => {
               {upcomingEntries.map(entry => (
                 <div
                   key={entry.id}
-                  className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+                  className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                  <div className="relative flex items-center justify-between">
+                  <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex-grow space-y-4">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors duration-300">
                           <Heart className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <h3 className="font-bold text-xl text-foreground group-hover:text-primary transition-colors duration-300">
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-lg sm:text-xl text-foreground group-hover:text-primary transition-colors duration-300">
                             {entry.showName}
                           </h3>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4" />
+                              <MapPin className="h-4 w-4 flex-shrink-0" />
                               <span>{entry.location}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
+                              <Calendar className="h-4 w-4 flex-shrink-0" />
                               <span>
                                 {entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <DollarSign className="h-4 w-4" />
+                              <DollarSign className="h-4 w-4 flex-shrink-0" />
                               <span>${entry.entryFee}</span>
                             </div>
                           </div>
@@ -426,14 +426,17 @@ const ExhibitorDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="ml-8 flex flex-col gap-3">
-                      <Button onClick={() => handleViewEntry(entry)}>
+                    <div className="flex flex-row md:flex-col gap-3">
+                      <Button
+                        onClick={() => handleViewEntry(entry)}
+                        className="flex-1 md:flex-initial"
+                      >
                         View Details
                         <ChevronRight className="h-4 w-4 ml-2" />
                       </Button>
                       <Button
                         variant="outline"
-                        className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                        className="flex-1 md:flex-initial border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
                         onClick={() => handleEditEntry(entry)}
                       >
                         Edit Entry
@@ -465,16 +468,16 @@ const ExhibitorDashboard: React.FC = () => {
               {recentResults.map(result => (
                 <div
                   key={result.id}
-                  className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+                  className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
                 >
                   <div
                     className={`absolute inset-0 bg-gradient-to-r ${result.resultText === 'Q' ? 'from-success-green/5' : 'from-error-red/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
                   />
 
-                  <div className="relative flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
+                  <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
                       <ResultBadge resultStatus={result.resultStatus} variant="large" />
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-lg text-foreground">{result.showName}</h3>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
                           <span className="font-medium text-foreground">{result.dogCallName}</span>
@@ -512,21 +515,17 @@ const ExhibitorDashboard: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-3 ml-4">
-                      <Button
-                        variant="outline"
-                        className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
-                        onClick={() =>
-                          navigate(
-                            result.classId
-                              ? `/classes/${result.classId}`
-                              : `/shows/${result.showId}`
-                          )
-                        }
-                      >
-                        View Details
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
+                      onClick={() =>
+                        navigate(
+                          result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
+                        )
+                      }
+                    >
+                      View Details
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -548,7 +547,7 @@ const ExhibitorDashboard: React.FC = () => {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
         <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <CardHeader className="pb-6 relative">

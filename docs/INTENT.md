@@ -7,7 +7,7 @@
 
 ## 1. Platform Soul
 
-> *"The software disappears so the dogs can shine."*
+> _"The software disappears so the dogs can shine."_
 
 myK9 serves people who love dogs, not people who love software. Our users are dog people first. Many are retired, most are volunteers, and all of them do this because they love the sport. The technology should never compete with that. It should feel like a calm, competent helper that handles the logistics so humans can focus on the dogs.
 
@@ -25,67 +25,67 @@ myK9 serves people who love dogs, not people who love software. Our users are do
 
 Each role has a single intent word that captures how the software should make them feel. Every feature, screen, and interaction for that role should reinforce this word.
 
-### Trial Secretary — *"That was easy"*
+### Trial Secretary — _"That was easy"_
 
 The secretary carries the most stress. The software should absorb complexity, not add to it.
 
-| Moment | Target Feeling | What This Means in Practice |
-|--------|---------------|----------------------------|
-| Setting up a show | "The software already knows what I need" | Smart defaults, clone from previous shows, minimal required fields |
-| Night before the trial | "Everything is handled" | A clear checklist view — green checks, not a wall of data |
-| Show day chaos | "I can handle this" | Scratches, move-ups, and changes are calm one-tap operations, not multi-step wizards |
-| After the show | "That went smoothly" | Results export and judge reports done in clicks, not hours |
+| Moment                 | Target Feeling                           | What This Means in Practice                                                          |
+| ---------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| Setting up a show      | "The software already knows what I need" | Smart defaults, clone from previous shows, minimal required fields                   |
+| Night before the trial | "Everything is handled"                  | A clear checklist view — green checks, not a wall of data                            |
+| Show day chaos         | "I can handle this"                      | Scratches, move-ups, and changes are calm one-tap operations, not multi-step wizards |
+| After the show         | "That went smoothly"                     | Results export and judge reports done in clicks, not hours                           |
 
 **Anti-patterns to avoid:** Confirmation dialogs for routine actions. Multi-step forms. Technical error messages. Anything that makes the user feel like they need to "learn the software."
 
-### Judge — *"Invisible technology"*
+### Judge — _"Invisible technology"_
 
 The judge's eyes should be on the dog, not the screen. Every interaction should be muscle-memory fast.
 
-| Moment | Target Feeling | What This Means in Practice |
-|--------|---------------|----------------------------|
-| Starting a class | "I'm ready" | One tap to begin, entry list already loaded, timer ready |
-| Scoring a dog | "Tap and done" | Largest possible touch targets, minimal scrolling, instant feedback |
-| Between dogs | "What's next?" | Auto-advance to next entry, no hunting for buttons |
-| Correcting a mistake | "Easy fix" | Undo is obvious and immediate, not buried in a menu |
+| Moment               | Target Feeling | What This Means in Practice                                         |
+| -------------------- | -------------- | ------------------------------------------------------------------- |
+| Starting a class     | "I'm ready"    | One tap to begin, entry list already loaded, timer ready            |
+| Scoring a dog        | "Tap and done" | Largest possible touch targets, minimal scrolling, instant feedback |
+| Between dogs         | "What's next?" | Auto-advance to next entry, no hunting for buttons                  |
+| Correcting a mistake | "Easy fix"     | Undo is obvious and immediate, not buried in a menu                 |
 
 **Anti-patterns to avoid:** Small buttons on tablet. Loading spinners between entries. "Are you sure?" popups. Anything that breaks the rhythm of the ring.
 
-### Gate Steward — *"I've got this under control"*
+### Gate Steward — _"I've got this under control"_
 
 The steward is the traffic controller. They need a clear, glanceable view of what's happening now.
 
-| Moment | Target Feeling | What This Means in Practice |
-|--------|---------------|----------------------------|
-| Starting the day | "I can see everything" | Full class list with check-in status at a glance |
-| Calling dogs | "I know exactly who's next" | Running order is obvious, scratches are visually distinct |
-| Handling a scratch | "One tap, done" | Mark absent without navigating away from the list |
-| Coordinating with the judge | "We're in sync" | Real-time status — both see the same thing |
+| Moment                      | Target Feeling              | What This Means in Practice                               |
+| --------------------------- | --------------------------- | --------------------------------------------------------- |
+| Starting the day            | "I can see everything"      | Full class list with check-in status at a glance          |
+| Calling dogs                | "I know exactly who's next" | Running order is obvious, scratches are visually distinct |
+| Handling a scratch          | "One tap, done"             | Mark absent without navigating away from the list         |
+| Coordinating with the judge | "We're in sync"             | Real-time status — both see the same thing                |
 
 **Anti-patterns to avoid:** Requiring navigation to perform common actions. Information hidden behind tabs. Stale data that doesn't match what the judge sees.
 
-### Exhibitor — *"This respects my time"*
+### Exhibitor — _"This respects my time"_
 
 Exhibitors interact with the platform before and after show day. Every touchpoint should be fast and frictionless.
 
-| Moment | Target Feeling | What This Means in Practice |
-|--------|---------------|----------------------------|
-| Entering a show | "That took 30 seconds" | Pre-filled dog info, remembered preferences, minimal taps to enter |
-| Checking schedule | "I know where to be" | Clear, simple view — ring, time, class. No clutter. |
-| Viewing results | "There it is" | Results appear quickly, easy to find their dog, shareable |
-| Managing their dogs | "Everything is in one place" | Dog profiles, entry history, title progress — no hunting |
+| Moment              | Target Feeling               | What This Means in Practice                                        |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------ |
+| Entering a show     | "That took 30 seconds"       | Pre-filled dog info, remembered preferences, minimal taps to enter |
+| Checking schedule   | "I know where to be"         | Clear, simple view — ring, time, class. No clutter.                |
+| Viewing results     | "There it is"                | Results appear quickly, easy to find their dog, shareable          |
+| Managing their dogs | "Everything is in one place" | Dog profiles, entry history, title progress — no hunting           |
 
 **Anti-patterns to avoid:** Long registration forms. Requiring re-entry of information the system already knows. Burying results behind login walls. Making the user feel like they're doing data entry.
 
-### Site Admin — *"The platform is healthy"*
+### Site Admin — _"The platform is healthy"_
 
 The admin sees the big picture. Their experience should be about oversight, not micromanagement.
 
-| Moment | Target Feeling | What This Means in Practice |
-|--------|---------------|----------------------------|
-| Opening the dashboard | "Everything looks normal" | Key metrics at a glance, problems surfaced automatically |
-| Investigating an issue | "I can drill down" | Clear path from summary to detail |
-| Managing users/clubs | "Standard operations" | Bulk actions, search, filters — efficient for power users |
+| Moment                 | Target Feeling            | What This Means in Practice                               |
+| ---------------------- | ------------------------- | --------------------------------------------------------- |
+| Opening the dashboard  | "Everything looks normal" | Key metrics at a glance, problems surfaced automatically  |
+| Investigating an issue | "I can drill down"        | Clear path from summary to detail                         |
+| Managing users/clubs   | "Standard operations"     | Bulk actions, search, filters — efficient for power users |
 
 ---
 
@@ -141,7 +141,7 @@ Before shipping any feature, ask:
 
 ## 5. Protecting Intent From Erosion
 
-Every optimization — even a reasonable one — can sand off the emotional layer if the builder doesn't know *why* something was done that way. This is "intent erosion": the software gets functionally better but emotionally flatter, one perfectly reasonable change at a time.
+Every optimization — even a reasonable one — can sand off the emotional layer if the builder doesn't know _why_ something was done that way. This is "intent erosion": the software gets functionally better but emotionally flatter, one perfectly reasonable change at a time.
 
 ### The `// INTENT:` Comment Convention
 
@@ -164,14 +164,62 @@ await delay(200);
 ```
 
 Use `// INTENT:` when:
+
 - A design choice looks like a bug or oversight but isn't
 - Removing or "fixing" something would break the emotional experience
 - A trade-off was made deliberately (slower but calmer, less efficient but simpler)
-- The *why* behind a decision matters more than the *what*
+- The _why_ behind a decision matters more than the _what_
 
 ### Put Intent in the Builder's Path
 
 This document is referenced in `CLAUDE.md` so that AI tools building on this codebase encounter it before making UX-facing changes. When onboarding new developers, point them here before they start changing things.
+
+---
+
+## 6. App Boundary: myK9Show vs myK9Q
+
+**Decision (2026-03-06): Soft boundary — complementary apps with minor overlap accepted.**
+
+myK9Show and myK9Q serve the same users at different moments. Rather than duplicating features or forcing convergence, each app owns a clear territory:
+
+### myK9Show — "Before and after the show"
+
+The full platform for planning, registration, and career tracking.
+
+- Discover and browse shows
+- Register entries (wizard)
+- Manage dog profiles and career history
+- View historical results and title progress
+- Secretary show management, judge assignments
+- Admin oversight
+
+### myK9Q — "At the show" (ringside)
+
+The lightweight, mobile-first, offline-capable show-day companion.
+
+- Live run order and "you're up next" notifications
+- Self check-in
+- Real-time results ("The Podium")
+- Announcements feed
+- Judge scoring interface
+- TV display mode
+- Full offline support via IndexedDB replication
+
+### Overlap Policy
+
+Some features exist in both apps (e.g., results viewing, show/class browsing). This is acceptable:
+
+- **myK9Show** shows results as a convenience on the exhibitor dashboard — historical, career-oriented
+- **myK9Q** shows results in real-time with push notifications — show-day, live-oriented
+- Both read from the same Supabase tables; no data duplication
+
+**Guidelines for new features:**
+
+- If it requires offline support or real-time push, build it in myK9Q
+- If it's about registration, profiles, or career data, build it in myK9Show
+- If it's show-day operational (run order, scoring, check-in), build it in myK9Q
+- Minor convenience overlap (e.g., results on both dashboards) is fine — don't fight it
+- Do NOT duplicate complex features across apps to "be complete"
 
 ---
 

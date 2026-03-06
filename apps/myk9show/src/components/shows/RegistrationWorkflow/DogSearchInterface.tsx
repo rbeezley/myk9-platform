@@ -48,7 +48,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   dogs,
   onDogsFiltered,
   onSearchQueryChange,
-  placeholder = 'Search by call name...',
+  placeholder = 'Search by call name, breed, owner, or reg #...',
   showQuickFilters = true,
   showAdvancedFilters = true,
   enablePersistence = true,
@@ -179,6 +179,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
         return (
           dog.callName?.toLowerCase().includes(query) ||
           dog.name?.toLowerCase().includes(query) ||
+          dog.ownerName?.toLowerCase().includes(query) ||
           dog.registrations?.some(
             reg =>
               reg.registeredName?.toLowerCase().includes(query) ||

@@ -54,6 +54,7 @@ const EntryManagementPage = lazy(() =>
     default: () => <div>Entry Management Coming Soon</div>,
   }))
 );
+const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistManagementPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 
@@ -140,6 +141,16 @@ export const SecretaryRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <EntryManagementPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      />
+      <Route
+        path="register/:showId"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <RegistrationWizardPage />
             </PageTransition>
           </SuspenseWrapper>
         }

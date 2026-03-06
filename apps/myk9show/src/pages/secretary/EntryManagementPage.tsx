@@ -195,7 +195,7 @@ const EntryManagementPage: React.FC = () => {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={() => navigate(`/shows/${selectedShowId}/register`)}
+            onClick={() => navigate(`/secretary/register/${selectedShowId}`)}
             disabled={!selectedShowId}
           >
             <Plus className="h-4 w-4 mr-2" />

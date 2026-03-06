@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useMatch } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getErrorMessage } from '@myk9/core';
@@ -48,6 +48,7 @@ function RegistrationWizardContent() {
   // showId is guaranteed by the outer RegistrationWizardPage guard
   const showId = showIdParam!;
   const navigate = useNavigate();
+  const isInsideSidebar = !!useMatch('/secretary/*');
 
   // Auth and permissions
   const { canCreateExhibitor, isSecretary, isClubAdmin, isSiteAdmin } =
@@ -407,9 +408,11 @@ function RegistrationWizardContent() {
 
   return (
     <RegistrationErrorBoundary>
-      <div className="min-h-screen bg-background">
+      <div className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}>
         {/* Header with back button and breadcrumb */}
-        <div className="border-b bg-card/95 backdrop-blur-xl sticky top-16 z-40">
+        <div
+          className={`border-b bg-card/95 backdrop-blur-xl sticky ${isInsideSidebar ? 'top-0' : 'top-16'} z-40`}
+        >
           <div className="container mx-auto px-6 py-4 max-w-7xl">
             <div className="flex items-center gap-4">
               <Button
@@ -432,11 +435,13 @@ function RegistrationWizardContent() {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8 max-w-7xl">
+        <div
+          className={`container mx-auto px-4 sm:px-6 ${isInsideSidebar ? 'pt-6' : 'pt-20 sm:pt-24'} pb-8 max-w-7xl`}
+        >
           <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 sm:gap-6">
             {/* Sidebar - Progress Indicator */}
             <div className="lg:col-span-1">
-              <div className="sticky top-28 lg:top-32">
+              <div className={`sticky ${isInsideSidebar ? 'top-14' : 'top-28 lg:top-32'}`}>
                 <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-4 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg">
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative">

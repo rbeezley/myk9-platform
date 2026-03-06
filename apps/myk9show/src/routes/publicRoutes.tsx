@@ -32,6 +32,9 @@ const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
 const ExhibitorProfilePage = lazy(() => import('@/pages/exhibitor/ExhibitorProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
+// Exhibitor layout
+import { ExhibitorLayout } from '@/components/exhibitor/ExhibitorLayout';
+
 // Cart and checkout pages
 const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
@@ -155,33 +158,78 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Exhibitor Dashboard and Features */}
+    {/* Exhibitor Layout route — persistent collapsible sidebar for /exhibitor/* */}
     <Route
-      path="/exhibitor/dashboard"
+      path="/exhibitor"
       element={
         <ProtectedRoute>
+          <ExhibitorLayout />
+        </ProtectedRoute>
+      }
+    >
+      <Route
+        path="dashboard"
+        element={
           <SuspenseWrapper>
             <PageTransition>
               <ExhibitorDashboard />
             </PageTransition>
           </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/exhibitor/profile"
-      element={
-        <ProtectedRoute>
+        }
+      />
+      <Route
+        path="profile"
+        element={
           <SuspenseWrapper>
             <PageTransition>
               <ExhibitorProfilePage />
             </PageTransition>
           </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+        }
+      />
+      <Route
+        path="account"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <ExhibitorProfilePage />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      />
+      <Route
+        path="entries"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <MyEntriesPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      />
+      <Route
+        path="entries/history"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <MyEntriesPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      />
+      <Route
+        path="check-in/:entryId"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <ClassCheckIn />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      />
+    </Route>
 
+    {/* /profile backwards-compat redirect */}
     <Route
       path="/profile"
       element={
@@ -189,58 +237,6 @@ export const PublicRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <ExhibitorProfilePage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/exhibitor/account"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ExhibitorProfilePage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/exhibitor/entries"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <MyEntriesPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/exhibitor/entries/history"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <MyEntriesPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/exhibitor/check-in/:entryId"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ClassCheckIn />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

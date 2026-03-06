@@ -1,25 +1,24 @@
 /**
- * Exhibitor Sidebar Navigation Component
+ * Judge Sidebar Navigation Component
  *
- * Provides organized navigation for exhibitor dashboard pages
- * Features grouped navigation with Premium design
- * Based on the Admin sidebar pattern
+ * Minimal navigation for judge dashboard pages.
+ * INTENT: "Invisible technology" — judges want to glance and go, not navigate a tree.
+ * Supports collapsed icon-rail mode via isCollapsed prop.
  */
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, History, Search, Calendar, Heart, X, User } from 'lucide-react';
+import { LayoutDashboard, Scale, ClipboardCheck, Calendar, Users, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 
-interface ExhibitorSidebarProps {
+interface JudgeSidebarProps {
   onCloseMobile?: () => void;
   isCollapsed?: boolean;
 }
 
 interface NavGroup {
   title: string;
-  icon?: React.ComponentType<{ className?: string }>;
   items: NavItem[];
 }
 
@@ -28,7 +27,6 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   description?: string;
-  badge?: string;
 }
 
 const navigationGroups: NavGroup[] = [
@@ -37,72 +35,45 @@ const navigationGroups: NavGroup[] = [
     items: [
       {
         title: 'Dashboard',
-        href: '/exhibitor/dashboard',
+        href: '/judge/dashboard',
         icon: LayoutDashboard,
-        description: 'Overview and quick actions',
-      },
-      {
-        title: 'My Account',
-        href: '/exhibitor/account',
-        icon: User,
-        description: 'Profile and preferences',
+        description: "Today's assignments",
       },
     ],
   },
   {
-    title: 'My Entries',
+    title: 'Scoring',
     items: [
       {
-        title: 'Current Entries',
-        href: '/exhibitor/entries',
-        icon: FileText,
-        description: 'Active show entries',
-      },
-      {
-        title: 'Entry History',
-        href: '/exhibitor/entries/history',
-        icon: History,
-        description: 'Past entries and records',
+        title: 'Check-In',
+        href: '/judge/check-in',
+        icon: ClipboardCheck,
+        description: 'Class check-in management',
       },
     ],
   },
   {
-    title: 'Show Discovery',
+    title: 'Browse',
     items: [
       {
-        title: 'Browse Shows',
-        href: '/shows',
-        icon: Search,
-        description: 'Find and explore shows',
-      },
-      {
-        title: 'Event Calendar',
-        href: '/calendar',
+        title: 'Shows',
+        href: '/judge/shows',
         icon: Calendar,
-        description: 'Show calendar and schedules',
+        description: 'Browse shows',
       },
-    ],
-  },
-  {
-    title: 'My Dogs',
-    items: [
       {
-        title: 'Dog Profiles',
-        href: '/dogs',
-        icon: Heart,
-        description: 'Manage your dogs',
+        title: 'People',
+        href: '/judge/people',
+        icon: Users,
+        description: 'Browse people',
       },
     ],
   },
 ];
 
-// Pre-compute all hrefs once (used for active-path detection)
 const ALL_NAV_HREFS = navigationGroups.flatMap(group => group.items.map(item => item.href));
 
-export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({
-  onCloseMobile,
-  isCollapsed,
-}) => {
+export const JudgeSidebar: React.FC<JudgeSidebarProps> = ({ onCloseMobile, isCollapsed }) => {
   const location = useLocation();
 
   const isActivePath = (href: string) => {
@@ -121,7 +92,7 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({
       return false;
     }
 
-    if (href === '/exhibitor/dashboard') {
+    if (href === '/judge/dashboard') {
       return location.pathname === href;
     }
 
@@ -139,12 +110,12 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({
       >
         <div className={cn('flex items-center', isCollapsed ? '' : 'gap-3')}>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary shadow-sm">
-            <Heart className="h-4 w-4 text-primary-foreground" />
+            <Scale className="h-4 w-4 text-primary-foreground" />
           </div>
           {!isCollapsed && (
             <div>
               <h2 className="text-base font-semibold" style={{ fontWeight: 590 }}>
-                Exhibitor Console
+                Judge Console
               </h2>
             </div>
           )}
@@ -176,7 +147,7 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({
                       onClick={onCloseMobile}
                       className={cn(
                         'group flex items-center gap-3 rounded-lg text-sm transition-all duration-200',
-                        isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5 min-h-[44px]',
+                        isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5',
                         isActive
                           ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary'
                           : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
@@ -209,11 +180,6 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({
                           )}
                         </div>
                       )}
-                      {!isCollapsed && item.badge && (
-                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                          {item.badge}
-                        </span>
-                      )}
                     </Link>
                   );
                 })}
@@ -227,19 +193,17 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({
       <div className="border-t border-border p-4">
         {isCollapsed ? (
           <div className="flex justify-center">
-            <Heart className="h-5 w-5 text-primary" />
+            <Scale className="h-5 w-5 text-primary" />
           </div>
         ) : (
           <div className="rounded-lg bg-muted/30 p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Heart className="h-4 w-4 text-primary" />
+              <Scale className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium" style={{ fontWeight: 500 }}>
-                Exhibitor Access
+                Judge Access
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Show entry and dog management privileges
-            </p>
+            <p className="text-xs text-muted-foreground">Scoring and evaluation privileges</p>
           </div>
         )}
       </div>
@@ -247,4 +211,4 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({
   );
 };
 
-export default ExhibitorSidebar;
+export default JudgeSidebar;

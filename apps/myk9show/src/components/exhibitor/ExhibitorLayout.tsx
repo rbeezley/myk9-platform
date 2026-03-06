@@ -20,14 +20,16 @@ export function ExhibitorLayout({ children }: ExhibitorLayoutProps): React.React
   return (
     <SidebarLayout
       sidebar={<ExhibitorSidebar onCloseMobile={closeMobile} />}
-      sidebarWidth={288}
+      sidebarWidth={240}
+      collapsedWidth={56}
+      isCollapsible={true}
+      isCollapsed={true}
+      hoverToExpand={true}
       mobileMenuLabel="Exhibitor Dashboard"
       mobileOpen={mobileOpen}
       onMobileOpenChange={setMobileOpen}
     >
-      <div className="px-6 py-8 max-w-7xl mx-auto">
-        {children ?? <Outlet />}
-      </div>
+      <div className="px-6 py-8 max-w-7xl mx-auto">{children ?? <Outlet />}</div>
     </SidebarLayout>
   );
 }

@@ -211,6 +211,310 @@ export const judgeQualificationQueries = {
 };
 
 // =============================================================================
+// Judge Analytics Queries (read-only over existing tables)
+// =============================================================================
+
+const assignmentsTable = () => untypedFrom('judge_assignments');
+
+export interface JudgeUtilizationFilters {
+  dateRange?: { start: string; end: string };
+  organization?: string;
+}
+
+export interface JudgeUtilizationRow {
+  person_id: string;
+  first_name: string;
+  last_name: string;
+  show_count: number;
+  class_count: number;
+  confirmed_count: number;
+  declined_count: number;
+  cancelled_count: number;
+  total_fees: number;
+}
+
+export interface JudgeAssignmentRow {
+  id: string;
+  show_id: string;
+  trial_id: string | null;
+  class_id: string | null;
+  status: string;
+  fee: number | null;
+  invited_at: string | null;
+  confirmed_at: string | null;
+  notes: string | null;
+  show_name: string;
+  show_start_date: string;
+  show_end_date: string;
+  show_organization: string;
+}
+
+export interface RosterSummary {
+  totalJudges: number;
+  activeQualifications: number;
+  expiringSoon: number;
+  totalAssignmentsThisMonth: number;
+}
+
+export const judgeAnalyticsQueries = {
+  /** Roster overview stats for admin/secretary */
+  async getRosterSummary(): Promise<RosterSummary> {
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    // Run all 4 independent queries in parallel
+    const [distinctJudgesResult, activeResult, expiringResult, monthAssignmentsResult] =
+      await Promise.all([
+        // Fetch distinct person_ids to count unique judges
+        qualificationsTable().select('person_id'),
+        qualificationsTable().select('*', { count: 'exact', head: true }).eq('is_active', true),
+        qualificationsTable()
+          .select('*', { count: 'exact', head: true })
+          .not('expiration_date', 'is', null)
+          .lte('expiration_date', thirtyDaysFromNow.toISOString().split('T')[0])
+          .gte('expiration_date', new Date().toISOString().split('T')[0]),
+        assignmentsTable()
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', monthStart.toISOString()),
+      ]);
+
+    // Count distinct person_ids client-side (PostgREST doesn't support COUNT DISTINCT)
+    const uniquePersonIds = new Set(
+      ((distinctJudgesResult.data || []) as Array<{ person_id: string }>).map(r => r.person_id)
+    );
+
+    return {
+      totalJudges: uniquePersonIds.size,
+      activeQualifications: activeResult.count ?? 0,
+      expiringSoon: expiringResult.count ?? 0,
+      totalAssignmentsThisMonth: monthAssignmentsResult.count ?? 0,
+    };
+  },
+
+  /** Per-judge utilization stats for admin/secretary */
+  async getUtilizationStats(filters?: JudgeUtilizationFilters): Promise<JudgeUtilizationRow[]> {
+    let query = assignmentsTable().select(
+      '*, people!judge_assignments_person_id_fkey(first_name, last_name), shows!judge_assignments_show_id_fkey(organization)'
+    );
+
+    if (filters?.dateRange) {
+      query = query
+        .gte('created_at', filters.dateRange.start)
+        .lte('created_at', filters.dateRange.end);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to fetch utilization stats: ${error.message}`);
+    }
+
+    // Aggregate client-side (Supabase REST doesn't support GROUP BY)
+    // Single pass: build judge stats and track unique shows per judge
+    const byJudge = new Map<string, JudgeUtilizationRow>();
+    const showsByJudge = new Map<string, Set<string>>();
+
+    for (const row of (data || []) as Array<Record<string, unknown>>) {
+      const personId = row.person_id as string;
+      const people = row.people as Record<string, unknown> | null;
+      const show = row.shows as Record<string, unknown> | null;
+      const status = row.status as string;
+      const fee = (row.fee as number) || 0;
+      const showId = row.show_id as string;
+
+      // Filter by organization if specified
+      if (filters?.organization && show?.organization !== filters.organization) {
+        continue;
+      }
+
+      if (!byJudge.has(personId)) {
+        byJudge.set(personId, {
+          person_id: personId,
+          first_name: (people?.first_name as string) || '',
+          last_name: (people?.last_name as string) || '',
+          show_count: 0,
+          class_count: 0,
+          confirmed_count: 0,
+          declined_count: 0,
+          cancelled_count: 0,
+          total_fees: 0,
+        });
+        showsByJudge.set(personId, new Set());
+      }
+
+      const entry = byJudge.get(personId)!;
+      entry.class_count++;
+      entry.total_fees += fee;
+      showsByJudge.get(personId)!.add(showId);
+
+      if (status === 'confirmed' || status === 'completed') {
+        entry.confirmed_count++;
+      } else if (status === 'declined') {
+        entry.declined_count++;
+      } else if (status === 'cancelled') {
+        entry.cancelled_count++;
+      }
+    }
+
+    // Set show counts from tracked unique show_ids
+    for (const [personId, shows] of showsByJudge) {
+      byJudge.get(personId)!.show_count = shows.size;
+    }
+
+    return Array.from(byJudge.values());
+  },
+
+  /** Qualification alerts for admin/secretary */
+  async getQualificationAlerts(withinDays: number = 30) {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + withinDays);
+    // Only show recently expired (within 90 days), not ancient ones
+    const lowerBound = new Date();
+    lowerBound.setDate(lowerBound.getDate() - 90);
+
+    const { data, error } = await qualificationsTable()
+      .select('*, people!judge_qualifications_person_id_fkey(first_name, last_name)')
+      .or(
+        `and(expiration_date.not.is.null,expiration_date.lte.${futureDate.toISOString().split('T')[0]},expiration_date.gte.${lowerBound.toISOString().split('T')[0]}),suspension_date.not.is.null`
+      )
+      .order('expiration_date', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch qualification alerts: ${error.message}`);
+    }
+
+    return (data || []) as Array<
+      JudgeQualification & { people: { first_name: string; last_name: string } | null }
+    >;
+  },
+
+  /** Personal stats for a judge */
+  async getMyStats(
+    personId: string,
+    year?: number
+  ): Promise<{
+    showsJudged: number;
+    classesJudged: number;
+    totalFees: number;
+    statusBreakdown: Record<string, number>;
+  }> {
+    const targetYear = year ?? new Date().getFullYear();
+    const yearStart = `${targetYear}-01-01T00:00:00Z`;
+    const yearEnd = `${targetYear}-12-31T23:59:59Z`;
+
+    const { data, error } = await assignmentsTable()
+      .select('*')
+      .eq('person_id', personId)
+      .gte('created_at', yearStart)
+      .lte('created_at', yearEnd);
+
+    if (error) {
+      throw new Error(`Failed to fetch judge stats: ${error.message}`);
+    }
+
+    const rows = (data || []) as Array<Record<string, unknown>>;
+    const uniqueShows = new Set(rows.map(r => r.show_id as string));
+
+    const statusBreakdown: Record<string, number> = {};
+    let totalFees = 0;
+    for (const row of rows) {
+      const status = row.status as string;
+      statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+      totalFees += (row.fee as number) || 0;
+    }
+
+    return {
+      showsJudged: uniqueShows.size,
+      classesJudged: rows.length,
+      totalFees,
+      statusBreakdown,
+    };
+  },
+
+  /** Upcoming assignments for a judge */
+  async getUpcomingAssignments(personId: string): Promise<JudgeAssignmentRow[]> {
+    const { data, error } = await assignmentsTable()
+      .select('*, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization)')
+      .eq('person_id', personId)
+      .in('status', ['invited', 'confirmed'])
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch upcoming assignments: ${error.message}`);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    return (
+      ((data || []) as Array<Record<string, unknown>>)
+        .map(row => {
+          const show = row.shows as Record<string, unknown> | null;
+          return {
+            id: row.id as string,
+            show_id: row.show_id as string,
+            trial_id: row.trial_id as string | null,
+            class_id: row.class_id as string | null,
+            status: row.status as string,
+            fee: row.fee as number | null,
+            invited_at: row.invited_at as string | null,
+            confirmed_at: row.confirmed_at as string | null,
+            notes: row.notes as string | null,
+            show_name: (show?.name as string) || 'Unknown Show',
+            show_start_date: (show?.start_date as string) || '',
+            show_end_date: (show?.end_date as string) || '',
+            show_organization: (show?.organization as string) || '',
+          };
+        })
+        // Filter out past shows and sort by show date
+        .filter(a => !a.show_end_date || a.show_end_date >= today)
+        .sort((a, b) => a.show_start_date.localeCompare(b.show_start_date))
+    );
+  },
+
+  /** Monthly assignment trends for chart (current year) */
+  async getAssignmentTrends(year?: number): Promise<Array<{ month: string; count: number }>> {
+    const targetYear = year ?? new Date().getFullYear();
+    const yearStart = `${targetYear}-01-01T00:00:00Z`;
+    const yearEnd = `${targetYear}-12-31T23:59:59Z`;
+
+    const { data, error } = await assignmentsTable()
+      .select('created_at')
+      .gte('created_at', yearStart)
+      .lte('created_at', yearEnd);
+
+    if (error) {
+      throw new Error(`Failed to fetch assignment trends: ${error.message}`);
+    }
+
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const counts = new Array<number>(12).fill(0);
+
+    for (const row of (data || []) as Array<Record<string, unknown>>) {
+      const date = new Date(row.created_at as string);
+      counts[date.getMonth()]++;
+    }
+
+    return months.map((month, i) => ({ month, count: counts[i] }));
+  },
+};
+
+// =============================================================================
 // Judge Certification Operations (judge_certifications table from migration 005)
 // =============================================================================
 

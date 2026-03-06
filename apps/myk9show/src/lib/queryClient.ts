@@ -9,7 +9,10 @@ const queryCache = new QueryCache({
   onSuccess: (data, query) => {
     // Log successful queries for debugging in development
     if (process.env.NODE_ENV === 'development') {
-      logger.debug('Query success', 'query', { queryKey: query.queryKey, dataSize: JSON.stringify(data).length });
+      logger.debug('Query success', 'query', {
+        queryKey: query.queryKey,
+        dataSize: JSON.stringify(data).length,
+      });
     }
   },
 });
@@ -47,23 +50,23 @@ export const queryClient = new QueryClient({
         // Retry up to 2 times for server errors (reduced for performance)
         return failureCount < 2;
       },
-      retryDelay: (attemptIndex) => Math.min(500 * 2 ** attemptIndex, 15000), // Faster retry with shorter backoff
-      
+      retryDelay: attemptIndex => Math.min(500 * 2 ** attemptIndex, 15000), // Faster retry with shorter backoff
+
       // Optimized refetch settings for mobile performance
       refetchOnWindowFocus: false,
       refetchOnReconnect: 'always', // Always refetch on reconnect for fresh data
       refetchOnMount: true, // Reduced frequency for performance
-      
+
       // Enhanced request deduplication for mobile
       networkMode: 'online',
-      
+
       // Optimistic updates for better UX with mobile considerations
       placeholderData: (previousData: unknown) => previousData,
-      
+
       // Performance optimizations for mobile
       refetchInterval: false, // Disable auto-refetch to save battery/data
       refetchIntervalInBackground: false,
-      
+
       // Enhanced query function timeout for mobile networks
       meta: {
         timeout: 15000, // 15 seconds timeout for 3G networks
@@ -114,7 +117,7 @@ export const queryKeys = {
     statistics: () => ['users', 'statistics'] as const,
     dogs: (userId: string) => ['users', userId, 'dogs'] as const,
   },
-  
+
   // Legacy aliases for backward compatibility (to be removed after migration)
   people: ['users'] as const,
   person: (id: string) => ['users', 'detail', id] as const,
@@ -128,7 +131,8 @@ export const queryKeys = {
   showTrials: (showId: string) => ['shows', showId, 'trials'] as const,
   showClasses: (showId: string) => ['shows', showId, 'classes'] as const,
   showEntries: (showId: string) => ['shows', showId, 'entries'] as const,
-  showsByDateRange: (startDate: string, endDate: string) => ['shows', 'dateRange', startDate, endDate] as const,
+  showsByDateRange: (startDate: string, endDate: string) =>
+    ['shows', 'dateRange', startDate, endDate] as const,
   showsByClub: (clubId: string) => ['shows', 'club', clubId] as const,
   showsByStatus: (status: string) => ['shows', 'status', status] as const,
   upcomingShows: ['shows', 'upcoming'] as const,
@@ -179,7 +183,8 @@ export const queryKeys = {
   // Templates
   classTemplates: ['templates', 'class'] as const,
   classTemplate: (id: string) => ['templates', 'class', id] as const,
-  classTemplatesByOrganization: (org: string) => ['templates', 'class', 'organization', org] as const,
+  classTemplatesByOrganization: (org: string) =>
+    ['templates', 'class', 'organization', org] as const,
   showTemplates: ['templates', 'show'] as const,
   showTemplate: (id: string) => ['templates', 'show', id] as const,
   showTemplatesByOrganization: (org: string) => ['templates', 'show', 'organization', org] as const,
@@ -197,7 +202,19 @@ export const queryKeys = {
   entriesByStatus: (status: string) => ['entries', 'status', status] as const,
   entriesSearch: (searchTerm: string) => ['entries', 'search', searchTerm] as const,
   entryStatistics: (showId?: string) => ['entries', 'statistics', showId] as const,
-  
+
+  // Judges
+  judges: {
+    rosterSummary: () => ['judges', 'roster-summary'] as const,
+    utilization: (filters?: Record<string, unknown>) => ['judges', 'utilization', filters] as const,
+    alerts: (days: number) => ['judges', 'alerts', days] as const,
+    trends: (year?: number) => ['judges', 'trends', year] as const,
+    myStats: (personId: string, year?: number) => ['judges', 'my-stats', personId, year] as const,
+    upcoming: (personId: string) => ['judges', 'upcoming', personId] as const,
+    qualificationSummary: (personId: string) =>
+      ['judges', 'qualification-summary', personId] as const,
+  },
+
   // Legacy aliases for backward compatibility with existing showEntries key
   classEntries: (classId: string) => ['entries', 'class', classId] as const,
   dogEntries: (dogId: string) => ['entries', 'dog', dogId] as const,
@@ -211,19 +228,19 @@ export const cacheStrategies = {
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   },
-  
+
   // Moderately dynamic data (5 minutes stale, 10 minutes cache)
   moderate: {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   },
-  
+
   // Highly dynamic data (1 minute stale, 2 minutes cache)
   dynamic: {
     staleTime: 1 * 60 * 1000,
     gcTime: 2 * 60 * 1000,
   },
-  
+
   // Real-time data (30 seconds stale, 1 minute cache)
   realtime: {
     staleTime: 30 * 1000,
@@ -237,7 +254,7 @@ export const deduplicationUtils = {
    * Create a query key that includes user context for deduplication
    */
   withUserContext: (baseKey: readonly unknown[], userId?: string) => {
-    return userId ? [...baseKey, 'user', userId] as const : baseKey;
+    return userId ? ([...baseKey, 'user', userId] as const) : baseKey;
   },
 
   /**
@@ -247,11 +264,14 @@ export const deduplicationUtils = {
     // Sort filters to ensure consistent key generation
     const sortedFilters = Object.keys(filters)
       .sort()
-      .reduce((acc, key) => {
-        acc[key] = filters[key];
-        return acc;
-      }, {} as Record<string, unknown>);
-    
+      .reduce(
+        (acc, key) => {
+          acc[key] = filters[key];
+          return acc;
+        },
+        {} as Record<string, unknown>
+      );
+
     return [...baseKey, 'filters', sortedFilters] as const;
   },
 
@@ -271,45 +291,51 @@ export const cacheUtils = {
   setupRelatedDataPrefetch: () => {
     const prefetchQueue: Array<() => Promise<void>> = [];
     let isProcessingQueue = false;
-    
+
     // Process prefetch queue with request batching
     const processPrefetchQueue = async () => {
       if (isProcessingQueue || prefetchQueue.length === 0) return;
-      
+
       isProcessingQueue = true;
       const batch = prefetchQueue.splice(0, 3); // Process 3 at a time to avoid overwhelming mobile
-      
+
       try {
         await Promise.all(batch.map(fn => fn()));
       } catch (error) {
         logger.warn('Prefetch batch failed', 'query', {}, error as Error);
       }
-      
+
       isProcessingQueue = false;
-      
+
       // Continue processing if more items in queue
       if (prefetchQueue.length > 0) {
         setTimeout(processPrefetchQueue, 100); // Small delay between batches
       }
     };
-    
-    queryClient.getQueryCache().subscribe((event) => {
+
+    queryClient.getQueryCache().subscribe(event => {
       if (event.type === 'updated' && event.query.state.status === 'success') {
         const queryKey = event.query.queryKey;
-        
+
         // Smart prefetching based on connection quality
-        const connection = 'connection' in navigator ? (navigator as typeof navigator & { connection?: { effectiveType?: string } }).connection : undefined;
-        const isSlowConnection = connection && (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g');
+        const connection =
+          'connection' in navigator
+            ? (navigator as typeof navigator & { connection?: { effectiveType?: string } })
+                .connection
+            : undefined;
+        const isSlowConnection =
+          connection &&
+          (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g');
         const prefetchLimit = isSlowConnection ? 1 : 3; // Reduce prefetching on slow connections
-        
+
         // Auto-prefetch related dog data when dog list is fetched
         if (queryKey[0] === 'dogs' && queryKey.length === 1) {
           const dogs = event.query.state.data as unknown[];
           if (Array.isArray(dogs) && dogs.length > 0) {
             // Prefetch limited dog details based on connection
-            dogs.slice(0, prefetchLimit).forEach((dog) => {
+            dogs.slice(0, prefetchLimit).forEach(dog => {
               const dogWithId = dog as { id: string };
-              prefetchQueue.push(() => 
+              prefetchQueue.push(() =>
                 queryClient.prefetchQuery({
                   queryKey: queryKeys.dog(dogWithId.id),
                   queryFn: () => Promise.resolve(dog), // Mock for now
@@ -320,7 +346,7 @@ export const cacheUtils = {
             processPrefetchQueue();
           }
         }
-        
+
         // Auto-prefetch show classes when show is fetched
         if (queryKey[0] === 'shows' && queryKey.length === 2) {
           const showId = queryKey[1] as string;
@@ -330,7 +356,7 @@ export const cacheUtils = {
             staleTime: cacheStrategies.dynamic.staleTime,
           });
         }
-        
+
         // Auto-prefetch user dogs when user is fetched
         if (queryKey[0] === 'users' && queryKey[1] === 'detail' && queryKey.length === 3) {
           const userId = queryKey[2] as string;
@@ -340,7 +366,7 @@ export const cacheUtils = {
             staleTime: cacheStrategies.moderate.staleTime,
           });
         }
-        
+
         // Auto-prefetch club shows when club is fetched
         if (queryKey[0] === 'clubs' && queryKey.length === 2) {
           const clubId = queryKey[1] as string;
@@ -357,7 +383,11 @@ export const cacheUtils = {
   /**
    * Enhanced invalidation strategies for related data
    */
-  invalidateRelatedQueries: (entityType: string, entityId: string, metadata?: Record<string, unknown>) => {
+  invalidateRelatedQueries: (
+    entityType: string,
+    entityId: string,
+    metadata?: Record<string, unknown>
+  ) => {
     switch (entityType) {
       case 'dog':
         queryClient.invalidateQueries({ queryKey: ['dogs'] });
@@ -366,21 +396,21 @@ export const cacheUtils = {
         queryClient.invalidateQueries({ queryKey: queryKeys.dogHealthRecords(entityId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.dogCompetitions(entityId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.dogAchievements(entityId) });
-        
+
         // Invalidate owner's dogs if owner is specified
         if (metadata?.ownerId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.users.dogs(metadata.ownerId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.users.dogs(metadata.ownerId as string),
           });
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.users.detail(metadata.ownerId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.users.detail(metadata.ownerId as string),
           });
         }
-        
+
         // Invalidate statistics
         queryClient.invalidateQueries({ queryKey: ['dogs', 'statistics'] });
         break;
-        
+
       case 'user':
       case 'person':
         queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -388,15 +418,15 @@ export const cacheUtils = {
         queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(entityId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.users.dogs(entityId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.users.statistics() });
-        
+
         // Invalidate role-based queries if role changed
         if (metadata?.role) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.users.byRole(metadata.role as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.users.byRole(metadata.role as string),
           });
         }
         break;
-        
+
       case 'show':
         queryClient.invalidateQueries({ queryKey: ['shows'] });
         queryClient.invalidateQueries({ queryKey: ['shows', entityId] });
@@ -404,121 +434,121 @@ export const cacheUtils = {
         queryClient.invalidateQueries({ queryKey: queryKeys.showClasses(entityId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(entityId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.upcomingShows });
-        
+
         // Invalidate club shows if club is specified
         if (metadata?.clubId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.clubShows(metadata.clubId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.clubShows(metadata.clubId as string),
           });
         }
-        
+
         // Invalidate date range queries
         if (metadata?.date) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['shows'], 
-            predicate: (query) => {
+          queryClient.invalidateQueries({
+            queryKey: ['shows'],
+            predicate: query => {
               const key = query.queryKey;
               return key.includes('dateRange') || key.includes('upcoming');
-            }
+            },
           });
         }
         break;
-        
+
       case 'club':
         queryClient.invalidateQueries({ queryKey: ['clubs'] });
         queryClient.invalidateQueries({ queryKey: ['clubs', entityId] });
         queryClient.invalidateQueries({ queryKey: queryKeys.clubShows(entityId) });
         break;
-        
+
       case 'class':
         queryClient.invalidateQueries({ queryKey: ['classes'] });
         queryClient.invalidateQueries({ queryKey: ['classes', entityId] });
-        
+
         // Invalidate trial classes if trial is specified
         if (metadata?.trialId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.trialClasses(metadata.trialId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.trialClasses(metadata.trialId as string),
           });
         }
-        
+
         // Invalidate show classes if show is specified
         if (metadata?.showId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.showClasses(metadata.showId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.showClasses(metadata.showId as string),
           });
         }
         break;
-        
+
       case 'entry':
         queryClient.invalidateQueries({ queryKey: queryKeys.entries });
         queryClient.invalidateQueries({ queryKey: queryKeys.entry(entityId) });
-        
+
         // Invalidate entry-related queries by relationship
         if (metadata?.classId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.entriesByClass(metadata.classId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.entriesByClass(metadata.classId as string),
           });
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.classEntries(metadata.classId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.classEntries(metadata.classId as string),
           });
         }
-        
+
         if (metadata?.showId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.showEntries(metadata.showId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.showEntries(metadata.showId as string),
           });
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.entriesByShow(metadata.showId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.entriesByShow(metadata.showId as string),
           });
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.entryStatistics(metadata.showId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.entryStatistics(metadata.showId as string),
           });
         }
-        
+
         if (metadata?.dogId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.entriesByDog(metadata.dogId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.entriesByDog(metadata.dogId as string),
           });
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.dogEntries(metadata.dogId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.dogEntries(metadata.dogId as string),
           });
         }
-        
+
         if (metadata?.status) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.entriesByStatus(metadata.status as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.entriesByStatus(metadata.status as string),
           });
         }
-        
+
         // Invalidate global entry statistics
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.entryStatistics() 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.entryStatistics(),
         });
         break;
-        
+
       case 'registration':
         queryClient.invalidateQueries({ queryKey: ['registrations'] });
         queryClient.invalidateQueries({ queryKey: ['registrations', entityId] });
-        
+
         if (metadata?.showId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.registrationsByShow(metadata.showId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.registrationsByShow(metadata.showId as string),
           });
         }
-        
+
         if (metadata?.dogId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.registrationsByDog(metadata.dogId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.registrationsByDog(metadata.dogId as string),
           });
         }
-        
+
         if (metadata?.ownerId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.registrationsByOwner(metadata.ownerId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.registrationsByOwner(metadata.ownerId as string),
           });
         }
         break;
-        
+
       default:
         logger.warn(`Unknown entity type for invalidation: ${entityType}`, 'query', { entityType });
     }
@@ -527,19 +557,24 @@ export const cacheUtils = {
   /**
    * Smart batch invalidation for multiple related entities
    */
-  invalidateBatch: (operations: Array<{
-    entityType: string;
-    entityId: string;
-    metadata?: Record<string, unknown>;
-  }>) => {
+  invalidateBatch: (
+    operations: Array<{
+      entityType: string;
+      entityId: string;
+      metadata?: Record<string, unknown>;
+    }>
+  ) => {
     // Group operations by entity type for efficiency
-    const groupedOps = operations.reduce((acc, op) => {
-      if (!acc[op.entityType]) {
-        acc[op.entityType] = [];
-      }
-      acc[op.entityType].push(op);
-      return acc;
-    }, {} as Record<string, typeof operations>);
+    const groupedOps = operations.reduce(
+      (acc, op) => {
+        if (!acc[op.entityType]) {
+          acc[op.entityType] = [];
+        }
+        acc[op.entityType].push(op);
+        return acc;
+      },
+      {} as Record<string, typeof operations>
+    );
 
     // Process each entity type
     Object.entries(groupedOps).forEach(([, ops]) => {
@@ -559,44 +594,44 @@ export const cacheUtils = {
     switch (dependencyType) {
       case 'owner_change':
         if (params.oldOwnerId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.users.dogs(params.oldOwnerId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.users.dogs(params.oldOwnerId as string),
           });
         }
         if (params.newOwnerId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.users.dogs(params.newOwnerId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.users.dogs(params.newOwnerId as string),
           });
         }
         break;
-        
+
       case 'club_change':
         if (params.oldClubId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.clubShows(params.oldClubId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.clubShows(params.oldClubId as string),
           });
         }
         if (params.newClubId) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.clubShows(params.newClubId as string) 
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.clubShows(params.newClubId as string),
           });
         }
         break;
-        
+
       case 'date_change':
         queryClient.invalidateQueries({ queryKey: queryKeys.upcomingShows });
-        queryClient.invalidateQueries({ 
-          queryKey: ['shows'], 
-          predicate: (query) => query.queryKey.includes('dateRange')
+        queryClient.invalidateQueries({
+          queryKey: ['shows'],
+          predicate: query => query.queryKey.includes('dateRange'),
         });
         break;
-        
+
       case 'status_change':
         if (params.entityType === 'show') {
           queryClient.invalidateQueries({ queryKey: queryKeys.upcomingShows });
-          queryClient.invalidateQueries({ 
-            queryKey: ['shows'], 
-            predicate: (query) => query.queryKey.includes('status')
+          queryClient.invalidateQueries({
+            queryKey: ['shows'],
+            predicate: query => query.queryKey.includes('status'),
           });
         }
         break;
@@ -609,7 +644,7 @@ export const cacheUtils = {
   getCacheStats: () => {
     const cache = queryClient.getQueryCache();
     const queries = cache.getAll();
-    
+
     return {
       totalQueries: queries.length,
       staleQueries: queries.filter(q => q.isStale()).length,

@@ -38,6 +38,7 @@ const ScoresheetPage = lazy(() => import('@/pages/scoring/ScoresheetPage'));
 
 // Results and analytics for judges
 const ResultEntryDashboard = lazy(() => import('@/pages/ResultEntryDashboard'));
+const JudgeStatsPage = lazy(() => import('@/pages/judge/JudgeStatsPage'));
 
 // Shared pages rendered within judge layout
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
@@ -60,6 +61,16 @@ export const JudgeRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <JudgeDashboard />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      />
+      <Route
+        path="stats"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <JudgeStatsPage />
             </PageTransition>
           </SuspenseWrapper>
         }

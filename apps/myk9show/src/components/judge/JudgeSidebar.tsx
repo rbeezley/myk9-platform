@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { LayoutDashboard, Scale, ClipboardCheck, Calendar, Users } from 'lucide-react';
+import { LayoutDashboard, Scale, ClipboardCheck, Calendar, Users, BarChart3 } from 'lucide-react';
 import { RoleSidebar } from '@/components/layout/sidebar';
 import type { SidebarConfig, RoleSidebarWrapperProps } from '@/components/layout/sidebar';
 
@@ -27,6 +27,12 @@ export const judgeSidebarConfig: SidebarConfig = {
           href: '/judge/dashboard',
           icon: LayoutDashboard,
           description: "Today's assignments",
+        },
+        {
+          title: 'My Stats',
+          href: '/judge/stats',
+          icon: BarChart3,
+          description: 'Season performance',
         },
       ],
     },

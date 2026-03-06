@@ -17,8 +17,6 @@ import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import { Calendar, RefreshCw, Plus } from 'lucide-react';
-import '@/styles/myk9-show-details.css';
-
 import {
   useMyEntriesData,
   useMyEntriesFilters,
@@ -108,15 +106,14 @@ const MyEntriesPage: React.FC = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-20 max-w-7xl">
         <div className="space-y-8">
-          {/* Breadcrumb */}
-          <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="myk9-breadcrumb" />
-
-          {/* Header */}
-          <div className="flex justify-between items-start gap-4">
-            <div className="space-y-2">
-              <h1 className="myk9-show-title">My Entries</h1>
-              <p className="myk9-show-subtitle">Track and manage your show entries</p>
-            </div>
+          <h1 className="sr-only">My Entries</h1>
+          {/* Breadcrumb + Actions */}
+          <div className="flex items-center justify-between">
+            <Breadcrumb
+              items={breadcrumbItems}
+              showHomeIcon={true}
+              className="text-sm text-muted-foreground"
+            />
             <div className="flex gap-2 flex-shrink-0">
               <Button
                 asChild

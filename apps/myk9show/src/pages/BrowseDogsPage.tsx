@@ -23,7 +23,6 @@ import { DogsGridView, DogsListView } from '@/components/dogs/browse';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog } from '@/types/dog-types';
-import '@/styles/myk9-show-details.css';
 
 type ViewMode = 'grid' | 'list';
 
@@ -141,20 +140,13 @@ const BrowseDogsPage: React.FC = () => {
           {/* Normal content */}
           {(!isLoading || dogs.length > 0) && (
             <>
-              <Breadcrumb
-                items={breadcrumbItems}
-                showHomeIcon={true}
-                className="text-sm text-muted-foreground"
-              />
-
-              {/* Header */}
-              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-                <div className="space-y-2 flex-1">
-                  <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Dogs</h1>
-                  <p className="text-muted-foreground text-base lg:text-lg">
-                    Browse dogs, view their profiles, and manage registrations
-                  </p>
-                </div>
+              <h1 className="sr-only">Dogs</h1>
+              <div className="flex items-center justify-between">
+                <Breadcrumb
+                  items={breadcrumbItems}
+                  showHomeIcon={true}
+                  className="text-sm text-muted-foreground"
+                />
 
                 {canCreateDogs && (
                   <Button onClick={() => setShowCreateDogPanel(true)}>

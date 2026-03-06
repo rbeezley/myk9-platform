@@ -25,7 +25,6 @@ import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
-import '@/styles/myk9-show-details.css';
 
 type ViewMode = 'grid' | 'list';
 
@@ -116,6 +115,9 @@ const BrowseClubsPage: React.FC = () => {
     [addClub, selectClub, navigate]
   );
 
+  // Count active filters (excluding search)
+  const activeFilterCount = filters.clubType !== 'all' ? 1 : 0;
+
   // Render view content
   const renderContent = () => {
     if (filteredClubs.length === 0 && !hasActiveFilters) {
@@ -171,20 +173,13 @@ const BrowseClubsPage: React.FC = () => {
           {/* Normal content */}
           {(!isLoading || clubs.length > 0) && (
             <>
-              <Breadcrumb
-                items={breadcrumbItems}
-                showHomeIcon={true}
-                className="text-sm text-muted-foreground"
-              />
-
-              {/* Header */}
-              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-                <div className="space-y-2 flex-1">
-                  <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Clubs</h1>
-                  <p className="text-muted-foreground text-base lg:text-lg">
-                    Browse clubs, view their shows, and manage your organizations
-                  </p>
-                </div>
+              <h1 className="sr-only">Clubs</h1>
+              <div className="flex items-center justify-between">
+                <Breadcrumb
+                  items={breadcrumbItems}
+                  showHomeIcon={true}
+                  className="text-sm text-muted-foreground"
+                />
 
                 <Button onClick={() => setShowCreateClubPanel(true)}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -213,9 +208,9 @@ const BrowseClubsPage: React.FC = () => {
                         >
                           <Filter className="h-4 w-4" />
                           <span>Filters</span>
-                          {hasActiveFilters && (
+                          {activeFilterCount > 0 && (
                             <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                              {filters.clubType !== 'all' ? 1 : 0}
+                              {activeFilterCount}
                             </Badge>
                           )}
                           <ChevronDown
@@ -255,9 +250,9 @@ const BrowseClubsPage: React.FC = () => {
                       )}
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="default"
                         onClick={clearAllFilters}
-                        className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                        className="h-10 px-3 text-sm text-muted-foreground hover:text-primary"
                       >
                         Clear all
                       </Button>
@@ -304,9 +299,9 @@ const BrowseClubsPage: React.FC = () => {
                         <Button
                           key={mode}
                           variant={viewMode === mode ? 'default' : 'ghost'}
-                          size="sm"
+                          size="default"
                           onClick={() => handleViewModeChange(mode)}
-                          className="h-8 px-3 transition-all duration-200"
+                          className="h-10 px-3 transition-all duration-200"
                         >
                           <Icon className="h-4 w-4 sm:mr-2" />
                           <span className="hidden sm:inline">{label}</span>

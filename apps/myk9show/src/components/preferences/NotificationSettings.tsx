@@ -1,18 +1,17 @@
 /**
  * Enhanced Notification Settings Component
  * Phase 6.4: User Preferences & UI State
- * 
+ *
  * Comprehensive notification preferences with sound, timing, and delivery options
  */
 
-
-import { 
-  Bell, 
-  BellOff, 
-  Volume2, 
-  VolumeX, 
-  Clock, 
-  Mail, 
+import {
+  Bell,
+  BellOff,
+  Volume2,
+  VolumeX,
+  Clock,
+  Mail,
   Smartphone,
   MessageSquare,
   Moon,
@@ -22,7 +21,7 @@ import {
   CreditCard,
   UserCheck,
   Trophy,
-  RotateCcw
+  RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -133,14 +132,17 @@ const reminderHourOptions = [
   { value: 168, label: '1 week' },
 ];
 
-export function NotificationSettings({ preferences, onUpdate, onReset }: NotificationSettingsProps) {
-  
+export function NotificationSettings({
+  preferences,
+  onUpdate,
+  onReset,
+}: NotificationSettingsProps) {
   /**
    * Handle notification type toggle
    */
   const handleTypeToggle = (type: keyof NotificationPreferences['types'], enabled: boolean) => {
     if (!preferences) return;
-    
+
     onUpdate({
       types: {
         ...preferences.types,
@@ -152,9 +154,12 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
   /**
    * Handle delivery method toggle
    */
-  const handleDeliveryToggle = (method: keyof NotificationPreferences['delivery'], enabled: boolean) => {
+  const handleDeliveryToggle = (
+    method: keyof NotificationPreferences['delivery'],
+    enabled: boolean
+  ) => {
     if (!preferences) return;
-    
+
     onUpdate({
       delivery: {
         ...preferences.delivery,
@@ -168,7 +173,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
    */
   const handleSoundUpdate = (updates: Partial<NotificationPreferences['sound']>) => {
     if (!preferences) return;
-    
+
     onUpdate({
       sound: {
         ...preferences.sound,
@@ -186,12 +191,12 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
     enabled: boolean
   ) => {
     if (!preferences) return;
-    
+
     const current = preferences.timing[type] || [];
     const updated = enabled
       ? [...current, hours].sort((a, b) => a - b)
       : current.filter(h => h !== hours);
-    
+
     onUpdate({
       timing: {
         ...preferences.timing,
@@ -203,9 +208,11 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
   /**
    * Handle quiet hours update
    */
-  const handleQuietHoursUpdate = (updates: Partial<NotificationPreferences['timing']['quietHours']>) => {
+  const handleQuietHoursUpdate = (
+    updates: Partial<NotificationPreferences['timing']['quietHours']>
+  ) => {
     if (!preferences) return;
-    
+
     onUpdate({
       timing: {
         ...preferences.timing,
@@ -222,23 +229,21 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
    */
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'critical': return 'destructive';
-      case 'high': return 'default';
-      case 'medium': return 'secondary';
-      case 'low': return 'outline';
-      default: return 'secondary';
+      case 'critical':
+        return 'destructive';
+      case 'high':
+        return 'default';
+      case 'medium':
+        return 'secondary';
+      case 'low':
+        return 'outline';
+      default:
+        return 'secondary';
     }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold tracking-tight mb-2">Notification Preferences</h3>
-        <p className="text-sm text-muted-foreground">
-          Control when and how you receive notifications about competitions and updates
-        </p>
-      </div>
-
       {/* Master Toggle */}
       <Card>
         <CardHeader>
@@ -246,9 +251,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
             {preferences?.enabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
             Notifications
           </CardTitle>
-          <CardDescription>
-            Enable or disable all notifications
-          </CardDescription>
+          <CardDescription>Enable or disable all notifications</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
@@ -260,7 +263,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
             </div>
             <Switch
               checked={preferences?.enabled ?? true}
-              onCheckedChange={(enabled) => onUpdate({ enabled })}
+              onCheckedChange={enabled => onUpdate({ enabled })}
             />
           </div>
         </CardContent>
@@ -280,25 +283,32 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {notificationTypes.map((type) => (
+              {notificationTypes.map(type => (
                 <div key={type.key} className="flex items-center justify-between space-x-2">
                   <div className="flex items-center space-x-3 flex-1">
                     <type.icon className="h-4 w-4 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <Label className="font-medium">{type.label}</Label>
-                        <Badge variant={getPriorityColor(type.priority) as 'destructive' | 'default' | 'secondary' | 'outline'} className="text-xs">
+                        <Badge
+                          variant={
+                            getPriorityColor(type.priority) as
+                              | 'destructive'
+                              | 'default'
+                              | 'secondary'
+                              | 'outline'
+                          }
+                          className="text-xs"
+                        >
                           {type.priority}
                         </Badge>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {type.description}
-                      </div>
+                      <div className="text-sm text-muted-foreground">{type.description}</div>
                     </div>
                   </div>
                   <Switch
                     checked={preferences?.types[type.key] ?? true}
-                    onCheckedChange={(checked) => handleTypeToggle(type.key, checked)}
+                    onCheckedChange={checked => handleTypeToggle(type.key, checked)}
                   />
                 </div>
               ))}
@@ -324,16 +334,16 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                   Select when to receive reminders before competitions start
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {reminderHourOptions.map((option) => (
+                  {reminderHourOptions.map(option => (
                     <Button
                       key={option.value}
                       variant={
-                        preferences?.timing.showReminderHours?.includes(option.value) 
-                          ? 'default' 
+                        preferences?.timing.showReminderHours?.includes(option.value)
+                          ? 'default'
                           : 'outline'
                       }
                       size="sm"
-                      onClick={() => 
+                      onClick={() =>
                         handleReminderHoursToggle(
                           'showReminderHours',
                           option.value,
@@ -357,27 +367,29 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                   Select when to receive warnings about approaching deadlines
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {reminderHourOptions.filter(o => o.value <= 72).map((option) => (
-                    <Button
-                      key={option.value}
-                      variant={
-                        preferences?.timing.entryDeadlineHours?.includes(option.value) 
-                          ? 'default' 
-                          : 'outline'
-                      }
-                      size="sm"
-                      onClick={() => 
-                        handleReminderHoursToggle(
-                          'entryDeadlineHours',
-                          option.value,
-                          !preferences?.timing.entryDeadlineHours?.includes(option.value)
-                        )
-                      }
-                      className="justify-center"
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
+                  {reminderHourOptions
+                    .filter(o => o.value <= 72)
+                    .map(option => (
+                      <Button
+                        key={option.value}
+                        variant={
+                          preferences?.timing.entryDeadlineHours?.includes(option.value)
+                            ? 'default'
+                            : 'outline'
+                        }
+                        size="sm"
+                        onClick={() =>
+                          handleReminderHoursToggle(
+                            'entryDeadlineHours',
+                            option.value,
+                            !preferences?.timing.entryDeadlineHours?.includes(option.value)
+                          )
+                        }
+                        className="justify-center"
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
                 </div>
               </div>
 
@@ -397,7 +409,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                   </div>
                   <Switch
                     checked={preferences?.timing.quietHours?.enabled ?? false}
-                    onCheckedChange={(enabled) => handleQuietHoursUpdate({ enabled })}
+                    onCheckedChange={enabled => handleQuietHoursUpdate({ enabled })}
                   />
                 </div>
 
@@ -408,7 +420,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                       <Input
                         type="time"
                         value={preferences.timing.quietHours.startTime || '22:00'}
-                        onChange={(e) => handleQuietHoursUpdate({ startTime: e.target.value })}
+                        onChange={e => handleQuietHoursUpdate({ startTime: e.target.value })}
                         className="mt-1"
                       />
                     </div>
@@ -417,7 +429,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                       <Input
                         type="time"
                         value={preferences.timing.quietHours.endTime || '08:00'}
-                        onChange={(e) => handleQuietHoursUpdate({ endTime: e.target.value })}
+                        onChange={e => handleQuietHoursUpdate({ endTime: e.target.value })}
                         className="mt-1"
                       />
                     </div>
@@ -425,7 +437,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                       <div className="flex items-center space-x-2">
                         <Switch
                           checked={preferences.timing.quietHours.weekendsOnly ?? false}
-                          onCheckedChange={(weekendsOnly) => handleQuietHoursUpdate({ weekendsOnly })}
+                          onCheckedChange={weekendsOnly => handleQuietHoursUpdate({ weekendsOnly })}
                           id="weekends-only"
                         />
                         <Label htmlFor="weekends-only" className="text-sm">
@@ -446,12 +458,10 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                 <Smartphone className="h-5 w-5" />
                 Delivery Methods
               </CardTitle>
-              <CardDescription>
-                Choose how you want to receive notifications
-              </CardDescription>
+              <CardDescription>Choose how you want to receive notifications</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {deliveryMethods.map((method) => (
+              {deliveryMethods.map(method => (
                 <div key={method.key} className="flex items-center justify-between space-x-2">
                   <div className="flex items-center space-x-3">
                     <method.icon className="h-4 w-4 text-muted-foreground" />
@@ -459,17 +469,17 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                       <div className="flex items-center gap-2">
                         <Label className="font-medium">{method.label}</Label>
                         {!method.available && (
-                          <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            Coming Soon
+                          </Badge>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {method.description}
-                      </div>
+                      <div className="text-sm text-muted-foreground">{method.description}</div>
                     </div>
                   </div>
                   <Switch
                     checked={preferences?.delivery[method.key] ?? false}
-                    onCheckedChange={(checked) => handleDeliveryToggle(method.key, checked)}
+                    onCheckedChange={checked => handleDeliveryToggle(method.key, checked)}
                     disabled={!method.available}
                   />
                 </div>
@@ -488,9 +498,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                 )}
                 Sound Settings
               </CardTitle>
-              <CardDescription>
-                Configure notification sounds and volume
-              </CardDescription>
+              <CardDescription>Configure notification sounds and volume</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
@@ -502,14 +510,14 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                 </div>
                 <Switch
                   checked={preferences?.sound?.enabled ?? true}
-                  onCheckedChange={(enabled) => handleSoundUpdate({ enabled })}
+                  onCheckedChange={enabled => handleSoundUpdate({ enabled })}
                 />
               </div>
 
               {preferences?.sound?.enabled && (
                 <>
                   <Separator />
-                  
+
                   <div className="space-y-4">
                     <div>
                       <Label className="font-medium mb-3 block">Volume</Label>
@@ -539,7 +547,7 @@ export function NotificationSettings({ preferences, onUpdate, onReset }: Notific
                       </div>
                       <Switch
                         checked={preferences?.sound?.useCustomSound ?? false}
-                        onCheckedChange={(useCustomSound) => handleSoundUpdate({ useCustomSound })}
+                        onCheckedChange={useCustomSound => handleSoundUpdate({ useCustomSound })}
                         disabled
                       />
                     </div>

@@ -10,12 +10,13 @@ import {
   Bell,
   Wifi,
   Shield,
+  Lock,
   Download,
   Upload,
   RotateCcw,
   AlertTriangle,
   CheckCircle2,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuthUser } from '@/hooks/useAuthUser';
@@ -30,11 +31,19 @@ import { NotificationSettings } from '@/components/preferences/NotificationSetti
 import { CompetitionSettings } from '@/components/preferences/CompetitionSettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
 import { PrivacySettings } from '@/components/preferences/PrivacySettings';
+import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DeviceManager } from '@/components/preferences/DeviceManager';
 import { SyncStatusIndicator } from '@/components/preferences/SyncStatusIndicator';
 import type { PreferencesUpdate } from '@/types/user-preferences';
 
-type TabValue = 'theme' | 'notifications' | 'competition' | 'data' | 'privacy' | 'devices';
+type TabValue =
+  | 'theme'
+  | 'notifications'
+  | 'competition'
+  | 'data'
+  | 'privacy'
+  | 'security'
+  | 'devices';
 
 // Tab configuration
 const tabs = [
@@ -67,6 +76,12 @@ const tabs = [
     label: 'Privacy',
     icon: Shield,
     description: 'Manage privacy and data sharing settings',
+  },
+  {
+    value: 'security' as TabValue,
+    label: 'Security',
+    icon: Lock,
+    description: 'Change your password and security settings',
   },
   {
     value: 'devices' as TabValue,
@@ -122,7 +137,9 @@ export function PreferencesPage() {
       setActionError(null);
 
       await resetToDefaults(category);
-      setSuccessMessage(`${category ? `${category} preferences` : 'All preferences'} reset to defaults`);
+      setSuccessMessage(
+        `${category ? `${category} preferences` : 'All preferences'} reset to defaults`
+      );
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error: unknown) {
       setActionError(error instanceof Error ? error.message : 'Failed to reset preferences');
@@ -174,7 +191,7 @@ export function PreferencesPage() {
       input.type = 'file';
       input.accept = '.json';
 
-      input.onchange = async (e) => {
+      input.onchange = async e => {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (!file) return;
 
@@ -235,7 +252,7 @@ export function PreferencesPage() {
 
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <button
             key={tab.value}
             onClick={() => {
@@ -252,9 +269,7 @@ export function PreferencesPage() {
             <tab.icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm">{tab.label}</div>
-              <div className="text-xs text-muted-foreground truncate">
-                {tab.description}
-              </div>
+              <div className="text-xs text-muted-foreground truncate">{tab.description}</div>
             </div>
           </button>
         ))}
@@ -324,7 +339,9 @@ export function PreferencesPage() {
 
         <div className="pt-2">
           <Badge variant="outline" className="text-xs">
-            {devices.filter(d => d.isCurrentDevice).length > 0 ? 'Current Device' : 'Unknown Device'}
+            {devices.filter(d => d.isCurrentDevice).length > 0
+              ? 'Current Device'
+              : 'Unknown Device'}
           </Badge>
         </div>
       </div>
@@ -349,7 +366,7 @@ export function PreferencesPage() {
         return (
           <ThemeSelector
             preferences={preferences?.theme}
-            onUpdate={(theme) => handleUpdate({ theme })}
+            onUpdate={theme => handleUpdate({ theme })}
             onReset={() => handleReset('theme')}
           />
         );
@@ -357,7 +374,7 @@ export function PreferencesPage() {
         return (
           <NotificationSettings
             preferences={preferences?.notifications}
-            onUpdate={(notifications) => handleUpdate({ notifications })}
+            onUpdate={notifications => handleUpdate({ notifications })}
             onReset={() => handleReset('notifications')}
           />
         );
@@ -365,7 +382,7 @@ export function PreferencesPage() {
         return (
           <CompetitionSettings
             preferences={preferences?.competition}
-            onUpdate={(competition) => handleUpdate({ competition })}
+            onUpdate={competition => handleUpdate({ competition })}
             onReset={() => handleReset('competition')}
           />
         );
@@ -373,7 +390,7 @@ export function PreferencesPage() {
         return (
           <DataSettings
             preferences={preferences?.data}
-            onUpdate={(data) => handleUpdate({ data })}
+            onUpdate={data => handleUpdate({ data })}
             onReset={() => handleReset('data')}
           />
         );
@@ -381,10 +398,12 @@ export function PreferencesPage() {
         return (
           <PrivacySettings
             preferences={preferences?.privacy}
-            onUpdate={(privacy) => handleUpdate({ privacy })}
+            onUpdate={privacy => handleUpdate({ privacy })}
             onReset={() => handleReset('privacy')}
           />
         );
+      case 'security':
+        return <SecuritySettings />;
       case 'devices':
         return <DeviceManager devices={devices} syncState={syncState} />;
       default:

@@ -29,7 +29,7 @@ const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
-const ExhibitorProfilePage = lazy(() => import('@/pages/exhibitor/ExhibitorProfilePage'));
+const ProfileRedirect = lazy(() => import('@/pages/ProfileRedirect'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
 // Exhibitor layout
@@ -181,9 +181,7 @@ export const PublicRoutes = () => (
         path="profile"
         element={
           <SuspenseWrapper>
-            <PageTransition>
-              <ExhibitorProfilePage />
-            </PageTransition>
+            <ProfileRedirect />
           </SuspenseWrapper>
         }
       />
@@ -191,9 +189,7 @@ export const PublicRoutes = () => (
         path="account"
         element={
           <SuspenseWrapper>
-            <PageTransition>
-              <ExhibitorProfilePage />
-            </PageTransition>
+            <ProfileRedirect />
           </SuspenseWrapper>
         }
       />
@@ -229,15 +225,13 @@ export const PublicRoutes = () => (
       />
     </Route>
 
-    {/* /profile backwards-compat redirect */}
+    {/* /profile redirects to /users/{personId} */}
     <Route
       path="/profile"
       element={
         <ProtectedRoute>
           <SuspenseWrapper>
-            <PageTransition>
-              <ExhibitorProfilePage />
-            </PageTransition>
+            <ProfileRedirect />
           </SuspenseWrapper>
         </ProtectedRoute>
       }

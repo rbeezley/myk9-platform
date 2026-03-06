@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
 import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
-import type { User, Dog, DogInput } from '@/types/dog-types';
+import { AddDogPanel } from '@/components/panels/edit';
+import type { User, Dog } from '@/types/dog-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { mapDogToDogInput } from '@/services/mappers/dogMappers';
 
 interface PeopleDetailsTabsProps {
   selectedUser: User;
@@ -14,53 +17,25 @@ interface PeopleDetailsTabsProps {
 
 const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) => {
   const navigate = useNavigate();
-  const { dogs, addDog, updateDog, deleteDog } = useDogStoreCompat();
+  const { dogs, updateDog, deleteDog } = useDogStoreCompat();
+  const { getUserRoles } = useAuthContext();
 
   // Get actual Dog objects by owner relationship
   const userDogs = useMemo(() => {
     return dogs.filter(dog => dog.ownerId === selectedUser.id);
   }, [dogs, selectedUser.id]);
 
-  // Helper function to convert Dog to DogInput
-  const dogToDogInput = (dog: Dog): DogInput => ({
-    name: dog.name,
-    breed: dog.breed,
-    sex: dog.sex,
-    birthDate: dog.birthDate || dog.dateOfBirth,
-    color: dog.color,
-    weight: typeof dog.weight === 'string' ? undefined : dog.weight,
-    height: typeof dog.height === 'string' ? undefined : dog.height,
-    ownerId: dog.ownerId,
-    ownerName: dog.ownerName,
-    microchipNumber: dog.microchipNumber || dog.microchip,
-    imageUrl: dog.imageUrl,
-    registrations: dog.registrations?.map(reg => ({
-      organization: reg.organization,
-      number: reg.registrationNumber,
-      type: reg.status,
-      status: reg.status,
-    })),
-  });
-
   // Edit dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [dogToEdit, setDogToEdit] = useState<Dog | null>(null);
 
-  // --- Removed obsolete editDogForm state/handlers ---
+  // Create panel state
+  const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
 
   // Handler for saving dog edits from DogEditPanel
   const handleSaveDogEdit = async (updatedDogData: Partial<Dog>) => {
     if (!dogToEdit) return;
-
-    const isNewDog = !dogToEdit.id;
-
-    if (isNewDog) {
-      const mergedDog = { ...dogToEdit, ...updatedDogData, ownerId: selectedUser.id };
-      await addDog(dogToDogInput(mergedDog as Dog));
-    } else {
-      await updateDog(dogToEdit.id, dogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
-    }
-
+    await updateDog(dogToEdit.id, mapDogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
     setIsEditDialogOpen(false);
     setDogToEdit(null);
   };
@@ -77,36 +52,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
 
   // Handler for adding a new dog
   const handleAddNewDog = () => {
-    const newDog: Dog = {
-      id: '', // Will be set when creating
-      name: '', // Added: Default to empty, can be set in dialog
-      breed: '', // Required field
-      sex: 'male', // Required field
-      callName: '',
-      gender: 'Male',
-      ownerId: selectedUser.id, // Keep this as per Dog type
-      owner: {
-        id: selectedUser.id,
-        name: `${selectedUser.firstName} ${selectedUser.lastName}`,
-        email: selectedUser.email,
-        phone: selectedUser.phone,
-        profileImage: selectedUser.profileImage,
-      }, // Convert User to Owner format
-      registrations: [],
-      spayedNeutered: false,
-      description: '', // Added: Default to empty
-      // Optional fields with default values
-      height: '',
-      weight: '',
-      dateOfBirth: '', // Age can be derived from this if needed, or set in dialog
-      age: 0, // Corrected: Default to 0
-      imageUrl: '',
-      color: '',
-      microchip: '',
-    };
-
-    setDogToEdit(newDog);
-    setIsEditDialogOpen(true);
+    setIsCreatePanelOpen(true);
   };
 
   const tabsConfig = [
@@ -185,10 +131,17 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
           setDogToEdit(null);
         }}
         dogId={dogToEdit?.id || ''}
-        dogName={dogToEdit?.callName || dogToEdit?.name || 'New Dog'}
+        dogName={dogToEdit?.callName || dogToEdit?.name || 'Dog'}
         initialDogData={dogToEdit || {}}
         onSave={handleSaveDogEdit}
         enableAutoSave={false}
+      />
+      <AddDogPanel
+        open={isCreatePanelOpen}
+        onClose={() => setIsCreatePanelOpen(false)}
+        onDogCreated={() => setIsCreatePanelOpen(false)}
+        userRole={getUserRoles()[0]}
+        currentUserPersonId={selectedUser.id}
       />
     </div>
   );

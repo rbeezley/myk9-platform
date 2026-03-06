@@ -1,22 +1,21 @@
 /**
  * Privacy Settings Component
  * Phase 6.4: User Preferences & UI State
- * 
+ *
  * Privacy and data sharing preferences
  */
 
-
-import { 
-  Shield, 
-  Eye, 
-  Users, 
-  BarChart3, 
-  Bug, 
+import {
+  Shield,
+  Eye,
+  Users,
+  BarChart3,
+  Bug,
   Database,
   AlertTriangle,
   Info,
   CheckCircle,
-  RotateCcw
+  RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,20 +36,21 @@ const privacySettings = [
   {
     key: 'sharePresence' as keyof PrivacyPreferences,
     label: 'Share Presence',
-    description: 'Allow others to see when you\'re active in competitions',
+    description: "Allow others to see when you're active in competitions",
     icon: Users,
     impact: 'medium' as const,
     category: 'social' as const,
-    details: 'Other users in the same competition can see when you\'re currently viewing results or making entries.',
+    details:
+      "Other users in the same competition can see when you're currently viewing results or making entries.",
   },
   {
     key: 'showOnlineStatus' as keyof PrivacyPreferences,
     label: 'Online Status',
-    description: 'Show when you\'re online to other users',
+    description: "Show when you're online to other users",
     icon: Eye,
     impact: 'low' as const,
     category: 'social' as const,
-    details: 'Display a green indicator when you\'re actively using the platform.',
+    details: "Display a green indicator when you're actively using the platform.",
   },
   {
     key: 'allowAnalytics' as keyof PrivacyPreferences,
@@ -59,7 +59,8 @@ const privacySettings = [
     icon: BarChart3,
     impact: 'low' as const,
     category: 'analytics' as const,
-    details: 'Anonymous data about feature usage, page views, and performance to help us improve the platform.',
+    details:
+      'Anonymous data about feature usage, page views, and performance to help us improve the platform.',
   },
   {
     key: 'dataCollection' as keyof PrivacyPreferences,
@@ -68,7 +69,8 @@ const privacySettings = [
     icon: Database,
     impact: 'medium' as const,
     category: 'analytics' as const,
-    details: 'Collect anonymized data about how features are used to identify improvements and optimize performance.',
+    details:
+      'Collect anonymized data about how features are used to identify improvements and optimize performance.',
   },
   {
     key: 'shareUsageStats' as keyof PrivacyPreferences,
@@ -77,7 +79,8 @@ const privacySettings = [
     icon: BarChart3,
     impact: 'low' as const,
     category: 'analytics' as const,
-    details: 'Aggregate, anonymous statistics that help us understand platform usage and plan new features.',
+    details:
+      'Aggregate, anonymous statistics that help us understand platform usage and plan new features.',
   },
   {
     key: 'enableCrashReporting' as keyof PrivacyPreferences,
@@ -86,7 +89,8 @@ const privacySettings = [
     icon: Bug,
     impact: 'low' as const,
     category: 'technical' as const,
-    details: 'Automatic error reports that include technical details to help us identify and fix issues quickly.',
+    details:
+      'Automatic error reports that include technical details to help us identify and fix issues quickly.',
   },
 ];
 
@@ -109,7 +113,6 @@ const privacyCategories = {
 };
 
 export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySettingsProps) {
-  
   /**
    * Handle privacy setting toggle
    */
@@ -122,35 +125,40 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
    */
   const getImpactColor = (impact: string) => {
     switch (impact) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'outline';
+      case 'high':
+        return 'destructive';
+      case 'medium':
+        return 'default';
+      case 'low':
+        return 'secondary';
+      default:
+        return 'outline';
     }
   };
 
   /**
    * Group settings by category
    */
-  const settingsByCategory = privacySettings.reduce((acc, setting) => {
-    if (!acc[setting.category]) {
-      acc[setting.category] = [];
-    }
-    acc[setting.category].push(setting);
-    return acc;
-  }, {} as Record<string, typeof privacySettings>);
+  const settingsByCategory = privacySettings.reduce(
+    (acc, setting) => {
+      if (!acc[setting.category]) {
+        acc[setting.category] = [];
+      }
+      acc[setting.category].push(setting);
+      return acc;
+    },
+    {} as Record<string, typeof privacySettings>
+  );
 
   /**
    * Calculate privacy score
    */
   const getPrivacyScore = () => {
     if (!preferences) return 50;
-    
+
     const totalSettings = privacySettings.length;
-    const disabledSettings = privacySettings.filter(
-      setting => !preferences[setting.key]
-    ).length;
-    
+    const disabledSettings = privacySettings.filter(setting => !preferences[setting.key]).length;
+
     return Math.round((disabledSettings / totalSettings) * 100);
   };
 
@@ -158,13 +166,6 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold tracking-tight mb-2">Privacy Settings</h3>
-        <p className="text-sm text-muted-foreground">
-          Control your privacy and data sharing preferences
-        </p>
-      </div>
-
       {/* Privacy Score */}
       <Card>
         <CardHeader>
@@ -172,27 +173,30 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
             <Shield className="h-5 w-5" />
             Privacy Score
           </CardTitle>
-          <CardDescription>
-            Your current privacy level based on enabled settings
-          </CardDescription>
+          <CardDescription>Your current privacy level based on enabled settings</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Privacy Level</span>
-                <Badge 
-                  variant={privacyScore >= 70 ? 'default' : privacyScore >= 40 ? 'secondary' : 'outline'}
+                <Badge
+                  variant={
+                    privacyScore >= 70 ? 'default' : privacyScore >= 40 ? 'secondary' : 'outline'
+                  }
                   className="text-xs"
                 >
                   {privacyScore >= 70 ? 'High' : privacyScore >= 40 ? 'Medium' : 'Low'} Privacy
                 </Badge>
               </div>
               <div className="w-full bg-muted rounded-full h-2">
-                <div 
+                <div
                   className={`h-2 rounded-full transition-all duration-300 ${
-                    privacyScore >= 70 ? 'bg-green-500' : 
-                    privacyScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                    privacyScore >= 70
+                      ? 'bg-green-500'
+                      : privacyScore >= 40
+                        ? 'bg-yellow-500'
+                        : 'bg-red-500'
                   }`}
                   style={{ width: `${privacyScore}%` }}
                 />
@@ -205,12 +209,11 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-3">
-            {privacyScore >= 70 
+            {privacyScore >= 70
               ? 'You have a high level of privacy with most data sharing disabled.'
-              : privacyScore >= 40 
-              ? 'You have moderate privacy with some data sharing enabled.'
-              : 'You have lower privacy with most features enabled to improve your experience.'
-            }
+              : privacyScore >= 40
+                ? 'You have moderate privacy with some data sharing enabled.'
+                : 'You have lower privacy with most features enabled to improve your experience.'}
           </p>
         </CardContent>
       </Card>
@@ -218,7 +221,7 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
       {/* Privacy Settings by Category */}
       {Object.entries(settingsByCategory).map(([categoryKey, settings]) => {
         const category = privacyCategories[categoryKey as keyof typeof privacyCategories];
-        
+
         return (
           <Card key={categoryKey}>
             <CardHeader>
@@ -226,12 +229,10 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
                 <category.icon className="h-5 w-5" />
                 {category.label}
               </CardTitle>
-              <CardDescription>
-                {category.description}
-              </CardDescription>
+              <CardDescription>{category.description}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {settings.map((setting) => (
+              {settings.map(setting => (
                 <div key={setting.key}>
                   <div className="flex items-center justify-between space-x-2">
                     <div className="flex items-center space-x-3 flex-1">
@@ -239,30 +240,33 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <Label className="font-medium">{setting.label}</Label>
-                          <Badge variant={getImpactColor(setting.impact) as 'destructive' | 'default' | 'secondary' | 'outline'} className="text-xs">
+                          <Badge
+                            variant={
+                              getImpactColor(setting.impact) as
+                                | 'destructive'
+                                | 'default'
+                                | 'secondary'
+                                | 'outline'
+                            }
+                            className="text-xs"
+                          >
                             {setting.impact} impact
                           </Badge>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {setting.description}
-                        </div>
+                        <div className="text-sm text-muted-foreground">{setting.description}</div>
                       </div>
                     </div>
                     <Switch
                       checked={preferences?.[setting.key] ?? true}
-                      onCheckedChange={(checked) => handlePrivacyToggle(setting.key, checked)}
+                      onCheckedChange={checked => handlePrivacyToggle(setting.key, checked)}
                     />
                   </div>
-                  
+
                   <div className="ml-7 mt-2">
-                    <p className="text-xs text-muted-foreground">
-                      {setting.details}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{setting.details}</p>
                   </div>
-                  
-                  {setting !== settings[settings.length - 1] && (
-                    <Separator className="mt-4" />
-                  )}
+
+                  {setting !== settings[settings.length - 1] && <Separator className="mt-4" />}
                 </div>
               ))}
             </CardContent>
@@ -282,24 +286,24 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Your data is protected:</strong> All data is encrypted in transit and at rest. 
+              <strong>Your data is protected:</strong> All data is encrypted in transit and at rest.
               We never sell personal information to third parties.
             </AlertDescription>
           </Alert>
-          
+
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              <strong>Anonymous data only:</strong> When analytics are enabled, all data is 
+              <strong>Anonymous data only:</strong> When analytics are enabled, all data is
               anonymized and aggregated to protect your privacy.
             </AlertDescription>
           </Alert>
-          
+
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Required for functionality:</strong> Some features may not work properly 
-              if certain data sharing options are disabled.
+              <strong>Required for functionality:</strong> Some features may not work properly if
+              certain data sharing options are disabled.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -336,7 +340,7 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
                 <div className="text-xs text-muted-foreground">Disable all optional sharing</div>
               </div>
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={() => {
@@ -355,10 +359,12 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
               <BarChart3 className="h-5 w-5" />
               <div className="text-center">
                 <div className="font-medium text-sm">Balanced</div>
-                <div className="text-xs text-muted-foreground">Help improve while staying private</div>
+                <div className="text-xs text-muted-foreground">
+                  Help improve while staying private
+                </div>
               </div>
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={() => {
@@ -391,11 +397,11 @@ export function PrivacySettings({ preferences, onUpdate, onReset }: PrivacySetti
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            {privacySettings.map((setting) => (
+            {privacySettings.map(setting => (
               <div key={setting.key} className="flex items-center justify-between">
                 <span className="text-muted-foreground">{setting.label}:</span>
-                <Badge 
-                  variant={preferences?.[setting.key] ? 'secondary' : 'outline'} 
+                <Badge
+                  variant={preferences?.[setting.key] ? 'secondary' : 'outline'}
                   className="text-xs"
                 >
                   {preferences?.[setting.key] ? 'Enabled' : 'Disabled'}

@@ -1,37 +1,43 @@
 /**
  * Competition Settings Component
  * Phase 6.4: User Preferences & UI State
- * 
+ *
  * Competition-specific preferences for default views, filters, and behaviors
  */
 
 import React from 'react';
-import { 
-  Calendar, 
-  List, 
-  Grid3X3, 
-  Clock, 
-  Filter, 
+import {
+  Calendar,
+  List,
+  Grid3X3,
+  Clock,
+  Filter,
   Eye,
   RotateCcw,
   Trophy,
   MapPin,
-  Building
+  Building,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { 
-  CompetitionPreferences, 
-  DefaultView, 
-  SortOption, 
-  RefreshInterval 
+import type {
+  CompetitionPreferences,
+  DefaultView,
+  SortOption,
+  RefreshInterval,
 } from '@/types/user-preferences';
 
 interface CompetitionSettingsProps {
@@ -40,15 +46,34 @@ interface CompetitionSettingsProps {
   onReset: () => void;
 }
 
-const viewOptions: Array<{ value: DefaultView; label: string; icon: React.ComponentType<{ className?: string }>; description: string }> = [
-  { value: 'list', label: 'List View', icon: List, description: 'Detailed list with all information' },
+const viewOptions: Array<{
+  value: DefaultView;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+}> = [
+  {
+    value: 'list',
+    label: 'List View',
+    icon: List,
+    description: 'Detailed list with all information',
+  },
   { value: 'grid', label: 'Grid View', icon: Grid3X3, description: 'Card-based grid layout' },
-  { value: 'calendar', label: 'Calendar View', icon: Calendar, description: 'Calendar-based timeline' },
+  {
+    value: 'calendar',
+    label: 'Calendar View',
+    icon: Calendar,
+    description: 'Calendar-based timeline',
+  },
   { value: 'timeline', label: 'Timeline View', icon: Clock, description: 'Chronological timeline' },
 ];
 
 const sortOptions: Array<{ value: SortOption; label: string; description: string }> = [
-  { value: 'date_asc', label: 'Date (Earliest First)', description: 'Sort by date, earliest first' },
+  {
+    value: 'date_asc',
+    label: 'Date (Earliest First)',
+    description: 'Sort by date, earliest first',
+  },
   { value: 'date_desc', label: 'Date (Latest First)', description: 'Sort by date, latest first' },
   { value: 'name_asc', label: 'Name (A-Z)', description: 'Sort alphabetically by name' },
   { value: 'name_desc', label: 'Name (Z-A)', description: 'Sort reverse alphabetically' },
@@ -65,11 +90,17 @@ const refreshIntervals: Array<{ value: RefreshInterval; label: string; descripti
 
 // Sample filter options (would be loaded from the database in real implementation)
 const sampleOrganizations = ['AKC', 'UKC', 'CKC', 'NADAC', 'CPE'];
-const sampleDisciplines = ['Conformation', 'Agility', 'Obedience', 'Rally', 'Scent Work', 'FastCAT'];
+const sampleDisciplines = [
+  'Conformation',
+  'Agility',
+  'Obedience',
+  'Rally',
+  'Scent Work',
+  'FastCAT',
+];
 const sampleLocations = ['California', 'New York', 'Texas', 'Florida', 'Washington'];
 
 export function CompetitionSettings({ preferences, onUpdate, onReset }: CompetitionSettingsProps) {
-  
   /**
    * Handle view change
    */
@@ -95,8 +126,8 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
    * Handle filter updates
    */
   const handleFilterUpdate = (
-    type: 'organizations' | 'disciplines' | 'locations', 
-    value: string, 
+    type: 'organizations' | 'disciplines' | 'locations',
+    value: string,
     checked: boolean
   ) => {
     if (!preferences) return;
@@ -123,13 +154,6 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold tracking-tight mb-2">Competition Preferences</h3>
-        <p className="text-sm text-muted-foreground">
-          Set your default preferences for viewing and interacting with competition data
-        </p>
-      </div>
-
       {/* Default View */}
       <Card>
         <CardHeader>
@@ -137,9 +161,7 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             <Eye className="h-5 w-5" />
             Default View
           </CardTitle>
-          <CardDescription>
-            Choose how you prefer to view competition listings
-          </CardDescription>
+          <CardDescription>Choose how you prefer to view competition listings</CardDescription>
         </CardHeader>
         <CardContent>
           <RadioGroup
@@ -147,7 +169,7 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             onValueChange={handleViewChange}
             className="grid grid-cols-2 gap-4"
           >
-            {viewOptions.map((option) => (
+            {viewOptions.map(option => (
               <div key={option.value}>
                 <RadioGroupItem
                   value={option.value}
@@ -161,9 +183,7 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
                   <option.icon className="h-6 w-6 mb-2" />
                   <div className="text-center">
                     <div className="font-medium">{option.label}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {option.description}
-                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
                   </div>
                 </Label>
               </div>
@@ -179,26 +199,19 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             <List className="h-5 w-5" />
             Default Sort Order
           </CardTitle>
-          <CardDescription>
-            How competitions should be sorted by default
-          </CardDescription>
+          <CardDescription>How competitions should be sorted by default</CardDescription>
         </CardHeader>
         <CardContent>
-          <Select
-            value={preferences?.defaultSort || 'date_asc'}
-            onValueChange={handleSortChange}
-          >
+          <Select value={preferences?.defaultSort || 'date_asc'} onValueChange={handleSortChange}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {sortOptions.map((option) => (
+              {sortOptions.map(option => (
                 <SelectItem key={option.value} value={option.value}>
                   <div>
                     <div className="font-medium">{option.label}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {option.description}
-                    </div>
+                    <div className="text-sm text-muted-foreground">{option.description}</div>
                   </div>
                 </SelectItem>
               ))}
@@ -214,27 +227,23 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             <Clock className="h-5 w-5" />
             Auto Refresh
           </CardTitle>
-          <CardDescription>
-            How often to automatically refresh competition data
-          </CardDescription>
+          <CardDescription>How often to automatically refresh competition data</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <Select
               value={preferences?.autoRefreshInterval?.toString() || '60'}
-              onValueChange={(value) => handleRefreshChange(parseInt(value) as RefreshInterval)}
+              onValueChange={value => handleRefreshChange(parseInt(value) as RefreshInterval)}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {refreshIntervals.map((option) => (
+                {refreshIntervals.map(option => (
                   <SelectItem key={option.value} value={option.value.toString()}>
                     <div>
                       <div className="font-medium">{option.label}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {option.description}
-                      </div>
+                      <div className="text-sm text-muted-foreground">{option.description}</div>
                     </div>
                   </SelectItem>
                 ))}
@@ -250,7 +259,7 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
               </div>
               <Switch
                 checked={preferences?.enableLiveUpdates ?? true}
-                onCheckedChange={(checked) => handleBooleanChange('enableLiveUpdates', checked)}
+                onCheckedChange={checked => handleBooleanChange('enableLiveUpdates', checked)}
               />
             </div>
           </div>
@@ -278,7 +287,7 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             </div>
             <Switch
               checked={preferences?.showPastEvents ?? false}
-              onCheckedChange={(checked) => handleBooleanChange('showPastEvents', checked)}
+              onCheckedChange={checked => handleBooleanChange('showPastEvents', checked)}
             />
           </div>
 
@@ -293,7 +302,7 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             </div>
             <Switch
               checked={preferences?.showNotifications ?? true}
-              onCheckedChange={(checked) => handleBooleanChange('showNotifications', checked)}
+              onCheckedChange={checked => handleBooleanChange('showNotifications', checked)}
             />
           </div>
         </CardContent>
@@ -306,9 +315,7 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             <Filter className="h-5 w-5" />
             Default Filters
           </CardTitle>
-          <CardDescription>
-            Pre-select filters that will be applied by default
-          </CardDescription>
+          <CardDescription>Pre-select filters that will be applied by default</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Organizations */}
@@ -318,12 +325,12 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
               <Label className="font-medium">Organizations</Label>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {sampleOrganizations.map((org) => (
+              {sampleOrganizations.map(org => (
                 <div key={org} className="flex items-center space-x-2">
                   <Checkbox
                     id={`org-${org}`}
                     checked={preferences?.defaultFilters.organizations?.includes(org) || false}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={checked =>
                       handleFilterUpdate('organizations', org, checked as boolean)
                     }
                   />
@@ -344,12 +351,12 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
               <Label className="font-medium">Disciplines</Label>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {sampleDisciplines.map((discipline) => (
+              {sampleDisciplines.map(discipline => (
                 <div key={discipline} className="flex items-center space-x-2">
                   <Checkbox
                     id={`disc-${discipline}`}
                     checked={preferences?.defaultFilters.disciplines?.includes(discipline) || false}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={checked =>
                       handleFilterUpdate('disciplines', discipline, checked as boolean)
                     }
                   />
@@ -370,12 +377,12 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
               <Label className="font-medium">Locations</Label>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {sampleLocations.map((location) => (
+              {sampleLocations.map(location => (
                 <div key={location} className="flex items-center space-x-2">
                   <Checkbox
                     id={`loc-${location}`}
                     checked={preferences?.defaultFilters.locations?.includes(location) || false}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={checked =>
                       handleFilterUpdate('locations', location, checked as boolean)
                     }
                   />
@@ -405,32 +412,40 @@ export function CompetitionSettings({ preferences, onUpdate, onReset }: Competit
             <div>
               <Label className="font-medium">Default Sort:</Label>
               <div className="text-muted-foreground">
-                {sortOptions.find(s => s.value === preferences?.defaultSort)?.label || 'Date (Earliest First)'}
+                {sortOptions.find(s => s.value === preferences?.defaultSort)?.label ||
+                  'Date (Earliest First)'}
               </div>
             </div>
             <div>
               <Label className="font-medium">Auto Refresh:</Label>
               <div className="text-muted-foreground">
-                {refreshIntervals.find(r => r.value === preferences?.autoRefreshInterval)?.label || '1 minute'}
+                {refreshIntervals.find(r => r.value === preferences?.autoRefreshInterval)?.label ||
+                  '1 minute'}
               </div>
             </div>
             <div>
               <Label className="font-medium">Active Filters:</Label>
               <div className="flex flex-wrap gap-1 mt-1">
                 {preferences?.defaultFilters.organizations?.map(org => (
-                  <Badge key={org} variant="secondary" className="text-xs">{org}</Badge>
+                  <Badge key={org} variant="secondary" className="text-xs">
+                    {org}
+                  </Badge>
                 ))}
                 {preferences?.defaultFilters.disciplines?.map(disc => (
-                  <Badge key={disc} variant="secondary" className="text-xs">{disc}</Badge>
+                  <Badge key={disc} variant="secondary" className="text-xs">
+                    {disc}
+                  </Badge>
                 ))}
                 {preferences?.defaultFilters.locations?.map(loc => (
-                  <Badge key={loc} variant="secondary" className="text-xs">{loc}</Badge>
+                  <Badge key={loc} variant="secondary" className="text-xs">
+                    {loc}
+                  </Badge>
                 ))}
-                {(!preferences?.defaultFilters.organizations?.length && 
-                  !preferences?.defaultFilters.disciplines?.length && 
-                  !preferences?.defaultFilters.locations?.length) && (
-                  <span className="text-muted-foreground text-xs">None</span>
-                )}
+                {!preferences?.defaultFilters.organizations?.length &&
+                  !preferences?.defaultFilters.disciplines?.length &&
+                  !preferences?.defaultFilters.locations?.length && (
+                    <span className="text-muted-foreground text-xs">None</span>
+                  )}
               </div>
             </div>
           </div>

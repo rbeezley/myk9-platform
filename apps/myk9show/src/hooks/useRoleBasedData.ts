@@ -15,21 +15,23 @@ export function useRoleBasedDogs() {
   const { userWithRoles, hasRole } = useAuthContext();
   const { dogs: allDogs, isLoading, error } = useDogStoreCompat();
   const allPeople = useUserStore(state => state.people);
-  
+
   const filteredDogs = useMemo(() => {
     if (!userWithRoles || isLoading || error) {
       return [];
     }
 
     // Site admins, club admins, and secretaries see all dogs
-    if (hasRole(UserRole.SITE_ADMIN) ||
-        hasRole(UserRole.CLUB_ADMIN) ||
-        hasRole(UserRole.SECRETARY)) {
+    if (
+      hasRole(UserRole.SITE_ADMIN) ||
+      hasRole(UserRole.CLUB_ADMIN) ||
+      hasRole(UserRole.SECRETARY)
+    ) {
       return allDogs;
     }
 
     // Exhibitors only see their own dogs
-    const userPerson = getUserPersonFromEmailStable(userWithRoles.email, allPeople);
+    const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
 
     if (!userPerson) {
       return [];
@@ -37,14 +39,14 @@ export function useRoleBasedDogs() {
 
     return allDogs.filter(dog => dog.ownerId === userPerson.id);
   }, [userWithRoles, allDogs, allPeople, hasRole, isLoading, error]);
-  
+
   return filteredDogs;
 }
 
 export function useRoleBasedPeople() {
   const { userWithRoles, hasRole } = useAuthContext();
   const { data: allPeople = [], isLoading, error } = useUsersQuery();
-  
+
   const filteredPeople = useMemo(() => {
     // Early return for loading, error, or empty data
     if (isLoading || error || !userWithRoles || !allPeople || allPeople.length === 0) {
@@ -52,9 +54,11 @@ export function useRoleBasedPeople() {
     }
 
     // Site admins, club admins, and secretaries see all people
-    if (hasRole(UserRole.SITE_ADMIN) ||
-        hasRole(UserRole.CLUB_ADMIN) ||
-        hasRole(UserRole.SECRETARY)) {
+    if (
+      hasRole(UserRole.SITE_ADMIN) ||
+      hasRole(UserRole.CLUB_ADMIN) ||
+      hasRole(UserRole.SECRETARY)
+    ) {
       return allPeople;
     }
 
@@ -65,36 +69,16 @@ export function useRoleBasedPeople() {
 
     return [];
   }, [userWithRoles, hasRole, allPeople, isLoading, error]);
-  
+
   return filteredPeople;
 }
 
 /**
- * Helper function to map user email to person record
- * In production, this would be handled by the backend
- * This version takes people as a parameter to avoid triggering store subscriptions
+ * Find the person record for an auth user by matching user_id.
  */
-function getUserPersonFromEmailStable(email?: string, allPeople: User[] = []): User | null {
-  if (!email) return null;
-  
-  // Mock mapping for development
-  // In production, this would come from the user's profile
-  const emailToPersonMap: Record<string, string> = {
-    'exhibitor@example.com': '1', // Jane Doe
-    'jane.doe@example.com': '1',
-    'richard@myk9t.com': '1', // Map Richard to Jane Doe (who owns Bella and Lucy) - note: myk9t not myk9l
-    'john.smith@example.com': '2',
-    'michael.johnson@example.com': '3',
-    'sarah.garcia@example.com': '4',
-    'david.williams@example.com': '5',
-    'dev@example.com': '6', // Development user
-    // Secretary and admin users don't have person records in our mock data
-  };
-  
-  const personId = emailToPersonMap[email];
-  if (!personId) return null;
-  
-  return allPeople.find(p => p.id === personId) || null;
+function getUserPersonFromAuthId(authUserId?: string, allPeople: User[] = []): User | null {
+  if (!authUserId) return null;
+  return allPeople.find(p => p.user_id === authUserId) || null;
 }
 
 /**
@@ -104,22 +88,24 @@ export function useCanAccessDog(dogId: string): boolean {
   const { userWithRoles, hasRole } = useAuthContext();
   const { dogs } = useDogStoreCompat();
   const allPeople = useUserStore(state => state.people);
-  
+
   return useMemo(() => {
     if (!userWithRoles) return false;
-    
+
     // Admins and secretaries can access all dogs
-    if (hasRole(UserRole.SITE_ADMIN) || 
-        hasRole(UserRole.CLUB_ADMIN) || 
-        hasRole(UserRole.SECRETARY)) {
+    if (
+      hasRole(UserRole.SITE_ADMIN) ||
+      hasRole(UserRole.CLUB_ADMIN) ||
+      hasRole(UserRole.SECRETARY)
+    ) {
       return true;
     }
-    
+
     // Check if user owns this dog
     const dog = dogs.find(d => d.id === dogId);
     if (!dog) return false;
-    
-    const userPerson = getUserPersonFromEmailStable(userWithRoles.email, allPeople);
+
+    const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
     return dog.ownerId === userPerson?.id;
   }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
 }
@@ -130,19 +116,21 @@ export function useCanAccessDog(dogId: string): boolean {
 export function useCanAccessPerson(personId: string): boolean {
   const { userWithRoles, hasRole } = useAuthContext();
   const allPeople = useUserStore(state => state.people);
-  
+
   return useMemo(() => {
     if (!userWithRoles) return false;
-    
+
     // Admins and secretaries can access all people
-    if (hasRole(UserRole.SITE_ADMIN) || 
-        hasRole(UserRole.CLUB_ADMIN) || 
-        hasRole(UserRole.SECRETARY)) {
+    if (
+      hasRole(UserRole.SITE_ADMIN) ||
+      hasRole(UserRole.CLUB_ADMIN) ||
+      hasRole(UserRole.SECRETARY)
+    ) {
       return true;
     }
-    
+
     // Exhibitors can only access themselves
-    const userPerson = getUserPersonFromEmailStable(userWithRoles.email, allPeople);
+    const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
     return personId === userPerson?.id;
   }, [userWithRoles, hasRole, personId, allPeople]);
 }
@@ -153,11 +141,11 @@ export function useCanAccessPerson(personId: string): boolean {
 export function useCurrentUserPersonId(): string | null {
   const { userWithRoles } = useAuthContext();
   const allPeople = useUserStore(state => state.people);
-  
+
   return useMemo(() => {
     if (!userWithRoles) return null;
-    
-    const userPerson = getUserPersonFromEmailStable(userWithRoles.email, allPeople);
+
+    const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
     return userPerson?.id || null;
   }, [userWithRoles, allPeople]);
 }

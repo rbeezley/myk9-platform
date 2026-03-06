@@ -1,23 +1,23 @@
 /**
  * Data Settings Component
  * Phase 6.4: User Preferences & UI State
- * 
+ *
  * Data synchronization and performance preferences
  */
 
 import React from 'react';
-import { 
-  WifiOff, 
-  HardDrive, 
-  Zap, 
-  Database, 
+import {
+  WifiOff,
+  HardDrive,
+  Zap,
+  Database,
   RefreshCw,
   Download,
   Smartphone,
   Monitor,
   Activity,
   RotateCcw,
-  Info
+  Info,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,11 +29,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { 
-  DataPreferences, 
-  SyncMode, 
-  CacheStrategy, 
-  BandwidthMode 
+import type {
+  DataPreferences,
+  SyncMode,
+  CacheStrategy,
+  BandwidthMode,
 } from '@/types/user-preferences';
 
 interface DataSettingsProps {
@@ -42,87 +42,87 @@ interface DataSettingsProps {
   onReset: () => void;
 }
 
-const syncModeOptions: Array<{ 
-  value: SyncMode; 
-  label: string; 
-  description: string; 
+const syncModeOptions: Array<{
+  value: SyncMode;
+  label: string;
+  description: string;
   icon: React.ComponentType<{ className?: string }>;
   recommended?: boolean;
 }> = [
-  { 
-    value: 'auto', 
-    label: 'Automatic Sync', 
+  {
+    value: 'auto',
+    label: 'Automatic Sync',
     description: 'Sync changes immediately when connected',
     icon: RefreshCw,
     recommended: true,
   },
-  { 
-    value: 'manual', 
-    label: 'Manual Sync', 
+  {
+    value: 'manual',
+    label: 'Manual Sync',
     description: 'Only sync when you choose to',
     icon: Download,
   },
-  { 
-    value: 'offline-first', 
-    label: 'Offline First', 
+  {
+    value: 'offline-first',
+    label: 'Offline First',
     description: 'Work offline, sync when convenient',
     icon: WifiOff,
   },
 ];
 
-const cacheStrategyOptions: Array<{ 
-  value: CacheStrategy; 
-  label: string; 
+const cacheStrategyOptions: Array<{
+  value: CacheStrategy;
+  label: string;
   description: string;
   storageImpact: string;
 }> = [
-  { 
-    value: 'aggressive', 
-    label: 'Aggressive Caching', 
+  {
+    value: 'aggressive',
+    label: 'Aggressive Caching',
     description: 'Cache everything for fastest performance',
     storageImpact: 'High storage usage',
   },
-  { 
-    value: 'balanced', 
-    label: 'Balanced Caching', 
+  {
+    value: 'balanced',
+    label: 'Balanced Caching',
     description: 'Balance performance and storage usage',
     storageImpact: 'Moderate storage usage',
   },
-  { 
-    value: 'minimal', 
-    label: 'Minimal Caching', 
+  {
+    value: 'minimal',
+    label: 'Minimal Caching',
     description: 'Cache only essential data',
     storageImpact: 'Low storage usage',
   },
 ];
 
-const bandwidthModeOptions: Array<{ 
-  value: BandwidthMode; 
-  label: string; 
+const bandwidthModeOptions: Array<{
+  value: BandwidthMode;
+  label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { 
-    value: 'high', 
-    label: 'High Quality', 
+  {
+    value: 'high',
+    label: 'High Quality',
     description: 'Full resolution images and rich content',
     icon: Monitor,
   },
-  { 
-    value: 'medium', 
-    label: 'Medium Quality', 
+  {
+    value: 'medium',
+    label: 'Medium Quality',
     description: 'Compressed images, reduced file sizes',
     icon: Activity,
   },
-  { 
-    value: 'low', 
-    label: 'Low Quality', 
+  {
+    value: 'low',
+    label: 'Low Quality',
     description: 'Minimal images, text-focused content',
     icon: Smartphone,
   },
-  { 
-    value: 'data-saver', 
-    label: 'Data Saver', 
+  {
+    value: 'data-saver',
+    label: 'Data Saver',
     description: 'Maximum data savings, basic content only',
     icon: Database,
   },
@@ -133,7 +133,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
   const cacheUsage = {
     used: 65, // MB
     total: preferences?.maxCacheSize || 100, // MB
-    percentage: ((65 / (preferences?.maxCacheSize || 100)) * 100),
+    percentage: (65 / (preferences?.maxCacheSize || 100)) * 100,
   };
 
   /**
@@ -173,13 +173,6 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold tracking-tight mb-2">Data & Performance</h3>
-        <p className="text-sm text-muted-foreground">
-          Control how data is synchronized and cached for optimal performance
-        </p>
-      </div>
-
       {/* Sync Mode */}
       <Card>
         <CardHeader>
@@ -187,9 +180,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
             <RefreshCw className="h-5 w-5" />
             Synchronization Mode
           </CardTitle>
-          <CardDescription>
-            Choose how and when your data syncs across devices
-          </CardDescription>
+          <CardDescription>Choose how and when your data syncs across devices</CardDescription>
         </CardHeader>
         <CardContent>
           <RadioGroup
@@ -197,7 +188,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
             onValueChange={handleSyncModeChange}
             className="space-y-4"
           >
-            {syncModeOptions.map((option) => (
+            {syncModeOptions.map(option => (
               <div key={option.value} className="flex items-center space-x-3">
                 <RadioGroupItem value={option.value} id={`sync-${option.value}`} />
                 <Label htmlFor={`sync-${option.value}`} className="flex-1 cursor-pointer">
@@ -205,12 +196,12 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
                     <option.icon className="h-4 w-4" />
                     <span className="font-medium">{option.label}</span>
                     {option.recommended && (
-                      <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        Recommended
+                      </Badge>
                     )}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {option.description}
-                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">{option.description}</div>
                 </Label>
               </div>
             ))}
@@ -225,9 +216,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
             <HardDrive className="h-5 w-5" />
             Cache Settings
           </CardTitle>
-          <CardDescription>
-            Manage local data storage and caching behavior
-          </CardDescription>
+          <CardDescription>Manage local data storage and caching behavior</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Cache Strategy */}
@@ -238,17 +227,13 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
               onValueChange={handleCacheStrategyChange}
               className="space-y-3"
             >
-              {cacheStrategyOptions.map((option) => (
+              {cacheStrategyOptions.map(option => (
                 <div key={option.value} className="flex items-center space-x-3">
                   <RadioGroupItem value={option.value} id={`cache-${option.value}`} />
                   <Label htmlFor={`cache-${option.value}`} className="flex-1 cursor-pointer">
                     <div className="font-medium">{option.label}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {option.description}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {option.storageImpact}
-                    </div>
+                    <div className="text-sm text-muted-foreground">{option.description}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{option.storageImpact}</div>
                   </Label>
                 </div>
               ))}
@@ -324,7 +309,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
             onValueChange={handleBandwidthModeChange}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
-            {bandwidthModeOptions.map((option) => (
+            {bandwidthModeOptions.map(option => (
               <div key={option.value}>
                 <RadioGroupItem
                   value={option.value}
@@ -338,9 +323,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
                   <option.icon className="h-6 w-6 mb-2" />
                   <div className="text-center">
                     <div className="font-medium">{option.label}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {option.description}
-                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
                   </div>
                 </Label>
               </div>
@@ -359,7 +342,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
               </div>
               <Switch
                 checked={preferences?.preloadImages ?? true}
-                onCheckedChange={(checked) => handleBooleanChange('preloadImages', checked)}
+                onCheckedChange={checked => handleBooleanChange('preloadImages', checked)}
               />
             </div>
           </div>
@@ -373,9 +356,7 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
             <WifiOff className="h-5 w-5" />
             Offline Mode
           </CardTitle>
-          <CardDescription>
-            Control how the app behaves when you're offline
-          </CardDescription>
+          <CardDescription>Control how the app behaves when you're offline</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
@@ -387,14 +368,14 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
             </div>
             <Switch
               checked={preferences?.enableOfflineMode ?? true}
-              onCheckedChange={(checked) => handleBooleanChange('enableOfflineMode', checked)}
+              onCheckedChange={checked => handleBooleanChange('enableOfflineMode', checked)}
             />
           </div>
 
           {preferences?.enableOfflineMode && (
             <>
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="font-medium">Background Sync</Label>
@@ -404,15 +385,15 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
                 </div>
                 <Switch
                   checked={preferences?.backgroundSync ?? true}
-                  onCheckedChange={(checked) => handleBooleanChange('backgroundSync', checked)}
+                  onCheckedChange={checked => handleBooleanChange('backgroundSync', checked)}
                 />
               </div>
 
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  Offline mode allows you to view previously loaded data and make changes 
-                  that will be synchronized when you're back online.
+                  Offline mode allows you to view previously loaded data and make changes that will
+                  be synchronized when you're back online.
                 </AlertDescription>
               </Alert>
             </>
@@ -430,26 +411,27 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
             <div>
               <Label className="font-medium">Sync Mode:</Label>
               <div className="text-muted-foreground">
-                {syncModeOptions.find(m => m.value === preferences?.syncMode)?.label || 'Automatic Sync'}
+                {syncModeOptions.find(m => m.value === preferences?.syncMode)?.label ||
+                  'Automatic Sync'}
               </div>
             </div>
             <div>
               <Label className="font-medium">Cache Strategy:</Label>
               <div className="text-muted-foreground">
-                {cacheStrategyOptions.find(c => c.value === preferences?.cacheStrategy)?.label || 'Balanced Caching'}
+                {cacheStrategyOptions.find(c => c.value === preferences?.cacheStrategy)?.label ||
+                  'Balanced Caching'}
               </div>
             </div>
             <div>
               <Label className="font-medium">Bandwidth Mode:</Label>
               <div className="text-muted-foreground">
-                {bandwidthModeOptions.find(b => b.value === preferences?.bandwidthMode)?.label || 'High Quality'}
+                {bandwidthModeOptions.find(b => b.value === preferences?.bandwidthMode)?.label ||
+                  'High Quality'}
               </div>
             </div>
             <div>
               <Label className="font-medium">Cache Limit:</Label>
-              <div className="text-muted-foreground">
-                {preferences?.maxCacheSize || 100} MB
-              </div>
+              <div className="text-muted-foreground">{preferences?.maxCacheSize || 100} MB</div>
             </div>
           </div>
         </CardContent>

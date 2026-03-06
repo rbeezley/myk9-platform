@@ -2,36 +2,15 @@
  * Secretary Layout Component
  *
  * Provides collapsible sidebar navigation for secretary pages.
- * Uses SidebarLayout with hover-to-expand: 56px icon rail → 240px expanded.
+ * Uses createRoleLayout factory with secretary config.
  */
 
-import { Outlet } from 'react-router-dom';
-import { SecretarySidebar } from './SecretarySidebar';
-import { SidebarLayout } from '@/components/layout/SidebarLayout';
-import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
+import { createRoleLayout } from '@/components/layout/sidebar';
+import { secretarySidebarConfig } from './SecretarySidebar';
 
-interface SecretaryLayoutProps {
-  children?: React.ReactNode;
-}
-
-export function SecretaryLayout({ children }: SecretaryLayoutProps): React.ReactElement {
-  const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
-
-  return (
-    <SidebarLayout
-      sidebar={<SecretarySidebar onCloseMobile={closeMobile} />}
-      sidebarWidth={240}
-      collapsedWidth={56}
-      isCollapsible={true}
-      isCollapsed={true}
-      hoverToExpand={true}
-      mobileMenuLabel="Secretary Console"
-      mobileOpen={mobileOpen}
-      onMobileOpenChange={setMobileOpen}
-    >
-      {children ?? <Outlet />}
-    </SidebarLayout>
-  );
-}
+export const SecretaryLayout = createRoleLayout({
+  config: secretarySidebarConfig,
+  mobileMenuLabel: 'Secretary Console',
+});
 
 export default SecretaryLayout;

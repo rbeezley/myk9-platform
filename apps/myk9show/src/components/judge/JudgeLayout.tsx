@@ -2,37 +2,15 @@
  * Judge Layout Component
  *
  * Provides collapsible sidebar navigation for judge pages.
- * Uses SidebarLayout with hover-to-expand: 56px icon rail -> 240px expanded.
- * Matches the SecretaryLayout pattern.
+ * Uses createRoleLayout factory with judge config.
  */
 
-import { Outlet } from 'react-router-dom';
-import { JudgeSidebar } from './JudgeSidebar';
-import { SidebarLayout } from '@/components/layout/SidebarLayout';
-import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
+import { createRoleLayout } from '@/components/layout/sidebar';
+import { judgeSidebarConfig } from './JudgeSidebar';
 
-interface JudgeLayoutProps {
-  children?: React.ReactNode;
-}
-
-export function JudgeLayout({ children }: JudgeLayoutProps): React.ReactElement {
-  const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
-
-  return (
-    <SidebarLayout
-      sidebar={<JudgeSidebar onCloseMobile={closeMobile} />}
-      sidebarWidth={240}
-      collapsedWidth={56}
-      isCollapsible={true}
-      isCollapsed={true}
-      hoverToExpand={true}
-      mobileMenuLabel="Judge Console"
-      mobileOpen={mobileOpen}
-      onMobileOpenChange={setMobileOpen}
-    >
-      {children ?? <Outlet />}
-    </SidebarLayout>
-  );
-}
+export const JudgeLayout = createRoleLayout({
+  config: judgeSidebarConfig,
+  mobileMenuLabel: 'Judge Console',
+});
 
 export default JudgeLayout;

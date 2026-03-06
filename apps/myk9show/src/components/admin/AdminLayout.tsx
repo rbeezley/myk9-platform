@@ -1,35 +1,19 @@
 /**
  * Admin Layout Component
  *
- * Provides sidebar navigation layout specifically for admin pages.
- * Uses SidebarLayout for consistent sidebar behavior across the app.
+ * Provides sidebar navigation layout for admin pages.
+ * Uses createRoleLayout factory with admin config.
  */
 
-import { Outlet } from 'react-router-dom';
-import { AdminSidebar } from './AdminSidebar';
-import { SidebarLayout } from '@/components/layout/SidebarLayout';
-import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
+import { createRoleLayout } from '@/components/layout/sidebar';
+import { adminSidebarConfig } from './AdminSidebar';
 
-interface AdminLayoutProps {
-  children?: React.ReactNode;
-}
-
-export function AdminLayout({ children }: AdminLayoutProps): React.ReactElement {
-  const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
-
-  return (
-    <SidebarLayout
-      sidebar={<AdminSidebar onCloseMobile={closeMobile} />}
-      sidebarWidth={288}
-      mobileMenuLabel="System Administration"
-      mobileOpen={mobileOpen}
-      onMobileOpenChange={setMobileOpen}
-    >
-      <div className="px-6 py-8 max-w-7xl mx-auto">
-        {children ?? <Outlet />}
-      </div>
-    </SidebarLayout>
-  );
-}
+export const AdminLayout = createRoleLayout({
+  config: adminSidebarConfig,
+  mobileMenuLabel: 'System Administration',
+  sidebarWidth: 288,
+  collapsible: false,
+  contentWrapper: true,
+});
 
 export default AdminLayout;

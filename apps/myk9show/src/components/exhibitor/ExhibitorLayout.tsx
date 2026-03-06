@@ -1,37 +1,17 @@
 /**
  * Exhibitor Layout Component
  *
- * Provides sidebar navigation layout specifically for exhibitor pages.
- * Uses SidebarLayout for consistent sidebar behavior across the app.
+ * Provides collapsible sidebar navigation for exhibitor pages.
+ * Uses createRoleLayout factory with exhibitor config.
  */
 
-import { Outlet } from 'react-router-dom';
-import { ExhibitorSidebar } from './ExhibitorSidebar';
-import { SidebarLayout } from '@/components/layout/SidebarLayout';
-import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
+import { createRoleLayout } from '@/components/layout/sidebar';
+import { exhibitorSidebarConfig } from './ExhibitorSidebar';
 
-interface ExhibitorLayoutProps {
-  children?: React.ReactNode;
-}
-
-export function ExhibitorLayout({ children }: ExhibitorLayoutProps): React.ReactElement {
-  const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
-
-  return (
-    <SidebarLayout
-      sidebar={<ExhibitorSidebar onCloseMobile={closeMobile} />}
-      sidebarWidth={240}
-      collapsedWidth={56}
-      isCollapsible={true}
-      isCollapsed={true}
-      hoverToExpand={true}
-      mobileMenuLabel="Exhibitor Dashboard"
-      mobileOpen={mobileOpen}
-      onMobileOpenChange={setMobileOpen}
-    >
-      <div className="px-6 py-8 max-w-7xl mx-auto">{children ?? <Outlet />}</div>
-    </SidebarLayout>
-  );
-}
+export const ExhibitorLayout = createRoleLayout({
+  config: exhibitorSidebarConfig,
+  mobileMenuLabel: 'Exhibitor Dashboard',
+  contentWrapper: true,
+});
 
 export default ExhibitorLayout;

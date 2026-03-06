@@ -85,29 +85,62 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
         >)
       : [],
 
-    // Judge qualifications - handle if present
+    // Judge qualifications - handle if present (from nested select)
     judgeQualifications: Array.isArray(dbUser.judge_qualifications)
       ? (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(qual => ({
-          judgeNumber: (qual.judge_number as string) || '',
+          judgeNumber: (dbUser.judge_number as string) || '',
           organization: (qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER') || 'OTHER',
-          showTypes: (qual.show_types as string[]) || [],
-          certificationDate: (qual.certification_date as string) || '',
-          status: (qual.status as 'Active' | 'Suspended' | 'Expired') || 'Active',
-          level: (qual.level as string) || 'Apprentice',
-          disciplines: (qual.disciplines as string[]) || (qual.show_types as string[]) || [],
-          dateObtained: qual.date_obtained
-            ? new Date(qual.date_obtained as string)
-            : new Date((qual.certification_date as string) || new Date()),
+          showTypes: (qual.disciplines as string[]) || [],
+          certificationDate: (qual.date_obtained as string) || '',
+          status: qual.is_active
+            ? ('Active' as const)
+            : qual.suspension_date
+              ? ('Suspended' as const)
+              : ('Expired' as const),
+          level: (qual.qualification_level as string) || 'Regular',
+          disciplines: (qual.disciplines as string[]) || [],
+          dateObtained: qual.date_obtained ? new Date(qual.date_obtained as string) : null,
           expirationDate: qual.expiration_date ? new Date(qual.expiration_date as string) : null,
         }))
       : [],
 
-    // Judge info - handle if present
-    judgeInfo: dbUser.judge_info
+    // Judge info - build from judge_number column + related tables
+    judgeInfo: dbUser.judge_number
       ? {
-          judgeNumber: (dbUser.judge_info as Record<string, unknown>).judge_number as string,
-          qualifications: [],
-          certifications: [],
+          judgeNumber: dbUser.judge_number as string,
+          qualifications: Array.isArray(dbUser.judge_qualifications)
+            ? (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(qual => ({
+                judgeNumber: (dbUser.judge_number as string) || '',
+                organization:
+                  (qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER') || 'OTHER',
+                showTypes: (qual.disciplines as string[]) || [],
+                certificationDate: (qual.date_obtained as string) || '',
+                status: qual.is_active
+                  ? ('Active' as const)
+                  : qual.suspension_date
+                    ? ('Suspended' as const)
+                    : ('Expired' as const),
+                level: (qual.qualification_level as string) || 'Regular',
+                disciplines: (qual.disciplines as string[]) || [],
+                dateObtained: qual.date_obtained ? new Date(qual.date_obtained as string) : null,
+                expirationDate: qual.expiration_date
+                  ? new Date(qual.expiration_date as string)
+                  : null,
+              }))
+            : [],
+          certifications: Array.isArray(dbUser.judge_certifications)
+            ? (dbUser.judge_certifications as Array<Record<string, unknown>>).map(cert => ({
+                name: (cert.sport as string) || '',
+                issuingBody: (cert.organization as string) || '',
+                dateObtained: cert.certification_date
+                  ? new Date(cert.certification_date as string)
+                  : null,
+                expirationDate: cert.expiration_date
+                  ? new Date(cert.expiration_date as string)
+                  : null,
+                certificationNumber: (cert.certification_number as string) || '',
+              }))
+            : [],
           availability: {
             startDate: null,
             endDate: null,

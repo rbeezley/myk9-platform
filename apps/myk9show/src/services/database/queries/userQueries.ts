@@ -1,42 +1,41 @@
 // Users-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
-import type {
-  DbUserInsert,
-  DbUserUpdate,
-} from '../../../types/database-mappings';
+import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
 
 // Get all users (excluding soft-deleted)
 export const getAllUsers = async () => {
   const startTime = Date.now();
-  
+
   try {
-    // Simplified query without dog relationship to fix the ambiguous relationship issue
+    // Include judge data via nested selects (returns empty arrays for non-judges)
     const { data, error } = await supabase
       .from('people')
-      .select('*')
+      .select('*, judge_qualifications(*), judge_certifications(*)')
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
-    
+
     // Enhanced debug logging
-    logger.debug('🔍 Database query result:', 'database', { data: {
-      data: data?.slice(0, 3), // First 3 for debugging
-      dataLength: data?.length,
-      error: error?.message,
-      tableName: 'user',
-      supabaseUrl: 'hidden_for_security',
-      duration
-    } });
-    
+    logger.debug('🔍 Database query result:', 'database', {
+      data: {
+        data: data?.slice(0, 3), // First 3 for debugging
+        dataLength: data?.length,
+        error: error?.message,
+        tableName: 'user',
+        supabaseUrl: 'hidden_for_security',
+        duration,
+      },
+    });
+
     logQuery('user', 'select_all', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'select_all');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -54,7 +53,8 @@ export const getUserById = async (id: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`
+      .select(
+        `
         *,
         dogs!dogs_owner_id_fkey(
           id,
@@ -64,18 +64,19 @@ export const getUserById = async (id: string) => {
           date_of_birth,
           active
         )
-      `)
+      `
+      )
       .eq('id', id)
       .is('deleted_at', null)
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'select_by_id_detailed', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'select_by_id');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -88,21 +89,17 @@ export const getUserById = async (id: string) => {
 // Create new user
 export const createUser = async (userData: DbUserInsert) => {
   const startTime = Date.now();
-  
+
   try {
-    const { data, error } = await supabase
-      .from('people')
-      .insert([userData])
-      .select()
-      .single();
-    
+    const { data, error } = await supabase.from('people').insert([userData]).select().single();
+
     const duration = Date.now() - startTime;
     logQuery('user', 'insert', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'insert');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -115,7 +112,7 @@ export const createUser = async (userData: DbUserInsert) => {
 // Update user
 export const updateUser = async (id: string, updates: DbUserUpdate) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('people')
@@ -126,14 +123,14 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
       .eq('id', id)
       .select()
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'update', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'update');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -146,32 +143,32 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
 // Soft delete user
 export const deleteUser = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
-  
+
   try {
     const updateData: Record<string, unknown> = {
       deleted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    
+
     if (deletedBy) {
       updateData.deleted_by = deletedBy;
       updateData.updated_by = deletedBy;
     }
-    
+
     const { data, error } = await supabase
       .from('people')
       .update(updateData)
       .eq('id', id)
       .is('deleted_at', null) // Only soft delete if not already deleted
       .select('id, first_name, last_name');
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'soft_delete', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'soft_delete');
     }
-    
+
     const deletedUser = Array.isArray(data) ? data[0] : data;
     return { data: deletedUser || null, error: null };
   } catch (error) {
@@ -185,21 +182,21 @@ export const deleteUser = async (id: string, deletedBy?: string) => {
 // Hard delete user (permanent removal)
 export const hardDeleteUser = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('people')
       .delete()
       .eq('id', id)
       .select('id, first_name, last_name');
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'hard_delete', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'hard_delete');
     }
-    
+
     const deletedUser = Array.isArray(data) ? data[0] : data;
     return { data: deletedUser || null, error: null };
   } catch (error) {
@@ -213,32 +210,32 @@ export const hardDeleteUser = async (id: string) => {
 // Restore soft-deleted user
 export const restoreUser = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
-  
+
   try {
     const updateData: Record<string, unknown> = {
       deleted_at: null,
       deleted_by: null,
       updated_at: new Date().toISOString(),
     };
-    
+
     if (restoredBy) {
       updateData.updated_by = restoredBy;
     }
-    
+
     const { data, error } = await supabase
       .from('people')
       .update(updateData)
       .eq('id', id)
       .not('deleted_at', 'is', null) // Only restore if currently deleted
       .select('id, first_name, last_name');
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'restore', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'restore');
     }
-    
+
     const restoredUser = Array.isArray(data) ? data[0] : data;
     return { data: restoredUser || null, error: null };
   } catch (error) {
@@ -256,7 +253,8 @@ export const getDeletedUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`
+      .select(
+        `
         *,
         deleted_by_user:people!people_deleted_by_fkey(
           id,
@@ -264,17 +262,18 @@ export const getDeletedUsers = async () => {
           last_name,
           email
         )
-      `)
+      `
+      )
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'select_deleted', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'select_deleted');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -287,76 +286,66 @@ export const getDeletedUsers = async () => {
 // Legacy hard delete user with proper constraint checking (kept for compatibility)
 export const legacyDeleteUser = async (id: string, cascadeDelete: boolean = false) => {
   const startTime = Date.now();
-  
+
   try {
     // Check what related data exists
-    const [
-      { data: relatedEntries, count: entryCount },
-      { data: ownedDogs, count: dogCount }
-    ] = await Promise.all([
-      supabase
-        .from('entries')
-        .select('id', { count: 'exact' })
-        .or(`handler_id.eq.${id},created_by.eq.${id}`),
-      supabase
-        .from('dogs')
-        .select('id', { count: 'exact' })
-        .eq('owner_id', id)
-    ]);
-    
-    const hasRelatedData = (relatedEntries && relatedEntries.length > 0) || (ownedDogs && ownedDogs.length > 0);
-    
+    const [{ data: relatedEntries, count: entryCount }, { data: ownedDogs, count: dogCount }] =
+      await Promise.all([
+        supabase
+          .from('entries')
+          .select('id', { count: 'exact' })
+          .or(`handler_id.eq.${id},created_by.eq.${id}`),
+        supabase.from('dogs').select('id', { count: 'exact' }).eq('owner_id', id),
+      ]);
+
+    const hasRelatedData =
+      (relatedEntries && relatedEntries.length > 0) || (ownedDogs && ownedDogs.length > 0);
+
     if (hasRelatedData && !cascadeDelete) {
       const duration = Date.now() - startTime;
       logQuery('user', 'delete_check', duration, 'User has related data');
-      
-      return { 
-        data: null, 
+
+      return {
+        data: null,
         error: {
           message: 'Cannot delete user: This user has related data in the system.',
           code: 'HAS_RELATED_DATA',
           details: {
             entryCount: entryCount || 0,
             dogCount: dogCount || 0,
-            canCascade: true
-          }
-        }
+            canCascade: true,
+          },
+        },
       };
     }
-    
+
     // If cascade delete is requested, delete related data first
     if (cascadeDelete && hasRelatedData) {
       // Delete related entries (this will also handle entry-specific cascades)
       if (relatedEntries && relatedEntries.length > 0) {
-        await supabase
-          .from('entries')
-          .delete()
-          .or(`handler_id.eq.${id},created_by.eq.${id}`);
+        await supabase.from('entries').delete().or(`handler_id.eq.${id},created_by.eq.${id}`);
       }
-      
+
       // Delete owned dogs (this will cascade to related dog data)
       if (ownedDogs && ownedDogs.length > 0) {
-        await supabase
-          .from('dogs')
-          .delete()
-          .eq('owner_id', id);
+        await supabase.from('dogs').delete().eq('owner_id', id);
       }
     }
-    
+
     // If no blocking relationships, proceed with deletion
     const { data, error } = await supabase
       .from('people')
       .delete()
       .eq('id', id)
       .select('id, first_name, last_name');
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'delete', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'delete');
     }
-    
+
     // Return the first item if array, or null if no results
     const deletedUser = Array.isArray(data) ? data[0] : data;
     return { data: deletedUser || null, error: null };
@@ -377,17 +366,19 @@ export const searchUsers = async (searchTerm: string) => {
       .from('people')
       .select('*')
       .is('deleted_at', null)
-      .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      .or(
+        `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+      )
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'search', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'search');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -400,7 +391,7 @@ export const searchUsers = async (searchTerm: string) => {
 // Get users by role (if roles are implemented, excluding soft-deleted)
 export const getUsersByRole = async (role: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('people')
@@ -408,14 +399,14 @@ export const getUsersByRole = async (role: string) => {
       .is('deleted_at', null)
       .contains('roles', [role])
       .order('last_name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'select_by_role', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'select_by_role');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -437,10 +428,12 @@ const getPeopleWithDogCountsFallback = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`
+      .select(
+        `
         *,
         dogs!dogs_owner_id_fkey(id)
-      `)
+      `
+      )
       .is('deleted_at', null)
       .order('last_name', { ascending: true });
 
@@ -452,11 +445,12 @@ const getPeopleWithDogCountsFallback = async () => {
     }
 
     // Transform data to include dog count
-    const dataWithCounts = data?.map(person => ({
-      ...person,
-      dog_count: person.dogs?.length || 0,
-    })) || [];
-    
+    const dataWithCounts =
+      data?.map(person => ({
+        ...person,
+        dog_count: person.dogs?.length || 0,
+      })) || [];
+
     return { data: dataWithCounts, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -469,23 +463,23 @@ const getPeopleWithDogCountsFallback = async () => {
 // Get users statistics (excluding soft-deleted)
 export const getUsersStatistics = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { error, count } = await supabase
       .from('people')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
-    
+
     const duration = Date.now() - startTime;
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'statistics');
     }
-    
+
     const stats = {
       total: count || 0,
     };
-    
+
     logQuery('user', 'statistics', duration);
     return { data: stats, error: null };
   } catch (error) {
@@ -499,31 +493,31 @@ export const getUsersStatistics = async () => {
 // Check if email exists (excluding soft-deleted)
 export const checkEmailExists = async (email: string, excludeId?: string) => {
   const startTime = Date.now();
-  
+
   try {
     let query = supabase
       .from('people')
       .select('id, email')
       .is('deleted_at', null)
       .eq('email', email);
-    
+
     if (excludeId) {
       query = query.neq('id', excludeId);
     }
-    
+
     const { data, error } = await query;
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'check_email_exists', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'check_email_exists');
     }
-    
-    return { 
-      exists: (data && data.length > 0), 
-      data: data?.[0] || null, 
-      error: null 
+
+    return {
+      exists: data && data.length > 0,
+      data: data?.[0] || null,
+      error: null,
     };
   } catch (error) {
     const duration = Date.now() - startTime;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { User } from '@/types/user-types';
+import type { User, JudgeInfo } from '@/types/user-types';
 // import type { Dog } from '@/types/dog-types'; // Unused import
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 // syncService removed - using database-first approach
@@ -24,6 +24,7 @@ export interface UserInput {
   };
   dogs?: string[]; // Changed to match User type - dog IDs only
   roles?: string[]; // User roles (chairman, secretary, admin, etc.)
+  judgeInfo?: JudgeInfo; // Judge-specific data (qualifications, certifications, availability)
   emergencyContact?: {
     name: string;
     phone: string;
@@ -123,6 +124,7 @@ export const useUserStore = create<UserStore>()(
             state: userData.address?.state || null,
             zip_code: userData.address?.zipCode || null,
             roles: userData.roles || [],
+            judge_number: userData.judgeInfo?.judgeNumber || null,
           };
 
           // Save to database first
@@ -135,8 +137,67 @@ export const useUserStore = create<UserStore>()(
             throw new Error(dbError?.message || 'Failed to create user in database');
           }
 
+          // Persist judge-specific data (best-effort — person record is the critical entity)
+          if (userData.judgeInfo) {
+            const newPersonId = (dbUser as Record<string, unknown>).id as string;
+            try {
+              const { judgeQualificationQueries, judgeCertificationQueries } =
+                await import('@/services/database/queries/judgeQueries');
+
+              // Insert qualifications
+              for (const qual of userData.judgeInfo.qualifications || []) {
+                try {
+                  await judgeQualificationQueries.create({
+                    person_id: newPersonId,
+                    organization: qual.organization,
+                    qualification_level: qual.level || 'Regular',
+                    disciplines: qual.disciplines || qual.showTypes || [],
+                    date_obtained: qual.dateObtained
+                      ? new Date(qual.dateObtained).toISOString().split('T')[0]
+                      : new Date().toISOString().split('T')[0],
+                    is_active: qual.status !== 'Expired' && qual.status !== 'Suspended',
+                  });
+                } catch (qualError) {
+                  logger.error(
+                    'Failed to save judge qualification',
+                    'judges',
+                    {},
+                    qualError as Error
+                  );
+                }
+              }
+
+              // Insert certifications
+              for (const cert of userData.judgeInfo.certifications || []) {
+                try {
+                  await judgeCertificationQueries.create({
+                    person_id: newPersonId,
+                    organization: cert.issuingBody || '',
+                    sport: cert.name || '',
+                    certification_number: cert.certificationNumber || undefined,
+                    certification_date: cert.dateObtained
+                      ? new Date(cert.dateObtained).toISOString().split('T')[0]
+                      : undefined,
+                    expiration_date: cert.expirationDate
+                      ? new Date(cert.expirationDate).toISOString().split('T')[0]
+                      : undefined,
+                  });
+                } catch (certError) {
+                  logger.error(
+                    'Failed to save judge certification',
+                    'judges',
+                    {},
+                    certError as Error
+                  );
+                }
+              }
+            } catch (judgeError) {
+              logger.error('Failed to save judge details', 'judges', {}, judgeError as Error);
+            }
+          }
+
           // Map database result to User object
-          const newUser = mapDatabaseToUser(dbUser);
+          const newUser = mapDatabaseToUser(dbUser as Record<string, unknown>);
 
           // Update store with the actual database result
           set(state => ({

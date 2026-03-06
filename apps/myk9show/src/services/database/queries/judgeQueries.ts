@@ -1,11 +1,11 @@
 /**
- * Judge Qualification Database Queries
+ * Judge Qualification & Certification Database Queries
  *
- * Database operations for judge qualifications supporting multiple
- * organizations with filtering, suspension, and summary analytics.
+ * Database operations for judge qualifications and certifications supporting
+ * multiple organizations with filtering, suspension, and summary analytics.
  *
- * Note: The judge_qualifications table exists in the database but is not
- * in generated Supabase types, so we use type assertions for .from() calls.
+ * Note: These tables are not in generated Supabase types, so we use
+ * type assertions via untypedFrom() for .from() calls.
  */
 
 import {
@@ -17,8 +17,9 @@ import {
 } from '../../../types/judge-management';
 import { untypedFrom } from './search-query-helpers';
 
-// Helper to access the judge_qualifications table (not in generated types)
+// Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
+const certificationsTable = () => untypedFrom('judge_certifications');
 
 // Judge Qualification Operations
 export const judgeQualificationQueries = {
@@ -206,5 +207,44 @@ export const judgeQualificationQueries = {
     });
 
     return summary;
+  },
+};
+
+// =============================================================================
+// Judge Certification Operations (judge_certifications table from migration 005)
+// =============================================================================
+
+export interface CreateJudgeCertificationDbData {
+  person_id: string;
+  organization: string;
+  sport: string;
+  level?: string | undefined;
+  certification_number?: string | undefined;
+  certification_date?: string | undefined;
+  expiration_date?: string | undefined;
+}
+
+export const judgeCertificationQueries = {
+  async create(data: CreateJudgeCertificationDbData): Promise<Record<string, unknown>> {
+    const { data: cert, error } = await certificationsTable().insert([data]).select().single();
+
+    if (error) {
+      throw new Error(`Failed to create judge certification: ${error.message}`);
+    }
+
+    return cert as Record<string, unknown>;
+  },
+
+  async getByPersonId(personId: string): Promise<Record<string, unknown>[]> {
+    const { data, error } = await certificationsTable()
+      .select('*')
+      .eq('person_id', personId)
+      .order('certification_date', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch judge certifications: ${error.message}`);
+    }
+
+    return (data || []) as Record<string, unknown>[];
   },
 };

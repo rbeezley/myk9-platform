@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { JudgeQualificationPanel } from './JudgeQualificationPanel';
@@ -10,16 +10,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, MapPin, Phone, Award, Settings, Camera } from 'lucide-react';
+import { User, MapPin, Phone, Award, Settings, Camera, CalendarDays } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
-import type { User as UserType, UserRole, JudgeQualification } from '@/types/user-types';
+import type { User as UserType, UserRole, JudgeQualification, JudgeInfo } from '@/types/user-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import { useUserStore } from '@/store/userStore';
+import AvailabilityFormFields from '@/components/judges/AvailabilityFormFields';
 
 interface UserEditPanelProps {
   open: boolean;
@@ -202,6 +204,69 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  // Judge availability state
+  const isJudge = data.roles.includes('judge');
+  const [availability, setAvailability] = useState<JudgeInfo['availability']>({
+    startDate: null,
+    endDate: null,
+    blackoutDates: [],
+    maxShowsPerMonth: 4,
+    travelRadius: 100,
+  });
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
+
+  // Load availability from DB on mount for judges
+  useEffect(() => {
+    if (!isJudge || availabilityLoaded) return;
+    let cancelled = false;
+
+    const loadAvailability = async () => {
+      try {
+        const { judgeAvailabilityQueries } =
+          await import('@/services/database/queries/judgeQueries');
+        const { mapDbAvailabilityToUI } = await import('@/services/mappers/userMappers');
+        const dbData = await judgeAvailabilityQueries.getByPersonId(userId);
+        if (!cancelled && dbData) {
+          setAvailability(mapDbAvailabilityToUI(dbData));
+        }
+      } catch {
+        // No availability record — use defaults
+      } finally {
+        if (!cancelled) setAvailabilityLoaded(true);
+      }
+    };
+
+    loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [isJudge, userId, availabilityLoaded]);
+
+  const handleAvailabilityChange = useCallback(
+    (field: keyof JudgeInfo['availability'], value: unknown) => {
+      setAvailability(prev => ({ ...prev, [field]: value }));
+    },
+    []
+  );
+
+  const handleAvailabilitySave = useCallback(async () => {
+    try {
+      const { judgeAvailabilityQueries } = await import('@/services/database/queries/judgeQueries');
+      const { mapUIAvailabilityToDb } = await import('@/services/mappers/userMappers');
+
+      await judgeAvailabilityQueries.upsert(mapUIAvailabilityToDb(userId, availability));
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
+      loadUsers();
+
+      notifications.success('Availability saved');
+    } catch (error) {
+      logger.error('Failed to save availability', 'judges', { userId }, error as Error);
+      notifications.error('Failed to save availability');
+    }
+  }, [availability, userId, queryClient, loadUsers]);
+
   // Check permissions
   const canEditQualifications = useMemo(() => {
     if (hasPermission('admin:manage')) return true;
@@ -317,14 +382,11 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
     [updateData, userId, queryClient, loadUsers]
   );
 
-  // Check if user has judge role
-  const isJudge = data.roles.includes('judge');
-
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList
-          className={`grid w-full ${isJudge ? 'grid-cols-3' : 'grid-cols-2'} bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out`}
+          className={`grid w-full ${isJudge ? 'grid-cols-4' : 'grid-cols-2'} bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out`}
         >
           <TabsTrigger
             value="basic"
@@ -347,6 +409,15 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
             >
               <Award className="h-4 w-4" />
               Qualifications
+            </TabsTrigger>
+          )}
+          {isJudge && (
+            <TabsTrigger
+              value="availability"
+              className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+            >
+              <CalendarDays className="h-4 w-4" />
+              Availability
             </TabsTrigger>
           )}
         </TabsList>
@@ -811,6 +882,38 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
                     )}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Availability Tab - Only for Judges */}
+        {isJudge && (
+          <TabsContent
+            value="availability"
+            className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+          >
+            <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" />
+                  Judge Availability
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <AvailabilityFormFields
+                  availability={availability}
+                  onFieldChange={handleAvailabilityChange}
+                />
+
+                <Separator />
+
+                <div className="flex justify-end">
+                  <Button onClick={handleAvailabilitySave} className="gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    Save Availability
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

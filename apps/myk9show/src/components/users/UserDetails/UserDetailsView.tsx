@@ -21,6 +21,7 @@ import ContactInformationCard from './ContactInformationCard';
 import AccountSummaryCard from './AccountSummaryCard';
 
 import JudgeQualificationsCard from './JudgeQualificationsCard';
+import JudgeAvailabilityCard from './JudgeAvailabilityCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
 import '@/styles/myk9-user-details.css';
 import '@/styles/myk9-show-details.css';
@@ -267,6 +268,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           onManageQualifications={() => setIsQualificationsPanelOpen(true)}
         />
       )}
+
+      {/* Judge Availability Card */}
+      {person.roles?.includes('judge') && <JudgeAvailabilityCard personId={person.id} />}
 
       <UserDetailsTabs selectedUser={person} />
 

@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { PawPrint, Plus } from 'lucide-react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
 import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import { AddDogPanel } from '@/components/panels/edit';
@@ -55,28 +55,41 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
     setIsCreatePanelOpen(true);
   };
 
-  const tabsConfig = [
-    {
-      id: 'dogs',
-      label: 'Dogs',
-      content: (
-        <div className="mt-4 space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-foreground">Associated Dogs</h2>
+  return (
+    <div className="w-full">
+      <Card
+        className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
+                       rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
+                       hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
+      >
+        <div
+          className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.02] to-transparent
+                        opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl"
+        />
+
+        <div className="relative space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl">
+              <PawPrint className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Dogs
+            </h3>
             <Button
               onClick={handleAddNewDog}
               className="ml-auto"
               variant="default"
+              size="sm"
               aria-label="Add New Dog"
             >
               <Plus size={16} className="inline-block align-middle" />
               Add New Dog
             </Button>
           </div>
+
           <AssociatedDogsSection
             dogs={userDogs}
             onViewDogDetails={dogId => {
-              // Navigate with person context for breadcrumbs: People > John Smith > Max
               navigate(`/dogs/${dogId}?fromPerson=${selectedUser.id}`);
             }}
             onEditDog={dogId => {
@@ -89,41 +102,11 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
             onUpdateDogPhoto={handleUpdateDogPhoto}
             onDeleteDog={handleDeleteDog}
             onAddRegistration={dogId => {
-              // Navigate to the dog's details page with a query parameter to open the add registration dialog
               navigate(`/dogs/${dogId}?addRegistration=true&fromPerson=${selectedUser.id}`);
             }}
           />
         </div>
-      ),
-    },
-  ];
-
-  return (
-    <div className="w-full">
-      <Tabs defaultValue="dogs" className="space-y-6 w-full">
-        <div className="overflow-x-auto">
-          <TabsList
-            className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"
-            style={{ gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))` }}
-          >
-            {tabsConfig.map(tab => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4 py-2 text-sm font-medium whitespace-nowrap"
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-
-        {tabsConfig.map(tab => (
-          <TabsContent key={tab.id} value={tab.id}>
-            {tab.content}
-          </TabsContent>
-        ))}
-      </Tabs>
+      </Card>
       <DogEditPanel
         open={isEditDialogOpen}
         onClose={() => {

@@ -1,9 +1,10 @@
 // Type mapping utilities for User Store <-> Database integration
 // Phase 2.2: User Store Integration
 
-import type { User } from '@/types/user-types';
-import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
+import type { User, JudgeInfo } from '@/types/user-types';
+import type { DbUserInsert, DbUserUpdate, DbJudgeAvailability } from '@/types/database-mappings';
 import type { UserInput } from '@/store/userStore';
+import { toYYYYMMDD } from '@/utils/dateFormat';
 
 /**
  * Convert UserInput (from userStore) to DbUserInsert (for database)
@@ -159,6 +160,34 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     _localOnly: false,
   };
 };
+
+/**
+ * Convert DB availability row to UI availability shape
+ */
+export const mapDbAvailabilityToUI = (db: DbJudgeAvailability): JudgeInfo['availability'] => ({
+  startDate: db.start_date ? new Date(db.start_date) : null,
+  endDate: db.end_date ? new Date(db.end_date) : null,
+  blackoutDates: (db.blackout_dates || []).map((d: string) => new Date(d)),
+  maxShowsPerMonth: db.max_shows_per_month,
+  travelRadius: db.travel_radius_miles,
+});
+
+/**
+ * Convert UI availability to DB upsert payload
+ */
+export const mapUIAvailabilityToDb = (
+  personId: string,
+  availability: JudgeInfo['availability'],
+  status?: 'available' | 'busy' | 'unavailable'
+) => ({
+  person_id: personId,
+  start_date: availability.startDate ? toYYYYMMDD(new Date(availability.startDate)) : null,
+  end_date: availability.endDate ? toYYYYMMDD(new Date(availability.endDate)) : null,
+  max_shows_per_month: availability.maxShowsPerMonth,
+  travel_radius_miles: availability.travelRadius,
+  availability_status: status || 'available',
+  blackout_dates: (availability.blackoutDates || []).map(d => toYYYYMMDD(new Date(d))),
+});
 
 /**
  * Convert array of database users to User array

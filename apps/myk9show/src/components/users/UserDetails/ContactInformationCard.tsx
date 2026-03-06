@@ -3,6 +3,17 @@ import { User } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { UserFormData } from './userDetailsTypes';
 
+function formatPhoneNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits[0] === '1') {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return phone;
+}
+
 interface ContactInformationCardProps {
   firstName: string;
   lastName: string;
@@ -83,7 +94,7 @@ const ContactInformationCard: React.FC<ContactInformationCardProps> = ({
                 className="text-sm font-medium text-primary hover:text-primary/80
                            transition-colors duration-200 hover:underline"
               >
-                {formData.phone}
+                {formatPhoneNumber(formData.phone)}
               </a>
             ) : (
               <span className="text-sm font-medium text-foreground">Not provided</span>

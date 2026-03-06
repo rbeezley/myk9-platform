@@ -1390,6 +1390,53 @@ export type Database = {
           },
         ];
       };
+      judge_availability: {
+        Row: {
+          id: string;
+          person_id: string;
+          start_date: string | null;
+          end_date: string | null;
+          max_shows_per_month: number;
+          travel_radius_miles: number;
+          availability_status: string;
+          blackout_dates: string[];
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          person_id: string;
+          start_date?: string | null;
+          end_date?: string | null;
+          max_shows_per_month?: number;
+          travel_radius_miles?: number;
+          availability_status?: string;
+          blackout_dates?: string[];
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          person_id?: string;
+          start_date?: string | null;
+          end_date?: string | null;
+          max_shows_per_month?: number;
+          travel_radius_miles?: number;
+          availability_status?: string;
+          blackout_dates?: string[];
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'judge_availability_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: true;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       medications: {
         Row: {
           created_at: string | null;

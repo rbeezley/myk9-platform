@@ -141,8 +141,12 @@ export const useUserStore = create<UserStore>()(
           if (userData.judgeInfo) {
             const newPersonId = (dbUser as Record<string, unknown>).id as string;
             try {
-              const { judgeQualificationQueries, judgeCertificationQueries } =
-                await import('@/services/database/queries/judgeQueries');
+              const {
+                judgeQualificationQueries,
+                judgeCertificationQueries,
+                judgeAvailabilityQueries,
+              } = await import('@/services/database/queries/judgeQueries');
+              const { mapUIAvailabilityToDb } = await import('@/services/mappers/userMappers');
 
               // Insert qualifications
               for (const qual of userData.judgeInfo.qualifications || []) {
@@ -188,6 +192,21 @@ export const useUserStore = create<UserStore>()(
                     'judges',
                     {},
                     certError as Error
+                  );
+                }
+              }
+              // Upsert availability
+              if (userData.judgeInfo.availability) {
+                try {
+                  await judgeAvailabilityQueries.upsert(
+                    mapUIAvailabilityToDb(newPersonId, userData.judgeInfo.availability)
+                  );
+                } catch (availError) {
+                  logger.error(
+                    'Failed to save judge availability',
+                    'judges',
+                    { userId: newPersonId },
+                    availError as Error
                   );
                 }
               }

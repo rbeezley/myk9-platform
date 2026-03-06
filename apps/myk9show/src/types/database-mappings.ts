@@ -92,6 +92,10 @@ export type DbJudgeCertification = Tables['judge_certifications']['Row'];
 export type DbJudgeCertificationInsert = Tables['judge_certifications']['Insert'];
 export type DbJudgeCertificationUpdate = Tables['judge_certifications']['Update'];
 
+export type DbJudgeAvailability = Tables['judge_availability']['Row'];
+export type DbJudgeAvailabilityInsert = Tables['judge_availability']['Insert'];
+export type DbJudgeAvailabilityUpdate = Tables['judge_availability']['Update'];
+
 // Sync system types
 export type DbSyncConflict = Tables['sync_conflicts']['Row'];
 export type DbSyncConflictInsert = Tables['sync_conflicts']['Insert'];
@@ -251,6 +255,7 @@ export const TABLE_NAMES = {
 
   // Judge management
   JUDGE_ASSIGNMENTS: 'judge_assignments',
+  JUDGE_AVAILABILITY: 'judge_availability',
   JUDGE_CERTIFICATIONS: 'judge_certifications',
 
   // Sync system

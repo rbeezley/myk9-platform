@@ -16,6 +16,8 @@ import {
   JudgeQualificationSummary,
 } from '../../../types/judge-management';
 import { untypedFrom } from './search-query-helpers';
+import { supabase } from '../supabaseClient';
+import type { DbJudgeAvailability } from '@/types/database-mappings';
 
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
@@ -527,6 +529,58 @@ export interface CreateJudgeCertificationDbData {
   certification_date?: string | undefined;
   expiration_date?: string | undefined;
 }
+
+// =============================================================================
+// Judge Availability Operations (judge_availability table from migration 050)
+// =============================================================================
+
+export interface JudgeAvailabilityUpsertData {
+  person_id: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  max_shows_per_month?: number;
+  travel_radius_miles?: number;
+  availability_status?: string;
+  blackout_dates?: string[];
+}
+
+export const judgeAvailabilityQueries = {
+  async upsert(data: JudgeAvailabilityUpsertData): Promise<DbJudgeAvailability> {
+    const { data: availability, error } = await supabase
+      .from('judge_availability')
+      .upsert(data, { onConflict: 'person_id' })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to upsert judge availability: ${error.message}`);
+    }
+
+    return availability;
+  },
+
+  async getByPersonId(personId: string): Promise<DbJudgeAvailability | null> {
+    const { data, error } = await supabase
+      .from('judge_availability')
+      .select('*')
+      .eq('person_id', personId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to fetch judge availability: ${error.message}`);
+    }
+
+    return data;
+  },
+
+  async delete(personId: string): Promise<void> {
+    const { error } = await supabase.from('judge_availability').delete().eq('person_id', personId);
+
+    if (error) {
+      throw new Error(`Failed to delete judge availability: ${error.message}`);
+    }
+  },
+};
 
 export const judgeCertificationQueries = {
   async create(data: CreateJudgeCertificationDbData): Promise<Record<string, unknown>> {

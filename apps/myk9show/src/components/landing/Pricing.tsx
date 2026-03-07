@@ -1,97 +1,82 @@
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
+import { products } from '@/stripe-config';
+import { createCheckoutSession } from '@/lib/stripe';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
-// import { products } from '../stripe-config';
-// import { createCheckoutSession } from '../lib/stripe';
-// import { useAuthContext } from '@/hooks/useAuthContext';
 
+// INTENT: Two tiers only — Free (results log) and Premium ($4.99/mo, all capabilities).
+// Per-person subscription, not per-dog.
 const tiers = [
   {
-    name: 'Novice',
+    name: 'Free',
     price: 'Free',
     period: '',
-    description: 'Perfect for getting started with myK9Show',
+    description: 'Competition results log — see what happened at every trial',
     features: [
-      'Basic show listings',
-      'Entry management',
+      'Show browsing & entry',
+      'Competition results log',
+      'Dog profiles',
       'Digital scorecards',
-      'Basic notifications',
-      'Community access',
-      'Email support',
       'Show calendar',
+      'Email support',
     ],
     buttonText: 'Get Started',
     buttonVariant: 'outline',
     popular: false,
-    label: 'Free',
+    label: 'Everyone',
     priceId: null,
   },
   {
-    name: 'Advanced',
+    name: 'Premium',
     price: '$4.99',
     period: '/month',
-    description: 'Enhanced features for serious exhibitors',
+    description: 'Intelligence layer — track titles, health, training, and more',
     features: [
-      'All Novice features',
-      'Competition history tracking',
-      'Title progression tracking',
+      'Everything in Free',
+      'Title tracking engine',
+      'Historical result entry',
+      'Health records & vaccinations',
       'Training journal',
-      'Advanced entry statistics',
+      'Pedigree management',
+      'Performance statistics',
       'Priority support',
-      'Premium notifications',
     ],
     buttonText: 'Subscribe Now',
     buttonVariant: 'solid',
     popular: true,
     label: 'Exhibitors',
-    priceId: 'price_advanced',
-  },
-  {
-    name: 'Excellent',
-    price: '$9.99',
-    period: '/month',
-    description: 'Premium features for professional organizers',
-    features: [
-      'All Advanced features',
-      'Premium show creation',
-      'Advanced analytics & reporting',
-      'Priority messaging system',
-      'Custom branding options',
-      'VIP support',
-      'API access',
-    ],
-    buttonText: 'Subscribe Now',
-    buttonVariant: 'outline',
-    popular: true,
-    label: 'Organizers',
-    priceId: 'price_excellent',
+    priceId: products.premium.priceId,
   },
 ];
 
 export default function Pricing() {
-  // const { user } = useAuthContext();
-  const user = null;
+  const { user } = useAuthContext();
+  const navigate = useNavigate();
 
-  const handleSubscribe = async (priceId: string | null) => {
-    if (!priceId) {
-      // Handle free tier signup
-      return;
-    }
+  const handleSubscribe = useCallback(
+    async (priceId: string | null) => {
+      if (!priceId) {
+        return;
+      }
 
-    if (!user) {
-      // signIn(); // Commented out to fix lint error. User needs to implement sign-in flow here.
-      return;
-    }
+      if (!user) {
+        navigate('/sign-in');
+        return;
+      }
 
-    try {
-      // await createCheckoutSession(priceId, 'subscription');
-      logger.debug('Would create checkout session for:', 'landing', { data: priceId });
-    } catch (error) {
-      logger.error('Failed to create checkout session:', 'components', {}, error as Error);
-    }
-  };
+      try {
+        await createCheckoutSession(priceId, 'subscription');
+      } catch (error) {
+        logger.error('Failed to create checkout session:', 'landing', {}, error as Error);
+      }
+    },
+    [user, navigate]
+  );
 
   return (
-    <section id="pricing" className="py-16 md:py-24 bg-gray-50 dark:bg-gray-800">
+    <section id="pricing" className="py-16 md:py-24 bg-muted/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
@@ -102,11 +87,11 @@ export default function Pricing() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {tiers.map(tier => (
             <div
               key={tier.name}
-              className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-primary"
+              className="relative bg-card rounded-2xl shadow-lg border border-primary"
             >
               <div className="absolute -top-4 left-0 right-0 flex justify-center">
                 <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
@@ -118,18 +103,16 @@ export default function Pricing() {
                 <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
                 <div className="flex items-baseline mb-2">
                   <span className="text-4xl font-bold text-foreground">{tier.price}</span>
-                  {tier.period && (
-                    <span className="ml-1 text-gray-500 dark:text-gray-400">{tier.period}</span>
-                  )}
+                  {tier.period && <span className="ml-1 text-muted-foreground">{tier.period}</span>}
                 </div>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">{tier.description}</p>
+                <p className="text-muted-foreground mb-6">{tier.description}</p>
 
                 <button
                   onClick={() => handleSubscribe(tier.priceId)}
                   className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
                     tier.buttonVariant === 'solid'
-                      ? 'bg-primary hover:opacity-90 text-primary-foreground'
-                      : 'bg-primary/10 text-primary hover:bg-primary/20'
+                      ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                      : 'bg-accent text-accent-foreground hover:bg-accent/80'
                   }`}
                 >
                   {tier.buttonText}
@@ -137,8 +120,11 @@ export default function Pricing() {
 
                 <ul className="mt-8 space-y-4">
                   {tier.features.map(feature => (
-                    <li key={feature} className="flex items-start text-gray-600 dark:text-gray-400">
-                      <Check size={20} className="mr-2 flex-shrink-0 text-primary" />
+                    <li key={feature} className="flex items-start text-muted-foreground">
+                      <Check
+                        size={20}
+                        className="mr-2 flex-shrink-0 text-blue-500 dark:text-blue-400"
+                      />
                       <span>{feature}</span>
                     </li>
                   ))}

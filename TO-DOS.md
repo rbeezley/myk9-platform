@@ -249,7 +249,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Landing Page Improvements - 2026-03-07 15:27
 
-- **Add pricing to main page** — Move pricing info to main landing page instead of separate page. **Problem:** Pricing is on a separate page, adding friction for potential customers who want to see costs upfront. **Files:** `apps/myk9show/src/pages/LandingPage.tsx`, `apps/myk9show/src/pages/PricingPage.tsx`.
+- [x] **Add pricing to main page** — Moved pricing section into Home.tsx landing page. Updated `components/landing/Pricing.tsx` to use correct 2-tier pricing (Free + Premium $4.99/mo) with Stripe integration matching PricingPage.tsx. Section appears between Upcoming Shows and FAQ.
 
 - **Add Google Auth** — Implement Google authentication as a sign-in option. **Problem:** Users currently lack social login options, increasing signup friction. **Files:** `apps/myk9show/src/contexts/AuthContext.tsx`, `apps/myk9show/src/components/auth/`.
 

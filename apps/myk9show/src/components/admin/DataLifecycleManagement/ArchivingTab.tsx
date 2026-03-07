@@ -5,14 +5,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Archive, Settings } from 'lucide-react';
+import { Archive } from 'lucide-react';
 import type { ArchivingTabProps } from './types';
 
-export function ArchivingTab({
-  archiveStats,
-  isLoading,
-  onRunArchiveCheck,
-}: ArchivingTabProps) {
+export function ArchivingTab({ archiveStats, isLoading, onRunArchiveCheck }: ArchivingTabProps) {
   return (
     <div className="space-y-6">
       <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
@@ -23,8 +19,8 @@ export function ArchivingTab({
           <Alert className="!border-white/10 !bg-white/5">
             <Archive className="h-4 w-4" />
             <AlertDescription>
-              Shows are automatically archived 30 days after completion.
-              Archived data is compressed and can be restored when needed.
+              Shows are automatically archived 30 days after completion. Archived data is compressed
+              and can be restored when needed.
             </AlertDescription>
           </Alert>
 
@@ -52,14 +48,6 @@ export function ArchivingTab({
                   <Archive className="h-4 w-4 mr-2" />
                   Run Archive Check
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full justify-start !border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configure Settings
-                </Button>
               </div>
             </div>
 
@@ -77,7 +65,9 @@ export function ArchivingTab({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Saved:</span>
                   <span className="text-green-600">
-                    {archiveStats ? `${((1 - archiveStats.compressionRatio) * 100).toFixed(0)}%` : '0%'}
+                    {archiveStats
+                      ? `${((1 - archiveStats.compressionRatio) * 100).toFixed(0)}%`
+                      : '0%'}
                   </span>
                 </div>
               </div>

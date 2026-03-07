@@ -5,19 +5,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Download,
-  Upload,
-  FileText,
-  Database,
-  AlertTriangle,
-} from 'lucide-react';
+import { Download, Upload, AlertTriangle } from 'lucide-react';
 import type { ExportImportTabProps } from './types';
 
-export function ExportImportTab({
-  isLoading,
-  onExportData,
-}: ExportImportTabProps) {
+export function ExportImportTab({ isLoading, onExportData }: ExportImportTabProps) {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2">
@@ -34,29 +25,9 @@ export function ExportImportTab({
             </p>
 
             <div className="space-y-2">
-              <Button
-                className="w-full justify-start"
-                onClick={onExportData}
-                disabled={isLoading}
-              >
+              <Button className="w-full justify-start" onClick={onExportData} disabled={isLoading}>
                 <Download className="h-4 w-4 mr-2" />
                 Export All Data (ZIP)
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start !border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300"
-                disabled={isLoading}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Export Archives Only (JSON)
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start !border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300"
-                disabled={isLoading}
-              >
-                <Database className="h-4 w-4 mr-2" />
-                Export Policies (CSV)
               </Button>
             </div>
           </CardContent>
@@ -81,15 +52,9 @@ export function ExportImportTab({
               </AlertDescription>
             </Alert>
 
-            <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start !border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Choose File to Import
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground italic">
+              Import functionality coming soon.
+            </p>
           </CardContent>
         </Card>
       </div>

@@ -1,10 +1,9 @@
 /**
  * BulkActionsBar Component - Toolbar for bulk user operations
- * 
+ *
  * Features:
  * - Bulk role assignment/removal
  * - Bulk status changes (activate/deactivate/suspend)
- * - Bulk communication tools
  * - Bulk delete with confirmation
  * - Selection management
  */
@@ -14,18 +13,15 @@ import { logger } from '@/services/LoggingService';
 import {
   Users,
   Shield,
-  Mail,
   Trash2,
   UserCheck,
   UserX,
   UserMinus,
-  Send,
   AlertCircle,
   X,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -51,7 +47,6 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import type { UserRole as UserRoleType } from '@/types/user-types';
@@ -76,7 +71,7 @@ const ROLE_OPTIONS = [
 ] as const;
 
 // Dialog types
-type DialogType = 'role' | 'status' | 'email' | 'delete' | 'cascadeConfirm' | null;
+type DialogType = 'role' | 'status' | 'delete' | 'cascadeConfirm' | null;
 
 interface BulkRoleData {
   action: 'add' | 'remove' | 'replace';
@@ -85,11 +80,6 @@ interface BulkRoleData {
 
 interface BulkStatusData {
   action: 'activate' | 'deactivate' | 'suspend';
-}
-
-interface BulkEmailData {
-  subject: string;
-  message: string;
 }
 
 interface RelatedDataDetails {
@@ -107,7 +97,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   selectedUsers,
   onClearSelection,
   onBulkComplete,
-  onUsersDeleted
+  onUsersDeleted,
 }) => {
   const deleteUserMutation = useDeleteUserMutation();
   const [currentDialog, setCurrentDialog] = useState<DialogType>(null);
@@ -122,16 +112,11 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   // Dialog state
   const [roleData, setRoleData] = useState<BulkRoleData>({
     action: 'add',
-    roles: []
+    roles: [],
   });
   const [statusData, setStatusData] = useState<BulkStatusData>({
-    action: 'activate'
+    action: 'activate',
   });
-  const [emailData, setEmailData] = useState<BulkEmailData>({
-    subject: '',
-    message: ''
-  });
-
   // Reset dialog state when closing
   const closeDialog = () => {
     setCurrentDialog(null);
@@ -139,7 +124,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     setCascadeData(null);
     setRoleData({ action: 'add', roles: [] });
     setStatusData({ action: 'activate' });
-    setEmailData({ subject: '', message: '' });
   };
 
   // Handle bulk role operations
@@ -157,7 +141,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       logger.debug('Bulk role action', 'admin', {
         action: roleData.action,
         roles: roleData.roles,
-        userIds: selectedUsers.map(u => u.id)
+        userIds: selectedUsers.map(u => u.id),
       });
 
       // Simulate API call
@@ -180,7 +164,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     try {
       logger.debug('Bulk status action', 'admin', {
         action: statusData.action,
-        userIds: selectedUsers.map(u => u.id)
+        userIds: selectedUsers.map(u => u.id),
       });
 
       // Simulate API call
@@ -190,35 +174,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       onBulkComplete();
     } catch {
       setError('Failed to update user status. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Handle bulk email
-  const handleBulkEmail = async () => {
-    if (!emailData.subject.trim() || !emailData.message.trim()) {
-      setError('Please provide both subject and message');
-      return;
-    }
-
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      logger.debug('Bulk email', 'admin', {
-        subject: emailData.subject,
-        message: emailData.message,
-        recipients: selectedUsers.map(u => u.user.email).filter(Boolean)
-      });
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      closeDialog();
-      onBulkComplete();
-    } catch {
-      setError('Failed to send emails. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -234,7 +189,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       logger.debug('Bulk delete', 'admin', { userIds });
 
       // Try to delete each user normally first
-      const deletePromises = userIds.map(async (userId) => {
+      const deletePromises = userIds.map(async userId => {
         try {
           await deleteUserMutation.mutateAsync({ id: userId });
           return { userId, success: true };
@@ -246,36 +201,51 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
           throw error; // Re-throw other errors
         }
       });
-      
+
       const results = await Promise.all(deletePromises);
       const successful = results.filter(r => r.success);
       const needsCascade = results.filter(r => !r.success);
-      
+
       if (needsCascade.length > 0) {
         // Some users have related data - show cascade confirmation
-        const totalEntryCount = needsCascade.reduce((sum, r) => sum + (r.relatedData?.entryCount || 0), 0);
-        const totalDogCount = needsCascade.reduce((sum, r) => sum + (r.relatedData?.dogCount || 0), 0);
-        
+        const totalEntryCount = needsCascade.reduce(
+          (sum, r) => sum + (r.relatedData?.entryCount || 0),
+          0
+        );
+        const totalDogCount = needsCascade.reduce(
+          (sum, r) => sum + (r.relatedData?.dogCount || 0),
+          0
+        );
+
         setCascadeData({
           userIds: needsCascade.map(r => r.userId),
           entryCount: totalEntryCount,
-          dogCount: totalDogCount
+          dogCount: totalDogCount,
         });
-        
+
         setCurrentDialog('cascadeConfirm');
         setIsProcessing(false);
         return;
       }
-      
+
       // All deletions successful
-      logger.info('Successfully deleted users', 'admin', { count: successful.length, userIds: successful.map(r => r.userId) });
+      logger.info('Successfully deleted users', 'admin', {
+        count: successful.length,
+        userIds: successful.map(r => r.userId),
+      });
 
       closeDialog();
       onBulkComplete();
       onUsersDeleted?.(successful.map(r => r.userId));
     } catch (error) {
-      logger.error('Error deleting users', 'admin', { userIds: selectedUsers.map(u => u.id) }, error as Error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete users. Please try again.';
+      logger.error(
+        'Error deleting users',
+        'admin',
+        { userIds: selectedUsers.map(u => u.id) },
+        error as Error
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to delete users. Please try again.';
       setError(errorMessage);
     } finally {
       setIsProcessing(false);
@@ -285,7 +255,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   // Handle cascade delete confirmation
   const handleCascadeDelete = async () => {
     if (!cascadeData) return;
-    
+
     setIsProcessing(true);
     setError(null);
 
@@ -293,21 +263,30 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       logger.debug('Cascade delete', 'admin', { userIds: cascadeData.userIds });
 
       // Delete with cascade option
-      const deletePromises = cascadeData.userIds.map(async (userId) => {
+      const deletePromises = cascadeData.userIds.map(async userId => {
         await deleteUserMutation.mutateAsync({ id: userId });
         return userId;
       });
 
       const deletedUserIds = await Promise.all(deletePromises);
 
-      logger.info('Successfully cascade deleted users and related data', 'admin', { count: deletedUserIds.length, userIds: deletedUserIds });
+      logger.info('Successfully cascade deleted users and related data', 'admin', {
+        count: deletedUserIds.length,
+        userIds: deletedUserIds,
+      });
 
       closeDialog();
       onBulkComplete();
       onUsersDeleted?.(deletedUserIds);
     } catch (error) {
-      logger.error('Error cascade deleting users', 'admin', { userIds: cascadeData.userIds }, error as Error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete users. Please try again.';
+      logger.error(
+        'Error cascade deleting users',
+        'admin',
+        { userIds: cascadeData.userIds },
+        error as Error
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to delete users. Please try again.';
       setError(errorMessage);
     } finally {
       setIsProcessing(false);
@@ -319,12 +298,12 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     if (checked) {
       setRoleData(prev => ({
         ...prev,
-        roles: [...prev.roles, role]
+        roles: [...prev.roles, role],
       }));
     } else {
       setRoleData(prev => ({
         ...prev,
-        roles: prev.roles.filter(r => r !== role)
+        roles: prev.roles.filter(r => r !== role),
       }));
     }
   };
@@ -336,14 +315,19 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   return (
     <>
       {/* Bulk Actions Bar */}
-      <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10 backdrop-blur-xl 
-                       rounded-2xl shadow-sm">
+      <Card
+        className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10 backdrop-blur-xl 
+                       rounded-2xl shadow-sm"
+      >
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
-                <Badge variant="default" className="gap-2 px-4 py-2 rounded-full bg-primary/20 text-primary 
-                                                  border-0 font-[590] text-sm">
+                <Badge
+                  variant="default"
+                  className="gap-2 px-4 py-2 rounded-full bg-primary/20 text-primary 
+                                                  border-0 font-[590] text-sm"
+                >
                   <Users className="h-4 w-4" />
                   {selectedUsers.length} selected
                 </Badge>
@@ -358,9 +342,11 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
               </div>
 
               <div className="text-sm text-muted-foreground font-[500]">
-                Selected users: {selectedUsers.slice(0, 3).map(u => 
-                  `${u.user.firstName} ${u.user.lastName}`
-                ).join(', ')}
+                Selected users:{' '}
+                {selectedUsers
+                  .slice(0, 3)
+                  .map(u => `${u.user.firstName} ${u.user.lastName}`)
+                  .join(', ')}
                 {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
               </div>
             </div>
@@ -369,8 +355,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
               {/* Role Management */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="h-10 px-4 rounded-xl border-border/50 bg-background/50 font-[590]
                                hover:bg-muted/50 transition-all duration-300"
@@ -381,7 +367,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl">
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => setCurrentDialog('role')}
                     className="rounded-lg font-[500] text-sm py-3 focus:bg-primary/10 focus:text-primary"
                   >
@@ -394,8 +380,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
               {/* Status Management */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="h-10 px-4 rounded-xl border-border/50 bg-background/50 font-[590]
                                hover:bg-muted/50 transition-all duration-300"
@@ -406,45 +392,42 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="rounded-xl border-border/30 bg-card/95 backdrop-blur-xl shadow-xl">
-                  <DropdownMenuItem onClick={() => {
-                    setStatusData({ action: 'activate' });
-                    setCurrentDialog('status');
-                  }} className="rounded-lg font-[500] text-sm py-3 focus:bg-green-50 focus:text-green-700 dark:focus:bg-green-950/20">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatusData({ action: 'activate' });
+                      setCurrentDialog('status');
+                    }}
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-green-50 focus:text-green-700 dark:focus:bg-green-950/20"
+                  >
                     <UserCheck className="h-4 w-4 mr-3" />
                     Activate Users
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setStatusData({ action: 'deactivate' });
-                    setCurrentDialog('status');
-                  }} className="rounded-lg font-[500] text-sm py-3 focus:bg-orange-50 focus:text-orange-700 dark:focus:bg-orange-950/20">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatusData({ action: 'deactivate' });
+                      setCurrentDialog('status');
+                    }}
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-orange-50 focus:text-orange-700 dark:focus:bg-orange-950/20"
+                  >
                     <UserX className="h-4 w-4 mr-3" />
                     Deactivate Users
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setStatusData({ action: 'suspend' });
-                    setCurrentDialog('status');
-                  }} className="rounded-lg font-[500] text-sm py-3 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/20">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setStatusData({ action: 'suspend' });
+                      setCurrentDialog('status');
+                    }}
+                    className="rounded-lg font-[500] text-sm py-3 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/20"
+                  >
                     <UserMinus className="h-4 w-4 mr-3" />
                     Suspend Users
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Communication */}
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setCurrentDialog('email')}
-                className="h-10 px-4 rounded-xl border-border/50 bg-background/50 font-[590]
-                           hover:bg-muted/50 transition-all duration-300"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Send Email
-              </Button>
-
               {/* Delete */}
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setCurrentDialog('delete')}
                 className="h-10 px-4 rounded-xl border-red-200/50 bg-red-50/50 text-red-600 font-[590]
@@ -465,7 +448,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
           <DialogHeader>
             <DialogTitle>Bulk Role Management</DialogTitle>
             <DialogDescription>
-              Manage roles for {selectedUsers.length} selected user{selectedUsers.length !== 1 ? 's' : ''}
+              Manage roles for {selectedUsers.length} selected user
+              {selectedUsers.length !== 1 ? 's' : ''}
             </DialogDescription>
           </DialogHeader>
 
@@ -481,7 +465,9 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
               <Label>Action</Label>
               <Select
                 value={roleData.action}
-                onValueChange={(value) => setRoleData(prev => ({ ...prev, action: value as 'add' | 'remove' | 'replace' }))}
+                onValueChange={value =>
+                  setRoleData(prev => ({ ...prev, action: value as 'add' | 'remove' | 'replace' }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -497,12 +483,12 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             <div>
               <Label>Roles</Label>
               <div className="space-y-2 mt-2">
-                {ROLE_OPTIONS.map((role) => (
+                {ROLE_OPTIONS.map(role => (
                   <div key={role.value} className="flex items-center space-x-2">
                     <Checkbox
                       id={role.value}
                       checked={roleData.roles.includes(role.value)}
-                      onCheckedChange={(checked) => handleRoleSelection(role.value, !!checked)}
+                      onCheckedChange={checked => handleRoleSelection(role.value, !!checked)}
                     />
                     <Label htmlFor={role.value}>{role.label}</Label>
                   </div>
@@ -527,11 +513,15 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {statusData.action === 'activate' ? 'Activate Users' :
-               statusData.action === 'deactivate' ? 'Deactivate Users' : 'Suspend Users'}
+              {statusData.action === 'activate'
+                ? 'Activate Users'
+                : statusData.action === 'deactivate'
+                  ? 'Deactivate Users'
+                  : 'Suspend Users'}
             </DialogTitle>
             <DialogDescription>
-              This will {statusData.action} {selectedUsers.length} selected user{selectedUsers.length !== 1 ? 's' : ''}
+              This will {statusData.action} {selectedUsers.length} selected user
+              {selectedUsers.length !== 1 ? 's' : ''}
             </DialogDescription>
           </DialogHeader>
 
@@ -546,11 +536,11 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {statusData.action === 'activate' 
+                {statusData.action === 'activate'
                   ? 'Users will be able to log in and access the system.'
                   : statusData.action === 'deactivate'
-                  ? 'Users will not be able to log in until reactivated.'
-                  : 'Users will be temporarily suspended and cannot access the system.'}
+                    ? 'Users will not be able to log in until reactivated.'
+                    : 'Users will be temporarily suspended and cannot access the system.'}
               </AlertDescription>
             </Alert>
           </div>
@@ -559,66 +549,18 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             <Button variant="outline" onClick={closeDialog}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleBulkStatusAction} 
+            <Button
+              onClick={handleBulkStatusAction}
               disabled={isProcessing}
               variant={statusData.action === 'activate' ? 'default' : 'destructive'}
             >
-              {isProcessing ? 'Processing...' : 
-               statusData.action === 'activate' ? 'Activate Users' :
-               statusData.action === 'deactivate' ? 'Deactivate Users' : 'Suspend Users'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Email Dialog */}
-      <Dialog open={currentDialog === 'email'} onOpenChange={() => closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Bulk Email</DialogTitle>
-            <DialogDescription>
-              Send email to {selectedUsers.filter(u => u.user.email).length} users with email addresses
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div>
-              <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                value={emailData.subject}
-                onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
-                placeholder="Email subject"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="message">Message</Label>
-              <Textarea
-                id="message"
-                value={emailData.message}
-                onChange={(e) => setEmailData(prev => ({ ...prev, message: e.target.value }))}
-                placeholder="Email message content"
-                rows={6}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              Cancel
-            </Button>
-            <Button onClick={handleBulkEmail} disabled={isProcessing}>
-              <Send className="h-4 w-4 mr-2" />
-              {isProcessing ? 'Sending...' : 'Send Email'}
+              {isProcessing
+                ? 'Processing...'
+                : statusData.action === 'activate'
+                  ? 'Activate Users'
+                  : statusData.action === 'deactivate'
+                    ? 'Deactivate Users'
+                    : 'Suspend Users'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -630,8 +572,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
           <DialogHeader>
             <DialogTitle>Delete Users</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedUsers.length} selected user{selectedUsers.length !== 1 ? 's' : ''}? 
-              This action cannot be undone.
+              Are you sure you want to delete {selectedUsers.length} selected user
+              {selectedUsers.length !== 1 ? 's' : ''}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
@@ -646,14 +588,15 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                This will permanently delete all user data including profiles, registrations, and history.
+                This will permanently delete all user data including profiles, registrations, and
+                history.
               </AlertDescription>
             </Alert>
 
             <div className="space-y-2">
               <Label>Users to be deleted:</Label>
               <div className="max-h-32 overflow-y-auto space-y-1">
-                {selectedUsers.map((item) => (
+                {selectedUsers.map(item => (
                   <div key={item.id} className="text-sm p-2 bg-muted rounded">
                     {item.user.firstName} {item.user.lastName} ({item.user.email})
                   </div>
@@ -666,11 +609,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             <Button variant="outline" onClick={closeDialog}>
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleBulkDelete} 
-              disabled={isProcessing}
-            >
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={isProcessing}>
               <Trash2 className="h-4 w-4 mr-2" />
               {isProcessing ? 'Deleting...' : 'Delete Users'}
             </Button>
@@ -684,7 +623,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
           <DialogHeader>
             <DialogTitle>Delete Users with Related Data</DialogTitle>
             <DialogDescription>
-              Some users have related data that would prevent deletion. You can choose to delete everything or cancel.
+              Some users have related data that would prevent deletion. You can choose to delete
+              everything or cancel.
             </DialogDescription>
           </DialogHeader>
 
@@ -703,13 +643,21 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                   <div className="font-semibold">This will also delete:</div>
                   <ul className="list-disc list-inside space-y-1">
                     {cascadeData?.entryCount ? (
-                      <li>{cascadeData.entryCount} show entr{cascadeData.entryCount === 1 ? 'y' : 'ies'}</li>
+                      <li>
+                        {cascadeData.entryCount} show entr
+                        {cascadeData.entryCount === 1 ? 'y' : 'ies'}
+                      </li>
                     ) : null}
                     {cascadeData?.dogCount ? (
-                      <li>{cascadeData.dogCount} dog{cascadeData.dogCount === 1 ? '' : 's'} and all their related data</li>
+                      <li>
+                        {cascadeData.dogCount} dog{cascadeData.dogCount === 1 ? '' : 's'} and all
+                        their related data
+                      </li>
                     ) : null}
                   </ul>
-                  <div className="mt-2 font-semibold text-destructive">This action cannot be undone!</div>
+                  <div className="mt-2 font-semibold text-destructive">
+                    This action cannot be undone!
+                  </div>
                 </div>
               </AlertDescription>
             </Alert>
@@ -718,7 +666,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
               <div className="space-y-2">
                 <Label>Users with related data:</Label>
                 <div className="max-h-32 overflow-y-auto space-y-1">
-                  {cascadeData.userIds.map((userId) => {
+                  {cascadeData.userIds.map(userId => {
                     const user = selectedUsers.find(u => u.id === userId);
                     return user ? (
                       <div key={userId} className="text-sm p-2 bg-muted rounded">
@@ -735,11 +683,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             <Button variant="outline" onClick={closeDialog}>
               Cancel - Keep Data
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleCascadeDelete} 
-              disabled={isProcessing}
-            >
+            <Button variant="destructive" onClick={handleCascadeDelete} disabled={isProcessing}>
               <Trash2 className="h-4 w-4 mr-2" />
               {isProcessing ? 'Deleting Everything...' : 'Delete Users & Related Data'}
             </Button>

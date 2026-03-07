@@ -29,17 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Plus,
-  Filter,
-  MoreVertical,
-  Edit,
-  TestTube,
-  Copy,
-  Download,
-  Trash2,
-  FileText,
-} from 'lucide-react';
+import { Plus, Filter, MoreVertical, Edit, TestTube, Trash2, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import '@/styles/myk9-template-management.css';
 import { cleanupDuplicateTemplates } from '@/utils/cleanup-duplicate-templates';
@@ -491,15 +481,6 @@ const TemplateManagementPage: React.FC = () => {
                         <DropdownMenuItem onClick={() => handleTestTemplate(template.id)}>
                           <TestTube className="mr-2 h-4 w-4" />
                           Test Template
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Download className="mr-2 h-4 w-4" />
-                          Export
                         </DropdownMenuItem>
                         {!template.isOfficial && (
                           <>

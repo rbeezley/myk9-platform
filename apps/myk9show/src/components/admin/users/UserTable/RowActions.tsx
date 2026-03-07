@@ -21,42 +21,24 @@ interface RowActionsProps {
   onDelete: (user: User) => void;
 }
 
-export const RowActions: React.FC<RowActionsProps> = ({
-  user,
-  onView,
-  onEdit,
-  onDelete,
-}) => {
+export const RowActions: React.FC<RowActionsProps> = ({ user, onView, onEdit, onDelete }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="myk9-table-actions-trigger"
-        >
+        <Button variant="ghost" size="sm" className="myk9-table-actions-trigger">
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="myk9-table-dropdown-content"
-      >
-        <DropdownMenuItem
-          onClick={() => onView(user)}
-          className="myk9-table-dropdown-item"
-        >
+      <DropdownMenuContent align="end" className="myk9-table-dropdown-content">
+        <DropdownMenuItem onClick={() => onView(user)} className="myk9-table-dropdown-item">
           <Eye className="h-4 w-4" />
           View Details
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => onEdit(user)}
-          className="myk9-table-dropdown-item"
-        >
+        <DropdownMenuItem onClick={() => onEdit(user)} className="myk9-table-dropdown-item">
           <Edit className="h-4 w-4" />
           Edit User
         </DropdownMenuItem>
-        <DropdownMenuItem className="myk9-table-dropdown-item">
+        <DropdownMenuItem onClick={() => onView(user)} className="myk9-table-dropdown-item">
           <Shield className="h-4 w-4" />
           Manage Roles
         </DropdownMenuItem>

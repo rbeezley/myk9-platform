@@ -1,6 +1,6 @@
 /**
  * UserDetailsDialog Component - Comprehensive user profile management dialog
- * 
+ *
  * Features:
  * - View and edit user profile information
  * - Role assignment and management
@@ -13,8 +13,8 @@ import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import {
   User as UserIcon,
-  Mail, 
-  MapPin, 
+  Mail,
+  MapPin,
   Calendar,
   Building2,
   Shield,
@@ -23,14 +23,9 @@ import {
   X,
   AlertCircle,
   History,
-  Settings
+  Settings,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,17 +48,40 @@ interface UserDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUserUpdated: (user: User) => void;
-  onEditUser?: () => void;
 }
 
 // Role configuration for management
 const AVAILABLE_ROLES = [
-  { value: 'exhibitor' as UserRoleType, label: 'Exhibitor', description: 'Can register dogs and enter shows' },
-  { value: 'handler' as UserRoleType, label: 'Handler', description: 'Can handle dogs for other owners' },
-  { value: 'judge' as UserRoleType, label: 'Judge', description: 'Can judge shows and enter results' },
-  { value: 'secretary' as UserRoleType, label: 'Secretary', description: 'Can manage shows and registrations' },
-  { value: 'steward' as UserRoleType, label: 'Steward', description: 'Can assist with show operations' },
-  { value: 'admin' as UserRoleType, label: 'Admin', description: 'Full system administration access' },
+  {
+    value: 'exhibitor' as UserRoleType,
+    label: 'Exhibitor',
+    description: 'Can register dogs and enter shows',
+  },
+  {
+    value: 'handler' as UserRoleType,
+    label: 'Handler',
+    description: 'Can handle dogs for other owners',
+  },
+  {
+    value: 'judge' as UserRoleType,
+    label: 'Judge',
+    description: 'Can judge shows and enter results',
+  },
+  {
+    value: 'secretary' as UserRoleType,
+    label: 'Secretary',
+    description: 'Can manage shows and registrations',
+  },
+  {
+    value: 'steward' as UserRoleType,
+    label: 'Steward',
+    description: 'Can assist with show operations',
+  },
+  {
+    value: 'admin' as UserRoleType,
+    label: 'Admin',
+    description: 'Full system administration access',
+  },
 ] as const;
 
 // Form validation schema (basic)
@@ -88,7 +106,6 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   open,
   onOpenChange,
   onUserUpdated,
-  onEditUser
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<UserFormData>({
@@ -104,7 +121,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     membershipId: '',
     clubAffiliations: [],
     roles: [],
-    isActive: true
+    isActive: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newClub, setNewClub] = useState('');
@@ -125,7 +142,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     membershipId: user?.membershipId || '',
     clubAffiliations: user?.clubAffiliations || [],
     roles: user?.roles || [],
-    isActive: true // Mock - would come from actual user status
+    isActive: true, // Mock - would come from actual user status
   });
 
   // Reset form when user changes - this pattern is allowed by React
@@ -178,7 +195,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
           state: formData.state || undefined,
           zipCode: formData.zipCode || undefined,
           roles: formData.roles.length > 0 ? formData.roles : undefined,
-        }
+        },
       });
 
       onUserUpdated(updatedUser);
@@ -189,18 +206,17 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     }
   };
 
-
   // Handle role changes
   const handleRoleChange = (role: UserRoleType, checked: boolean) => {
     if (checked) {
       setFormData(prev => ({
         ...prev,
-        roles: [...prev.roles, role]
+        roles: [...prev.roles, role],
       }));
     } else {
       setFormData(prev => ({
         ...prev,
-        roles: prev.roles.filter(r => r !== role)
+        roles: prev.roles.filter(r => r !== role),
       }));
     }
   };
@@ -210,7 +226,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     if (newClub.trim() && !formData.clubAffiliations.includes(newClub.trim())) {
       setFormData(prev => ({
         ...prev,
-        clubAffiliations: [...prev.clubAffiliations, newClub.trim()]
+        clubAffiliations: [...prev.clubAffiliations, newClub.trim()],
       }));
       setNewClub('');
     }
@@ -219,7 +235,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   const removeClub = (club: string) => {
     setFormData(prev => ({
       ...prev,
-      clubAffiliations: prev.clubAffiliations.filter(c => c !== club)
+      clubAffiliations: prev.clubAffiliations.filter(c => c !== club),
     }));
   };
 
@@ -264,11 +280,14 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   </Button>
                 </>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => {
-                  if (onEditUser) {
-                    onEditUser();
-                  }
-                }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFormData(getInitialFormData());
+                    setIsEditing(true);
+                  }}
+                >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit User
                 </Button>
@@ -304,14 +323,16 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       <UserIcon className="h-5 w-5" />
                       Personal Information
                     </h3>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="firstName">First Name *</Label>
                         <Input
                           id="firstName"
                           value={formData.firstName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                          onChange={e =>
+                            setFormData(prev => ({ ...prev, firstName: e.target.value }))
+                          }
                           disabled={!isEditing}
                           className={errors.firstName ? 'border-destructive' : ''}
                         />
@@ -324,7 +345,9 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         <Input
                           id="lastName"
                           value={formData.lastName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                          onChange={e =>
+                            setFormData(prev => ({ ...prev, lastName: e.target.value }))
+                          }
                           disabled={!isEditing}
                           className={errors.lastName ? 'border-destructive' : ''}
                         />
@@ -339,7 +362,9 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       <Input
                         id="membershipId"
                         value={formData.membershipId}
-                        onChange={(e) => setFormData(prev => ({ ...prev, membershipId: e.target.value }))}
+                        onChange={e =>
+                          setFormData(prev => ({ ...prev, membershipId: e.target.value }))
+                        }
                         disabled={!isEditing}
                         placeholder="Optional membership identifier"
                       />
@@ -352,14 +377,14 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       <Mail className="h-5 w-5" />
                       Contact Information
                     </h3>
-                    
+
                     <div>
                       <Label htmlFor="email">Email Address *</Label>
                       <Input
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                         disabled={!isEditing}
                         className={errors.email ? 'border-destructive' : ''}
                       />
@@ -374,7 +399,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         id="phone"
                         type="tel"
                         value={formData.phone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                         disabled={!isEditing}
                         placeholder="Optional phone number"
                       />
@@ -390,13 +415,13 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <MapPin className="h-5 w-5" />
                     Address Information
                   </h3>
-                  
+
                   <div>
                     <Label htmlFor="address">Street Address</Label>
                     <Input
                       id="address"
                       value={formData.address}
-                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
                       disabled={!isEditing}
                       placeholder="Street address"
                     />
@@ -408,7 +433,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       <Input
                         id="city"
                         value={formData.city}
-                        onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                        onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
                         disabled={!isEditing}
                         placeholder="City"
                       />
@@ -418,7 +443,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       <Input
                         id="state"
                         value={formData.state}
-                        onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                        onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
                         disabled={!isEditing}
                         placeholder="State or province"
                       />
@@ -428,7 +453,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       <Input
                         id="zipCode"
                         value={formData.zipCode}
-                        onChange={(e) => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                        onChange={e => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
                         disabled={!isEditing}
                         placeholder="ZIP or postal code"
                       />
@@ -440,7 +465,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <Input
                       id="country"
                       value={formData.country}
-                      onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                      onChange={e => setFormData(prev => ({ ...prev, country: e.target.value }))}
                       disabled={!isEditing}
                       placeholder="Country"
                     />
@@ -455,30 +480,29 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <Building2 className="h-5 w-5" />
                     Club Affiliations
                   </h3>
-                  
+
                   <div className="space-y-2">
-                    {formData.clubAffiliations.map((club) => (
-                      <div key={club} className="flex items-center justify-between p-2 border rounded">
+                    {formData.clubAffiliations.map(club => (
+                      <div
+                        key={club}
+                        className="flex items-center justify-between p-2 border rounded"
+                      >
                         <span>{club}</span>
                         {isEditing && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeClub(club)}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => removeClub(club)}>
                             <X className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
                     ))}
-                    
+
                     {isEditing && (
                       <div className="flex gap-2">
                         <Input
                           placeholder="Add club affiliation"
                           value={newClub}
-                          onChange={(e) => setNewClub(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && addClub()}
+                          onChange={e => setNewClub(e.target.value)}
+                          onKeyPress={e => e.key === 'Enter' && addClub()}
                         />
                         <Button onClick={addClub} disabled={!newClub.trim()}>
                           Add
@@ -496,7 +520,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <Shield className="h-5 w-5" />
                     Role Assignments
                   </h3>
-                  
+
                   {errors.roles && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
@@ -505,21 +529,22 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   )}
 
                   <div className="space-y-3">
-                    {AVAILABLE_ROLES.map((role) => (
-                      <div key={role.value} className="flex items-start space-x-3 p-3 border rounded">
+                    {AVAILABLE_ROLES.map(role => (
+                      <div
+                        key={role.value}
+                        className="flex items-start space-x-3 p-3 border rounded"
+                      >
                         <Checkbox
                           id={role.value}
                           checked={formData.roles.includes(role.value)}
-                          onCheckedChange={(checked) => handleRoleChange(role.value, !!checked)}
+                          onCheckedChange={checked => handleRoleChange(role.value, !!checked)}
                           disabled={!isEditing}
                         />
                         <div className="flex-1 min-w-0">
                           <Label htmlFor={role.value} className="font-medium">
                             {role.label}
                           </Label>
-                          <p className="text-sm text-muted-foreground">
-                            {role.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{role.description}</p>
                         </div>
                       </div>
                     ))}
@@ -529,7 +554,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   <div className="pt-4 border-t">
                     <h4 className="font-medium mb-2">Current Roles:</h4>
                     <div className="flex flex-wrap gap-2">
-                      {formData.roles.map((role) => (
+                      {formData.roles.map(role => (
                         <Badge key={role} variant="default">
                           {AVAILABLE_ROLES.find(r => r.value === role)?.label || role}
                         </Badge>
@@ -549,7 +574,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <Settings className="h-5 w-5" />
                     Account Status
                   </h3>
-                  
+
                   <div className="space-y-4 p-4 border rounded">
                     <div className="flex items-center justify-between">
                       <div>
@@ -560,7 +585,9 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       </div>
                       <Switch
                         checked={formData.isActive}
-                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
+                        onCheckedChange={checked =>
+                          setFormData(prev => ({ ...prev, isActive: checked }))
+                        }
                         disabled={!isEditing}
                       />
                     </div>
@@ -576,20 +603,14 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Created:</span>
                         <span>
-                          {user.createdAt 
-                            ? format(new Date(user.createdAt), 'PPP')
-                            : 'Unknown'
-                          }
+                          {user.createdAt ? format(new Date(user.createdAt), 'PPP') : 'Unknown'}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Last Updated:</span>
                         <span>
-                          {user.updatedAt 
-                            ? format(new Date(user.updatedAt), 'PPP')
-                            : 'Never'
-                          }
+                          {user.updatedAt ? format(new Date(user.updatedAt), 'PPP') : 'Never'}
                         </span>
                       </div>
                     </div>
@@ -604,7 +625,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <History className="h-5 w-5" />
                     Audit Trail
                   </h3>
-                  
+
                   <div className="text-center py-8 text-muted-foreground">
                     <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p>Audit trail functionality coming soon</p>

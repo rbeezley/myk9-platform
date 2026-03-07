@@ -303,12 +303,6 @@ describe('BulkActionsBar', () => {
 
       expect(screen.getByRole('button', { name: /status/i })).toBeInTheDocument();
     });
-
-    it('renders email button', () => {
-      render(<BulkActionsBar {...defaultProps} />);
-
-      expect(screen.getByRole('button', { name: /send email/i })).toBeInTheDocument();
-    });
   });
 
   describe('Accessibility', () => {

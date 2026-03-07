@@ -246,3 +246,83 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 ## Add Table View to Dogs and People Browse Pages - 2026-03-06 19:02
 
 - [x] **Add table view as third view mode for Dogs and People pages** — Implemented in commit `d2503c7`. Created DogsTableView (sortable by name/breed/sex/owner/status) and PeopleTableView (sortable by name/email/roles/location). Third ViewMode `'table'` with Table2 icon toggle. Clickable rows navigate to detail pages. Status/sex/role badges inline.
+
+## Landing Page Improvements - 2026-03-07 15:27
+
+- **Add pricing to main page** — Move pricing info to main landing page instead of separate page. **Problem:** Pricing is on a separate page, adding friction for potential customers who want to see costs upfront. **Files:** `apps/myk9show/src/pages/LandingPage.tsx`, `apps/myk9show/src/pages/PricingPage.tsx`.
+
+- **Add Google Auth** — Implement Google authentication as a sign-in option. **Problem:** Users currently lack social login options, increasing signup friction. **Files:** `apps/myk9show/src/contexts/AuthContext.tsx`, `apps/myk9show/src/components/auth/`.
+
+- **Redesign upcoming show cards** — Add visual identity to show cards with pictures per show type or club logos. **Problem:** Show cards lack visual differentiation — could use show-type images (several to choose from) or the club's logo. **Files:** `apps/myk9show/src/components/shows/ShowCard.tsx`.
+
+## Show Creation Bugs - 2026-03-07 15:27
+
+- **Fix duplicate names in chairman/secretary dropdown** — Club chairman and secretary dropdowns show multiples of the same name. **Problem:** Dropdown is filtering by functional assignment, causing duplicates. Consider rethinking to just search everybody in the database instead. **Files:** `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx`, `apps/myk9show/src/components/shows/wizard/ShowDetailsStep.tsx`.
+
+- **Verify Add Chairman and Secretary functionality** — Check if inline-add for chairman and secretary is working. **Problem:** Unclear if the add-new-person flow within the wizard works end-to-end for these roles. **Files:** `apps/myk9show/src/components/shows/wizard/ShowDetailsStep.tsx`, `apps/myk9show/src/components/panels/entities/UserCreationPanel.tsx`.
+
+- **Auto-select single judge on class selection page** — If only one judge is assigned to the show, automatically select them on the class selection page. **Problem:** Users must manually select the judge even when there's only one option. **Files:** `apps/myk9show/src/components/shows/wizard/ClassSelectionStep.tsx`.
+
+- **Investigate minutes calculation on review page** — Review page shows a time/minutes calculation but there are no entries yet. **Problem:** How is the duration calculated when no entries exist? Needs investigation into what drives the estimate. **Files:** `apps/myk9show/src/components/shows/wizard/ReviewStep.tsx`.
+
+## Show List Bugs - 2026-03-07 15:27
+
+- **Fix new show not displaying on show list** — Test show 5 was created but doesn't appear on the show list page. **Problem:** Newly created shows may not be picked up by the list query or cache isn't invalidated. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`, `apps/myk9show/src/services/database/queries/showQueries.ts`.
+
+- **Fix button stacking on show cards** — Inner "Show" and "View Details" buttons stack on a 15-inch monitor. **Problem:** Buttons overflow their container at certain viewport widths. **Files:** `apps/myk9show/src/components/shows/ShowCard.tsx`.
+
+- **Consider moving published tag to top of show card** — The published status tag is not prominently placed. **Problem:** Published status should be immediately visible at the top of the card. **Files:** `apps/myk9show/src/components/shows/ShowCard.tsx`.
+
+- **Add table view to shows, trials, classes, and entries** — For consistency with Dogs and People pages, add table view everywhere. **Problem:** Dogs and People already have table view but shows, trials, classes, and entries do not. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`, `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx`.
+
+- **Clarify All Shows vs Managing tabs** — Secretary shows page has All Shows, Past Shows, My Entries, and Managing tabs. **Problem:** Unclear what distinguishes "All Shows" from "Managing" if we're only displaying shows for the signed-in secretary. May need to consolidate or clarify purpose. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`.
+
+## Show Details Improvements - 2026-03-07 15:27
+
+- **Rename "Trials and Schedule" tab to "Trials"** — Simplify the tab label. **Problem:** "Trials and Schedule" is unnecessarily long when "Trials" suffices. **Files:** `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`.
+
+- **Add entries tab to show details** — Add a tab showing a table of all entries for the show. **Problem:** No way to see all entries for a show in one place from the show details page. **Files:** `apps/myk9show/src/pages/ShowDetailsPage.tsx`, `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`.
+
+- **Add "Add Entries" to Manage Show menu** — The Manage Show button has choices for add trials and add classes but not entries. **Problem:** No quick path to add entries from the manage show dropdown. **Files:** `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`, `apps/myk9show/src/components/shows/ShowDetails/`.
+
+- **Redesign trials card to match show card style** — Trials cards should have a "View Details" button instead of just an eye icon. **Problem:** Inconsistent card design between show cards and trial cards. **Files:** `apps/myk9show/src/components/trials/TrialCard.tsx`.
+
+## Trial Details Improvements - 2026-03-07 15:27
+
+- **Add entries tab to trial details** — Add a tab showing entries for that specific trial. **Problem:** Classes are listed in a table but there's no way to see entries at the trial level. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/components/trials/TrialDetailsMain.tsx`.
+
+- **Redesign class cards in grid view** — Fix white square in top left corner and improve card backgrounds. **Problem:** Class cards in grid view have a large white square artifact and unappealing background styling. **Files:** `apps/myk9show/src/components/classes/ClassCard.tsx`.
+
+- **Fix Add Class dialog** — Convert to slide-out panel for consistency, and gray out classes already in the trial. **Problem:** Add Class opens a dialog (should be a panel), shows classes already in the trial without proper indication, and some "already added" labels are incorrect. **Files:** `apps/myk9show/src/components/classes/AddClassDialog.tsx`, `apps/myk9show/src/pages/TrialDetailsPage.tsx`.
+
+- **Remove excessive top padding on trial details page** — Large space/padding at the top of the page. **Problem:** Wasted vertical space pushes content down unnecessarily. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`.
+
+- **Move promo codes and financials to show level** — Trial details has promo codes and financials tabs. **Problem:** Promo codes and financials likely belong at the show level, not the individual trial level. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/pages/ShowDetailsPage.tsx`.
+
+## Entry Wizard Bugs - 2026-03-07 15:27
+
+- **Improve radio buttons on payment page** — Use better looking radio buttons. **Problem:** Current radio buttons on the payment page look plain/default. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`.
+
+- **Fix payment calculation showing zero** — Entered 3 dogs in 9 classes but subtotal shows zero on payment page. **Problem:** Payment totals are not being calculated correctly from the selected entries. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`, `apps/myk9show/src/components/registration/`.
+
+- **Design credit card input to look like a credit card** — Create a visual credit card input UI. **Problem:** Standard form fields for credit card info miss an opportunity for a polished, professional touch. Some sites show a credit card visual that you fill in. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`.
+
+- **Fix download receipt and email confirmation buttons** — Buttons on confirmation page are not working. **Problem:** Download receipt and email confirmation buttons have no working handlers. **Files:** `apps/myk9show/src/components/registration/ConfirmationStep.tsx`.
+
+- **Investigate confirmation number storage and lookup** — A confirmation number is generated but unclear where it's stored. **Problem:** If someone called with a complaint, there's no way to look up a confirmation number for details. Needs a lookup mechanism. **Files:** `apps/myk9show/src/components/registration/ConfirmationStep.tsx`, `apps/myk9show/src/services/database/queries/entryQueries.ts`.
+
+- **Fix entries not being saved after registration** — Completed registration but total entries still shows zero. Manage Entries page shows no entries. **Problem:** Entries are not being persisted to the database or not being read back correctly after the registration wizard completes. **Files:** `apps/myk9show/src/components/registration/`, `apps/myk9show/src/services/database/queries/entryQueries.ts`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx`.
+
+## Class Details Improvements - 2026-03-07 15:27
+
+- **Redesign class details card** — Make timing details and fee structure flat fields instead of collapsible sections. **Problem:** Collapsible sections add unnecessary interaction — these should just be visible fields. **Files:** `apps/myk9show/src/pages/ClassDetailsPage.tsx`, `apps/myk9show/src/components/classes/ClassDetailsMain.tsx`.
+
+- **Auto-fill class requirements from rules** — Requirements tab in edit class should pre-fill values dictated by rules, and indicate judge-settable fields with range placeholders. **Problem:** Rules dictate certain requirement values but the form doesn't auto-fill them. Judge-settable fields should show placeholders like "Set by judge (3-5 minutes)". Reference myK9Q (Canine Cue) for similar implementation. **Files:** `apps/myk9show/src/components/panels/edit/ClassEditPanel.tsx`, `apps/myk9show/src/components/classes/EditClassDialog.tsx`.
+
+- **Fix entries not displayed on class detail entry pages** — Clicked Add Entry, selected dog Buddy, it showed previously entered classes but entries aren't displayed on entry pages. **Problem:** Entries exist (the wizard knows about them) but they're not rendered on the class detail or entry list views. **Files:** `apps/myk9show/src/pages/ClassDetailsPage.tsx`, `apps/myk9show/src/services/database/queries/entryQueries.ts`.
+
+## Secretary Dashboard Bugs - 2026-03-07 15:27
+
+- **Fix show dropdown repeating shows** — The show dropdown on the secretary dashboard shows duplicate entries. **Problem:** Shows appear multiple times in the dropdown selector. **Files:** `apps/myk9show/src/features/pipeline/components/PipelineDashboard.tsx`, `apps/myk9show/src/features/pipeline/hooks/useMissionControlData.ts`.
+
+- **Fix classes not showing for new shows** — Classes for a newly created show don't appear on the secretary dashboard. **Problem:** Dashboard query may not be picking up classes for recently created shows, or cache isn't invalidated. **Files:** `apps/myk9show/src/features/pipeline/components/PipelineDashboard.tsx`, `apps/myk9show/src/features/pipeline/hooks/useMissionControlData.ts`.

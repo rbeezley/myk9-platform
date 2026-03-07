@@ -114,8 +114,8 @@ export function buildUnifiedSidebarConfig(userRoles: UserRole[]): SidebarConfig 
     });
   }
 
-  // Manage (secretary / club admin)
-  if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN])) {
+  // Manage (secretary / club admin / site admin)
+  if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
     groups.push({
       title: 'Manage',
       items: [

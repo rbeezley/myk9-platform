@@ -181,7 +181,7 @@ const BrowsePeoplePage: React.FC = () => {
                         placeholder="Search people by name or email..."
                         value={filters.search}
                         onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        className="pl-9 h-10 bg-background border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
+                        className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
                       />
                     </div>
                     <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>

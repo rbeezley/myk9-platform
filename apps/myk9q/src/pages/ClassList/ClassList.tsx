@@ -7,18 +7,15 @@ import { supabase } from '../../lib/supabase';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
 import type { Entry } from '@/services/replication';
 import { logger } from '@/utils/logger';
-import { ErrorState, PullToRefresh } from '../../components/ui';
+import { PullToRefresh } from '../../components/ui';
 import { useHapticFeedback, useLongPress } from '@myk9/scoring-ui';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { ArrowLeft, RefreshCw, List } from 'lucide-react';
 // CSS imported in index.css to prevent FOUC
-import { getClassDisplayStatus } from '../../utils/statusUtils';
-import { getLevelSortOrder } from '../../lib/utils';
 import { ClassFilters } from './ClassFilters';
 import { ClassListHeader } from './ClassListHeader';
 import { ClassCardGrid } from './ClassCardGrid';
 import { ClassListDialogs } from './ClassListDialogs';
-import { useClassListData, ClassEntry, TrialInfo } from './hooks/useClassListData';
+import { useClassListData, ClassEntry } from './hooks/useClassListData';
 import { useClassDialogs } from './hooks/useClassDialogs';
 import { useClassStatus, type StatusDependencies } from './hooks/useClassStatus';
 import { useClassRealtime } from './hooks/useClassRealtime';
@@ -37,8 +34,22 @@ import {
   groupSectionedClasses,
   shouldCombineAllSections,
 } from './utils/noviceClassGrouping';
+import type { PrintDialogState, CombinedFilter } from './ClassList.types';
+import { SORT_OPTIONS } from './ClassList.types';
+import {
+  isMaxTimeSet,
+  shouldShowMaxTimeWarning,
+  isEmptyDataError,
+  filterClasses,
+  sortClasses,
+} from './ClassList.helpers';
+import {
+  ClassListLoading,
+  ClassListError,
+  ClassListNotFound,
+  ClassListEmpty,
+} from './ClassListEmptyStates';
 
-// eslint-disable-next-line complexity -- Large page component with many dialog/action handlers
 export const ClassList: React.FC = () => {
   const { trialId } = useParams<{ trialId: string }>();
   const navigate = useNavigate();
@@ -67,14 +78,14 @@ export const ClassList: React.FC = () => {
   );
 
   // Local state for data (synced from React Query)
-  const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(null);
+  const [trialInfo, setTrialInfo] = useState(trialInfoData ?? null);
   const [classes, setClasses] = useState<ClassEntry[]>([]);
 
   // Animation state for favorite burst effect
   const [justToggledClassId, setJustToggledClassId] = useState<number | null>(null);
   // Initialize filter from navigation state if provided (e.g., from Show Dashboard "Done" stat)
-  const locationState = location.state as { filter?: 'pending' | 'favorites' | 'completed' } | null;
-  const [combinedFilter, setCombinedFilter] = useState<'pending' | 'favorites' | 'completed'>(
+  const locationState = location.state as { filter?: CombinedFilter } | null;
+  const [combinedFilter, setCombinedFilter] = useState<CombinedFilter>(
     locationState?.filter || 'pending'
   );
 
@@ -123,10 +134,10 @@ export const ClassList: React.FC = () => {
   } = usePrintReports();
 
   // Print dialog state - tracks which report type to generate and for which class
-  const [printDialogState, setPrintDialogState] = useState<{
-    type: 'check-in' | 'results' | 'scoresheet' | null;
-    classId: number | null;
-  }>({ type: null, classId: null });
+  const [printDialogState, setPrintDialogState] = useState<PrintDialogState>({
+    type: null,
+    classId: null,
+  });
 
   // Max time warning is local-only (not in shared hook)
   const [showMaxTimeWarning, setShowMaxTimeWarning] = useState(false);
@@ -146,13 +157,6 @@ export const ClassList: React.FC = () => {
   );
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
-  // Sort options for FilterPanel
-  const sortOptions = [
-    { value: 'class_order', label: 'Run Order' },
-    { value: 'element_level', label: 'Element → Level' },
-    { value: 'level_element', label: 'Level → Element' },
-  ];
-
   // Prevent FOUC by adding 'loaded' class after mount
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -162,19 +166,13 @@ export const ClassList: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Time input states for status dialog
-
   // Sync React Query data with local state
   useEffect(() => {
-    if (trialInfoData) {
-      setTrialInfo(trialInfoData);
-    }
-    if (classesData) {
-      setClasses(classesData);
-    }
+    if (trialInfoData) setTrialInfo(trialInfoData);
+    if (classesData) setClasses(classesData);
   }, [trialInfoData, classesData]);
 
-  // Update classes' is_favorite property when favoriteClasses changes (hook handles localStorage)
+  // Update classes' is_favorite property when favoriteClasses changes
   useEffect(() => {
     if (classes.length > 0) {
       setClasses(prevClasses =>
@@ -186,8 +184,7 @@ export const ClassList: React.FC = () => {
     }
   }, [favoriteClasses]);
 
-  // Data is loaded via useStaleWhileRevalidate hook - no manual loading needed
-
+  // Close popup on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -200,7 +197,6 @@ export const ClassList: React.FC = () => {
       setTimeout(() => {
         document.addEventListener('click', handleClickOutside);
       }, 0);
-
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [activePopup]);
@@ -212,19 +208,15 @@ export const ClassList: React.FC = () => {
   const handleRefresh = useCallback(async () => {
     hapticFeedback.medium();
     setIsManualRefreshing(true);
-
-    // Ensure minimum 500ms feedback so users see something happened
     const minFeedbackDelay = new Promise(resolve => setTimeout(resolve, 500));
-
     try {
-      await Promise.all([refetch(true), minFeedbackDelay]); // forceSync=true
+      await Promise.all([refetch(true), minFeedbackDelay]);
     } finally {
       setIsManualRefreshing(false);
     }
   }, [refetch, hapticFeedback]);
 
   // Hard refresh (full page reload) - triggered by long press on refresh button
-  // This is the escape hatch for PWA users who can't access browser refresh
   const handleHardRefresh = useCallback(() => {
     logger.log('[ClassList] Hard refresh triggered via long press');
     window.location.reload();
@@ -295,26 +287,7 @@ export const ClassList: React.FC = () => {
     ]
   );
 
-  // Helper function to check if max times are set for a class
-  const isMaxTimeSet = (classEntry: ClassEntry): boolean => {
-    const { time_limit_seconds, time_limit_area2_seconds, time_limit_area3_seconds } = classEntry;
-
-    // Check if any time limit is set (greater than 0)
-    const hasTime1 = Boolean(time_limit_seconds && time_limit_seconds > 0);
-    const hasTime2 = Boolean(time_limit_area2_seconds && time_limit_area2_seconds > 0);
-    const hasTime3 = Boolean(time_limit_area3_seconds && time_limit_area3_seconds > 0);
-
-    return hasTime1 || hasTime2 || hasTime3;
-  };
-
-  // Helper function to check if user role should see max time warning
-  const shouldShowMaxTimeWarning = () => {
-    // For now, disable max time warnings to allow navigation
-    return false;
-  };
-
-  // Helper function to find the paired sectioned class (A pairs with B, and vice versa)
-  // For UKC Nosework: all levels; for AKC: only Novice
+  // Find paired sectioned class (A pairs with B, and vice versa)
   const findPaired = useCallback(
     (clickedClass: ClassEntry): ClassEntry | null => {
       return findPairedSectionedClass(clickedClass, classes, showContext?.org);
@@ -341,12 +314,12 @@ export const ClassList: React.FC = () => {
                 .sort((a, b) => a.armband_number - b.armband_number);
 
               if (classEntries.length > 0) {
-                logger.log('📡 Prefetched class entries from cache:', classId, classEntries.length);
+                logger.log('Prefetched class entries from cache:', classId, classEntries.length);
                 return classEntries;
               }
             }
           } catch (error) {
-            logger.error('❌ Error prefetching entries from cache:', error);
+            logger.error('Error prefetching entries from cache:', error);
           }
 
           // Fall back to Supabase if cache miss
@@ -361,11 +334,7 @@ export const ClassList: React.FC = () => {
             .eq('class_id', classId)
             .order('armband_number', { ascending: true });
 
-          logger.log(
-            '📡 Prefetched class entries from Supabase:',
-            classId,
-            entriesData?.length || 0
-          );
+          logger.log('Prefetched class entries from Supabase:', classId, entriesData?.length || 0);
           return entriesData || [];
         },
         {
@@ -380,7 +349,7 @@ export const ClassList: React.FC = () => {
   const handleViewEntries = (classEntry: ClassEntry) => {
     hapticFeedback.medium();
 
-    // Check if class has no entries - show popup instead of navigating to empty page
+    // Check if class has no entries
     if (classEntry.entry_count === 0) {
       setNoEntriesClassName(classEntry.class_name);
       setNoEntriesDialogOpen(true);
@@ -389,7 +358,6 @@ export const ClassList: React.FC = () => {
 
     // Check if max time warning should be shown
     if (shouldShowMaxTimeWarning() && !isMaxTimeSet(classEntry)) {
-      // Show MaxTimeDialog with warning instead of separate warning dialog
       setSelectedClassForMaxTime(classEntry);
       setMaxTimeDialogOpen(true);
       setShowMaxTimeWarning(true);
@@ -398,13 +366,11 @@ export const ClassList: React.FC = () => {
 
     // Check if this is a combined A & B class (has pairedClassId from grouping)
     if (classEntry.pairedClassId) {
-      // Navigate directly to combined view with both class IDs
       navigate(`/class/${classEntry.id}/${classEntry.pairedClassId}/entries/combined`);
       return;
     }
 
     // Fallback: Check if this class should be paired based on organization
-    // UKC Nosework: all levels with A/B sections; AKC: only Novice
     const combineAll = shouldCombineAllSections(showContext?.org);
     const shouldCheckForPair =
       (classEntry.section === 'A' || classEntry.section === 'B') &&
@@ -413,28 +379,20 @@ export const ClassList: React.FC = () => {
     if (shouldCheckForPair) {
       const paired = findPaired(classEntry);
       if (paired) {
-        // Navigate directly to combined view with both class IDs (no dialog)
         navigate(`/class/${classEntry.id}/${paired.id}/entries/combined`);
         return;
       }
     }
 
-    // Proceed with navigation (single class or non-pairable)
     navigate(`/class/${classEntry.id}/entries`);
   };
 
   // Status dependencies - grouped for cleaner function signatures
   const statusDeps: StatusDependencies = useMemo(
-    () => ({
-      classes,
-      setClasses,
-      supabaseClient: supabase,
-      refetch,
-    }),
+    () => ({ classes, setClasses, supabaseClient: supabase, refetch }),
     [classes, refetch]
   );
 
-  // Wrapper for status changes with time (delegates to useClassStatus hook)
   const handleClassStatusChangeWithTime = useCallback(
     async (classId: number, status: ClassEntry['class_status'], timeValue: string) => {
       await handleStatusChangeWithTimeHook(classId, status, timeValue, statusDeps);
@@ -442,7 +400,6 @@ export const ClassList: React.FC = () => {
     [handleStatusChangeWithTimeHook, statusDeps]
   );
 
-  // Wrapper for status changes without time (delegates to useClassStatus hook)
   const handleClassStatusChange = useCallback(
     async (classId: number, status: ClassEntry['class_status']) => {
       await handleStatusChangeHook(classId, status, statusDeps);
@@ -456,21 +413,17 @@ export const ClassList: React.FC = () => {
       const classEntry = classes.find(c => c.id === classId);
       const isCurrentlyFavorite = classEntry?.is_favorite;
 
-      // Enhanced haptic feedback for outdoor/gloved use
       if (isCurrentlyFavorite) {
-        hapticFeedback.light(); // Removing favorite - softer feedback
+        hapticFeedback.light();
       } else {
-        hapticFeedback.medium(); // Adding favorite - stronger feedback for confirmation
+        hapticFeedback.medium();
       }
 
-      // Trigger heart burst animation
       setJustToggledClassId(classId);
       setTimeout(() => setJustToggledClassId(null), 400);
 
-      // Delegate to hook (handles localStorage, paired classes via useEffect syncs to classes)
       toggleFavoriteHook(classId, classEntry?.pairedClassId);
 
-      // Update classes state immediately for responsive UI
       const pairedId = classEntry?.pairedClassId;
       const idsToToggle = pairedId ? [classId, pairedId] : [classId];
       setClasses(prev =>
@@ -480,8 +433,7 @@ export const ClassList: React.FC = () => {
     [classes, hapticFeedback, toggleFavoriteHook]
   );
 
-  // Helper function to group sectioned A/B classes into combined entries
-  // UKC Nosework: all levels; AKC: only Novice
+  // Group sectioned A/B classes into combined entries
   const groupSectionedClassesCached = useCallback(
     (classList: ClassEntry[]): ClassEntry[] => {
       return groupSectionedClasses(classList, showContext?.org);
@@ -494,178 +446,35 @@ export const ClassList: React.FC = () => {
     return groupSectionedClassesCached(classes);
   }, [groupSectionedClassesCached, classes]);
 
-  // Search and sort functionality
-  // Memoized filtered and sorted classes for performance optimization
+  // Memoized filtered and sorted classes
   const filteredClasses = useMemo(() => {
-    const filtered = groupedClasses.filter(classEntry => {
-      // Use the same logic as getClassDisplayStatus to respect manual status
-      const displayStatus = getClassDisplayStatus(classEntry);
-      const isCompleted = displayStatus === 'completed';
-
-      // Combined filter logic (existing)
-      if (combinedFilter === 'pending' && isCompleted) return false;
-      if (combinedFilter === 'completed' && !isCompleted) return false;
-      if (combinedFilter === 'favorites' && !classEntry.is_favorite) return false;
-
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const matchesClassName = classEntry.class_name.toLowerCase().includes(searchLower);
-        const matchesElement = classEntry.element.toLowerCase().includes(searchLower);
-        const matchesLevel = classEntry.level.toLowerCase().includes(searchLower);
-        const matchesJudge = classEntry.judge_name.toLowerCase().includes(searchLower);
-        const matchesSection =
-          classEntry.section && classEntry.section !== '-'
-            ? classEntry.section.toLowerCase().includes(searchLower)
-            : false;
-
-        if (
-          !matchesClassName &&
-          !matchesElement &&
-          !matchesLevel &&
-          !matchesJudge &&
-          !matchesSection
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortOrder) {
-        case 'class_order':
-          // Default: class_order, then element, then level, then section
-          if (a.class_order !== b.class_order) {
-            return a.class_order - b.class_order;
-          }
-          if (a.element !== b.element) {
-            return a.element.localeCompare(b.element);
-          }
-          if (a.level !== b.level) {
-            const levelOrder = { novice: 1, advanced: 2, excellent: 3, master: 4, masters: 4 };
-            const aLevelOrder = levelOrder[a.level.toLowerCase() as keyof typeof levelOrder] || 999;
-            const bLevelOrder = levelOrder[b.level.toLowerCase() as keyof typeof levelOrder] || 999;
-            if (aLevelOrder !== bLevelOrder) {
-              return aLevelOrder - bLevelOrder;
-            }
-            return a.level.localeCompare(b.level);
-          }
-          return a.section.localeCompare(b.section);
-
-        case 'element_level':
-          // Sort by element first, then level (standard progression)
-          if (a.element !== b.element) {
-            return a.element.localeCompare(b.element);
-          }
-          if (a.level !== b.level) {
-            const aLevelOrder = getLevelSortOrder(a.level);
-            const bLevelOrder = getLevelSortOrder(b.level);
-            if (aLevelOrder !== bLevelOrder) {
-              return aLevelOrder - bLevelOrder;
-            }
-            return a.level.localeCompare(b.level);
-          }
-          return a.section.localeCompare(b.section);
-
-        case 'level_element':
-          // Sort by level first (standard progression), then element
-          if (a.level !== b.level) {
-            const aLevelOrder = getLevelSortOrder(a.level);
-            const bLevelOrder = getLevelSortOrder(b.level);
-            if (aLevelOrder !== bLevelOrder) {
-              return aLevelOrder - bLevelOrder;
-            }
-            return a.level.localeCompare(b.level);
-          }
-          if (a.element !== b.element) {
-            return a.element.localeCompare(b.element);
-          }
-          return a.section.localeCompare(b.section);
-
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
+    const filtered = filterClasses(groupedClasses, combinedFilter, searchTerm);
+    return sortClasses(filtered, sortOrder);
   }, [groupedClasses, combinedFilter, searchTerm, sortOrder]);
 
-  // Show loading skeleton only if actively loading and no data exists
+  // --- Early returns for loading/error/empty states ---
+
   if (isLoading && !trialInfo && classes.length === 0) {
-    return (
-      <div className="class-list-container">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 text-muted-foreground animate-spin mx-auto mb-2" />
-            <p className="text-muted-foreground">Loading classes...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <ClassListLoading />;
   }
 
-  // Show error state with retry button if fetch failed
-  // BUT: "Could not find" errors typically mean empty data (no classes), not a real error
-  // So we let those fall through to the empty state handling below
-  const isEmptyDataError =
-    fetchError?.message?.toLowerCase().includes('could not find') ||
-    fetchError?.message?.toLowerCase().includes('no rows') ||
-    fetchError?.message?.toLowerCase().includes('not found');
-
-  if (fetchError && !isEmptyDataError) {
+  const hasEmptyDataError = isEmptyDataError(fetchError);
+  if (fetchError && !hasEmptyDataError) {
     return (
-      <div className="class-list-container">
-        <ErrorState
-          message={`Failed to load classes: ${fetchError.message || 'Please check your connection and try again.'}`}
-          onRetry={handleRefresh}
-          isRetrying={isRefreshing}
-        />
-      </div>
+      <ClassListError
+        errorMessage={fetchError.message}
+        onRetry={handleRefresh}
+        isRetrying={isRefreshing}
+      />
     );
   }
 
   if (!trialInfo) {
-    return (
-      <div className="class-list-container">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <p className="text-foreground text-lg font-semibold mb-2">Trial not found</p>
-            <button onClick={() => navigate(-1)} className="icon-button">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <ClassListNotFound onGoBack={() => navigate(-1)} />;
   }
 
-  // Show friendly empty state when trial exists but has no classes
   if (classes.length === 0 && !isLoading) {
-    return (
-      <div className="class-list-container">
-        <div className="empty-state">
-          <div className="empty-state-icon">
-            <List size={40} strokeWidth={1.5} />
-          </div>
-          <h2 className="empty-state-title">No Classes Yet</h2>
-          {trialInfo?.trial_name && <p className="empty-state-context">{trialInfo.trial_name}</p>}
-          <p className="empty-state-message">
-            This trial doesn't have any classes set up yet. Classes will appear here once they're
-            added.
-          </p>
-          <div className="empty-state-action">
-            <button onClick={() => navigate(-1)}>
-              <ArrowLeft size={16} />
-              Go Back
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <ClassListEmpty trialName={trialInfo.trial_name} onGoBack={() => navigate(-1)} />;
   }
 
   return (
@@ -748,7 +557,7 @@ export const ClassList: React.FC = () => {
         setIsFilterPanelOpen={setIsFilterPanelOpen}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
-        sortOptions={sortOptions}
+        sortOptions={SORT_OPTIONS}
         sortOrder={sortOrder}
         setSortOrder={setSortOrder}
         filteredClassCount={filteredClasses.length}

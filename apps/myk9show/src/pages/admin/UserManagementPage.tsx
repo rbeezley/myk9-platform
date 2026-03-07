@@ -12,17 +12,7 @@
 import React, { useState, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import {
-  Users,
-  Search,
-  Filter,
-  Plus,
-  Download,
-  UserCheck,
-  Shield,
-  CheckSquare,
-  X,
-} from 'lucide-react';
+import { Users, Search, Filter, Plus, Download, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +20,6 @@ import { Badge } from '@/components/ui/badge';
 // Hooks and services
 import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
 import { User } from '@/types/user-types';
-import type { UserRole as UserRoleType } from '@/types/user-types';
-
 // Components
 import { UserTable } from '@/components/admin/users/UserTable';
 import { UserFilters } from '@/components/admin/users/UserFilters';
@@ -39,34 +27,24 @@ import { CreateUserDialog } from '@/components/admin/users/CreateUserDialog';
 import { BulkActionsBar } from '@/components/admin/users/BulkActionsBar';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
+// Extracted modules
+import type { UserFilter, SelectedUser } from './UserManagementPage.types';
+import { DEFAULT_USER_FILTER } from './UserManagementPage.types';
+import { filterUsers, calculateRoleStats, exportUsersCSV } from './UserManagementPage.helpers';
+import { UserManagementStats } from './UserManagementStats';
 
-// Types for filtering and management
-export interface UserFilter {
-  search: string;
-  role: UserRoleType | 'all';
-  status: 'active' | 'inactive' | 'suspended' | 'all';
-  clubAffiliation: string;
-  dateRange: {
-    start: Date | null;
-    end: Date | null;
-  };
-}
+// Re-export types so external consumers keep working
+export type { UserFilter, SelectedUser } from './UserManagementPage.types';
 
-export interface SelectedUser {
-  id: string;
-  user: User;
-}
+/** Shared style constant */
+const SF_FONT_FAMILY =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
+const EASE_TIMING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
 const UserManagementPage: React.FC = () => {
   // State management
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<UserFilter>({
-    search: '',
-    role: 'all',
-    status: 'all',
-    clubAffiliation: '',
-    dateRange: { start: null, end: null },
-  });
+  const [filters, setFilters] = useState<UserFilter>(DEFAULT_USER_FILTER);
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -86,60 +64,14 @@ const UserManagementPage: React.FC = () => {
     error,
   });
 
-  // Filter and search logic
-  const filteredUsers = useMemo(() => {
-    let filtered = users;
-
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        user =>
-          user.firstName?.toLowerCase().includes(search) ||
-          user.lastName?.toLowerCase().includes(search) ||
-          user.email?.toLowerCase().includes(search)
-      );
-    }
-
-    // Apply role filter
-    if (filters.role !== 'all') {
-      filtered = filtered.filter(user => user.roles?.includes(filters.role as UserRoleType));
-    }
-
-    // Apply status filter (mock implementation - would need real status field)
-    if (filters.status !== 'all') {
-      // In a real implementation, this would filter by an actual status field
-      // For now, we'll mock it based on user data completeness
-      filtered = filtered.filter(user => {
-        switch (filters.status) {
-          case 'active':
-            return user.email && user.firstName && user.lastName;
-          case 'inactive':
-            return !user.email;
-          case 'suspended':
-            return false; // Mock - no suspended users for now
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Apply club affiliation filter
-    if (filters.clubAffiliation) {
-      // Mock club affiliation filter - would need actual field
-      filtered = filtered.filter(
-        user =>
-          user.firstName?.toLowerCase().includes(filters.clubAffiliation.toLowerCase()) ||
-          user.lastName?.toLowerCase().includes(filters.clubAffiliation.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [users, searchTerm, filters]);
-
-  // Pagination
+  // Filter, search, and pagination
+  const filteredUsers = useMemo(
+    () => filterUsers(users, searchTerm, filters),
+    [users, searchTerm, filters]
+  );
   const totalPages = Math.ceil(filteredUsers.length / pageSize);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const roleStats = useMemo(() => calculateRoleStats(users), [users]);
 
   // Selection handlers
   const handleSelectUser = (user: User, selected: boolean) => {
@@ -152,31 +84,22 @@ const UserManagementPage: React.FC = () => {
 
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
-      const newSelections = paginatedUsers.map(user => ({ id: user.id, user }));
-      setSelectedUsers(newSelections);
+      setSelectedUsers(paginatedUsers.map(user => ({ id: user.id, user })));
     } else {
       setSelectedUsers([]);
     }
   };
 
-  const clearSelection = () => {
-    setSelectedUsers([]);
-  };
+  const clearSelection = () => setSelectedUsers([]);
 
-  // User action handlers - go directly to edit panel
+  // User action handlers
   const handleUserClick = (user: User) => {
     setSelectedUser(user);
     setShowUserEditPanel(true);
   };
 
-  const handleCreateUser = () => {
-    setShowCreateDialog(true);
-  };
-
-  // Handle edit panel save
   const handleEditPanelSave = async (userData: Partial<User>) => {
     if (!selectedUser) return;
-
     try {
       const updatedUser = await updateUserMutation.mutateAsync({
         id: selectedUser.id,
@@ -185,23 +108,12 @@ const UserManagementPage: React.FC = () => {
       setSelectedUser(updatedUser);
       setShowUserEditPanel(false);
       notifications.success('User updated successfully');
-    } catch (error) {
-      logger.error('Failed to update user:', 'pages', {}, error as Error);
+    } catch (err) {
+      logger.error('Failed to update user:', 'pages', {}, err as Error);
       notifications.error('Failed to update user');
-      throw error; // Let the edit panel handle the error
+      throw err;
     }
   };
-
-  // Statistics calculations
-  const roleStats = useMemo(() => {
-    const stats: Record<string, number> = {};
-    users.forEach(user => {
-      user.roles?.forEach(role => {
-        stats[role] = (stats[role] || 0) + 1;
-      });
-    });
-    return stats;
-  }, [users]);
 
   if (error) {
     logger.warn('User Management Error (handled gracefully):', 'admin', {}, error as Error);
@@ -227,13 +139,10 @@ const UserManagementPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-8 pt-8 pb-12 max-w-8xl">
-        {/* Header - Matching Admin Dashboard exactly */}
+        {/* Header */}
         <div
           className="flex flex-col md:flex-row md:items-center md:justify-between mb-12"
-          style={{
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-          }}
+          style={{ fontFamily: SF_FONT_FAMILY }}
         >
           <div>
             <h1
@@ -252,40 +161,17 @@ const UserManagementPage: React.FC = () => {
           <div className="flex items-center gap-3 mt-6 md:mt-0">
             <Button
               variant="outline"
-              className="border-primary/20 text-primary
-                               transition-all duration-300 shadow-sm rounded-xl px-6 py-2.5"
-              style={{
-                fontWeight: 500,
-                transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              }}
-              onClick={() => {
-                const csvRows = [
-                  ['Email', 'First Name', 'Last Name', 'Roles'].join(','),
-                  ...filteredUsers.map(u =>
-                    [u.email ?? '', u.firstName ?? '', u.lastName ?? '', (u.roles ?? []).join(';')]
-                      .map(v => `"${v.replace(/"/g, '""')}"`)
-                      .join(',')
-                  ),
-                ];
-                const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
+              className="border-primary/20 text-primary transition-all duration-300 shadow-sm rounded-xl px-6 py-2.5"
+              style={{ fontWeight: 500, transitionTimingFunction: EASE_TIMING }}
+              onClick={() => exportUsersCSV(filteredUsers)}
             >
               <Download className="h-4 w-4 mr-2" />
               Export Users
             </Button>
             <Button
-              onClick={handleCreateUser}
+              onClick={() => setShowCreateDialog(true)}
               className="px-6 py-2.5"
-              style={{
-                fontWeight: 500,
-                transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              }}
+              style={{ fontWeight: 500, transitionTimingFunction: EASE_TIMING }}
             >
               <Plus className="h-4 w-4 mr-2" />
               Create User
@@ -293,235 +179,17 @@ const UserManagementPage: React.FC = () => {
           </div>
         </div>
 
-        {/* User Management Statistics - Matching Admin Dashboard exactly */}
+        {/* Statistics */}
+        <UserManagementStats
+          users={users}
+          filteredUsers={filteredUsers}
+          roleStats={roleStats}
+          selectedUsers={selectedUsers}
+        />
+
+        {/* Search & Filters */}
         <div className="mb-16">
-          <div
-            className="flex items-center gap-4 mb-8"
-            style={{
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-            }}
-          >
-            <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl shadow-sm">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-2xl" style={{ fontWeight: 590, lineHeight: '1.25' }}>
-                User Statistics
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1" style={{ fontWeight: 500 }}>
-                Current user metrics and role distribution
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Total Users Card */}
-            <div
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                            border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
-                            transition-all duration-300 
-                            min-h-[140px]"
-              style={{
-                fontFamily:
-                  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-                transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              }}
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
-                               opacity-0 transition-opacity duration-300"
-              />
-              <div className="relative h-full flex flex-col justify-between">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <p
-                      className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2"
-                      style={{ fontWeight: 590, letterSpacing: '0.02em' }}
-                    >
-                      Total Users
-                    </p>
-                  </div>
-                  <div
-                    className="p-2.5 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl shadow-sm 
-                                  transition-all duration-300"
-                  >
-                    <Users className="h-5 w-5 text-primary" />
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col justify-center">
-                  <p
-                    className="text-2xl font-bold mb-1 transition-colors duration-300"
-                    style={{ fontWeight: 650, lineHeight: '1.25' }}
-                  >
-                    {users.length.toLocaleString()}
-                  </p>
-                  <p className="text-sm text-muted-foreground" style={{ fontWeight: 500 }}>
-                    {filteredUsers.length !== users.length
-                      ? `${filteredUsers.length} filtered`
-                      : 'Platform users'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Active Users Card */}
-            <div
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                            border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
-                            transition-all duration-300 
-                            min-h-[140px]"
-              style={{
-                fontFamily:
-                  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-                transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              }}
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent 
-                               opacity-0 transition-opacity duration-300"
-              />
-              <div className="relative h-full flex flex-col justify-between">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <p
-                      className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2"
-                      style={{ fontWeight: 590, letterSpacing: '0.02em' }}
-                    >
-                      Active Users
-                    </p>
-                  </div>
-                  <div
-                    className="p-2.5 bg-gradient-to-br from-emerald-500/20 to-emerald-500/10 rounded-xl shadow-sm 
-                                  transition-all duration-300"
-                  >
-                    <UserCheck className="h-5 w-5 text-emerald-600" />
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col justify-center">
-                  <p
-                    className="text-2xl font-bold mb-1 transition-colors duration-300"
-                    style={{ fontWeight: 650, lineHeight: '1.25' }}
-                  >
-                    {users.filter(u => u.email && u.firstName).length}
-                  </p>
-                  <p className="text-sm text-muted-foreground" style={{ fontWeight: 500 }}>
-                    {(
-                      (users.filter(u => u.email && u.firstName).length / (users.length || 1)) *
-                      100
-                    ).toFixed(1)}
-                    % of total
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Roles Assigned Card */}
-            <div
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                            border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
-                            transition-all duration-300 
-                            min-h-[140px]"
-              style={{
-                fontFamily:
-                  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-                transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              }}
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent 
-                               opacity-0 transition-opacity duration-300"
-              />
-              <div className="relative h-full flex flex-col justify-between">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <p
-                      className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2"
-                      style={{ fontWeight: 590, letterSpacing: '0.02em' }}
-                    >
-                      Roles Assigned
-                    </p>
-                  </div>
-                  <div
-                    className="p-2.5 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl shadow-sm 
-                                  transition-all duration-300"
-                  >
-                    <Shield className="h-5 w-5 text-purple-600" />
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col justify-center">
-                  <p
-                    className="text-2xl font-bold mb-1 group-hover:text-purple-600 transition-colors duration-300"
-                    style={{ fontWeight: 650, lineHeight: '1.25' }}
-                  >
-                    {Object.values(roleStats).reduce((sum, count) => sum + count, 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground" style={{ fontWeight: 500 }}>
-                    Across {Object.keys(roleStats).length} role types
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Selected Users Card */}
-            <div
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                            border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
-                            transition-all duration-300 
-                            min-h-[140px]"
-              style={{
-                fontFamily:
-                  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-                transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              }}
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent 
-                               opacity-0 transition-opacity duration-300"
-              />
-              <div className="relative h-full flex flex-col justify-between">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <p
-                      className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2"
-                      style={{ fontWeight: 590, letterSpacing: '0.02em' }}
-                    >
-                      Selected
-                    </p>
-                  </div>
-                  <div
-                    className="p-2.5 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-xl shadow-sm 
-                                  transition-all duration-300"
-                  >
-                    <CheckSquare className="h-5 w-5 text-blue-600" />
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col justify-center">
-                  <p
-                    className="text-2xl font-bold mb-1 group-hover:text-blue-600 transition-colors duration-300"
-                    style={{ fontWeight: 650, lineHeight: '1.25' }}
-                  >
-                    {selectedUsers.length}
-                  </p>
-                  <p className="text-sm text-muted-foreground" style={{ fontWeight: 500 }}>
-                    {selectedUsers.length > 0
-                      ? 'Users selected for bulk actions'
-                      : 'No users selected'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* User Search and Management - Matching Admin Dashboard section style */}
-        <div className="mb-16">
-          <div
-            className="flex items-center gap-4 mb-8"
-            style={{
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-            }}
-          >
+          <div className="flex items-center gap-4 mb-8" style={{ fontFamily: SF_FONT_FAMILY }}>
             <div className="p-3 bg-gradient-to-br from-slate-500/20 to-slate-500/10 rounded-xl shadow-sm">
               <Search className="h-6 w-6 text-slate-600" />
             </div>
@@ -536,17 +204,13 @@ const UserManagementPage: React.FC = () => {
           </div>
 
           <Card
-            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                           border border-border rounded-2xl shadow-sm backdrop-blur-xl 
+            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
+                           border border-border rounded-2xl shadow-sm backdrop-blur-xl
                            transition-all duration-300 hover:shadow-xl hover:scale-[1.01] hover:-translate-y-1"
-            style={{
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-              transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-            }}
+            style={{ fontFamily: SF_FONT_FAMILY, transitionTimingFunction: EASE_TIMING }}
           >
             <div
-              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
+              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
                              opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
             <CardHeader className="relative pb-6">
@@ -595,7 +259,7 @@ const UserManagementPage: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={clearSelection}
-                      className="h-10 px-4 rounded-xl bg-background/50 border-border/50 
+                      className="h-10 px-4 rounded-xl bg-background/50 border-border/50
                                  hover:bg-muted/50 transition-all duration-300"
                       style={{ fontWeight: 590 }}
                     >
@@ -620,29 +284,18 @@ const UserManagementPage: React.FC = () => {
             <BulkActionsBar
               selectedUsers={selectedUsers}
               onClearSelection={clearSelection}
-              onBulkComplete={() => {
-                clearSelection();
-                // Refresh data would happen via React Query invalidation
-              }}
+              onBulkComplete={() => clearSelection()}
               onUsersDeleted={deletedUserIds => {
-                // Clear selection and refresh data
                 clearSelection();
-                // React Query will automatically refetch data
                 logger.debug('Users deleted:', 'admin', { data: deletedUserIds });
               }}
             />
           </div>
         )}
 
-        {/* User Management Table - Matching Admin Dashboard section style */}
+        {/* User Directory Table */}
         <div className="mb-16">
-          <div
-            className="flex items-center gap-4 mb-8"
-            style={{
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-            }}
-          >
+          <div className="flex items-center gap-4 mb-8" style={{ fontFamily: SF_FONT_FAMILY }}>
             <div className="p-3 bg-gradient-to-br from-emerald-500/20 to-emerald-500/10 rounded-xl shadow-sm">
               <Users className="h-6 w-6 text-emerald-600" />
             </div>
@@ -657,17 +310,13 @@ const UserManagementPage: React.FC = () => {
           </div>
 
           <Card
-            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                           border border-border rounded-2xl shadow-sm backdrop-blur-xl 
+            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
+                           border border-border rounded-2xl shadow-sm backdrop-blur-xl
                            transition-all duration-300 hover:shadow-xl hover:scale-[1.01] hover:-translate-y-1"
-            style={{
-              fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-              transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-            }}
+            style={{ fontFamily: SF_FONT_FAMILY, transitionTimingFunction: EASE_TIMING }}
           >
             <div
-              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
+              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
                              opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
             <CardHeader className="relative pb-6">
@@ -711,8 +360,6 @@ const UserManagementPage: React.FC = () => {
           onOpenChange={setShowCreateDialog}
           onUserCreated={newUser => {
             setShowCreateDialog(false);
-            // React Query will handle cache updates
-            // Optionally open the new user in edit panel
             setSelectedUser(newUser);
             setShowUserEditPanel(true);
           }}

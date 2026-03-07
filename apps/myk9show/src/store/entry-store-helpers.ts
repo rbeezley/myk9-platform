@@ -8,7 +8,8 @@
 import type { ReplicatedEntry } from '@/services/replication';
 import type { EntryStatus, SyncableShowEntry } from './entry-store-types';
 
-export const generateEntryId = () => `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export const generateEntryId = () =>
+  `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 /**
  * Convert ReplicatedEntry from replicated table to SyncableShowEntry for store
@@ -47,7 +48,10 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
 /**
  * Merge ReplicatedEntry with existing SyncableShowEntry, preserving local-only fields
  */
-export function mergeEntryData(replicated: ReplicatedEntry, existing: SyncableShowEntry | undefined): SyncableShowEntry {
+export function mergeEntryData(
+  replicated: ReplicatedEntry,
+  existing: SyncableShowEntry | undefined
+): SyncableShowEntry {
   const base = replicatedToEntry(replicated);
   if (!existing) return base;
 
@@ -57,6 +61,118 @@ export function mergeEntryData(replicated: ReplicatedEntry, existing: SyncableSh
     statusHistory: existing.statusHistory || base.statusHistory,
     competitionData: existing.competitionData,
   };
+}
+
+/**
+ * Compute show-level statistics from a list of entries.
+ */
+export function computeShowStats(showEntries: SyncableShowEntry[]): {
+  totalEntries: number;
+  byStatus: Record<EntryStatus, number>;
+  totalRevenue: number;
+  completionRate: number;
+} {
+  const byStatus = showEntries.reduce(
+    (acc, entry) => {
+      acc[entry.status] = (acc[entry.status] || 0) + 1;
+      return acc;
+    },
+    {} as Record<EntryStatus, number>
+  );
+
+  const totalRevenue = showEntries
+    .filter(entry => entry.registrationData.paymentStatus === 'paid')
+    .reduce((sum, entry) => sum + entry.registrationData.entryFee, 0);
+
+  const completedEntries = showEntries.filter(entry => entry.status === 'completed').length;
+  const totalPaidEntries = showEntries.filter(
+    entry => entry.registrationData.paymentStatus === 'paid'
+  ).length;
+  const completionRate = totalPaidEntries > 0 ? (completedEntries / totalPaidEntries) * 100 : 0;
+
+  return {
+    totalEntries: showEntries.length,
+    byStatus,
+    totalRevenue,
+    completionRate,
+  };
+}
+
+/**
+ * Build a new SyncableShowEntry with sync metadata for a fresh entry.
+ */
+export function buildNewSyncableEntry(
+  entryData: {
+    showId: string;
+    classId: string;
+    dogId: string;
+    registrationData: SyncableShowEntry['registrationData'];
+    competitionData?: SyncableShowEntry['competitionData'];
+  },
+  userId: string
+): SyncableShowEntry {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  return {
+    ...entryData,
+    id,
+    status: 'draft',
+    statusHistory: [
+      {
+        status: 'draft',
+        timestamp: now,
+        userId,
+        reason: 'Entry created',
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+    _version: 1,
+    _lastModified: new Date(),
+    _lastModifiedBy: userId,
+    _syncStatus: 'pending',
+    _localOnly: true,
+  };
+}
+
+/**
+ * Build a batch of new SyncableShowEntry objects.
+ */
+export function buildBatchEntries(
+  entriesData: Array<{
+    showId: string;
+    classId: string;
+    dogId: string;
+    registrationData: SyncableShowEntry['registrationData'];
+    competitionData?: SyncableShowEntry['competitionData'];
+  }>,
+  userId: string
+): SyncableShowEntry[] {
+  const now = new Date().toISOString();
+  return entriesData.map(data => {
+    const id = crypto.randomUUID();
+    return {
+      ...data,
+      id,
+      status: 'draft' as EntryStatus,
+      statusHistory: [
+        {
+          status: 'draft' as EntryStatus,
+          timestamp: now,
+          userId,
+          reason: 'Entry created in batch',
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+      _version: 1,
+      _lastModified: new Date(),
+      _lastModifiedBy: userId,
+      _syncStatus: 'pending' as const,
+      _localOnly: true,
+    };
+  });
 }
 
 /**

@@ -1,14 +1,4 @@
-/**
- * SyncSettingsPanel - User-configurable sync preferences
- * 
- * Provides comprehensive sync configuration including:
- * - Auto-sync settings and intervals
- * - Conflict resolution strategies
- * - Performance tuning options
- * - Network preferences
- * - Notification settings
- * - Advanced sync options
- */
+/** SyncSettingsPanel - User-configurable sync preferences */
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
@@ -29,13 +19,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { 
   Settings,
   Wifi,
   Shield,
@@ -45,111 +30,24 @@ import {
   CheckCircle,
   RefreshCw,
   Save,
-  RotateCcw
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { GeneralTab } from './GeneralTab';
+import {
+  DEFAULT_SYNC_SETTINGS,
+  getConflictStrategyDescription,
+  toBasicSyncSettings,
+} from './SyncSettingsPanel.helpers';
+import type { ExtendedSyncSettings, SyncSettingsPanelProps } from './SyncSettingsPanel.types';
 
-export interface ExtendedSyncSettings {
-  // Auto-sync configuration
-  autoSync: {
-    enabled: boolean;
-    interval: number; // minutes
-    onlyOnWifi: boolean;
-    batteryOptimization: boolean;
-  };
-  
-  // Conflict resolution
-  conflicts: {
-    strategy: 'manual' | 'latest-wins' | 'merge' | 'ask-always';
-    autoResolveSimple: boolean;
-    showResolutionNotifications: boolean;
-  };
-  
-  // Performance settings
-  performance: {
-    batchSize: number;
-    maxConcurrentOperations: number;
-    retryAttempts: number;
-    timeoutDuration: number; // seconds
-    compressionEnabled: boolean;
-  };
-  
-  // Network preferences
-  network: {
-    allowCellular: boolean;
-    maxCellularUsage: number; // MB per day
-    lowBandwidthMode: boolean;
-    prefetchData: boolean;
-  };
-  
-  // Notifications
-  notifications: {
-    syncComplete: boolean;
-    syncErrors: boolean;
-    conflictsDetected: boolean;
-    offlineMode: boolean;
-    queueBacklog: boolean;
-  };
-  
-  // Advanced options
-  advanced: {
-    enableDebugLogging: boolean;
-    keepSyncHistory: boolean;
-    historyRetentionDays: number;
-    enableMetrics: boolean;
-    backgroundSync: boolean;
-  };
-}
-
-interface SyncSettingsPanelProps {
-  className?: string;
-  onSettingsChange?: (settings: ExtendedSyncSettings) => void;
-}
+// Re-export types for external consumers
+export type { ExtendedSyncSettings } from './SyncSettingsPanel.types';
 
 export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsPanelProps) {
   const { updateSyncSettings } = useSyncStore();
-  
-  // Default settings
-  const defaultSettings: ExtendedSyncSettings = useMemo(() => ({
-    autoSync: {
-      enabled: true,
-      interval: 15,
-      onlyOnWifi: false,
-      batteryOptimization: true
-    },
-    conflicts: {
-      strategy: 'manual',
-      autoResolveSimple: true,
-      showResolutionNotifications: true
-    },
-    performance: {
-      batchSize: 50,
-      maxConcurrentOperations: 3,
-      retryAttempts: 3,
-      timeoutDuration: 30,
-      compressionEnabled: true
-    },
-    network: {
-      allowCellular: true,
-      maxCellularUsage: 100,
-      lowBandwidthMode: false,
-      prefetchData: true
-    },
-    notifications: {
-      syncComplete: false,
-      syncErrors: true,
-      conflictsDetected: true,
-      offlineMode: true,
-      queueBacklog: true
-    },
-    advanced: {
-      enableDebugLogging: false,
-      keepSyncHistory: true,
-      historyRetentionDays: 30,
-      enableMetrics: true,
-      backgroundSync: true
-    }
-  }), []);
+
+  const defaultSettings = useMemo(() => DEFAULT_SYNC_SETTINGS, []);
 
   const [settings, setSettings] = useState<ExtendedSyncSettings>(defaultSettings);
   const [hasChanges, setHasChanges] = useState(false);
@@ -168,7 +66,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
   ) => {
     setSettings(prev => ({
       ...prev,
-      [section]: { ...prev[section], ...updates }
+      [section]: { ...prev[section], ...updates },
     }));
   };
 
@@ -176,14 +74,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Convert extended settings to basic settings for store
-      const basicSettings = {
-        autoSync: settings.autoSync.enabled,
-        syncInterval: settings.autoSync.interval * 60000, // Convert to ms
-        batchSize: settings.performance.batchSize,
-        retryAttempts: settings.performance.retryAttempts
-      };
-      await updateSyncSettings(basicSettings);
+      await updateSyncSettings(toBasicSyncSettings(settings));
       onSettingsChange?.(settings);
       setHasChanges(false);
     } catch (error) {
@@ -193,40 +84,21 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
     }
   };
 
-  // Reset to defaults
-  const handleReset = () => {
-    setSettings(defaultSettings);
-  };
-
-  // Discard changes
-  const handleDiscard = () => {
-    setSettings(defaultSettings);
-  };
-
-  const getConflictStrategyDescription = (strategy: string) => {
-    switch (strategy) {
-      case 'manual':
-        return 'Always prompt user to resolve conflicts';
-      case 'latest-wins':
-        return 'Automatically use the most recent version';
-      case 'merge':
-        return 'Attempt to merge changes automatically';
-      case 'ask-always':
-        return 'Ask for strategy on each conflict';
-      default:
-        return '';
-    }
-  };
+  // Reset / discard
+  const handleReset = () => setSettings(defaultSettings);
+  const handleDiscard = () => setSettings(defaultSettings);
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Sync Settings</h2>
-          <p className="text-muted-foreground">Configure synchronization preferences and behavior</p>
+          <p className="text-muted-foreground">
+            Configure synchronization preferences and behavior
+          </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {hasChanges && (
             <>
@@ -274,131 +146,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
 
         {/* General Settings */}
         <TabsContent value="general">
-          <Card>
-            <CardHeader>
-              <CardTitle>Auto-Sync Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="auto-sync">Enable Auto-Sync</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically synchronize data in the background
-                  </p>
-                </div>
-                <Switch
-                  id="auto-sync"
-                  checked={settings.autoSync.enabled}
-                  onCheckedChange={(checked) => 
-                    updateSettingsSection('autoSync', { enabled: checked })
-                  }
-                />
-              </div>
-
-              {settings.autoSync.enabled && (
-                <>
-                  <Separator />
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Sync Interval: {settings.autoSync.interval} minutes</Label>
-                      <Slider
-                        value={[settings.autoSync.interval]}
-                        onValueChange={(value) => 
-                          updateSettingsSection('autoSync', { interval: value[0] })
-                        }
-                        max={120}
-                        min={5}
-                        step={5}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>5 min</span>
-                        <span>120 min</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label>WiFi Only</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Only sync when connected to WiFi
-                        </p>
-                      </div>
-                      <Switch
-                        checked={settings.autoSync.onlyOnWifi}
-                        onCheckedChange={(checked) => 
-                          updateSettingsSection('autoSync', { onlyOnWifi: checked })
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label>Battery Optimization</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Reduce sync frequency when battery is low
-                        </p>
-                      </div>
-                      <Switch
-                        checked={settings.autoSync.batteryOptimization}
-                        onCheckedChange={(checked) => 
-                          updateSettingsSection('autoSync', { batteryOptimization: checked })
-                        }
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Sync Complete</Label>
-                <Switch
-                  checked={settings.notifications.syncComplete}
-                  onCheckedChange={(checked) => 
-                    updateSettingsSection('notifications', { syncComplete: checked })
-                  }
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label>Sync Errors</Label>
-                <Switch
-                  checked={settings.notifications.syncErrors}
-                  onCheckedChange={(checked) => 
-                    updateSettingsSection('notifications', { syncErrors: checked })
-                  }
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label>Conflicts Detected</Label>
-                <Switch
-                  checked={settings.notifications.conflictsDetected}
-                  onCheckedChange={(checked) => 
-                    updateSettingsSection('notifications', { conflictsDetected: checked })
-                  }
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label>Offline Mode</Label>
-                <Switch
-                  checked={settings.notifications.offlineMode}
-                  onCheckedChange={(checked) => 
-                    updateSettingsSection('notifications', { offlineMode: checked })
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <GeneralTab settings={settings} updateSettingsSection={updateSettingsSection} />
         </TabsContent>
 
         {/* Conflict Resolution */}
@@ -412,7 +160,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 <Label>Default Strategy</Label>
                 <Select
                   value={settings.conflicts.strategy}
-                  onValueChange={(value: 'manual' | 'latest-wins' | 'merge' | 'ask-always') => 
+                  onValueChange={(value: 'manual' | 'latest-wins' | 'merge' | 'ask-always') =>
                     updateSettingsSection('conflicts', { strategy: value })
                   }
                 >
@@ -442,7 +190,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.conflicts.autoResolveSimple}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('conflicts', { autoResolveSimple: checked })
                   }
                 />
@@ -457,8 +205,10 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.conflicts.showResolutionNotifications}
-                  onCheckedChange={(checked) => 
-                    updateSettingsSection('conflicts', { showResolutionNotifications: checked })
+                  onCheckedChange={checked =>
+                    updateSettingsSection('conflicts', {
+                      showResolutionNotifications: checked,
+                    })
                   }
                 />
               </div>
@@ -477,7 +227,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 <Label>Batch Size: {settings.performance.batchSize} items</Label>
                 <Slider
                   value={[settings.performance.batchSize]}
-                  onValueChange={(value) => 
+                  onValueChange={value =>
                     updateSettingsSection('performance', { batchSize: value[0] })
                   }
                   max={200}
@@ -487,11 +237,15 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
               </div>
 
               <div className="space-y-2">
-                <Label>Max Concurrent Operations: {settings.performance.maxConcurrentOperations}</Label>
+                <Label>
+                  Max Concurrent Operations: {settings.performance.maxConcurrentOperations}
+                </Label>
                 <Slider
                   value={[settings.performance.maxConcurrentOperations]}
-                  onValueChange={(value) => 
-                    updateSettingsSection('performance', { maxConcurrentOperations: value[0] })
+                  onValueChange={value =>
+                    updateSettingsSection('performance', {
+                      maxConcurrentOperations: value[0],
+                    })
                   }
                   max={10}
                   min={1}
@@ -503,7 +257,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 <Label>Retry Attempts: {settings.performance.retryAttempts}</Label>
                 <Slider
                   value={[settings.performance.retryAttempts]}
-                  onValueChange={(value) => 
+                  onValueChange={value =>
                     updateSettingsSection('performance', { retryAttempts: value[0] })
                   }
                   max={10}
@@ -518,9 +272,9 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                   <Input
                     type="number"
                     value={settings.performance.timeoutDuration}
-                    onChange={(e) => 
-                      updateSettingsSection('performance', { 
-                        timeoutDuration: parseInt(e.target.value) || 30 
+                    onChange={e =>
+                      updateSettingsSection('performance', {
+                        timeoutDuration: parseInt(e.target.value) || 30,
                       })
                     }
                     className="w-20"
@@ -540,7 +294,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.performance.compressionEnabled}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('performance', { compressionEnabled: checked })
                   }
                 />
@@ -565,7 +319,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.network.allowCellular}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('network', { allowCellular: checked })
                   }
                 />
@@ -578,9 +332,9 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                     <Input
                       type="number"
                       value={settings.network.maxCellularUsage}
-                      onChange={(e) => 
-                        updateSettingsSection('network', { 
-                          maxCellularUsage: parseInt(e.target.value) || 100 
+                      onChange={e =>
+                        updateSettingsSection('network', {
+                          maxCellularUsage: parseInt(e.target.value) || 100,
                         })
                       }
                       className="w-20"
@@ -593,13 +347,11 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <Label>Low Bandwidth Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Optimize for slower connections
-                  </p>
+                  <p className="text-sm text-muted-foreground">Optimize for slower connections</p>
                 </div>
                 <Switch
                   checked={settings.network.lowBandwidthMode}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('network', { lowBandwidthMode: checked })
                   }
                 />
@@ -614,7 +366,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.network.prefetchData}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('network', { prefetchData: checked })
                   }
                 />
@@ -646,7 +398,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.advanced.enableDebugLogging}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('advanced', { enableDebugLogging: checked })
                   }
                 />
@@ -661,7 +413,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.advanced.keepSyncHistory}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('advanced', { keepSyncHistory: checked })
                   }
                 />
@@ -674,9 +426,9 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                     <Input
                       type="number"
                       value={settings.advanced.historyRetentionDays}
-                      onChange={(e) => 
-                        updateSettingsSection('advanced', { 
-                          historyRetentionDays: parseInt(e.target.value) || 30 
+                      onChange={e =>
+                        updateSettingsSection('advanced', {
+                          historyRetentionDays: parseInt(e.target.value) || 30,
                         })
                       }
                       className="w-20"
@@ -695,7 +447,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
                 </div>
                 <Switch
                   checked={settings.advanced.backgroundSync}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={checked =>
                     updateSettingsSection('advanced', { backgroundSync: checked })
                   }
                 />
@@ -728,7 +480,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
         <Alert>
           <CheckCircle className="h-4 w-4" />
           <AlertDescription>
-            You have unsaved changes. Click "Save Changes" to apply your settings.
+            You have unsaved changes. Click &quot;Save Changes&quot; to apply your settings.
           </AlertDescription>
         </Alert>
       )}

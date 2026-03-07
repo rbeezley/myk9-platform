@@ -1,6 +1,6 @@
 /**
  * Gate Coordinator
- * 
+ *
  * Manages multiple gate stewards, coordinates check-in operations
  * across gates, and handles load balancing and conflict escalation.
  */
@@ -18,17 +18,24 @@ import type {
   GateCoordinatorConfig,
   CheckInEvent,
   CheckInEventType,
-  CheckInConflict
+  CheckInConflict,
 } from '@/types/offline-checkin-types';
 import { generateId } from '@/utils/idUtils';
-
-const DEFAULT_CONFIG: GateCoordinatorConfig = {
-  maxGatesPerSteward: 2,
-  autoBalanceLoad: true,
-  enableCrossGateValidation: true,
-  conflictEscalationThreshold: 3,
-  sessionTimeoutMinutes: 480 // 8 hours
-};
+import { DEFAULT_CONFIG } from './GateCoordinator.types';
+import type { StewardStatistics, CoordinatorOverview } from './GateCoordinator.types';
+import {
+  calculateGateLoad,
+  computeGateStatistics,
+  computeStewardStatistics,
+  computeOverview,
+  persistCoordinatorData,
+  loadCoordinatorData,
+  buildStewardUpdate,
+  incrementStewardCheckIn,
+  updateSessionCheckInStats,
+  findOverloadedGates,
+  createInitialSyncMetadata,
+} from './GateCoordinator.helpers';
 
 export class GateCoordinator extends EventEmitter {
   private config: GateCoordinatorConfig;
@@ -51,15 +58,21 @@ export class GateCoordinator extends EventEmitter {
     if (this.isInitialized) return;
 
     try {
-      await this.loadPersistedData();
-      
-      // Start periodic tasks
+      const persisted = await loadCoordinatorData(this.storage, this.config);
+      if (persisted) {
+        this.gates = persisted.gates;
+        this.stewards = persisted.stewards;
+        this.sessions = persisted.sessions;
+        this.activities = persisted.activities;
+        this.config = persisted.config;
+      }
+
       if (this.config.autoBalanceLoad) {
         this.startLoadBalancing();
       }
-      
+
       this.startSessionMonitoring();
-      
+
       this.isInitialized = true;
       this.emit('initialized', {});
       logger.info('GateCoordinator initialized successfully', 'checkin');
@@ -74,33 +87,34 @@ export class GateCoordinator extends EventEmitter {
       clearInterval(this.loadBalanceInterval);
       this.loadBalanceInterval = undefined;
     }
-    
+
     if (this.sessionTimeoutInterval) {
       clearInterval(this.sessionTimeoutInterval);
       this.sessionTimeoutInterval = undefined;
     }
-    
-    // End all active sessions
+
     for (const session of this.sessions.values()) {
       if (session.isActive) {
         await this.endSession(session.id, 'system');
       }
     }
-    
+
     await this.persistData();
     this.isInitialized = false;
     this.emit('shutdown', {});
   }
 
   // Gate management
-  async createGate(gateData: Omit<Gate, 'id' | 'createdAt' | 'updatedAt' | '_sync'>): Promise<Gate> {
+  async createGate(
+    gateData: Omit<Gate, 'id' | 'createdAt' | 'updatedAt' | '_sync'>
+  ): Promise<Gate> {
     const gate: Gate = {
       ...gateData,
       id: generateId(),
       totalCheckIns: 0,
       currentLoad: 0,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.gates.set(gate.id, gate);
@@ -109,7 +123,7 @@ export class GateCoordinator extends EventEmitter {
     this.emitEvent('gate_created', {
       gateId: gate.id,
       name: gate.name,
-      ringNumbers: gate.ringNumbers
+      ringNumbers: gate.ringNumbers,
     });
 
     return gate;
@@ -117,24 +131,13 @@ export class GateCoordinator extends EventEmitter {
 
   async updateGate(gateId: string, updates: Partial<Gate>): Promise<Gate> {
     const gate = this.gates.get(gateId);
-    if (!gate) {
-      throw new Error(`Gate ${gateId} not found`);
-    }
+    if (!gate) throw new Error(`Gate ${gateId} not found`);
 
-    const updatedGate = {
-      ...gate,
-      ...updates,
-      updatedAt: new Date()
-    };
-
+    const updatedGate = { ...gate, ...updates, updatedAt: new Date() };
     this.gates.set(gateId, updatedGate);
     await this.persistData();
 
-    this.emitEvent('gate_updated', {
-      gateId,
-      updates
-    });
-
+    this.emitEvent('gate_updated', { gateId, updates });
     return updatedGate;
   }
 
@@ -144,10 +147,10 @@ export class GateCoordinator extends EventEmitter {
   }
 
   async deactivateGate(gateId: string): Promise<void> {
-    // End any active sessions on this gate
-    const activeSessions = Array.from(this.sessions.values())
-      .filter(s => s.gateId === gateId && s.isActive);
-    
+    const activeSessions = Array.from(this.sessions.values()).filter(
+      s => s.gateId === gateId && s.isActive
+    );
+
     for (const session of activeSessions) {
       await this.endSession(session.id, 'system');
     }
@@ -157,19 +160,16 @@ export class GateCoordinator extends EventEmitter {
   }
 
   // Steward management
-  async registerSteward(stewardData: Omit<GateSteward, 'id' | 'createdAt' | 'updatedAt' | 'totalCheckIns' | '_sync'>): Promise<GateSteward> {
+  async registerSteward(
+    stewardData: Omit<GateSteward, 'id' | 'createdAt' | 'updatedAt' | 'totalCheckIns' | '_sync'>
+  ): Promise<GateSteward> {
     const steward: GateSteward = {
       ...stewardData,
       id: generateId(),
       totalCheckIns: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
-      _sync: {
-        _version: 1,
-        _lastModified: new Date().toISOString(),
-        _lastModifiedBy: 'system',
-        _syncStatus: 'pending'
-      }
+      _sync: createInitialSyncMetadata(),
     };
 
     this.stewards.set(steward.id, steward);
@@ -178,137 +178,100 @@ export class GateCoordinator extends EventEmitter {
     this.emitEvent('steward_registered', {
       stewardId: steward.id,
       name: steward.name,
-      assignedRings: steward.assignedRings
+      assignedRings: steward.assignedRings,
     });
 
     return steward;
   }
 
-  async assignStewardToGate(stewardId: string, gateId: string, assignedBy: string): Promise<GateSession> {
+  async assignStewardToGate(
+    stewardId: string,
+    gateId: string,
+    assignedBy: string
+  ): Promise<GateSession> {
     const steward = this.stewards.get(stewardId);
     const gate = this.gates.get(gateId);
 
-    if (!steward) {
-      throw new Error(`Steward ${stewardId} not found`);
-    }
+    if (!steward) throw new Error(`Steward ${stewardId} not found`);
+    if (!gate) throw new Error(`Gate ${gateId} not found`);
+    if (!gate.isActive) throw new Error(`Gate ${gateId} is not active`);
 
-    if (!gate) {
-      throw new Error(`Gate ${gateId} not found`);
-    }
-
-    if (!gate.isActive) {
-      throw new Error(`Gate ${gateId} is not active`);
-    }
-
-    // Check if steward is already at maximum capacity
     const activeSessions = this.getActiveSessionsForSteward(stewardId);
     if (activeSessions.length >= this.config.maxGatesPerSteward) {
-      throw new Error(`Steward ${stewardId} is already at maximum capacity (${this.config.maxGatesPerSteward} gates)`);
+      throw new Error(
+        `Steward ${stewardId} is already at maximum capacity (${this.config.maxGatesPerSteward} gates)`
+      );
     }
 
-    // End any existing session on this gate
     const existingSession = this.getActiveSessionForGate(gateId);
     if (existingSession) {
       await this.endSession(existingSession.id, assignedBy);
     }
 
-    // Create new session
     const session = await this.startSession(stewardId, gateId, assignedBy);
 
-    // Update gate and steward
-    await this.updateGate(gateId, { 
-      currentSteward: stewardId,
-      lastActivity: new Date()
-    });
+    await this.updateGate(gateId, { currentSteward: stewardId, lastActivity: new Date() });
 
-    const updatedSteward = {
-      ...steward,
-      isActive: true,
-      lastActivity: new Date(),
-      currentShift: {
-        id: session.id,
-        stewardId,
-        showId: session.showId,
-        startTime: session.startTime,
-        assignedRings: gate.ringNumbers,
-        assignedGates: [gateId],
-        checkInCount: 0,
-        isActive: true
-      },
-      updatedAt: new Date(),
-      _sync: {
-        _version: (steward._sync?._version || 0) + 1,
-        _lastModified: new Date().toISOString(),
-        _lastModifiedBy: assignedBy,
-        _syncStatus: 'pending' as const
-      }
-    };
-
-    this.stewards.set(stewardId, updatedSteward);
+    this.stewards.set(
+      stewardId,
+      buildStewardUpdate(
+        steward,
+        {
+          isActive: true,
+          lastActivity: new Date(),
+          currentShift: {
+            id: session.id,
+            stewardId,
+            showId: session.showId,
+            startTime: session.startTime,
+            assignedRings: gate.ringNumbers,
+            assignedGates: [gateId],
+            checkInCount: 0,
+            isActive: true,
+          },
+        },
+        assignedBy
+      )
+    );
     await this.persistData();
 
-    this.emitEvent('steward_assigned', {
-      stewardId,
-      gateId,
-      sessionId: session.id,
-      assignedBy
-    });
-
+    this.emitEvent('steward_assigned', { stewardId, gateId, sessionId: session.id, assignedBy });
     return session;
   }
 
   async removeStewardFromGate(gateId: string, removedBy: string): Promise<void> {
     const gate = this.gates.get(gateId);
-    if (!gate || !gate.currentSteward) {
-      return;
-    }
+    if (!gate || !gate.currentSteward) return;
 
     const stewardId = gate.currentSteward;
     const activeSession = this.getActiveSessionForGate(gateId);
-    
+
     if (activeSession) {
       await this.endSession(activeSession.id, removedBy);
     }
 
-    await this.updateGate(gateId, { 
-      currentSteward: undefined,
-      lastActivity: new Date()
-    });
+    await this.updateGate(gateId, { currentSteward: undefined, lastActivity: new Date() });
 
     const steward = this.stewards.get(stewardId);
     if (steward) {
-      const updatedSteward = {
-        ...steward,
-        isActive: false,
-        currentShift: undefined,
-        lastActivity: new Date(),
-        updatedAt: new Date(),
-        _sync: {
-          _version: (steward._sync?._version || 0) + 1,
-          _lastModified: new Date().toISOString(),
-          _lastModifiedBy: removedBy,
-          _syncStatus: 'pending' as const
-        }
-      };
-
-      this.stewards.set(stewardId, updatedSteward);
+      this.stewards.set(
+        stewardId,
+        buildStewardUpdate(
+          steward,
+          { isActive: false, currentShift: undefined, lastActivity: new Date() },
+          removedBy
+        )
+      );
     }
 
     await this.persistData();
-
-    this.emitEvent('steward_removed', {
-      stewardId,
-      gateId,
-      removedBy
-    });
+    this.emitEvent('steward_removed', { stewardId, gateId, removedBy });
   }
 
   // Session management
   async startSession(stewardId: string, gateId: string, startedBy: string): Promise<GateSession> {
     const gate = this.gates.get(gateId);
-    if (!gate) {
-      throw new Error(`Gate ${gateId} not found`);
-    }
+    if (!gate) throw new Error(`Gate ${gateId} not found`);
 
     const session: GateSession = {
       id: generateId(),
@@ -322,7 +285,7 @@ export class GateCoordinator extends EventEmitter {
       conflictsResolved: 0,
       averageCheckInTime: 0,
       activities: [],
-      isActive: true
+      isActive: true,
     };
 
     this.sessions.set(session.id, session);
@@ -331,26 +294,17 @@ export class GateCoordinator extends EventEmitter {
     await this.logActivity(session.id, {
       type: 'steward_change',
       details: { action: 'session_started', startedBy },
-      severity: 'info'
+      severity: 'info',
     });
 
     await this.persistData();
-
-    this.emitEvent('session_started', {
-      sessionId: session.id,
-      stewardId,
-      gateId,
-      startedBy
-    });
-
+    this.emitEvent('session_started', { sessionId: session.id, stewardId, gateId, startedBy });
     return session;
   }
 
   async endSession(sessionId: string, endedBy: string): Promise<void> {
     const session = this.sessions.get(sessionId);
-    if (!session || !session.isActive) {
-      return;
-    }
+    if (!session || !session.isActive) return;
 
     session.endTime = new Date();
     session.isActive = false;
@@ -358,7 +312,7 @@ export class GateCoordinator extends EventEmitter {
     await this.logActivity(sessionId, {
       type: 'steward_change',
       details: { action: 'session_ended', endedBy },
-      severity: 'info'
+      severity: 'info',
     });
 
     this.sessions.set(sessionId, session);
@@ -369,29 +323,31 @@ export class GateCoordinator extends EventEmitter {
       stewardId: session.stewardId,
       gateId: session.gateId,
       duration: session.endTime.getTime() - session.startTime.getTime(),
-      endedBy
+      endedBy,
     });
   }
 
   // Activity logging
-  async logActivity(sessionId: string, activityData: {
-    type: GateActivity['type'];
-    entryId?: string;
-    details: Record<string, unknown>;
-    severity: GateActivity['severity'];
-  }): Promise<GateActivity> {
+  async logActivity(
+    sessionId: string,
+    activityData: {
+      type: GateActivity['type'];
+      entryId?: string;
+      details: Record<string, unknown>;
+      severity: GateActivity['severity'];
+    }
+  ): Promise<GateActivity> {
     const activity: GateActivity = {
       id: generateId(),
       sessionId,
       timestamp: new Date(),
-      ...activityData
+      ...activityData,
     };
 
     const activities = this.activities.get(sessionId) || [];
     activities.push(activity);
     this.activities.set(sessionId, activities);
 
-    // Update session activities
     const session = this.sessions.get(sessionId);
     if (session) {
       session.activities = activities;
@@ -399,56 +355,31 @@ export class GateCoordinator extends EventEmitter {
     }
 
     await this.persistData();
-
     return activity;
   }
 
-  async logCheckIn(sessionId: string, entryId: string, success: boolean, duration: number): Promise<void> {
+  async logCheckIn(
+    sessionId: string,
+    entryId: string,
+    success: boolean,
+    duration: number
+  ): Promise<void> {
     const session = this.sessions.get(sessionId);
-    if (!session) {
-      return;
-    }
+    if (!session) return;
 
-    // Update session statistics
-    session.totalCheckIns++;
-    if (success) {
-      session.successfulCheckIns++;
-    } else {
-      session.failedCheckIns++;
-    }
+    updateSessionCheckInStats(session, success, duration);
 
-    // Update average check-in time
-    if (session.totalCheckIns > 0) {
-      session.averageCheckInTime = 
-        (session.averageCheckInTime * (session.totalCheckIns - 1) + duration) / session.totalCheckIns;
-    }
-
-    // Update gate statistics
     const gate = this.gates.get(session.gateId);
     if (gate) {
       gate.totalCheckIns++;
-      gate.currentLoad = this.calculateGateLoad(session.gateId);
+      gate.currentLoad = calculateGateLoad(session.gateId, this.sessions);
       gate.lastActivity = new Date();
       this.gates.set(session.gateId, gate);
     }
 
-    // Update steward statistics
     const steward = this.stewards.get(session.stewardId);
     if (steward) {
-      steward.totalCheckIns++;
-      steward.lastActivity = new Date();
-      if (!steward._sync) {
-        steward._sync = {
-          _version: 1,
-          _lastModified: new Date().toISOString(),
-          _lastModifiedBy: 'system',
-          _syncStatus: 'pending'
-        };
-      } else {
-        steward._sync._version++;
-        steward._sync._lastModified = new Date().toISOString();
-        steward._sync._syncStatus = 'pending';
-      }
+      incrementStewardCheckIn(steward);
       this.stewards.set(session.stewardId, steward);
     }
 
@@ -456,7 +387,7 @@ export class GateCoordinator extends EventEmitter {
       type: 'check_in',
       entryId,
       details: { success, duration },
-      severity: success ? 'info' : 'warning'
+      severity: success ? 'info' : 'warning',
     });
 
     this.sessions.set(sessionId, session);
@@ -465,37 +396,18 @@ export class GateCoordinator extends EventEmitter {
 
   // Load balancing
   async balanceLoad(): Promise<void> {
-    if (!this.config.autoBalanceLoad) {
-      return;
-    }
+    if (!this.config.autoBalanceLoad) return;
 
-    const activeGates = Array.from(this.gates.values()).filter(g => g.isActive);
+    const overloaded = findOverloadedGates(this.gates, this.sessions, this.stewards);
     const availableStewards = Array.from(this.stewards.values()).filter(s => s.isActive);
 
-    // Calculate load distribution
-    const gateLoads = activeGates.map(gate => ({
-      gate,
-      load: this.calculateGateLoad(gate.id),
-      currentSteward: gate.currentSteward
-    }));
-
-    // Sort by load (highest first)
-    gateLoads.sort((a, b) => b.load - a.load);
-
-    // Check for overloaded gates
-    const overloadedGates = gateLoads.filter(gl => 
-      gl.load > 0.8 && !gl.currentSteward && availableStewards.length > 0
-    );
-
-    // Assign stewards to overloaded gates
-    for (const overloadedGate of overloadedGates) {
-      const availableSteward = availableStewards.find(s => 
-        this.getActiveSessionsForSteward(s.id).length < this.config.maxGatesPerSteward
+    for (const { gate } of overloaded) {
+      const steward = availableStewards.find(
+        s => this.getActiveSessionsForSteward(s.id).length < this.config.maxGatesPerSteward
       );
-
-      if (availableSteward) {
+      if (steward) {
         try {
-          await this.assignStewardToGate(availableSteward.id, overloadedGate.gate.id, 'auto-balance');
+          await this.assignStewardToGate(steward.id, gate.id, 'auto-balance');
         } catch (error) {
           logger.warn('Auto-balance assignment failed', 'checkin', {}, error as Error);
         }
@@ -505,19 +417,18 @@ export class GateCoordinator extends EventEmitter {
 
   // Conflict management
   async escalateConflict(conflict: CheckInConflict, escalatedBy: string): Promise<void> {
-    // Log conflict escalation
     const sessionId = this.findSessionForGate(conflict.gateId || '');
     if (sessionId) {
       await this.logActivity(sessionId, {
         type: 'conflict',
         entryId: conflict.entryId,
-        details: { 
+        details: {
           conflictId: conflict.id,
           conflictType: conflict.type,
           escalatedBy,
-          action: 'escalated'
+          action: 'escalated',
         },
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -526,76 +437,38 @@ export class GateCoordinator extends EventEmitter {
       conflictType: conflict.type,
       entryId: conflict.entryId,
       gateId: conflict.gateId,
-      escalatedBy
+      escalatedBy,
     });
   }
 
   // Statistics and monitoring
   async getGateStatistics(gateId: string): Promise<GateStatistics> {
     const gate = this.gates.get(gateId);
-    if (!gate) {
-      throw new Error(`Gate ${gateId} not found`);
-    }
-
-    const sessions = Array.from(this.sessions.values()).filter(s => s.gateId === gateId);
-    const totalCheckIns = sessions.reduce((sum, s) => sum + s.totalCheckIns, 0);
-    const totalErrors = sessions.reduce((sum, s) => sum + s.failedCheckIns, 0);
-    const totalConflicts = sessions.reduce((sum, s) => sum + s.conflictsResolved, 0);
-    
-    const avgTime = sessions.length > 0 
-      ? sessions.reduce((sum, s) => sum + s.averageCheckInTime, 0) / sessions.length
-      : 0;
-
-    return {
-      gateId,
-      totalCheckIns,
-      averageTime: avgTime,
-      errorCount: totalErrors,
-      conflictCount: totalConflicts,
-      currentLoad: gate.currentLoad,
-      efficiency: totalCheckIns > 0 ? (totalCheckIns - totalErrors) / totalCheckIns : 1
-    };
+    if (!gate) throw new Error(`Gate ${gateId} not found`);
+    return computeGateStatistics(gateId, gate, this.sessions);
   }
 
   async getAllStatistics(): Promise<{
     gates: Map<string, GateStatistics>;
-    stewards: Map<string, { stewardId: string; totalCheckIns: number; averageTime: number; efficiency: number }>;
-    overview: { totalGates: number; activeGates: number; totalStewards: number; activeStewards: number; totalCheckIns: number };
+    stewards: Map<string, StewardStatistics>;
+    overview: CoordinatorOverview;
   }> {
     const gateStats = new Map<string, GateStatistics>();
-    const stewardStats = new Map<string, { stewardId: string; totalCheckIns: number; averageTime: number; efficiency: number }>();
+    const stewardStats = new Map<string, StewardStatistics>();
 
-    // Calculate gate statistics
     for (const gate of this.gates.values()) {
-      gateStats.set(gate.id, await this.getGateStatistics(gate.id));
+      gateStats.set(gate.id, computeGateStatistics(gate.id, gate, this.sessions));
     }
 
-    // Calculate steward statistics
     for (const steward of this.stewards.values()) {
-      const sessions = Array.from(this.sessions.values()).filter(s => s.stewardId === steward.id);
-      const totalCheckIns = sessions.reduce((sum, s) => sum + s.totalCheckIns, 0);
-      const totalErrors = sessions.reduce((sum, s) => sum + s.failedCheckIns, 0);
-      const avgTime = sessions.length > 0 
-        ? sessions.reduce((sum, s) => sum + s.averageCheckInTime, 0) / sessions.length
-        : 0;
-
-      stewardStats.set(steward.id, {
-        stewardId: steward.id,
-        totalCheckIns,
-        averageTime: avgTime,
-        efficiency: totalCheckIns > 0 ? (totalCheckIns - totalErrors) / totalCheckIns : 1
-      });
+      stewardStats.set(steward.id, computeStewardStatistics(steward.id, this.sessions));
     }
 
-    const overview = {
-      totalGates: this.gates.size,
-      activeGates: Array.from(this.gates.values()).filter(g => g.isActive).length,
-      totalStewards: this.stewards.size,
-      activeStewards: Array.from(this.stewards.values()).filter(s => s.isActive).length,
-      totalCheckIns: Array.from(this.sessions.values()).reduce((sum, s) => sum + s.totalCheckIns, 0)
+    return {
+      gates: gateStats,
+      stewards: stewardStats,
+      overview: computeOverview(this.gates, this.stewards, this.sessions),
     };
-
-    return { gates: gateStats, stewards: stewardStats, overview };
   }
 
   // Query methods
@@ -629,21 +502,6 @@ export class GateCoordinator extends EventEmitter {
   }
 
   // Private helper methods
-  private calculateGateLoad(gateId: string): number {
-    const session = this.getActiveSessionForGate(gateId);
-    if (!session) {
-      return 0;
-    }
-
-    // Simple load calculation based on recent activity
-    const recentActivities = session.activities.filter(
-      a => Date.now() - a.timestamp.getTime() < 10 * 60 * 1000 // Last 10 minutes
-    );
-
-    const checkInActivities = recentActivities.filter(a => a.type === 'check_in');
-    return Math.min(checkInActivities.length / 10, 1); // Max 10 check-ins per 10 minutes = 100% load
-  }
-
   private startLoadBalancing(): void {
     this.loadBalanceInterval = setInterval(async () => {
       try {
@@ -651,7 +509,7 @@ export class GateCoordinator extends EventEmitter {
       } catch (error) {
         logger.error('Load balancing failed', 'checkin', {}, error as Error);
       }
-    }, 60000); // Every minute
+    }, 60000);
   }
 
   private startSessionMonitoring(): void {
@@ -660,11 +518,11 @@ export class GateCoordinator extends EventEmitter {
       const timeoutMs = this.config.sessionTimeoutMinutes * 60 * 1000;
 
       for (const session of this.sessions.values()) {
-        if (session.isActive && (now.getTime() - session.startTime.getTime()) > timeoutMs) {
+        if (session.isActive && now.getTime() - session.startTime.getTime() > timeoutMs) {
           await this.endSession(session.id, 'auto-timeout');
         }
       }
-    }, 300000); // Every 5 minutes
+    }, 300000);
   }
 
   private emitEvent(type: CheckInEventType, data: Record<string, unknown>): void {
@@ -673,58 +531,20 @@ export class GateCoordinator extends EventEmitter {
       timestamp: new Date(),
       data,
       source: 'gate',
-      priority: 'medium'
+      priority: 'medium',
     };
-    
     this.emit('gate-event', event);
   }
 
-  // Persistence
   private async persistData(): Promise<void> {
-    try {
-      const data = {
-        gates: Array.from(this.gates.entries()),
-        stewards: Array.from(this.stewards.entries()),
-        sessions: Array.from(this.sessions.entries()),
-        activities: Array.from(this.activities.entries()),
-        config: this.config
-      };
-      
-      await this.storage.setItem('gate-coordinator-data', JSON.stringify(data));
-    } catch (error) {
-      logger.error('Failed to persist gate coordinator data', 'checkin', {}, error as Error);
-    }
-  }
-
-  private async loadPersistedData(): Promise<void> {
-    try {
-      const dataStr = await this.storage.getItem('gate-coordinator-data');
-      if (!dataStr) return;
-
-      const data = JSON.parse(dataStr);
-      
-      if (data.gates) {
-        this.gates = new Map(data.gates);
-      }
-      
-      if (data.stewards) {
-        this.stewards = new Map(data.stewards);
-      }
-      
-      if (data.sessions) {
-        this.sessions = new Map(data.sessions);
-      }
-      
-      if (data.activities) {
-        this.activities = new Map(data.activities);
-      }
-      
-      if (data.config) {
-        this.config = { ...this.config, ...data.config };
-      }
-    } catch (error) {
-      logger.error('Failed to load persisted gate coordinator data', 'checkin', {}, error as Error);
-    }
+    await persistCoordinatorData(
+      this.storage,
+      this.gates,
+      this.stewards,
+      this.sessions,
+      this.activities,
+      this.config
+    );
   }
 }
 

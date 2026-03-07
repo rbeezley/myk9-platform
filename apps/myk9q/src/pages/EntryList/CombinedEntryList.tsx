@@ -3,26 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../hooks/usePermission';
 import { usePrefetch } from '@/hooks/usePrefetch';
-import { ErrorState, TabBar, Tab, FilterPanel, SortOption } from '../../components/ui';
-import { CheckinStatusDialog } from '../../components/dialogs/CheckinStatusDialog';
-import { RunOrderDialog, RunOrderPreset } from '../../components/dialogs/RunOrderDialog';
+import { ErrorState, TabBar, Tab, SortOption } from '../../components/ui';
+import { RunOrderPreset } from '../../components/dialogs/RunOrderDialog';
 import { Clock, CheckCircle, ArrowUpDown, Trophy, RefreshCw } from 'lucide-react';
 import { Entry } from '../../stores/entryStore';
 import { applyRunOrderPresetScoped } from '../../services/runOrderService';
 import type { RunOrderScope, RenumberMode } from '../../services/runOrderService';
-import {
-  generateCheckInSheet,
-  generateResultsSheet,
-  generateScoresheetReport,
-  ReportClassInfo,
-  ScoresheetClassInfo,
-  type ReportSortOrder,
-} from '../../services/reportService';
-import {
-  ScoresheetPrintDialog,
-  type PrintSortOrder,
-} from '../../components/dialogs/ScoresheetPrintDialog';
-import { supabase } from '../../lib/supabase';
+import type { PrintSortOrder } from '../../components/dialogs/ScoresheetPrintDialog';
 import { getScoresheetRoute } from '../../services/scoresheetRouter';
 import { preloadScoresheetByType } from '../../utils/scoresheetPreloader';
 import {
@@ -31,142 +18,20 @@ import {
   useEntryListFilters,
   useDragAndDropEntries,
 } from './hooks';
-import {
-  EntryListHeader,
-  EntryListContent,
-  ResetConfirmDialog,
-  SelfCheckinDisabledDialog,
-  SuccessToast,
-  FloatingDoneButton,
-  ResetMenuPopup,
-} from './components';
+import { EntryListHeader, EntryListContent } from './components';
+import { CombinedEntryListDialogs } from './CombinedEntryListDialogs';
 import { logger } from '@/utils/logger';
+import {
+  compareEntries,
+  getScoresheetNavigationRoute,
+  useEntryHandlers,
+} from './CombinedEntryList.helpers';
+import { dispatchPrintAction } from './CombinedEntryList.print';
+import type { SortOrder, PrintDialogState } from './CombinedEntryList.types';
 import './EntryList.css';
 
-/**
- * Parse organization data from org string
- */
-function parseOrganizationData(orgString: string) {
-  if (!orgString || orgString.trim() === '') {
-    return { organization: 'AKC', activity_type: 'Scent Work' };
-  }
-  const parts = orgString.split(' ');
-  return { organization: parts[0], activity_type: parts.slice(1).join(' ') };
-}
-
-/**
- * Compare entries for sorting — extracted to reduce component complexity
- */
-function compareEntries(
-  a: Entry,
-  b: Entry,
-  sortOrder: 'run' | 'armband' | 'placement' | 'section-armband'
-): number {
-  // In-ring entries always first
-  const aInRing = a.status === 'in-ring';
-  const bInRing = b.status === 'in-ring';
-  if (aInRing && !bInRing) return -1;
-  if (!aInRing && bInRing) return 1;
-
-  if (sortOrder === 'section-armband') {
-    if (a.section && b.section && a.section !== b.section) {
-      return a.section.localeCompare(b.section);
-    }
-    return a.armband - b.armband;
-  } else if (sortOrder === 'armband') {
-    return a.armband - b.armband;
-  } else if (sortOrder === 'placement') {
-    if (a.section && b.section && a.section !== b.section) {
-      return a.section.localeCompare(b.section);
-    }
-    if (a.placement === undefined && b.placement === undefined) return 0;
-    if (a.placement === undefined) return 1;
-    if (b.placement === undefined) return -1;
-    return a.placement - b.placement;
-  } else if (sortOrder === 'run') {
-    return (a.exhibitorOrder || 0) - (b.exhibitorOrder || 0);
-  }
-  return 0;
-}
-
-/**
- * Parse time limits from string format
- */
-function parseTimeLimit(timeStr?: string): number | undefined {
-  if (!timeStr) return undefined;
-  const num = parseInt(timeStr, 10);
-  if (!isNaN(num)) return num;
-  return undefined;
-}
-
-/**
- * Fetch class requirements (hides/distractions) from database
- */
-async function fetchClassRequirements(
-  orgData: { organization: string },
-  element?: string,
-  level?: string
-) {
-  // Skip for Master level - judge determines hides count
-  const isMasterLevel = level?.toLowerCase().includes('master');
-  if (isMasterLevel || !orgData.organization || !element || !level) {
-    return { hidesText: undefined, distractionsText: undefined };
-  }
-
-  try {
-    const { data: requirements } = await supabase
-      .from('class_requirements')
-      .select('hides, distractions')
-      .eq('organization', orgData.organization)
-      .eq('element', element)
-      .eq('level', level)
-      .single();
-
-    if (requirements) {
-      return { hidesText: requirements.hides, distractionsText: requirements.distractions };
-    }
-  } catch (reqError) {
-    logger.warn('Could not fetch class requirements:', reqError);
-  }
-  return { hidesText: undefined, distractionsText: undefined };
-}
-
-/**
- * Determine scoresheet route based on org/activity/element
- */
-function getScoresheetNavigationRoute(orgString: string, entry: Entry): string | null {
-  const orgData = parseOrganizationData(orgString);
-  const element = entry.element || '';
-  const base = `/scoresheet`;
-
-  if (orgData.organization === 'AKC') {
-    if (orgData.activity_type === 'Scent Work' || orgData.activity_type === 'ScentWork') {
-      return `${base}/akc-scent-work/${entry.classId}/${entry.id}`;
-    }
-    if (orgData.activity_type === 'FastCat' || orgData.activity_type === 'Fast Cat') {
-      return `${base}/akc-fastcat/${entry.classId}/${entry.id}`;
-    }
-  } else if (orgData.organization === 'UKC') {
-    if (orgData.activity_type === 'Nosework') {
-      return `${base}/ukc-nosework/${entry.classId}/${entry.id}`;
-    }
-    if (element === 'Obedience') {
-      return `${base}/ukc-obedience/${entry.classId}/${entry.id}`;
-    }
-    if (element === 'Rally') {
-      return `${base}/ukc-rally/${entry.classId}/${entry.id}`;
-    }
-  }
-  return null;
-}
-
-const PRINT_DIALOG_TITLES: Record<string, string> = {
-  'check-in': 'Print Check-In Sheet',
-  'results-a': 'Print Results - Section A',
-  'results-b': 'Print Results - Section B',
-  'scoresheet-a': 'Print Scoresheet - Section A',
-  'scoresheet-b': 'Print Scoresheet - Section B',
-};
+// Re-export types for external consumers
+export type { SortOrder, PrintDialogState, ResetConfirmState } from './CombinedEntryList.types';
 
 export const CombinedEntryList: React.FC = () => {
   const { classIdA, classIdB } = useParams<{ classIdA: string; classIdB: string }>();
@@ -185,7 +50,6 @@ export const CombinedEntryList: React.FC = () => {
   });
 
   // NOTE: React Query automatically fetches on mount when enabled: true
-  // Removed manual refresh() call that was causing double-fetch and flash on load
 
   // Actions using shared hook
   const {
@@ -200,29 +64,14 @@ export const CombinedEntryList: React.FC = () => {
   // Local UI state
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [_manualOrder, setManualOrder] = useState<Entry[]>([]);
-  const [sortOrder, setSortOrder] = useState<'run' | 'armband' | 'placement' | 'section-armband'>(
-    'section-armband'
-  );
+  const [sortOrder, setSortOrder] = useState<SortOrder>('section-armband');
   const [isLoaded, setIsLoaded] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [activeResetMenu, setActiveResetMenu] = useState<number | null>(null);
-  const [resetMenuPosition, setResetMenuPosition] = useState<{ top: number; left: number } | null>(
-    null
-  );
-  const [resetConfirmDialog, setResetConfirmDialog] = useState<{
-    show: boolean;
-    entry: Entry | null;
-  }>({ show: false, entry: null });
-  const [activeStatusPopup, setActiveStatusPopup] = useState<number | null>(null);
   const [runOrderDialogOpen, setRunOrderDialogOpen] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isDragMode, setIsDragMode] = useState(false);
   const [selfCheckinDisabledDialog, setSelfCheckinDisabledDialog] = useState(false);
-
-  // Print dialog state - tracks which report type to generate
-  const [printDialogState, setPrintDialogState] = useState<{
-    type: 'check-in' | 'results-a' | 'results-b' | 'scoresheet-a' | 'scoresheet-b' | null;
-  }>({ type: null });
+  const [printDialogState, setPrintDialogState] = useState<PrintDialogState>({ type: null });
 
   // Filters using shared hook
   const {
@@ -240,12 +89,33 @@ export const CombinedEntryList: React.FC = () => {
     supportSectionFilter: true,
   });
 
-  // NOTE: Cache update subscription is handled by useEntryListData hook.
-  // Previously had a duplicate subscription here via manager.onCacheUpdate()
-  // that caused double notifications. Removed to prevent issues.
+  // Status, reset, and menu handlers (extracted to reduce component size)
+  const {
+    activeStatusPopup,
+    setActiveStatusPopup,
+    handleStatusClick,
+    handleStatusChange,
+    activeResetMenu,
+    resetMenuPosition,
+    handleResetMenuClick,
+    handleResetScore,
+    resetConfirmDialog,
+    confirmResetScore,
+    cancelResetScore,
+    closeResetMenu,
+  } = useEntryHandlers({
+    localEntries,
+    setLocalEntries,
+    entries,
+    handleMarkInRing,
+    handleMarkCompleted,
+    handleStatusChangeHook,
+    handleResetScoreHook,
+    refresh,
+    setActiveTab,
+  });
 
   // Sync local entries with fetched data
-  // Note: This pattern synchronizes React Query data with local state for optimistic UI updates
   useEffect(() => {
     if (entries.length > 0 && !isDraggingRef.current) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: syncing external data to local state
@@ -347,134 +217,6 @@ export const CombinedEntryList: React.FC = () => {
     [hasPermission, classIdA, classIdB, showContext?.org, navigate]
   );
 
-  // Status handlers
-  const handleStatusClick = useCallback((e: React.MouseEvent, entryId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setActiveStatusPopup(entryId);
-  }, []);
-
-  const handleStatusChange = useCallback(
-    async (
-      entryId: number,
-      newStatus:
-        | 'no-status'
-        | 'checked-in'
-        | 'conflict'
-        | 'pulled'
-        | 'at-gate'
-        | 'come-to-gate'
-        | 'in-ring'
-        | 'completed'
-    ) => {
-      setActiveStatusPopup(null);
-
-      if (newStatus === 'in-ring') {
-        // Get entry's current status before updating so it can be restored on cancel
-        const currentEntry = localEntries.find(entry => entry.id === entryId);
-        const currentStatus = currentEntry?.status;
-
-        setLocalEntries(prev =>
-          prev.map(entry => (entry.id === entryId ? { ...entry, status: 'in-ring' } : entry))
-        );
-        try {
-          // Pass current status so it can be restored if scoresheet is canceled
-          await handleMarkInRing(entryId, currentStatus);
-        } catch (error) {
-          logger.error('Mark in-ring failed:', error);
-          refresh();
-        }
-        return;
-      }
-
-      if (newStatus === 'completed') {
-        setLocalEntries(prev =>
-          prev.map(entry =>
-            entry.id === entryId ? { ...entry, isScored: true, status: 'completed' } : entry
-          )
-        );
-        try {
-          await handleMarkCompleted(entryId);
-        } catch (error) {
-          logger.error('Mark completed failed:', error);
-          refresh();
-        }
-        return;
-      }
-
-      setLocalEntries(prev =>
-        prev.map(entry =>
-          entry.id === entryId
-            ? {
-                ...entry,
-                checkedIn: newStatus !== 'no-status',
-                status: newStatus,
-                _timestamp: Date.now(),
-              }
-            : entry
-        )
-      );
-
-      try {
-        await handleStatusChangeHook(entryId, newStatus);
-        await refresh();
-      } catch (error) {
-        logger.error('Status change failed:', error);
-        setLocalEntries(prev =>
-          prev.map(entry =>
-            entry.id === entryId
-              ? { ...entry, status: entries.find(e => e.id === entryId)?.status || 'no-status' }
-              : entry
-          )
-        );
-        refresh();
-      }
-    },
-    [handleMarkInRing, handleMarkCompleted, handleStatusChangeHook, entries, localEntries, refresh]
-  );
-
-  // Reset menu handlers
-  const handleResetMenuClick = useCallback((e: React.MouseEvent, entryId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    // Use rect.right so menu extends LEFT from button (via translateX(-100%) in ResetMenuPopup)
-    setResetMenuPosition({ top: rect.bottom + 4, left: rect.right });
-    setActiveResetMenu(entryId);
-  }, []);
-
-  const handleResetScore = useCallback((entry: Entry) => {
-    setActiveResetMenu(null);
-    setResetMenuPosition(null);
-    setResetConfirmDialog({ show: true, entry });
-  }, []);
-
-  const confirmResetScore = useCallback(async () => {
-    if (!resetConfirmDialog.entry) return;
-
-    const entryId = resetConfirmDialog.entry.id;
-    try {
-      await handleResetScoreHook(entryId);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      await refresh();
-      setActiveTab('pending');
-    } catch (error) {
-      logger.error('Failed to reset score:', error);
-      alert(`Failed to reset score: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-
-    setResetConfirmDialog({ show: false, entry: null });
-  }, [resetConfirmDialog.entry, handleResetScoreHook, refresh, setActiveTab]);
-
-  const cancelResetScore = useCallback(() => {
-    setResetConfirmDialog({ show: false, entry: null });
-  }, []);
-
-  const closeResetMenu = useCallback(() => {
-    setActiveResetMenu(null);
-    setResetMenuPosition(null);
-  }, []);
-
   // Run order handlers
   const handleApplyRunOrder = useCallback(
     async (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => {
@@ -492,7 +234,7 @@ export const CombinedEntryList: React.FC = () => {
         setTimeout(() => setShowSuccessMessage(false), 2000);
         await refresh();
       } catch (error) {
-        logger.error('❌ Error applying run order:', error);
+        logger.error('Error applying run order:', error);
         setRunOrderDialogOpen(false);
       }
     },
@@ -506,178 +248,14 @@ export const CombinedEntryList: React.FC = () => {
     setSortOrder('run');
   }, [currentEntries]);
 
-  // Print handlers
-  const handlePrintCheckIn = useCallback(
-    (options?: { sortOrder?: ReportSortOrder }) => {
-      if (!classInfo) return;
-
-      const orgData = parseOrganizationData(showContext?.org || '');
-      const reportClassInfo: ReportClassInfo = {
-        className: `${classInfo.element} ${classInfo.level} A & B Combined`,
-        element: classInfo.element,
-        level: classInfo.level,
-        section: 'A & B',
-        trialDate: classInfo.trialDate || '',
-        trialNumber: classInfo.trialNumber || '',
-        judgeName: classInfo.judgeName || 'TBD',
-        organization: orgData.organization,
-        activityType: orgData.activity_type,
-      };
-
-      generateCheckInSheet(reportClassInfo, entries, options);
-    },
-    [classInfo, showContext?.org, entries]
-  );
-
-  const handlePrintResultsSectionA = useCallback(
-    (options?: { sortOrder?: 'placement' | 'armband' }) => {
-      if (!classInfo) return;
-
-      const sectionAEntries = entries.filter(entry => entry.section === 'A');
-      const orgData = parseOrganizationData(showContext?.org || '');
-      const reportClassInfo: ReportClassInfo = {
-        className: `${classInfo.element} ${classInfo.level} Section A`,
-        element: classInfo.element,
-        level: classInfo.level,
-        section: 'A',
-        trialDate: classInfo.trialDate || '',
-        trialNumber: classInfo.trialNumber || '',
-        judgeName: classInfo.judgeName || 'TBD',
-        organization: orgData.organization,
-        activityType: orgData.activity_type,
-      };
-
-      generateResultsSheet(reportClassInfo, sectionAEntries, options);
-    },
-    [classInfo, showContext?.org, entries]
-  );
-
-  const handlePrintResultsSectionB = useCallback(
-    (options?: { sortOrder?: 'placement' | 'armband' }) => {
-      if (!classInfo) return;
-
-      const sectionBEntries = entries.filter(entry => entry.section === 'B');
-      const orgData = parseOrganizationData(showContext?.org || '');
-      const reportClassInfo: ReportClassInfo = {
-        className: `${classInfo.element} ${classInfo.level} Section B`,
-        element: classInfo.element,
-        level: classInfo.level,
-        section: 'B',
-        trialDate: classInfo.trialDate || '',
-        trialNumber: classInfo.trialNumber || '',
-        judgeName: classInfo.judgeNameB || classInfo.judgeName || 'TBD',
-        organization: orgData.organization,
-        activityType: orgData.activity_type,
-      };
-
-      generateResultsSheet(reportClassInfo, sectionBEntries, options);
-    },
-    [classInfo, showContext?.org, entries]
-  );
-
-  const handlePrintScoresheetSectionA = useCallback(
-    async (options?: { sortOrder?: ReportSortOrder; showSectionBadge?: boolean }) => {
-      if (!classInfo) return;
-
-      const sectionAEntries = entries.filter(entry => entry.section === 'A');
-      const orgData = parseOrganizationData(showContext?.org || '');
-      const { hidesText, distractionsText } = await fetchClassRequirements(
-        orgData,
-        classInfo.element,
-        classInfo.level
-      );
-
-      const scoresheetClassInfo: ScoresheetClassInfo = {
-        className: `${classInfo.element} ${classInfo.level} Section A`,
-        element: classInfo.element,
-        level: classInfo.level,
-        section: 'A',
-        trialDate: classInfo.trialDate || '',
-        trialNumber: classInfo.trialNumber || '',
-        judgeName: classInfo.judgeName || 'TBD',
-        organization: orgData.organization,
-        activityType: orgData.activity_type,
-        timeLimitSeconds: parseTimeLimit(classInfo.timeLimit),
-        timeLimitArea2Seconds: parseTimeLimit(classInfo.timeLimit2),
-        timeLimitArea3Seconds: parseTimeLimit(classInfo.timeLimit3),
-        areaCount: classInfo.areas,
-        hidesText,
-        distractionsText,
-      };
-
-      generateScoresheetReport(scoresheetClassInfo, sectionAEntries, {
-        ...options,
-        showSectionBadge: true,
-      });
-    },
-    [classInfo, showContext?.org, entries]
-  );
-
-  const handlePrintScoresheetSectionB = useCallback(
-    async (options?: { sortOrder?: ReportSortOrder; showSectionBadge?: boolean }) => {
-      if (!classInfo) return;
-
-      const sectionBEntries = entries.filter(entry => entry.section === 'B');
-      const orgData = parseOrganizationData(showContext?.org || '');
-      const { hidesText, distractionsText } = await fetchClassRequirements(
-        orgData,
-        classInfo.element,
-        classInfo.level
-      );
-
-      const scoresheetClassInfo: ScoresheetClassInfo = {
-        className: `${classInfo.element} ${classInfo.level} Section B`,
-        element: classInfo.element,
-        level: classInfo.level,
-        section: 'B',
-        trialDate: classInfo.trialDate || '',
-        trialNumber: classInfo.trialNumber || '',
-        judgeName: classInfo.judgeNameB || classInfo.judgeName || 'TBD',
-        organization: orgData.organization,
-        activityType: orgData.activity_type,
-        timeLimitSeconds: parseTimeLimit(classInfo.timeLimit),
-        timeLimitArea2Seconds: parseTimeLimit(classInfo.timeLimit2),
-        timeLimitArea3Seconds: parseTimeLimit(classInfo.timeLimit3),
-        areaCount: classInfo.areas,
-        hidesText,
-        distractionsText,
-      };
-
-      generateScoresheetReport(scoresheetClassInfo, sectionBEntries, {
-        ...options,
-        showSectionBadge: true,
-      });
-    },
-    [classInfo, showContext?.org, entries]
-  );
-
-  // Handler for when user picks a sort order from the print dialog
+  // Print sort order handler
   const handlePrintSortOrder = useCallback(
     (selectedSortOrder: PrintSortOrder) => {
       const type = printDialogState.type;
       setPrintDialogState({ type: null });
-      if (type === 'check-in') handlePrintCheckIn({ sortOrder: selectedSortOrder });
-      else if (type === 'results-a')
-        handlePrintResultsSectionA({
-          sortOrder: selectedSortOrder === 'run-order' ? 'placement' : 'armband',
-        });
-      else if (type === 'results-b')
-        handlePrintResultsSectionB({
-          sortOrder: selectedSortOrder === 'run-order' ? 'placement' : 'armband',
-        });
-      else if (type === 'scoresheet-a')
-        handlePrintScoresheetSectionA({ sortOrder: selectedSortOrder });
-      else if (type === 'scoresheet-b')
-        handlePrintScoresheetSectionB({ sortOrder: selectedSortOrder });
+      dispatchPrintAction(type, selectedSortOrder, classInfo, showContext?.org || '', entries);
     },
-    [
-      printDialogState.type,
-      handlePrintCheckIn,
-      handlePrintResultsSectionA,
-      handlePrintResultsSectionB,
-      handlePrintScoresheetSectionA,
-      handlePrintScoresheetSectionB,
-    ]
+    [printDialogState.type, classInfo, showContext?.org, entries]
   );
 
   // Tab configuration
@@ -828,16 +406,15 @@ export const CombinedEntryList: React.FC = () => {
         </div>
       </div>
 
-      <FilterPanel
-        isOpen={isFilterPanelOpen}
-        onClose={() => setIsFilterPanelOpen(false)}
+      <CombinedEntryListDialogs
+        isFilterPanelOpen={isFilterPanelOpen}
+        onFilterClose={() => setIsFilterPanelOpen(false)}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search dog, handler, breed, armband..."
         sortOptions={sortOptions}
         sortOrder={sortOrder}
         onSortChange={order => {
-          setSortOrder(order as 'run' | 'armband' | 'placement' | 'section-armband');
+          setSortOrder(order);
           setIsDragMode(false);
         }}
         resultsLabel={
@@ -845,75 +422,30 @@ export const CombinedEntryList: React.FC = () => {
             ? `${filteredEntries.length} of ${localEntries.length} entries`
             : `${currentEntries.length} entries`
         }
-      />
-
-      <CheckinStatusDialog
-        isOpen={activeStatusPopup !== null}
-        onClose={() => setActiveStatusPopup(null)}
-        onStatusChange={status => {
-          if (activeStatusPopup !== null) {
-            handleStatusChange(activeStatusPopup, status);
-          }
-        }}
-        dogInfo={{
-          armband: localEntries.find(e => e.id === activeStatusPopup)?.armband || 0,
-          callName: localEntries.find(e => e.id === activeStatusPopup)?.callName || '',
-          handler: localEntries.find(e => e.id === activeStatusPopup)?.handler || '',
-        }}
-        showDescriptions={true}
-        showRingManagement={hasPermission('canScore')}
-      />
-
-      <RunOrderDialog
-        isOpen={runOrderDialogOpen}
-        onClose={() => setRunOrderDialogOpen(false)}
-        entries={localEntries}
-        onApplyOrder={handleApplyRunOrder}
+        activeStatusPopup={activeStatusPopup}
+        onStatusPopupClose={() => setActiveStatusPopup(null)}
+        onStatusChange={handleStatusChange}
+        localEntries={localEntries}
+        hasCanScorePermission={hasPermission('canScore')}
+        runOrderDialogOpen={runOrderDialogOpen}
+        onRunOrderClose={() => setRunOrderDialogOpen(false)}
+        onApplyRunOrder={handleApplyRunOrder}
         onOpenDragMode={handleOpenDragMode}
-      />
-
-      <ResetMenuPopup
-        activeEntryId={activeResetMenu}
-        position={resetMenuPosition}
-        entries={localEntries}
+        activeResetMenu={activeResetMenu}
+        resetMenuPosition={resetMenuPosition}
         onResetScore={handleResetScore}
-        onClose={closeResetMenu}
-      />
-
-      <ResetConfirmDialog
-        isOpen={resetConfirmDialog.show}
-        entry={resetConfirmDialog.entry}
-        onConfirm={confirmResetScore}
-        onCancel={cancelResetScore}
-      />
-
-      <SelfCheckinDisabledDialog
-        isOpen={selfCheckinDisabledDialog}
-        onClose={() => setSelfCheckinDisabledDialog(false)}
-      />
-
-      <ScoresheetPrintDialog
-        isOpen={printDialogState.type !== null}
-        onClose={() => setPrintDialogState({ type: null })}
-        onPrint={handlePrintSortOrder}
-        title={
-          (printDialogState.type && PRINT_DIALOG_TITLES[printDialogState.type]) || 'Print Report'
-        }
-        options={
-          printDialogState.type === 'results-a' || printDialogState.type === 'results-b'
-            ? {
-                primary: { label: 'Placement', sortOrder: 'placement' },
-                secondary: { label: 'Armband Number', sortOrder: 'armband' },
-              }
-            : undefined
-        }
-      />
-
-      <SuccessToast isVisible={showSuccessMessage} message="Run order updated successfully" />
-
-      <FloatingDoneButton
-        isVisible={isDragMode}
-        onClick={() => {
+        onResetMenuClose={closeResetMenu}
+        resetConfirmDialog={resetConfirmDialog}
+        onConfirmReset={confirmResetScore}
+        onCancelReset={cancelResetScore}
+        selfCheckinDisabledDialog={selfCheckinDisabledDialog}
+        onSelfCheckinDisabledClose={() => setSelfCheckinDisabledDialog(false)}
+        printDialogState={printDialogState}
+        onPrintDialogClose={() => setPrintDialogState({ type: null })}
+        onPrintSortOrder={handlePrintSortOrder}
+        showSuccessMessage={showSuccessMessage}
+        isDragMode={isDragMode}
+        onDoneClick={() => {
           setIsDragMode(false);
           setSortOrder('run');
         }}

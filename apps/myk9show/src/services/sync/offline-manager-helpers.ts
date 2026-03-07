@@ -6,12 +6,18 @@
  * OfflineManager class. Extracted for testability and separation of concerns.
  */
 
+import { logger } from '@/services/LoggingService';
 import type {
   OfflineManagerConfig,
   OfflineMetrics,
   OfflineState,
   StorageEstimate,
 } from './offline-manager-types';
+
+// ── localStorage keys ──────────────────────────────────────────────
+
+const STORAGE_KEY_PENDING = 'myK9Show_pending_operations';
+const STORAGE_KEY_DRAFTS = 'myK9Show_drafts';
 
 /**
  * Default configuration values for the OfflineManager.
@@ -106,9 +112,7 @@ export function isConflictError(error: Error): boolean {
  * Build a StorageEstimate using the browser Storage API when available,
  * falling back to a localStorage-based approximation.
  */
-export async function buildStorageEstimate(
-  maxOfflineStorage: number
-): Promise<StorageEstimate> {
+export async function buildStorageEstimate(maxOfflineStorage: number): Promise<StorageEstimate> {
   if ('storage' in navigator && 'estimate' in navigator.storage) {
     const estimate = await navigator.storage.estimate();
 
@@ -140,4 +144,71 @@ export async function buildStorageEstimate(
       webSQL: 0,
     },
   };
+}
+
+// ── Network connectivity ───────────────────────────────────────────
+
+/**
+ * Check network connectivity by pinging the configured URL.
+ */
+export async function checkConnectivity(pingUrl: string, pingTimeout: number): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), pingTimeout);
+
+    const response = await fetch(pingUrl, {
+      method: 'HEAD',
+      signal: controller.signal,
+      cache: 'no-cache',
+      headers: { 'Cache-Control': 'no-cache' },
+    });
+
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    logger.warn('Connectivity check failed', 'offline', { error });
+    return false;
+  }
+}
+
+// ── Pending operations persistence ─────────────────────────────────
+
+/**
+ * Save pending operations map to localStorage.
+ */
+export function savePendingOperations(operations: Map<string, Record<string, unknown>>): void {
+  try {
+    const entries = Array.from(operations.entries());
+    localStorage.setItem(STORAGE_KEY_PENDING, JSON.stringify(entries));
+  } catch (error) {
+    logger.error('Failed to save pending operations', 'offline', {}, error as Error);
+  }
+}
+
+/**
+ * Clear pending operations from localStorage.
+ */
+export function clearPendingOperationsStorage(): void {
+  localStorage.removeItem(STORAGE_KEY_PENDING);
+}
+
+// ── Draft persistence ──────────────────────────────────────────────
+
+/**
+ * Save draft operations map to localStorage.
+ */
+export function saveDrafts(drafts: Map<string, Record<string, unknown>>): void {
+  try {
+    const entries = Array.from(drafts.entries());
+    localStorage.setItem(STORAGE_KEY_DRAFTS, JSON.stringify(entries));
+  } catch (error) {
+    logger.error('Failed to save drafts', 'offline', {}, error as Error);
+  }
+}
+
+/**
+ * Clear drafts from localStorage.
+ */
+export function clearDraftsStorage(): void {
+  localStorage.removeItem(STORAGE_KEY_DRAFTS);
 }

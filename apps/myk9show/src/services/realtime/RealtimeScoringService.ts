@@ -6,7 +6,6 @@ import { syncQueue } from '../sync/SyncQueue';
 import { offlineScoringService } from '../scoring/OfflineScoringService';
 import { scoreSyncProcessor } from '../sync/scoreSyncProcessor';
 import { debounce, throttle } from '@/utils/performance';
-import { generateId } from '@/utils/idUtils';
 import {
   optimizedChannelSubscribe,
   setupOptimizedPresence,
@@ -15,26 +14,29 @@ import {
 import { eventEmitter } from '../sync/eventEmitter';
 // import type { SyncEventMap } from '../sync/types';
 
-interface RealtimeScorePayload {
-  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-  new: Score | null;
-  old: Score | null;
-}
+import type {
+  RealtimeScorePayload,
+  PresenceState,
+  RealtimeConfig,
+} from './RealtimeScoringService.types';
+import {
+  parsePresenceRecord,
+  detectScoringConflict,
+  buildPresenceStates,
+  DEFAULT_REALTIME_CONFIG,
+  createLocalScore,
+  buildUpdatedScore,
+  cacheAndEnqueueScore,
+  removeAndEnqueueDeletion,
+  resumeSyncIfOnline,
+} from './RealtimeScoringService.helpers';
 
-interface PresenceState {
-  judgeId: string;
-  judgeName: string;
-  classId: string;
-  lastActivity: Date;
-  status: 'active' | 'idle' | 'offline';
-}
-
-interface RealtimeConfig {
-  throttleMs: number;
-  debounceMs: number;
-  reconnectAttempts: number;
-  reconnectDelay: number;
-}
+// Re-export types for backward compatibility
+export type {
+  RealtimeScorePayload,
+  PresenceState,
+  RealtimeConfig,
+} from './RealtimeScoringService.types';
 
 export class RealtimeScoringService {
   private static instance: RealtimeScoringService;
@@ -46,12 +48,7 @@ export class RealtimeScoringService {
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
 
-  private config: RealtimeConfig = {
-    throttleMs: 300,
-    debounceMs: 500,
-    reconnectAttempts: 5,
-    reconnectDelay: 2000,
-  };
+  private config: RealtimeConfig = { ...DEFAULT_REALTIME_CONFIG };
 
   // Performance optimization
   private presenceCleanup: (() => void) | null = null;
@@ -216,12 +213,10 @@ export class RealtimeScoringService {
 
     // Check for conflicts if this is an update
     if (eventType === 'UPDATE' && newScore && oldScore) {
-      this.detectScoringConflict(newScore, oldScore).then(conflict => {
-        if (conflict) {
-          this.handleScoringConflict(conflict);
-          return;
-        }
-      });
+      const conflict = detectScoringConflict(newScore, oldScore);
+      if (conflict) {
+        this.handleScoringConflict(conflict);
+      }
     }
 
     // Calculate new placements
@@ -257,34 +252,6 @@ export class RealtimeScoringService {
     }
   }, this.config.debounceMs);
 
-  // Conflict Detection
-  private async detectScoringConflict(
-    newScore: Score,
-    oldScore: Score
-  ): Promise<ScoringConflict | null> {
-    // Check if scores were updated by different judges within a short time window
-    const timeDiff =
-      new Date(newScore.lastModified).getTime() - new Date(oldScore.lastModified).getTime();
-
-    if (timeDiff < 5000 && newScore.judgeId !== oldScore.judgeId) {
-      return {
-        id: `conflict-${newScore.id}-${Date.now()}`,
-        entryId: newScore.entryId,
-        classId: newScore.classId,
-        conflictType: 'judge_conflict',
-        details: {
-          oldJudge: oldScore.judgeId,
-          newJudge: newScore.judgeId,
-          timeDiff,
-        },
-        timestamp: new Date(),
-        resolved: false,
-      };
-    }
-
-    return null;
-  }
-
   // Conflict Handling — last-write-wins with UI notification
   private async handleScoringConflict(conflict: ScoringConflict) {
     // Notify UI so the judge can review the conflict
@@ -315,13 +282,8 @@ export class RealtimeScoringService {
   private handlePresenceJoin(key: string, newPresences: unknown[]) {
     newPresences.forEach(presence => {
       const presenceData = presence as Record<string, unknown>;
-      const state: PresenceState = {
-        judgeId: (presenceData.judgeId || presenceData.judge_id) as string,
-        judgeName: (presenceData.judgeName || presenceData.judge_name) as string,
-        classId: (presenceData.classId || presenceData.class_id) as string,
-        lastActivity: new Date((presenceData.lastActivity || presenceData.last_activity) as string),
-        status: 'active',
-      };
+      const state = parsePresenceRecord(presenceData);
+      state.status = 'active';
 
       this.presenceStates.set(state.judgeId, state);
       this.notifySubscribers('judge-joined', state);
@@ -343,28 +305,7 @@ export class RealtimeScoringService {
   }
 
   private updatePresenceStates(state: Record<string, unknown[]> | undefined) {
-    this.presenceStates.clear();
-
-    if (state) {
-      Object.entries(state).forEach(([, presences]: [string, unknown[]]) => {
-        if (Array.isArray(presences)) {
-          presences.forEach(presence => {
-            const presenceData = presence as Record<string, unknown>;
-            const presenceState: PresenceState = {
-              judgeId: (presenceData.judgeId || presenceData.judge_id) as string,
-              judgeName: (presenceData.judgeName || presenceData.judge_name) as string,
-              classId: (presenceData.classId || presenceData.class_id) as string,
-              lastActivity: new Date(
-                (presenceData.lastActivity || presenceData.last_activity) as string
-              ),
-              status: (presenceData.status as PresenceState['status']) || 'active',
-            };
-            this.presenceStates.set(presenceState.judgeId, presenceState);
-          });
-        }
-      });
-    }
-
+    this.presenceStates = buildPresenceStates(state);
     this.notifySubscribers('presence-sync', Array.from(this.presenceStates.values()));
   }
 
@@ -434,106 +375,22 @@ export class RealtimeScoringService {
   }
 
   async submitScore(score: Omit<Score, 'id' | 'created_at' | 'updated_at'>): Promise<Score> {
-    // Create score object with local id
-    const localId = generateId();
-    const localScore: Score = {
-      id: localId,
-      ...score,
-      version: 1,
-      syncStatus: 'pending',
-      lastModified: new Date(),
-    } as Score;
-
-    // Cache locally for immediate UI feedback
-    await offlineScoringService.cacheScore(localScore as BaseScore);
-
-    // Enqueue for sync (works both online and offline)
-    syncQueue.enqueue({
-      entityType: 'entry',
-      actionType: 'create',
-      entityId: localScore.entryId,
-      data: localScore as unknown as Record<string, unknown>,
-      priority: 5, // High priority for new scores
-      userId: localScore.recordedBy || 'unknown',
-      retries: 0,
-      scheduledFor: new Date(),
-    });
-
-    // If online, trigger immediate processing
-    if (this.isConnected && navigator.onLine) {
-      // Queue will auto-process, but we can force it
-      syncQueue.resume();
-    }
-
+    const localScore = createLocalScore(score);
+    await cacheAndEnqueueScore(localScore, 'create');
+    resumeSyncIfOnline(this.isConnected);
     return localScore;
   }
 
   async updateScore(scoreId: string, updates: Partial<Score>): Promise<Score> {
-    // Get existing score from cache
-    const existingScore = offlineScoringService.getScoreById(scoreId);
-
-    // Create updated score object
-    const updatedScore: Score = {
-      ...(existingScore || {}),
-      id: scoreId,
-      ...updates,
-      version: (existingScore?.version || 0) + 1,
-      syncStatus: 'pending',
-      lastModified: new Date(),
-    } as Score;
-
-    // Update local cache
-    await offlineScoringService.cacheScore(updatedScore as BaseScore);
-
-    // Enqueue for sync
-    syncQueue.enqueue({
-      entityType: 'entry',
-      actionType: 'update',
-      entityId: updatedScore.entryId,
-      data: updatedScore as unknown as Record<string, unknown>,
-      priority: 5,
-      userId: updatedScore.recordedBy || 'unknown',
-      retries: 0,
-      scheduledFor: new Date(),
-    });
-
-    // If online, trigger immediate processing
-    if (this.isConnected && navigator.onLine) {
-      syncQueue.resume();
-    }
-
+    const updatedScore = buildUpdatedScore(scoreId, updates);
+    await cacheAndEnqueueScore(updatedScore, 'update');
+    resumeSyncIfOnline(this.isConnected);
     return updatedScore;
   }
 
   async deleteScore(scoreId: string): Promise<void> {
-    // Get score info before deleting from cache
-    const existingScore = offlineScoringService.getScoreById(scoreId);
-
-    if (existingScore) {
-      // Remove from local cache
-      await offlineScoringService.removeScore(scoreId);
-
-      // Enqueue deletion for sync
-      syncQueue.enqueue({
-        entityType: 'entry',
-        actionType: 'delete',
-        entityId: existingScore.entryId,
-        data: {
-          entryId: existingScore.entryId,
-          classId: existingScore.classId,
-          judgeId: existingScore.judgeId,
-        },
-        priority: 5,
-        userId: existingScore.recordedBy || 'unknown',
-        retries: 0,
-        scheduledFor: new Date(),
-      });
-
-      // If online, trigger immediate processing
-      if (this.isConnected && navigator.onLine) {
-        syncQueue.resume();
-      }
-    }
+    await removeAndEnqueueDeletion(scoreId);
+    resumeSyncIfOnline(this.isConnected);
   }
 
   getActiveJudges(classId?: string): PresenceState[] {
@@ -708,14 +565,5 @@ export class RealtimeScoringService {
 
   setOptimizationEnabled(enabled: boolean): void {
     this.isOptimizationEnabled = enabled;
-  }
-
-  // Helper methods for direct Supabase operations
-  private async directSubmitToSupabase(_score: Score): Promise<void> {
-    // Direct submission not yet implemented - scores are queued for sync
-  }
-
-  private async directDeleteFromSupabase(_scoreId: string): Promise<void> {
-    // Direct deletion not yet implemented - deletions are queued for sync
   }
 }

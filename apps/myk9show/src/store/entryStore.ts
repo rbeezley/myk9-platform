@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { replicatedEntriesTable } from '@/services/replication';
-import { generateEntryId, mergeEntryData, entryToReplicated } from './entry-store-helpers';
+import { mergeEntryData, entryToReplicated, buildNewSyncableEntry } from './entry-store-helpers';
+import { createLegacyActions } from './entry-store-legacy';
 import type {
   EntryStatus,
   EntryStoreState,
   CompetitionData,
   RegistrationData,
-  ShowEntry,
   ShowEntryInput,
   SyncableShowEntry,
 } from './entry-store-types';
@@ -69,33 +69,11 @@ export const useEntryStore = create<EntryStoreState>()(
       try {
         set({ isLoading: true, error: null });
 
-        const id = crypto.randomUUID();
-        const now = new Date().toISOString();
-
-        const newEntry: SyncableShowEntry = {
-          ...entryData,
-          id,
-          status: 'draft',
-          statusHistory: [
-            {
-              status: 'draft',
-              timestamp: now,
-              userId,
-              reason: 'Entry created',
-            },
-          ],
-          createdAt: now,
-          updatedAt: now,
-          _version: 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: userId,
-          _syncStatus: 'pending',
-          _localOnly: true,
-        };
+        const newEntry = buildNewSyncableEntry(entryData, userId);
 
         // Save to replicated table
         const replicatedEntry = entryToReplicated(newEntry);
-        await replicatedEntriesTable.set(id, replicatedEntry, true);
+        await replicatedEntriesTable.set(newEntry.id, replicatedEntry, true);
 
         // Update local state
         set(state => ({
@@ -553,149 +531,8 @@ export const useEntryStore = create<EntryStoreState>()(
       };
     },
 
-    // Legacy methods for compatibility
-    createEntryLegacy: (
-      data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>
-    ) => {
-      const id = generateEntryId();
-      const now = new Date().toISOString();
-
-      const newEntry: SyncableShowEntry = {
-        ...data,
-        id,
-        status: 'draft',
-        statusHistory: [
-          {
-            status: 'draft',
-            timestamp: now,
-            userId: 'legacy-system',
-            reason: 'Entry created',
-          },
-        ],
-        createdAt: now,
-        updatedAt: now,
-        // Sync metadata
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: 'legacy-system',
-        _syncStatus: 'synced',
-        _localOnly: false,
-      };
-
-      set(state => ({
-        entries: [...state.entries, newEntry],
-      }));
-
-      return id;
-    },
-
-    updateRegistrationLegacy: (entryId, updates) => {
-      const now = new Date().toISOString();
-
-      set(state => ({
-        entries: state.entries.map(entry => {
-          if (entry.id === entryId) {
-            return {
-              ...entry,
-              registrationData: { ...entry.registrationData, ...updates },
-              updatedAt: now,
-              _version: (entry._version || 1) + 1,
-              _lastModified: new Date(),
-              _lastModifiedBy: 'legacy-system',
-              _syncStatus: 'pending' as const,
-            };
-          }
-          return entry;
-        }),
-      }));
-    },
-
-    updateStatusLegacy: (entryId, status, userId, reason) => {
-      const now = new Date().toISOString();
-
-      set(state => ({
-        entries: state.entries.map(entry => {
-          if (entry.id === entryId) {
-            return {
-              ...entry,
-              status,
-              statusHistory: [
-                ...entry.statusHistory,
-                {
-                  status,
-                  timestamp: now,
-                  userId,
-                  reason,
-                },
-              ],
-              updatedAt: now,
-              _version: (entry._version || 1) + 1,
-              _lastModified: new Date(),
-              _lastModifiedBy: userId,
-              _syncStatus: 'pending' as const,
-            };
-          }
-          return entry;
-        }),
-      }));
-    },
-
-    recordResultLegacy: (entryId, result) => {
-      const now = new Date().toISOString();
-
-      set(state => ({
-        entries: state.entries.map(entry => {
-          if (entry.id === entryId) {
-            return {
-              ...entry,
-              status: 'completed' as const,
-              competitionData: {
-                ...result,
-                recordedAt: now,
-              },
-              statusHistory: [
-                ...entry.statusHistory,
-                {
-                  status: 'completed' as const,
-                  timestamp: now,
-                  userId: result.recordedBy,
-                  reason: 'Results recorded',
-                },
-              ],
-              updatedAt: now,
-              _version: (entry._version || 1) + 1,
-              _lastModified: new Date(),
-              _lastModifiedBy: result.recordedBy,
-              _syncStatus: 'pending' as const,
-            };
-          }
-          return entry;
-        }),
-      }));
-    },
-
-    updateResultLegacy: (entryId, updates) => {
-      const now = new Date().toISOString();
-
-      set(state => ({
-        entries: state.entries.map(entry => {
-          if (entry.id === entryId) {
-            return {
-              ...entry,
-              competitionData: entry.competitionData
-                ? { ...entry.competitionData, ...updates }
-                : { ...updates, recordedAt: now, recordedBy: updates.recordedBy || 'Secretary' },
-              updatedAt: now,
-              _version: (entry._version || 1) + 1,
-              _lastModified: new Date(),
-              _lastModifiedBy: updates.recordedBy || 'legacy-system',
-              _syncStatus: 'pending' as const,
-            };
-          }
-          return entry;
-        }),
-      }));
-    },
+    // Legacy methods (extracted to entry-store-legacy.ts)
+    ...createLegacyActions(set, get),
 
     // Data management
     clearAllEntries: () => {

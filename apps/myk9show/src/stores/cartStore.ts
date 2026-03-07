@@ -12,110 +12,30 @@ import { devtools, persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
-import type { Database } from '@myk9/supabase';
 
-// Types from database
-type EntryCart = Database['public']['Tables']['entry_carts']['Row'];
-type EntryCartInsert = Database['public']['Tables']['entry_carts']['Insert'];
-type EntryCartItem = Database['public']['Tables']['entry_cart_items']['Row'];
-type EntryCartItemInsert = Database['public']['Tables']['entry_cart_items']['Insert'];
+import type {
+  CartState,
+  CartWithDetails,
+  CartItemWithDetails,
+  NewCartItem,
+  EntryCartInsert,
+  EntryCartItemInsert,
+  EntryCartItem,
+} from './cartStore.types';
 
-// Cart status enum
-export type CartStatus = 'active' | 'submitted' | 'abandoned' | 'expired';
+import {
+  CART_EXPIRATION_MINUTES,
+  EXPIRATION_WARNING_MINUTES,
+  calculateCartTotals,
+} from './cartStore.helpers';
 
-// Extended cart item with related data
-export interface CartItemWithDetails extends EntryCartItem {
-  dog?:
-    | {
-        id: string;
-        name: string;
-        call_name: string | null;
-        breed: string;
-      }
-    | undefined;
-  class?:
-    | {
-        id: string;
-        name: string;
-        level: string | null;
-        trial_id: string;
-      }
-    | undefined;
-  handler?:
-    | {
-        id: string;
-        first_name: string;
-        last_name: string;
-      }
-    | undefined;
-}
-
-// Extended cart with related data
-export interface CartWithDetails extends EntryCart {
-  items: CartItemWithDetails[];
-  show?:
-    | {
-        id: string;
-        name: string;
-        start_date: string;
-        entry_close_date: string;
-      }
-    | undefined;
-}
-
-// New item input type
-export interface NewCartItem {
-  dogId: string;
-  classId: string;
-  handlerId?: string | undefined;
-  jumpHeight?: string | undefined;
-  specialRequests?: string | undefined;
-  entryFeeCents: number;
-}
-
-// Cart state interface
-interface CartState {
-  // Data
-  cart: CartWithDetails | null;
-  isLoading: boolean;
-  error: string | null;
-  lastSyncedAt: string | null;
-
-  // Expiration tracking
-  expirationWarning: boolean;
-
-  // Actions
-  loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
-  createCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;
-  addItem: (item: NewCartItem) => Promise<boolean>;
-  removeItem: (itemId: string) => Promise<boolean>;
-  updateItem: (itemId: string, updates: Partial<NewCartItem>) => Promise<boolean>;
-  clearCart: () => Promise<boolean>;
-  refreshCart: () => Promise<void>;
-  extendExpiration: () => Promise<boolean>;
-  abandonCart: () => Promise<boolean>;
-
-  // Computed getters
-  getTotalEntryFees: () => number;
-  getPlatformFee: () => number;
-  getTotalAmount: () => number;
-  getItemCount: () => number;
-  getTimeUntilExpiration: () => number | null;
-  isExpired: () => boolean;
-
-  // State management
-  setError: (error: string | null) => void;
-  reset: () => void;
-}
-
-// Platform fee rate (3%)
-const PLATFORM_FEE_RATE = 0.03;
-
-// Cart expiration time (30 minutes)
-const CART_EXPIRATION_MINUTES = 30;
-
-// Warning threshold (5 minutes before expiration)
-const EXPIRATION_WARNING_MINUTES = 5;
+// Re-export types so existing imports continue to work
+export type {
+  CartStatus,
+  CartItemWithDetails,
+  CartWithDetails,
+  NewCartItem,
+} from './cartStore.types';
 
 export const useCartStore = create<CartState>()(
   devtools(
@@ -133,15 +53,9 @@ export const useCartStore = create<CartState>()(
           set({ isLoading: true, error: null });
 
           try {
-            // Look for an active cart for this show
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
-              .select(
-                `
-                *,
-                show:shows(id, name, start_date, entry_close_date)
-              `
-              )
+              .select(`*, show:shows(id, name, start_date, entry_close_date)`)
               .eq('show_id', showId)
               .eq('exhibitor_id', exhibitorId)
               .eq('status', 'active')
@@ -158,16 +72,10 @@ export const useCartStore = create<CartState>()(
               return null;
             }
 
-            // Load cart items with related data
             const { data: itemsData, error: itemsError } = await supabase
               .from('entry_cart_items')
               .select(
-                `
-                *,
-                dog:dogs(id, name, call_name, breed),
-                class:classes(id, name, level, trial_id),
-                handler:people(id, first_name, last_name)
-              `
+                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
               )
               .eq('cart_id', cartData.id);
 
@@ -193,7 +101,6 @@ export const useCartStore = create<CartState>()(
               lastSyncedAt: new Date().toISOString(),
             });
 
-            // Compute expiration warning after cart is set
             const timeUntilExpiry = get().getTimeUntilExpiration();
             if (
               timeUntilExpiry !== null &&
@@ -238,12 +145,7 @@ export const useCartStore = create<CartState>()(
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
               .insert(cartInsert)
-              .select(
-                `
-                *,
-                show:shows(id, name, start_date, entry_close_date)
-              `
-              )
+              .select(`*, show:shows(id, name, start_date, entry_close_date)`)
               .single();
 
             if (cartError) {
@@ -301,12 +203,7 @@ export const useCartStore = create<CartState>()(
               .from('entry_cart_items')
               .insert(itemInsert)
               .select(
-                `
-                *,
-                dog:dogs(id, name, call_name, breed),
-                class:classes(id, name, level, trial_id),
-                handler:people(id, first_name, last_name)
-              `
+                `*, dog:dogs(id, name, call_name, breed), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
               )
               .single();
 
@@ -320,11 +217,8 @@ export const useCartStore = create<CartState>()(
               throw insertError;
             }
 
-            // Update totals
             const updatedItems = [...cart.items, newItem as CartItemWithDetails];
-            const subtotal = updatedItems.reduce((sum, i) => sum + i.entry_fee_cents, 0);
-            const platformFee = Math.round(subtotal * PLATFORM_FEE_RATE);
-            const total = subtotal + platformFee;
+            const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
 
             const { error: updateError } = await supabase
               .from('entry_carts')
@@ -383,11 +277,8 @@ export const useCartStore = create<CartState>()(
               throw deleteError;
             }
 
-            // Update totals
             const updatedItems = cart.items.filter(i => i.id !== itemId);
-            const subtotal = updatedItems.reduce((sum, i) => sum + i.entry_fee_cents, 0);
-            const platformFee = Math.round(subtotal * PLATFORM_FEE_RATE);
-            const total = subtotal + platformFee;
+            const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
 
             const { error: updateError } = await supabase
               .from('entry_carts')
@@ -460,16 +351,12 @@ export const useCartStore = create<CartState>()(
               throw updateError;
             }
 
-            // Update local state
             const updatedItems = cart.items.map(i =>
               i.id === itemId ? { ...i, ...updateData } : i
             );
 
-            // Recalculate totals if fee changed
             if (updates.entryFeeCents !== undefined) {
-              const subtotal = updatedItems.reduce((sum, i) => sum + i.entry_fee_cents, 0);
-              const platformFee = Math.round(subtotal * PLATFORM_FEE_RATE);
-              const total = subtotal + platformFee;
+              const { subtotal, platformFee, total } = calculateCartTotals(updatedItems);
 
               await supabase
                 .from('entry_carts')
@@ -537,11 +424,7 @@ export const useCartStore = create<CartState>()(
 
             const { error: updateError } = await supabase
               .from('entry_carts')
-              .update({
-                subtotal_cents: 0,
-                platform_fee_cents: 0,
-                total_cents: 0,
-              })
+              .update({ subtotal_cents: 0, platform_fee_cents: 0, total_cents: 0 })
               .eq('id', cart.id);
 
             if (updateError) {
@@ -577,7 +460,6 @@ export const useCartStore = create<CartState>()(
         refreshCart: async () => {
           const { cart } = get();
           if (!cart) return;
-
           await get().loadCart(cart.show_id, cart.exhibitor_id);
         },
 
@@ -627,9 +509,7 @@ export const useCartStore = create<CartState>()(
         // Abandon cart (mark as abandoned)
         abandonCart: async () => {
           const { cart } = get();
-          if (!cart) {
-            return true; // No cart to abandon
-          }
+          if (!cart) return true;
 
           try {
             const { error: updateError } = await supabase
@@ -657,52 +537,25 @@ export const useCartStore = create<CartState>()(
           }
         },
 
-        // Computed: Total entry fees
-        getTotalEntryFees: () => {
-          const { cart } = get();
-          return cart?.subtotal_cents || 0;
-        },
+        // Computed getters
+        getTotalEntryFees: () => get().cart?.subtotal_cents || 0,
+        getPlatformFee: () => get().cart?.platform_fee_cents || 0,
+        getTotalAmount: () => get().cart?.total_cents || 0,
+        getItemCount: () => get().cart?.items.length || 0,
 
-        // Computed: Platform fee
-        getPlatformFee: () => {
-          const { cart } = get();
-          return cart?.platform_fee_cents || 0;
-        },
-
-        // Computed: Total amount
-        getTotalAmount: () => {
-          const { cart } = get();
-          return cart?.total_cents || 0;
-        },
-
-        // Computed: Item count
-        getItemCount: () => {
-          const { cart } = get();
-          return cart?.items.length || 0;
-        },
-
-        // Computed: Time until expiration in milliseconds
         getTimeUntilExpiration: () => {
           const expiresAt = get().cart?.expires_at;
           if (!expiresAt) return null;
-
-          const expirationTime = new Date(expiresAt).getTime();
-          const now = Date.now();
-          return Math.max(0, expirationTime - now);
+          return Math.max(0, new Date(expiresAt).getTime() - Date.now());
         },
 
-        // Computed: Check if cart is expired
         isExpired: () => {
           const timeRemaining = get().getTimeUntilExpiration();
           return timeRemaining !== null && timeRemaining <= 0;
         },
 
-        // Set error state
-        setError: (error: string | null) => {
-          set({ error });
-        },
+        setError: (error: string | null) => set({ error }),
 
-        // Reset store state
         reset: () => {
           set({
             cart: null,
@@ -715,10 +568,8 @@ export const useCartStore = create<CartState>()(
       }),
       {
         name: 'myk9-cart-storage',
-        // Only persist cart ID for recovery, not full cart data
         partialize: state => ({
           lastSyncedAt: state.lastSyncedAt,
-          // Store minimal cart info for recovery
           cartRecoveryInfo: state.cart
             ? {
                 id: state.cart.id,

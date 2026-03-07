@@ -520,7 +520,7 @@ export const BrowseClubsSkeleton: React.FC<{ viewMode?: 'grid' | 'list' }> = ({
 /**
  * Browse Dogs page skeleton (grid/list of dog cards)
  */
-export const BrowseDogsSkeleton: React.FC<{ viewMode?: 'grid' | 'list' }> = ({
+export const BrowseDogsSkeleton: React.FC<{ viewMode?: 'grid' | 'list' | 'table' }> = ({
   viewMode = 'grid',
 }) => (
   <div className="space-y-8">
@@ -584,7 +584,7 @@ export const BrowseDogsSkeleton: React.FC<{ viewMode?: 'grid' | 'list' }> = ({
 /**
  * Browse People page skeleton (grid/list of people cards)
  */
-export const BrowsePeopleSkeleton: React.FC<{ viewMode?: 'grid' | 'list' }> = ({
+export const BrowsePeopleSkeleton: React.FC<{ viewMode?: 'grid' | 'list' | 'table' }> = ({
   viewMode = 'grid',
 }) => (
   <div className="space-y-8">

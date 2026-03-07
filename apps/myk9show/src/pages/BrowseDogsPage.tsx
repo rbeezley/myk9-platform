@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Grid3X3, List, Plus, X, Dog } from 'lucide-react';
+import { Search, Grid3X3, List, Table2, Plus, X, Dog } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { FilterBar } from '@/components/common/FilterBar';
 import type {
@@ -15,13 +15,13 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
-import { DogsGridView, DogsListView } from '@/components/dogs/browse';
+import { DogsGridView, DogsListView, DogsTableView } from '@/components/dogs/browse';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
 import '@/styles/myk9-show-details.css';
 
-type ViewMode = 'grid' | 'list';
+type ViewMode = 'grid' | 'list' | 'table';
 
 const SORT_DEFS: SortDefinition[] = [
   { key: 'name', label: 'Name' },
@@ -163,6 +163,8 @@ const BrowseDogsPage: React.FC = () => {
     switch (viewMode) {
       case 'list':
         return <DogsListView dogs={filteredDogs} />;
+      case 'table':
+        return <DogsTableView dogs={filteredDogs} />;
       case 'grid':
       default:
         return <DogsGridView dogs={filteredDogs} />;
@@ -220,8 +222,8 @@ const BrowseDogsPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
                   <div className="flex bg-muted/50 rounded-lg p-1">
-                    {(['grid', 'list'] as const).map(mode => {
-                      const Icon = { grid: Grid3X3, list: List }[mode];
+                    {(['grid', 'list', 'table'] as const).map(mode => {
+                      const Icon = { grid: Grid3X3, list: List, table: Table2 }[mode];
                       const label = mode.charAt(0).toUpperCase() + mode.slice(1);
                       return (
                         <Button

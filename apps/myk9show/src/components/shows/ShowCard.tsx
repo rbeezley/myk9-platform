@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, PawPrint } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShowSyncIndicator } from '@/components/sync/SyncStatusIndicator';
@@ -103,51 +103,12 @@ const ShowPlaceholder: React.FC<{ organization?: string | undefined; title: stri
       className={`rounded-xl w-full h-40 mb-4 group-hover:scale-105 transition-transform duration-500 bg-gradient-to-br ${style.gradient} relative overflow-hidden flex items-center justify-center`}
     >
       <div className={`absolute inset-0 ${style.pattern}`} />
-      {/* Decorative paw prints */}
-      <div className="absolute inset-0 opacity-[0.08]">
-        <svg
-          className="absolute top-3 left-4 w-8 h-8 rotate-[-15deg]"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <ellipse cx="12" cy="16" rx="5" ry="6" className="text-white" />
-          <circle cx="7" cy="8" r="2.5" className="text-white" />
-          <circle cx="17" cy="8" r="2.5" className="text-white" />
-          <circle cx="4" cy="13" r="2" className="text-white" />
-          <circle cx="20" cy="13" r="2" className="text-white" />
-        </svg>
-        <svg
-          className="absolute bottom-4 right-6 w-10 h-10 rotate-[20deg]"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <ellipse cx="12" cy="16" rx="5" ry="6" className="text-white" />
-          <circle cx="7" cy="8" r="2.5" className="text-white" />
-          <circle cx="17" cy="8" r="2.5" className="text-white" />
-          <circle cx="4" cy="13" r="2" className="text-white" />
-          <circle cx="20" cy="13" r="2" className="text-white" />
-        </svg>
-        <svg
-          className="absolute top-6 right-12 w-6 h-6 rotate-[45deg]"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <ellipse cx="12" cy="16" rx="5" ry="6" className="text-white" />
-          <circle cx="7" cy="8" r="2.5" className="text-white" />
-          <circle cx="17" cy="8" r="2.5" className="text-white" />
-          <circle cx="4" cy="13" r="2" className="text-white" />
-          <circle cx="20" cy="13" r="2" className="text-white" />
-        </svg>
+      <div className="absolute inset-0 opacity-[0.08] text-white">
+        <PawPrint className="absolute top-3 left-4 w-8 h-8 rotate-[-15deg]" />
+        <PawPrint className="absolute bottom-4 right-6 w-10 h-10 rotate-[20deg]" />
+        <PawPrint className="absolute top-6 right-12 w-6 h-6 rotate-[45deg]" />
       </div>
       <span className="text-4xl relative z-10 drop-shadow-lg">{style.icon}</span>
-      {organization && (
-        <span className="absolute bottom-2 right-3 text-white/40 text-xs font-bold tracking-wider">
-          {organization}
-        </span>
-      )}
     </div>
   );
 };

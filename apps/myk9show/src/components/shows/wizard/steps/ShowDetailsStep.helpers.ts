@@ -18,17 +18,22 @@ export function filterClubs(clubs: Club[], searchTerm: string): Club[] {
 }
 
 /**
+ * Compare two users by full name (case-insensitive).
+ */
+function compareByName(a: User, b: User): number {
+  const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+  const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+  return nameA.localeCompare(nameB);
+}
+
+/**
  * Return all people deduplicated by ID and sorted by name.
  * Chairman/secretary are per-show assignments, not permanent roles,
  * so anyone in the system can be selected.
  */
 export function getAllPeopleSorted(people: User[]): User[] {
   const deduped = [...new Map(people.map(p => [p.id, p])).values()];
-  return deduped.sort((a, b) => {
-    const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-    const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-    return nameA.localeCompare(nameB);
-  });
+  return deduped.sort(compareByName);
 }
 
 /**
@@ -58,11 +63,7 @@ export function getAvailableJudges(
       const judgeNumber = judge.judgeInfo?.judgeNumber?.toLowerCase() || '';
       return fullName.includes(term) || judgeNumber.includes(term);
     })
-    .sort((a, b) => {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+    .sort(compareByName);
 }
 
 /**

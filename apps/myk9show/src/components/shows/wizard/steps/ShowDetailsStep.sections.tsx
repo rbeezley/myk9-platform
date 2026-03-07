@@ -165,7 +165,6 @@ export const ClubSection: React.FC<ClubSectionProps> = ({
 
 interface OfficialPickerProps {
   label: string;
-  selectedId: string | undefined;
   selectedName: string | undefined;
   filteredPeople: User[];
   showSearch: boolean;
@@ -218,7 +217,7 @@ const OfficialPicker: React.FC<OfficialPickerProps> = ({
                 <div className="flex gap-1">
                   {person.roles.map(role => (
                     <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0">
-                      {role}
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
                     </Badge>
                   ))}
                 </div>
@@ -284,7 +283,6 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <OfficialPicker
           label="Show Chairman"
-          selectedId={undefined}
           selectedName={chairmanName}
           filteredPeople={filteredChairmen}
           showSearch={showChairmanSearch}
@@ -296,7 +294,6 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
         />
         <OfficialPicker
           label="Show Secretary"
-          selectedId={undefined}
           selectedName={secretaryName}
           filteredPeople={filteredSecretaries}
           showSearch={showSecretarySearch}

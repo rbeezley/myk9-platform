@@ -257,7 +257,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Show Creation Bugs - 2026-03-07 15:27
 
-- **Fix duplicate names in chairman/secretary dropdown** — Club chairman and secretary dropdowns show multiples of the same name. **Problem:** Dropdown is filtering by functional assignment, causing duplicates. Consider rethinking to just search everybody in the database instead. **Files:** `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx`, `apps/myk9show/src/components/shows/wizard/ShowDetailsStep.tsx`.
+- [x] **Fix duplicate names in chairman/secretary dropdown** — Removed role-based filtering (`OFFICIAL_ROLES`). Chairman/secretary dropdowns now show all people (deduplicated, sorted by name) with role badges and email for context. `getOfficialsPeople` → `getAllPeopleSorted`.
 
 - **Verify Add Chairman and Secretary functionality** — Check if inline-add for chairman and secretary is working. **Problem:** Unclear if the add-new-person flow within the wizard works end-to-end for these roles. **Files:** `apps/myk9show/src/components/shows/wizard/ShowDetailsStep.tsx`, `apps/myk9show/src/components/panels/entities/UserCreationPanel.tsx`.
 

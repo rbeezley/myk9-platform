@@ -3,9 +3,6 @@ import type { Club } from '@/types/club-types';
 import type { User } from '@/types/user-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
 
-/** Roles that qualify a person as a show official. */
-const OFFICIAL_ROLES = ['chairman', 'secretary', 'admin', 'steward'] as const;
-
 /**
  * Filter clubs by a search term (matches name, email, or city/state).
  */
@@ -21,16 +18,17 @@ export function filterClubs(clubs: Club[], searchTerm: string): Club[] {
 }
 
 /**
- * Return people who have at least one official-qualifying role, sorted by name.
+ * Return all people deduplicated by ID and sorted by name.
+ * Chairman/secretary are per-show assignments, not permanent roles,
+ * so anyone in the system can be selected.
  */
-export function getOfficialsPeople(people: User[]): User[] {
-  return people
-    .filter(person => OFFICIAL_ROLES.some(role => person.roles?.includes(role)))
-    .sort((a, b) => {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+export function getAllPeopleSorted(people: User[]): User[] {
+  const deduped = [...new Map(people.map(p => [p.id, p])).values()];
+  return deduped.sort((a, b) => {
+    const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+    const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 }
 
 /**

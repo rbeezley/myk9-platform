@@ -23,7 +23,7 @@ import type { ShowDetailsStepProps } from './ShowDetailsStep.types';
 import { ORGANIZATIONS } from './ShowDetailsStep.types';
 import {
   filterClubs,
-  getOfficialsPeople,
+  getAllPeopleSorted,
   filterPeopleByName,
   getAvailableJudges,
   getPersonName,
@@ -68,14 +68,14 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     () => filterClubs(clubs, clubSearchTerm),
     [clubs, clubSearchTerm]
   );
-  const officialsPeople = React.useMemo(() => getOfficialsPeople(people), [people]);
+  const allPeopleSorted = React.useMemo(() => getAllPeopleSorted(people), [people]);
   const filteredChairmen = React.useMemo(
-    () => filterPeopleByName(officialsPeople, chairmanSearchTerm),
-    [officialsPeople, chairmanSearchTerm]
+    () => filterPeopleByName(allPeopleSorted, chairmanSearchTerm),
+    [allPeopleSorted, chairmanSearchTerm]
   );
   const filteredSecretaries = React.useMemo(
-    () => filterPeopleByName(officialsPeople, secretarySearchTerm),
-    [officialsPeople, secretarySearchTerm]
+    () => filterPeopleByName(allPeopleSorted, secretarySearchTerm),
+    [allPeopleSorted, secretarySearchTerm]
   );
   const availableJudges = React.useMemo(
     () => getAvailableJudges(people, show.judgeIds, judgeSearchTerm),

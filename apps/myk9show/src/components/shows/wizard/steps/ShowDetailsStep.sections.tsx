@@ -210,9 +210,21 @@ const OfficialPicker: React.FC<OfficialPickerProps> = ({
               setSearchTerm('');
             }}
           >
-            <div className="font-medium">
-              {person.firstName} {person.lastName}
+            <div className="flex items-center gap-2">
+              <span className="font-medium">
+                {person.firstName} {person.lastName}
+              </span>
+              {person.roles && person.roles.length > 0 && (
+                <div className="flex gap-1">
+                  {person.roles.map(role => (
+                    <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0">
+                      {role}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
+            {person.email && <div className="text-sm text-muted-foreground">{person.email}</div>}
           </div>
         )}
       />

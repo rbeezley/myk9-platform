@@ -25,6 +25,9 @@ import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
+import { useEntryStore } from '@/store/entryStore';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { registrationToEntries } from '@/utils/registrationToEntries';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
@@ -59,6 +62,8 @@ function RegistrationWizardContent() {
   // Data stores
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
+  const { classes = [] } = useClassStoreCompat();
+  const { createMultipleEntries } = useEntryStore();
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
   // Determine workflow mode
@@ -298,6 +303,33 @@ function RegistrationWizardContent() {
     markStepComplete(currentStep);
 
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
+      // Convert wizard data into real entry records and persist via replication layer
+      const entryInputs = registrationToEntries(
+        showId,
+        classSelections,
+        handlerAssignments,
+        classes,
+        currentShow
+          ? {
+              preEntryFee: currentShow.preEntryFee || '0',
+              dayOfShowFee: currentShow.dayOfShowFee,
+              startDate: currentShow.startDate,
+            }
+          : undefined
+      );
+
+      if (entryInputs.length > 0) {
+        const created = await createMultipleEntries(entryInputs, userId);
+        // Mark all entries as submitted (exhibitor completed the form)
+        const { updateEntriesStatus } = useEntryStore.getState();
+        await updateEntriesStatus(
+          created.map(e => e.id),
+          'submitted',
+          userId,
+          'Registration completed'
+        );
+      }
+
       await submitRegistration(registrationId);
       if (registrationData.paymentMethod === 'credit_card') {
         confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');

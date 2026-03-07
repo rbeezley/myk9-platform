@@ -319,15 +319,7 @@ function RegistrationWizardContent() {
       );
 
       if (entryInputs.length > 0) {
-        const created = await createMultipleEntries(entryInputs, userId);
-        // Mark all entries as submitted (exhibitor completed the form)
-        const { updateEntriesStatus } = useEntryStore.getState();
-        await updateEntriesStatus(
-          created.map(e => e.id),
-          'submitted',
-          userId,
-          'Registration completed'
-        );
+        await createMultipleEntries(entryInputs, userId, 'submitted');
       }
 
       await submitRegistration(registrationId);

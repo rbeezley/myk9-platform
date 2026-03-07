@@ -339,11 +339,13 @@ export const useEntryStore = create<EntryStoreState>()(
     // Bulk operations
     createMultipleEntries: async (
       entriesData: ShowEntryInput[],
-      userId: string
+      userId: string,
+      initialStatus?: EntryStatus
     ): Promise<SyncableShowEntry[]> => {
       try {
         set({ isLoading: true, error: null });
 
+        const status = initialStatus || 'draft';
         const now = new Date().toISOString();
         const newEntries: SyncableShowEntry[] = entriesData.map(data => {
           const id = crypto.randomUUID();
@@ -351,10 +353,10 @@ export const useEntryStore = create<EntryStoreState>()(
           return {
             ...data,
             id,
-            status: 'draft' as EntryStatus,
+            status,
             statusHistory: [
               {
-                status: 'draft' as EntryStatus,
+                status,
                 timestamp: now,
                 userId,
                 reason: 'Entry created in batch',

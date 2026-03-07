@@ -7,15 +7,15 @@
 
 // Entry lifecycle states
 export type EntryStatus =
-  | 'draft'           // User building entry
-  | 'submitted'       // Entry submitted, awaiting payment
-  | 'paid'           // Payment confirmed
-  | 'confirmed'      // Entry accepted by show
-  | 'scheduled'      // Running order created
-  | 'competing'      // Currently in ring
-  | 'completed'      // Results recorded
-  | 'withdrawn'      // Entry withdrawn
-  | 'scratched';     // Scratched day of show
+  | 'draft' // User building entry
+  | 'submitted' // Entry submitted, awaiting payment
+  | 'paid' // Payment confirmed
+  | 'confirmed' // Entry accepted by show
+  | 'scheduled' // Running order created
+  | 'competing' // Currently in ring
+  | 'completed' // Results recorded
+  | 'withdrawn' // Entry withdrawn
+  | 'scratched'; // Scratched day of show
 
 export interface StatusHistoryEntry {
   status: EntryStatus;
@@ -108,18 +108,44 @@ export interface EntryStoreState {
 
   // Local-First Entry Actions
   createEntry: (entryData: ShowEntryInput, userId: string) => Promise<SyncableShowEntry>;
-  updateEntry: (entryId: string, updates: Partial<ShowEntryInput>, userId: string) => Promise<SyncableShowEntry | null>;
+  updateEntry: (
+    entryId: string,
+    updates: Partial<ShowEntryInput>,
+    userId: string
+  ) => Promise<SyncableShowEntry | null>;
   deleteEntry: (entryId: string) => Promise<void>;
-  updateRegistration: (entryId: string, updates: Partial<RegistrationData>, userId: string) => Promise<SyncableShowEntry | null>;
-  updateStatus: (entryId: string, status: EntryStatus, userId: string, reason?: string) => Promise<SyncableShowEntry | null>;
+  updateRegistration: (
+    entryId: string,
+    updates: Partial<RegistrationData>,
+    userId: string
+  ) => Promise<SyncableShowEntry | null>;
+  updateStatus: (
+    entryId: string,
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ) => Promise<SyncableShowEntry | null>;
 
   // Competition phase methods
   recordResult: (entryId: string, result: CompetitionData) => Promise<SyncableShowEntry | null>;
-  updateResult: (entryId: string, updates: Partial<CompetitionData>, userId: string) => Promise<SyncableShowEntry | null>;
+  updateResult: (
+    entryId: string,
+    updates: Partial<CompetitionData>,
+    userId: string
+  ) => Promise<SyncableShowEntry | null>;
 
   // Bulk operations
-  createMultipleEntries: (entries: ShowEntryInput[], userId: string) => Promise<SyncableShowEntry[]>;
-  updateEntriesStatus: (entryIds: string[], status: EntryStatus, userId: string, reason?: string) => Promise<void>;
+  createMultipleEntries: (
+    entries: ShowEntryInput[],
+    userId: string,
+    initialStatus?: EntryStatus
+  ) => Promise<SyncableShowEntry[]>;
+  updateEntriesStatus: (
+    entryIds: string[],
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ) => Promise<void>;
 
   // Query methods
   getEntry: (entryId: string) => SyncableShowEntry | undefined;
@@ -138,9 +164,16 @@ export interface EntryStoreState {
   getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
 
   // Legacy methods for compatibility
-  createEntryLegacy: (data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>) => string;
+  createEntryLegacy: (
+    data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>
+  ) => string;
   updateRegistrationLegacy: (entryId: string, updates: Partial<RegistrationData>) => void;
-  updateStatusLegacy: (entryId: string, status: EntryStatus, userId: string, reason?: string) => void;
+  updateStatusLegacy: (
+    entryId: string,
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ) => void;
   recordResultLegacy: (entryId: string, result: CompetitionData) => void;
   updateResultLegacy: (entryId: string, updates: Partial<CompetitionData>) => void;
 

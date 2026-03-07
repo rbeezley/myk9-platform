@@ -27,12 +27,13 @@ export function registrationToEntries(
   show?: ShowFeeInfo
 ): ShowEntryInput[] {
   const entries: ShowEntryInput[] = [];
+  const classesMap = new Map(classes.map(c => [c.id, c]));
 
   for (const selection of classSelections) {
     for (const cls of selection.selectedClasses) {
       const handlerKey = makeHandlerKey(selection.dogId, cls.classId);
       const handler = handlerAssignments[handlerKey];
-      const classData = classes.find(c => c.id === cls.classId);
+      const classData = classesMap.get(cls.classId);
       const fee = getShowEntryFee(show, classData?.entryFee);
 
       entries.push({

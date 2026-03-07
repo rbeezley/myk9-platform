@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { getDogDisplayName, type Dog } from '@/types/dog-types';
+import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
 
 type SortColumn = 'name' | 'breed' | 'sex' | 'owner' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -11,7 +11,7 @@ interface DogsTableViewProps {
   dogs: Dog[];
 }
 
-function getStatusBadge(status: string | undefined) {
+function getStatusBadge(status: DogStatus | undefined) {
   switch (status) {
     case 'retired':
       return (
@@ -79,24 +79,22 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs }) => {
   };
 
   const sortedDogs = useMemo(() => {
-    return [...dogs].sort((a, b) => {
-      const dir = sortDirection === 'asc' ? 1 : -1;
-      const getValue = (dog: Dog): string => {
-        switch (sortColumn) {
-          case 'name':
-            return getDogDisplayName(dog).toLowerCase();
-          case 'breed':
-            return (dog.breed || '').toLowerCase();
-          case 'sex':
-            return (dog.sex || '').toLowerCase();
-          case 'owner':
-            return (dog.ownerName || '').toLowerCase();
-          case 'status':
-            return (dog.status || 'active').toLowerCase();
-        }
-      };
-      return getValue(a).localeCompare(getValue(b)) * dir;
-    });
+    const getValue = (dog: Dog): string => {
+      switch (sortColumn) {
+        case 'name':
+          return getDogDisplayName(dog).toLowerCase();
+        case 'breed':
+          return (dog.breed || '').toLowerCase();
+        case 'sex':
+          return (dog.sex || '').toLowerCase();
+        case 'owner':
+          return (dog.ownerName || '').toLowerCase();
+        case 'status':
+          return (dog.status || 'active').toLowerCase();
+      }
+    };
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    return [...dogs].sort((a, b) => getValue(a).localeCompare(getValue(b)) * dir);
   }, [dogs, sortColumn, sortDirection]);
 
   return (

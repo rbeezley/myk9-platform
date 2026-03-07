@@ -60,22 +60,20 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people }) => {
   };
 
   const sortedPeople = useMemo(() => {
-    return [...people].sort((a, b) => {
-      const dir = sortDirection === 'asc' ? 1 : -1;
-      const getValue = (user: User): string => {
-        switch (sortColumn) {
-          case 'name':
-            return getFullName(user).toLowerCase();
-          case 'email':
-            return (user.email || '').toLowerCase();
-          case 'roles':
-            return (user.roles || []).join(',').toLowerCase();
-          case 'location':
-            return getLocation(user).toLowerCase();
-        }
-      };
-      return getValue(a).localeCompare(getValue(b)) * dir;
-    });
+    const getValue = (user: User): string => {
+      switch (sortColumn) {
+        case 'name':
+          return getFullName(user).toLowerCase();
+        case 'email':
+          return (user.email || '').toLowerCase();
+        case 'roles':
+          return (user.roles || []).join(',').toLowerCase();
+        case 'location':
+          return getLocation(user).toLowerCase();
+      }
+    };
+    const dir = sortDirection === 'asc' ? 1 : -1;
+    return [...people].sort((a, b) => getValue(a).localeCompare(getValue(b)) * dir);
   }, [people, sortColumn, sortDirection]);
 
   return (

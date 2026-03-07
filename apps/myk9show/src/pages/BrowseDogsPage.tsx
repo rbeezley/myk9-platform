@@ -19,6 +19,7 @@ import { DogsGridView, DogsListView } from '@/components/dogs/browse';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
+import '@/styles/myk9-show-details.css';
 
 type ViewMode = 'grid' | 'list';
 

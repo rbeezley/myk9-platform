@@ -30,7 +30,6 @@ import {
   TestTube,
   RefreshCw,
   FileSearch,
-  Settings,
   Compass,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
@@ -214,12 +213,6 @@ export function buildUnifiedSidebarConfig(userRoles: UserRole[]): SidebarConfig 
           href: '/admin/templates',
           icon: FileText,
           description: 'Show and class templates',
-        },
-        {
-          title: 'Settings',
-          href: '/admin/settings',
-          icon: Settings,
-          description: 'Global configuration',
         },
       ],
     });

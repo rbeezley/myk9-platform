@@ -18,6 +18,7 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PanelProvider, PanelStack } from '@/components/panels';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { useClubStore } from '@/store/clubStore';
+import '@/styles/myk9-show-details.css';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';

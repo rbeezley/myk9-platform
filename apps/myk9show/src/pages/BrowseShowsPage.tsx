@@ -42,6 +42,7 @@ import {
 import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import '@/styles/myk9-show-details.css';
 
 import {
   ShowsPageSkeleton,

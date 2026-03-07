@@ -81,7 +81,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       if (remainingPeople.length > 0) {
         navigate(`/users/${remainingPeople[0].id}`, { replace: true });
       } else {
-        navigate('/users', { replace: true });
+        navigate('/people', { replace: true });
       }
 
       logger.info('User deleted successfully', 'users', { userId: person.id });
@@ -229,7 +229,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       <Breadcrumb
         showHomeIcon
         items={[
-          { label: 'People', href: '/users' },
+          { label: 'People', href: '/people' },
           { label: fullName, isCurrentPage: true },
         ]}
         className="mb-2"

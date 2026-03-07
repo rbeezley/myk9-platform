@@ -123,8 +123,8 @@ export const useBreadcrumb = ({
         firstName && lastName ? `${firstName} ${lastName}` : fromPerson.email || 'Unknown User';
 
       items.push({
-        label: 'Users',
-        href: '/users',
+        label: 'People',
+        href: '/people',
       });
       items.push({
         label: fullName,
@@ -172,8 +172,8 @@ export const useBreadcrumb = ({
         firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
 
       items.push({
-        label: 'Users',
-        href: '/users',
+        label: 'People',
+        href: '/people',
       });
       items.push({
         label: fullName,

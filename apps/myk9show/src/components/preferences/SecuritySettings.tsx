@@ -88,7 +88,7 @@ export function SecuritySettings() {
                   onChange={e => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
                   autoComplete="new-password"
-                  className="pr-10"
+                  className="pr-10 border border-border/50"
                 />
                 {passwordToggle}
               </div>
@@ -107,7 +107,7 @@ export function SecuritySettings() {
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
                   autoComplete="new-password"
-                  className="pr-10"
+                  className="pr-10 border border-border/50"
                 />
                 {passwordToggle}
               </div>

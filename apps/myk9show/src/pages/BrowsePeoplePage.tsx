@@ -17,6 +17,7 @@ import { Search, Filter, Grid3X3, List, Plus, ChevronDown, X } from 'lucide-reac
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
+import '@/styles/myk9-show-details.css';
 import { PeopleGridView, PeopleListView } from '@/components/users/browse';
 import { BrowsePeopleSkeleton } from '@/components/common/SkeletonLoaders';
 import { UserEditPanel } from '@/components/panels/edit';

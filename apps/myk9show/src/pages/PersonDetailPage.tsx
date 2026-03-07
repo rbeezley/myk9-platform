@@ -25,7 +25,7 @@ const PersonDetailPage: React.FC = () => {
   useEffect(() => {
     if (!isLoading && people.length > 0 && id) {
       if (!canAccessPerson || !people.find(p => p.id === id)) {
-        navigate('/users', { replace: true });
+        navigate('/people', { replace: true });
       }
     }
   }, [isLoading, people, id, canAccessPerson, navigate]);

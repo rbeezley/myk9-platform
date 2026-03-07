@@ -1,6 +1,6 @@
 /**
  * Preferences Page
- * Full page for user preferences using standard SidebarLayout
+ * Full page for user preferences with inline settings navigation
  */
 
 import { useState } from 'react';
@@ -20,8 +20,6 @@ import {
 } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuthUser } from '@/hooks/useAuthUser';
-import { SidebarLayout } from '@/components/layout/SidebarLayout';
-import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -111,8 +109,8 @@ export function PreferencesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Sidebar state management
-  const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
+  // Mobile nav state
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   /**
    * Handle preference updates
@@ -257,7 +255,7 @@ export function PreferencesPage() {
             key={tab.value}
             onClick={() => {
               setActiveTab(tab.value);
-              setMobileOpen(false);
+              setMobileNavOpen(false);
             }}
             className={cn(
               'w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors',
@@ -412,15 +410,25 @@ export function PreferencesPage() {
   };
 
   return (
-    <SidebarLayout
-      sidebar={sidebarContent}
-      sidebarWidth={280}
-      mobileMenuLabel="Preferences"
-      mobileOpen={mobileOpen}
-      onMobileOpenChange={setMobileOpen}
-    >
+    <div className="flex min-h-0">
+      {/* Settings nav — desktop: fixed left column, mobile: collapsible */}
+      <aside className="hidden md:block w-[260px] flex-shrink-0 border-r border-border/30 overflow-y-auto">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile nav toggle */}
+      <div className="md:hidden p-4 border-b border-border">
+        <Button variant="ghost" size="sm" onClick={() => setMobileNavOpen(!mobileNavOpen)}>
+          <Settings className="h-4 w-4 mr-2" />
+          {tabs.find(t => t.value === activeTab)?.label}
+        </Button>
+        {mobileNavOpen && (
+          <div className="mt-2 border rounded-lg border-border bg-card">{sidebarContent}</div>
+        )}
+      </div>
+
       {/* Main Content */}
-      <div className="p-6">
+      <div className="flex-1 p-6 overflow-y-auto">
         {/* Header with sync status */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -459,7 +467,7 @@ export function PreferencesPage() {
         {/* Tab Content */}
         {renderContent()}
       </div>
-    </SidebarLayout>
+    </div>
   );
 }
 

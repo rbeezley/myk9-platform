@@ -80,8 +80,8 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
 
-  // Users and dogs management
-  '/users': () => import('@/pages/BrowsePeoplePage'),
+  // People and dogs management
+  '/people': () => import('@/pages/BrowsePeoplePage'),
   '/users/:id': () => import('@/pages/PersonDetailPage'),
   '/dogs': () => import('@/pages/BrowseDogsPage'),
   '/dogs/:id': () => import('@/pages/DogDetailPage'),
@@ -135,7 +135,7 @@ export const fullRouteRegistry: Record<string, ImportFunction> = {
 export const routeCategories = {
   critical: ['/admin/dashboard', '/admin/permissions', '/exhibitor/dashboard', '/shows'],
 
-  high: ['/admin/templates', '/admin/sync', '/shows', '/users', '/dogs', '/calendar'],
+  high: ['/admin/templates', '/admin/sync', '/shows', '/people', '/dogs', '/calendar'],
 
   medium: ['/admin/performance', '/admin/analytics', '/admin/alerts', '/clubs', '/subscription'],
 

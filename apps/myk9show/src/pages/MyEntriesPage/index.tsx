@@ -17,6 +17,7 @@ import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import { Calendar, RefreshCw, Plus } from 'lucide-react';
+import '@/styles/myk9-show-details.css';
 import {
   useMyEntriesData,
   useMyEntriesFilters,

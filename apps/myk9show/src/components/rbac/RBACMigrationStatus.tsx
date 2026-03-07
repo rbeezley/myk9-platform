@@ -9,14 +9,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  CheckCircle, 
-  AlertTriangle, 
-  Loader2, 
+import {
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
   Database,
   Shield,
   RefreshCw,
-  Info
+  Info,
 } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
@@ -27,9 +27,16 @@ function useMigratedAuth() {
     isMigrated,
     isLoading: context.rbacLoading,
     error: context.rbacError,
-    migrationStatus: context.rbacError ? 'error' : (isMigrated ? 'completed' : 'pending') as 'pending' | 'in_progress' | 'completed' | 'failed' | 'error',
+    migrationStatus: context.rbacError
+      ? 'error'
+      : ((isMigrated ? 'completed' : 'pending') as
+          | 'pending'
+          | 'in_progress'
+          | 'completed'
+          | 'failed'
+          | 'error'),
     useDatabase: isMigrated,
-    isLegacy: !isMigrated
+    isLegacy: !isMigrated,
   };
 }
 
@@ -39,8 +46,8 @@ interface RBACMigrationStatusProps {
 }
 
 export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
-  className = "",
-  showDetails = false
+  className = '',
+  showDetails = false,
 }) => {
   const { migrationStatus, useDatabase, isLegacy } = useMigratedAuth();
   const { dbRoles, rbacError, refreshPermissions } = useAuthContext();
@@ -50,42 +57,42 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       case 'completed':
         return {
           icon: CheckCircle,
-          color: 'text-green-600',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
+          color: 'text-green-600 dark:text-green-400',
+          bgColor: 'bg-green-50 dark:bg-green-950/30',
+          borderColor: 'border-green-200 dark:border-green-800',
           title: 'RBAC Migration Complete',
           description: 'Your account is using the new database-driven permission system.',
-          progress: 100
+          progress: 100,
         };
       case 'in_progress':
         return {
           icon: Loader2,
-          color: 'text-blue-600',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
+          color: 'text-blue-600 dark:text-blue-400',
+          bgColor: 'bg-blue-50 dark:bg-blue-950/30',
+          borderColor: 'border-blue-200 dark:border-blue-800',
           title: 'Migrating to New RBAC System',
           description: 'Please wait while we update your permissions...',
-          progress: 50
+          progress: 50,
         };
       case 'error':
         return {
           icon: AlertTriangle,
-          color: 'text-red-600',
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
+          color: 'text-red-600 dark:text-red-400',
+          bgColor: 'bg-red-50 dark:bg-red-950/30',
+          borderColor: 'border-red-200 dark:border-red-800',
           title: 'Migration Error',
           description: 'There was an issue migrating your permissions. Using legacy system.',
-          progress: 25
+          progress: 25,
         };
       default:
         return {
           icon: Info,
-          color: 'text-yellow-600',
-          bgColor: 'bg-yellow-50',
-          borderColor: 'border-yellow-200',
+          color: 'text-yellow-600 dark:text-yellow-400',
+          bgColor: 'bg-yellow-50 dark:bg-yellow-950/30',
+          borderColor: 'border-yellow-200 dark:border-yellow-800',
           title: 'Using Legacy RBAC System',
           description: 'Your account will be migrated to the new system automatically.',
-          progress: 10
+          progress: 10,
         };
     }
   };
@@ -102,27 +109,30 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
     <div className={`space-y-4 ${className}`}>
       <Alert className={`${statusInfo.bgColor} ${statusInfo.borderColor}`}>
         <div className="flex items-start gap-3">
-          <Icon className={`h-5 w-5 ${statusInfo.color} ${
-            migrationStatus === 'in_progress' ? 'animate-spin' : ''
-          }`} />
+          <Icon
+            className={`h-5 w-5 ${statusInfo.color} ${
+              migrationStatus === 'in_progress' ? 'animate-spin' : ''
+            }`}
+          />
           <div className="flex-1 space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className={`font-medium ${statusInfo.color}`}>
-                {statusInfo.title}
-              </h4>
-              <Badge variant={
-                migrationStatus === 'completed' ? 'default' :
-                migrationStatus === 'in_progress' ? 'secondary' :
-                migrationStatus === 'error' ? 'destructive' :
-                'outline'
-              }>
+              <h4 className={`font-medium ${statusInfo.color}`}>{statusInfo.title}</h4>
+              <Badge
+                variant={
+                  migrationStatus === 'completed'
+                    ? 'default'
+                    : migrationStatus === 'in_progress'
+                      ? 'secondary'
+                      : migrationStatus === 'error'
+                        ? 'destructive'
+                        : 'outline'
+                }
+              >
                 {migrationStatus.replace('_', ' ').toUpperCase()}
               </Badge>
             </div>
-            
-            <AlertDescription className="text-sm">
-              {statusInfo.description}
-            </AlertDescription>
+
+            <AlertDescription className="text-sm">{statusInfo.description}</AlertDescription>
 
             {/* Progress bar for migration states */}
             {migrationStatus !== 'completed' && (
@@ -136,19 +146,14 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
 
             {/* Error details */}
             {rbacError && migrationStatus === 'error' && (
-              <div className="mt-2 p-2 bg-red-100 border border-red-200 rounded text-xs">
+              <div className="mt-2 p-2 bg-red-100 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded text-xs">
                 <strong>Error:</strong> {rbacError}
               </div>
             )}
 
             {/* Retry button for errors */}
             {migrationStatus === 'error' && (
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={refreshPermissions}
-                className="mt-2"
-              >
+              <Button size="sm" variant="outline" onClick={refreshPermissions} className="mt-2">
                 <RefreshCw className="h-3 w-3 mr-1" />
                 Retry Migration
               </Button>
@@ -199,7 +204,6 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
           </div>
         </div>
       )}
-
     </div>
   );
 };
@@ -216,9 +220,12 @@ export const CompactMigrationStatus: React.FC = () => {
 
   const getStatusColor = () => {
     switch (migrationStatus) {
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'error': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'error':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
     }
   };
 

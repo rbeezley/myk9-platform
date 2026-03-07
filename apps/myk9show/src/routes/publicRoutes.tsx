@@ -278,9 +278,9 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* People (Users) */}
+    {/* People */}
     <Route
-      path="/users"
+      path="/people"
       element={
         <ProtectedRoute>
           <SuspenseWrapper>
@@ -291,6 +291,8 @@ export const PublicRoutes = () => (
         </ProtectedRoute>
       }
     />
+    {/* Legacy redirect */}
+    <Route path="/users" element={<Navigate to="/people" replace />} />
 
     <Route
       path="/users/:id"

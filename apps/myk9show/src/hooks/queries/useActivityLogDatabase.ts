@@ -34,6 +34,7 @@ export const useActivityLogQuery = (
       return loadedCount < lastPage.totalCount ? lastPage.page + 1 : undefined;
     },
     enabled: !!recordId && enabled,
+    maxPages: 20,
     ...cacheStrategies.dynamic,
   });
 };

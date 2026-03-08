@@ -21,8 +21,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useActivityLogQuery } from '@/hooks/queries/useActivityLogDatabase';
-import type { ActivityRecordType } from '@/services/database/queries/activityLogQueries';
-import type { ActivityLogEntry } from '@/services/database/queries/activityLogQueries';
+import type {
+  ActivityRecordType,
+  ActivityLogEntry,
+} from '@/services/database/queries/activityLogQueries';
+import { formatRelativeTime } from '@/lib/timeUtils';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 
 interface ActivityTimelineProps {
@@ -81,24 +84,6 @@ function getEventStyle(actionType: string): EventStyle {
   return ACTION_STYLES[actionType] ?? DEFAULT_STYLE;
 }
 
-// ── Timestamp formatting ───────────────────────────────────────────
-
-function formatTimestamp(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 // ── Timeline Event ─────────────────────────────────────────────────
 
 const TimelineEvent: React.FC<{ entry: ActivityLogEntry }> = ({ entry }) => {
@@ -121,7 +106,7 @@ const TimelineEvent: React.FC<{ entry: ActivityLogEntry }> = ({ entry }) => {
             <span className="text-sm text-muted-foreground">by {entry.actor_name}</span>
           )}
           <span className="text-xs text-muted-foreground ml-auto shrink-0">
-            {formatTimestamp(entry.created_at)}
+            {formatRelativeTime(new Date(entry.created_at))}
           </span>
         </div>
       </div>

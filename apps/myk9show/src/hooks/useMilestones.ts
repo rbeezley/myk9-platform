@@ -130,14 +130,10 @@ export function useMilestones() {
     [dogs, shows]
   );
 
-  const activeTip = useMemo((): MilestoneTip | null => {
-    if (!user || milestonesLoading) return null;
-    return findActiveMilestone(milestones, ctx).tip;
-  }, [user, milestones, milestonesLoading, ctx]);
-
-  const needsAchieve = useMemo((): string | null => {
-    if (!user || milestonesLoading) return null;
-    return findActiveMilestone(milestones, ctx).pendingKey;
+  const { activeTip, needsAchieve } = useMemo(() => {
+    if (!user || milestonesLoading) return { activeTip: null, needsAchieve: null };
+    const result = findActiveMilestone(milestones, ctx);
+    return { activeTip: result.tip, needsAchieve: result.pendingKey };
   }, [user, milestones, milestonesLoading, ctx]);
 
   // Auto-achieve milestone as a proper side effect

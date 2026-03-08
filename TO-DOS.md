@@ -351,27 +351,20 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Fix BrowseShowsPage Test Failure - 2026-03-08 07:54
 
-- **Fix error state text mismatch in BrowseShowsPage test** — Test expects "failed to load shows" but component renders "Error Loading Shows". **Problem:** Pre-existing mismatch between test assertion and actual UI text — the test at line 531 uses `screen.getByText(/failed to load shows/i)` but `BrowseShowsPage.tsx` line 434 renders `"Error Loading Shows"`. 1 of 18 tests failing. **Files:** `apps/myk9show/src/test/pages/BrowseShowsPage.test.tsx:531`, `apps/myk9show/src/pages/BrowseShowsPage.tsx:434`. **Solution:** Update the test assertion to match the actual rendered text (`/error loading shows/i`), or update the component text to match the test — choose whichever reads better for the user.
+- [x] **Fix error state text mismatch in BrowseShowsPage test** — Fixed: updated assertion from `/failed to load shows/i` to `/error loading shows/i` to match actual UI text. Commit `cc014c3`.
 
 ## Write Tests for CRM UX Components (Phases 1–3) - 2026-03-08 07:55
 
-Phase 1 (quick filters), Phase 2 (three-panel layout), and Phase 3 (interactive data views) shipped without unit tests. See also `docs/plans/crm-ux-improvements.md` Testing Strategy for full spec.
+Phase 1 (quick filters), Phase 2 (three-panel layout), and Phase 3 (interactive data views) shipped without unit tests. All 8 test files written and passing (155 tests total). Commit `cc014c3`.
 
-- **Write unit tests for FilterBar** — Phase 1 quick filter component. **Problem:** Renders filter dropdowns from definitions, manages filter state, bridges to parent via onStateChange. Untested. **Files:** `apps/myk9show/src/components/common/FilterBar.tsx`, `apps/myk9show/src/test/components/common/FilterBar.test.tsx` (new). **Solution:** Test: renders dropdowns, shows active count, calls onStateChange, clear all resets, handles empty definitions.
-
-- **Write unit tests for useRememberedTab** — Phase 1 tab persistence hook. **Problem:** Persists last-selected tab per page key to localStorage, falls back to URL param then default. Untested. **Files:** `apps/myk9show/src/hooks/useRememberedTab.ts`, `apps/myk9show/src/test/hooks/useRememberedTab.test.ts` (new). **Solution:** Test with renderHook: default on first load, persists changes, reads on init, URL param overrides, handles corrupt localStorage.
-
-- **Write unit tests for RecordPageLayout** — Phase 2 three-panel layout. **Problem:** Renders breadcrumb, stats row, and three-panel layout (properties sidebar, center tabs, associations sidebar). Core structural component for all detail pages. Untested. **Files:** `apps/myk9show/src/components/layout/record/RecordPageLayout.tsx`, `apps/myk9show/src/test/components/layout/record/RecordPageLayout.test.tsx` (new). **Solution:** Test: renders breadcrumb, stats cards, three panels, collapses sidebars on mobile, passes children to center.
-
-- **Write unit tests for PropertySection** — Phase 2 left sidebar fields (modified in Phase 3 for inline editing). **Problem:** Renders labeled fields, supports collapsible sections, conditionally renders InlineEditableField when onSave provided. Untested. **Files:** `apps/myk9show/src/components/layout/record/PropertySection.tsx`, `apps/myk9show/src/test/components/layout/record/PropertySection.test.tsx` (new). **Solution:** Test: field labels/values, custom render prop, InlineEditableField when onSave provided, suffix for non-editable, handles null/undefined.
-
-- **Write unit tests for InlineEditableField** — Phase 3 click-to-edit component. **Problem:** Handles click-to-edit, save-on-blur/Enter, cancel-on-Escape, loading/error/success states, race condition guard (`savingRef`). Untested. **Files:** `apps/myk9show/src/components/common/InlineEditableField.tsx`, `apps/myk9show/src/test/components/common/InlineEditableField.test.tsx` (new). **Solution:** Test: display mode, click to edit, Enter saves, Escape cancels, blur saves, error state, double-save prevented, success checkmark.
-
-- **Write unit tests for KanbanView** — Phase 3 generic kanban board. **Problem:** Groups items by status into columns, renders cards via render prop, handles drag-and-drop via @dnd-kit. Untested. **Files:** `apps/myk9show/src/components/common/KanbanView.tsx`, `apps/myk9show/src/test/components/common/KanbanView.test.tsx` (new). **Solution:** Test: correct headers/counts, groups by status, renderCard prop, empty column "No items", onStatusChange on drag end.
-
-- **Write unit tests for ViewPicker** — Phase 3 saved views dropdown. **Problem:** Manages dropdown with save/update/delete/set-default and save dialog. Untested. **Files:** `apps/myk9show/src/components/common/ViewPicker.tsx`, `apps/myk9show/src/test/components/common/ViewPicker.test.tsx` (new). **Solution:** Test: "Views" when no active, view list in dropdown, onApply on click, save dialog opens/closes, save disabled when empty, delete/star handlers.
-
-- **Write unit tests for useSavedViews hook** — Phase 3 localStorage-backed views hook. **Problem:** Persists views with save/update/delete/setDefault/apply/clear operations. Untested. **Files:** `apps/myk9show/src/hooks/useSavedViews.ts`, `apps/myk9show/src/test/hooks/useSavedViews.test.ts` (new). **Solution:** Test with renderHook: saveView adds+persists, updateView modifies, deleteView removes, setDefault toggles, applyView/clearActiveView, loads from localStorage, handles corrupt data.
+- [x] **Write unit tests for FilterBar** — 24 tests: renders dropdowns, active count, onStateChange, clear all, empty defs, sort pill, add filter visibility.
+- [x] **Write unit tests for useRememberedTab** — 11 tests: default tab, persistence, init from localStorage, corrupt data handling, function stability.
+- [x] **Write unit tests for RecordPageLayout** — 23 tests: breadcrumb, actions, stats, hero, three panels, optional props, sidebars hide when empty.
+- [x] **Write unit tests for PropertySection** — 18 tests: labels/values, null handling, suffix, custom render, InlineEditableField integration, collapsible with localStorage.
+- [x] **Write unit tests for InlineEditableField** — 27 tests: display/edit modes, Enter/Escape/blur, error state, double-save prevention, success checkmark, loading state.
+- [x] **Write unit tests for KanbanView** — 12 tests: column headers/counts, grouping, renderCard, empty states, className prop, @dnd-kit mocked.
+- [x] **Write unit tests for ViewPicker** — 22 tests: trigger label, view list, apply/save/delete/star handlers, update current, clear active.
+- [x] **Write unit tests for useSavedViews hook** — 18 tests: save/update/delete/setDefault/apply/clear, localStorage persistence, corrupt data handling.
 
 ## Fix Pre-Existing Test Failures - 2026-03-08 09:38
 

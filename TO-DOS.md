@@ -372,3 +372,15 @@ Phase 1 (quick filters), Phase 2 (three-panel layout), and Phase 3 (interactive 
 - **Write unit tests for ViewPicker** — Phase 3 saved views dropdown. **Problem:** Manages dropdown with save/update/delete/set-default and save dialog. Untested. **Files:** `apps/myk9show/src/components/common/ViewPicker.tsx`, `apps/myk9show/src/test/components/common/ViewPicker.test.tsx` (new). **Solution:** Test: "Views" when no active, view list in dropdown, onApply on click, save dialog opens/closes, save disabled when empty, delete/star handlers.
 
 - **Write unit tests for useSavedViews hook** — Phase 3 localStorage-backed views hook. **Problem:** Persists views with save/update/delete/setDefault/apply/clear operations. Untested. **Files:** `apps/myk9show/src/hooks/useSavedViews.ts`, `apps/myk9show/src/test/hooks/useSavedViews.test.ts` (new). **Solution:** Test with renderHook: saveView adds+persists, updateView modifies, deleteView removes, setDefault toggles, applyView/clearActiveView, loads from localStorage, handles corrupt data.
+
+## Fix Pre-Existing Test Failures - 2026-03-08 09:38
+
+6 test files with 41 failures pre-date the CRM test sprint. All are mock/assertion mismatches, not new regressions.
+
+- **Fix dogQueries test failures** — Two test files have assertion mismatches for soft-delete behavior. **Problem:** `deleteDog` returns data for non-existent dogs instead of null (1 failure in `__tests__/dogQueries.test.ts`, 2 in `test/services/database/queries/dogQueries.test.ts`). Mock likely doesn't match the RPC-based soft delete added in migration 028. **Files:** `apps/myk9show/src/services/database/queries/__tests__/dogQueries.test.ts`, `apps/myk9show/src/test/services/database/queries/dogQueries.test.ts`. **Solution:** Update mocks to reflect `supabase.rpc('soft_delete_dog')` behavior; align assertions with actual return shape.
+
+- **Fix quick-user-integration test failures** — 5 of 7 tests failing with `fetch failed`. **Problem:** Tests make real network calls to Supabase instead of mocking the client. Fails in offline/CI environments. **Files:** `apps/myk9show/src/test/quick-user-integration.test.ts`. **Solution:** Either mock Supabase client or convert to proper integration tests that run only with live credentials.
+
+- **Fix phase3-5-payment-components test failures** — 17 of 28 tests failing. **Problem:** Component rendering or mock mismatches in payment-related components. **Files:** `apps/myk9show/src/test/components/phase3-5-payment-components.test.tsx`. **Solution:** Investigate specific assertion failures; likely stale mocks after payment flow refactoring.
+
+- **Fix UserDetailsView test failures** — All 16 tests failing. **Problem:** Component likely restructured (UserDetailsPage/UserDetailsTabs changes from dog CRUD and availability work) but tests not updated. **Files:** `apps/myk9show/src/test/components/users/UserDetailsView.test.tsx`. **Solution:** Update test to match current component structure and props.

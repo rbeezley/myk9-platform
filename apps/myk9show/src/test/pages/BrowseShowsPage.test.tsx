@@ -528,7 +528,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to load shows/i)).toBeInTheDocument();
+        expect(screen.getByText(/error loading shows/i)).toBeInTheDocument();
       });
     });
   });

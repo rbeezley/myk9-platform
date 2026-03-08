@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,6 +43,7 @@ import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { useRememberedTab } from '@/hooks/useRememberedTab';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { ClassAvailability } from '@/components/shows/ClassAvailability';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
@@ -264,7 +265,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
   const navigate = useNavigate();
   const { userWithRoles } = useAuthContext();
   const resolvePersonName = useResolvePersonName();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useRememberedTab('show-details', 'overview');
   const classAvailabilityResult = useClassAvailability(showData.id);
   const { classes: classAvailability, fullClasses, totalSpotsAvailable } = classAvailabilityResult;
 
@@ -697,11 +698,6 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
     classAvailabilityResult,
   ]);
 
-  // Memoized tab change handler to prevent unnecessary re-renders
-  const handleTabChange = useCallback((tabId: string) => {
-    setActiveTab(tabId);
-  }, []);
-
   return (
     <div className="myk9-show-container">
       {/* Breadcrumb Navigation */}
@@ -839,7 +835,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
       </div>
 
       {/* Tabs Navigation */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="overflow-x-auto">
           <TabsList
             className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"

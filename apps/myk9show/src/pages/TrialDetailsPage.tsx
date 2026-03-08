@@ -28,6 +28,7 @@ import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesT
 import { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
+import { useRememberedTab } from '@/hooks/useRememberedTab';
 
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
@@ -45,6 +46,9 @@ const TrialDetailsPage: React.FC = () => {
 
   // Templates will be automatically initialized by the store on app start
   // No need to initialize here to avoid duplicates
+
+  // Tab state
+  const [activeTab, setActiveTab] = useRememberedTab('trial-details', 'overview');
 
   // Panel state
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(false);
@@ -458,7 +462,7 @@ const TrialDetailsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       {trialWithClasses ? (
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="max-w-[1440px] mx-auto px-6 pt-6">
             <TabsList className="mb-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>

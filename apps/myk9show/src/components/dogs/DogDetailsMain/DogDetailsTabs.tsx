@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { Crown, FileText } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useRememberedTab } from '@/hooks/useRememberedTab';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
 import { PremiumGate } from '@/components/common/PremiumGate';
@@ -29,6 +30,7 @@ const PerformanceStatisticsSection = lazy(
 
 const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistration }) => {
   const { isPremium } = useSubscriptionGate();
+  const [activeTab, setActiveTab] = useRememberedTab('dog-details', 'registrations');
 
   const handlePremiumTabClick = (e: React.MouseEvent) => {
     if (!isPremium) {
@@ -40,7 +42,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
   return (
     <div className="space-y-6">
       <TooltipProvider>
-        <Tabs defaultValue="registrations" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="overflow-x-auto no-scrollbar">
             <TabsTrigger value="registrations">
               <FileText className="w-4 h-4" />

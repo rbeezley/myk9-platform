@@ -11,6 +11,7 @@ export interface Show {
   location: string;
   imageUrl: string;
   organization?: string | undefined;
+  status?: string | undefined;
 }
 
 export type UpcomingShowsVariant = 'carousel' | 'grid';

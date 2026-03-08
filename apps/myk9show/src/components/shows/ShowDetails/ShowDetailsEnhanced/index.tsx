@@ -38,9 +38,7 @@ function getDefaultTab(role: UserRole): string {
 /** Check whether a role is a management-level role (secretary, club admin, site admin). */
 function isManagementRole(role: UserRole): boolean {
   return (
-    role === UserRole.SECRETARY ||
-    role === UserRole.CLUB_ADMIN ||
-    role === UserRole.SITE_ADMIN
+    role === UserRole.SECRETARY || role === UserRole.CLUB_ADMIN || role === UserRole.SITE_ADMIN
   );
 }
 
@@ -82,7 +80,8 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
     const now = new Date();
     const entriesOpen = isAfter(now, new Date(showData.entryOpenDate));
     const entriesClose = isBefore(now, new Date(showData.entryCloseDate));
-    const canRegister = entriesOpen && entriesClose && showData.status?.toLowerCase() === 'published';
+    const canRegister =
+      entriesOpen && entriesClose && showData.status?.toLowerCase() === 'published';
 
     return {
       canRegister,
@@ -158,7 +157,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
             value="trials"
             className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
           >
-            Trials & Schedule
+            Trials
           </TabsTrigger>
         </TabsList>
 

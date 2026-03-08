@@ -458,7 +458,7 @@ const TrialDetailsPage: React.FC = () => {
     <div className="min-h-screen bg-background">
       {trialWithClasses ? (
         <Tabs defaultValue="overview" className="w-full">
-          <div className="myk9-show-container">
+          <div className="max-w-[1440px] mx-auto px-6 pt-6">
             <TabsList className="mb-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="promo-codes">Promo Codes</TabsTrigger>

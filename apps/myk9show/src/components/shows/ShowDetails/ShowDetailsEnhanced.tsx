@@ -589,7 +589,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
     // Add trials tab for everyone
     tabs.push({
       id: 'trials',
-      label: 'Trials & Schedule',
+      label: 'Trials',
       description: 'Show trials and scheduling information',
       content: (
         <div className="myk9-trials-section">

@@ -12,7 +12,16 @@ import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping
 import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
 
 export function useMissionControlData() {
-  const { shows, isLoading: showsLoading } = useShowStore();
+  const { shows: rawShows, isLoading: showsLoading } = useShowStore();
+
+  const shows = useMemo(() => {
+    const seen = new Set<string>();
+    return rawShows.filter(s => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+  }, [rawShows]);
   const allTrials = useTrialStore(s => s.trials);
 
   // Selection state

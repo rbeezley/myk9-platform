@@ -38,6 +38,7 @@ const Home: React.FC = () => {
         location: show.location || 'Location TBD',
         imageUrl: '',
         organization: show.organization,
+        status: show.status,
       })),
     [dbShows]
   );

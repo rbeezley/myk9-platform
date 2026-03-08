@@ -261,7 +261,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Verify Add Chairman and Secretary functionality** — Check if inline-add for chairman and secretary is working. **Problem:** Unclear if the add-new-person flow within the wizard works end-to-end for these roles. **Files:** `apps/myk9show/src/components/shows/wizard/ShowDetailsStep.tsx`, `apps/myk9show/src/components/panels/entities/UserCreationPanel.tsx`.
 
-- **Auto-select single judge on class selection page** — If only one judge is assigned to the show, automatically select them on the class selection page. **Problem:** Users must manually select the judge even when there's only one option. **Files:** `apps/myk9show/src/components/shows/wizard/ClassSelectionStep.tsx`.
+- [x] **Auto-select single judge on class selection page** — Added useEffect to auto-assign the single judge to all classes via `assignJudgeToClass`.
 
 - **Investigate minutes calculation on review page** — Review page shows a time/minutes calculation but there are no entries yet. **Problem:** How is the duration calculated when no entries exist? Needs investigation into what drives the estimate. **Files:** `apps/myk9show/src/components/shows/wizard/ReviewStep.tsx`.
 
@@ -269,9 +269,9 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Fix new show not displaying on show list** — Test show 5 was created but doesn't appear on the show list page. **Problem:** Newly created shows may not be picked up by the list query or cache isn't invalidated. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`, `apps/myk9show/src/services/database/queries/showQueries.ts`.
 
-- **Fix button stacking on show cards** — Inner "Show" and "View Details" buttons stack on a 15-inch monitor. **Problem:** Buttons overflow their container at certain viewport widths. **Files:** `apps/myk9show/src/components/shows/ShowCard.tsx`.
+- [x] **Fix button stacking on show cards** — Added responsive text sizing and truncate to View Details button.
 
-- **Consider moving published tag to top of show card** — The published status tag is not prominently placed. **Problem:** Published status should be immediately visible at the top of the card. **Files:** `apps/myk9show/src/components/shows/ShowCard.tsx`.
+- [x] **Consider moving published tag to top of show card** — Moved status badge to top-right overlay alongside organization tag. Status flows from DB through Home → UpcomingShows → ShowCard.
 
 - **Add table view to shows, trials, classes, and entries** — For consistency with Dogs and People pages, add table view everywhere. **Problem:** Dogs and People already have table view but shows, trials, classes, and entries do not. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`, `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx`.
 
@@ -279,7 +279,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Show Details Improvements - 2026-03-07 15:27
 
-- **Rename "Trials and Schedule" tab to "Trials"** — Simplify the tab label. **Problem:** "Trials and Schedule" is unnecessarily long when "Trials" suffices. **Files:** `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`.
+- [x] **Rename "Trials and Schedule" tab to "Trials"** — Simplified tab label in ShowDetailsEnhanced and ShowDetailsEnhanced/index.tsx.
 
 - **Add entries tab to show details** — Add a tab showing a table of all entries for the show. **Problem:** No way to see all entries for a show in one place from the show details page. **Files:** `apps/myk9show/src/pages/ShowDetailsPage.tsx`, `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`.
 
@@ -295,7 +295,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Fix Add Class dialog** — Convert to slide-out panel for consistency, and gray out classes already in the trial. **Problem:** Add Class opens a dialog (should be a panel), shows classes already in the trial without proper indication, and some "already added" labels are incorrect. **Files:** `apps/myk9show/src/components/classes/AddClassDialog.tsx`, `apps/myk9show/src/pages/TrialDetailsPage.tsx`.
 
-- **Remove excessive top padding on trial details page** — Large space/padding at the top of the page. **Problem:** Wasted vertical space pushes content down unnecessarily. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`.
+- [x] **Remove excessive top padding on trial details page** — Replaced `myk9-show-container` with inline Tailwind classes to fix double 80px padding.
 
 - **Move promo codes and financials to show level** — Trial details has promo codes and financials tabs. **Problem:** Promo codes and financials likely belong at the show level, not the individual trial level. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/pages/ShowDetailsPage.tsx`.
 
@@ -323,7 +323,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Secretary Dashboard Bugs - 2026-03-07 15:27
 
-- **Fix show dropdown repeating shows** — The show dropdown on the secretary dashboard shows duplicate entries. **Problem:** Shows appear multiple times in the dropdown selector. **Files:** `apps/myk9show/src/features/pipeline/components/PipelineDashboard.tsx`, `apps/myk9show/src/features/pipeline/hooks/useMissionControlData.ts`.
+- [x] **Fix show dropdown repeating shows** — Added `useMemo` deduplication with `Set` in `useMissionControlData.ts`.
 
 - **Fix classes not showing for new shows** — Classes for a newly created show don't appear on the secretary dashboard. **Problem:** Dashboard query may not be picking up classes for recently created shows, or cache isn't invalidated. **Files:** `apps/myk9show/src/features/pipeline/components/PipelineDashboard.tsx`, `apps/myk9show/src/features/pipeline/hooks/useMissionControlData.ts`.
 
@@ -341,7 +341,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Club Admin Role System - 2026-03-07 15:46
 
-- **Phase 1: Auto-grant roles on show publish** — When the show wizard publishes a show, auto-grant secretary/chairman app roles to the assigned officials. **Problem:** Site admin must manually grant roles to every secretary and chairman. Doesn't scale as more clubs join. **Files:** `apps/myk9show/src/hooks/useShowCreationWizardActions.ts` (publish handler), `apps/myk9show/src/services/database/queries/userQueries.ts` (add `ensureUserRole()`), `supabase/migrations/` (RLS policy on `user_roles` if needed). **Solution:** After saving the show, check if assigned secretary/chairman has the app role; if not, call `assignRole()` with `club_id` scope. See `docs/plans/club-admin-role.md` Phase 1.
+- [x] **Phase 1: Auto-grant roles on show publish** — Implemented in `4fa20e5`. `ensureUserHasRole` added to RoleManager/RBACService, called from show wizard publish handler. Secretary role auto-granted scoped to club.
 
 - **Phase 2: Club admin dashboard** — Build a dashboard for club admins to manage members, shows, and club profile. **Problem:** No UI for club admins to manage their club's people and shows — all delegation requires site admin intervention. **Files:** `apps/myk9show/src/pages/club-admin/ClubAdminDashboard.tsx` (new), `apps/myk9show/src/pages/club-admin/ClubMembersPage.tsx` (new), `apps/myk9show/src/pages/club-admin/ClubShowsPage.tsx` (new), `apps/myk9show/src/components/layout/sidebar/club-admin-sidebar-config.ts` (new), `apps/myk9show/src/routes/clubAdminRoutes.tsx` (new), `apps/myk9show/src/App.tsx`, `apps/myk9show/src/components/layout/sidebar/UnifiedSidebar.tsx`. **Solution:** Reuse `createRoleLayout` factory + `RoleSidebar` pattern. Route at `/club/:clubId/manage`, protected by `<ClubAdminRoute>`. See `docs/plans/club-admin-role.md` Phase 2.
 

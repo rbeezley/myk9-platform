@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -185,6 +185,20 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     email: judgeDetails[judgeId]?.email || '',
     phone: judgeDetails[judgeId]?.phone || '',
   }));
+
+  useEffect(() => {
+    if (show.judgeIds.length !== 1) return;
+    const singleJudgeId = show.judgeIds[0];
+    const unassignedClasses = trials.flatMap(trial =>
+      trial.classes
+        .map(cls => cls.customizations?.className as string)
+        .filter(className => className && judgeAssignments[className] !== singleJudgeId)
+    );
+    if (unassignedClasses.length === 0) return;
+    unassignedClasses.forEach(className => {
+      assignJudgeToClass(className, singleJudgeId);
+    });
+  }, [show.judgeIds, trials, judgeAssignments, assignJudgeToClass]);
 
   // Derive validation errors (no setState needed)
   const errors = useMemo(() => {

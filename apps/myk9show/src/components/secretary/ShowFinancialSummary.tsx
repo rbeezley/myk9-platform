@@ -22,16 +22,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Download, DollarSign, Users, Tag, Gift, Loader2, Search } from 'lucide-react';
-import { getEntriesByTrial } from '@/services/database/queries/entry-query-lookups';
+import { Download, DollarSign, Users, Tag, Gift, Loader2, Search, ChevronDown } from 'lucide-react';
+import { getEntriesByShowForFinancials } from '@/services/database/queries/entry-query-lookups';
 import { paymentStatusColors } from '@/lib/financial-constants';
 
-interface FinancialSummaryProps {
-  trialId: string;
+interface ShowFinancialSummaryProps {
+  showId: string;
 }
 
 interface EntryRow {
   id: string;
+  trialId: string;
+  trialName: string;
   handler: string | null;
   dogName: string;
   ownerName: string;
@@ -44,22 +46,33 @@ interface EntryRow {
   compedReason: string | null;
 }
 
-export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) => {
+interface TrialSubtotal {
+  trialId: string;
+  trialName: string;
+  entryCount: number;
+  totalFees: number;
+  totalDiscounts: number;
+  totalComped: number;
+  netAmount: number;
+}
+
+export const ShowFinancialSummary: React.FC<ShowFinancialSummaryProps> = ({ showId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [trialFilter, setTrialFilter] = useState<string>('all');
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   const { data: rawEntries = [], isLoading } = useQuery({
-    queryKey: queryKeys.trialFinancialSummary(trialId),
+    queryKey: queryKeys.showFinancialSummary(showId),
     queryFn: async () => {
-      const { data, error } = await getEntriesByTrial(trialId);
+      const { data, error } = await getEntriesByShowForFinancials(showId);
       if (error) throw error;
       return data;
     },
-    enabled: !!trialId,
+    enabled: !!showId,
     ...cacheStrategies.dynamic,
   });
 
-  // Map raw entries to display rows
   const entries: EntryRow[] = useMemo(
     () =>
       rawEntries.map((e: Record<string, unknown>) => {
@@ -67,9 +80,12 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         const owner = dog?.owner as Record<string, unknown> | null;
         const cls = e.class as Record<string, unknown> | null;
         const promo = e.promo_code as Record<string, unknown> | null;
+        const trial = e.trial as Record<string, unknown> | null;
 
         return {
           id: e.id as string,
+          trialId: (trial?.id as string) || '',
+          trialName: (trial?.name as string) || 'Unknown Trial',
           handler: e.handler as string | null,
           dogName: (dog?.call_name as string) || (dog?.name as string) || 'Unknown',
           ownerName: owner
@@ -87,31 +103,8 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
     [rawEntries]
   );
 
-  // Filtered entries
-  const filteredEntries = useMemo(() => {
-    let result = entries;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        e =>
-          e.dogName.toLowerCase().includes(term) ||
-          e.ownerName.toLowerCase().includes(term) ||
-          e.handler?.toLowerCase().includes(term) ||
-          e.className.toLowerCase().includes(term)
-      );
-    }
-    if (statusFilter !== 'all') {
-      if (statusFilter === 'comped') {
-        result = result.filter(e => e.comped);
-      } else {
-        result = result.filter(e => e.paymentStatus === statusFilter && !e.comped);
-      }
-    }
-    return result;
-  }, [entries, searchTerm, statusFilter]);
-
-  // Summary calculations (single pass)
-  const summary = useMemo(() => {
+  // Single-pass: compute summary, trial subtotals, and trial options together
+  const { summary, trialSubtotals, trialOptions } = useMemo(() => {
     const acc = {
       totalEntries: entries.length,
       totalFees: 0,
@@ -126,6 +119,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
       refundedAmount: 0,
       compedCount: 0,
     };
+    const subtotalMap = new Map<string, TrialSubtotal>();
 
     for (const e of entries) {
       acc.totalFees += e.entryFee;
@@ -144,14 +138,70 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         acc.refundedCount++;
         acc.refundedAmount += e.entryFee;
       }
+
+      let sub = subtotalMap.get(e.trialId);
+      if (!sub) {
+        sub = {
+          trialId: e.trialId,
+          trialName: e.trialName,
+          entryCount: 0,
+          totalFees: 0,
+          totalDiscounts: 0,
+          totalComped: 0,
+          netAmount: 0,
+        };
+        subtotalMap.set(e.trialId, sub);
+      }
+      sub.entryCount++;
+      sub.totalFees += e.entryFee;
+      sub.totalDiscounts += e.discountAmount;
+      if (e.comped) sub.totalComped += e.entryFee;
     }
 
     acc.netAmount = acc.totalFees - acc.totalDiscounts - acc.totalComped;
-    return acc;
+
+    const subtotals: TrialSubtotal[] = [];
+    const options: [string, string][] = [];
+    for (const sub of subtotalMap.values()) {
+      sub.netAmount = sub.totalFees - sub.totalDiscounts - sub.totalComped;
+      subtotals.push(sub);
+      options.push([sub.trialId, sub.trialName]);
+    }
+    subtotals.sort((a, b) => a.trialName.localeCompare(b.trialName));
+    options.sort((a, b) => a[1].localeCompare(b[1]));
+
+    return { summary: acc, trialSubtotals: subtotals, trialOptions: options };
   }, [entries]);
+
+  const filteredEntries = useMemo(() => {
+    let result = entries;
+    if (trialFilter !== 'all') {
+      result = result.filter(e => e.trialId === trialFilter);
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        e =>
+          e.dogName.toLowerCase().includes(term) ||
+          e.ownerName.toLowerCase().includes(term) ||
+          e.handler?.toLowerCase().includes(term) ||
+          e.className.toLowerCase().includes(term) ||
+          e.trialName.toLowerCase().includes(term)
+      );
+    }
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'comped') {
+        result = result.filter(e => e.comped);
+      } else {
+        result = result.filter(e => e.paymentStatus === statusFilter && !e.comped);
+      }
+    }
+    return result;
+  }, [entries, searchTerm, statusFilter, trialFilter]);
 
   const handleExportCSV = () => {
     const exportData = filteredEntries.map(e => ({
+      Trial: e.trialName,
       Dog: e.dogName,
       Owner: e.ownerName,
       Handler: e.handler || '',
@@ -163,7 +213,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
       Comped: e.comped ? 'Yes' : 'No',
       'Comp Reason': e.compedReason || '',
     }));
-    exportToCSV(exportData, `financial-summary-${trialId.slice(0, 8)}`);
+    exportToCSV(exportData, `show-financial-summary-${showId.slice(0, 8)}`);
   };
 
   if (isLoading) {
@@ -180,7 +230,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         <div>
           <h3 className="text-lg font-semibold">Financial Summary</h3>
           <p className="text-sm text-muted-foreground">
-            Entry fees, discounts, and payment status overview
+            Aggregated entry fees, discounts, and payments across all trials
           </p>
         </div>
         <Button variant="outline" onClick={handleExportCSV} disabled={entries.length === 0}>
@@ -241,6 +291,57 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         </Card>
       </div>
 
+      {/* Per-Trial Breakdown */}
+      {trialSubtotals.length > 1 && (
+        <Card>
+          <CardHeader
+            className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setBreakdownOpen(v => !v)}
+          >
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Per-Trial Breakdown</CardTitle>
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground transition-transform ${breakdownOpen ? 'rotate-180' : ''}`}
+              />
+            </div>
+          </CardHeader>
+          {breakdownOpen && (
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Trial</TableHead>
+                    <TableHead className="text-right">Entries</TableHead>
+                    <TableHead className="text-right">Fees</TableHead>
+                    <TableHead className="text-right">Discounts</TableHead>
+                    <TableHead className="text-right">Comped</TableHead>
+                    <TableHead className="text-right">Net</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {trialSubtotals.map(sub => (
+                    <TableRow key={sub.trialId}>
+                      <TableCell className="font-medium">{sub.trialName}</TableCell>
+                      <TableCell className="text-right">{sub.entryCount}</TableCell>
+                      <TableCell className="text-right">${sub.totalFees.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-orange-600">
+                        {sub.totalDiscounts > 0 ? `-$${sub.totalDiscounts.toFixed(2)}` : '—'}
+                      </TableCell>
+                      <TableCell className="text-right text-blue-600">
+                        {sub.totalComped > 0 ? `-$${sub.totalComped.toFixed(2)}` : '—'}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-green-600">
+                        ${sub.netAmount.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Payment Status Breakdown */}
       <Card>
         <CardHeader className="pb-3">
@@ -299,7 +400,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
       {/* Entry Table */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-base">Entry Details</CardTitle>
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -311,6 +412,21 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
                   className="pl-8 w-[200px]"
                 />
               </div>
+              {trialOptions.length > 1 && (
+                <Select value={trialFilter} onValueChange={setTrialFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Trials</SelectItem>
+                    {trialOptions.map(([id, name]) => (
+                      <SelectItem key={id} value={id}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue />
@@ -330,7 +446,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
           {filteredEntries.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {entries.length === 0
-                ? 'No entries for this trial yet.'
+                ? 'No entries for this show yet.'
                 : 'No entries match your filters.'}
             </p>
           ) : (
@@ -338,6 +454,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Trial</TableHead>
                     <TableHead>Dog</TableHead>
                     <TableHead>Owner</TableHead>
                     <TableHead>Class</TableHead>
@@ -350,6 +467,9 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
                 <TableBody>
                   {filteredEntries.map(entry => (
                     <TableRow key={entry.id}>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {entry.trialName}
+                      </TableCell>
                       <TableCell className="font-medium">{entry.dogName}</TableCell>
                       <TableCell>{entry.ownerName}</TableCell>
                       <TableCell>{entry.className}</TableCell>

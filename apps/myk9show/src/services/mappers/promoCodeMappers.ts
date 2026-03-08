@@ -1,11 +1,12 @@
 // Promo code data mappers - transform between database and application types
 
 import type { DbPromoCode, DbPromoCodeInsert } from '@/types/database-mappings';
-import type { PromoCode, PromoCodeFormData } from '@/types/promo-codes';
+import type { PromoCode, PromoCodeFormData, PromoCodeTarget } from '@/types/promo-codes';
 
 export const mapDbPromoCodeToApp = (db: DbPromoCode): PromoCode => ({
   id: db.id,
-  trial_id: db.trial_id,
+  show_id: db.show_id ?? null,
+  trial_id: db.trial_id ?? null,
   code: db.code,
   discount_type: db.discount_type as 'percentage' | 'flat',
   discount_value: db.discount_value,
@@ -19,10 +20,11 @@ export const mapDbPromoCodeToApp = (db: DbPromoCode): PromoCode => ({
 
 export const mapAppPromoCodeToDbInsert = (
   form: PromoCodeFormData,
-  trialId: string,
+  target: PromoCodeTarget,
   createdBy: string
 ): DbPromoCodeInsert => ({
-  trial_id: trialId,
+  show_id: target.showId ?? null,
+  trial_id: target.trialId ?? null,
   code: form.code.toUpperCase(),
   discount_type: form.discount_type,
   discount_value: form.discount_value,

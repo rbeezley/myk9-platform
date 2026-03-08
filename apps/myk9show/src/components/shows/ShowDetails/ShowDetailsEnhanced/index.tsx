@@ -16,6 +16,8 @@ import { ExhibitorDashboard } from './ExhibitorDashboard';
 import { SecretaryDashboard } from './SecretaryDashboard';
 import { JudgeDashboard } from './JudgeDashboard';
 import { TrialsTab } from './TrialsTab';
+import { PromoCodesSection } from '@/components/secretary/PromoCodesSection';
+import { ShowFinancialSummary } from '@/components/secretary/ShowFinancialSummary';
 import type { ShowDetailsEnhancedProps } from './types';
 
 const ROLE_PRIORITY: UserRole[] = [
@@ -100,7 +102,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
       : primaryRole === UserRole.JUDGE
         ? 'grid-cols-3'
         : isManagementRole(primaryRole)
-          ? 'grid-cols-3'
+          ? 'grid-cols-5'
           : 'grid-cols-2';
 
   // Left sidebar: show properties
@@ -240,6 +242,22 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                 Management
               </TabsTrigger>
             )}
+            {isManagementRole(primaryRole) && (
+              <TabsTrigger
+                value="promo-codes"
+                className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+              >
+                Promo Codes
+              </TabsTrigger>
+            )}
+            {isManagementRole(primaryRole) && (
+              <TabsTrigger
+                value="financials"
+                className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+              >
+                Financials
+              </TabsTrigger>
+            )}
             {primaryRole === UserRole.JUDGE && (
               <TabsTrigger
                 value="assignments"
@@ -273,6 +291,18 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                 trials={associatedTrials}
                 onManageEntries={onManageEntries || (() => {})}
               />
+            </TabsContent>
+          )}
+
+          {isManagementRole(primaryRole) && (
+            <TabsContent value="promo-codes">
+              <PromoCodesSection showId={showData.id} />
+            </TabsContent>
+          )}
+
+          {isManagementRole(primaryRole) && (
+            <TabsContent value="financials">
+              <ShowFinancialSummary showId={showData.id} />
             </TabsContent>
           )}
 

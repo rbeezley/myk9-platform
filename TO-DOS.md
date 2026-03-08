@@ -297,7 +297,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Remove excessive top padding on trial details page** — Replaced `myk9-show-container` with inline Tailwind classes to fix double 80px padding.
 
-- **Move promo codes and financials to show level** — Trial details has promo codes and financials tabs. **Problem:** Promo codes and financials likely belong at the show level, not the individual trial level. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/pages/ShowDetailsPage.tsx`.
+- [x] **Move promo codes and financials to show level** — Added show-level promo codes + financial summary. DB migration 052, dual-scope types/queries/hooks/mappers, PromoCodesSection dual-mode, ShowFinancialSummary component, tabs in ShowDetailsEnhanced, 15 new tests. Plan: `docs/plans/promo-codes-show-level.md`.
 
 ## Entry Wizard Bugs - 2026-03-07 15:27
 
@@ -370,10 +370,7 @@ Phase 1 (quick filters), Phase 2 (three-panel layout), and Phase 3 (interactive 
 
 6 test files with 41 failures pre-date the CRM test sprint. All are mock/assertion mismatches, not new regressions.
 
-- **Fix dogQueries test failures** — Two test files have assertion mismatches for soft-delete behavior. **Problem:** `deleteDog` returns data for non-existent dogs instead of null (1 failure in `__tests__/dogQueries.test.ts`, 2 in `test/services/database/queries/dogQueries.test.ts`). Mock likely doesn't match the RPC-based soft delete added in migration 028. **Files:** `apps/myk9show/src/services/database/queries/__tests__/dogQueries.test.ts`, `apps/myk9show/src/test/services/database/queries/dogQueries.test.ts`. **Solution:** Update mocks to reflect `supabase.rpc('soft_delete_dog')` behavior; align assertions with actual return shape.
-
-- **Fix quick-user-integration test failures** — 5 of 7 tests failing with `fetch failed`. **Problem:** Tests make real network calls to Supabase instead of mocking the client. Fails in offline/CI environments. **Files:** `apps/myk9show/src/test/quick-user-integration.test.ts`. **Solution:** Either mock Supabase client or convert to proper integration tests that run only with live credentials.
-
-- **Fix phase3-5-payment-components test failures** — 17 of 28 tests failing. **Problem:** Component rendering or mock mismatches in payment-related components. **Files:** `apps/myk9show/src/test/components/phase3-5-payment-components.test.tsx`. **Solution:** Investigate specific assertion failures; likely stale mocks after payment flow refactoring.
-
-- **Fix UserDetailsView test failures** — All 16 tests failing. **Problem:** Component likely restructured (UserDetailsPage/UserDetailsTabs changes from dog CRUD and availability work) but tests not updated. **Files:** `apps/myk9show/src/test/components/users/UserDetailsView.test.tsx`. **Solution:** Update test to match current component structure and props.
+- [x] **Fix dogQueries test failures** — Updated mocks for RPC-based `soft_delete_dog` in both test files. Commit `2f24569`.
+- [x] **Fix quick-user-integration test failures** — Added `LoggingService` named export to mock. Commit `2f24569`.
+- [x] **Fix phase3-5-payment-components test failures** — Fixed mock targets (`useDogStoreCompat`), added `QueryClientProvider` wrapper, updated UI assertions for `PaymentOptionCard`. Commit `2f24569`.
+- [x] **Fix UserDetailsView test failures** — Added `getUserRoles` mock, stubbed heavy child components, updated assertions for `PropertySection`. Commit `2f24569`.

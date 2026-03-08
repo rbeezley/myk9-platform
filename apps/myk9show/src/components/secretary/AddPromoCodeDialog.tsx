@@ -12,14 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import type { PromoCodeFormData } from '@/types/promo-codes';
+import type { PromoCodeFormData, PromoCodeTarget } from '@/types/promo-codes';
 
 interface AddPromoCodeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: PromoCodeFormData) => void;
+  onSubmit: (data: PromoCodeFormData, target: PromoCodeTarget) => void;
   isLoading?: boolean;
   existingCodes: string[];
+  defaultTarget: PromoCodeTarget;
 }
 
 export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
@@ -28,6 +29,7 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
   onSubmit,
   isLoading,
   existingCodes,
+  defaultTarget,
 }) => {
   const [code, setCode] = useState('');
   const [discountType, setDiscountType] = useState<'percentage' | 'flat'>('percentage');
@@ -35,6 +37,8 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
   const [usageLimit, setUsageLimit] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [error, setError] = useState('');
+
+  const isShowMode = 'showId' in defaultTarget && !!defaultTarget.showId;
 
   const resetForm = () => {
     setCode('');
@@ -55,7 +59,7 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
       return;
     }
     if (existingCodes.includes(upperCode)) {
-      setError('This code already exists for this trial');
+      setError(`This code already exists`);
       return;
     }
 
@@ -75,16 +79,23 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
       return;
     }
 
-    onSubmit({
-      code: upperCode,
-      discount_type: discountType,
-      discount_value: value,
-      usage_limit: limit,
-      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-    });
+    onSubmit(
+      {
+        code: upperCode,
+        discount_type: discountType,
+        discount_value: value,
+        usage_limit: limit,
+        expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      },
+      defaultTarget
+    );
 
     resetForm();
   };
+
+  const scopeDescription = isShowMode
+    ? 'Create a discount code that applies to all trials in this show.'
+    : 'Create a discount code for this trial.';
 
   return (
     <Dialog
@@ -97,7 +108,7 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Promo Code</DialogTitle>
-          <DialogDescription>Create a discount code for this trial.</DialogDescription>
+          <DialogDescription>{scopeDescription}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

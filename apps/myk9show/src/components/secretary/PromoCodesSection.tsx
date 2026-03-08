@@ -24,15 +24,17 @@ import { Plus, Trash2, Loader2, Tag } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   usePromoCodesByTrialQuery,
+  usePromoCodesByShowQuery,
   useCreatePromoCodeMutation,
   useDeletePromoCodeMutation,
 } from '@/hooks/queries/usePromoCodeDatabase';
 import { AddPromoCodeDialog } from './AddPromoCodeDialog';
-import type { PromoCode, PromoCodeFormData } from '@/types/promo-codes';
+import type { PromoCode, PromoCodeFormData, PromoCodeTarget } from '@/types/promo-codes';
 
-interface PromoCodesSectionProps {
-  trialId: string;
-}
+/** Exactly one of showId or trialId must be provided */
+type PromoCodesSectionProps =
+  | { showId: string; trialId?: never }
+  | { showId?: never; trialId: string };
 
 const getStatusBadge = (promoCode: PromoCode) => {
   const isExpired = promoCode.expires_at && new Date(promoCode.expires_at) < new Date();
@@ -41,7 +43,22 @@ const getStatusBadge = (promoCode: PromoCode) => {
 
   if (isExpired) return <Badge variant="secondary">Expired</Badge>;
   if (isExhausted) return <Badge variant="secondary">Exhausted</Badge>;
-  return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</Badge>;
+  return (
+    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+      Active
+    </Badge>
+  );
+};
+
+const getScopeBadge = (promoCode: PromoCode) => {
+  if (promoCode.show_id) {
+    return (
+      <Badge variant="outline" className="text-xs">
+        Show-wide
+      </Badge>
+    );
+  }
+  return null;
 };
 
 const formatDiscount = (promoCode: PromoCode) => {
@@ -63,32 +80,42 @@ const formatExpiry = (promoCode: PromoCode) => {
   return new Date(promoCode.expires_at).toLocaleDateString();
 };
 
-export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId }) => {
+export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ showId, trialId }) => {
+  const isShowMode = !!showId;
   const { user } = useAuthContext();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PromoCode | null>(null);
 
-  const { data: promoCodes = [], isLoading } = usePromoCodesByTrialQuery(trialId);
+  const showQuery = usePromoCodesByShowQuery(showId ?? '');
+  const trialQuery = usePromoCodesByTrialQuery(trialId ?? '');
+
+  const promoCodes = isShowMode ? (showQuery.data ?? []) : (trialQuery.data ?? []);
+  const isLoading = isShowMode ? showQuery.isLoading : trialQuery.isLoading;
+
   const createMutation = useCreatePromoCodeMutation();
   const deleteMutation = useDeletePromoCodeMutation();
 
   const existingCodes = useMemo(() => promoCodes.map(pc => pc.code), [promoCodes]);
 
-  const handleCreate = (form: PromoCodeFormData) => {
+  const handleCreate = (form: PromoCodeFormData, target: PromoCodeTarget) => {
     if (!user?.id) return;
     createMutation.mutate(
-      { form, trialId, createdBy: user.id },
+      { form, target, createdBy: user.id },
       { onSuccess: () => setAddDialogOpen(false) }
     );
   };
 
   const handleDelete = () => {
     if (!deleteTarget) return;
-    deleteMutation.mutate(
-      { id: deleteTarget.id, trialId },
-      { onSuccess: () => setDeleteTarget(null) }
-    );
+    const deleteVars: { id: string; showId?: string; trialId?: string } = {
+      id: deleteTarget.id,
+    };
+    if (deleteTarget.show_id) deleteVars.showId = deleteTarget.show_id;
+    if (deleteTarget.trial_id) deleteVars.trialId = deleteTarget.trial_id;
+    deleteMutation.mutate(deleteVars, { onSuccess: () => setDeleteTarget(null) });
   };
+
+  const scopeLabel = isShowMode ? 'this show' : 'this trial';
 
   if (isLoading) {
     return (
@@ -103,9 +130,7 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId })
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Promo Codes</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage discount codes for this trial
-          </p>
+          <p className="text-sm text-muted-foreground">Manage discount codes for {scopeLabel}</p>
         </div>
         <Button onClick={() => setAddDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -134,6 +159,7 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId })
               <TableHeader>
                 <TableRow>
                   <TableHead>Code</TableHead>
+                  {isShowMode && <TableHead>Scope</TableHead>}
                   <TableHead>Discount</TableHead>
                   <TableHead>Usage</TableHead>
                   <TableHead>Expires</TableHead>
@@ -145,6 +171,7 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId })
                 {promoCodes.map(pc => (
                   <TableRow key={pc.id}>
                     <TableCell className="font-mono font-semibold">{pc.code}</TableCell>
+                    {isShowMode && <TableCell>{getScopeBadge(pc)}</TableCell>}
                     <TableCell>{formatDiscount(pc)}</TableCell>
                     <TableCell>{formatUsage(pc)}</TableCell>
                     <TableCell>{formatExpiry(pc)}</TableCell>
@@ -173,6 +200,7 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId })
         onSubmit={handleCreate}
         isLoading={createMutation.isPending}
         existingCodes={existingCodes}
+        defaultTarget={showId ? { showId } : { trialId: trialId! }}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
@@ -186,7 +214,10 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ trialId })
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

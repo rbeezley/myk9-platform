@@ -131,6 +131,8 @@ export const queryKeys = {
   showTrials: (showId: string) => ['shows', showId, 'trials'] as const,
   showClasses: (showId: string) => ['shows', showId, 'classes'] as const,
   showEntries: (showId: string) => ['shows', showId, 'entries'] as const,
+  showPromoCodes: (showId: string) => ['shows', showId, 'promo-codes'] as const,
+  showFinancialSummary: (showId: string) => ['shows', showId, 'financial-summary'] as const,
   showsByDateRange: (startDate: string, endDate: string) =>
     ['shows', 'dateRange', startDate, endDate] as const,
   showsByClub: (clubId: string) => ['shows', 'club', clubId] as const,

@@ -2309,7 +2309,8 @@ export type Database = {
           discount_value: number;
           expires_at: string | null;
           id: string;
-          trial_id: string;
+          show_id: string | null;
+          trial_id: string | null;
           updated_at: string;
           usage_count: number;
           usage_limit: number | null;
@@ -2322,7 +2323,8 @@ export type Database = {
           discount_value: number;
           expires_at?: string | null;
           id?: string;
-          trial_id: string;
+          show_id?: string | null;
+          trial_id?: string | null;
           updated_at?: string;
           usage_count?: number;
           usage_limit?: number | null;
@@ -2335,12 +2337,20 @@ export type Database = {
           discount_value?: number;
           expires_at?: string | null;
           id?: string;
-          trial_id?: string;
+          show_id?: string | null;
+          trial_id?: string | null;
           updated_at?: string;
           usage_count?: number;
           usage_limit?: number | null;
         };
         Relationships: [
+          {
+            foreignKeyName: 'promo_codes_show_id_fkey';
+            columns: ['show_id'];
+            isOneToOne: false;
+            referencedRelation: 'shows';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'promo_codes_trial_id_fkey';
             columns: ['trial_id'];

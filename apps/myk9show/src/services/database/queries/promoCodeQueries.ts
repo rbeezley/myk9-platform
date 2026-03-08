@@ -3,7 +3,7 @@
 // ========================================
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type { DbPromoCodeInsert } from '@/types/database-mappings';
+import type { DbPromoCode, DbPromoCodeInsert } from '@/types/database-mappings';
 import type { PromoCodeValidationResult } from '@/types/promo-codes';
 
 export const getPromoCodesByTrial = async (trialId: string) => {
@@ -32,6 +32,32 @@ export const getPromoCodesByTrial = async (trialId: string) => {
   }
 };
 
+export const getPromoCodesByShow = async (showId: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .eq('show_id', showId)
+      .order('created_at', { ascending: false });
+
+    const duration = Date.now() - startTime;
+    logQuery('promo_code', 'select_by_show', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'promo_code', 'select_by_show');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'promo_code', 'select_by_show');
+    logQuery('promo_code', 'select_by_show', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
 export const getPromoCodeByCode = async (trialId: string, code: string) => {
   const startTime = Date.now();
 
@@ -55,6 +81,38 @@ export const getPromoCodeByCode = async (trialId: string, code: string) => {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'promo_code', 'select_by_code');
     logQuery('promo_code', 'select_by_code', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+/** Find a promo code by code string, checking both trial-level and show-level codes.
+ *  Trial-level codes take priority over show-level codes. */
+export const findPromoCodeByCode = async (trialId: string, showId: string, code: string) => {
+  const startTime = Date.now();
+  const upperCode = code.toUpperCase();
+
+  try {
+    // Single query: fetch both trial-level and show-level matches
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .eq('code', upperCode)
+      .or(`trial_id.eq.${trialId},show_id.eq.${showId}`);
+
+    const duration = Date.now() - startTime;
+    logQuery('promo_code', 'find_by_code', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'promo_code', 'find_by_code');
+    }
+
+    // Prefer trial-level match over show-level
+    const match = data?.find(c => c.trial_id === trialId) ?? data?.[0] ?? null;
+    return { data: match, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'promo_code', 'find_by_code');
+    logQuery('promo_code', 'find_by_code', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -111,9 +169,12 @@ export const incrementPromoCodeUsage = async (id: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase.rpc('increment_promo_usage' as never, {
-      promo_id: id,
-    } as never);
+    const { data, error } = await supabase.rpc(
+      'increment_promo_usage' as never,
+      {
+        promo_id: id,
+      } as never
+    );
 
     // Fallback: if no RPC exists, do a manual increment
     if (error) {
@@ -152,6 +213,10 @@ export const incrementPromoCodeUsage = async (id: string) => {
   }
 };
 
+/**
+ * Validate a promo code for a trial (trial-level only).
+ * For registration flows that need both show + trial scope, use validatePromoCodeForEntry.
+ */
 export const validatePromoCode = async (
   trialId: string,
   code: string
@@ -162,12 +227,33 @@ export const validatePromoCode = async (
     return { valid: false, error: 'Invalid promo code' };
   }
 
-  // Check expiry
+  return validatePromoCodeRecord(promoCode);
+};
+
+/**
+ * Validate a promo code against both trial-level and show-level codes.
+ * Used in registration/checkout where a show-wide code should also apply.
+ */
+export const validatePromoCodeForEntry = async (
+  trialId: string,
+  showId: string,
+  code: string
+): Promise<PromoCodeValidationResult> => {
+  const { data: promoCode, error } = await findPromoCodeByCode(trialId, showId, code);
+
+  if (error || !promoCode) {
+    return { valid: false, error: 'Invalid promo code' };
+  }
+
+  return validatePromoCodeRecord(promoCode);
+};
+
+/** Shared validation logic for a promo code record */
+const validatePromoCodeRecord = (promoCode: DbPromoCode): PromoCodeValidationResult => {
   if (promoCode.expires_at && new Date(promoCode.expires_at) < new Date()) {
     return { valid: false, error: 'This promo code has expired' };
   }
 
-  // Check usage limit
   if (promoCode.usage_limit !== null && promoCode.usage_count >= promoCode.usage_limit) {
     return { valid: false, error: 'This promo code has reached its usage limit' };
   }
@@ -176,7 +262,8 @@ export const validatePromoCode = async (
     valid: true,
     promoCode: {
       id: promoCode.id,
-      trial_id: promoCode.trial_id,
+      show_id: promoCode.show_id ?? null,
+      trial_id: promoCode.trial_id ?? null,
       code: promoCode.code,
       discount_type: promoCode.discount_type as 'percentage' | 'flat',
       discount_value: promoCode.discount_value,

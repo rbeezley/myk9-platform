@@ -38,13 +38,13 @@ export class RBACService {
     this.auditLogger = new AuditLogger();
     this.roleManager = new RoleManager(
       this.auditLogger,
-      (userId) => this.permissionChecker.clearUserCache(userId),
+      userId => this.permissionChecker.clearUserCache(userId),
       () => this.permissionChecker.clearAllCache()
     );
     this.securityValidator = new SecurityValidator(
       (userId, permission) => this.permissionChecker.checkPermission(userId, permission),
       () => this.roleManager.getAllRoles(),
-      (roleId) => this.roleManager.getRolePermissions(roleId)
+      roleId => this.roleManager.getRolePermissions(roleId)
     );
   }
 
@@ -79,7 +79,11 @@ export class RBACService {
     permission: string,
     organizationId?: string
   ): Promise<boolean> {
-    return this.permissionChecker.checkPermissionWithOrganization(userId, permission, organizationId);
+    return this.permissionChecker.checkPermissionWithOrganization(
+      userId,
+      permission,
+      organizationId
+    );
   }
 
   resolvePermissionInheritance(permissions: string[]): string[] {
@@ -93,7 +97,7 @@ export class RBACService {
   }> {
     return this.permissionChecker.getPermissionInheritanceTree(
       roleId,
-      (id) => this.roleManager.getRolePermissions(id),
+      id => this.roleManager.getRolePermissions(id),
       () => this.roleManager.getAllPermissions()
     );
   }
@@ -104,6 +108,10 @@ export class RBACService {
 
   async assignRole(request: AssignRoleRequest): Promise<string> {
     return this.roleManager.assignRole(request);
+  }
+
+  async ensureUserHasRole(userId: string, roleName: string, clubId?: string): Promise<boolean> {
+    return this.roleManager.ensureUserHasRole(userId, roleName, clubId);
   }
 
   async revokeRole(request: RevokeRoleRequest): Promise<boolean> {
@@ -138,7 +146,9 @@ export class RBACService {
     return this.roleManager.getRoleWithPermissions(roleId);
   }
 
-  async getRolePermissions(roleId: string): Promise<{ permission_id: string; permission: Permission }[]> {
+  async getRolePermissions(
+    roleId: string
+  ): Promise<{ permission_id: string; permission: Permission }[]> {
     return this.roleManager.getRolePermissions(roleId);
   }
 
@@ -154,7 +164,9 @@ export class RBACService {
     return this.roleManager.revokeUserRole(userRoleId);
   }
 
-  async checkUserMigration(userId: string): Promise<{ isMigrated: boolean; needsMigration: boolean }> {
+  async checkUserMigration(
+    userId: string
+  ): Promise<{ isMigrated: boolean; needsMigration: boolean }> {
     return this.roleManager.checkUserMigration(userId);
   }
 
@@ -166,11 +178,17 @@ export class RBACService {
   // Audit Logging (delegated to AuditLogger)
   // ==========================================================================
 
-  async getAuditLogs(filter?: { fromDate?: string; toDate?: string; limit?: number }): Promise<AuditLogEntry[]> {
+  async getAuditLogs(filter?: {
+    fromDate?: string;
+    toDate?: string;
+    limit?: number;
+  }): Promise<AuditLogEntry[]> {
     return this.auditLogger.getAuditLogs(filter);
   }
 
-  async getAuditLog(filters: AuditLogFilter): Promise<{ entries: AuditLogEntry[]; totalCount: number }> {
+  async getAuditLog(
+    filters: AuditLogFilter
+  ): Promise<{ entries: AuditLogEntry[]; totalCount: number }> {
     return this.auditLogger.getAuditLog(filters);
   }
 
@@ -200,12 +218,17 @@ export class RBACService {
     affectedUsers: string[],
     roleIds?: string[]
   ): Promise<{ isValid: boolean; reason?: string }> {
-    return this.securityValidator.validateBulkOperation(actorId, operationType, affectedUsers, roleIds);
+    return this.securityValidator.validateBulkOperation(
+      actorId,
+      operationType,
+      affectedUsers,
+      roleIds
+    );
   }
 
   async validateRolePermissionIntegrity(): Promise<{ isValid: boolean; issues: string[] }> {
-    return this.securityValidator.validateRolePermissionIntegrity(
-      () => this.roleManager.getAllPermissions()
+    return this.securityValidator.validateRolePermissionIntegrity(() =>
+      this.roleManager.getAllPermissions()
     );
   }
 
@@ -215,9 +238,7 @@ export class RBACService {
     totalChecks: number;
     cacheSize: number;
   }> {
-    return this.securityValidator.getPermissionCheckMetrics(
-      this.permissionChecker.getCacheSize()
-    );
+    return this.securityValidator.getPermissionCheckMetrics(this.permissionChecker.getCacheSize());
   }
 
   // ==========================================================================
@@ -246,12 +267,14 @@ export class RBACService {
     permissionId: string,
     overrideType: 'grant' | 'deny'
   ): Promise<void> {
-    logger.debug('📝 Creating organization override (mock)', 'rbac', { data: {
-      organization_id: organizationId,
-      role_id: roleId,
-      permission_id: permissionId,
-      override_type: overrideType
-    } });
+    logger.debug('📝 Creating organization override (mock)', 'rbac', {
+      data: {
+        organization_id: organizationId,
+        role_id: roleId,
+        permission_id: permissionId,
+        override_type: overrideType,
+      },
+    });
 
     this.clearAllCache();
 
@@ -271,11 +294,13 @@ export class RBACService {
     roleId: string,
     permissionId: string
   ): Promise<void> {
-    logger.debug('🗑️ Removing organization override (mock)', 'rbac', { data: {
-      organization_id: organizationId,
-      role_id: roleId,
-      permission_id: permissionId
-    } });
+    logger.debug('🗑️ Removing organization override (mock)', 'rbac', {
+      data: {
+        organization_id: organizationId,
+        role_id: roleId,
+        permission_id: permissionId,
+      },
+    });
 
     this.clearAllCache();
 
@@ -290,7 +315,9 @@ export class RBACService {
   }
 
   async getOrganizationOverrides(organizationId: string): Promise<Array<Record<string, unknown>>> {
-    logger.warn('Organization overrides not implemented yet, table does not exist:', 'rbac', { data: organizationId });
+    logger.warn('Organization overrides not implemented yet, table does not exist:', 'rbac', {
+      data: organizationId,
+    });
     return [];
   }
 
@@ -312,25 +339,31 @@ export class RBACService {
       // Derive resource from permission code (e.g. "show:manage" → "show")
       const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'unknown';
 
-      const resourceGroups = allPermissions.reduce((acc, perm) => {
-        const resource = getResource(perm);
-        if (!acc[resource]) acc[resource] = [];
-        acc[resource].push(perm);
-        return acc;
-      }, {} as Record<string, Permission[]>);
+      const resourceGroups = allPermissions.reduce(
+        (acc, perm) => {
+          const resource = getResource(perm);
+          if (!acc[resource]) acc[resource] = [];
+          acc[resource].push(perm);
+          return acc;
+        },
+        {} as Record<string, Permission[]>
+      );
 
       Object.keys(resourceGroups).forEach(resource => {
         const resourcePermissions = resourceGroups[resource];
-        const grantedCount = inheritanceTree.direct.filter(p => getResource(p) === resource).length +
+        const grantedCount =
+          inheritanceTree.direct.filter(p => getResource(p) === resource).length +
           inheritanceTree.implied.filter(p => getResource(p) === resource).length;
-        coverageByResource[resource] = Math.round((grantedCount / resourcePermissions.length) * 100);
+        coverageByResource[resource] = Math.round(
+          (grantedCount / resourcePermissions.length) * 100
+        );
       });
 
       return {
         totalPermissions: inheritanceTree.direct.length + inheritanceTree.implied.length,
         directPermissions: inheritanceTree.direct.length,
         impliedPermissions: inheritanceTree.implied.length,
-        coverageByResource
+        coverageByResource,
       };
     } catch (error) {
       logger.error('Failed to analyze role permissions:', 'rbac', {}, error as Error);

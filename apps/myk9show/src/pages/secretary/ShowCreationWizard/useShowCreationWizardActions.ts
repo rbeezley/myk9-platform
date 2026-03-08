@@ -20,6 +20,8 @@ import {
 import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { rbacService } from '@/services/rbac';
+import { UserRole } from '@/types/auth-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
@@ -257,6 +259,17 @@ export function useShowCreationWizardActions({
 
         // Trigger immediate sync to upload show/trial/class data to Supabase
         window.dispatchEvent(new CustomEvent('replication:sync-requested'));
+
+        // Auto-grant secretary role to the assigned secretary (fire-and-forget)
+        if (show.secretary && show.clubId) {
+          rbacService
+            .ensureUserHasRole(show.secretary, UserRole.SECRETARY, show.clubId)
+            .catch(err =>
+              logger.warn('Failed to auto-grant secretary role', 'wizard', {
+                error: err instanceof Error ? err.message : String(err),
+              })
+            );
+        }
 
         // Seed React Query cache so ShowDetailsPage finds the show immediately
         // (addShow writes to IndexedDB/Zustand but the detail page reads from React Query)

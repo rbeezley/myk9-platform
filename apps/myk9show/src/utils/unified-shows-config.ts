@@ -31,7 +31,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       tabs: [
         {
           id: 'all',
-          label: 'All Shows',
+          label: 'Browse All',
           description: 'Browse all available shows',
           getCount: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)).length,
           filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)),
@@ -59,17 +59,59 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
   const userRoles = user.roles || [];
   const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(user);
 
-  // Only add tabs that user has permission to access
+  const hasManagementRole =
+    userRoles.includes(UserRole.SECRETARY) ||
+    userRoles.includes(UserRole.CLUB_ADMIN) ||
+    userRoles.includes(UserRole.SITE_ADMIN);
+
+  // --- Role-specific "My Shows" tab first (secretary/club_admin/site_admin) ---
+  // Placed before "Browse All" so the secretary's primary view is front-and-center.
+  if (hasManagementRole) {
+    if (userRoles.includes(UserRole.SITE_ADMIN)) {
+      tabs.push({
+        id: 'managing',
+        label: 'My Shows',
+        description: 'Global administrative view of all shows',
+        requiredRoles: [UserRole.SITE_ADMIN],
+        requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
+        getCount: (shows, _entries, _userId) => {
+          return getAdminManagedShows(shows, userRoles).length;
+        },
+        filterShows: (shows, _entries, _userId) => {
+          return getAdminManagedShows(shows, userRoles);
+        },
+      });
+    } else {
+      tabs.push({
+        id: 'managing',
+        label: 'My Shows',
+        description: 'Shows you are secretary or administrator for',
+        requiredRoles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN],
+        requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
+        getCount: (shows, _entries, userId) => {
+          if (!userId) return 0;
+          return getUserManagedShows(userId, shows, userRoles).length;
+        },
+        filterShows: (shows, _entries, userId) => {
+          if (!userId) return [];
+          return getUserManagedShows(userId, shows, userRoles);
+        },
+      });
+    }
+  }
+
+  // --- Browse All tab ---
   if (accessibleTabs.includes('all')) {
     tabs.push({
       id: 'all',
-      label: 'All Shows',
+      label: 'Browse All',
       description: 'Browse and register for available shows',
       getCount: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)).length,
       filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)),
     });
   }
 
+  // --- Past Shows tab ---
   if (accessibleTabs.includes('past')) {
     tabs.push({
       id: 'past',
@@ -86,6 +128,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
+  // --- My Entries tab (only for exhibitor/handler roles) ---
   if (accessibleTabs.includes('entries')) {
     tabs.push({
       id: 'entries',
@@ -104,25 +147,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
-  // Role-specific tabs
-  if (userRoles.includes(UserRole.SECRETARY) || userRoles.includes(UserRole.CLUB_ADMIN)) {
-    tabs.push({
-      id: 'managing',
-      label: 'Managing',
-      description: 'Shows you are secretary or administrator for',
-      requiredRoles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN],
-      requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
-      getCount: (shows, _entries, userId) => {
-        if (!userId) return 0;
-        return getUserManagedShows(userId, shows, userRoles).length;
-      },
-      filterShows: (shows, _entries, userId) => {
-        if (!userId) return [];
-        return getUserManagedShows(userId, shows, userRoles);
-      },
-    });
-  }
-
+  // --- Judge assignments tab ---
   if (userRoles.includes(UserRole.JUDGE)) {
     tabs.push({
       id: 'assignments',
@@ -141,41 +166,12 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
-  if (userRoles.includes(UserRole.SITE_ADMIN)) {
-    // Site admins get a global managing tab with additional controls
-    const managingTabIndex = tabs.findIndex(t => t.id === 'managing');
-    if (managingTabIndex >= 0) {
-      tabs[managingTabIndex] = {
-        ...tabs[managingTabIndex],
-        label: 'Managing',
-        description: 'Global administrative view of all shows',
-        getCount: (shows, _entries, _userId) => {
-          return getAdminManagedShows(shows, userRoles).length;
-        },
-        filterShows: (shows, _entries, _userId) => {
-          return getAdminManagedShows(shows, userRoles);
-        },
-      };
-    } else {
-      tabs.push({
-        id: 'managing',
-        label: 'Managing',
-        description: 'Global administrative view of all shows',
-        requiredRoles: [UserRole.SITE_ADMIN],
-        requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
-        getCount: (shows, _entries, _userId) => {
-          return getAdminManagedShows(shows, userRoles).length;
-        },
-        filterShows: (shows, _entries, _userId) => {
-          return getAdminManagedShows(shows, userRoles);
-        },
-      });
-    }
-  }
+  // Default tab: "My Shows" for management roles, "Browse All" for others
+  const defaultTab = hasManagementRole ? 'managing' : 'all';
 
   return {
     tabs,
-    defaultTab: 'all',
+    defaultTab,
     actions: generateTabActions(userRoles),
   };
 }

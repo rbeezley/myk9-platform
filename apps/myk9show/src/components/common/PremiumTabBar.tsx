@@ -1,6 +1,6 @@
 /**
  * PremiumTabBar Component
- * 
+ *
  * Premium tab navigation with gradient backgrounds, rounded pills,
  * and sophisticated active states. Automatically follows design system.
  */
@@ -37,69 +37,69 @@ export function PremiumTabBar({
   value,
   onValueChange,
   className,
-  variant = 'standard'
+  variant = 'standard',
 }: PremiumTabBarProps) {
   const tabCount = tabs.length;
-  
+
   // Generate grid columns dynamically
-  const gridColumns = tabCount <= 6 
-    ? `grid-cols-${tabCount}` 
-    : 'grid-flow-col auto-cols-fr';
+  const gridColumns = tabCount <= 6 ? `grid-cols-${tabCount}` : 'grid-flow-col auto-cols-fr';
 
   const containerClassName = cn(
-    "grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1",
+    'grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1',
     tabCount <= 6 && gridColumns,
-    tabCount > 6 && "overflow-x-auto min-w-max",
+    tabCount > 6 && 'overflow-x-auto min-w-max',
     className
   );
 
-  const triggerClassName = "data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 data-[state=disabled]:opacity-50";
+  const triggerClassName =
+    'data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 data-[state=disabled]:opacity-50';
 
   return (
-    <Tabs 
-      defaultValue={defaultValue || tabs[0]?.id} 
-      value={value} 
+    <Tabs
+      defaultValue={defaultValue || tabs[0]?.id}
+      value={value}
       onValueChange={onValueChange}
       className="w-full"
     >
       <TabsList
         className={containerClassName}
-        {...(tabCount > 6 && { style: { gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` } })}
+        {...(tabCount > 6 && {
+          style: { gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` },
+        })}
       >
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <TabsTrigger
             key={tab.id}
             value={tab.id}
             {...(tab.disabled !== undefined && { disabled: tab.disabled })}
-            className={cn(
-              triggerClassName,
-              variant === 'compact' && "px-2 py-1.5 text-xs"
-            )}
+            className={cn(triggerClassName, variant === 'compact' && 'px-2 py-1.5 text-xs')}
           >
             <span className="flex items-center gap-2">
               {tab.isPremium && <Crown className="h-4 w-4 text-premium-gold" />}
               {tab.icon && <tab.icon className="h-4 w-4" />}
               <span>{tab.label}</span>
-              {(variant === 'withBadges' || variant === 'premium') && typeof tab.count !== 'undefined' && (
-                <Badge 
-                  variant="secondary" 
-                  className="text-xs px-1.5 py-0.5 min-w-[20px] justify-center"
-                >
-                  {tab.count}
-                </Badge>
-              )}
+              {(variant === 'withBadges' || variant === 'premium') &&
+                typeof tab.count !== 'undefined' && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs px-1.5 py-0.5 min-w-[20px] justify-center"
+                  >
+                    {tab.count}
+                  </Badge>
+                )}
             </span>
           </TabsTrigger>
         ))}
       </TabsList>
 
-      {tabs.map((tab) => (
-        tab.content && (
-          <TabsContent key={`content-${tab.id}`} value={tab.id} className="mt-6">
-            {tab.content}
-          </TabsContent>
-        )
-      ))}
+      {tabs.map(
+        tab =>
+          tab.content && (
+            <TabsContent key={`content-${tab.id}`} value={tab.id} className="mt-6">
+              {tab.content}
+            </TabsContent>
+          )
+      )}
     </Tabs>
   );
 }
@@ -108,7 +108,7 @@ export function PremiumTabBar({
 export function usePremiumTabs(tabs: Omit<TabItem, 'content'>[]) {
   return tabs.map(tab => ({
     ...tab,
-    content: <div>Content for {tab.label}</div> // Placeholder
+    content: <div>Content for {tab.label}</div>, // Placeholder
   }));
 }
 
@@ -126,8 +126,8 @@ export const createEntityTabs = (entityName: string, counts: { [key: string]: nu
 ];
 
 export const createShowTabs = (counts: { [key: string]: number }) => [
-  { id: 'all', label: 'All Shows', count: counts.all },
+  { id: 'managing', label: 'My Shows', count: counts.managing },
+  { id: 'all', label: 'Browse All', count: counts.all },
   { id: 'past', label: 'Past Shows', count: counts.past },
   { id: 'entries', label: 'My Entries', count: counts.entries },
-  { id: 'managing', label: 'Managing', count: counts.managing },
 ];

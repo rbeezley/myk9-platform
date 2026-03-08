@@ -31,7 +31,7 @@ async function setupPage(page: Page) {
 // Helper function to check basic page functionality
 async function checkBasicFunctionality(page: Page) {
   // Check that tabs are visible
-  await expect(page.getByRole('tab', { name: /all shows/i })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /browse all/i })).toBeVisible();
   await expect(page.getByRole('tab', { name: /past shows/i })).toBeVisible();
 
   // Check that search is functional
@@ -88,7 +88,7 @@ test.describe('Cross-Browser Compatibility Tests', () => {
         await setupPage(page);
 
         // Test keyboard navigation
-        const allShowsTab = page.getByRole('tab', { name: /all shows/i });
+        const allShowsTab = page.getByRole('tab', { name: /browse all/i });
         const pastShowsTab = page.getByRole('tab', { name: /past shows/i });
 
         await allShowsTab.focus();

@@ -176,7 +176,9 @@ const BrowseShowsPage: React.FC = () => {
 
   // Sync state with URL params on mount and param changes
   useEffect(() => {
-    const tabFromUrl = searchParams.get('tab') || 'all';
+    const rawTab = searchParams.get('tab') || tabConfig.defaultTab;
+    // Only apply if the tab is valid for this user; otherwise fall back to default
+    const tabFromUrl = tabConfig.tabs.some(t => t.id === rawTab) ? rawTab : tabConfig.defaultTab;
     const viewFromUrl = (searchParams.get('view') as ViewMode) || 'grid';
 
     if (tabFromUrl !== selectedTab) {
@@ -185,7 +187,7 @@ const BrowseShowsPage: React.FC = () => {
     if (viewFromUrl !== viewMode) {
       queueMicrotask(() => setViewMode(viewFromUrl));
     }
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, tabConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Generate breadcrumb items
   const breadcrumbItems = useMemo(() => {

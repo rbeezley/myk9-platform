@@ -275,7 +275,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Add table view to shows, trials, classes, and entries** — For consistency with Dogs and People pages, add table view everywhere. **Problem:** Dogs and People already have table view but shows, trials, classes, and entries do not. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`, `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx`.
 
-- **Clarify All Shows vs Managing tabs** — Secretary shows page has All Shows, Past Shows, My Entries, and Managing tabs. **Problem:** Unclear what distinguishes "All Shows" from "Managing" if we're only displaying shows for the signed-in secretary. May need to consolidate or clarify purpose. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`.
+- [x] **Clarify All Shows vs Managing tabs** — Renamed "All Shows" → "Browse All", "Managing" → "My Shows". Reordered so secretaries land on "My Shows" first. "My Entries" now only visible for exhibitor/handler roles.
 
 ## Show Details Improvements - 2026-03-07 15:27
 
@@ -285,13 +285,13 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Add "Add Entries" to Manage Show menu** — The Manage Show button has choices for add trials and add classes but not entries. **Problem:** No quick path to add entries from the manage show dropdown. **Files:** `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`, `apps/myk9show/src/components/shows/ShowDetails/`.
 
-- **Redesign trials card to match show card style** — Trials cards should have a "View Details" button instead of just an eye icon. **Problem:** Inconsistent card design between show cards and trial cards. **Files:** `apps/myk9show/src/components/trials/TrialCard.tsx`.
+- [x] **Redesign trials card to match show card style** — Replaced eye icon dropdown with proper "View Details" button, matched ShowCard dark theme styling with hover effects.
 
 ## Trial Details Improvements - 2026-03-07 15:27
 
 - **Add entries tab to trial details** — Add a tab showing entries for that specific trial. **Problem:** Classes are listed in a table but there's no way to see entries at the trial level. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/components/trials/TrialDetailsMain.tsx`.
 
-- **Redesign class cards in grid view** — Fix white square in top left corner and improve card backgrounds. **Problem:** Class cards in grid view have a large white square artifact and unappealing background styling. **Files:** `apps/myk9show/src/components/classes/ClassCard.tsx`.
+- [x] **Redesign class cards in grid view** — Fixed white square artifact (overflow + positioning), unified dark theme backgrounds, removed redundant `dark:` prefixes.
 
 - **Fix Add Class dialog** — Convert to slide-out panel for consistency, and gray out classes already in the trial. **Problem:** Add Class opens a dialog (should be a panel), shows classes already in the trial without proper indication, and some "already added" labels are incorrect. **Files:** `apps/myk9show/src/components/classes/AddClassDialog.tsx`, `apps/myk9show/src/pages/TrialDetailsPage.tsx`.
 
@@ -301,7 +301,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Entry Wizard Bugs - 2026-03-07 15:27
 
-- **Improve radio buttons on payment page** — Use better looking radio buttons. **Problem:** Current radio buttons on the payment page look plain/default. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`.
+- [x] **Improve radio buttons on payment page** — Replaced plain radio buttons with card-style selectable options with colored icons, border highlights, and check indicators.
 
 - **Fix payment calculation showing zero** — Entered 3 dogs in 9 classes but subtotal shows zero on payment page. **Problem:** Payment totals are not being calculated correctly from the selected entries. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`, `apps/myk9show/src/components/registration/`.
 
@@ -315,7 +315,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Class Details Improvements - 2026-03-07 15:27
 
-- **Redesign class details card** — Make timing details and fee structure flat fields instead of collapsible sections. **Problem:** Collapsible sections add unnecessary interaction — these should just be visible fields. **Files:** `apps/myk9show/src/pages/ClassDetailsPage.tsx`, `apps/myk9show/src/components/classes/ClassDetailsMain.tsx`.
+- [x] **Redesign class details card** — Converted Timing Details and Fee Structure from collapsible accordions to flat always-visible cards.
 
 - **Auto-fill class requirements from rules** — Requirements tab in edit class should pre-fill values dictated by rules, and indicate judge-settable fields with range placeholders. **Problem:** Rules dictate certain requirement values but the form doesn't auto-fill them. Judge-settable fields should show placeholders like "Set by judge (3-5 minutes)". Reference myK9Q (Canine Cue) for similar implementation. **Files:** `apps/myk9show/src/components/panels/edit/ClassEditPanel.tsx`, `apps/myk9show/src/components/classes/EditClassDialog.tsx`.
 

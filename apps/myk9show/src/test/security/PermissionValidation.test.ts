@@ -118,7 +118,7 @@ describe('Permission Validation Security Tests', () => {
       expect(ShowPermissionValidator.canDelete(exhibitor, show)).toBe(false);
     });
 
-    it('should provide basic tabs for exhibitors', () => {
+    it('should provide basic tabs plus My Entries for exhibitors', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(exhibitor);
       expect(accessibleTabs).toEqual(['all', 'past', 'entries']);
     });
@@ -159,9 +159,9 @@ describe('Permission Validation Security Tests', () => {
       expect(ShowPermissionValidator.canManageEntries(secretary, show)).toBe(true);
     });
 
-    it('should provide management tabs for secretaries', () => {
+    it('should provide management tabs for secretaries (no entries tab)', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(secretary);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'managing']);
+      expect(accessibleTabs).toEqual(['all', 'past', 'managing']);
     });
   });
 
@@ -199,9 +199,9 @@ describe('Permission Validation Security Tests', () => {
       expect(ShowPermissionValidator.canEnterResults(judge, show)).toBe(false);
     });
 
-    it('should provide judge-specific tabs', () => {
+    it('should provide judge-specific tabs (no entries tab)', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(judge);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'assignments']);
+      expect(accessibleTabs).toEqual(['all', 'past', 'assignments']);
     });
   });
 
@@ -227,9 +227,9 @@ describe('Permission Validation Security Tests', () => {
       expect(ShowPermissionValidator.canEnterResults(siteAdmin, show)).toBe(true);
     });
 
-    it('should provide all tabs for site admins', () => {
+    it('should provide management tabs for site admins (no entries tab)', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(siteAdmin);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'managing']);
+      expect(accessibleTabs).toEqual(['all', 'past', 'managing']);
     });
   });
 
@@ -248,7 +248,7 @@ describe('Permission Validation Security Tests', () => {
       expect(ShowPermissionValidator.canCreate(exhibitorSecretary)).toBe(true);
     });
 
-    it('should handle judge + exhibitor combination', () => {
+    it('should handle judge + exhibitor combination (entries + assignments)', () => {
       const judgeExhibitor = createMockUser('judge');
       judgeExhibitor.roles = ['exhibitor', 'judge'];
 
@@ -256,7 +256,7 @@ describe('Permission Validation Security Tests', () => {
       expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'assignments']);
     });
 
-    it('should handle secretary + judge combination', () => {
+    it('should handle secretary + judge combination (no entries tab)', () => {
       const secretaryJudge = createMockUser('secretary', [
         PERMISSIONS.SHOW_CREATE,
         PERMISSIONS.SHOW_UPDATE,
@@ -265,7 +265,7 @@ describe('Permission Validation Security Tests', () => {
       secretaryJudge.roles = ['secretary', 'judge'];
 
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(secretaryJudge);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'managing', 'assignments']);
+      expect(accessibleTabs).toEqual(['all', 'past', 'managing', 'assignments']);
     });
   });
 
@@ -350,12 +350,12 @@ describe('Permission Validation Security Tests', () => {
       expect(() => ShowPermissionValidator.getAccessibleTabs(null)).not.toThrow();
     });
 
-    it('should handle users without roles', () => {
+    it('should handle users without roles (no entries tab)', () => {
       const userWithoutRoles = createMockUser('exhibitor');
       userWithoutRoles.roles = [];
 
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(userWithoutRoles);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries']);
+      expect(accessibleTabs).toEqual(['all', 'past']);
     });
 
     it('should handle users without permissions', () => {

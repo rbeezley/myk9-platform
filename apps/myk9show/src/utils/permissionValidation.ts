@@ -25,14 +25,16 @@ export function canViewShow(user: UserWithRoles | null, show: Show): boolean {
  */
 export function canCreateShow(user: UserWithRoles | null): boolean {
   if (!user) return false;
-  
+
   const permissions = user.permissions || [];
   const roles = user.roles || [];
-  
-  return permissions.includes(PERMISSIONS.SHOW_CREATE) ||
-         roles.includes(UserRole.SECRETARY) ||
-         roles.includes(UserRole.CLUB_ADMIN) ||
-         roles.includes(UserRole.SITE_ADMIN);
+
+  return (
+    permissions.includes(PERMISSIONS.SHOW_CREATE) ||
+    roles.includes(UserRole.SECRETARY) ||
+    roles.includes(UserRole.CLUB_ADMIN) ||
+    roles.includes(UserRole.SITE_ADMIN)
+  );
 }
 
 /**
@@ -40,21 +42,23 @@ export function canCreateShow(user: UserWithRoles | null): boolean {
  */
 export function canEditShow(user: UserWithRoles | null, show: ShowWithRelationship): boolean {
   if (!user) return false;
-  
+
   const permissions = user.permissions || [];
   const roles = user.roles || [];
-  
+
   // Site admins can edit any show
   if (roles.includes(UserRole.SITE_ADMIN)) return true;
-  
+
   // Check if user has general show update permission
   if (!permissions.includes(PERMISSIONS.SHOW_UPDATE)) return false;
-  
+
   // Check if user has management relationship with the show
-  return show.userCanManage || 
-         show.secretary === user.id ||
-         show.chairman === user.id ||
-         (show.assignedJudges && show.assignedJudges.some(j => j.judgeId === user.id));
+  return (
+    show.userCanManage ||
+    show.secretary === user.id ||
+    show.chairman === user.id ||
+    (show.assignedJudges && show.assignedJudges.some(j => j.judgeId === user.id))
+  );
 }
 
 /**
@@ -62,15 +66,15 @@ export function canEditShow(user: UserWithRoles | null, show: ShowWithRelationsh
  */
 export function canDeleteShow(user: UserWithRoles | null, show: ShowWithRelationship): boolean {
   if (!user) return false;
-  
+
   const permissions = user.permissions || [];
   const roles = user.roles || [];
-  
+
   // Only site admins or users with explicit delete permission can delete shows
   if (roles.includes(UserRole.SITE_ADMIN)) return true;
-  
+
   if (!permissions.includes(PERMISSIONS.SHOW_DELETE)) return false;
-  
+
   // Additional checks for non-admin users
   // Must be the show secretary or chairman
   return show.secretary === user.id || show.chairman === user.id;
@@ -81,21 +85,23 @@ export function canDeleteShow(user: UserWithRoles | null, show: ShowWithRelation
  */
 export function canManageEntries(user: UserWithRoles | null, show: ShowWithRelationship): boolean {
   if (!user) return false;
-  
+
   const permissions = user.permissions || [];
   const roles = user.roles || [];
-  
+
   // Site admins can manage any show entries
   if (roles.includes(UserRole.SITE_ADMIN)) return true;
-  
+
   // Check if user has entry management permission
   if (!permissions.includes(PERMISSIONS.SHOW_MANAGE_ENTRIES)) return false;
-  
+
   // Check management relationship
-  return show.userCanManage ||
-         show.secretary === user.id ||
-         show.chairman === user.id ||
-         show.chiefSteward === user.id;
+  return (
+    show.userCanManage ||
+    show.secretary === user.id ||
+    show.chairman === user.id ||
+    show.chiefSteward === user.id
+  );
 }
 
 /**
@@ -103,17 +109,17 @@ export function canManageEntries(user: UserWithRoles | null, show: ShowWithRelat
  */
 export function canRegisterForShow(user: UserWithRoles | null, show: Show): boolean {
   if (!user) return false;
-  
+
   const now = new Date();
   const showStart = new Date(show.startDate);
   const entryClose = new Date(show.entryCloseDate);
-  
+
   // Show must be upcoming and entries must be open
   if (showStart <= now || entryClose <= now) return false;
-  
+
   // Show must be in 'Upcoming' status
   if (show.status !== 'Upcoming') return false;
-  
+
   // All authenticated users can register (basic check)
   return true;
 }
@@ -121,20 +127,23 @@ export function canRegisterForShow(user: UserWithRoles | null, show: Show): bool
 /**
  * Check if user can view judging assignments
  */
-export function canViewJudgeAssignments(user: UserWithRoles | null, show: ShowWithRelationship): boolean {
+export function canViewJudgeAssignments(
+  user: UserWithRoles | null,
+  show: ShowWithRelationship
+): boolean {
   if (!user) return false;
-  
+
   const permissions = user.permissions || [];
   const roles = user.roles || [];
-  
+
   // Admins and secretaries can view all assignments
   if (roles.includes(UserRole.SITE_ADMIN) || roles.includes(UserRole.SECRETARY)) return true;
-  
+
   // Judges can view their own assignments
   if (roles.includes(UserRole.JUDGE)) {
     return show.assignedJudges?.some(j => j.judgeId === user.id) || false;
   }
-  
+
   // Show managers can view assignments
   return show.userCanManage && permissions.includes(PERMISSIONS.SHOW_READ);
 }
@@ -144,19 +153,19 @@ export function canViewJudgeAssignments(user: UserWithRoles | null, show: ShowWi
  */
 export function canEnterResults(user: UserWithRoles | null, show: ShowWithRelationship): boolean {
   if (!user) return false;
-  
+
   const roles = user.roles || [];
-  
+
   // Must be an assigned judge for the show
   if (roles.includes(UserRole.JUDGE)) {
     return show.assignedJudges?.some(j => j.judgeId === user.id) || false;
   }
-  
+
   // Secretaries can enter results on behalf of judges
   if (roles.includes(UserRole.SECRETARY) && show.userCanManage) {
     return true;
   }
-  
+
   // Site admins can enter results
   return roles.includes(UserRole.SITE_ADMIN);
 }
@@ -168,20 +177,29 @@ export function getAccessibleTabs(user: UserWithRoles | null): string[] {
   if (!user) {
     return ['all', 'past']; // Guests can only see public tabs
   }
-  
-  const tabs = ['all', 'past', 'entries']; // Base tabs for authenticated users
+
+  const tabs = ['all', 'past']; // Base tabs for authenticated users
   const roles = user.roles || [];
-  
-  // Add management tab for users who can manage shows
-  if (roles.includes(UserRole.SECRETARY) || roles.includes(UserRole.CLUB_ADMIN) || roles.includes(UserRole.SITE_ADMIN)) {
+
+  // My Entries tab only for exhibitor/handler roles
+  if (roles.includes(UserRole.EXHIBITOR) || roles.includes(UserRole.HANDLER)) {
+    tabs.push('entries');
+  }
+
+  // My Shows tab for users who can manage shows
+  if (
+    roles.includes(UserRole.SECRETARY) ||
+    roles.includes(UserRole.CLUB_ADMIN) ||
+    roles.includes(UserRole.SITE_ADMIN)
+  ) {
     tabs.push('managing');
   }
-  
-  // Add assignments tab for judges
+
+  // My Assignments tab for judges
   if (roles.includes(UserRole.JUDGE)) {
     tabs.push('assignments');
   }
-  
+
   return tabs;
 }
 
@@ -219,12 +237,12 @@ export function checkPermissionWithAudit(
     auditPermissionAction(permission, user, resource, resourceId, false);
     return false;
   }
-  
+
   const permissions = user.permissions || [];
   const granted = permissions.includes(permission);
-  
+
   auditPermissionAction(permission, user, resource, resourceId, granted);
-  
+
   return granted;
 }
 
@@ -241,12 +259,12 @@ export function checkRoleWithAudit(
     auditPermissionAction(`role:${requiredRole}`, user, resource, resourceId, false);
     return false;
   }
-  
+
   const roles = user.roles || [];
   const granted = roles.includes(requiredRole as UserRole);
-  
+
   auditPermissionAction(`role:${requiredRole}`, user, resource, resourceId, granted);
-  
+
   return granted;
 }
 
@@ -254,24 +272,19 @@ export function checkRoleWithAudit(
  * Data filtering based on user permissions
  * Filters shows based on what user is allowed to see
  */
-export function filterShowsByPermissions(
-  shows: Show[],
-  user: UserWithRoles | null
-): Show[] {
+export function filterShowsByPermissions(shows: Show[], user: UserWithRoles | null): Show[] {
   if (!user) {
     // Guests can only see public upcoming and completed shows
-    return shows.filter(show => 
-      show.status === 'Upcoming' || show.status === 'Completed'
-    );
+    return shows.filter(show => show.status === 'Upcoming' || show.status === 'Completed');
   }
-  
+
   const roles = user.roles || [];
-  
+
   // Site admins can see all shows
   if (roles.includes(UserRole.SITE_ADMIN)) {
     return shows;
   }
-  
+
   // Other authenticated users can see all shows but with different access levels
   return shows;
 }
@@ -291,9 +304,9 @@ export const ShowPermissionValidator = {
   canAccessTab: canAccessTab,
   getAccessibleTabs: getAccessibleTabs,
   filterShows: filterShowsByPermissions,
-  
+
   // Audit functions
   checkPermissionWithAudit,
   checkRoleWithAudit,
-  auditAction: auditPermissionAction
+  auditAction: auditPermissionAction,
 };

@@ -89,14 +89,14 @@ const statusColors: Record<ClassStatus, string> = {
 };
 
 const statusBadgeColors: Record<ClassStatus, string> = {
-  none: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  setup: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  briefing: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  break: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  'start-time': 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-  'in-progress': 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
-  'offline-scoring': 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  completed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  none: 'bg-gray-800 text-gray-300',
+  setup: 'bg-slate-800 text-slate-300',
+  briefing: 'bg-sky-900/50 text-sky-300',
+  break: 'bg-orange-900/50 text-orange-300',
+  'start-time': 'bg-violet-900/50 text-violet-300',
+  'in-progress': 'bg-teal-900/50 text-teal-300',
+  'offline-scoring': 'bg-amber-900/50 text-amber-300',
+  completed: 'bg-green-900/50 text-green-300',
 };
 
 /**
@@ -163,23 +163,17 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
     ref
   ) => {
     // Calculate progress percentage
-    const progressPercent =
-      entryCount > 0 ? (completedCount / entryCount) * 100 : 0;
+    const progressPercent = entryCount > 0 ? (completedCount / entryCount) * 100 : 0;
 
     // Get entries for preview
-    const inRingEntry = entries.find((e) => e.inRing);
-    const nextEntries = entries
-      .filter((e) => !e.isScored && !e.inRing)
-      .slice(0, 3);
+    const inRingEntry = entries.find(e => e.inRing);
+    const nextEntries = entries.filter(e => !e.isScored && !e.inRing).slice(0, 3);
     const remainingCount = entryCount - completedCount;
 
     // Handle card click (ignore clicks on interactive elements)
     const handleCardClick = (e: React.MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.closest('button') ||
-        target.closest('[data-interactive]')
-      ) {
+      if (target.closest('button') || target.closest('[data-interactive]')) {
         return;
       }
       onCardClick?.();
@@ -189,26 +183,22 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
       <div
         ref={ref}
         className={cn(
-          // Base card styles
-          'relative overflow-visible cursor-pointer',
-          'bg-white dark:bg-gray-900',
-          'border border-gray-200 dark:border-gray-700',
+          'group/card relative overflow-hidden cursor-pointer',
+          'bg-gray-900 border border-gray-700/60',
           'rounded-2xl shadow-sm',
-          // Left status border
           'border-l-4',
           statusColors[status],
-          // Hover effects
-          'transition-all duration-200',
-          'hover:-translate-y-1 hover:shadow-md',
+          'transition-all duration-300',
+          'hover:-translate-y-1 hover:shadow-lg hover:shadow-black/20 hover:border-gray-600',
           'active:scale-[0.98]',
-          // Glass morphism
-          'backdrop-blur-xl',
           containerClassName
         )}
         onClick={handleCardClick}
       >
+        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
         {/* Status Badge - Top Right Corner */}
-        <div className="absolute -top-px -right-px z-10">
+        <div className="absolute top-0 right-0 z-10">
           {statusClickable && onStatusClick ? (
             <button
               type="button"
@@ -223,21 +213,15 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 status === 'in-progress' && 'animate-pulse',
                 statusJustChanged && 'animate-bounce'
               )}
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 onStatusClick();
               }}
             >
-              {statusIcon && (
-                <span className="flex-shrink-0 w-[18px] h-[18px]">
-                  {statusIcon}
-                </span>
-              )}
+              {statusIcon && <span className="flex-shrink-0 w-[18px] h-[18px]">{statusIcon}</span>}
               <span>
                 {statusLabel}
-                {statusTime && (
-                  <span className="ml-1 font-bold">{statusTime}</span>
-                )}
+                {statusTime && <span className="ml-1 font-bold">{statusTime}</span>}
               </span>
             </button>
           ) : (
@@ -251,16 +235,10 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 statusJustChanged && 'animate-bounce'
               )}
             >
-              {statusIcon && (
-                <span className="flex-shrink-0 w-[18px] h-[18px]">
-                  {statusIcon}
-                </span>
-              )}
+              {statusIcon && <span className="flex-shrink-0 w-[18px] h-[18px]">{statusIcon}</span>}
               <span>
                 {statusLabel}
-                {statusTime && (
-                  <span className="ml-1 font-bold">{statusTime}</span>
-                )}
+                {statusTime && <span className="ml-1 font-bold">{statusTime}</span>}
               </span>
             </div>
           )}
@@ -280,15 +258,15 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                     'w-9 h-9 flex items-center justify-center',
                     'rounded-lg cursor-pointer',
                     'transition-all duration-300',
-                    'bg-gray-100 dark:bg-gray-800',
-                    'border border-gray-200 dark:border-gray-700',
+                    'bg-gray-800 text-gray-400',
+                    'border border-gray-700',
                     'hover:bg-red-500 hover:text-white hover:border-transparent',
                     'hover:scale-110 hover:-rotate-6 hover:shadow-lg hover:shadow-red-500/40',
                     'active:scale-95 active:rotate-0',
-                    isFavorite && 'bg-red-100 dark:bg-red-900/30 border-red-400 text-red-500',
+                    isFavorite && 'bg-red-900/30 border-red-400 text-red-500',
                     favoriteJustToggled && 'animate-bounce'
                   )}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     onFavoriteClick();
                   }}
@@ -313,18 +291,24 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                     'w-9 h-9 flex items-center justify-center',
                     'rounded-lg cursor-pointer',
                     'transition-all duration-300',
-                    'bg-gray-100 dark:bg-gray-800',
-                    'border border-gray-200 dark:border-gray-700',
+                    'bg-gray-800 text-gray-400',
+                    'border border-gray-700',
                     'hover:bg-teal-500 hover:text-white hover:border-transparent',
                     'hover:scale-110 hover:-rotate-6 hover:shadow-lg hover:shadow-teal-500/40',
                     'active:scale-95 active:rotate-0'
                   )}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     onMenuClick();
                   }}
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <circle cx="12" cy="12" r="1" />
                     <circle cx="19" cy="12" r="1" />
                     <circle cx="5" cy="12" r="1" />
@@ -347,17 +331,17 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                   'hover:bg-blue-500/10',
                   'w-fit max-w-full mt-2 mb-2'
                 )}
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   onInfoClick?.();
                 }}
                 data-interactive
               >
-                <h3 className="m-0 text-xl font-bold text-gray-900 dark:text-white leading-tight tracking-tight">
+                <h3 className="m-0 text-xl font-bold text-white leading-tight tracking-tight">
                   {className}
                 </h3>
                 {onInfoClick && (
-                  <span className="mt-1 w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] opacity-60 hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all">
+                  <span className="mt-1 w-4 h-4 flex items-center justify-center rounded-full bg-gray-700 text-gray-400 text-[10px] opacity-60 hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all">
                     i
                   </span>
                 )}
@@ -366,8 +350,14 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
               {/* Metadata */}
               <div className="flex flex-col gap-1 mt-1">
                 {judgeName && (
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-                    <svg className="w-3.5 h-3.5 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                    <svg
+                      className="w-3.5 h-3.5 opacity-70"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                       <circle cx="9" cy="7" r="4" />
                       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
@@ -378,8 +368,14 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 )}
 
                 {plannedStartTime && (
-                  <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-                    <svg className="w-3.5 h-3.5 opacity-70 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-400">
+                    <svg
+                      className="w-3.5 h-3.5 opacity-70 text-blue-500"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                       <line x1="16" y1="2" x2="16" y2="6" />
                       <line x1="8" y1="2" x2="8" y2="6" />
@@ -397,13 +393,11 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
           <div className="mt-1">
             {/* Progress Bar */}
             {entryCount > 0 && (
-              <div className="h-[3px] bg-gray-200 dark:bg-gray-700 rounded-full mt-2 overflow-hidden">
+              <div className="h-[3px] bg-gray-700 rounded-full mt-2 overflow-hidden">
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-300',
-                    status === 'completed'
-                      ? 'bg-green-500'
-                      : 'bg-teal-500'
+                    status === 'completed' ? 'bg-green-500' : 'bg-teal-500'
                   )}
                   style={{ width: `${progressPercent}%` }}
                 />
@@ -416,20 +410,20 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 {/* In-ring dog */}
                 {inRingEntry && (
                   <span className="inline-flex items-center text-amber-500">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 mr-1" />
-                    #{inRingEntry.armband}
+                    <span className="w-2 h-2 rounded-full bg-amber-500 mr-1" />#
+                    {inRingEntry.armband}
                   </span>
                 )}
 
                 {/* Next dogs */}
-                {nextEntries.map((entry) => (
-                  <span key={entry.id} className="text-gray-500 dark:text-gray-400">
+                {nextEntries.map(entry => (
+                  <span key={entry.id} className="text-gray-400">
                     #{entry.armband}
                   </span>
                 ))}
 
                 {/* Remaining count */}
-                <span className="ml-auto text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                <span className="ml-auto text-gray-500 whitespace-nowrap">
                   {status === 'completed'
                     ? 'All complete'
                     : `${remainingCount} of ${entryCount} remaining`}
@@ -437,7 +431,13 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
               </div>
             ) : (
               <div className="flex items-center justify-center gap-2 py-3 mt-2 font-mono text-sm text-gray-400">
-                <svg className="w-4 h-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="w-4 h-4 opacity-50"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87" />

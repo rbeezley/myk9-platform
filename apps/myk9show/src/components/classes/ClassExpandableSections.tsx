@@ -27,57 +27,87 @@ const ClassExpandableSections: React.FC<ClassExpandableSectionsProps> = ({
 }) => {
   return (
     <div className="mt-3 space-y-3">
-      {/* Timing Details Section - Utility */}
-      <ExpandableSection
-        title="Timing Details"
-        icon={<Clock className="h-4 w-4" />}
-        contentCount={timingFieldsCount}
-        storageKey="class-timing"
-        priority="utility"
-        forceExpanded={forceExpandAll}
-        forceCollapsed={forceCollapseAll}
-      >
-        {classData.estimatedJudgingTime && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Estimated Judging Time</div>
-            <div className="myk9-show-info-value">{classData.estimatedJudgingTime}</div>
+      {/* Timing Details - Flat visible fields */}
+      {timingFieldsCount > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            Timing Details
           </div>
-        )}
-        {classData.timeLimit1 && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Time Limit 1</div>
-            <div className="myk9-show-info-value">{classData.timeLimit1}</div>
+          <div className="myk9-show-info-grid">
+            {classData.estimatedJudgingTime && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Estimated Judging Time</div>
+                <div className="myk9-show-info-value">{classData.estimatedJudgingTime}</div>
+              </div>
+            )}
+            {classData.timeLimit1 && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Time Limit 1</div>
+                <div className="myk9-show-info-value">{classData.timeLimit1}</div>
+              </div>
+            )}
+            {classData.timeLimit2 && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Time Limit 2</div>
+                <div className="myk9-show-info-value">{classData.timeLimit2}</div>
+              </div>
+            )}
+            {classData.timeLimit3 && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Time Limit 3</div>
+                <div className="myk9-show-info-value">{classData.timeLimit3}</div>
+              </div>
+            )}
+            {classData.startTime && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Start Time</div>
+                <div className="myk9-show-info-value">
+                  {new Date(classData.startTime).toLocaleTimeString()}
+                </div>
+              </div>
+            )}
+            {classData.endTime && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">End Time</div>
+                <div className="myk9-show-info-value">
+                  {new Date(classData.endTime).toLocaleTimeString()}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        {classData.timeLimit2 && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Time Limit 2</div>
-            <div className="myk9-show-info-value">{classData.timeLimit2}</div>
+        </div>
+      )}
+
+      {/* Fee Structure - Flat visible fields */}
+      {feesFieldsCount > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <DollarSign className="h-4 w-4" />
+            Fee Structure
           </div>
-        )}
-        {classData.timeLimit3 && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Time Limit 3</div>
-            <div className="myk9-show-info-value">{classData.timeLimit3}</div>
+          <div className="myk9-show-info-grid">
+            {classData.preEntryFee && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Pre Entry Fee</div>
+                <div className="myk9-show-info-value">{formatFee(classData.preEntryFee)}</div>
+              </div>
+            )}
+            {classData.dayOfShowFee && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Day of Show Fee</div>
+                <div className="myk9-show-info-value">{formatFee(classData.dayOfShowFee)}</div>
+              </div>
+            )}
+            {classData.entryFee && classData.entryFee !== classData.preEntryFee && (
+              <div className="myk9-show-info-item">
+                <div className="myk9-show-info-label">Standard Entry Fee</div>
+                <div className="myk9-show-info-value">${classData.entryFee}</div>
+              </div>
+            )}
           </div>
-        )}
-        {classData.startTime && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Start Time</div>
-            <div className="myk9-show-info-value">
-              {new Date(classData.startTime).toLocaleTimeString()}
-            </div>
-          </div>
-        )}
-        {classData.endTime && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">End Time</div>
-            <div className="myk9-show-info-value">
-              {new Date(classData.endTime).toLocaleTimeString()}
-            </div>
-          </div>
-        )}
-      </ExpandableSection>
+        </div>
+      )}
 
       {/* Officials Section - Important */}
       <ExpandableSection
@@ -159,36 +189,6 @@ const ClassExpandableSections: React.FC<ClassExpandableSectionsProps> = ({
           <div className="myk9-show-info-item">
             <div className="myk9-show-info-label">Requires Jump Height</div>
             <div className="myk9-show-info-value">Yes</div>
-          </div>
-        )}
-      </ExpandableSection>
-
-      {/* Fee Structure Section - Utility */}
-      <ExpandableSection
-        title="Fee Structure"
-        icon={<DollarSign className="h-4 w-4" />}
-        contentCount={feesFieldsCount}
-        storageKey="class-fees"
-        priority="utility"
-        forceExpanded={forceExpandAll}
-        forceCollapsed={forceCollapseAll}
-      >
-        {classData.preEntryFee && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Pre Entry Fee</div>
-            <div className="myk9-show-info-value">{formatFee(classData.preEntryFee)}</div>
-          </div>
-        )}
-        {classData.dayOfShowFee && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Day of Show Fee</div>
-            <div className="myk9-show-info-value">{formatFee(classData.dayOfShowFee)}</div>
-          </div>
-        )}
-        {classData.entryFee && classData.entryFee !== classData.preEntryFee && (
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Standard Entry Fee</div>
-            <div className="myk9-show-info-value">${classData.entryFee}</div>
           </div>
         )}
       </ExpandableSection>

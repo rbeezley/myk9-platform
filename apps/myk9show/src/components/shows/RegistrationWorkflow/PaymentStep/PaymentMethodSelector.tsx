@@ -1,21 +1,85 @@
 import React, { useState } from 'react';
-import { CreditCard, DollarSign, Check, Tag, Receipt, Users, AlertTriangle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  CreditCard,
+  DollarSign,
+  Check,
+  Tag,
+  Receipt,
+  Users,
+  AlertTriangle,
+  CircleCheck,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
+import { cn } from '@/lib/utils';
 import { formatCardNumber, formatExpiryDate, stripNonDigits } from './utils';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { PaymentMethodSelectorProps } from './types';
 
-/**
- * Renders the payment method radio group with method-specific form fields.
- * Handles credit card, check, cash, secretary payment, group payment, and fee waiver options.
- */
+interface PaymentOptionCardProps {
+  value: PaymentMethod;
+  selected: boolean;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onSelect: (value: PaymentMethod) => void;
+}
+
+const PaymentOptionCard: React.FC<PaymentOptionCardProps> = ({
+  value,
+  selected,
+  icon: Icon,
+  title,
+  description,
+  onSelect,
+}) => (
+  <button
+    type="button"
+    onClick={() => onSelect(value)}
+    className={cn(
+      'relative w-full rounded-lg border-2 p-4 text-left transition-all duration-150',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+      selected
+        ? 'border-primary bg-primary/5 shadow-sm'
+        : 'border-border bg-card hover:border-muted-foreground/40 hover:bg-accent/50'
+    )}
+  >
+    <div className="flex items-center gap-3">
+      <div
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
+          selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+        )}
+      >
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="font-medium text-foreground">{title}</div>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div
+        className={cn(
+          'flex h-5 w-5 shrink-0 items-center justify-center transition-colors',
+          selected ? 'text-primary' : 'text-muted-foreground/30'
+        )}
+      >
+        {selected ? (
+          <CircleCheck className="h-5 w-5" />
+        ) : (
+          <div className="h-4 w-4 rounded-full border-2 border-current" />
+        )}
+      </div>
+    </div>
+  </button>
+);
+
 export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   paymentMethod,
   onPaymentMethodChange,
@@ -29,6 +93,10 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
 
+  const handleSelect = (value: PaymentMethod) => {
+    onPaymentMethodChange(value);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -39,21 +107,18 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           value={paymentMethod}
           onValueChange={v => onPaymentMethodChange(v as PaymentMethod)}
         >
-          <div className="space-y-4">
-            {/* Credit/Debit Card */}
-            <div className="flex items-start space-x-3">
-              <RadioGroupItem value="credit_card" id="credit_card" />
-              <Label htmlFor="credit_card" className="flex-1 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Credit/Debit Card (Online Payment)
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Secure online payment via Stripe</p>
-              </Label>
-            </div>
+          <div className="space-y-3">
+            <PaymentOptionCard
+              value="credit_card"
+              selected={paymentMethod === 'credit_card'}
+              icon={CreditCard}
+              title="Credit/Debit Card (Online Payment)"
+              description="Secure online payment via Stripe"
+              onSelect={handleSelect}
+            />
 
             {paymentMethod === 'credit_card' && (
-              <div className="ml-6 space-y-3">
+              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <div>
                   <Label htmlFor="cardholder">Cardholder Name</Label>
                   <Input
@@ -100,22 +165,17 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            {/* Check */}
-            <div className="flex items-start space-x-3">
-              <RadioGroupItem value="check" id="check" />
-              <Label htmlFor="check" className="flex-1 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4" />
-                  Check (pay at show)
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Bring check made payable to hosting club
-                </p>
-              </Label>
-            </div>
+            <PaymentOptionCard
+              value="check"
+              selected={paymentMethod === 'check'}
+              icon={Check}
+              title="Check (pay at show)"
+              description="Bring check made payable to hosting club"
+              onSelect={handleSelect}
+            />
 
             {paymentMethod === 'check' && (
-              <div className="ml-6 space-y-3">
+              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
                     Please bring your check made payable to the hosting club on the day of the show.
@@ -133,69 +193,17 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            {/* Cash */}
-            <div className="flex items-start space-x-3">
-              <RadioGroupItem value="cash" id="cash" />
-              <Label htmlFor="cash" className="flex-1 cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Cash (pay at show)
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Exact amount required at check-in</p>
-              </Label>
-            </div>
+            <PaymentOptionCard
+              value="cash"
+              selected={paymentMethod === 'cash'}
+              icon={DollarSign}
+              title="Cash (pay at show)"
+              description="Exact amount required at check-in"
+              onSelect={handleSelect}
+            />
 
-            {/* Secretary Payment (permission-gated) */}
-            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}>
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="secretary_paid" id="secretary_paid" />
-                <Label htmlFor="secretary_paid" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="h-4 w-4" />
-                    Secretary Payment (Already Received)
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Payment received outside of online system
-                  </p>
-                </Label>
-              </div>
-            </PermissionGuard>
-
-            {/* Group Payment (permission-gated) */}
-            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}>
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="group_payment" id="group_payment" />
-                <Label htmlFor="group_payment" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Group/Club Payment
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Payment handled by club or group organizer
-                  </p>
-                </Label>
-              </div>
-            </PermissionGuard>
-
-            {/* Fees Waived (permission-gated) */}
-            <PermissionGuard permission="registration:override_fees">
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="waived" id="waived" />
-                <Label htmlFor="waived" className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    Fees Waived
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Administrative waiver of registration fees
-                  </p>
-                </Label>
-              </div>
-            </PermissionGuard>
-
-            {/* Conditional details for cash */}
             {paymentMethod === 'cash' && (
-              <div className="ml-6">
+              <div className="ml-4 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
                     Please bring exact cash amount on the day of the show.
@@ -204,9 +212,19 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            {/* Conditional details for secretary_paid */}
+            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}>
+              <PaymentOptionCard
+                value="secretary_paid"
+                selected={paymentMethod === 'secretary_paid'}
+                icon={Receipt}
+                title="Secretary Payment (Already Received)"
+                description="Payment received outside of online system"
+                onSelect={handleSelect}
+              />
+            </PermissionGuard>
+
             {paymentMethod === 'secretary_paid' && (
-              <div className="ml-6 space-y-3">
+              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
                     Mark this registration as paid when payment has been received outside the online
@@ -246,9 +264,19 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            {/* Conditional details for group_payment */}
+            <PermissionGuard permission={REGISTRATION_PERMISSIONS.MARK_PAYMENT}>
+              <PaymentOptionCard
+                value="group_payment"
+                selected={paymentMethod === 'group_payment'}
+                icon={Users}
+                title="Group/Club Payment"
+                description="Payment handled by club or group organizer"
+                onSelect={handleSelect}
+              />
+            </PermissionGuard>
+
             {paymentMethod === 'group_payment' && (
-              <div className="ml-6 space-y-3">
+              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
                     This registration is part of a group payment arrangement.
@@ -266,9 +294,19 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            {/* Conditional details for waived */}
+            <PermissionGuard permission="registration:override_fees">
+              <PaymentOptionCard
+                value="waived"
+                selected={paymentMethod === 'waived'}
+                icon={Tag}
+                title="Fees Waived"
+                description="Administrative waiver of registration fees"
+                onSelect={handleSelect}
+              />
+            </PermissionGuard>
+
             {paymentMethod === 'waived' && (
-              <div className="ml-6 space-y-3">
+              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>

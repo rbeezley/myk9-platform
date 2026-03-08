@@ -4,14 +4,17 @@
  * Displays class information, entries, and results
  */
 
-import { startTransition } from 'react';
+import { startTransition, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Info, Calendar, Building2, Trophy } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
+import { RecordPageLayout } from '@/components/layout/record';
+import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
 import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
 import type { ClassStatusValue } from '@myk9/core';
 
@@ -179,6 +182,84 @@ const ClassDetailsPage: React.FC = () => {
     }
   };
 
+  // Left sidebar: class properties
+  const classProperties: PropertySectionConfig[] = useMemo(() => {
+    if (!currentClass) return [];
+    return [
+      {
+        key: 'details',
+        title: 'Class Details',
+        icon: Info,
+        iconGradient: 'from-blue-500/10 to-indigo-500/5',
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        fields: [
+          { label: 'Element', value: currentClass.element || null },
+          { label: 'Level', value: currentClass.level || null },
+          { label: 'Section', value: currentClass.section || null },
+          { label: 'Judge', value: currentClass.judge || null },
+          {
+            label: 'Class Order',
+            value: currentClass.classOrder ? `#${currentClass.classOrder}` : null,
+          },
+          { label: 'Status', value: currentClass.status || null },
+        ],
+      },
+      {
+        key: 'timing',
+        title: 'Timing',
+        icon: Calendar,
+        iconGradient: 'from-amber-500/10 to-orange-500/5',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        fields: [
+          { label: 'Time Limit', value: currentClass.timeLimit1 || null },
+          {
+            label: 'Trial Date',
+            value: currentClass.trialDate
+              ? new Date(currentClass.trialDate).toLocaleDateString()
+              : null,
+          },
+        ],
+      },
+    ];
+  }, [currentClass]);
+
+  // Right sidebar: associations
+  const classAssociations: AssociationConfig[] = useMemo(() => {
+    const items: AssociationConfig[] = [];
+    if (parentTrial) {
+      const trialAssoc: AssociationConfig = {
+        key: 'trial',
+        title: parentTrial.type || parentTrial.trialNumber || 'Trial',
+        icon: Trophy,
+        href: `/trials/${parentTrial.id}`,
+      };
+      if (parentTrial.trialDate)
+        trialAssoc.subtitle = new Date(parentTrial.trialDate).toLocaleDateString();
+      items.push(trialAssoc);
+    }
+    if (parentShow) {
+      const showAssoc: AssociationConfig = {
+        key: 'show',
+        title: parentShow.name,
+        icon: Building2,
+        href: `/shows/${parentShow.id}`,
+      };
+      if (parentShow.organization) showAssoc.subtitle = parentShow.organization;
+      items.push(showAssoc);
+    }
+    const entryCount = classEntries.length;
+    if (entryCount > 0) {
+      items.push({
+        key: 'entries',
+        title: 'Entries',
+        subtitle: `${entryCount} entr${entryCount !== 1 ? 'ies' : 'y'}`,
+        icon: Calendar,
+        badge: String(entryCount),
+      });
+    }
+    return items;
+  }, [parentTrial, parentShow, classEntries.length]);
+
   // Early returns for different states
   if (classId && !currentClass && trialClasses.length > 0) {
     return <ClassNotFoundState />;
@@ -193,24 +274,31 @@ const ClassDetailsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <ClassDetailsMain
-        classData={currentClass}
-        classEntries={classEntries}
-        {...(parentShow !== undefined && { parentShow })}
-        {...(parentTrial !== undefined && { parentTrial })}
-        isResultsView={isResultsView}
-        onEditClass={dialogs.openEditClassPanel}
-        onDeleteClass={dialogs.openDeleteDialog}
-        onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
-        onViewTrial={handleViewTrial}
-        onAddEntry={() => {
-          if (parentShow?.id) {
-            navigate(`/shows/${parentShow.id}/register`);
-          }
-        }}
-        onDeleteEntry={handleDeleteEntry}
-        onStatusChange={handleStatusChange}
-        onResultUpdate={handleResultUpdate}
+      <RecordPageLayout
+        className="py-6"
+        properties={classProperties}
+        associations={classAssociations}
+        tabsContent={
+          <ClassDetailsMain
+            classData={currentClass}
+            classEntries={classEntries}
+            {...(parentShow !== undefined && { parentShow })}
+            {...(parentTrial !== undefined && { parentTrial })}
+            isResultsView={isResultsView}
+            onEditClass={dialogs.openEditClassPanel}
+            onDeleteClass={dialogs.openDeleteDialog}
+            onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
+            onViewTrial={handleViewTrial}
+            onAddEntry={() => {
+              if (parentShow?.id) {
+                navigate(`/shows/${parentShow.id}/register`);
+              }
+            }}
+            onDeleteEntry={handleDeleteEntry}
+            onStatusChange={handleStatusChange}
+            onResultUpdate={handleResultUpdate}
+          />
+        }
       />
 
       {/* Dialogs */}

@@ -1,9 +1,14 @@
 import React, { useState, useMemo } from 'react';
+import { Calendar, DollarSign, MapPin, Users, UserCheck, Building2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import { isAfter, isBefore } from 'date-fns';
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
+import { isAfter, isBefore, format } from 'date-fns';
+import { formatFee } from '@/utils/format';
+import { RecordPageLayout } from '@/components/layout/record';
+import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
 import { ShowHeader } from './ShowHeader';
 import { OverviewTab } from './OverviewTab';
 import { ExhibitorDashboard } from './ExhibitorDashboard';
@@ -12,7 +17,6 @@ import { JudgeDashboard } from './JudgeDashboard';
 import { TrialsTab } from './TrialsTab';
 import type { ShowDetailsEnhancedProps } from './types';
 
-/** Priority-ordered list of roles for determining the user's primary role. */
 const ROLE_PRIORITY: UserRole[] = [
   UserRole.SITE_ADMIN,
   UserRole.SECRETARY,
@@ -21,7 +25,6 @@ const ROLE_PRIORITY: UserRole[] = [
   UserRole.EXHIBITOR,
 ];
 
-/** Determine the default tab name based on the user's primary role. */
 function getDefaultTab(role: UserRole): string {
   switch (role) {
     case UserRole.SECRETARY:
@@ -35,11 +38,18 @@ function getDefaultTab(role: UserRole): string {
   }
 }
 
-/** Check whether a role is a management-level role (secretary, club admin, site admin). */
 function isManagementRole(role: UserRole): boolean {
   return (
     role === UserRole.SECRETARY || role === UserRole.CLUB_ADMIN || role === UserRole.SITE_ADMIN
   );
+}
+
+function formatShowDate(dateStr: string): string {
+  try {
+    return format(new Date(dateStr), 'MMM d, yyyy');
+  } catch {
+    return dateStr;
+  }
 }
 
 const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
@@ -52,14 +62,13 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
   onViewResults: _onViewResults,
 }) => {
   const { userWithRoles } = useAuthContext();
+  const resolvePersonName = useResolvePersonName();
 
-  // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'show',
     show: showData,
   });
 
-  // Determine user's primary role for interface adaptation
   const primaryRole = useMemo(() => {
     if (!userWithRoles?.roles?.length) return UserRole.EXHIBITOR;
     for (const role of ROLE_PRIORITY) {
@@ -70,12 +79,9 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
     return UserRole.EXHIBITOR;
   }, [userWithRoles]);
 
-  // Determine default tab based on user role
   const defaultTab = useMemo(() => getDefaultTab(primaryRole), [primaryRole]);
-
   const [activeTab, setActiveTab] = useState(defaultTab);
 
-  // Registration state logic for header button
   const registrationState = useMemo(() => {
     const now = new Date();
     const entriesOpen = isAfter(now, new Date(showData.entryOpenDate));
@@ -91,12 +97,10 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
     };
   }, [showData]);
 
-  // Set initial tab based on role
   React.useEffect(() => {
     setActiveTab(defaultTab);
   }, [defaultTab]);
 
-  // Compute grid column class for tab list
   const tabGridCols =
     primaryRole === UserRole.EXHIBITOR
       ? 'grid-cols-3'
@@ -106,92 +110,191 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
           ? 'grid-cols-3'
           : 'grid-cols-2';
 
+  // Left sidebar: show properties
+  const properties: PropertySectionConfig[] = useMemo(() => {
+    const sections: PropertySectionConfig[] = [
+      {
+        key: 'dates',
+        title: 'Dates',
+        icon: Calendar,
+        iconGradient: 'from-blue-500/10 to-indigo-500/5',
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        fields: [
+          { label: 'Start', value: formatShowDate(showData.startDate) },
+          { label: 'End', value: formatShowDate(showData.endDate) },
+          { label: 'Entry Open', value: formatShowDate(showData.entryOpenDate) },
+          { label: 'Entry Close', value: formatShowDate(showData.entryCloseDate) },
+        ],
+      },
+      {
+        key: 'location',
+        title: 'Location',
+        icon: MapPin,
+        iconGradient: 'from-green-500/10 to-emerald-500/5',
+        iconColor: 'text-green-600 dark:text-green-400',
+        fields: [
+          { label: 'Venue', value: showData.location || null },
+          { label: 'Address', value: showData.clubAddress || null },
+        ],
+      },
+      {
+        key: 'officials',
+        title: 'Officials',
+        icon: UserCheck,
+        iconGradient: 'from-amber-500/10 to-amber-500/5',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        fields: [
+          { label: 'Chairman', value: resolvePersonName(showData.chairman) || null },
+          { label: 'Secretary', value: resolvePersonName(showData.secretary) || null },
+          { label: 'Chief Steward', value: resolvePersonName(showData.chiefSteward) || null },
+        ],
+      },
+      {
+        key: 'fees',
+        title: 'Entry Fees',
+        icon: DollarSign,
+        iconGradient: 'from-emerald-500/10 to-emerald-500/5',
+        iconColor: 'text-emerald-600 dark:text-emerald-400',
+        fields: [
+          { label: 'Pre-Entry', value: formatFee(showData.preEntryFee) },
+          {
+            label: 'Day of Show',
+            value: formatFee(showData.dayOfShowFee || showData.preEntryFee),
+          },
+        ],
+      },
+    ];
+
+    return sections;
+  }, [showData, resolvePersonName]);
+
+  // Right sidebar: associations
+  const associations: AssociationConfig[] = useMemo(() => {
+    const items: AssociationConfig[] = [];
+
+    if (showData.clubName) {
+      const clubAssoc: AssociationConfig = {
+        key: 'club',
+        title: showData.clubName,
+        icon: Building2,
+      };
+      if (showData.clubId) clubAssoc.href = `/clubs/${showData.clubId}`;
+      if (showData.clubEmail) clubAssoc.subtitle = showData.clubEmail;
+      items.push(clubAssoc);
+    }
+
+    if (showData.organization) {
+      items.push({
+        key: 'organization',
+        title: showData.organization,
+        subtitle: 'Governing organization',
+        icon: Users,
+      });
+    }
+
+    if (associatedTrials.length > 0) {
+      items.push({
+        key: 'trials',
+        title: 'Trials',
+        subtitle: `${associatedTrials.length} trial${associatedTrials.length !== 1 ? 's' : ''} scheduled`,
+        icon: Calendar,
+        badge: String(associatedTrials.length),
+      });
+    }
+
+    return items;
+  }, [showData, associatedTrials]);
+
   return (
-    <div className="container mx-auto px-6 py-8 max-w-7xl">
-      {/* Header Section */}
-      <ShowHeader
-        showData={showData}
-        primaryRole={primaryRole}
-        registrationState={registrationState}
-        onRegisterForShow={onRegisterForShow}
-        onEditShow={onEditShow}
-        breadcrumbItems={breadcrumbItems}
-      />
-
-      {/* Enhanced Tabbed Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-        <TabsList
-          className={`grid w-full bg-gradient-to-r from-gray-50/80 to-gray-100/50 backdrop-blur-sm border border-gray-200/50 rounded-xl p-1.5 shadow-lg ${tabGridCols}`}
-        >
-          <TabsTrigger
-            value="overview"
-            className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+    <RecordPageLayout
+      className="py-8"
+      hero={
+        <ShowHeader
+          showData={showData}
+          primaryRole={primaryRole}
+          registrationState={registrationState}
+          onRegisterForShow={onRegisterForShow}
+          onEditShow={onEditShow}
+          breadcrumbItems={breadcrumbItems}
+        />
+      }
+      properties={properties}
+      tabsContent={
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <TabsList
+            className={`grid w-full bg-gradient-to-r from-gray-50/80 to-gray-100/50 backdrop-blur-sm border border-gray-200/50 rounded-xl p-1.5 shadow-lg ${tabGridCols}`}
           >
-            Overview
-          </TabsTrigger>
-          {primaryRole === UserRole.EXHIBITOR && (
             <TabsTrigger
-              value="registration"
-              className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+              value="overview"
+              className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
             >
-              Registration
+              Overview
             </TabsTrigger>
+            {primaryRole === UserRole.EXHIBITOR && (
+              <TabsTrigger
+                value="registration"
+                className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+              >
+                Registration
+              </TabsTrigger>
+            )}
+            {isManagementRole(primaryRole) && (
+              <TabsTrigger
+                value="management"
+                className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+              >
+                Management
+              </TabsTrigger>
+            )}
+            {primaryRole === UserRole.JUDGE && (
+              <TabsTrigger
+                value="assignments"
+                className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+              >
+                My Assignments
+              </TabsTrigger>
+            )}
+            <TabsTrigger
+              value="trials"
+              className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+            >
+              Trials
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            <OverviewTab showData={showData} associatedTrials={associatedTrials} />
+          </TabsContent>
+
+          {primaryRole === UserRole.EXHIBITOR && onRegisterForShow && (
+            <TabsContent value="registration">
+              <ExhibitorDashboard show={showData} onRegister={onRegisterForShow} />
+            </TabsContent>
           )}
+
           {isManagementRole(primaryRole) && (
-            <TabsTrigger
-              value="management"
-              className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
-            >
-              Management
-            </TabsTrigger>
+            <TabsContent value="management">
+              <SecretaryDashboard
+                show={showData}
+                trials={associatedTrials}
+                onManageEntries={onManageEntries || (() => {})}
+              />
+            </TabsContent>
           )}
+
           {primaryRole === UserRole.JUDGE && (
-            <TabsTrigger
-              value="assignments"
-              className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
-            >
-              My Assignments
-            </TabsTrigger>
+            <TabsContent value="assignments">
+              <JudgeDashboard show={showData} trials={associatedTrials} />
+            </TabsContent>
           )}
-          <TabsTrigger
-            value="trials"
-            className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
-          >
-            Trials
-          </TabsTrigger>
-        </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          <OverviewTab showData={showData} associatedTrials={associatedTrials} />
-        </TabsContent>
-
-        {primaryRole === UserRole.EXHIBITOR && onRegisterForShow && (
-          <TabsContent value="registration">
-            <ExhibitorDashboard show={showData} onRegister={onRegisterForShow} />
+          <TabsContent value="trials" className="space-y-8">
+            <TrialsTab trials={associatedTrials} />
           </TabsContent>
-        )}
-
-        {isManagementRole(primaryRole) && (
-          <TabsContent value="management">
-            <SecretaryDashboard
-              show={showData}
-              trials={associatedTrials}
-              onManageEntries={onManageEntries || (() => {})}
-            />
-          </TabsContent>
-        )}
-
-        {primaryRole === UserRole.JUDGE && (
-          <TabsContent value="assignments">
-            <JudgeDashboard show={showData} trials={associatedTrials} />
-          </TabsContent>
-        )}
-
-        <TabsContent value="trials" className="space-y-8">
-          <TrialsTab trials={associatedTrials} />
-        </TabsContent>
-      </Tabs>
-    </div>
+        </Tabs>
+      }
+      associations={associations}
+    />
   );
 };
 

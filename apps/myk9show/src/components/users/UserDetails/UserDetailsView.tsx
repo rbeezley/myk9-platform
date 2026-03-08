@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { Mail, MapPin, Settings, PawPrint, Award } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
@@ -14,12 +15,11 @@ import { User as UserType } from '@/types/user-types';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
+import { RecordPageLayout } from '@/components/layout/record';
+import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
 import type { JudgeQualification } from '@/types/judge-types';
 import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
-import ContactInformationCard from './ContactInformationCard';
-import AccountSummaryCard from './AccountSummaryCard';
-
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import JudgeAvailabilityCard from './JudgeAvailabilityCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
@@ -71,41 +71,29 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const handleDeleteUser = async () => {
     try {
       logger.debug('Deleting user', 'users', { userId: person.id });
-
       await deleteUserMutation.mutateAsync({ id: person.id });
-
       setIsDeleteDialogOpen(false);
       notifications.success('User deleted successfully');
-
       const remainingPeople = people.filter(p => p.id !== person.id);
       if (remainingPeople.length > 0) {
         navigate(`/users/${remainingPeople[0].id}`, { replace: true });
       } else {
         navigate('/people', { replace: true });
       }
-
       logger.info('User deleted successfully', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to delete user', 'users', { userId: person.id }, error as Error);
-      notifications.error('Failed to delete user', {
-        description: getErrorMessage(error),
-      });
+      notifications.error('Failed to delete user', { description: getErrorMessage(error) });
     }
   };
 
   const handleQualificationsSave = async (qualifications: JudgeQualification[]) => {
-    setFormData(prev => ({
-      ...prev,
-      judgeQualifications: qualifications,
-    }));
-
+    setFormData(prev => ({ ...prev, judgeQualifications: qualifications }));
     try {
       const { judgeQualificationQueries } =
         await import('@/services/database/queries/judgeQueries');
       const existing = await judgeQualificationQueries.getByJudgeId(person.id);
-
       await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
-
       await Promise.all(
         qualifications.map(qual =>
           judgeQualificationQueries.create({
@@ -129,12 +117,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           })
         )
       );
-
-      // Invalidate caches so the store and queries pick up the new data
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(person.id) });
       loadUsers();
-
       logger.info('Qualifications saved successfully', 'users', {
         userId: person.id,
         count: qualifications.length,
@@ -149,7 +134,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   const handleUserEditSave = async (userData: Partial<UserType>) => {
     try {
-      // UserEditPanel outputs `address` (flat string), map it for local form state
       const addressValue = userData.address || userData.streetAddress || '';
       const definedUpdates: Partial<typeof formData> = {};
       if (userData.firstName !== undefined)
@@ -162,10 +146,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       if (userData.zipCode !== undefined) definedUpdates.zipCode = userData.zipCode;
 
       setFormData(prev => ({ ...prev, ...definedUpdates }));
-
       logger.debug('Saving user data', 'users', { userId: person.id });
 
-      // Build updates using `address` (the field mapUserToDbUpdate expects for street_address)
       const updates: Partial<UserType> = {
         ...(userData.firstName !== undefined && { firstName: userData.firstName }),
         ...(userData.lastName !== undefined && { lastName: userData.lastName }),
@@ -178,18 +160,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         zipCode: userData.zipCode || '',
       };
 
-      await updateUserMutation.mutateAsync({
-        id: person.id,
-        updates,
-      });
-
+      await updateUserMutation.mutateAsync({ id: person.id, updates });
       notifications.success('User updated successfully');
       logger.info('User data saved successfully', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to save user data', 'users', { userId: person.id }, error as Error);
-      notifications.error('Failed to save user data', {
-        description: getErrorMessage(error),
-      });
+      notifications.error('Failed to save user data', { description: getErrorMessage(error) });
     }
   };
 
@@ -218,48 +194,107 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileUpload(file);
-    }
+    if (file) handleFileUpload(file);
   };
 
-  return (
-    <div className="max-w-7xl mx-auto px-6 py-20 space-y-8">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb
-        showHomeIcon
-        items={[
-          { label: 'People', href: '/people' },
-          { label: fullName, isCurrentPage: true },
-        ]}
-        className="mb-2"
-      />
+  // Left sidebar: person properties
+  const properties: PropertySectionConfig[] = useMemo(() => {
+    const sections: PropertySectionConfig[] = [
+      {
+        key: 'contact',
+        title: 'Contact Information',
+        icon: Mail,
+        iconGradient: 'from-blue-500/10 to-indigo-500/5',
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        fields: [
+          { label: 'First Name', value: firstName },
+          { label: 'Last Name', value: lastName },
+          {
+            label: 'Email',
+            value: person.email || null,
+            render: person.email ? (
+              <a
+                href={`mailto:${person.email}`}
+                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline truncate"
+              >
+                {person.email}
+              </a>
+            ) : undefined,
+          },
+          { label: 'Phone', value: formData.phone || null },
+        ],
+      },
+      {
+        key: 'address',
+        title: 'Address',
+        icon: MapPin,
+        iconGradient: 'from-green-500/10 to-emerald-500/5',
+        iconColor: 'text-green-600 dark:text-green-400',
+        fields: [
+          { label: 'Street', value: formData.address || null },
+          { label: 'City', value: formData.city || null },
+          { label: 'State', value: formData.state || null },
+          { label: 'Zip Code', value: formData.zipCode || null },
+        ],
+      },
+      {
+        key: 'account',
+        title: 'Account',
+        icon: Settings,
+        iconGradient: 'from-purple-500/10 to-purple-500/5',
+        iconColor: 'text-purple-600 dark:text-purple-400',
+        fields: [
+          {
+            label: 'Member Since',
+            value: person.createdAt
+              ? new Date(person.createdAt).toLocaleDateString('en-US', {
+                  month: 'long',
+                  year: 'numeric',
+                })
+              : null,
+          },
+          { label: 'Status', value: 'Active' },
+          {
+            label: 'Roles',
+            value: person.roles?.length ? person.roles.join(', ') : null,
+          },
+        ],
+      },
+    ];
 
-      {/* Hero Profile Card */}
-      <HeroProfileCard
-        person={person}
-        firstName={firstName}
-        lastName={lastName}
-        fullName={fullName}
-        photo={formData.photo}
-        phone={formData.phone}
-        onEditPhoto={() => setIsPhotoModalOpen(true)}
-        onEdit={() => setIsEditModalOpen(true)}
-        onDelete={() => setIsDeleteDialogOpen(true)}
-      />
+    return sections;
+  }, [firstName, lastName, person, formData]);
 
-      {/* Contact Information Card */}
-      <ContactInformationCard
-        firstName={firstName}
-        lastName={lastName}
-        email={person.email || ''}
-        formData={formData}
-      />
+  // Right sidebar: associations
+  const associations: AssociationConfig[] = useMemo(() => {
+    const items: AssociationConfig[] = [];
 
-      {/* Account Summary Card */}
-      <AccountSummaryCard person={person} dogCount={dogCount} />
+    if (dogCount > 0) {
+      items.push({
+        key: 'dogs',
+        title: 'Dogs',
+        subtitle: `${dogCount} registered dog${dogCount !== 1 ? 's' : ''}`,
+        icon: PawPrint,
+        badge: String(dogCount),
+      });
+    }
 
-      {/* Judge Qualifications Card */}
+    if (person.judgeQualifications && person.judgeQualifications.length > 0) {
+      items.push({
+        key: 'qualifications',
+        title: 'Judge Qualifications',
+        subtitle: `${person.judgeQualifications.length} qualification${person.judgeQualifications.length !== 1 ? 's' : ''}`,
+        icon: Award,
+        badge: String(person.judgeQualifications.length),
+      });
+    }
+
+    return items;
+  }, [dogCount, person.judgeQualifications]);
+
+  // Center content: judge cards + tabs
+  const centerContent = (
+    <div className="space-y-6">
       {(person.roles?.includes('judge') ||
         (person.judgeQualifications && person.judgeQualifications.length > 0)) && (
         <JudgeQualificationsCard
@@ -269,12 +304,43 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         />
       )}
 
-      {/* Judge Availability Card */}
       {person.roles?.includes('judge') && <JudgeAvailabilityCard personId={person.id} />}
 
       <UserDetailsTabs selectedUser={person} />
+    </div>
+  );
 
-      {/* Dialogs and Panels */}
+  return (
+    <>
+      <RecordPageLayout
+        className="py-20"
+        breadcrumb={
+          <Breadcrumb
+            showHomeIcon
+            items={[
+              { label: 'People', href: '/people' },
+              { label: fullName, isCurrentPage: true },
+            ]}
+          />
+        }
+        hero={
+          <HeroProfileCard
+            person={person}
+            firstName={firstName}
+            lastName={lastName}
+            fullName={fullName}
+            photo={formData.photo}
+            phone={formData.phone}
+            onEditPhoto={() => setIsPhotoModalOpen(true)}
+            onEdit={() => setIsEditModalOpen(true)}
+            onDelete={() => setIsDeleteDialogOpen(true)}
+          />
+        }
+        properties={properties}
+        tabsContent={centerContent}
+        associations={associations}
+      />
+
       <UserDetailsDialogs
         person={person}
         formData={{
@@ -318,7 +384,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           }
         }}
       />
-    </div>
+    </>
   );
 };
 

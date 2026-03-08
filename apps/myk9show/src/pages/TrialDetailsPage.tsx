@@ -29,6 +29,9 @@ import { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
 import { useRememberedTab } from '@/hooks/useRememberedTab';
+import { RecordPageLayout } from '@/components/layout/record';
+import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
+import { Calendar, Info, Building2 } from 'lucide-react';
 
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
@@ -248,6 +251,58 @@ const TrialDetailsPage: React.FC = () => {
     };
   }, [trialWithClasses, allEntries]);
 
+  // Left sidebar: trial properties
+  const trialProperties: PropertySectionConfig[] = useMemo(() => {
+    if (!currentTrial) return [];
+    return [
+      {
+        key: 'details',
+        title: 'Trial Details',
+        icon: Info,
+        iconGradient: 'from-blue-500/10 to-indigo-500/5',
+        iconColor: 'text-blue-600 dark:text-blue-400',
+        fields: [
+          { label: 'Type', value: currentTrial.type || null },
+          { label: 'Trial Number', value: currentTrial.trialNumber || null },
+          {
+            label: 'Date',
+            value: currentTrial.trialDate
+              ? new Date(currentTrial.trialDate).toLocaleDateString()
+              : null,
+          },
+          { label: 'Status', value: currentTrial.status || null },
+          { label: 'Event Number', value: currentTrial.eventNumber || null },
+        ],
+      },
+    ];
+  }, [currentTrial]);
+
+  // Right sidebar: associations
+  const trialAssociations: AssociationConfig[] = useMemo(() => {
+    const items: AssociationConfig[] = [];
+    if (parentShow) {
+      const showAssoc: AssociationConfig = {
+        key: 'show',
+        title: parentShow.name,
+        icon: Building2,
+        href: `/shows/${parentShow.id}`,
+      };
+      if (parentShow.organization) showAssoc.subtitle = parentShow.organization;
+      items.push(showAssoc);
+    }
+    const classCount = trialWithClasses?.classes?.length ?? 0;
+    if (classCount > 0) {
+      items.push({
+        key: 'classes',
+        title: 'Classes',
+        subtitle: `${classCount} class${classCount !== 1 ? 'es' : ''}`,
+        icon: Calendar,
+        badge: String(classCount),
+      });
+    }
+    return items;
+  }, [parentShow, trialWithClasses]);
+
   // Handle case where trial doesn't exist - moved after hooks
   if (trialId && !currentTrial && trials.length > 0) {
     return (
@@ -462,61 +517,60 @@ const TrialDetailsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       {trialWithClasses ? (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="max-w-[1440px] mx-auto px-6 pt-6">
-            <TabsList className="mb-6">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="entries">Entries</TabsTrigger>
-              <TabsTrigger value="promo-codes">Promo Codes</TabsTrigger>
-              <TabsTrigger value="financials">Financials</TabsTrigger>
-            </TabsList>
-          </div>
+        <RecordPageLayout
+          className="py-6"
+          properties={trialProperties}
+          associations={trialAssociations}
+          tabsContent={
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="mb-6">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="entries">Entries</TabsTrigger>
+                <TabsTrigger value="promo-codes">Promo Codes</TabsTrigger>
+                <TabsTrigger value="financials">Financials</TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="overview">
-            <TrialDetailsMain
-              trial={trialWithClasses}
-              statistics={trialStatistics}
-              parentShow={
-                parentShow
-                  ? {
-                      id: parentShow.id,
-                      name: parentShow.name,
-                      organization: parentShow.organization,
-                    }
-                  : undefined
-              }
-              onEdit={handleEditTrial}
-              onDelete={handleDeleteTrial}
-              onAddClassesFromTemplate={handleAddClassesFromTemplate}
-              onEditClass={handleEditClass}
-              onDeleteClass={handleDeleteClass}
-              onPrevTrial={handlePrevTrial}
-              onNextTrial={handleNextTrial}
-              prevTrialId={prevTrialId}
-              nextTrialId={nextTrialId}
-              currentTrialIndex={currentTrialIndex}
-              totalTrials={showTrials.length}
-            />
-          </TabsContent>
+              <TabsContent value="overview">
+                <TrialDetailsMain
+                  trial={trialWithClasses}
+                  statistics={trialStatistics}
+                  parentShow={
+                    parentShow
+                      ? {
+                          id: parentShow.id,
+                          name: parentShow.name,
+                          organization: parentShow.organization,
+                        }
+                      : undefined
+                  }
+                  onEdit={handleEditTrial}
+                  onDelete={handleDeleteTrial}
+                  onAddClassesFromTemplate={handleAddClassesFromTemplate}
+                  onEditClass={handleEditClass}
+                  onDeleteClass={handleDeleteClass}
+                  onPrevTrial={handlePrevTrial}
+                  onNextTrial={handleNextTrial}
+                  prevTrialId={prevTrialId}
+                  nextTrialId={nextTrialId}
+                  currentTrialIndex={currentTrialIndex}
+                  totalTrials={showTrials.length}
+                />
+              </TabsContent>
 
-          <TabsContent value="entries">
-            <div className="myk9-show-container">
-              <TrialEntriesTable trialId={trialWithClasses.id} />
-            </div>
-          </TabsContent>
+              <TabsContent value="entries">
+                <TrialEntriesTable trialId={trialWithClasses.id} />
+              </TabsContent>
 
-          <TabsContent value="promo-codes">
-            <div className="myk9-show-container">
-              <PromoCodesSection trialId={trialWithClasses.id} />
-            </div>
-          </TabsContent>
+              <TabsContent value="promo-codes">
+                <PromoCodesSection trialId={trialWithClasses.id} />
+              </TabsContent>
 
-          <TabsContent value="financials">
-            <div className="myk9-show-container">
-              <FinancialSummary trialId={trialWithClasses.id} />
-            </div>
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="financials">
+                <FinancialSummary trialId={trialWithClasses.id} />
+              </TabsContent>
+            </Tabs>
+          }
+        />
       ) : (
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">

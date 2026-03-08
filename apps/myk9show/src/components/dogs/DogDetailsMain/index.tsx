@@ -1,36 +1,35 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Trophy, Calendar, Award, Star } from 'lucide-react';
+import { Trophy, Calendar, Award, Star, Heart, Activity, User as UserIcon } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { RecordStatsRow, type RecordStat } from '@/components/common/RecordStatsRow';
+import { RecordPageLayout } from '@/components/layout/record';
+import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
+import { usePerformanceStatistics } from '@/hooks/usePerformanceStatistics';
+import { useTitleProgress } from '@/hooks/useTitleProgress';
 import '@/styles/myk9-show-details.css';
 
 import HeroProfileCard from './HeroProfileCard';
-import DogInfoCards from './DogInfoCards';
-import OwnerInfoCard from './OwnerInfoCard';
-import DogSummaryCard from './DogSummaryCard';
 import DogDetailsTabs from './DogDetailsTabs';
 import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
-import { validateImageFile } from './utils';
+import { validateImageFile, formatDisplayDate } from './utils';
 import type { DogDetailsMainProps } from './types';
 
 const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDelete, onUpdate }) => {
   const [searchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
   const { getUserRoles } = useAuthContext();
-  const userRole = getUserRoles()[0]; // Get primary role
+  const userRole = getUserRoles()[0];
 
-  // Auto-open add registration state
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
 
-  // Check for addRegistration query parameter on mount
   useEffect(() => {
     const shouldAddRegistration = searchParams.get('addRegistration') === 'true';
     if (shouldAddRegistration) {
@@ -41,7 +40,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
   }, [searchParams]);
 
-  // Create an Owner object from the User object or use a placeholder
   const person = people.find(p => p.id === dog.ownerId);
   const owner: Owner = person
     ? {
@@ -62,7 +60,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
-  // Photo Dialog State
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isPhotoDragging, setIsPhotoDragging] = useState(false);
@@ -71,7 +68,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const [showCelebration, setShowCelebration] = useState(false);
   const [recentUpdate, setRecentUpdate] = useState<string | null>(null);
 
-  // Effect to update local dog state when prop changes
   useEffect(() => {
     setUpdatedDog(dog);
   }, [dog]);
@@ -116,7 +112,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       const validation = validateImageFile(file);
       if (!validation.valid) {
         toast.error(validation.error);
-        e.target.value = ''; // Reset input
+        e.target.value = '';
         return;
       }
       const reader = new FileReader();
@@ -144,14 +140,13 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
   };
 
-  // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'dog',
     dog: updatedDog,
     fromPerson,
   });
 
-  // Compute stats from entries
+  // Stats
   const dogEntries = useEntryStore(state => state.getEntriesByDog(updatedDog.id));
   const dogStats: RecordStat[] = useMemo(() => {
     const totalEntries = dogEntries.length;
@@ -168,39 +163,131 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     ];
   }, [dogEntries.length, updatedDog.registrations, updatedDog.status, updatedDog.breed]);
 
+  // Left sidebar: property sections
+  const properties: PropertySectionConfig[] = useMemo(() => {
+    const gender = updatedDog.gender
+      ? updatedDog.gender.charAt(0).toUpperCase() + updatedDog.gender.slice(1)
+      : null;
+
+    const sections: PropertySectionConfig[] = [
+      {
+        key: 'about',
+        title: `About ${updatedDog.callName}`,
+        icon: Heart,
+        iconGradient: 'from-pink-500/10 to-rose-500/5',
+        iconColor: 'text-pink-500',
+        fields: [
+          { label: 'Sex', value: gender },
+          {
+            label: 'Date of Birth',
+            value: updatedDog.dateOfBirth ? formatDisplayDate(updatedDog.dateOfBirth) : null,
+          },
+          { label: 'Breed', value: updatedDog.breed },
+        ],
+      },
+      {
+        key: 'physical',
+        title: 'Physical Characteristics',
+        icon: Activity,
+        iconGradient: 'from-emerald-500/10 to-emerald-500/5',
+        iconColor: 'text-emerald-600 dark:text-emerald-400',
+        fields: [
+          { label: 'Height', value: updatedDog.height ? `${updatedDog.height}"` : null },
+          { label: 'Weight', value: updatedDog.weight ? `${updatedDog.weight} lbs` : null },
+          { label: 'Color', value: updatedDog.color },
+          { label: 'Microchip', value: updatedDog.microchipNumber },
+        ],
+      },
+    ];
+
+    if (updatedDog.registrations && updatedDog.registrations.length > 0) {
+      sections.push({
+        key: 'registrations-sidebar',
+        title: 'Registrations',
+        icon: Award,
+        iconGradient: 'from-purple-500/10 to-purple-500/5',
+        iconColor: 'text-purple-600 dark:text-purple-400',
+        fields: updatedDog.registrations.map(reg => ({
+          label: reg.organization || 'Org',
+          value: reg.registrationNumber || reg.registeredName || null,
+        })),
+      });
+    }
+
+    return sections;
+  }, [updatedDog]);
+
+  // Right sidebar: associations
+  const { stats: perfStats } = usePerformanceStatistics(updatedDog.id);
+  const { progressBySport } = useTitleProgress(updatedDog.id);
+
+  const titlesEarnedCount = useMemo(
+    () =>
+      Object.values(progressBySport)
+        .flat()
+        .filter(t => t.isEarned && !t.isSuperseded).length,
+    [progressBySport]
+  );
+
+  const associations: AssociationConfig[] = useMemo(() => {
+    const ownerAssoc: AssociationConfig = {
+      key: 'owner',
+      title: owner.name,
+      icon: UserIcon,
+    };
+    if (owner.email && owner.email !== 'N/A') ownerAssoc.subtitle = owner.email;
+    if (owner.id !== 'unknown') ownerAssoc.href = `/people/${owner.id}?fromDog=${updatedDog.id}`;
+    const items: AssociationConfig[] = [ownerAssoc];
+
+    const competitions = perfStats?.summary.totalCompetitions ?? 0;
+    if (competitions > 0) {
+      items.push({
+        key: 'competitions',
+        title: 'Competitions',
+        subtitle: `${competitions} total competition${competitions !== 1 ? 's' : ''}`,
+        icon: Trophy,
+        badge: String(competitions),
+      });
+    }
+
+    if (titlesEarnedCount > 0) {
+      items.push({
+        key: 'titles',
+        title: 'Titles Earned',
+        subtitle: `${titlesEarnedCount} active title${titlesEarnedCount !== 1 ? 's' : ''}`,
+        icon: Award,
+        badge: String(titlesEarnedCount),
+      });
+    }
+
+    return items;
+  }, [owner, updatedDog.id, perfStats, titlesEarnedCount]);
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-20 space-y-8">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="mb-6" />
-
-      {/* Highlight Stats */}
-      <RecordStatsRow stats={dogStats} />
-
-      {/* Hero Profile Card */}
-      <HeroProfileCard
-        dog={updatedDog}
-        showCelebration={showCelebration}
-        recentUpdate={recentUpdate}
-        isPhotoHovered={isPhotoHovered}
-        onEditPanelOpen={() => setIsEditPanelOpen(true)}
-        onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
-        onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
-        onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
+    <>
+      <RecordPageLayout
+        className="py-20"
+        breadcrumb={<Breadcrumb items={breadcrumbItems} showHomeIcon={true} />}
+        stats={<RecordStatsRow stats={dogStats} />}
+        hero={
+          <HeroProfileCard
+            dog={updatedDog}
+            showCelebration={showCelebration}
+            recentUpdate={recentUpdate}
+            isPhotoHovered={isPhotoHovered}
+            onEditPanelOpen={() => setIsEditPanelOpen(true)}
+            onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
+            onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
+            onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
+          />
+        }
+        properties={properties}
+        tabsContent={
+          <DogDetailsTabs dog={updatedDog} autoOpenAddRegistration={autoOpenAddRegistration} />
+        }
+        associations={associations}
       />
 
-      {/* Information Grid - About & Physical Characteristics */}
-      <DogInfoCards dog={updatedDog} onEditPanelOpen={() => setIsEditPanelOpen(true)} />
-
-      {/* Owner Information Card */}
-      <OwnerInfoCard dog={updatedDog} owner={owner} />
-
-      {/* Dog Summary Card */}
-      <DogSummaryCard dog={updatedDog} />
-
-      {/* Navigation Tabs */}
-      <DogDetailsTabs dog={updatedDog} autoOpenAddRegistration={autoOpenAddRegistration} />
-
-      {/* Dialogs (Edit, Delete, Photo) */}
       <DogDialogs
         dog={updatedDog}
         isEditPanelOpen={isEditPanelOpen}
@@ -227,7 +314,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         onSetIsEditPanelOpen={setIsEditPanelOpen}
       />
 
-      {/* Status Dialog */}
       <DogStatusDialog
         open={isStatusDialogOpen}
         onOpenChange={setIsStatusDialogOpen}
@@ -236,7 +322,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         currentDeceasedDate={updatedDog.deceasedDate}
         onSave={handleStatusSave}
       />
-    </div>
+    </>
   );
 };
 

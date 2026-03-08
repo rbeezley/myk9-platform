@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InlineEditableField } from '@/components/common/InlineEditableField';
 import type { PropertySectionConfig } from './RecordPageLayout.types';
 
 interface PropertySectionProps {
@@ -76,8 +77,20 @@ export function PropertySection({ section, storagePrefix }: PropertySectionProps
               </span>
               <div className="text-sm font-medium text-foreground text-right w-3/5">
                 {field.render ??
-                  (field.value != null && field.value !== '' ? (
-                    String(field.value)
+                  (field.onSave ? (
+                    <InlineEditableField
+                      value={field.value}
+                      label={field.label}
+                      fieldType={field.fieldType}
+                      options={field.options}
+                      suffix={field.suffix}
+                      onSave={field.onSave}
+                    />
+                  ) : field.value != null && field.value !== '' ? (
+                    <>
+                      {String(field.value)}
+                      {field.suffix}
+                    </>
                   ) : (
                     <span className="text-muted-foreground/50 italic font-normal">Not set</span>
                   ))}

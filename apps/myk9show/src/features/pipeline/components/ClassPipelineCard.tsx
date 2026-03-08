@@ -7,9 +7,11 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
-import { Circle, Settings, Play, CheckCircle, Lock, Printer } from 'lucide-react';
+import { Circle, Settings, Play, CheckCircle, Lock, Printer, GripVertical } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -89,6 +91,11 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
   const isMutating = updateClass.isPending;
   const { isPrinting, printRunOrder, printScoreSheet, printResults } = print;
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    data: { type: 'class-card', item },
+  });
+
   // Resolve style key: results cards distinguish Done vs Reviewed
   const styleKey =
     item.stage === 'results' && item.is_results_reviewed ? 'results-reviewed' : item.stage;
@@ -132,11 +139,22 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
     );
   };
 
+  const dragStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
     <div
+      ref={setNodeRef}
+      style={dragStyle}
       role="button"
       tabIndex={0}
-      onClick={() => navigate(`/shows/${showId}/trials/${trialId}/classes/${item.id}/secretary`)}
+      onClick={() => {
+        if (!isDragging) {
+          navigate(`/shows/${showId}/trials/${trialId}/classes/${item.id}/secretary`);
+        }
+      }}
       onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -147,9 +165,21 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
         'relative w-full text-left rounded-lg border border-border/60 bg-card overflow-hidden',
         'transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
-        isClosed && 'opacity-60'
+        isClosed && 'opacity-60',
+        isDragging && 'shadow-lg scale-105 opacity-90 ring-2 ring-primary/30 z-50'
       )}
     >
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 left-2 p-0.5 text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing z-10"
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </div>
+
       {/* Left accent bar */}
       <div className={cn('absolute left-0 top-0 bottom-0 w-1', style.accent)} />
 

@@ -56,6 +56,13 @@ export const STORAGE_KEYS = {
   DRAFT_METADATA_PREFIX: 'draft-metadata-',
 
   // ==========================================================================
+  // Saved Views
+  // ==========================================================================
+
+  /** Prefix for saved view configurations - append page key */
+  SAVED_VIEWS_PREFIX: 'myk9:saved-views',
+
+  // ==========================================================================
   // Search / Caching
   // ==========================================================================
 
@@ -85,13 +92,12 @@ export const STORAGE_KEYS = {
 
   /** Encryption key identifier (internal use) */
   _ENCRYPTION_KEY_ID: '_sec_key_id',
-
 } as const;
 
 /**
  * Type for storage key values
  */
-export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];
+export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
 
 /**
  * Helper to get draft key for a specific entity
@@ -133,8 +139,8 @@ export function clearAllAppStorage(): void {
     if (key) {
       // Check if it's one of our keys or prefixes
       if (
-        Object.values(STORAGE_KEYS).some(storageKey =>
-          key === storageKey || key.startsWith(storageKey)
+        Object.values(STORAGE_KEYS).some(
+          storageKey => key === storageKey || key.startsWith(storageKey)
         ) ||
         key.startsWith('myk9show-') ||
         key.startsWith('k9show-') ||
@@ -160,8 +166,8 @@ export function getAllAppStorageKeys(): string[] {
     const key = localStorage.key(i);
     if (key) {
       if (
-        Object.values(STORAGE_KEYS).some(storageKey =>
-          key === storageKey || key.startsWith(storageKey)
+        Object.values(STORAGE_KEYS).some(
+          storageKey => key === storageKey || key.startsWith(storageKey)
         ) ||
         key.startsWith('myk9show-') ||
         key.startsWith('k9show-') ||

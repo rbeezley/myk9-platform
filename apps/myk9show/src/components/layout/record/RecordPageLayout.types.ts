@@ -17,6 +17,14 @@ export interface PropertyField {
   value: string | number | null | undefined;
   /** Custom render for the value. If omitted, renders `value` as text. */
   render?: React.ReactNode;
+  /** Enable inline editing. Called with the new value; should throw on failure. */
+  onSave?: (value: string) => Promise<void>;
+  /** Input type for inline editing (default: 'text'). */
+  fieldType?: 'text' | 'number' | 'date' | 'select';
+  /** Options for select-type inline fields. */
+  options?: Array<{ label: string; value: string }>;
+  /** Suffix appended to display value (e.g., "lbs"). */
+  suffix?: string;
 }
 
 /** A compact card linking to a related record in the right sidebar. */

@@ -5,16 +5,23 @@
  * pipeline progress across 5 columns.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
 import { Plus } from 'lucide-react';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { Button } from '@/components/ui/button';
+import { notifications } from '@/lib/notifications';
+import { useUpdateClassMutation } from '@/hooks/queries/useClassesDatabase';
 import { useMissionControlData } from '../hooks/useMissionControlData';
 import { ClassPipelineColumn } from './ClassPipelineColumn';
 import { ShowContextRow } from './ShowContextRow';
 import { TrialContextRow } from './TrialContextRow';
 import { CLASS_PIPELINE_STAGES } from '../mission-control-types';
+import type { ClassPipelineStage } from '../mission-control-types';
+import { stageToDefaultStatus } from '../utils/classStageMapping';
+import type { DbClassUpdate } from '@/types/database-mappings';
+import { parseLocalDateString } from '@myk9/core';
 
 export const PipelineDashboard: React.FC = () => {
   const {
@@ -39,15 +46,12 @@ export const PipelineDashboard: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Parse date-only ("2026-03-14") or full ISO ("2026-03-14T00:00:00.000Z")
-    // into a local-midnight Date to avoid timezone-related off-by-one errors.
-    const toLocalDate = (raw: string): Date => {
-      const dateOnly = raw.slice(0, 10); // "YYYY-MM-DD"
-      return new Date(dateOnly + 'T00:00:00');
-    };
+    const start = parseLocalDateString(selectedShow.startDate.slice(0, 10));
+    const end = selectedShow.endDate
+      ? parseLocalDateString(selectedShow.endDate.slice(0, 10))
+      : start;
 
-    const start = toLocalDate(selectedShow.startDate);
-    const end = selectedShow.endDate ? toLocalDate(selectedShow.endDate) : start;
+    if (!start || !end) return { text: '', isShowDay: false };
 
     if (today >= start && today <= end) {
       return { text: 'Show Day!', isShowDay: true };
@@ -70,6 +74,51 @@ export const PipelineDashboard: React.FC = () => {
     // Past show
     return { text: 'Show complete', isShowDay: false };
   }, [selectedShow]);
+
+  const updateClass = useUpdateClassMutation();
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over) return;
+
+      // Get the target column stage from the droppable
+      const overData = over.data.current as { stage?: ClassPipelineStage } | undefined;
+      const targetStage = overData?.stage;
+      if (!targetStage) return;
+
+      // Get the dragged item
+      const activeData = active.data.current as
+        | {
+            type?: string;
+            item?: { id: string; stage: ClassPipelineStage; name: string };
+          }
+        | undefined;
+      const draggedItem = activeData?.item;
+      if (!draggedItem || draggedItem.stage === targetStage) return;
+
+      // Map target stage to DB status
+      const { status, is_scoring_finalized } = stageToDefaultStatus(targetStage);
+      const updates: DbClassUpdate = { status };
+      if (is_scoring_finalized !== undefined) {
+        updates.is_scoring_finalized = is_scoring_finalized;
+        // Reset review flag when moving to results
+        if (!is_scoring_finalized) {
+          updates.is_results_reviewed = false;
+        }
+      }
+
+      updateClass.mutate(
+        { id: draggedItem.id, updates },
+        {
+          onSuccess: () =>
+            notifications.success(`${draggedItem.name} moved to ${targetStage.replace(/-/g, ' ')}`),
+          onError: () => notifications.error(`Failed to move ${draggedItem.name}`),
+        }
+      );
+    },
+    [updateClass]
+  );
 
   if (isLoading) {
     return <DelightfulLoading message="Loading mission control..." />;
@@ -163,20 +212,23 @@ export const PipelineDashboard: React.FC = () => {
               </span>
             )}
           </h2>
-          <div className="overflow-x-auto">
-            <div className="flex gap-3 pb-4">
-              {CLASS_PIPELINE_STAGES.map(stage => (
-                <ClassPipelineColumn
-                  key={stage}
-                  stage={stage}
-                  classes={classesByStage.get(stage) ?? []}
-                  showId={showId}
-                  trialId={trialId}
-                  isLive={stage === 'in-progress' && hasLiveClasses}
-                />
-              ))}
+          <DndContext collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+            <div className="overflow-x-auto">
+              <div className="flex gap-3 pb-4">
+                {CLASS_PIPELINE_STAGES.map(stage => (
+                  <ClassPipelineColumn
+                    key={stage}
+                    stage={stage}
+                    classes={classesByStage.get(stage) ?? []}
+                    showId={showId}
+                    trialId={trialId}
+                    isLive={stage === 'in-progress' && hasLiveClasses}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+            <DragOverlay dropAnimation={null} />
+          </DndContext>
         </div>
       )}
     </div>

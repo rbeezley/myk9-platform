@@ -39,6 +39,28 @@ export function mapClassToStage(
 }
 
 /**
+ * Maps a pipeline stage back to the default DB status for that stage.
+ * Used when dragging a card to a new column.
+ */
+export function stageToDefaultStatus(stage: ClassPipelineStage): {
+  status: string;
+  is_scoring_finalized?: boolean;
+} {
+  switch (stage) {
+    case 'not-started':
+      return { status: 'no-status' };
+    case 'setup':
+      return { status: 'setup' };
+    case 'in-progress':
+      return { status: 'in_progress' };
+    case 'results':
+      return { status: 'completed', is_scoring_finalized: false };
+    case 'closed':
+      return { status: 'completed', is_scoring_finalized: true };
+  }
+}
+
+/**
  * Groups an array of class items by their pipeline stage.
  */
 export function groupClassesByStage<T extends { stage: ClassPipelineStage }>(

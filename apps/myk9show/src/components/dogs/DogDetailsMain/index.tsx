@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trophy, Calendar, Award, Star, Heart, Activity, User as UserIcon } from 'lucide-react';
@@ -167,6 +167,19 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     ];
   }, [dogEntries.length, updatedDog.registrations, updatedDog.status, updatedDog.breed]);
 
+  // Inline-save helper: persists a single field via onUpdate, optimistically updates local state.
+  const saveField = useCallback(
+    async (fieldKey: string, value: string) => {
+      if (!onUpdate) throw new Error('Editing not available');
+      const result = await onUpdate(updatedDog.id, { [fieldKey]: value || undefined });
+      if (!result) throw new Error('Save failed');
+      setUpdatedDog(prev => ({ ...prev, [fieldKey]: value || undefined }));
+    },
+    [onUpdate, updatedDog.id]
+  );
+
+  const canEdit = !!onUpdate;
+
   // Left sidebar: property sections
   const properties: PropertySectionConfig[] = useMemo(() => {
     const gender = updatedDog.gender
@@ -181,12 +194,31 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         iconGradient: 'from-pink-500/10 to-rose-500/5',
         iconColor: 'text-pink-500',
         fields: [
-          { label: 'Sex', value: gender },
+          {
+            label: 'Sex',
+            value: gender,
+            ...(canEdit && {
+              fieldType: 'select' as const,
+              options: [
+                { label: 'Male', value: 'male' },
+                { label: 'Female', value: 'female' },
+              ],
+              onSave: (v: string) => saveField('gender', v),
+            }),
+          },
           {
             label: 'Date of Birth',
             value: updatedDog.dateOfBirth ? formatDisplayDate(updatedDog.dateOfBirth) : null,
+            ...(canEdit && {
+              fieldType: 'date' as const,
+              onSave: (v: string) => saveField('dateOfBirth', v),
+            }),
           },
-          { label: 'Breed', value: updatedDog.breed },
+          {
+            label: 'Breed',
+            value: updatedDog.breed,
+            ...(canEdit && { onSave: (v: string) => saveField('breed', v) }),
+          },
         ],
       },
       {
@@ -196,10 +228,34 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         iconGradient: 'from-emerald-500/10 to-emerald-500/5',
         iconColor: 'text-emerald-600 dark:text-emerald-400',
         fields: [
-          { label: 'Height', value: updatedDog.height ? `${updatedDog.height}"` : null },
-          { label: 'Weight', value: updatedDog.weight ? `${updatedDog.weight} lbs` : null },
-          { label: 'Color', value: updatedDog.color },
-          { label: 'Microchip', value: updatedDog.microchipNumber },
+          {
+            label: 'Height',
+            value: updatedDog.height ? String(updatedDog.height) : null,
+            suffix: '"',
+            ...(canEdit && {
+              fieldType: 'number' as const,
+              onSave: (v: string) => saveField('height', v),
+            }),
+          },
+          {
+            label: 'Weight',
+            value: updatedDog.weight ? String(updatedDog.weight) : null,
+            suffix: ' lbs',
+            ...(canEdit && {
+              fieldType: 'number' as const,
+              onSave: (v: string) => saveField('weight', v),
+            }),
+          },
+          {
+            label: 'Color',
+            value: updatedDog.color,
+            ...(canEdit && { onSave: (v: string) => saveField('color', v) }),
+          },
+          {
+            label: 'Microchip',
+            value: updatedDog.microchipNumber,
+            ...(canEdit && { onSave: (v: string) => saveField('microchipNumber', v) }),
+          },
         ],
       },
     ];
@@ -219,7 +275,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
 
     return sections;
-  }, [updatedDog]);
+  }, [updatedDog, canEdit, saveField]);
 
   // Right sidebar: associations
   const { stats: perfStats } = usePerformanceStatistics(updatedDog.id);

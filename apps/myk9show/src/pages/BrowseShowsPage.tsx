@@ -19,6 +19,7 @@ import {
   Grid3X3,
   List,
   CalendarDays,
+  Columns3,
   Plus,
   Users,
   Download,
@@ -47,8 +48,41 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowsGridView, ShowsListView } from '@/components/shows/browse';
+import { ViewPicker } from '@/components/common/ViewPicker';
+import { KanbanView, type KanbanColumn } from '@/components/common/KanbanView';
+import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
+import { parseLocalDateString } from '@myk9/core';
 
-type ViewMode = 'grid' | 'list' | 'calendar';
+type ViewMode = 'grid' | 'list' | 'calendar' | 'kanban';
+
+const SHOW_KANBAN_COLUMNS: KanbanColumn[] = [
+  { key: 'planning', label: 'Planning' },
+  { key: 'entries_open', label: 'Entries Open' },
+  { key: 'entries_closed', label: 'Entries Closed' },
+  { key: 'show_day', label: 'Show Day' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'archived', label: 'Archived' },
+];
+
+/** Derive a kanban column key from show data. */
+function getShowKanbanStatus(show: Show): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (show.status === 'archived' || show.status === 'cancelled') return 'archived';
+  if (show.status === 'completed') return 'completed';
+
+  const start = show.startDate ? parseLocalDateString(show.startDate) : undefined;
+  const end = show.endDate ? parseLocalDateString(show.endDate) : start;
+  const entryOpen = show.entryOpenDate ? parseLocalDateString(show.entryOpenDate) : undefined;
+  const entryClose = show.entryCloseDate ? parseLocalDateString(show.entryCloseDate) : undefined;
+
+  if (end && today > end) return 'completed';
+  if (start && end && today >= start && today <= end) return 'show_day';
+  if (entryClose && today > entryClose) return 'entries_closed';
+  if (entryOpen && today >= entryOpen) return 'entries_open';
+  return 'planning';
+}
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -79,6 +113,34 @@ const BrowseShowsPage: React.FC = () => {
   // Use extracted filter hook
   const { filters, setFilters, filteredShows, hasActiveFilters, clearAllFilters } =
     useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+
+  // Saved views
+  const {
+    views: savedViewsList,
+    activeViewId,
+    applyView,
+    saveView,
+    updateView,
+    deleteView,
+    setDefault,
+    clearActiveView,
+  } = useSavedViews('shows');
+  const getCurrentConfig = useCallback(
+    (): ViewConfig => ({ filters: { ...filters }, viewMode, tab: selectedTab }),
+    [filters, viewMode, selectedTab]
+  );
+  const handleApplyView = useCallback(
+    (id: string) => {
+      applyView(id);
+      const view = savedViewsList.find(v => v.id === id);
+      if (view) {
+        setFilters(prev => ({ ...prev, ...view.config.filters }));
+        if (view.config.viewMode) setViewMode(view.config.viewMode as ViewMode);
+        if (view.config.tab) setSelectedTab(view.config.tab);
+      }
+    },
+    [savedViewsList, applyView, setFilters]
+  );
 
   // FilterBar definitions for the 4 show filters
   const filterDefs: FilterDefinition[] = useMemo(
@@ -278,6 +340,31 @@ const BrowseShowsPage: React.FC = () => {
     }
   }, [selectedTab, user, handleTabChange]);
 
+  // Kanban card renderer (stable reference for KanbanView)
+  const renderKanbanCard = useCallback(
+    (show: Show) => (
+      <Link
+        to={`/shows/${show.id}`}
+        className="block rounded-lg border border-border/50 bg-card p-3 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+      >
+        <div className="font-semibold text-sm leading-tight truncate">{show.name}</div>
+        {show.location && (
+          <div className="text-xs text-muted-foreground mt-1 truncate">{show.location}</div>
+        )}
+        <div className="text-xs text-muted-foreground mt-1">
+          {show.startDate
+            ? (parseLocalDateString(show.startDate.slice(0, 10))?.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              }) ?? 'No date')
+            : 'No date'}
+          {show.organization && ` \u00b7 ${show.organization}`}
+        </div>
+      </Link>
+    ),
+    []
+  );
+
   // Render shows in different view modes
   const renderShowsView = () => {
     if (enhancedShows.length === 0) {
@@ -306,6 +393,17 @@ const BrowseShowsPage: React.FC = () => {
     }
 
     switch (viewMode) {
+      case 'kanban':
+        return (
+          <KanbanView
+            items={enhancedShows}
+            columns={SHOW_KANBAN_COLUMNS}
+            getItemStatus={getShowKanbanStatus}
+            renderCard={renderKanbanCard}
+            className="mt-4"
+          />
+        );
+
       case 'calendar':
         return (
           <div className="mt-4">
@@ -468,8 +566,13 @@ const BrowseShowsPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
                   <div className="flex bg-muted/50 rounded-lg p-1">
-                    {(['grid', 'list', 'calendar'] as const).map(mode => {
-                      const Icon = { grid: Grid3X3, list: List, calendar: CalendarDays }[mode];
+                    {(['grid', 'list', 'calendar', 'kanban'] as const).map(mode => {
+                      const Icon = {
+                        grid: Grid3X3,
+                        list: List,
+                        calendar: CalendarDays,
+                        kanban: Columns3,
+                      }[mode];
                       const label = mode.charAt(0).toUpperCase() + mode.slice(1);
                       return (
                         <Tooltip key={mode}>
@@ -492,6 +595,17 @@ const BrowseShowsPage: React.FC = () => {
                       );
                     })}
                   </div>
+                  <ViewPicker
+                    views={savedViewsList}
+                    activeViewId={activeViewId}
+                    getCurrentConfig={getCurrentConfig}
+                    onApply={handleApplyView}
+                    onSave={saveView}
+                    onUpdate={updateView}
+                    onDelete={deleteView}
+                    onSetDefault={setDefault}
+                    onClear={clearActiveView}
+                  />
                 </div>
 
                 {/* Quick stats summary */}

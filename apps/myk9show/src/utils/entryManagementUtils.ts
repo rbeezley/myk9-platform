@@ -12,12 +12,18 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
  */
 export const mapEntryStatus = (status: string | null): EntryStatus => {
   switch (status) {
-    case 'accepted': return EntryStatus.ACCEPTED;
-    case 'pending': return EntryStatus.PENDING;
-    case 'waitlisted': return EntryStatus.WAITLIST;
-    case 'rejected': return EntryStatus.REJECTED;
-    case 'cancelled': return EntryStatus.CANCELLED;
-    default: return EntryStatus.PENDING;
+    case 'accepted':
+      return EntryStatus.ACCEPTED;
+    case 'pending':
+      return EntryStatus.PENDING;
+    case 'waitlisted':
+      return EntryStatus.WAITLIST;
+    case 'rejected':
+      return EntryStatus.REJECTED;
+    case 'cancelled':
+      return EntryStatus.CANCELLED;
+    default:
+      return EntryStatus.PENDING;
   }
 };
 
@@ -26,17 +32,23 @@ export const mapEntryStatus = (status: string | null): EntryStatus => {
  */
 export const mapPaymentStatus = (status: string | null): PaymentStatus => {
   switch (status) {
-    case 'paid': return PaymentStatus.PAID_ONLINE;
-    case 'pending': return PaymentStatus.PENDING;
-    case 'refunded': return PaymentStatus.REFUNDED;
-    default: return PaymentStatus.PENDING;
+    case 'paid':
+      return PaymentStatus.PAID_ONLINE;
+    case 'pending':
+      return PaymentStatus.PENDING;
+    case 'refunded':
+      return PaymentStatus.REFUNDED;
+    default:
+      return PaymentStatus.PENDING;
   }
 };
 
 /**
  * Map database class entry status to UI string
  */
-export const mapClassEntryStatus = (status: string | null): 'entered' | 'scratched' | 'moved' | 'absent' => {
+export const mapClassEntryStatus = (
+  status: string | null
+): 'entered' | 'scratched' | 'moved' | 'absent' => {
   switch (status) {
     case 'accepted':
     case 'pending':
@@ -58,12 +70,18 @@ export const mapClassEntryStatus = (status: string | null): 'entered' | 'scratch
  */
 export const mapStatusToDb = (status: EntryStatus): string => {
   switch (status) {
-    case EntryStatus.ACCEPTED: return 'accepted';
-    case EntryStatus.PENDING: return 'pending';
-    case EntryStatus.WAITLIST: return 'waitlisted';
-    case EntryStatus.REJECTED: return 'rejected';
-    case EntryStatus.CANCELLED: return 'cancelled';
-    default: return 'pending';
+    case EntryStatus.ACCEPTED:
+      return 'accepted';
+    case EntryStatus.PENDING:
+      return 'pending';
+    case EntryStatus.WAITLIST:
+      return 'waitlisted';
+    case EntryStatus.REJECTED:
+      return 'rejected';
+    case EntryStatus.CANCELLED:
+      return 'cancelled';
+    default:
+      return 'pending';
   }
 };
 
@@ -83,7 +101,11 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
     case EntryStatus.CANCELLED:
       return React.createElement(Badge, { variant: 'outline' }, 'Cancelled');
     case EntryStatus.MISSING_INFO:
-      return React.createElement(Badge, { className: 'bg-orange-100 text-orange-800' }, 'Missing Info');
+      return React.createElement(
+        Badge,
+        { className: 'bg-orange-100 text-orange-800' },
+        'Missing Info'
+      );
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
   }
@@ -101,9 +123,35 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
     case PaymentStatus.PENDING:
       return React.createElement(Badge, { className: 'bg-red-100 text-red-800' }, 'Payment Due');
     case PaymentStatus.REFUNDED:
-      return React.createElement(Badge, { variant: 'outline', className: 'text-blue-600' }, 'Refunded');
+      return React.createElement(
+        Badge,
+        { variant: 'outline', className: 'text-blue-600' },
+        'Refunded'
+      );
     default:
       return React.createElement(Badge, { variant: 'outline' }, 'Unknown');
+  }
+}
+
+/**
+ * Get Tailwind CSS classes for an entry status badge (string-based, for tables).
+ * Accepts raw status strings from DB queries (e.g., 'confirmed', 'pending').
+ */
+export function getEntryStatusClasses(status: string | null): string {
+  switch (status?.toLowerCase()) {
+    case 'confirmed':
+    case 'accepted':
+      return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-200';
+    case 'pending':
+    case 'submitted':
+      return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-yellow-900 dark:text-yellow-200';
+    case 'cancelled':
+    case 'withdrawn':
+      return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-200';
+    case 'waitlisted':
+      return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-200';
+    default:
+      return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-200';
   }
 }
 

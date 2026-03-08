@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, Loader2, ClipboardList } from 'lucide-react';
+import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
 
 interface TrialEntriesTableProps {
   trialId: string;
@@ -85,8 +86,8 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
 
   // Map raw entries to display format
   const entries: DisplayEntry[] = useMemo(() => {
-    return rawEntries.map((e: Record<string, unknown>) => {
-      const raw = e as unknown as EntryRecord;
+    return rawEntries.map((e: unknown) => {
+      const raw = e as EntryRecord;
       const dog = raw.dog;
       const cls = raw.class;
       const owner = dog?.owner;
@@ -164,23 +165,6 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
     ) : (
       <ArrowDown className="ml-2 h-4 w-4" />
     );
-  };
-
-  const getStatusBadgeClasses = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-      case 'accepted':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'cancelled':
-      case 'withdrawn':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'waitlisted':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    }
   };
 
   if (isLoading) {
@@ -335,7 +319,7 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
                   <TableCell>{entry.handler}</TableCell>
                   <TableCell>
                     <span
-                      className={`inline-block px-3 py-1 text-xs font-semibold rounded-full capitalize ${getStatusBadgeClasses(entry.status)}`}
+                      className={`inline-block px-3 py-1 text-xs font-semibold rounded-full capitalize ${getEntryStatusClasses(entry.status)}`}
                     >
                       {entry.status}
                     </span>

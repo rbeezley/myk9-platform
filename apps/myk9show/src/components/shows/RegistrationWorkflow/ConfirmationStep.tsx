@@ -82,12 +82,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         const selection = classSelections.find((s: ClassSelectionData) => s.dogId === dogId);
         if (!dog || !selection) return null;
 
+        const trial = trials.find(t => t.id === selection.trialId);
         const dogClasses: DogClassDetails[] = selection.selectedClasses.map(sc => {
           const classData = classes.find(
             (c: { id: string; className?: string | undefined; classNumber?: string | undefined }) =>
               c.id === sc.classId
           );
-          const trial = trials.find(t => t.id === selection.trialId);
           return {
             className: classData?.className || 'Unknown Class',
             classNumber: classData?.classNumber || '',
@@ -198,13 +198,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
     if (!dog || !selection) return null;
 
+    const trial = trials.find(t => t.id === selection.trialId);
     const dogClasses: DogClassDetails[] = selection.selectedClasses.map(sc => {
       const classData = classes.find(
         (c: { id: string; className?: string | undefined; classNumber?: string | undefined }) =>
           c.id === sc.classId
       );
-      const trial = trials.find(t => t.id === selection.trialId);
-
       return {
         className: classData?.className || 'Unknown Class',
         classNumber: classData?.classNumber || '',

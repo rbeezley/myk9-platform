@@ -6,8 +6,7 @@ import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { useShowStore } from '@/store/showStore';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { TemplateSelectionStep } from './AddClassesToTrialPanelSteps';
-import { ConfirmationStep } from './AddClassesToTrialPanelSteps';
+import { TemplateSelectionStep, ConfirmationStep } from './AddClassesToTrialPanelSteps';
 
 interface ClassJudgeAssignment {
   classId: string;
@@ -56,13 +55,18 @@ export const AddClassesToTrialPanel: React.FC<AddClassesToTrialPanelProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState<Step>('template');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  const [selectedTemplate, setSelectedTemplate] = useState<ClassTemplate | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<ClassDefinition[]>([]);
   const [judgeAssignments, setJudgeAssignments] = useState<Record<string, string>>({});
 
   const { shows } = useShowStore();
   const currentShow = showId ? shows.find(s => s.id === showId) : null;
   const availableJudges = currentShow?.assignedJudges || [];
+
+  // Derive selectedTemplate from selectedTemplateId (no redundant state)
+  const selectedTemplate = useMemo(
+    () => availableTemplates.find(t => t.id === selectedTemplateId) ?? null,
+    [availableTemplates, selectedTemplateId]
+  );
 
   // Filter templates to active ones matching show type
   const activeTemplates = useMemo(
@@ -99,27 +103,13 @@ export const AddClassesToTrialPanel: React.FC<AddClassesToTrialPanelProps> = ({
     if (open) {
       if (activeTemplates.length === 1) {
         setSelectedTemplateId(activeTemplates[0].id);
-        setSelectedTemplate(activeTemplates[0]);
         setCurrentStep('classes');
       } else {
         setCurrentStep('template');
         setSelectedTemplateId('');
-        setSelectedTemplate(null);
       }
       setSelectedClasses([]);
       setJudgeAssignments({});
-    }
-  }
-
-  // Sync selected template when ID changes
-  const [prevSelectedTemplateId, setPrevSelectedTemplateId] = useState(selectedTemplateId);
-  if (selectedTemplateId !== prevSelectedTemplateId) {
-    setPrevSelectedTemplateId(selectedTemplateId);
-    if (selectedTemplateId) {
-      const template = activeTemplates.find(t => t.id === selectedTemplateId);
-      setSelectedTemplate(template || null);
-    } else {
-      setSelectedTemplate(null);
     }
   }
 

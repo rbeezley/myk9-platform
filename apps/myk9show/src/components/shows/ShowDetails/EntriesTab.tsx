@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { cacheStrategies } from '@/lib/queryClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Search, ClipboardList, Loader2 } from 'lucide-react';
 import { getEntriesByShow } from '@/services/database/queries/entryQueries';
+import { getEntryStatusClasses, formatDate } from '@/utils/entryManagementUtils';
 
 /** Shape of a single entry row returned by getEntriesByShow. */
 interface ShowEntryRow {
@@ -38,56 +41,30 @@ interface EntriesTabProps {
   onManageEntries?: (() => void) | undefined;
 }
 
-/** Status badge colors for entry statuses. */
-function getStatusStyle(status: string | null): string {
-  switch (status?.toLowerCase()) {
-    case 'confirmed':
-    case 'accepted':
-      return 'bg-green-100 text-green-700 border-green-200';
-    case 'pending':
-    case 'submitted':
-      return 'bg-amber-100 text-amber-700 border-amber-200';
-    case 'cancelled':
-    case 'withdrawn':
-      return 'bg-red-100 text-red-700 border-red-200';
-    case 'waitlisted':
-      return 'bg-blue-100 text-blue-700 border-blue-200';
-    default:
-      return 'bg-gray-100 text-gray-700 border-gray-200';
-  }
-}
-
 export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries }) => {
-  const [entries, setEntries] = useState<ShowEntryRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchEntries() {
-      setLoading(true);
-      setError(null);
-
+  const {
+    data: entries = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['shows', showId, 'entries'],
+    queryFn: async () => {
       const result = await getEntriesByShow(showId);
+      if (result.error) throw result.error;
+      return (result.data as ShowEntryRow[]) || [];
+    },
+    enabled: !!showId,
+    ...cacheStrategies.dynamic,
+  });
 
-      if (cancelled) return;
-
-      if (result.error) {
-        setError(result.error.message || 'Failed to load entries');
-        setEntries([]);
-      } else {
-        setEntries((result.data as ShowEntryRow[]) || []);
-      }
-      setLoading(false);
-    }
-
-    fetchEntries();
-    return () => {
-      cancelled = true;
-    };
-  }, [showId]);
+  const error = isError
+    ? queryError instanceof Error
+      ? queryError.message
+      : 'Failed to load entries'
+    : null;
 
   /** Filtered entries based on search term. */
   const filteredEntries = useMemo(() => {
@@ -215,13 +192,7 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
                     ? `${entry.dog.owner.first_name || ''} ${entry.dog.owner.last_name || ''}`.trim()
                     : 'N/A');
                 const status = entry.entry_status || 'Unknown';
-                const dateStr = entry.created_at
-                  ? new Date(entry.created_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
-                  : 'N/A';
+                const dateStr = formatDate(entry.created_at);
 
                 return (
                   <tr
@@ -237,7 +208,7 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
                     <td className="px-4 py-3 text-foreground font-mono">{entry.armband || '-'}</td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(status)}`}
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getEntryStatusClasses(status)}`}
                       >
                         {status}
                       </span>

@@ -17,6 +17,7 @@ import { TrialClass } from '@/components/trials/types/trial.types';
 import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
 import { useTrialStore } from '@/store/trialStore';
+import { useClassRequirements } from '@/hooks/useClassRequirements';
 import ExpandableSection from './ExpandableSection';
 import SectionToggleControls from './SectionToggleControls';
 import SimpleEditForm from './SimpleEditForm';
@@ -62,6 +63,23 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
   };
 
   const assignedJudges = getAssignedJudges();
+
+  // Fetch class requirements for auto-fill based on the class's element/level
+  const resolvedShowId =
+    showId ||
+    (() => {
+      if ('trialId' in (classItem || {})) {
+        const cd = classItem as ClassData;
+        const trial = trials.find(t => t.id === cd.trialId);
+        return trial ? shows.find(s => s.id === trial.showId)?.id : undefined;
+      }
+      return undefined;
+    })();
+  const { autoFill: requirementsAutoFill } = useClassRequirements({
+    element: classItem?.element || '',
+    level: classItem?.level || '',
+    showId: resolvedShowId,
+  });
 
   // Track classItem changes and update form data during render
   const classItemKey = classItem?.id || '';
@@ -242,6 +260,14 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
                   />
                 </div>
                 <div className="col-span-2 space-y-3">
+                  {requirementsAutoFill?.timeLimitText.ruleValue && (
+                    <div className="flex items-center gap-1 text-[10px] font-medium text-primary/70 bg-primary/5 border border-primary/10 rounded px-2 py-1 w-fit">
+                      <ClipboardList className="h-3 w-3" />
+                      {requirementsAutoFill.timeLimitText.isJudgeSettable
+                        ? `Set by judge (${requirementsAutoFill.timeLimitText.ruleValue})`
+                        : `Rule: ${requirementsAutoFill.timeLimitText.ruleValue}`}
+                    </div>
+                  )}
                   <TimePicker
                     id="timeLimit1"
                     label="Time Limit 1"
@@ -299,7 +325,11 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
                 forceExpanded={forceExpandAll}
                 forceCollapsed={forceCollapseAll}
               >
-                <RequirementsFields classData={classData} onFieldChange={handleChange} />
+                <RequirementsFields
+                  classData={classData}
+                  onFieldChange={handleChange}
+                  autoFill={requirementsAutoFill}
+                />
               </ExpandableSection>
 
               {/* Fee Structure Section */}

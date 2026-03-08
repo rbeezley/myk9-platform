@@ -7,8 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { BookOpen } from 'lucide-react';
 import { ClassData } from './types/classTypes';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
+import type { ClassRequirementsAutoFill } from '@/hooks/useClassRequirements';
 
 interface PersonOption {
   id: string;
@@ -134,51 +136,97 @@ export function OfficialsFields({
   );
 }
 
+/** Badge shown next to rule-sourced fields */
+function RuleBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary/70 bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 ml-2">
+      <BookOpen className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
+
+/** A requirement input field with optional auto-fill from rules */
+function RequirementInput({
+  id,
+  label,
+  value,
+  ruleValue,
+  isJudgeSettable,
+  placeholder,
+  onChange,
+  colSpan,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  ruleValue?: string | undefined;
+  isJudgeSettable?: boolean | undefined;
+  placeholder: string;
+  onChange: (value: string) => void;
+  colSpan?: number | undefined;
+}) {
+  const hasRuleValue = ruleValue !== undefined && ruleValue !== '';
+  const isAutoFilled = hasRuleValue && !isJudgeSettable && !value;
+
+  return (
+    <div className={`space-y-3${colSpan ? ` col-span-${colSpan}` : ''}`}>
+      <Label htmlFor={id} className="text-sm font-medium flex items-center">
+        {label}
+        {hasRuleValue && !isJudgeSettable && <RuleBadge label="From rules" />}
+        {isJudgeSettable && <RuleBadge label="Judge sets" />}
+      </Label>
+      <Input
+        id={id}
+        value={isAutoFilled ? ruleValue : value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`h-11 ${isAutoFilled ? 'bg-primary/[0.03] text-muted-foreground border-primary/20' : ''}`}
+        readOnly={hasRuleValue && !isJudgeSettable}
+      />
+    </div>
+  );
+}
+
 export function RequirementsFields({
   classData,
   onFieldChange,
+  autoFill,
 }: {
   classData: ClassData;
   onFieldChange: (field: string, value: string | number) => void;
+  autoFill?: ClassRequirementsAutoFill | null | undefined;
 }) {
   return (
     <>
-      <div className="space-y-3">
-        <Label htmlFor="hidesUsed" className="text-sm font-medium">
-          Hides Used
-        </Label>
-        <Input
-          id="hidesUsed"
-          value={classData.hidesUsed || ''}
-          onChange={e => onFieldChange('hidesUsed', e.target.value)}
-          placeholder="Enter number of hides"
-          className="h-11"
-        />
-      </div>
-      <div className="space-y-3">
-        <Label htmlFor="distractionsUsed" className="text-sm font-medium">
-          Distractions Used
-        </Label>
-        <Input
-          id="distractionsUsed"
-          value={classData.distractionsUsed || ''}
-          onChange={e => onFieldChange('distractionsUsed', e.target.value)}
-          placeholder="Enter distractions"
-          className="h-11"
-        />
-      </div>
-      <div className="col-span-2 space-y-3">
-        <Label htmlFor="itemsUsed" className="text-sm font-medium">
-          Items Used
-        </Label>
-        <Input
-          id="itemsUsed"
-          value={classData.itemsUsed || ''}
-          onChange={e => onFieldChange('itemsUsed', e.target.value)}
-          placeholder="Enter items used"
-          className="h-11"
-        />
-      </div>
+      <RequirementInput
+        id="hidesUsed"
+        label="Hides Used"
+        value={classData.hidesUsed || ''}
+        ruleValue={autoFill?.hidesUsed.ruleValue}
+        isJudgeSettable={autoFill?.hidesUsed.isJudgeSettable}
+        placeholder={autoFill?.hidesUsed.placeholder || 'Enter number of hides'}
+        onChange={v => onFieldChange('hidesUsed', v)}
+      />
+      <RequirementInput
+        id="distractionsUsed"
+        label="Distractions Used"
+        value={classData.distractionsUsed || ''}
+        ruleValue={autoFill?.distractionsUsed.ruleValue}
+        isJudgeSettable={autoFill?.distractionsUsed.isJudgeSettable}
+        placeholder={autoFill?.distractionsUsed.placeholder || 'Enter distractions'}
+        onChange={v => onFieldChange('distractionsUsed', v)}
+      />
+      <RequirementInput
+        id="itemsUsed"
+        label="Items Used"
+        value={classData.itemsUsed || ''}
+        ruleValue={autoFill?.itemsUsed.ruleValue}
+        isJudgeSettable={autoFill?.itemsUsed.isJudgeSettable}
+        placeholder={autoFill?.itemsUsed.placeholder || 'Enter items used'}
+        onChange={v => onFieldChange('itemsUsed', v)}
+        colSpan={2}
+      />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, GraduationCap } from 'lucide-react';
 import { useUserStore, PersonInput } from '@/store/userStore';
@@ -16,10 +16,16 @@ import { DuplicateWarning, SubmitError } from './FormAlerts';
 
 interface JudgeCreationPanelProps extends BasePanelProps {
   requiredCertifications?: string[];
-  onStateChange?: (state: { isLoading: boolean; error: string | null; isDirty: boolean; isValid: boolean }) => void;
+  onStateChange?: (state: {
+    isLoading: boolean;
+    error: string | null;
+    isDirty: boolean;
+    isValid: boolean;
+  }) => void;
 }
 
 export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
+  panelId,
   context,
   onResult,
 }) => {
@@ -95,15 +101,18 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
       const existingName = `${person.firstName} ${person.lastName}`.toLowerCase();
       const existingEmail = person.email?.toLowerCase();
 
-      return existingName === fullName ||
-             existingEmail === emailLower ||
-             (person.judgeInfo?.judgeNumber?.toLowerCase() === judgeNumberLower && judgeNumberLower);
+      return (
+        existingName === fullName ||
+        existingEmail === emailLower ||
+        (person.judgeInfo?.judgeNumber?.toLowerCase() === judgeNumberLower && judgeNumberLower)
+      );
     });
 
     if (existingJudge) {
       let matchType = 'name';
       if (existingJudge.email?.toLowerCase() === emailLower) matchType = 'email';
-      else if (existingJudge.judgeInfo?.judgeNumber?.toLowerCase() === judgeNumberLower) matchType = 'judge number';
+      else if (existingJudge.judgeInfo?.judgeNumber?.toLowerCase() === judgeNumberLower)
+        matchType = 'judge number';
 
       setDuplicateWarning(
         `A judge with this ${matchType} already exists: ${existingJudge.firstName} ${existingJudge.lastName}`
@@ -133,75 +142,97 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
   const handleAvailabilityChange = (field: keyof JudgeFormData['availability'], value: unknown) => {
     setFormData(prev => ({
       ...prev,
-      availability: { ...prev.availability, [field]: value }
+      availability: { ...prev.availability, [field]: value },
     }));
   };
 
-  const handleSubmit = async (action: 'save_close' | 'save_continue') => {
-    // Mark that we've attempted to submit - this enables error display
-    setHasSubmitted(true);
+  const handleSubmit = useCallback(
+    async (action: 'save_close' | 'save_continue') => {
+      // Mark that we've attempted to submit - this enables error display
+      setHasSubmitted(true);
 
-    if (!validateForm()) return;
+      if (!validateForm()) return;
 
-    // Check for duplicates (but allow user to proceed)
-    checkForDuplicates();
+      // Check for duplicates (but allow user to proceed)
+      checkForDuplicates();
 
-    setIsSubmitting(true);
+      setIsSubmitting(true);
 
-    try {
-      const judgeData: PersonInput & { roles?: string[]; judgeInfo?: JudgeInfo } = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        address: {
-          street: formData.address.trim(),
-          city: formData.city.trim(),
-          state: formData.state.trim(),
-          zipCode: formData.zipCode.trim(),
-          country: 'United States',
-        },
-        roles: ['judge'],
-        judgeInfo: {
-          judgeNumber: formData.judgeNumber.trim(),
-          qualifications: formData.qualifications.map(qual => ({
-            ...qual,
+      try {
+        const judgeData: PersonInput & { roles?: string[]; judgeInfo?: JudgeInfo } = {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          address: {
+            street: formData.address.trim(),
+            city: formData.city.trim(),
+            state: formData.state.trim(),
+            zipCode: formData.zipCode.trim(),
+            country: 'United States',
+          },
+          roles: ['judge'],
+          judgeInfo: {
             judgeNumber: formData.judgeNumber.trim(),
-            showTypes: [], // Default empty array
-            certificationDate: qual.dateObtained ? new Date(qual.dateObtained).toISOString().split('T')[0] : '',
-            status: 'Active' as const
-          })),
-          certifications: formData.certifications,
-          availability: formData.availability,
-        },
-      };
+            qualifications: formData.qualifications.map(qual => ({
+              ...qual,
+              judgeNumber: formData.judgeNumber.trim(),
+              showTypes: [], // Default empty array
+              certificationDate: qual.dateObtained
+                ? new Date(qual.dateObtained).toISOString().split('T')[0]
+                : '',
+              status: 'Active' as const,
+            })),
+            certifications: formData.certifications,
+            availability: formData.availability,
+          },
+        };
 
-      const newJudge = await addUser(judgeData);
+        const newJudge = await addUser(judgeData);
 
-      logger.debug('Judge created successfully:', 'panels', { data: newJudge });
+        logger.debug('Judge created successfully:', 'panels', { data: newJudge });
 
-      notifications.success(`Judge ${formData.firstName} ${formData.lastName} created successfully`);
+        notifications.success(
+          `Judge ${formData.firstName} ${formData.lastName} created successfully`
+        );
 
-      // Call the selection callback if provided (may be async to refresh store)
-      if (context.selectionCallback) {
-        await context.selectionCallback((newJudge as unknown) as Record<string, unknown>);
+        // Call the selection callback if provided (may be async to refresh store)
+        if (context.selectionCallback) {
+          await context.selectionCallback(newJudge as unknown as Record<string, unknown>);
+        }
+
+        // Return result based on action
+        onResult({
+          success: true,
+          entity: newJudge as unknown as Record<string, unknown>,
+          action: action === 'save_close' ? 'save_and_close' : 'save_and_continue',
+        });
+      } catch (error) {
+        logger.error('Failed to create judge:', 'components', {}, error as Error);
+        notifications.error('Failed to create judge. Please try again.');
+        setErrors({ submit: 'Failed to create judge. Please try again.' });
+      } finally {
+        setIsSubmitting(false);
       }
+    },
+    [validateForm, checkForDuplicates, formData, addUser, context.selectionCallback, onResult]
+  );
 
-      // Return result based on action
-      onResult({
-        success: true,
-        entity: (newJudge as unknown) as Record<string, unknown>,
-        action: action === 'save_close' ? 'save_and_close' : 'save_and_continue',
-      });
+  // Override the parent component's save handler (used by EntityCreationPanel footer)
+  useEffect(() => {
+    const handleParentSave = (action: 'save' | 'save_and_continue' | 'save_and_close') => {
+      handleSubmit(
+        action === 'save_and_close' || action === 'save' ? 'save_close' : 'save_continue'
+      );
+    };
 
-    } catch (error) {
-      logger.error('Failed to create judge:', 'components', {}, error as Error);
-      notifications.error('Failed to create judge. Please try again.');
-      setErrors({ submit: 'Failed to create judge. Please try again.' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`] =
+      handleParentSave;
+
+    return () => {
+      delete (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`];
+    };
+  }, [panelId, handleSubmit]);
 
   const handleCancel = () => {
     setHasSubmitted(false);
@@ -223,9 +254,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
           <GraduationCap className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-semibold">Create New Judge</h3>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Add a new qualified judge to the system
-        </p>
+        <p className="text-sm text-muted-foreground">Add a new qualified judge to the system</p>
       </div>
 
       <PersonalInfoSection
@@ -235,10 +264,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
         onInputChange={handleInputChange}
       />
 
-      <AddressSection
-        formData={formData}
-        onInputChange={handleInputChange}
-      />
+      <AddressSection formData={formData} onInputChange={handleInputChange} />
 
       <QualificationsSection
         formData={formData}
@@ -268,12 +294,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
 
       {/* Action Buttons */}
       <div className="flex gap-3 pt-4">
-        <Button
-          variant="outline"
-          onClick={handleCancel}
-          disabled={isSubmitting}
-          className="flex-1"
-        >
+        <Button variant="outline" onClick={handleCancel} disabled={isSubmitting} className="flex-1">
           Cancel
         </Button>
         <Button

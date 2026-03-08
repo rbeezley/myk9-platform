@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { cn } from '@/lib/utils';
-import { formatCardNumber, formatExpiryDate, stripNonDigits } from './utils';
+import { CreditCardVisual } from './CreditCardVisual';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { PaymentMethodSelectorProps } from './types';
 
@@ -118,50 +118,17 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
             />
 
             {paymentMethod === 'credit_card' && (
-              <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
-                <div>
-                  <Label htmlFor="cardholder">Cardholder Name</Label>
-                  <Input
-                    id="cardholder"
-                    value={cardholderName}
-                    onChange={e => setCardholderName(e.target.value)}
-                    placeholder="John Doe"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cardnumber">Card Number</Label>
-                  <Input
-                    id="cardnumber"
-                    value={cardNumber}
-                    onChange={e => setCardNumber(formatCardNumber(e.target.value))}
-                    placeholder="1234 5678 9012 3456"
-                    maxLength={19}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="expiry">Expiry Date</Label>
-                    <Input
-                      id="expiry"
-                      value={expiryDate}
-                      onChange={e => setExpiryDate(formatExpiryDate(e.target.value))}
-                      placeholder="MM/YY"
-                      maxLength={5}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cvv">CVV</Label>
-                    <Input
-                      id="cvv"
-                      value={cvv}
-                      onChange={e => setCvv(stripNonDigits(e.target.value))}
-                      placeholder="123"
-                      maxLength={4}
-                    />
-                  </div>
-                </div>
+              <div className="py-4">
+                <CreditCardVisual
+                  cardNumber={cardNumber}
+                  expiryDate={expiryDate}
+                  cvv={cvv}
+                  cardholderName={cardholderName}
+                  onCardNumberChange={setCardNumber}
+                  onExpiryDateChange={setExpiryDate}
+                  onCvvChange={setCvv}
+                  onCardholderNameChange={setCardholderName}
+                />
               </div>
             )}
 

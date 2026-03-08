@@ -13,11 +13,56 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
-import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
+import { Clock, UserCheck, ClipboardList, Settings, BookOpen } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
+import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { cn } from '@/lib/utils';
 import type { ClassEditFormData } from './ClassEditPanel.types';
+
+/** Badge shown next to rule-sourced fields */
+function RuleBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary/70 bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 ml-2">
+      <BookOpen className="h-3 w-3" />
+      {label}
+    </span>
+  );
+}
+
+/** A requirement field with optional auto-fill from rules */
+function RequirementField({
+  label,
+  value,
+  onChange,
+  autoFillMeta,
+}: {
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  autoFillMeta?: { ruleValue: string; isJudgeSettable: boolean; placeholder: string } | undefined;
+}) {
+  const hasRule = autoFillMeta && autoFillMeta.ruleValue !== '';
+  const isAutoFilled = hasRule && !autoFillMeta.isJudgeSettable && !value;
+  const displayValue = isAutoFilled ? autoFillMeta.ruleValue : value;
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase flex items-center">
+        {label}
+        {hasRule && !autoFillMeta.isJudgeSettable && <RuleBadge label="From rules" />}
+        {autoFillMeta?.isJudgeSettable && <RuleBadge label="Judge sets" />}
+      </Label>
+      <Input
+        value={displayValue}
+        onChange={onChange}
+        placeholder={autoFillMeta?.placeholder || `Enter ${label.toLowerCase()}`}
+        className={isAutoFilled ? 'bg-primary/[0.03] text-muted-foreground border-primary/20' : ''}
+        readOnly={hasRule && !autoFillMeta.isJudgeSettable}
+      />
+    </div>
+  );
+}
 
 // Full mode form for ClassData
 export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
@@ -30,6 +75,13 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
     const currentShow = shows.find((show: { id: string }) => show.id === showId);
     return currentShow?.assignedJudges || [];
   }, [shows, showId]);
+
+  // Fetch class requirements for auto-fill
+  const { autoFill } = useClassRequirements({
+    element: data.element,
+    level: data.level,
+    showId,
+  });
 
   const handleInputChange = useCallback(
     (field: keyof ClassEditFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,9 +217,19 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
               <Separator />
 
               <div className="space-y-4">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Time Limits
-                </h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                    Time Limits
+                  </h4>
+                  {autoFill?.timeLimitText.ruleValue && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary/70 bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5">
+                      <BookOpen className="h-3 w-3" />
+                      {autoFill.timeLimitText.isJudgeSettable
+                        ? `Set by judge (${autoFill.timeLimitText.ruleValue})`
+                        : `Rule: ${autoFill.timeLimitText.ruleValue}`}
+                    </span>
+                  )}
+                </div>
 
                 <TimePicker
                   id="timeLimit1"
@@ -286,39 +348,26 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Hides Used
-                  </Label>
-                  <Input
-                    value={data.hidesUsed || ''}
-                    onChange={handleInputChange('hidesUsed')}
-                    placeholder="Enter number of hides"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Distractions Used
-                  </Label>
-                  <Input
-                    value={data.distractionsUsed || ''}
-                    onChange={handleInputChange('distractionsUsed')}
-                    placeholder="Enter distractions"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                  Items Used
-                </Label>
-                <Input
-                  value={data.itemsUsed || ''}
-                  onChange={handleInputChange('itemsUsed')}
-                  placeholder="Enter items used"
+                <RequirementField
+                  label="Hides Used"
+                  value={data.hidesUsed || ''}
+                  onChange={handleInputChange('hidesUsed')}
+                  autoFillMeta={autoFill?.hidesUsed}
+                />
+                <RequirementField
+                  label="Distractions Used"
+                  value={data.distractionsUsed || ''}
+                  onChange={handleInputChange('distractionsUsed')}
+                  autoFillMeta={autoFill?.distractionsUsed}
                 />
               </div>
+
+              <RequirementField
+                label="Items Used"
+                value={data.itemsUsed || ''}
+                onChange={handleInputChange('itemsUsed')}
+                autoFillMeta={autoFill?.itemsUsed}
+              />
 
               <Separator />
 

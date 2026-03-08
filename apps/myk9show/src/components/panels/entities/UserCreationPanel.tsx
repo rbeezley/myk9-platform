@@ -1,6 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -34,24 +40,75 @@ const PERSON_ROLES: { value: UserRole; label: string }[] = [
 ];
 
 const US_STATES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  'AL',
+  'AK',
+  'AZ',
+  'AR',
+  'CA',
+  'CO',
+  'CT',
+  'DE',
+  'FL',
+  'GA',
+  'HI',
+  'ID',
+  'IL',
+  'IN',
+  'IA',
+  'KS',
+  'KY',
+  'LA',
+  'ME',
+  'MD',
+  'MA',
+  'MI',
+  'MN',
+  'MS',
+  'MO',
+  'MT',
+  'NE',
+  'NV',
+  'NH',
+  'NJ',
+  'NM',
+  'NY',
+  'NC',
+  'ND',
+  'OH',
+  'OK',
+  'OR',
+  'PA',
+  'RI',
+  'SC',
+  'SD',
+  'TN',
+  'TX',
+  'UT',
+  'VT',
+  'VA',
+  'WA',
+  'WV',
+  'WI',
+  'WY',
 ];
 
 interface PersonCreationPanelProps extends BasePanelProps {
   role?: 'chairman' | 'secretary' | 'judge' | 'exhibitor';
-  onStateChange?: (state: { isLoading: boolean; error: string | null; isDirty: boolean; isValid: boolean }) => void;
+  onStateChange?: (state: {
+    isLoading: boolean;
+    error: string | null;
+    isDirty: boolean;
+    isValid: boolean;
+  }) => void;
   showActions?: boolean; // Controls whether to show action buttons
 }
 
 export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
+  panelId,
   context,
   onResult,
   onStateChange,
-  showActions = true // Default to showing actions for standalone use
+  showActions = true, // Default to showing actions for standalone use
 }) => {
   const { addUser, updateUser, people } = useUserStore();
 
@@ -64,13 +121,13 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
     city: '',
     state: '',
     zipCode: '',
-    role: context.preFilledData?.role as UserRole || 'exhibitor',
+    role: (context.preFilledData?.role as UserRole) || 'exhibitor',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const [existingPerson, setExistingPerson] = useState<typeof people[0] | null>(null);
+  const [existingPerson, setExistingPerson] = useState<(typeof people)[0] | null>(null);
   // Track if form has been submitted - only show errors after first submit attempt
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -78,7 +135,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   const getVisibleError = (field: string): string | undefined => {
     return hasSubmitted ? errors[field] : undefined;
   };
-  
+
   // Track previous state to prevent unnecessary updates
   const previousStateRef = useRef<{
     isLoading: boolean;
@@ -94,31 +151,31 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
   // Extract complex expression to a variable
   const errorCount = Object.keys(errors).length;
-  
+
   // Memoize state calculation using individual primitive values instead of formData object
   const currentState = useMemo(() => {
     const isDirty = Boolean(
-      formData.firstName || 
-      formData.lastName || 
-      formData.email || 
-      formData.phone || 
-      formData.address || 
-      formData.city || 
-      formData.state || 
+      formData.firstName ||
+      formData.lastName ||
+      formData.email ||
+      formData.phone ||
+      formData.address ||
+      formData.city ||
+      formData.state ||
       formData.zipCode
     );
     const isValid = Boolean(
-      errorCount === 0 && 
-      formData.firstName.trim() && 
-      formData.lastName.trim() && 
+      errorCount === 0 &&
+      formData.firstName.trim() &&
+      formData.lastName.trim() &&
       formData.email.trim()
     );
-    
+
     return {
       isLoading: isSubmitting,
       error: errors.submit || null,
       isDirty,
-      isValid
+      isValid,
     };
   }, [
     isSubmitting,
@@ -132,16 +189,16 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
     formData.city,
     formData.state,
     formData.zipCode,
-    errorCount
+    errorCount,
   ]);
 
   // Stable callback to report state changes
   const reportStateChange = useCallback(() => {
     if (!onStateChange) return;
-    
+
     const prev = previousStateRef.current;
     const current = currentState;
-    
+
     // Only call onStateChange if state actually changed
     if (
       prev.isLoading !== current.isLoading ||
@@ -216,8 +273,10 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
     });
 
     if (foundPerson) {
-      const matchType = `${foundPerson.firstName} ${foundPerson.lastName}`.toLowerCase() === fullName
-        ? 'name' : 'email';
+      const matchType =
+        `${foundPerson.firstName} ${foundPerson.lastName}`.toLowerCase() === fullName
+          ? 'name'
+          : 'email';
       setDuplicateWarning(
         `A person with this ${matchType} already exists: ${foundPerson.firstName} ${foundPerson.lastName}`
       );
@@ -274,27 +333,26 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
         logger.debug('✅ Added role to existing person:', 'panels', {
           person: `${existingPerson.firstName} ${existingPerson.lastName}`,
           newRole,
-          updatedRoles
+          updatedRoles,
         });
       } else {
         logger.debug('ℹ️ Person already has role:', 'panels', {
           person: `${existingPerson.firstName} ${existingPerson.lastName}`,
-          role: newRole
+          role: newRole,
         });
       }
 
       // Call the selection callback with the existing person (may be async to refresh store)
       if (context.selectionCallback) {
-        await context.selectionCallback((existingPerson as unknown) as Record<string, unknown>);
+        await context.selectionCallback(existingPerson as unknown as Record<string, unknown>);
       }
 
       // Return success
       onResult({
         success: true,
         action: 'save_and_close',
-        entity: (existingPerson as unknown) as Record<string, unknown>,
+        entity: existingPerson as unknown as Record<string, unknown>,
       });
-
     } catch (error) {
       logger.error('❌ Failed to update existing person:', 'components', {}, error as Error);
       setErrors({ submit: 'Failed to update person. Please try again.' });
@@ -303,59 +361,79 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
     }
   };
 
-  const handleSubmit = async (action: 'save_close' | 'save_continue') => {
-    // Mark that we've attempted to submit - this enables error display
-    setHasSubmitted(true);
+  const handleSubmit = useCallback(
+    async (action: 'save_close' | 'save_continue') => {
+      // Mark that we've attempted to submit - this enables error display
+      setHasSubmitted(true);
 
-    if (!validateForm()) return;
+      if (!validateForm()) return;
 
-    // Check for duplicates (but allow user to proceed)
-    checkForDuplicates();
+      // Check for duplicates (but allow user to proceed)
+      checkForDuplicates();
 
-    setIsSubmitting(true);
+      setIsSubmitting(true);
 
-    try {
-      const personData: PersonInput & { roles?: string[] } = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        address: {
-          street: formData.address.trim(),
-          city: formData.city.trim(),
-          state: formData.state.trim(),
-          zipCode: formData.zipCode.trim(),
-          country: 'United States',
-        },
-        roles: formData.role ? [formData.role] : ['exhibitor'],
-      };
+      try {
+        const personData: PersonInput & { roles?: string[] } = {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          address: {
+            street: formData.address.trim(),
+            city: formData.city.trim(),
+            state: formData.state.trim(),
+            zipCode: formData.zipCode.trim(),
+            country: 'United States',
+          },
+          roles: formData.role ? [formData.role] : ['exhibitor'],
+        };
 
-      const newPerson = await addUser(personData);
+        const newPerson = await addUser(personData);
 
-      logger.debug('✅ User created successfully:', 'panels', { data: newPerson });
+        logger.debug('✅ User created successfully:', 'panels', { data: newPerson });
 
-      notifications.success(`${personData.firstName} ${personData.lastName} created successfully`);
+        notifications.success(
+          `${personData.firstName} ${personData.lastName} created successfully`
+        );
 
-      // Call the selection callback if provided (may be async to refresh store)
-      if (context.selectionCallback) {
-        await context.selectionCallback((newPerson as unknown) as Record<string, unknown>);
+        // Call the selection callback if provided (may be async to refresh store)
+        if (context.selectionCallback) {
+          await context.selectionCallback(newPerson as unknown as Record<string, unknown>);
+        }
+
+        // Return result based on action
+        onResult({
+          success: true,
+          action: action === 'save_close' ? 'save_and_close' : 'save_and_continue',
+          entity: newPerson as unknown as Record<string, unknown>,
+        });
+      } catch (error) {
+        logger.error('❌ Failed to create person:', 'components', {}, error as Error);
+        notifications.error('Failed to create person. Please try again.');
+        setErrors({ submit: 'Failed to create person. Please try again.' });
+      } finally {
+        setIsSubmitting(false);
       }
+    },
+    [validateForm, checkForDuplicates, formData, addUser, context.selectionCallback, onResult]
+  );
 
-      // Return result based on action
-      onResult({
-        success: true,
-        action: action === 'save_close' ? 'save_and_close' : 'save_and_continue',
-        entity: (newPerson as unknown) as Record<string, unknown>,
-      });
+  // Override the parent component's save handler (used by EntityCreationPanel footer)
+  useEffect(() => {
+    const handleParentSave = (action: 'save' | 'save_and_continue' | 'save_and_close') => {
+      handleSubmit(
+        action === 'save_and_close' || action === 'save' ? 'save_close' : 'save_continue'
+      );
+    };
 
-    } catch (error) {
-      logger.error('❌ Failed to create person:', 'components', {}, error as Error);
-      notifications.error('Failed to create person. Please try again.');
-      setErrors({ submit: 'Failed to create person. Please try again.' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`] =
+      handleParentSave;
+
+    return () => {
+      delete (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`];
+    };
+  }, [panelId, handleSubmit]);
 
   const handleCancel = () => {
     setHasSubmitted(false);
@@ -390,15 +468,15 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
           {!context.preFilledData?.role && (
             <div className="space-y-2">
               <Label htmlFor="role">Role *</Label>
-              <Select 
-                value={formData.role || ''} 
-                onValueChange={(value) => handleInputChange('role', value)}
+              <Select
+                value={formData.role || ''}
+                onValueChange={value => handleInputChange('role', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PERSON_ROLES.map((role) => (
+                  {PERSON_ROLES.map(role => (
                     <SelectItem key={role.value} value={role.value}>
                       {role.label}
                     </SelectItem>
@@ -416,7 +494,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 id="firstName"
                 autoComplete="given-name"
                 value={formData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
+                onChange={e => handleInputChange('firstName', e.target.value)}
                 placeholder="Enter first name"
                 className={errors.firstName ? 'border-destructive' : ''}
               />
@@ -431,7 +509,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 id="lastName"
                 autoComplete="family-name"
                 value={formData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                onChange={e => handleInputChange('lastName', e.target.value)}
                 placeholder="Enter last name"
                 className={errors.lastName ? 'border-destructive' : ''}
               />
@@ -457,7 +535,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 type="email"
                 autoComplete="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
+                onChange={e => handleInputChange('email', e.target.value)}
                 placeholder="Enter email address"
                 className={errors.email ? 'border-destructive' : ''}
               />
@@ -473,7 +551,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 type="tel"
                 autoComplete="tel"
                 value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
+                onChange={e => handleInputChange('phone', e.target.value)}
                 placeholder="Enter phone number"
                 className={errors.phone ? 'border-destructive' : ''}
               />
@@ -497,7 +575,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               id="address"
               autoComplete="street-address"
               value={formData.address}
-              onChange={(e) => handleInputChange('address', e.target.value)}
+              onChange={e => handleInputChange('address', e.target.value)}
               placeholder="Enter street address"
               className={errors.address ? 'border-destructive' : ''}
             />
@@ -513,7 +591,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 id="city"
                 autoComplete="address-level2"
                 value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
+                onChange={e => handleInputChange('city', e.target.value)}
                 placeholder="Enter city"
                 className={errors.city ? 'border-destructive' : ''}
               />
@@ -524,15 +602,15 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
             <div className="space-y-2">
               <Label htmlFor="state">State *</Label>
-              <Select 
-                value={formData.state} 
-                onValueChange={(value) => handleInputChange('state', value)}
+              <Select
+                value={formData.state}
+                onValueChange={value => handleInputChange('state', value)}
               >
                 <SelectTrigger className={errors.state ? 'border-destructive' : ''}>
                   <SelectValue placeholder="Select state" />
                 </SelectTrigger>
                 <SelectContent>
-                  {US_STATES.map((state) => (
+                  {US_STATES.map(state => (
                     <SelectItem key={state} value={state}>
                       {state}
                     </SelectItem>
@@ -550,7 +628,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 id="zipCode"
                 autoComplete="postal-code"
                 value={formData.zipCode}
-                onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                onChange={e => handleInputChange('zipCode', e.target.value)}
                 placeholder="12345"
                 className={errors.zipCode ? 'border-destructive' : ''}
               />
@@ -571,9 +649,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               <h4 className="font-medium text-amber-800 dark:text-amber-200 text-sm">
                 Person Already Exists
               </h4>
-              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                {duplicateWarning}
-              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">{duplicateWarning}</p>
               {existingPerson.roles && existingPerson.roles.length > 0 && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                   Current roles: {existingPerson.roles.join(', ')}
@@ -592,7 +668,9 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                       Updating...
                     </>
                   ) : (
-                    <>Use {existingPerson.firstName} {existingPerson.lastName}</>
+                    <>
+                      Use {existingPerson.firstName} {existingPerson.lastName}
+                    </>
                   )}
                 </Button>
                 <p className="text-xs text-amber-600 dark:text-amber-400 self-center">

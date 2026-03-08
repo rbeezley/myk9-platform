@@ -157,6 +157,30 @@ export function calculateTotalFees(
   };
 }
 
+/** Supported card brand identifiers. */
+export type CardBrand = 'visa' | 'mastercard' | 'amex' | 'discover' | 'unknown';
+
+/**
+ * Detect card brand from the card number prefix.
+ *
+ * Uses IIN (Issuer Identification Number) ranges:
+ * - Visa: starts with 4
+ * - Mastercard: starts with 51-55 or 2221-2720
+ * - Amex: starts with 34 or 37
+ * - Discover: starts with 6011, 644-649, or 65
+ */
+export function detectCardBrand(cardNumber: string): CardBrand {
+  const digits = cardNumber.replace(/\s/g, '');
+  if (!digits) return 'unknown';
+
+  if (/^4/.test(digits)) return 'visa';
+  if (/^5[1-5]/.test(digits) || /^2[2-7][0-9]{2}/.test(digits)) return 'mastercard';
+  if (/^3[47]/.test(digits)) return 'amex';
+  if (/^6(?:011|5|4[4-9])/.test(digits)) return 'discover';
+
+  return 'unknown';
+}
+
 /**
  * Format a credit card number with spaces every 4 digits.
  */

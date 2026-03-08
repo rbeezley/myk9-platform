@@ -1,11 +1,38 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Activity, Heart } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import EditableValue from './EditableValue';
 import { formatDisplayDate } from './utils';
+import { FilterableFieldGrid, type FieldDefinition } from '@/components/common/FilterableFieldGrid';
 import type { DogInfoCardsProps } from './types';
 
 const DogInfoCards: React.FC<DogInfoCardsProps> = ({ dog, onEditPanelOpen }) => {
+  const physicalFields: FieldDefinition[] = useMemo(
+    () => [
+      {
+        label: 'Height',
+        value: dog.height,
+        render: <EditableValue value={dog.height} onEdit={onEditPanelOpen} suffix='"' />,
+      },
+      {
+        label: 'Weight',
+        value: dog.weight,
+        render: <EditableValue value={dog.weight} onEdit={onEditPanelOpen} suffix=" lbs" />,
+      },
+      {
+        label: 'Color',
+        value: dog.color,
+        render: <EditableValue value={dog.color} onEdit={onEditPanelOpen} />,
+      },
+      {
+        label: 'Microchip',
+        value: dog.microchipNumber,
+        render: <EditableValue value={dog.microchipNumber} onEdit={onEditPanelOpen} />,
+      },
+    ],
+    [dog.height, dog.weight, dog.color, dog.microchipNumber, onEditPanelOpen]
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Basic Dog Information Card */}
@@ -78,32 +105,7 @@ const DogInfoCards: React.FC<DogInfoCardsProps> = ({ dog, onEditPanelOpen }) => 
             </h3>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-            <div className="flex flex-col pb-3 border-b border-border/30">
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-                Height
-              </span>
-              <EditableValue value={dog.height} onEdit={onEditPanelOpen} suffix='"' />
-            </div>
-            <div className="flex flex-col pb-3 border-b border-border/30">
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-                Weight
-              </span>
-              <EditableValue value={dog.weight} onEdit={onEditPanelOpen} suffix=" lbs" />
-            </div>
-            <div className="flex flex-col pb-3 border-b border-border/30">
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-                Color
-              </span>
-              <EditableValue value={dog.color} onEdit={onEditPanelOpen} />
-            </div>
-            <div className="flex flex-col pb-3 border-b border-border/30">
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-                Microchip
-              </span>
-              <EditableValue value={dog.microchipNumber} onEdit={onEditPanelOpen} />
-            </div>
-          </div>
+          <FilterableFieldGrid sectionKey="dog-physical" fields={physicalFields} columns={2} />
         </div>
       </Card>
     </div>

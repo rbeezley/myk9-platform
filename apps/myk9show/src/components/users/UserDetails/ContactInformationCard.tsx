@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { User } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { FilterableFieldGrid, type FieldDefinition } from '@/components/common/FilterableFieldGrid';
 import type { UserFormData } from './userDetailsTypes';
 
 function formatPhoneNumber(phone: string): string {
@@ -27,6 +28,44 @@ const ContactInformationCard: React.FC<ContactInformationCardProps> = ({
   email,
   formData,
 }) => {
+  const fields: FieldDefinition[] = useMemo(
+    () => [
+      { label: 'First Name', value: firstName },
+      { label: 'Last Name', value: lastName },
+      {
+        label: 'Email',
+        value: email,
+        render: email ? (
+          <a
+            href={`mailto:${email}`}
+            className="text-sm font-medium text-primary hover:text-primary/80
+                       transition-colors duration-200 hover:underline truncate"
+          >
+            {email}
+          </a>
+        ) : undefined,
+      },
+      {
+        label: 'Phone',
+        value: formData.phone,
+        render: formData.phone ? (
+          <a
+            href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}
+            className="text-sm font-medium text-primary hover:text-primary/80
+                       transition-colors duration-200 hover:underline"
+          >
+            {formatPhoneNumber(formData.phone)}
+          </a>
+        ) : undefined,
+      },
+      { label: 'Street', value: formData.address },
+      { label: 'City', value: formData.city },
+      { label: 'State', value: formData.state },
+      { label: 'Zip Code', value: formData.zipCode },
+    ],
+    [firstName, lastName, email, formData]
+  );
+
   return (
     <Card
       className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
@@ -48,95 +87,7 @@ const ContactInformationCard: React.FC<ContactInformationCardProps> = ({
           </h3>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-5">
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              First Name
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {firstName || 'Not provided'}
-            </span>
-          </div>
-
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              Last Name
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {lastName || 'Not provided'}
-            </span>
-          </div>
-
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              Email
-            </span>
-            {email ? (
-              <a
-                href={`mailto:${email}`}
-                className="text-sm font-medium text-primary hover:text-primary/80
-                           transition-colors duration-200 hover:underline truncate"
-              >
-                {email}
-              </a>
-            ) : (
-              <span className="text-sm font-medium text-foreground">Not provided</span>
-            )}
-          </div>
-
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              Phone
-            </span>
-            {formData.phone ? (
-              <a
-                href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}
-                className="text-sm font-medium text-primary hover:text-primary/80
-                           transition-colors duration-200 hover:underline"
-              >
-                {formatPhoneNumber(formData.phone)}
-              </a>
-            ) : (
-              <span className="text-sm font-medium text-foreground">Not provided</span>
-            )}
-          </div>
-
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              Street
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {formData.address || 'Not provided'}
-            </span>
-          </div>
-
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              City
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {formData.city || 'Not provided'}
-            </span>
-          </div>
-
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              State
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {formData.state || 'Not provided'}
-            </span>
-          </div>
-
-          <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
-              Zip Code
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {formData.zipCode || 'Not provided'}
-            </span>
-          </div>
-        </div>
+        <FilterableFieldGrid sectionKey="contact-info" fields={fields} columns={4} />
       </div>
     </Card>
   );

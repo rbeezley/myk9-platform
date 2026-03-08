@@ -64,7 +64,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isPhotoDragging, setIsPhotoDragging] = useState(false);
   const [updatedDog, setUpdatedDog] = useState<Dog>(dog);
-  const [isPhotoHovered] = useState(false);
+  const isPhotoHovered = false;
   const [showCelebration, setShowCelebration] = useState(false);
   const [recentUpdate, setRecentUpdate] = useState<string | null>(null);
 
@@ -271,6 +271,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     <>
       <RecordPageLayout
         className="py-20"
+        storageKey="myk9:dog"
         breadcrumb={<Breadcrumb items={breadcrumbItems} showHomeIcon={true} />}
         stats={<RecordStatsRow stats={dogStats} />}
         hero={

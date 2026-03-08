@@ -314,6 +314,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     <>
       <RecordPageLayout
         className="py-20"
+        storageKey="myk9:person"
         breadcrumb={
           <Breadcrumb
             showHomeIcon

@@ -519,6 +519,7 @@ const TrialDetailsPage: React.FC = () => {
       {trialWithClasses ? (
         <RecordPageLayout
           className="py-6"
+          storageKey="myk9:trial"
           properties={trialProperties}
           associations={trialAssociations}
           tabsContent={

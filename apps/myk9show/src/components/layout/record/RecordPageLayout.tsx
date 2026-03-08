@@ -20,6 +20,7 @@ export function RecordPageLayout({
   tabsContent,
   associations,
   associationsExtra,
+  storageKey = 'myk9:prop',
   className,
 }: RecordPageLayoutProps) {
   const hasLeftSidebar = properties && properties.length > 0;
@@ -47,7 +48,7 @@ export function RecordPageLayout({
         {hasLeftSidebar && (
           <aside className="w-full xl:w-[280px] xl:min-w-[280px] xl:flex-shrink-0 space-y-3">
             {properties.map(section => (
-              <PropertySection key={section.key} section={section} storagePrefix="myk9:prop" />
+              <PropertySection key={section.key} section={section} storagePrefix={storageKey} />
             ))}
           </aside>
         )}

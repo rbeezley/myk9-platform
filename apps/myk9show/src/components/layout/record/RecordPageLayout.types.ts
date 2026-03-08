@@ -57,6 +57,8 @@ export interface RecordPageLayoutProps {
   associations?: AssociationConfig[];
   /** Extra content below associations in the right sidebar. */
   associationsExtra?: React.ReactNode;
+  /** localStorage key prefix for collapsible section state (defaults to "myk9:prop"). */
+  storageKey?: string;
   /** Class name for the outer container. */
   className?: string;
 }

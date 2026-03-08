@@ -276,6 +276,7 @@ const ClassDetailsPage: React.FC = () => {
     <div className="min-h-screen bg-background">
       <RecordPageLayout
         className="py-6"
+        storageKey="myk9:class"
         properties={classProperties}
         associations={classAssociations}
         tabsContent={

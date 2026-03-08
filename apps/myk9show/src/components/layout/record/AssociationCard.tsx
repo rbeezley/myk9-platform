@@ -17,7 +17,7 @@ export function AssociationCard({ association }: AssociationCardProps) {
     if (association.onClick) {
       association.onClick();
     } else if (association.href) {
-      startTransition(() => navigate(association.href!));
+      startTransition(() => navigate(association.href as string));
     }
   };
 

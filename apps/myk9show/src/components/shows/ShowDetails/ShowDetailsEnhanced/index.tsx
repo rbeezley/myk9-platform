@@ -5,7 +5,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
-import { isAfter, isBefore, format } from 'date-fns';
+import { isAfter, isBefore } from 'date-fns';
+import { formatDate } from '@/lib/utils';
 import { formatFee } from '@/utils/format';
 import { RecordPageLayout } from '@/components/layout/record';
 import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
@@ -42,14 +43,6 @@ function isManagementRole(role: UserRole): boolean {
   return (
     role === UserRole.SECRETARY || role === UserRole.CLUB_ADMIN || role === UserRole.SITE_ADMIN
   );
-}
-
-function formatShowDate(dateStr: string): string {
-  try {
-    return format(new Date(dateStr), 'MMM d, yyyy');
-  } catch {
-    return dateStr;
-  }
 }
 
 const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
@@ -120,10 +113,10 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
         iconGradient: 'from-blue-500/10 to-indigo-500/5',
         iconColor: 'text-blue-600 dark:text-blue-400',
         fields: [
-          { label: 'Start', value: formatShowDate(showData.startDate) },
-          { label: 'End', value: formatShowDate(showData.endDate) },
-          { label: 'Entry Open', value: formatShowDate(showData.entryOpenDate) },
-          { label: 'Entry Close', value: formatShowDate(showData.entryCloseDate) },
+          { label: 'Start', value: formatDate(showData.startDate) },
+          { label: 'End', value: formatDate(showData.endDate) },
+          { label: 'Entry Open', value: formatDate(showData.entryOpenDate) },
+          { label: 'Entry Close', value: formatDate(showData.entryCloseDate) },
         ],
       },
       {
@@ -208,6 +201,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
   return (
     <RecordPageLayout
       className="py-8"
+      storageKey="myk9:show"
       hero={
         <ShowHeader
           showData={showData}

@@ -458,12 +458,12 @@ All new tables follow existing migration numbering convention (`supabase/migrati
 
 ### Testing Strategy [ADDED]
 
-Each phase includes testing as part of "done":
+Each phase includes testing as part of "done". No phase is complete until its tests are written and passing.
 
-- **Phase 1:** Unit tests for new hooks (`useRememberedTab`, QuickFilterBar rendering). Snapshot tests for new layout components. Existing browse page tests must still pass.
-- **Phase 2:** Unit tests for `RecordPageLayout` (renders 3 panels, responsive breakpoints, collapsible sections). Integration tests for each migrated page (renders without errors, tabs work, stats display). Existing detail page tests updated to match new structure.
-- **Phase 3:** Unit tests for `InlineEditableField` (edit/save/cancel/error states), `CommandPalette` (keyboard navigation, grouped results, debounce), `ViewPicker` (save/load/delete). DnD: manual testing (drag interactions are hard to unit test reliably).
-- **Phase 4:** Unit tests for `ActivityTimeline` (renders events, pagination, empty state), `TipBanner` (displays, dismisses, persists dismissal), `useSmartNotifications` (computes correct notifications from data state).
+- **Phase 1:** Unit tests for `FilterBar` (renders dropdowns from definitions, calls onStateChange, clear all resets), `useRememberedTab` (persists to localStorage, URL param override, default fallback, corrupt localStorage handling). Existing browse page tests must still pass.
+- **Phase 2:** Unit tests for `RecordPageLayout` (renders 3 panels, passes children to center, renders breadcrumb/stats), `PropertySection` (renders field labels/values, renders custom render prop, renders InlineEditableField when onSave provided, handles null values, renders suffix). Existing detail page tests updated to match new structure.
+- **Phase 3:** Unit tests for `InlineEditableField` (display→edit on click, Enter saves, Escape cancels, blur saves, error state, savingRef race guard, success checkmark), `KanbanView` (renders columns with headers/counts, groups items by status, renderCard prop, empty column "No items"), `ViewPicker` (renders "Views" default, view list in dropdown, save dialog open/close/disabled, delete/star handlers), `useSavedViews` (save/update/delete/setDefault/apply/clear, localStorage persistence, corrupt data handling). DnD: manual testing (drag interactions are hard to unit test reliably).
+- **Phase 4:** Unit tests for `ActivityTimeline` (renders events in chronological order, pagination/load more, empty state, pinned upcoming/overdue events with color coding, event type icons), `useActivityLog` (fetches paginated events, handles error state, filters by record type/id), `TipBanner` (renders with icon/message/CTA, dismiss persists via localStorage/milestone table, animate-in on mount, never shows after dismissal), `useMilestones` (checks milestone conditions from data state, returns applicable tip, respects dismissals), `useSmartNotifications` (computes notifications from data — pending payments, closing entries, expiring vaccinations, unscored classes; groups by urgency; mark-as-read persists), `NotificationPanel` (renders grouped notifications with urgency indicators, action buttons navigate, bell icon shows badge count).
 - **Quality gate:** Every session ends with `pnpm typecheck && pnpm lint && pnpm test` passing.
 
 ### Accessibility [ADDED]

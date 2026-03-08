@@ -267,7 +267,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Show List Bugs - 2026-03-07 15:27
 
-- **Fix new show not displaying on show list** — Test show 5 was created but doesn't appear on the show list page. **Problem:** Newly created shows may not be picked up by the list query or cache isn't invalidated. **Files:** `apps/myk9show/src/pages/secretary/ShowsPage.tsx`, `apps/myk9show/src/services/database/queries/showQueries.ts`.
+- [x] **Fix new show not displaying on show list** — Root cause: wizard fired fire-and-forget sync event, navigated before Supabase had the data. Fix: await `triggerSync()` from `useReplicationSync` before navigation. Seeded React Query cache serves as fallback if sync fails.
 
 - [x] **Fix button stacking on show cards** — Added responsive text sizing and truncate to View Details button.
 
@@ -303,7 +303,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Improve radio buttons on payment page** — Replaced plain radio buttons with card-style selectable options with colored icons, border highlights, and check indicators.
 
-- **Fix payment calculation showing zero** — Entered 3 dogs in 9 classes but subtotal shows zero on payment page. **Problem:** Payment totals are not being calculated correctly from the selected entries. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`, `apps/myk9show/src/components/registration/`.
+- [x] **Fix payment calculation showing zero** — Root cause: 4 RegistrationWorkflow files imported deprecated `useDogStore` (always empty `dogs: []`). Fix: switched to `useDogStoreCompat` (React Query-backed). PaymentStep, ConfirmationStep, OfflineClassSelectionStep, RegistrationManagementPanel.
 
 - **Design credit card input to look like a credit card** — Create a visual credit card input UI. **Problem:** Standard form fields for credit card info miss an opportunity for a polished, professional touch. Some sites show a credit card visual that you fill in. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`.
 
@@ -311,7 +311,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Investigate confirmation number storage and lookup** — A confirmation number is generated but unclear where it's stored. **Problem:** If someone called with a complaint, there's no way to look up a confirmation number for details. Needs a lookup mechanism. **Files:** `apps/myk9show/src/components/registration/ConfirmationStep.tsx`, `apps/myk9show/src/services/database/queries/entryQueries.ts`.
 
-- **Fix entries not being saved after registration** — Completed registration but total entries still shows zero. Manage Entries page shows no entries. **Problem:** Entries are not being persisted to the database or not being read back correctly after the registration wizard completes. **Files:** `apps/myk9show/src/components/registration/`, `apps/myk9show/src/services/database/queries/entryQueries.ts`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx`.
+- [x] **Fix entries not being saved after registration** — Root cause: `entryStore.createEntry()` called `replicatedEntriesTable.set()` (local-only) instead of `.createEntry()` (local + queues Supabase INSERT mutation). Fix: both `createEntry` and `createMultipleEntries` now use `.createEntry()` for proper sync.
 
 ## Class Details Improvements - 2026-03-07 15:27
 
@@ -319,13 +319,13 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Auto-fill class requirements from rules** — Requirements tab in edit class should pre-fill values dictated by rules, and indicate judge-settable fields with range placeholders. **Problem:** Rules dictate certain requirement values but the form doesn't auto-fill them. Judge-settable fields should show placeholders like "Set by judge (3-5 minutes)". Reference myK9Q (Canine Cue) for similar implementation. **Files:** `apps/myk9show/src/components/panels/edit/ClassEditPanel.tsx`, `apps/myk9show/src/components/classes/EditClassDialog.tsx`.
 
-- **Fix entries not displayed on class detail entry pages** — Clicked Add Entry, selected dog Buddy, it showed previously entered classes but entries aren't displayed on entry pages. **Problem:** Entries exist (the wizard knows about them) but they're not rendered on the class detail or entry list views. **Files:** `apps/myk9show/src/pages/ClassDetailsPage.tsx`, `apps/myk9show/src/services/database/queries/entryQueries.ts`.
+- [x] **Fix entries not displayed on class detail entry pages** — Root cause: pages read only from local Zustand store; entries in Supabase but not synced to IndexedDB were invisible. Fix: merged entries from both React Query (Supabase) and local store in `useClassDetailsData.ts` and `SecretaryClassDashboard.tsx`.
 
 ## Secretary Dashboard Bugs - 2026-03-07 15:27
 
 - [x] **Fix show dropdown repeating shows** — Added `useMemo` deduplication with `Set` in `useMissionControlData.ts`.
 
-- **Fix classes not showing for new shows** — Classes for a newly created show don't appear on the secretary dashboard. **Problem:** Dashboard query may not be picking up classes for recently created shows, or cache isn't invalidated. **Files:** `apps/myk9show/src/features/pipeline/components/PipelineDashboard.tsx`, `apps/myk9show/src/features/pipeline/hooks/useMissionControlData.ts`.
+- [x] **Fix classes not showing for new shows** — Root cause: `useMissionControlData` fetched classes from Supabase directly while trials came from local store. New classes existed in IndexedDB but hadn't synced yet. Fix: switched to `useTrialStore(s => s.trialClasses)` for consistent local-first reads.
 
 ## UX Polish — Inspired by Luma, Splash, Whova - 2026-03-07 15:46
 
@@ -348,3 +348,27 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 - **Phase 3: Platform admin club onboarding** — Streamline one-time setup so platform admin creates a club and assigns its first club admin in one step. **Problem:** Currently requires manual Supabase dashboard work to assign club admin role to a person for a new club. **Files:** `apps/myk9show/src/pages/admin/` (existing admin pages), `apps/myk9show/src/components/panels/entities/ClubCreationPanel.tsx` (add club admin field). **Solution:** Add "Club Admin" person picker to club creation flow with inline create. See `docs/plans/club-admin-role.md` Phase 3.
 
 - **Phase 4: Secretary dashboard scoping** — Scope secretary dashboard to only show shows for clubs the secretary is associated with. **Problem:** Secretary dashboard currently shows all shows regardless of club association. Harmless at small scale but won't scale. **Files:** `apps/myk9show/src/features/pipeline/hooks/useMissionControlData.ts`, `apps/myk9show/src/services/database/queries/showQueries.ts`. **Solution:** Filter shows by secretary's `club_id` from `user_roles`. Support multi-club secretaries. See `docs/plans/club-admin-role.md` Phase 4.
+
+## Fix BrowseShowsPage Test Failure - 2026-03-08 07:54
+
+- **Fix error state text mismatch in BrowseShowsPage test** — Test expects "failed to load shows" but component renders "Error Loading Shows". **Problem:** Pre-existing mismatch between test assertion and actual UI text — the test at line 531 uses `screen.getByText(/failed to load shows/i)` but `BrowseShowsPage.tsx` line 434 renders `"Error Loading Shows"`. 1 of 18 tests failing. **Files:** `apps/myk9show/src/test/pages/BrowseShowsPage.test.tsx:531`, `apps/myk9show/src/pages/BrowseShowsPage.tsx:434`. **Solution:** Update the test assertion to match the actual rendered text (`/error loading shows/i`), or update the component text to match the test — choose whichever reads better for the user.
+
+## Write Tests for CRM UX Components (Phases 1–3) - 2026-03-08 07:55
+
+Phase 1 (quick filters), Phase 2 (three-panel layout), and Phase 3 (interactive data views) shipped without unit tests. See also `docs/plans/crm-ux-improvements.md` Testing Strategy for full spec.
+
+- **Write unit tests for FilterBar** — Phase 1 quick filter component. **Problem:** Renders filter dropdowns from definitions, manages filter state, bridges to parent via onStateChange. Untested. **Files:** `apps/myk9show/src/components/common/FilterBar.tsx`, `apps/myk9show/src/test/components/common/FilterBar.test.tsx` (new). **Solution:** Test: renders dropdowns, shows active count, calls onStateChange, clear all resets, handles empty definitions.
+
+- **Write unit tests for useRememberedTab** — Phase 1 tab persistence hook. **Problem:** Persists last-selected tab per page key to localStorage, falls back to URL param then default. Untested. **Files:** `apps/myk9show/src/hooks/useRememberedTab.ts`, `apps/myk9show/src/test/hooks/useRememberedTab.test.ts` (new). **Solution:** Test with renderHook: default on first load, persists changes, reads on init, URL param overrides, handles corrupt localStorage.
+
+- **Write unit tests for RecordPageLayout** — Phase 2 three-panel layout. **Problem:** Renders breadcrumb, stats row, and three-panel layout (properties sidebar, center tabs, associations sidebar). Core structural component for all detail pages. Untested. **Files:** `apps/myk9show/src/components/layout/record/RecordPageLayout.tsx`, `apps/myk9show/src/test/components/layout/record/RecordPageLayout.test.tsx` (new). **Solution:** Test: renders breadcrumb, stats cards, three panels, collapses sidebars on mobile, passes children to center.
+
+- **Write unit tests for PropertySection** — Phase 2 left sidebar fields (modified in Phase 3 for inline editing). **Problem:** Renders labeled fields, supports collapsible sections, conditionally renders InlineEditableField when onSave provided. Untested. **Files:** `apps/myk9show/src/components/layout/record/PropertySection.tsx`, `apps/myk9show/src/test/components/layout/record/PropertySection.test.tsx` (new). **Solution:** Test: field labels/values, custom render prop, InlineEditableField when onSave provided, suffix for non-editable, handles null/undefined.
+
+- **Write unit tests for InlineEditableField** — Phase 3 click-to-edit component. **Problem:** Handles click-to-edit, save-on-blur/Enter, cancel-on-Escape, loading/error/success states, race condition guard (`savingRef`). Untested. **Files:** `apps/myk9show/src/components/common/InlineEditableField.tsx`, `apps/myk9show/src/test/components/common/InlineEditableField.test.tsx` (new). **Solution:** Test: display mode, click to edit, Enter saves, Escape cancels, blur saves, error state, double-save prevented, success checkmark.
+
+- **Write unit tests for KanbanView** — Phase 3 generic kanban board. **Problem:** Groups items by status into columns, renders cards via render prop, handles drag-and-drop via @dnd-kit. Untested. **Files:** `apps/myk9show/src/components/common/KanbanView.tsx`, `apps/myk9show/src/test/components/common/KanbanView.test.tsx` (new). **Solution:** Test: correct headers/counts, groups by status, renderCard prop, empty column "No items", onStatusChange on drag end.
+
+- **Write unit tests for ViewPicker** — Phase 3 saved views dropdown. **Problem:** Manages dropdown with save/update/delete/set-default and save dialog. Untested. **Files:** `apps/myk9show/src/components/common/ViewPicker.tsx`, `apps/myk9show/src/test/components/common/ViewPicker.test.tsx` (new). **Solution:** Test: "Views" when no active, view list in dropdown, onApply on click, save dialog opens/closes, save disabled when empty, delete/star handlers.
+
+- **Write unit tests for useSavedViews hook** — Phase 3 localStorage-backed views hook. **Problem:** Persists views with save/update/delete/setDefault/apply/clear operations. Untested. **Files:** `apps/myk9show/src/hooks/useSavedViews.ts`, `apps/myk9show/src/test/hooks/useSavedViews.test.ts` (new). **Solution:** Test with renderHook: saveView adds+persists, updateView modifies, deleteView removes, setDefault toggles, applyView/clearActiveView, loads from localStorage, handles corrupt data.

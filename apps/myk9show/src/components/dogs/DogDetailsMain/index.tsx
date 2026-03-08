@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Trophy, Calendar, Award, Star } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { RecordStatsRow, type RecordStat } from '@/components/common/RecordStatsRow';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
 import '@/styles/myk9-show-details.css';
 
@@ -148,10 +151,30 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     fromPerson,
   });
 
+  // Compute stats from entries
+  const dogEntries = useEntryStore(state => state.getEntriesByDog(updatedDog.id));
+  const dogStats: RecordStat[] = useMemo(() => {
+    const totalEntries = dogEntries.length;
+    const registrations = updatedDog.registrations?.length ?? 0;
+    const statusLabel =
+      (updatedDog.status || 'Active').charAt(0).toUpperCase() +
+      (updatedDog.status || 'active').slice(1);
+
+    return [
+      { title: 'Entries', value: totalEntries, icon: Calendar, subtitle: 'Total show entries' },
+      { title: 'Registrations', value: registrations, icon: Award, subtitle: 'Active' },
+      { title: 'Breed', value: updatedDog.breed || 'Unknown', icon: Trophy },
+      { title: 'Status', value: statusLabel, icon: Star },
+    ];
+  }, [dogEntries.length, updatedDog.registrations, updatedDog.status, updatedDog.breed]);
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-20 space-y-8">
       {/* Breadcrumb Navigation */}
       <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="mb-6" />
+
+      {/* Highlight Stats */}
+      <RecordStatsRow stats={dogStats} />
 
       {/* Hero Profile Card */}
       <HeroProfileCard

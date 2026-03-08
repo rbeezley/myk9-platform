@@ -1133,19 +1133,43 @@
 /* Browse Shows Page - myK9 Style Cards */
 .myk9-browse-card {
   @apply relative overflow-hidden;
-  background: var(--card);
-  border: 0.5px solid var(--border);
+  background: linear-gradient(
+    to bottom right,
+    var(--card),
+    color-mix(in srgb, var(--card) 80%, transparent)
+  );
+  border: 1px solid var(--border);
   border-radius: 20px;
   padding: 24px;
   margin-bottom: 24px;
   backdrop-filter: blur(20px);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .myk9-browse-card:hover {
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.15);
   border-color: rgba(0, 122, 255, 0.4);
-  transform: scale(1.02);
+  transform: translateY(-8px);
+}
+
+.myk9-browse-card:active {
+  transform: scale(0.98);
+}
+
+/* Hover overlay gradient */
+.myk9-browse-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.05), transparent);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.myk9-browse-card:hover::after {
+  opacity: 1;
 }
 
 .myk9-browse-card::before {
@@ -1185,6 +1209,11 @@
   line-height: 1.25;
   color: var(--foreground);
   margin: 12px 0 8px 0;
+  transition: color 0.3s ease;
+}
+
+.myk9-browse-card:hover .myk9-browse-card-title {
+  color: hsl(var(--primary));
 }
 
 .myk9-browse-card-description {

@@ -192,13 +192,14 @@ export const ShowsPageHeaderSkeleton: React.FC = () => (
  * Tab content skeleton that adapts to view mode
  */
 export const TabContentSkeleton: React.FC<{
-  viewMode: 'grid' | 'list' | 'calendar' | 'kanban';
+  viewMode: 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
   count?: number;
 }> = ({ viewMode, count = 6 }) => {
   switch (viewMode) {
     case 'calendar':
       return <ShowCalendarSkeleton />;
     case 'list':
+    case 'table':
       return <ShowCardListSkeleton count={count} />;
     case 'grid':
     default:
@@ -210,7 +211,7 @@ export const TabContentSkeleton: React.FC<{
  * Complete shows page skeleton
  */
 export const ShowsPageSkeleton: React.FC<{
-  viewMode?: 'grid' | 'list' | 'calendar' | 'kanban';
+  viewMode?: 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
   count?: number;
 }> = ({ viewMode = 'grid', count = 6 }) => (
   <div className="min-h-screen bg-background">

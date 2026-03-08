@@ -18,6 +18,7 @@ import {
   Clock,
   Grid3X3,
   List,
+  Table2,
   CalendarDays,
   Columns3,
   Plus,
@@ -47,13 +48,13 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 // Extracted hooks and components
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
-import { ShowsGridView, ShowsListView } from '@/components/shows/browse';
+import { ShowsGridView, ShowsListView, ShowsTableView } from '@/components/shows/browse';
 import { ViewPicker } from '@/components/common/ViewPicker';
 import { KanbanView, type KanbanColumn } from '@/components/common/KanbanView';
 import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
 import { parseLocalDateString } from '@myk9/core';
 
-type ViewMode = 'grid' | 'list' | 'calendar' | 'kanban';
+type ViewMode = 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
 
 const SHOW_KANBAN_COLUMNS: KanbanColumn[] = [
   { key: 'planning', label: 'Planning' },
@@ -345,20 +346,25 @@ const BrowseShowsPage: React.FC = () => {
     (show: Show) => (
       <Link
         to={`/shows/${show.id}`}
-        className="block rounded-lg border border-border/50 bg-card p-3 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200"
+        className="group block rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
       >
-        <div className="font-semibold text-sm leading-tight truncate">{show.name}</div>
-        {show.location && (
-          <div className="text-xs text-muted-foreground mt-1 truncate">{show.location}</div>
-        )}
-        <div className="text-xs text-muted-foreground mt-1">
-          {show.startDate
-            ? (parseLocalDateString(show.startDate.slice(0, 10))?.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-              }) ?? 'No date')
-            : 'No date'}
-          {show.organization && ` \u00b7 ${show.organization}`}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="relative">
+          <div className="font-bold text-sm leading-tight truncate group-hover:text-primary transition-colors duration-300">
+            {show.name}
+          </div>
+          {show.location && (
+            <div className="text-xs text-muted-foreground mt-1.5 truncate">{show.location}</div>
+          )}
+          <div className="text-xs text-muted-foreground mt-1.5">
+            {show.startDate
+              ? (parseLocalDateString(show.startDate.slice(0, 10))?.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                }) ?? 'No date')
+              : 'No date'}
+            {show.organization && ` \u00b7 ${show.organization}`}
+          </div>
         </div>
       </Link>
     ),
@@ -416,6 +422,9 @@ const BrowseShowsPage: React.FC = () => {
           </div>
         );
 
+      case 'table':
+        return <ShowsTableView shows={enhancedShows} />;
+
       case 'list':
         return (
           <ShowsListView
@@ -441,16 +450,22 @@ const BrowseShowsPage: React.FC = () => {
 
   // Error state content
   const errorStateContent = (
-    <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">
+    <Card className="bg-gradient-to-br from-card to-card/80 backdrop-blur-xl border-border/50 shadow-sm rounded-2xl">
       <CardContent className="p-12 text-center">
-        <div className="bg-error-red/10 rounded-full p-6 mb-4 inline-block">
-          <X className="h-12 w-12 text-error-red" />
+        <div className="flex items-center justify-center mb-4">
+          <div className="bg-error-red/10 rounded-full p-6">
+            <X className="h-12 w-12 text-error-red" />
+          </div>
         </div>
         <h3 className="text-lg font-semibold mb-2 text-error-red">Error Loading Shows</h3>
         <p className="text-muted-foreground max-w-sm mx-auto mb-6">
           There was a problem loading the shows data. Please try again.
         </p>
-        <Button onClick={handleRetry} variant="outline">
+        <Button
+          onClick={handleRetry}
+          variant="outline"
+          className="hover:-translate-y-0.5 transition-all duration-300"
+        >
           <Download className="h-4 w-4 mr-2" />
           Retry
         </Button>
@@ -565,11 +580,12 @@ const BrowseShowsPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
-                  <div className="flex bg-muted/50 rounded-lg p-1">
-                    {(['grid', 'list', 'calendar', 'kanban'] as const).map(mode => {
+                  <div className="flex bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
+                    {(['grid', 'list', 'table', 'calendar', 'kanban'] as const).map(mode => {
                       const Icon = {
                         grid: Grid3X3,
                         list: List,
+                        table: Table2,
                         calendar: CalendarDays,
                         kanban: Columns3,
                       }[mode];

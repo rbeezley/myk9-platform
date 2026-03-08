@@ -37,6 +37,8 @@ import {
   ArrowUpCircle,
   XCircle,
   CheckCircle2,
+  List,
+  Table2,
 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
@@ -54,6 +56,7 @@ import {
   EntryStatsCards,
   EntryFiltersCard,
   EntryListCard,
+  EntriesTableView,
   CompEntryDialog,
 } from '@/components/entries/management';
 
@@ -135,6 +138,9 @@ const EntryManagementPage: React.FC = () => {
     setSelectedEntries,
     user,
   });
+
+  // View mode state
+  const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
 
   // Comp dialog state
   const [compDialog, setCompDialog] = useState<{
@@ -377,48 +383,73 @@ const EntryManagementPage: React.FC = () => {
 
           {/* Entries Tabs */}
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="grid w-full grid-cols-7">
-              <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
-              <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
-              <TabsTrigger value="accepted">Accepted ({tabCounts.accepted})</TabsTrigger>
-              <TabsTrigger value="waitlist">Waitlist ({tabCounts.waitlist})</TabsTrigger>
-              <TabsTrigger value="move-ups">
-                <ArrowUpCircle className="h-4 w-4 mr-1" />
-                Move-Ups
-              </TabsTrigger>
-              <TabsTrigger value="scratches">
-                <XCircle className="h-4 w-4 mr-1" />
-                Scratches
-              </TabsTrigger>
-              <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <TabsList className="grid w-full grid-cols-7">
+                <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
+                <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
+                <TabsTrigger value="accepted">Accepted ({tabCounts.accepted})</TabsTrigger>
+                <TabsTrigger value="waitlist">Waitlist ({tabCounts.waitlist})</TabsTrigger>
+                <TabsTrigger value="move-ups">
+                  <ArrowUpCircle className="h-4 w-4 mr-1" />
+                  Move-Ups
+                </TabsTrigger>
+                <TabsTrigger value="scratches">
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Scratches
+                </TabsTrigger>
+                <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
+              </TabsList>
+
+              <div className="flex bg-muted/50 rounded-lg p-1 flex-shrink-0">
+                <Button
+                  variant={entryViewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setEntryViewMode('list')}
+                  className="h-8 px-2"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={entryViewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setEntryViewMode('table')}
+                  className="h-8 px-2"
+                >
+                  <Table2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
 
             <TabsContent value={selectedTab} className="mt-6">
-              <EntryListCard
-                entries={filteredEntries}
-                selectedEntries={selectedEntries}
-                onSelectEntry={handleSelectEntry}
-                onSelectAll={handleSelectAll}
-                onStatusChange={handleStatusChange}
-                onOpenCheckInDialog={(entry, classEntry) =>
-                  setCheckInDialog({ open: true, entry, classEntry })
-                }
-                onOpenArmbandDialog={entry =>
-                  setArmbandDialog({ open: true, entry, value: entry.armbandNumber || '' })
-                }
-                onCompEntry={entryId => {
-                  const entry = entries.find(e => e.id === entryId);
-                  if (entry) {
-                    setCompDialog({
-                      open: true,
-                      entryId,
-                      entryNumber: entry.entryNumber,
-                      dogName: entry.dogName,
-                    });
+              {entryViewMode === 'table' ? (
+                <EntriesTableView entries={filteredEntries} />
+              ) : (
+                <EntryListCard
+                  entries={filteredEntries}
+                  selectedEntries={selectedEntries}
+                  onSelectEntry={handleSelectEntry}
+                  onSelectAll={handleSelectAll}
+                  onStatusChange={handleStatusChange}
+                  onOpenCheckInDialog={(entry, classEntry) =>
+                    setCheckInDialog({ open: true, entry, classEntry })
                   }
-                }}
-                onUncompEntry={handleUncompEntry}
-              />
+                  onOpenArmbandDialog={entry =>
+                    setArmbandDialog({ open: true, entry, value: entry.armbandNumber || '' })
+                  }
+                  onCompEntry={entryId => {
+                    const entry = entries.find(e => e.id === entryId);
+                    if (entry) {
+                      setCompDialog({
+                        open: true,
+                        entryId,
+                        entryNumber: entry.entryNumber,
+                        dogName: entry.dogName,
+                      });
+                    }
+                  }}
+                  onUncompEntry={handleUncompEntry}
+                />
+              )}
             </TabsContent>
 
             {/* Move-Ups Tab Content */}

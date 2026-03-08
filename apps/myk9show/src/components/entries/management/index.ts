@@ -9,4 +9,5 @@ export { BulkCheckInDialog } from './BulkCheckInDialog';
 export { EntryStatsCards } from './EntryStatsCards';
 export { EntryFiltersCard } from './EntryFiltersCard';
 export { EntryListCard } from './EntryListCard';
+export { EntriesTableView } from './EntriesTableView';
 export { CompEntryDialog } from './CompEntryDialog';

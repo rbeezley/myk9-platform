@@ -32,6 +32,7 @@ import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import type { UserWithRoles } from '@/types/auth-types';
 import { formatFee } from '@/utils/format';
+import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 
 /**
  * Icon component map for show actions
@@ -74,7 +75,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
   const navigate = useNavigate();
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+    <StaggeredGrid className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
       {shows.map(show => {
         const showActions = getShowActions(show, selectedTab, user);
         const hasUserEntries = userHasEntriesForShow(show.id, entries);
@@ -196,7 +197,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
           </div>
         );
       })}
-    </div>
+    </StaggeredGrid>
   );
 };
 

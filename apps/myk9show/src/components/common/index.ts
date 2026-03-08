@@ -1,25 +1,25 @@
 /**
  * Design System Component Library
- * 
+ *
  * Centralized exports for all Premium design system components.
  * Import from here to ensure consistent usage across the application.
  */
 
 // Layout Components
-export { 
+export {
   DashboardLayout,
   StatsDashboardLayout,
   createRefreshAction,
   createExportAction,
   createSettingsAction,
-  createPrimaryAction
+  createPrimaryAction,
 } from '../layouts/DashboardLayout';
 
 export {
   StandardPageLayout,
   DetailPageLayout,
   ListPageLayout,
-  FormPageLayout
+  FormPageLayout,
 } from '../layouts/StandardPageLayout';
 
 // Navigation Components
@@ -28,16 +28,17 @@ export {
   usePremiumTabs,
   createDashboardTabs,
   createEntityTabs,
-  createShowTabs
+  createShowTabs,
 } from './PremiumTabBar';
 
 // Card Components
-export {
-  PremiumCard,
-  FeatureCard,
-  StatsCard,
-  ShowCard
-} from './PremiumCard';
+export { PremiumCard, FeatureCard, StatsCard, ShowCard } from './PremiumCard';
+
+export { GlassCard } from './GlassCard';
+
+// Table Components
+export { SortableTable } from './SortableTable';
+export type { ColumnDef, SortDirection } from './SortableTable';
 
 // Button Components
 export {
@@ -45,7 +46,7 @@ export {
   CTAButton,
   IconButton,
   ButtonGroup,
-  FloatingActionButton
+  FloatingActionButton,
 } from './PremiumButton';
 
 // Icon Components
@@ -55,7 +56,7 @@ export {
   FeatureIcon,
   MetricIcon,
   IconGrid,
-  QuickActionIcon
+  QuickActionIcon,
 } from './IconContainer';
 
 // State Components
@@ -66,14 +67,14 @@ export {
   ErrorEmptyState,
   LoadingEmptyState,
   MaintenanceEmptyState,
-  PermissionEmptyState
+  PermissionEmptyState,
 } from './EmptyState';
 
 // Type Exports
-export type { 
+export type {
   DashboardLayoutProps,
   DashboardAction,
-  StatsDashboardLayoutProps 
+  StatsDashboardLayoutProps,
 } from '../layouts/DashboardLayout';
 
 export type {
@@ -82,19 +83,16 @@ export type {
   ListPageLayoutProps,
   FormPageLayoutProps,
   BreadcrumbItem,
-  PageAction
+  PageAction,
 } from '../layouts/StandardPageLayout';
 
-export type {
-  PremiumTabBarProps,
-  TabItem
-} from './PremiumTabBar';
+export type { PremiumTabBarProps, TabItem } from './PremiumTabBar';
 
 export type {
   PremiumCardProps,
   FeatureCardProps,
   StatsCardProps,
-  ShowCardProps
+  ShowCardProps,
 } from './PremiumCard';
 
 export type {
@@ -102,7 +100,7 @@ export type {
   CTAButtonProps,
   IconButtonProps,
   ButtonGroupProps,
-  FABProps
+  FABProps,
 } from './PremiumButton';
 
 export type {
@@ -111,7 +109,7 @@ export type {
   FeatureIconProps,
   MetricIconProps,
   IconGridProps,
-  QuickActionIconProps
+  QuickActionIconProps,
 } from './IconContainer';
 
 export type {
@@ -121,5 +119,5 @@ export type {
   ErrorEmptyStateProps,
   LoadingEmptyStateProps,
   MaintenanceEmptyStateProps,
-  PermissionEmptyStateProps
+  PermissionEmptyStateProps,
 } from './EmptyState';

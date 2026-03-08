@@ -259,7 +259,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Fix duplicate names in chairman/secretary dropdown** — Removed role-based filtering (`OFFICIAL_ROLES`). Chairman/secretary dropdowns now show all people (deduplicated, sorted by name) with role badges and email for context. `getOfficialsPeople` → `getAllPeopleSorted`.
 
-- **Verify Add Chairman and Secretary functionality** — Check if inline-add for chairman and secretary is working. **Problem:** Unclear if the add-new-person flow within the wizard works end-to-end for these roles. **Files:** `apps/myk9show/src/components/shows/wizard/ShowDetailsStep.tsx`, `apps/myk9show/src/components/panels/entities/UserCreationPanel.tsx`.
+- [x] **Verify Add Chairman and Secretary functionality** — BUG FOUND AND FIXED: `UserCreationPanel` and `JudgeCreationPanel` were missing the `handleSave_${panelId}` useEffect that `EntityCreationPanel` footer buttons require. Added the handler (matching `ClubCreationPanel` pattern) to both panels. Commit `3c92fa2`.
 
 - [x] **Auto-select single judge on class selection page** — Added useEffect to auto-assign the single judge to all classes via `assignJudgeToClass`.
 
@@ -305,11 +305,11 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Fix payment calculation showing zero** — Root cause: 4 RegistrationWorkflow files imported deprecated `useDogStore` (always empty `dogs: []`). Fix: switched to `useDogStoreCompat` (React Query-backed). PaymentStep, ConfirmationStep, OfflineClassSelectionStep, RegistrationManagementPanel.
 
-- **Design credit card input to look like a credit card** — Create a visual credit card input UI. **Problem:** Standard form fields for credit card info miss an opportunity for a polished, professional touch. Some sites show a credit card visual that you fill in. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`.
+- [x] **Design credit card input to look like a credit card** — Created `CreditCardVisual.tsx` (336 lines) with dark gradient card face, gold EMV chip, card brand detection (Visa/MC/Amex/Discover), 3D flip animation for CVC, keyboard accessible. Commit `3c92fa2`.
 
 - [x] **Fix download receipt and email confirmation buttons** — Download receipt generates styled HTML receipt and triggers browser download. Email confirmation copies plain-text receipt to clipboard with toast instruction (server-side email TODO). Created ConfirmationStep.helpers.ts with receipt generation utilities.
 
-- **Investigate confirmation number storage and lookup** — A confirmation number is generated but unclear where it's stored. **Problem:** If someone called with a complaint, there's no way to look up a confirmation number for details. Needs a lookup mechanism. **Files:** `apps/myk9show/src/components/registration/ConfirmationStep.tsx`, `apps/myk9show/src/services/database/queries/entryQueries.ts`.
+- **Implement confirmation number persistence and lookup** — INVESTIGATED: Confirmation numbers are generated client-side only (`REG-{timestamp}`) and never saved to the database. The `entries` table has no `confirmation_number` column. Worse, `MyEntriesPage` generates a different number from the entry UUID slice — so numbers are inconsistent. **Fix needed:** (1) Migration to add `confirmation_number TEXT UNIQUE` column + index to `entries` table, (2) Persist on entry creation in `entryStore.createEntry()`, (3) Add `getEntryByConfirmationNumber()` lookup query, (4) Update `MyEntriesPage` to use stored value instead of generating on-the-fly. **Files:** `supabase/migrations/` (new), `apps/myk9show/src/store/showRegistrationStore.ts:361`, `apps/myk9show/src/services/database/queries/entry-query-lookups.ts`, `apps/myk9show/src/pages/MyEntriesPage/modules/useMyEntriesData.ts:152`.
 
 - [x] **Fix entries not being saved after registration** — Root cause: `entryStore.createEntry()` called `replicatedEntriesTable.set()` (local-only) instead of `.createEntry()` (local + queues Supabase INSERT mutation). Fix: both `createEntry` and `createMultipleEntries` now use `.createEntry()` for proper sync.
 
@@ -317,7 +317,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Redesign class details card** — Converted Timing Details and Fee Structure from collapsible accordions to flat always-visible cards.
 
-- **Auto-fill class requirements from rules** — Requirements tab in edit class should pre-fill values dictated by rules, and indicate judge-settable fields with range placeholders. **Problem:** Rules dictate certain requirement values but the form doesn't auto-fill them. Judge-settable fields should show placeholders like "Set by judge (3-5 minutes)". Reference myK9Q (Canine Cue) for similar implementation. **Files:** `apps/myk9show/src/components/panels/edit/ClassEditPanel.tsx`, `apps/myk9show/src/components/classes/EditClassDialog.tsx`.
+- [x] **Auto-fill class requirements from rules** — Created `useClassRequirements` hook that fetches from `class_requirements` table by organization/element/level. "From rules" badge on fixed values (read-only), "Judge sets" badge on range fields with placeholders. Applied to `EditClassDialog`, `ClassEditForm`, and `OfficialsSection`. Commit `3c92fa2`.
 
 - [x] **Fix entries not displayed on class detail entry pages** — Root cause: pages read only from local Zustand store; entries in Supabase but not synced to IndexedDB were invisible. Fix: merged entries from both React Query (Supabase) and local store in `useClassDetailsData.ts` and `SecretaryClassDashboard.tsx`.
 

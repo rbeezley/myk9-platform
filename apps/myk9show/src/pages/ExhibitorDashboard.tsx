@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { GlassCard } from '@/components/common/GlassCard';
 import {
   Heart,
   FileText,
@@ -35,6 +36,8 @@ import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { format } from 'date-fns';
+import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
+import { FadeIn } from '@/components/layout/FadeIn';
 
 interface DashboardEntry {
   id: string;
@@ -238,10 +241,9 @@ const ExhibitorDashboard: React.FC = () => {
       {activeTip && <TipBanner tip={activeTip} onDismiss={dismissTip} />}
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <CardHeader className="pb-4 relative">
+      <StaggeredGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <GlassCard>
+          <CardHeader className="pb-4">
             <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
@@ -251,7 +253,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 relative">
+          <CardContent className="pt-0">
             <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
               {statistics.activeEntries}
             </div>
@@ -267,11 +269,10 @@ const ExhibitorDashboard: React.FC = () => {
               )}
             </div>
           </CardContent>
-        </Card>
+        </GlassCard>
 
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <CardHeader className="pb-4 relative">
+        <GlassCard overlayGradient="from-blue-500/5">
+          <CardHeader className="pb-4">
             <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
@@ -281,7 +282,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 relative">
+          <CardContent className="pt-0">
             <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
               {statistics.upcomingShows}
             </div>
@@ -296,11 +297,10 @@ const ExhibitorDashboard: React.FC = () => {
               </p>
             </div>
           </CardContent>
-        </Card>
+        </GlassCard>
 
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
-          <div className="absolute inset-0 bg-gradient-to-br from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <CardHeader className="pb-4 relative">
+        <GlassCard overlayGradient="from-success-green/5">
+          <CardHeader className="pb-4">
             <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
@@ -310,7 +310,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 relative">
+          <CardContent className="pt-0">
             <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
               {statistics.totalDogs}
             </div>
@@ -318,11 +318,10 @@ const ExhibitorDashboard: React.FC = () => {
               <p className="text-sm text-muted-foreground font-medium">Registered dogs</p>
             </div>
           </CardContent>
-        </Card>
+        </GlassCard>
 
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <CardHeader className="pb-4 relative">
+        <GlassCard overlayGradient="from-purple-500/5">
+          <CardHeader className="pb-4">
             <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
@@ -332,7 +331,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 relative">
+          <CardContent className="pt-0">
             <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
               ${statistics.totalFees}
             </div>
@@ -340,223 +339,230 @@ const ExhibitorDashboard: React.FC = () => {
               <p className="text-sm text-muted-foreground font-medium">This month's entries</p>
             </div>
           </CardContent>
-        </Card>
-      </div>
+        </GlassCard>
+      </StaggeredGrid>
 
       {/* Main Content Tabs */}
-      <Card className="bg-card border border-border rounded-xl shadow-sm backdrop-blur-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-semibold">Entry Management</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Manage your show entries and track progress
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6">
-          <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-              <TabsTrigger
-                value="entries"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-              >
-                Upcoming Entries
-              </TabsTrigger>
-              <TabsTrigger
-                value="recent"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-              >
-                Recent Results
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="entries" className="space-y-6 mt-6">
-              {upcomingEntries.map(entry => (
-                <div
-                  key={entry.id}
-                  className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+      <FadeIn>
+        <Card className="bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold">Entry Management</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Manage your show entries and track progress
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+              <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
+                <TabsTrigger
+                  value="entries"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  Upcoming Entries
+                </TabsTrigger>
+                <TabsTrigger
+                  value="recent"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+                >
+                  Recent Results
+                </TabsTrigger>
+              </TabsList>
 
-                  <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="flex-grow space-y-4">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors duration-300">
-                          <Heart className="h-5 w-5 text-primary" />
+              <TabsContent value="entries" className="space-y-6 mt-6">
+                {upcomingEntries.map(entry => (
+                  <div
+                    key={entry.id}
+                    className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                    <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div className="flex-grow space-y-4">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors duration-300">
+                            <Heart className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-lg sm:text-xl text-foreground group-hover:text-primary transition-colors duration-300">
+                              {entry.showName}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-4 w-4 flex-shrink-0" />
+                                <span>{entry.location}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4 flex-shrink-0" />
+                                <span>
+                                  {entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="h-4 w-4 flex-shrink-0" />
+                                <span>${entry.entryFee}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-lg sm:text-xl text-foreground group-hover:text-primary transition-colors duration-300">
-                            {entry.showName}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4 flex-shrink-0" />
-                              <span>{entry.location}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4 flex-shrink-0" />
-                              <span>
-                                {entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="h-4 w-4 flex-shrink-0" />
-                              <span>${entry.entryFee}</span>
-                            </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Dog</p>
+                            <p className="font-semibold">{entry.dogName}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Class</p>
+                            <p className="font-semibold">{entry.className}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Status</p>
+                            {getStatusBadge(entry.status)}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">Days Until</p>
+                            <p className="font-semibold text-primary">
+                              {entry.showDate
+                                ? `${Math.ceil(
+                                    (entry.showDate.getTime() - new Date().getTime()) /
+                                      (1000 * 3600 * 24)
+                                  )} days`
+                                : '—'}
+                            </p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Dog</p>
-                          <p className="font-semibold">{entry.dogName}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Class</p>
-                          <p className="font-semibold">{entry.className}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Status</p>
-                          {getStatusBadge(entry.status)}
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-muted-foreground">Days Until</p>
-                          <p className="font-semibold text-primary">
-                            {entry.showDate
-                              ? `${Math.ceil(
-                                  (entry.showDate.getTime() - new Date().getTime()) /
-                                    (1000 * 3600 * 24)
-                                )} days`
-                              : '—'}
-                          </p>
-                        </div>
+                      <div className="flex flex-row md:flex-col gap-3">
+                        <Button
+                          onClick={() => handleViewEntry(entry)}
+                          className="flex-1 md:flex-initial"
+                        >
+                          View Details
+                          <ChevronRight className="h-4 w-4 ml-2" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 md:flex-initial border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                          onClick={() => handleEditEntry(entry)}
+                        >
+                          Edit Entry
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="flex flex-row md:flex-col gap-3">
-                      <Button
-                        onClick={() => handleViewEntry(entry)}
-                        className="flex-1 md:flex-initial"
-                      >
-                        View Details
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1 md:flex-initial border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
-                        onClick={() => handleEditEntry(entry)}
-                      >
-                        Edit Entry
-                      </Button>
-                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {upcomingEntries.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="bg-muted/50 rounded-full p-6 mb-4">
-                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
-                  <p className="text-muted-foreground mb-6 max-w-sm text-center">
-                    You don't have any upcoming show entries. Browse shows to find your next
-                    competition.
-                  </p>
-                  <Button onClick={() => navigate('/shows')}>
-                    <Search className="h-4 w-4 mr-2" />
-                    Browse Shows
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="recent" className="space-y-6 mt-6">
-              {recentResults.map(result => (
-                <div
-                  key={result.id}
-                  className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
-                >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-r ${result.resultText === 'Q' ? 'from-success-green/5' : 'from-error-red/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-                  />
-
-                  <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <ResultBadge resultStatus={result.resultStatus} variant="large" />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg text-foreground">{result.showName}</h3>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground">{result.dogCallName}</span>
-                          <span>
-                            {result.className}
-                            {result.classElement ? ` — ${result.classElement}` : ''}
-                            {result.classLevel ? ` ${result.classLevel}` : ''}
-                          </span>
-                          <span>
-                            {result.showDate
-                              ? format(new Date(result.showDate), 'MMM d, yyyy')
-                              : ''}
-                          </span>
-                        </div>
-                        {/* Result details row */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
-                          {result.searchTimeSeconds != null && (
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="h-3.5 w-3.5" />
-                              {result.searchTimeSeconds.toFixed(1)}s
-                            </span>
-                          )}
-                          {result.totalFaults != null && result.totalFaults > 0 && (
-                            <span className="flex items-center gap-1 text-warning-orange">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              {result.totalFaults} fault
-                              {result.totalFaults !== 1 ? 's' : ''}
-                            </span>
-                          )}
-                          {result.finalPlacement != null && result.finalPlacement > 0 && (
-                            <span className="text-muted-foreground">
-                              Placement: {result.finalPlacement}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                {upcomingEntries.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="bg-muted/50 rounded-full p-6 mb-4">
+                      <FolderOpen className="h-12 w-12 text-muted-foreground" />
                     </div>
-                    <Button
-                      variant="outline"
-                      className="w-full sm:w-auto border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
-                      onClick={() =>
-                        navigate(
-                          result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
-                        )
-                      }
-                    >
-                      View Details
+                    <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
+                    <p className="text-muted-foreground mb-6 max-w-sm text-center">
+                      You don't have any upcoming show entries. Browse shows to find your next
+                      competition.
+                    </p>
+                    <Button onClick={() => navigate('/shows')}>
+                      <Search className="h-4 w-4 mr-2" />
+                      Browse Shows
                     </Button>
                   </div>
-                </div>
-              ))}
+                )}
+              </TabsContent>
 
-              {recentResults.length === 0 && (
-                <div className="text-center py-16">
-                  <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
-                    <Award className="h-12 w-12 text-success-green" />
+              <TabsContent value="recent" className="space-y-6 mt-6">
+                {recentResults.map(result => (
+                  <div
+                    key={result.id}
+                    className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+                  >
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-r ${result.resultText === 'Q' ? 'from-success-green/5' : 'from-error-red/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+                    />
+
+                    <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <ResultBadge resultStatus={result.resultStatus} variant="large" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-lg text-foreground">{result.showName}</h3>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {result.dogCallName}
+                            </span>
+                            <span>
+                              {result.className}
+                              {result.classElement ? ` — ${result.classElement}` : ''}
+                              {result.classLevel ? ` ${result.classLevel}` : ''}
+                            </span>
+                            <span>
+                              {result.showDate
+                                ? format(new Date(result.showDate), 'MMM d, yyyy')
+                                : ''}
+                            </span>
+                          </div>
+                          {/* Result details row */}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
+                            {result.searchTimeSeconds != null && (
+                              <span className="flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3.5 w-3.5" />
+                                {result.searchTimeSeconds.toFixed(1)}s
+                              </span>
+                            )}
+                            {result.totalFaults != null && result.totalFaults > 0 && (
+                              <span className="flex items-center gap-1 text-warning-orange">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {result.totalFaults} fault
+                                {result.totalFaults !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {result.finalPlacement != null && result.finalPlacement > 0 && (
+                              <span className="text-muted-foreground">
+                                Placement: {result.finalPlacement}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full sm:w-auto border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
+                        onClick={() =>
+                          navigate(
+                            result.classId
+                              ? `/classes/${result.classId}`
+                              : `/shows/${result.showId}`
+                          )
+                        }
+                      >
+                        View Details
+                      </Button>
+                    </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">No Recent Results</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Your competition results will appear here after shows.
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                ))}
+
+                {recentResults.length === 0 && (
+                  <div className="text-center py-16">
+                    <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
+                      <Award className="h-12 w-12 text-success-green" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
+                      No Recent Results
+                    </h3>
+                    <p className="text-muted-foreground mb-6">
+                      Your competition results will appear here after shows.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </FadeIn>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <CardHeader className="pb-6 relative">
+      <StaggeredGrid className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
+        <GlassCard>
+          <CardHeader className="pb-6">
             <CardTitle className="text-xl font-bold flex items-center gap-4">
               <div className="p-4 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
                 <Search className="h-6 w-6 text-primary" />
@@ -571,7 +577,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="relative">
+          <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Upcoming entries</span>
@@ -585,11 +591,10 @@ const ExhibitorDashboard: React.FC = () => {
               Browse Shows
             </Button>
           </CardContent>
-        </Card>
+        </GlassCard>
 
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <CardHeader className="pb-6 relative">
+        <GlassCard overlayGradient="from-blue-500/5">
+          <CardHeader className="pb-6">
             <CardTitle className="text-xl font-bold flex items-center gap-4">
               <div className="p-4 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
                 <Heart className="h-6 w-6 text-blue-500" />
@@ -604,7 +609,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="relative">
+          <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Registered dogs</span>
@@ -618,11 +623,10 @@ const ExhibitorDashboard: React.FC = () => {
               Manage Dogs
             </Button>
           </CardContent>
-        </Card>
+        </GlassCard>
 
-        <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
-          <div className="absolute inset-0 bg-gradient-to-br from-warning-orange/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <CardHeader className="pb-6 relative">
+        <GlassCard overlayGradient="from-warning-orange/5">
+          <CardHeader className="pb-6">
             <CardTitle className="text-xl font-bold flex items-center gap-4">
               <div className="p-4 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
                 <FileText className="h-6 w-6 text-warning-orange" />
@@ -637,7 +641,7 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="relative">
+          <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Total entries</span>
@@ -654,8 +658,8 @@ const ExhibitorDashboard: React.FC = () => {
               View Entries
             </Button>
           </CardContent>
-        </Card>
-      </div>
+        </GlassCard>
+      </StaggeredGrid>
     </div>
   );
 };

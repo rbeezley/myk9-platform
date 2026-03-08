@@ -7,6 +7,7 @@ import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import features from '@/data/features';
 import faqs from '@/data/faqs';
 import { useUpcomingShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { FadeIn } from '@/components/layout/FadeIn';
 
 const UpcomingShows = React.lazy(() =>
   import('@/components/shows').then(module => ({
@@ -49,28 +50,36 @@ const Home: React.FC = () => {
       <Hero />
 
       {/* Features Section */}
-      <FeaturesSection features={memoizedFeatures} />
+      <FadeIn>
+        <FeaturesSection features={memoizedFeatures} />
+      </FadeIn>
 
       {/* Upcoming Shows - Lazy loaded with delightful loading */}
-      <div className="py-16 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Suspense fallback={<DelightfulLoading variant="carousel" />}>
-            <UpcomingShows
-              shows={mappedShows}
-              variant="carousel"
-              className="mt-8"
-              isLoading={showsLoading}
-              isEmpty={!showsLoading && mappedShows.length === 0}
-            />
-          </Suspense>
+      <FadeIn delay={0.1}>
+        <div className="py-16 bg-background">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Suspense fallback={<DelightfulLoading variant="carousel" />}>
+              <UpcomingShows
+                shows={mappedShows}
+                variant="carousel"
+                className="mt-8"
+                isLoading={showsLoading}
+                isEmpty={!showsLoading && mappedShows.length === 0}
+              />
+            </Suspense>
+          </div>
         </div>
-      </div>
+      </FadeIn>
 
       {/* Pricing Section */}
-      <Pricing />
+      <FadeIn>
+        <Pricing />
+      </FadeIn>
 
       {/* FAQ Section */}
-      <FAQSection faqs={memoizedFaqs} />
+      <FadeIn>
+        <FAQSection faqs={memoizedFaqs} />
+      </FadeIn>
     </div>
   );
 };

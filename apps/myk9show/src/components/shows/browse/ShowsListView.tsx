@@ -34,6 +34,7 @@ import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import type { UserWithRoles } from '@/types/auth-types';
 import { formatFee } from '@/utils/format';
+import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 
 /**
  * Icon component map for show actions
@@ -76,7 +77,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-4">
+    <StaggeredGrid className="space-y-4">
       {shows.map(show => {
         const showActions = getShowActions(show, selectedTab, user);
         const hasUserEntries = userHasEntriesForShow(show.id, entries);
@@ -88,18 +89,22 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
           <Card
             key={show.id}
             className={cn(
-              'bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200',
-              entryStatus.status === 'closing_soon' && 'border-orange-400/50',
-              entryStatus.status === 'submitted' && 'border-green-400/50'
+              'group relative overflow-hidden bg-gradient-to-r from-card to-card/80 border border-border rounded-2xl backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]',
+              entryStatus.status === 'closing_soon' &&
+                'ring-2 ring-orange-400/50 shadow-orange-200/30',
+              entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50'
             )}
           >
-            <CardContent className="p-6">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <CardContent className="relative p-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold">{show.name}</h3>
+                        <h3 className="text-lg font-bold group-hover:text-primary transition-colors duration-300">
+                          {show.name}
+                        </h3>
                         {show.clubName && (
                           <p className="text-sm text-muted-foreground">{show.clubName}</p>
                         )}
@@ -157,7 +162,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
                       variant="default"
                       size="sm"
                       onClick={() => navigate(`/shows/${show.id}?register=true`)}
-                      className="bg-primary hover:bg-primary/90"
+                      className="bg-primary hover:bg-primary/90 hover:-translate-y-0.5 transition-all duration-300"
                     >
                       <Ticket className="h-4 w-4 mr-2" />
                       Enter Show
@@ -172,6 +177,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
                         variant={action.variant}
                         size="sm"
                         onClick={() => action.onClick(show)}
+                        className="hover:-translate-y-0.5 transition-all duration-300"
                       >
                         <IconComponent className="h-4 w-4 mr-2" />
                         {action.label}
@@ -184,7 +190,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
           </Card>
         );
       })}
-    </div>
+    </StaggeredGrid>
   );
 };
 

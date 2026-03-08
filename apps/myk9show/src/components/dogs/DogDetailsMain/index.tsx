@@ -146,8 +146,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     fromPerson,
   });
 
-  // Stats
-  const dogEntries = useEntryStore(state => state.getEntriesByDog(updatedDog.id));
+  // Stats — select raw entries array, filter in useMemo to avoid unstable selector
+  const allEntries = useEntryStore(state => state.entries);
+  const dogEntries = useMemo(
+    () => allEntries.filter(entry => entry.dogId === updatedDog.id),
+    [allEntries, updatedDog.id]
+  );
   const dogStats: RecordStat[] = useMemo(() => {
     const totalEntries = dogEntries.length;
     const registrations = updatedDog.registrations?.length ?? 0;

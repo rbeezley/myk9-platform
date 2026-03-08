@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   CheckCircle,
   Download,
@@ -27,11 +27,16 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { notifications } from '@/lib/notifications';
 import {
   getPaymentMethodDisplay,
   getStatusBadgeVariant,
   isPaidStatus,
+  generateReceiptText,
+  generateReceiptHtml,
+  downloadBlob,
 } from './ConfirmationStep.helpers';
+import type { ReceiptData } from './ConfirmationStep.helpers';
 import type { ConfirmationStepProps, DogClassDetails } from './ConfirmationStep.types';
 import { RegistrationManagementPanel } from './RegistrationManagementPanel';
 import { NotificationPreferencesCard } from './NotificationPreferencesCard';
@@ -62,6 +67,105 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const { classes = [] } = useClassStoreCompat();
 
   const show = shows.find(s => s.id === showId);
+
+  const buildReceiptData = useCallback((): ReceiptData => {
+    const showDate =
+      show?.startDate && show?.endDate && show.endDate !== show.startDate
+        ? `${formatDateMMDDYYYY(show.startDate)} - ${formatDateMMDDYYYY(show.endDate)}`
+        : show?.startDate
+          ? formatDateMMDDYYYY(show.startDate)
+          : 'TBD';
+
+    const receiptDogs = selectedDogs
+      .map(dogId => {
+        const dog = dogs.find(d => d.id === dogId);
+        const selection = classSelections.find((s: ClassSelectionData) => s.dogId === dogId);
+        if (!dog || !selection) return null;
+
+        const dogClasses: DogClassDetails[] = selection.selectedClasses.map(sc => {
+          const classData = classes.find(
+            (c: { id: string; className?: string | undefined; classNumber?: string | undefined }) =>
+              c.id === sc.classId
+          );
+          const trial = trials.find(t => t.id === selection.trialId);
+          return {
+            className: classData?.className || 'Unknown Class',
+            classNumber: classData?.classNumber || '',
+            trialName: trial?.name || 'Unknown Trial',
+            jumpHeight: sc.jumpHeight,
+          };
+        });
+
+        return {
+          name: dog.callName || dog.name,
+          breed: dog.registrations?.[0]?.breed || 'Unknown breed',
+          classes: dogClasses,
+        };
+      })
+      .filter((d): d is NonNullable<typeof d> => d !== null);
+
+    return {
+      registrationNumber,
+      showName: show?.name || 'Unknown Show',
+      showClub: show?.clubName || '',
+      showDate,
+      showLocation: show?.location || 'TBD',
+      dogs: receiptDogs,
+      totalFees,
+      paymentMethod,
+      paymentStatus,
+      entryStatus,
+      generatedAt: new Date().toLocaleString(),
+    };
+  }, [
+    registrationNumber,
+    selectedDogs,
+    classSelections,
+    dogs,
+    classes,
+    trials,
+    show,
+    totalFees,
+    paymentMethod,
+    paymentStatus,
+    entryStatus,
+  ]);
+
+  const handleDownloadReceipt = useCallback(() => {
+    if (onDownloadReceipt) {
+      onDownloadReceipt();
+      return;
+    }
+    const data = buildReceiptData();
+    const html = generateReceiptHtml(data);
+    const filename = `receipt-${data.registrationNumber}.html`;
+    downloadBlob(html, filename, 'text/html');
+    notifications.success('Receipt downloaded', {
+      description: `Saved as ${filename}`,
+    });
+  }, [onDownloadReceipt, buildReceiptData]);
+
+  const handleSendEmail = useCallback(async () => {
+    if (onSendEmail) {
+      onSendEmail();
+      return;
+    }
+    const data = buildReceiptData();
+    const text = generateReceiptText(data);
+    try {
+      await navigator.clipboard.writeText(text);
+      notifications.success('Receipt copied to clipboard', {
+        description: 'Paste it into your email client to send yourself a copy.',
+      });
+    } catch {
+      // Clipboard API may fail (e.g. insecure context), fall back to info toast
+      // TODO: Implement server-side email via Supabase Edge Function
+      notifications.info('Email confirmation coming soon', {
+        description:
+          'Server-side email is not yet available. Use "Download Receipt" to save a copy.',
+      });
+    }
+  }, [onSendEmail, buildReceiptData]);
 
   const getStatusIcon = (status: EntryStatus) => {
     switch (status) {
@@ -327,8 +431,8 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         paymentStatus={paymentStatus}
         paymentMethod={paymentMethod}
         armbandAssignments={armbandAssignments}
-        onDownloadReceipt={onDownloadReceipt}
-        onSendEmail={onSendEmail}
+        onDownloadReceipt={handleDownloadReceipt}
+        onSendEmail={handleSendEmail}
         onStatusChange={onStatusChange}
         onArmbandAssign={onArmbandAssign}
         onNotificationToggle={onNotificationToggle}
@@ -399,11 +503,11 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button variant="default" className="flex-1" onClick={onDownloadReceipt}>
+        <Button variant="default" className="flex-1" onClick={handleDownloadReceipt}>
           <Download className="h-4 w-4 mr-2" />
           Download Receipt
         </Button>
-        <Button variant="outline" className="flex-1" onClick={onSendEmail}>
+        <Button variant="outline" className="flex-1" onClick={handleSendEmail}>
           <Mail className="h-4 w-4 mr-2" />
           Email Confirmation
         </Button>

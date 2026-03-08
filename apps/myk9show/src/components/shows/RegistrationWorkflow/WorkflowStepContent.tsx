@@ -186,8 +186,8 @@ export function WorkflowStepContent({
           entryStatus={optimisticState.entryStatus}
           totalFees={currentRegistrationTotalFees}
           showId={showId}
-          onDownloadReceipt={() => logger.debug('Download receipt', 'shows')}
-          onSendEmail={() => logger.debug('Send email', 'shows')}
+          onDownloadReceipt={undefined}
+          onSendEmail={undefined}
           onStatusChange={async (_dogId: string, status: EntryStatus) => {
             setEntryStatus(status);
             if (registrationId) {

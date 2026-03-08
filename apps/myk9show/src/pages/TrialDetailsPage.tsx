@@ -7,7 +7,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
 import { useShowStore } from '@/store/showStore';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
-import AddClassesToTrialDialog from '@/components/trials/AddClassesToTrialDialog';
+import { AddClassesToTrialPanel } from '@/components/classes/AddClassesToTrialPanel';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import StandardDialog from '@/components/common/StandardDialog';
@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PromoCodesSection } from '@/components/secretary/PromoCodesSection';
 import { FinancialSummary } from '@/components/secretary/FinancialSummary';
+import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesTable';
 import { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
@@ -461,6 +462,7 @@ const TrialDetailsPage: React.FC = () => {
           <div className="max-w-[1440px] mx-auto px-6 pt-6">
             <TabsList className="mb-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="entries">Entries</TabsTrigger>
               <TabsTrigger value="promo-codes">Promo Codes</TabsTrigger>
               <TabsTrigger value="financials">Financials</TabsTrigger>
             </TabsList>
@@ -493,6 +495,12 @@ const TrialDetailsPage: React.FC = () => {
             />
           </TabsContent>
 
+          <TabsContent value="entries">
+            <div className="myk9-show-container">
+              <TrialEntriesTable trialId={trialWithClasses.id} />
+            </div>
+          </TabsContent>
+
           <TabsContent value="promo-codes">
             <div className="myk9-show-container">
               <PromoCodesSection trialId={trialWithClasses.id} />
@@ -516,9 +524,9 @@ const TrialDetailsPage: React.FC = () => {
 
       {/* Dialogs */}
 
-      <AddClassesToTrialDialog
+      <AddClassesToTrialPanel
         open={addClassesFromTemplateDialogOpen}
-        onOpenChange={setAddClassesFromTemplateDialogOpen}
+        onClose={() => setAddClassesFromTemplateDialogOpen(false)}
         onSave={handleSaveClassesFromTemplate}
         availableTemplates={templates}
         trialName={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}

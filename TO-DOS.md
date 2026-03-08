@@ -263,7 +263,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Auto-select single judge on class selection page** — Added useEffect to auto-assign the single judge to all classes via `assignJudgeToClass`.
 
-- **Investigate minutes calculation on review page** — Review page shows a time/minutes calculation but there are no entries yet. **Problem:** How is the duration calculated when no entries exist? Needs investigation into what drives the estimate. **Files:** `apps/myk9show/src/components/shows/wizard/ReviewStep.tsx`.
+- [x] **Investigate minutes calculation on review page** — Calculation was already class-based (classes × 15min), not entry-based. Fixed label: "Minutes" → "Est. Minutes" with `~` prefix and hover tooltip "Estimated at ~15 min per class".
 
 ## Show List Bugs - 2026-03-07 15:27
 
@@ -281,19 +281,19 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Rename "Trials and Schedule" tab to "Trials"** — Simplified tab label in ShowDetailsEnhanced and ShowDetailsEnhanced/index.tsx.
 
-- **Add entries tab to show details** — Add a tab showing a table of all entries for the show. **Problem:** No way to see all entries for a show in one place from the show details page. **Files:** `apps/myk9show/src/pages/ShowDetailsPage.tsx`, `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`.
+- [x] **Add entries tab to show details** — Created EntriesTab component with searchable table (dog, class, handler, armband, status, date). Added "Entries" tab to ShowDetailsEnhanced.
 
-- **Add "Add Entries" to Manage Show menu** — The Manage Show button has choices for add trials and add classes but not entries. **Problem:** No quick path to add entries from the manage show dropdown. **Files:** `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`, `apps/myk9show/src/components/shows/ShowDetails/`.
+- [x] **Add "Add Entries" to Manage Show menu** — Added "Add Entries" menu item to Manage Show dropdown, navigates to secretary entry management page.
 
 - [x] **Redesign trials card to match show card style** — Replaced eye icon dropdown with proper "View Details" button, matched ShowCard dark theme styling with hover effects.
 
 ## Trial Details Improvements - 2026-03-07 15:27
 
-- **Add entries tab to trial details** — Add a tab showing entries for that specific trial. **Problem:** Classes are listed in a table but there's no way to see entries at the trial level. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/components/trials/TrialDetailsMain.tsx`.
+- [x] **Add entries tab to trial details** — Created TrialEntriesTable component with sortable columns, search/filter, status badges. Added "Entries" tab to TrialDetailsPage between Overview and Promo Codes.
 
 - [x] **Redesign class cards in grid view** — Fixed white square artifact (overflow + positioning), unified dark theme backgrounds, removed redundant `dark:` prefixes.
 
-- **Fix Add Class dialog** — Convert to slide-out panel for consistency, and gray out classes already in the trial. **Problem:** Add Class opens a dialog (should be a panel), shows classes already in the trial without proper indication, and some "already added" labels are incorrect. **Files:** `apps/myk9show/src/components/classes/AddClassDialog.tsx`, `apps/myk9show/src/pages/TrialDetailsPage.tsx`.
+- [x] **Fix Add Class dialog** — Converted to AddClassesToTrialPanel slide-out panel using SlideOverPanel pattern. Existing classes grayed out via SimpleClassSelector's `existingClasses` prop. Split into Panel + PanelSteps files (under 500 lines each).
 
 - [x] **Remove excessive top padding on trial details page** — Replaced `myk9-show-container` with inline Tailwind classes to fix double 80px padding.
 
@@ -307,7 +307,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Design credit card input to look like a credit card** — Create a visual credit card input UI. **Problem:** Standard form fields for credit card info miss an opportunity for a polished, professional touch. Some sites show a credit card visual that you fill in. **Files:** `apps/myk9show/src/components/registration/PaymentStep.tsx`.
 
-- **Fix download receipt and email confirmation buttons** — Buttons on confirmation page are not working. **Problem:** Download receipt and email confirmation buttons have no working handlers. **Files:** `apps/myk9show/src/components/registration/ConfirmationStep.tsx`.
+- [x] **Fix download receipt and email confirmation buttons** — Download receipt generates styled HTML receipt and triggers browser download. Email confirmation copies plain-text receipt to clipboard with toast instruction (server-side email TODO). Created ConfirmationStep.helpers.ts with receipt generation utilities.
 
 - **Investigate confirmation number storage and lookup** — A confirmation number is generated but unclear where it's stored. **Problem:** If someone called with a complaint, there's no way to look up a confirmation number for details. Needs a lookup mechanism. **Files:** `apps/myk9show/src/components/registration/ConfirmationStep.tsx`, `apps/myk9show/src/services/database/queries/entryQueries.ts`.
 

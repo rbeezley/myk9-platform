@@ -388,11 +388,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                           </div>
                           <div className="text-xs text-muted-foreground">Assigned</div>
                         </div>
-                        <div>
+                        <div title="Estimated at ~15 min per class">
                           <div className="text-lg font-semibold text-purple-600">
-                            {trial.classes.length * 15}
+                            ~{trial.classes.length * 15}
                           </div>
-                          <div className="text-xs text-muted-foreground">Minutes</div>
+                          <div className="text-xs text-muted-foreground">Est. Minutes</div>
                         </div>
                       </div>
                     </div>

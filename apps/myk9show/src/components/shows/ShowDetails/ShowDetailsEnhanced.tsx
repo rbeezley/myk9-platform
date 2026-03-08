@@ -47,6 +47,7 @@ import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { ClassAvailability } from '@/components/shows/ClassAvailability';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { formatFee } from '@/utils/format';
+import { EntriesTab } from './EntriesTab';
 
 // Types for extracted components
 interface RegistrationState {
@@ -586,6 +587,14 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
       ),
     });
 
+    // Add entries tab for everyone
+    tabs.push({
+      id: 'entries',
+      label: 'Entries',
+      description: 'All entries for this show',
+      content: <EntriesTab showId={showData.id} onManageEntries={onManageEntries} />,
+    });
+
     // Add trials tab for everyone
     tabs.push({
       id: 'trials',
@@ -810,6 +819,11 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Add Classes (Wizard)
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate(`/secretary/entries/${showData.id}`)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Entries
                     </DropdownMenuItem>
                   </PermissionGuard>
                   <DropdownMenuSeparator />

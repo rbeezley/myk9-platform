@@ -1,20 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Search, Filter, Grid3X3, List, Plus, ChevronDown, X } from 'lucide-react';
+import { Search, Grid3X3, List, Plus, X } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { FilterBar } from '@/components/common/FilterBar';
+import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
 import { PanelProvider, PanelStack } from '@/components/panels';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { useClubStore } from '@/store/clubStore';
@@ -35,7 +27,6 @@ const BrowseClubsPage: React.FC = () => {
 
   const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
 
   const addClub = useClubStore(state => state.addClub);
@@ -69,6 +60,36 @@ const BrowseClubsPage: React.FC = () => {
   );
 
   const breadcrumbItems = useMemo(() => [{ label: 'Clubs' }], []);
+
+  // FilterBar definitions
+  const filterDefs: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: 'clubType',
+        label: 'Club Type',
+        type: 'select',
+        options: CLUB_TYPES.map(type => ({ label: type.label, value: type.value })),
+      },
+    ],
+    []
+  );
+
+  // Bridge existing filters to FilterBarState
+  const filterBarState: FilterBarState = useMemo(() => {
+    const filterState: Record<string, string | string[] | boolean> = {};
+    if (filters.clubType !== 'all') filterState.clubType = filters.clubType;
+    return { filters: filterState, sortKey: null, sortDirection: 'asc' };
+  }, [filters.clubType]);
+
+  const handleFilterBarChange = useCallback(
+    (newState: FilterBarState) => {
+      setFilters(prev => ({
+        ...prev,
+        clubType: (newState.filters.clubType as string) || 'all',
+      }));
+    },
+    [setFilters]
+  );
 
   // Handle club creation
   const handleClubCreated = useCallback(
@@ -115,9 +136,6 @@ const BrowseClubsPage: React.FC = () => {
     },
     [addClub, selectClub, navigate]
   );
-
-  // Count active filters (excluding search)
-  const activeFilterCount = filters.clubType !== 'all' ? 1 : 0;
 
   // Render view content
   const renderContent = () => {
@@ -191,100 +209,21 @@ const BrowseClubsPage: React.FC = () => {
               {/* Search & Filters */}
               <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
                 <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search clubs by name, city, or state..."
-                        value={filters.search}
-                        onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                      />
-                    </div>
-                    <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200 gap-2"
-                        >
-                          <Filter className="h-4 w-4" />
-                          <span>Filters</span>
-                          {activeFilterCount > 0 && (
-                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                              {activeFilterCount}
-                            </Badge>
-                          )}
-                          <ChevronDown
-                            className={cn(
-                              'h-4 w-4 transition-transform duration-200',
-                              isFiltersOpen && 'rotate-180'
-                            )}
-                          />
-                        </Button>
-                      </CollapsibleTrigger>
-                    </Collapsible>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search clubs by name, city, or state..."
+                      value={filters.search}
+                      onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                      className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
+                    />
                   </div>
-
-                  {/* Active filter chips */}
-                  {hasActiveFilters && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {filters.clubType !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, clubType: 'all' }))}
-                        >
-                          {CLUB_TYPES.find(t => t.value === filters.clubType)?.label ||
-                            filters.clubType}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.search && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
-                        >
-                          &quot;{filters.search}&quot;
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="default"
-                        onClick={clearAllFilters}
-                        className="h-10 px-3 text-sm text-muted-foreground hover:text-primary"
-                      >
-                        Clear all
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Filter dropdowns */}
-                  <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                    <CollapsibleContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 mt-4 border-t border-border/50">
-                        <Select
-                          value={filters.clubType}
-                          onValueChange={value =>
-                            setFilters(prev => ({ ...prev, clubType: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Club Type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Types</SelectItem>
-                            {CLUB_TYPES.map(type => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                  <FilterBar
+                    filterDefs={filterDefs}
+                    state={filterBarState}
+                    onStateChange={handleFilterBarChange}
+                    className="mt-3"
+                  />
                 </CardContent>
               </Card>
 

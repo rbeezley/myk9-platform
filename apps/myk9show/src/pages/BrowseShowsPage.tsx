@@ -1,20 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStatusUpdates } from '@/services/NotificationService';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
@@ -25,7 +16,6 @@ import {
   Search,
   Calendar,
   Clock,
-  Filter,
   Grid3X3,
   List,
   CalendarDays,
@@ -37,8 +27,9 @@ import {
   BarChart3,
   X,
   Ticket,
-  ChevronDown,
 } from 'lucide-react';
+import { FilterBar } from '@/components/common/FilterBar';
+import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
 import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
@@ -56,12 +47,6 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowsGridView, ShowsListView } from '@/components/shows/browse';
-import {
-  DISCIPLINE_LABELS,
-  ENTRY_STATUS_LABELS,
-  LOCATION_LABELS,
-  DATE_RANGE_LABELS,
-} from '@/utils/browseShowsUtils';
 
 type ViewMode = 'grid' | 'list' | 'calendar';
 
@@ -77,8 +62,6 @@ const BrowseShowsPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [isViewModeChanging, setIsViewModeChanging] = useState(false);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-
   // Use extracted data hook (loads shows, entries, user context)
   const {
     user,
@@ -94,14 +77,81 @@ const BrowseShowsPage: React.FC = () => {
   } = useBrowseShowsData({ filteredShows: [], selectedTab });
 
   // Use extracted filter hook
-  const {
-    filters,
-    setFilters,
-    filteredShows,
-    hasActiveFilters,
-    clearAllFilters,
-    activeFilterCount,
-  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+  const { filters, setFilters, filteredShows, hasActiveFilters, clearAllFilters } =
+    useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+
+  // FilterBar definitions for the 4 show filters
+  const filterDefs: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: 'discipline',
+        label: 'Discipline',
+        type: 'select' as const,
+        options: [
+          { label: 'Agility', value: 'agility' },
+          { label: 'Scent Work', value: 'scent_work' },
+          { label: 'Rally', value: 'rally' },
+          { label: 'Obedience', value: 'obedience' },
+        ],
+      },
+      {
+        key: 'entryStatus',
+        label: 'Entry Status',
+        type: 'select' as const,
+        options: [
+          { label: 'Open', value: 'open' },
+          { label: 'Closing Soon', value: 'closing_soon' },
+          { label: 'Waitlist', value: 'waitlist' },
+          { label: 'Closed', value: 'closed' },
+        ],
+      },
+      {
+        key: 'dateRange',
+        label: 'Date Range',
+        type: 'select' as const,
+        options: [
+          { label: 'Upcoming', value: 'upcoming' },
+          { label: 'This Month', value: 'this_month' },
+          { label: 'Next Month', value: 'next_month' },
+        ],
+      },
+      {
+        key: 'location',
+        label: 'Location',
+        type: 'select' as const,
+        options: [
+          { label: 'Within 50 miles', value: 'within_50' },
+          { label: 'Within 100 miles', value: 'within_100' },
+          { label: 'Within 200 miles', value: 'within_200' },
+        ],
+      },
+    ],
+    []
+  );
+
+  // Bridge existing filters state to FilterBarState
+  const filterBarState: FilterBarState = useMemo(() => {
+    const filterState: Record<string, string | string[] | boolean> = {};
+    if (filters.discipline !== 'all') filterState.discipline = filters.discipline;
+    if (filters.entryStatus !== 'all') filterState.entryStatus = filters.entryStatus;
+    if (filters.dateRange !== 'all') filterState.dateRange = filters.dateRange;
+    if (filters.location !== 'all') filterState.location = filters.location;
+    return { filters: filterState, sortKey: null, sortDirection: 'asc' as const };
+  }, [filters.discipline, filters.entryStatus, filters.dateRange, filters.location]);
+
+  // Bridge FilterBarState changes back to existing setFilters
+  const handleFilterBarChange = useCallback(
+    (newState: FilterBarState) => {
+      setFilters(prev => ({
+        ...prev,
+        discipline: (newState.filters.discipline as string) || 'all',
+        entryStatus: (newState.filters.entryStatus as string) || 'all',
+        dateRange: (newState.filters.dateRange as string) || 'all',
+        location: (newState.filters.location as string) || 'all',
+      }));
+    },
+    [setFilters]
+  );
 
   // Get enhanced shows from data hook with actual filtered shows
   const { enhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
@@ -394,180 +444,22 @@ const BrowseShowsPage: React.FC = () => {
               {/* Filters */}
               <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
                 <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search shows..."
-                        value={filters.search}
-                        onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                      />
-                    </div>
-                    <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200 gap-2"
-                        >
-                          <Filter className="h-4 w-4" />
-                          <span>Filters</span>
-                          {hasActiveFilters && (
-                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                              {activeFilterCount}
-                            </Badge>
-                          )}
-                          <ChevronDown
-                            className={cn(
-                              'h-4 w-4 transition-transform duration-200',
-                              isFiltersOpen && 'rotate-180'
-                            )}
-                          />
-                        </Button>
-                      </CollapsibleTrigger>
-                    </Collapsible>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search shows..."
+                      value={filters.search}
+                      onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                      className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
+                    />
                   </div>
 
-                  {/* Active filter chips */}
-                  {hasActiveFilters && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {filters.discipline !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, discipline: 'all' }))}
-                        >
-                          {DISCIPLINE_LABELS[filters.discipline] || filters.discipline}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.entryStatus !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, entryStatus: 'all' }))}
-                        >
-                          {ENTRY_STATUS_LABELS[filters.entryStatus] || filters.entryStatus}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.dateRange !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, dateRange: 'all' }))}
-                        >
-                          {DATE_RANGE_LABELS[filters.dateRange] || filters.dateRange}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.location !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, location: 'all' }))}
-                        >
-                          {LOCATION_LABELS[filters.location] || filters.location}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.search && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
-                        >
-                          "{filters.search}"
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="default"
-                        onClick={clearAllFilters}
-                        className="h-10 px-3 text-sm text-muted-foreground hover:text-primary"
-                      >
-                        Clear all
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Filter dropdowns */}
-                  <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                    <CollapsibleContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 mt-4 border-t border-border/50">
-                        <Select
-                          value={filters.discipline}
-                          onValueChange={value =>
-                            setFilters(prev => ({ ...prev, discipline: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Discipline" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Disciplines</SelectItem>
-                            <SelectItem value="agility">Agility</SelectItem>
-                            <SelectItem value="scent_work">Scent Work</SelectItem>
-                            <SelectItem value="rally">Rally</SelectItem>
-                            <SelectItem value="obedience">Obedience</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={filters.entryStatus}
-                          onValueChange={value =>
-                            setFilters(prev => ({ ...prev, entryStatus: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Entry Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="closing_soon">Closing Soon</SelectItem>
-                            <SelectItem value="waitlist">Waitlist</SelectItem>
-                            <SelectItem value="closed">Closed</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={filters.dateRange}
-                          onValueChange={value =>
-                            setFilters(prev => ({ ...prev, dateRange: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Date Range" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="upcoming">Upcoming</SelectItem>
-                            <SelectItem value="this_month">This Month</SelectItem>
-                            <SelectItem value="next_month">Next Month</SelectItem>
-                            <SelectItem value="all">All Dates</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={filters.location}
-                          onValueChange={value =>
-                            setFilters(prev => ({ ...prev, location: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Location" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Locations</SelectItem>
-                            <SelectItem value="local">Within 50 miles</SelectItem>
-                            <SelectItem value="regional">Within 200 miles</SelectItem>
-                            <SelectItem value="online">Online Only</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                  <FilterBar
+                    filterDefs={filterDefs}
+                    state={filterBarState}
+                    onStateChange={handleFilterBarChange}
+                    className="mt-3"
+                  />
                 </CardContent>
               </Card>
 

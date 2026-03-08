@@ -1,20 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Search, Filter, Grid3X3, List, Table2, Plus, ChevronDown, X } from 'lucide-react';
+import { Search, Grid3X3, List, Table2, Plus, X } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { FilterBar } from '@/components/common/FilterBar';
+import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import '@/styles/myk9-show-details.css';
@@ -32,7 +24,6 @@ const BrowsePeoplePage: React.FC = () => {
 
   const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(false);
 
   const { hasPermission, isLoading: rbacLoading } = useRBAC();
@@ -94,8 +85,37 @@ const BrowsePeoplePage: React.FC = () => {
     [addUser, navigate]
   );
 
-  // Count active filters (excluding search)
-  const activeFilterCount = filters.role !== 'all' ? 1 : 0;
+  // FilterBar definitions
+  const filterDefs: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: 'role',
+        label: 'Role',
+        type: 'select' as const,
+        options: availableRoles.map(role => ({
+          label: role.charAt(0).toUpperCase() + role.slice(1),
+          value: role,
+        })),
+      },
+    ],
+    [availableRoles]
+  );
+
+  const filterBarState: FilterBarState = useMemo(() => {
+    const filterState: Record<string, string | string[] | boolean> = {};
+    if (filters.role !== 'all') filterState.role = filters.role;
+    return { filters: filterState, sortKey: null, sortDirection: 'asc' };
+  }, [filters.role]);
+
+  const handleFilterBarChange = useCallback(
+    (newState: FilterBarState) => {
+      setFilters(prev => ({
+        ...prev,
+        role: (newState.filters.role as string) || 'all',
+      }));
+    },
+    [setFilters]
+  );
 
   // Render view content
   const renderContent = () => {
@@ -176,97 +196,21 @@ const BrowsePeoplePage: React.FC = () => {
               {/* Search & Filters */}
               <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
                 <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search people by name or email..."
-                        value={filters.search}
-                        onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                      />
-                    </div>
-                    <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                      <CollapsibleTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200 gap-2"
-                        >
-                          <Filter className="h-4 w-4" />
-                          <span>Filters</span>
-                          {activeFilterCount > 0 && (
-                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
-                              {activeFilterCount}
-                            </Badge>
-                          )}
-                          <ChevronDown
-                            className={cn(
-                              'h-4 w-4 transition-transform duration-200',
-                              isFiltersOpen && 'rotate-180'
-                            )}
-                          />
-                        </Button>
-                      </CollapsibleTrigger>
-                    </Collapsible>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search people by name or email..."
+                      value={filters.search}
+                      onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                      className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
+                    />
                   </div>
-
-                  {/* Active filter chips */}
-                  {hasActiveFilters && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {filters.role !== 'all' && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, role: 'all' }))}
-                        >
-                          {filters.role.charAt(0).toUpperCase() + filters.role.slice(1)}
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      {filters.search && (
-                        <Badge
-                          variant="secondary"
-                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
-                          onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
-                        >
-                          &quot;{filters.search}&quot;
-                          <X className="h-3 w-3 ml-1" />
-                        </Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="default"
-                        onClick={clearAllFilters}
-                        className="h-10 px-3 text-sm text-muted-foreground hover:text-primary"
-                      >
-                        Clear all
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Filter dropdowns */}
-                  <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                    <CollapsibleContent>
-                      <div className="grid grid-cols-1 gap-4 pt-4 mt-4 border-t border-border/50">
-                        <Select
-                          value={filters.role}
-                          onValueChange={value => setFilters(prev => ({ ...prev, role: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Roles</SelectItem>
-                            {availableRoles.map(role => (
-                              <SelectItem key={role} value={role}>
-                                {role.charAt(0).toUpperCase() + role.slice(1)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
+                  <FilterBar
+                    filterDefs={filterDefs}
+                    state={filterBarState}
+                    onStateChange={handleFilterBarChange}
+                    className="mt-3"
+                  />
                 </CardContent>
               </Card>
 

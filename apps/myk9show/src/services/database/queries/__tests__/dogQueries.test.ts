@@ -165,17 +165,19 @@ describe('Dog Queries', () => {
   });
 
   describe('deleteDog', () => {
-    it('should delete a dog', async () => {
-      const mockDeletedDog = { id: '1', name: 'Max' };
-
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({ data: mockDeletedDog, error: null })
-      );
+    it('should soft delete a dog via RPC', async () => {
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
       const result = await deleteDog('1');
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockDeletedDog);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_dog', { p_dog_id: '1' });
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          id: '1',
+          deleted_by: null,
+        })
+      );
+      expect(result.data?.deleted_at).toBeDefined();
       expect(result.error).toBeNull();
     });
   });

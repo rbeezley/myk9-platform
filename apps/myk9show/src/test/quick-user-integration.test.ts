@@ -24,18 +24,25 @@ vi.mock('@/services/database/supabaseClient', () => ({
     rpc: vi.fn(),
   },
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((error: unknown) => error instanceof Error ? error : new Error(String(error))),
+  createDatabaseError: vi.fn((error: unknown) =>
+    error instanceof Error ? error : new Error(String(error))
+  ),
   DatabaseError: class DatabaseError extends Error {},
 }));
 
 // Mock the logger
+const mockLogger = {
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+};
+
 vi.mock('@/services/LoggingService', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  }
+  LoggingService: {
+    getInstance: () => mockLogger,
+  },
+  logger: mockLogger,
 }));
 
 // Mock the database queryClient invalidation
@@ -56,7 +63,7 @@ describe('User Integration - Import Validation', () => {
       useCreateUserMutation,
       useUpdateUserMutation,
       useDeleteUserMutation,
-      useUserManagement
+      useUserManagement,
     } = await import('@/hooks/queries/useUsersDatabase');
 
     expect(useUsersQuery).toBeDefined();
@@ -74,7 +81,7 @@ describe('User Integration - Import Validation', () => {
       mapUserInputToUpdate,
       mapDatabaseToUser,
       mapDatabaseUsersArray,
-      mapUserToUserInput
+      mapUserToUserInput,
     } = await import('@/services/mappers/userMappers');
 
     expect(mapUserInputToInsert).toBeDefined();
@@ -90,7 +97,7 @@ describe('User Integration - Import Validation', () => {
       useUserWithQuery,
       useUserSearchWithQuery,
       useUsersWithDogCountsCompat,
-      useUsersByRoleWithQuery
+      useUsersByRoleWithQuery,
     } = await import('@/hooks/useUserStoreCompat');
 
     expect(useUserStoreCompat).toBeDefined();
@@ -111,7 +118,7 @@ describe('User Integration - Import Validation', () => {
       getUsersByRole,
       getUsersWithDogCounts,
       getUsersStatistics,
-      checkEmailExists
+      checkEmailExists,
     } = await import('@/services/database/queries/userQueries');
 
     expect(getAllUsers).toBeDefined();
@@ -141,8 +148,8 @@ describe('User Integration - Type Mapping Validation', () => {
         street: '123 Test St',
         city: 'Test City',
         state: 'TS',
-        zipCode: '12345'
-      }
+        zipCode: '12345',
+      },
     };
 
     const result = mapUserInputToInsert(testInput);
@@ -173,7 +180,7 @@ describe('User Integration - Type Mapping Validation', () => {
       created_at: '2025-01-26T12:00:00Z',
       updated_at: '2025-01-26T12:00:00Z',
       dog: [],
-      roles: []
+      roles: [],
     };
 
     const result = mapDatabaseToUser(dbUser);

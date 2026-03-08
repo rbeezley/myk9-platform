@@ -270,20 +270,21 @@ describe('Dog Queries', () => {
   });
 
   describe('deleteDog', () => {
-    it('should delete dog successfully', async () => {
+    it('should soft delete dog via RPC successfully', async () => {
       const dogId = 'dog-123';
-      const mockDeletedDog = {
-        id: dogId,
-        name: 'Deleted Dog',
-      };
 
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({ data: mockDeletedDog, error: null })
-      );
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
       const result = await deleteDog(dogId);
 
-      expect(result.data).toEqual(mockDeletedDog);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('soft_delete_dog', { p_dog_id: dogId });
+      expect(result.data).toEqual(
+        expect.objectContaining({
+          id: dogId,
+          deleted_by: null,
+        })
+      );
+      expect(result.data?.deleted_at).toBeDefined();
       expect(result.error).toBeNull();
     });
 
@@ -294,7 +295,7 @@ describe('Dog Queries', () => {
         code: 'PGRST116',
       };
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+      mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
       const result = await deleteDog(dogId);
 

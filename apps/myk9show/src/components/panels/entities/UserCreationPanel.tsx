@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { usePanelSaveHandler } from '@/hooks/usePanelSaveHandler';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -123,6 +124,10 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
     zipCode: '',
     role: (context.preFilledData?.role as UserRole) || 'exhibitor',
   });
+
+  // Ref to avoid formData in useCallback deps (prevents handler re-registration on every keystroke)
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -372,21 +377,22 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
       checkForDuplicates();
 
       setIsSubmitting(true);
+      const fd = formDataRef.current;
 
       try {
         const personData: PersonInput & { roles?: string[] } = {
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
+          firstName: fd.firstName.trim(),
+          lastName: fd.lastName.trim(),
+          email: fd.email.trim(),
+          phone: fd.phone.trim(),
           address: {
-            street: formData.address.trim(),
-            city: formData.city.trim(),
-            state: formData.state.trim(),
-            zipCode: formData.zipCode.trim(),
+            street: fd.address.trim(),
+            city: fd.city.trim(),
+            state: fd.state.trim(),
+            zipCode: fd.zipCode.trim(),
             country: 'United States',
           },
-          roles: formData.role ? [formData.role] : ['exhibitor'],
+          roles: fd.role ? [fd.role] : ['exhibitor'],
         };
 
         const newPerson = await addUser(personData);
@@ -416,24 +422,11 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
         setIsSubmitting(false);
       }
     },
-    [validateForm, checkForDuplicates, formData, addUser, context.selectionCallback, onResult]
+    [validateForm, checkForDuplicates, addUser, context.selectionCallback, onResult]
   );
 
-  // Override the parent component's save handler (used by EntityCreationPanel footer)
-  useEffect(() => {
-    const handleParentSave = (action: 'save' | 'save_and_continue' | 'save_and_close') => {
-      handleSubmit(
-        action === 'save_and_close' || action === 'save' ? 'save_close' : 'save_continue'
-      );
-    };
-
-    (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`] =
-      handleParentSave;
-
-    return () => {
-      delete (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`];
-    };
-  }, [panelId, handleSubmit]);
+  // Register save handler for EntityCreationPanel footer buttons
+  usePanelSaveHandler(panelId, handleSubmit);
 
   const handleCancel = () => {
     setHasSubmitted(false);

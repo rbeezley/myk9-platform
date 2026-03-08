@@ -137,7 +137,8 @@ export function OfficialsFields({
 }
 
 /** Badge shown next to rule-sourced fields */
-function RuleBadge({ label }: { label: string }) {
+/** Badge shown next to rule-sourced fields */
+export function RuleBadge({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary/70 bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 ml-2">
       <BookOpen className="h-3 w-3" />

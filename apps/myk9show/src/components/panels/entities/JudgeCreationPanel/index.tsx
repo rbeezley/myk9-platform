@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
+import { usePanelSaveHandler } from '@/hooks/usePanelSaveHandler';
 import { Button } from '@/components/ui/button';
 import { Loader2, GraduationCap } from 'lucide-react';
 import { useUserStore, PersonInput } from '@/store/userStore';
@@ -51,6 +52,10 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
       travelRadius: 100,
     },
   });
+
+  // Ref to avoid formData in useCallback deps (prevents handler re-registration on every keystroke)
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -157,34 +162,35 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
       checkForDuplicates();
 
       setIsSubmitting(true);
+      const fd = formDataRef.current;
 
       try {
         const judgeData: PersonInput & { roles?: string[]; judgeInfo?: JudgeInfo } = {
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
+          firstName: fd.firstName.trim(),
+          lastName: fd.lastName.trim(),
+          email: fd.email.trim(),
+          phone: fd.phone.trim(),
           address: {
-            street: formData.address.trim(),
-            city: formData.city.trim(),
-            state: formData.state.trim(),
-            zipCode: formData.zipCode.trim(),
+            street: fd.address.trim(),
+            city: fd.city.trim(),
+            state: fd.state.trim(),
+            zipCode: fd.zipCode.trim(),
             country: 'United States',
           },
           roles: ['judge'],
           judgeInfo: {
-            judgeNumber: formData.judgeNumber.trim(),
-            qualifications: formData.qualifications.map(qual => ({
+            judgeNumber: fd.judgeNumber.trim(),
+            qualifications: fd.qualifications.map(qual => ({
               ...qual,
-              judgeNumber: formData.judgeNumber.trim(),
+              judgeNumber: fd.judgeNumber.trim(),
               showTypes: [], // Default empty array
               certificationDate: qual.dateObtained
                 ? new Date(qual.dateObtained).toISOString().split('T')[0]
                 : '',
               status: 'Active' as const,
             })),
-            certifications: formData.certifications,
-            availability: formData.availability,
+            certifications: fd.certifications,
+            availability: fd.availability,
           },
         };
 
@@ -192,9 +198,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
 
         logger.debug('Judge created successfully:', 'panels', { data: newJudge });
 
-        notifications.success(
-          `Judge ${formData.firstName} ${formData.lastName} created successfully`
-        );
+        notifications.success(`Judge ${fd.firstName} ${fd.lastName} created successfully`);
 
         // Call the selection callback if provided (may be async to refresh store)
         if (context.selectionCallback) {
@@ -215,24 +219,11 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
         setIsSubmitting(false);
       }
     },
-    [validateForm, checkForDuplicates, formData, addUser, context.selectionCallback, onResult]
+    [validateForm, checkForDuplicates, addUser, context.selectionCallback, onResult]
   );
 
-  // Override the parent component's save handler (used by EntityCreationPanel footer)
-  useEffect(() => {
-    const handleParentSave = (action: 'save' | 'save_and_continue' | 'save_and_close') => {
-      handleSubmit(
-        action === 'save_and_close' || action === 'save' ? 'save_close' : 'save_continue'
-      );
-    };
-
-    (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`] =
-      handleParentSave;
-
-    return () => {
-      delete (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`];
-    };
-  }, [panelId, handleSubmit]);
+  // Register save handler for EntityCreationPanel footer buttons
+  usePanelSaveHandler(panelId, handleSubmit);
 
   const handleCancel = () => {
     setHasSubmitted(false);

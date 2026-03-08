@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { formatCardNumber, formatExpiryDate, stripNonDigits, detectCardBrand } from './utils';
 import type { CardBrand } from './utils';
@@ -129,6 +129,14 @@ export const CreditCardVisual: React.FC<CreditCardVisualProps> = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const cvvInputRef = useRef<HTMLInputElement>(null);
+  const flipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (flipTimeoutRef.current) clearTimeout(flipTimeoutRef.current);
+    };
+  }, []);
 
   const brand = detectCardBrand(cardNumber);
   const displayNumber =
@@ -146,7 +154,7 @@ export const CreditCardVisual: React.FC<CreditCardVisualProps> = ({
   const handleCvvBlur = () => {
     setFocusedField(null);
     // Delay flip-back so the user can see the CVV field
-    setTimeout(() => setIsFlipped(false), 800);
+    flipTimeoutRef.current = setTimeout(() => setIsFlipped(false), 800);
   };
 
   const handleFrontFieldFocus = (field: string) => {

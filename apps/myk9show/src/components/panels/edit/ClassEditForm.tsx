@@ -13,22 +13,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
-import { Clock, UserCheck, ClipboardList, Settings, BookOpen } from 'lucide-react';
+import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
 import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { cn } from '@/lib/utils';
+import { RuleBadge } from '@/components/classes/OfficialsSection';
 import type { ClassEditFormData } from './ClassEditPanel.types';
-
-/** Badge shown next to rule-sourced fields */
-function RuleBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary/70 bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5 ml-2">
-      <BookOpen className="h-3 w-3" />
-      {label}
-    </span>
-  );
-}
 
 /** A requirement field with optional auto-fill from rules */
 function RequirementField({
@@ -222,12 +213,13 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     Time Limits
                   </h4>
                   {autoFill?.timeLimitText.ruleValue && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary/70 bg-primary/5 border border-primary/10 rounded px-1.5 py-0.5">
-                      <BookOpen className="h-3 w-3" />
-                      {autoFill.timeLimitText.isJudgeSettable
-                        ? `Set by judge (${autoFill.timeLimitText.ruleValue})`
-                        : `Rule: ${autoFill.timeLimitText.ruleValue}`}
-                    </span>
+                    <RuleBadge
+                      label={
+                        autoFill.timeLimitText.isJudgeSettable
+                          ? `Set by judge (${autoFill.timeLimitText.ruleValue})`
+                          : `Rule: ${autoFill.timeLimitText.ruleValue}`
+                      }
+                    />
                   )}
                 </div>
 

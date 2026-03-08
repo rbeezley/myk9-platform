@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -64,17 +64,16 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
 
   const assignedJudges = getAssignedJudges();
 
-  // Fetch class requirements for auto-fill based on the class's element/level
-  const resolvedShowId =
-    showId ||
-    (() => {
-      if ('trialId' in (classItem || {})) {
-        const cd = classItem as ClassData;
-        const trial = trials.find(t => t.id === cd.trialId);
-        return trial ? shows.find(s => s.id === trial.showId)?.id : undefined;
-      }
-      return undefined;
-    })();
+  // Resolve show ID from trial chain if not directly provided
+  const resolvedShowId = useMemo(() => {
+    if (showId) return showId;
+    if ('trialId' in (classItem || {})) {
+      const cd = classItem as ClassData;
+      const trial = trials.find(t => t.id === cd.trialId);
+      return trial ? shows.find(s => s.id === trial.showId)?.id : undefined;
+    }
+    return undefined;
+  }, [showId, classItem, trials, shows]);
   const { autoFill: requirementsAutoFill } = useClassRequirements({
     element: classItem?.element || '',
     level: classItem?.level || '',

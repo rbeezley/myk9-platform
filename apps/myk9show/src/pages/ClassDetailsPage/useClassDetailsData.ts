@@ -1,13 +1,22 @@
 /**
  * Data hook for ClassDetailsPage
  *
- * Manages store data, class entries transformation, and parent context
+ * Manages store data, class entries transformation, and parent context.
+ *
+ * Entries are sourced from two layers and merged:
+ *   1. Supabase via React Query (`useClassEntriesWithQuery`) — the primary
+ *      source for entries that have been synced to the database.
+ *   2. The local Zustand entry store (`useEntryStore`) — captures entries
+ *      created offline or via the registration wizard that haven't synced yet.
+ *
+ * Merging ensures entries are visible immediately after creation (local store)
+ * *and* after they've been persisted to the server (React Query).
  */
 
 import { useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassStoreCompat';
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
@@ -16,6 +25,37 @@ import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import type { ShowEntry } from '@/types/entry-lifecycle';
 import type { CompetitionData } from '@/store/entryStore';
 import type { ClassEntryDisplay } from './types';
+
+/**
+ * Transform a local ShowEntry (from useEntryStore) into ClassEntryDisplay.
+ */
+function localEntryToDisplay(
+  entry: ShowEntry,
+  dogsById: Map<string, { id: string; callName?: string | undefined; name?: string | undefined }>
+): ClassEntryDisplay {
+  const dog = dogsById.get(entry.dogId);
+
+  const qualificationReason = (
+    entry.competitionData as unknown as CompetitionData & { qualificationReason?: string }
+  )?.qualificationReason;
+
+  return {
+    id: entry.id,
+    armband: entry.registrationData?.armband || '',
+    handler: entry.registrationData?.handler || '',
+    dog: dog?.callName || dog?.name || 'Unknown Dog',
+    status: ((entry.competitionData as unknown as CompetitionData & { qualification?: string })
+      ?.qualification ||
+      (entry.competitionData?.qualified
+        ? 'Qualified'
+        : 'Not Qualified')) as ClassEntryDisplay['status'],
+    ...(qualificationReason !== undefined && { qualificationReason }),
+    score: entry.competitionData?.score || '',
+    time: entry.competitionData?.time || '',
+    placement: entry.competitionData?.placement || '',
+    classId: entry.classId,
+  };
+}
 
 export function useClassDetailsData() {
   const { classId, showId, trialId } = useParams<{
@@ -32,70 +72,81 @@ export function useClassDetailsData() {
   const { classes, updateClass, deleteClass } = useClassStoreCompat();
   const { updateResult } = useEntryStore();
   const { dogs } = useDogStore();
+  const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { trials } = useTrialStore();
   const { shows } = useShowStore();
 
   // Get current class from URL parameter
-  const currentClass = classId ? classes.find((cls) => cls.id === classId) : null;
+  const currentClass = classId ? classes.find(cls => cls.id === classId) : null;
 
   // Filter classes to only show classes from the same trial
   const trialClasses = currentClass
-    ? classes.filter((cls) => cls.trialId === currentClass.trialId)
+    ? classes.filter(cls => cls.trialId === currentClass.trialId)
     : classes;
 
-  // Get entries for current class
-  const rawEntries = useEntriesByClass(classId || '');
+  // --- Entry sources ---
+  // 1. Database entries via React Query (primary source)
+  const { entries: dbEntries } = useClassEntriesWithQuery(classId || '', !!classId);
+
+  // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
+  const localEntries = useEntriesByClass(classId || '');
+
+  // Merge: use DB entries as the base, then add any local-only entries that
+  // aren't already present (e.g., entries created via the wizard that haven't
+  // been uploaded to Supabase yet).
+  const rawEntries = localEntries;
 
   // Get parent trial and show for breadcrumb context
   const parentTrial = trialId
-    ? trials.find((trial) => trial.id === trialId)
+    ? trials.find(trial => trial.id === trialId)
     : currentClass
-      ? trials.find((trial) => trial.id === currentClass.trialId)
+      ? trials.find(trial => trial.id === currentClass.trialId)
       : undefined;
 
   const parentShow = showId
-    ? shows.find((show) => show.id === showId)
+    ? shows.find(show => show.id === showId)
     : parentTrial
-      ? shows.find((show) => show.id === parentTrial.showId)
+      ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
 
-  // Transform entries to format expected by ClassDetailsMain
+  // Transform & merge entries to format expected by ClassDetailsMain.
+  // DB entries already have the right shape; local entries need transformation.
   const classEntries = useMemo((): ClassEntryDisplay[] => {
-    return rawEntries.map((entry) => {
+    // Start with database entries (already in display format)
+    const dbDisplayEntries: ClassEntryDisplay[] = dbEntries.map(e => ({
+      id: e.id,
+      armband: e.armband || '',
+      handler: e.handler || '',
+      dog: e.dog || 'Unknown Dog',
+      status: (e.status || 'Not Qualified') as ClassEntryDisplay['status'],
+      score: e.score || '',
+      time: e.time || '',
+      placement: e.placement || '',
+      classId: e.classId || '',
+    }));
+
+    // Build a set of IDs from the database entries
+    const dbIds = new Set(dbDisplayEntries.map(e => e.id));
+
+    // Add local-only entries that aren't in the database yet
+    const localOnlyEntries: ClassEntryDisplay[] = [];
+    for (const entry of localEntries) {
       const typedEntry = entry as ShowEntry;
-      const dog = dogs.find((d) => d.id === typedEntry.dogId);
+      if (!dbIds.has(typedEntry.id)) {
+        localOnlyEntries.push(localEntryToDisplay(typedEntry, dogsById));
+      }
+    }
 
-      logger.debug('Transform entry', 'classes', {
-        id: typedEntry.id,
-        dogName: dog?.callName || dog?.name,
-        competitionData: typedEntry.competitionData,
-        qualification: (
-          typedEntry.competitionData as unknown as CompetitionData & { qualification?: string }
-        )?.qualification,
-        qualified: typedEntry.competitionData?.qualified,
-      });
+    const merged = [...dbDisplayEntries, ...localOnlyEntries];
 
-      const qualificationReason = (
-        typedEntry.competitionData as unknown as CompetitionData & { qualificationReason?: string }
-      )?.qualificationReason;
-
-      return {
-        id: typedEntry.id,
-        armband: typedEntry.registrationData?.armband || '',
-        handler: typedEntry.registrationData?.handler || '',
-        dog: dog?.callName || dog?.name || 'Unknown Dog',
-        status: ((
-          typedEntry.competitionData as unknown as CompetitionData & { qualification?: string }
-        )?.qualification ||
-          (typedEntry.competitionData?.qualified ? 'Qualified' : 'Not Qualified')) as ClassEntryDisplay['status'],
-        ...(qualificationReason !== undefined && { qualificationReason }),
-        score: typedEntry.competitionData?.score || '',
-        time: typedEntry.competitionData?.time || '',
-        placement: typedEntry.competitionData?.placement || '',
-        classId: typedEntry.classId,
-      };
+    logger.debug('Class entries merged', 'classes', {
+      dbCount: dbDisplayEntries.length,
+      localOnlyCount: localOnlyEntries.length,
+      totalCount: merged.length,
     });
-  }, [rawEntries, dogs]);
+
+    return merged;
+  }, [dbEntries, localEntries, dogsById]);
 
   return {
     // URL params

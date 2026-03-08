@@ -10,13 +10,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 // import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useOfflineEntryCreation } from '@/hooks/useOfflineEntryCreation';
 import { ClassSelectionData } from '@/types/show-registration-types';
@@ -53,31 +59,31 @@ interface ClassWithValidation {
     errors: Array<{ code: string; message: string; severity: 'error' | 'warning' | 'info' }>;
     warnings: Array<{ code: string; message: string; severity: 'error' | 'warning' | 'info' }>;
   } | null;
-  dogEligibility: Record<string, {
-    eligible: boolean;
-    reasons: string[];
-    warnings: string[];
-  }>;
+  dogEligibility: Record<
+    string,
+    {
+      eligible: boolean;
+      reasons: string[];
+      warnings: string[];
+    }
+  >;
 }
 
 export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps> = ({
   selectedDogs,
   classSelections,
   onSelectionChange,
-  showId
+  showId,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const { shows } = useShowStore();
-  const { 
-    checkLimits, 
-    getClassStats, 
-    validateEntry,
-    isValidating
-  } = useOfflineEntryCreation();
+  const { checkLimits, getClassStats, validateEntry, isValidating } = useOfflineEntryCreation();
 
   const [classesWithValidation, setClassesWithValidation] = useState<ClassWithValidation[]>([]);
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
-  const [validationCache, setValidationCache] = useState<Map<string, { eligible: boolean; reasons: string[]; warnings: string[] }>>(new Map());
+  const [validationCache, setValidationCache] = useState<
+    Map<string, { eligible: boolean; reasons: string[]; warnings: string[] }>
+  >(new Map());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const show = shows.find(s => s.id === showId);
@@ -85,88 +91,92 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
   // Memoize classes data to prevent unnecessary re-renders
   const classesData = useMemo(() => {
     if (!show?.trials) return [];
-    
+
     const classes: ClassWithValidation[] = [];
-    
+
     show.trials.forEach(trial => {
       trial.classes?.forEach(classData => {
         const stats = getClassStats(classData.id);
-        
+
         classes.push({
           classData,
           trial: {
             id: trial.id,
             name: trial.name,
-            date: trial.date
+            date: trial.date,
           },
           stats,
           validation: null,
-          dogEligibility: {}
+          dogEligibility: {},
         });
       });
     });
-    
+
     return classes;
   }, [show, getClassStats]);
 
   // Validate eligibility for each dog-class combination
-  const validateDogClassEligibility = useCallback(async (
-    dogId: string,
-    classData: Class
-  ): Promise<{ eligible: boolean; reasons: string[]; warnings: string[] }> => {
-    const cacheKey = `${dogId}-${classData.id}`;
-    const cached = validationCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
+  const validateDogClassEligibility = useCallback(
+    async (
+      dogId: string,
+      classData: Class
+    ): Promise<{ eligible: boolean; reasons: string[]; warnings: string[] }> => {
+      const cacheKey = `${dogId}-${classData.id}`;
+      const cached = validationCache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
 
-    try {
-      const dog = dogs.find(d => d.id === dogId);
-      if (!dog) return { eligible: false, reasons: ['Dog not found'], warnings: [] };
+      try {
+        const dog = dogs.find(d => d.id === dogId);
+        if (!dog) return { eligible: false, reasons: ['Dog not found'], warnings: [] };
 
-      // Create mock entry data for validation
-      const mockEntryData = {
-        showId,
-        classId: classData.id,
-        dogId,
-        registrationData: {
-          submittedAt: new Date().toISOString(),
-          handler: dog.ownerName || 'Unknown Handler',
-          handlerId: dog.ownerId,
-          entryFee: classData.entryFee || 0,
-          paymentStatus: 'pending' as const
-        }
-      };
+        // Create mock entry data for validation
+        const mockEntryData = {
+          showId,
+          classId: classData.id,
+          dogId,
+          registrationData: {
+            submittedAt: new Date().toISOString(),
+            handler: dog.ownerName || 'Unknown Handler',
+            handlerId: dog.ownerId,
+            entryFee: classData.entryFee || 0,
+            paymentStatus: 'pending' as const,
+          },
+        };
 
-      const [limitCheck, validation] = await Promise.all([
-        checkLimits(mockEntryData),
-        validateEntry(mockEntryData)
-      ]);
+        const [limitCheck, validation] = await Promise.all([
+          checkLimits(mockEntryData),
+          validateEntry(mockEntryData),
+        ]);
 
-      const result = {
-        eligible: limitCheck.isAllowed && validation.success,
-        reasons: [
-          ...limitCheck.errors.map(e => e.message),
-          ...validation.errors.map(e => e.message)
-        ],
-        warnings: [
-          ...limitCheck.warnings.map(w => w.message),
-          ...validation.warnings.map(w => w.message)
-        ]
-      };
+        const result = {
+          eligible: limitCheck.isAllowed && validation.success,
+          reasons: [
+            ...limitCheck.errors.map(e => e.message),
+            ...validation.errors.map(e => e.message),
+          ],
+          warnings: [
+            ...limitCheck.warnings.map(w => w.message),
+            ...validation.warnings.map(w => w.message),
+          ],
+        };
 
-      // Cache the result
-      setValidationCache(prev => new Map(prev).set(cacheKey, result));
-      
-      return result;
-    } catch {  // Removed unused parameter
-      return {
-        eligible: false,
-        reasons: ['Validation error'],
-        warnings: []
-      };
-    }
-  }, [dogs, showId, checkLimits, validateEntry, validationCache]);
+        // Cache the result
+        setValidationCache(prev => new Map(prev).set(cacheKey, result));
+
+        return result;
+      } catch {
+        // Removed unused parameter
+        return {
+          eligible: false,
+          reasons: ['Validation error'],
+          warnings: [],
+        };
+      }
+    },
+    [dogs, showId, checkLimits, validateEntry, validationCache]
+  );
 
   // Update classes with validation data
   useEffect(() => {
@@ -179,16 +189,19 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
       setIsRefreshing(true);
 
       const updatedClasses = await Promise.all(
-        classesData.map(async (classWithTrial) => {
-          const dogEligibility: Record<string, {
-            eligible: boolean;
-            reasons: string[];
-            warnings: string[];
-          }> = {};
+        classesData.map(async classWithTrial => {
+          const dogEligibility: Record<
+            string,
+            {
+              eligible: boolean;
+              reasons: string[];
+              warnings: string[];
+            }
+          > = {};
 
           // Check eligibility for each selected dog
           await Promise.all(
-            selectedDogs.map(async (dogId) => {
+            selectedDogs.map(async dogId => {
               dogEligibility[dogId] = await validateDogClassEligibility(
                 dogId,
                 classWithTrial.classData
@@ -198,7 +211,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
 
           return {
             ...classWithTrial,
-            dogEligibility
+            dogEligibility,
           };
         })
       );
@@ -215,51 +228,59 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
   };
 
   const getSelectionForDog = (dogId: string): ClassSelectionData => {
-    return classSelections.find(s => s.dogId === dogId) || {
-      dogId,
-      trialId: '',
-      selectedClasses: []
-    };
+    return (
+      classSelections.find(s => s.dogId === dogId) || {
+        dogId,
+        trialId: '',
+        selectedClasses: [],
+      }
+    );
   };
 
-  const handleClassToggle = useCallback((dogId: string, trialId: string, classId: string) => {
-    const updatedSelections = [...classSelections];
-    let dogSelection = updatedSelections.find(s => s.dogId === dogId);
+  const handleClassToggle = useCallback(
+    (dogId: string, trialId: string, classId: string) => {
+      const updatedSelections = [...classSelections];
+      let dogSelection = updatedSelections.find(s => s.dogId === dogId);
 
-    if (!dogSelection) {
-      dogSelection = { dogId, trialId, selectedClasses: [] };
-      updatedSelections.push(dogSelection);
-    }
-
-    const classIndex = dogSelection.selectedClasses.findIndex(c => c.classId === classId);
-    
-    if (classIndex >= 0) {
-      // Remove class
-      dogSelection.selectedClasses.splice(classIndex, 1);
-    } else {
-      // Add class
-      dogSelection.selectedClasses.push({ classId });
-      dogSelection.trialId = trialId; // Update trial ID
-    }
-
-    // Remove empty selections
-    const filteredSelections = updatedSelections.filter(s => s.selectedClasses.length > 0);
-    
-    onSelectionChange(filteredSelections);
-  }, [classSelections, onSelectionChange]);
-
-  const handleJumpHeightChange = useCallback((dogId: string, classId: string, jumpHeight: string) => {
-    const updatedSelections = [...classSelections];
-    const dogSelection = updatedSelections.find(s => s.dogId === dogId);
-    
-    if (dogSelection) {
-      const classSelection = dogSelection.selectedClasses.find(c => c.classId === classId);
-      if (classSelection) {
-        classSelection.jumpHeight = jumpHeight;
-        onSelectionChange(updatedSelections);
+      if (!dogSelection) {
+        dogSelection = { dogId, trialId, selectedClasses: [] };
+        updatedSelections.push(dogSelection);
       }
-    }
-  }, [classSelections, onSelectionChange]);
+
+      const classIndex = dogSelection.selectedClasses.findIndex(c => c.classId === classId);
+
+      if (classIndex >= 0) {
+        // Remove class
+        dogSelection.selectedClasses.splice(classIndex, 1);
+      } else {
+        // Add class
+        dogSelection.selectedClasses.push({ classId });
+        dogSelection.trialId = trialId; // Update trial ID
+      }
+
+      // Remove empty selections
+      const filteredSelections = updatedSelections.filter(s => s.selectedClasses.length > 0);
+
+      onSelectionChange(filteredSelections);
+    },
+    [classSelections, onSelectionChange]
+  );
+
+  const handleJumpHeightChange = useCallback(
+    (dogId: string, classId: string, jumpHeight: string) => {
+      const updatedSelections = [...classSelections];
+      const dogSelection = updatedSelections.find(s => s.dogId === dogId);
+
+      if (dogSelection) {
+        const classSelection = dogSelection.selectedClasses.find(c => c.classId === classId);
+        if (classSelection) {
+          classSelection.jumpHeight = jumpHeight;
+          onSelectionChange(updatedSelections);
+        }
+      }
+    },
+    [classSelections, onSelectionChange]
+  );
 
   const isClassSelected = (dogId: string, classId: string): boolean => {
     const dogSelection = getSelectionForDog(dogId);
@@ -287,7 +308,10 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
     );
   };
 
-  const renderEligibilityStatus = (_dogId: string, eligibility: { eligible: boolean; warnings: string[]; reasons: string[] }) => {
+  const renderEligibilityStatus = (
+    _dogId: string,
+    eligibility: { eligible: boolean; warnings: string[]; reasons: string[] }
+  ) => {
     if (eligibility.eligible) {
       return (
         <TooltipProvider>
@@ -300,7 +324,9 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
               {eligibility.warnings.length > 0 && (
                 <div className="mt-1">
                   {eligibility.warnings.map((warning, idx) => (
-                    <p key={idx} className="text-xs text-yellow-600">{warning}</p>
+                    <p key={idx} className="text-xs text-yellow-600">
+                      {warning}
+                    </p>
                   ))}
                 </div>
               )}
@@ -320,7 +346,9 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
             <p>Not eligible</p>
             <div className="mt-1">
               {eligibility.reasons.map((reason: string, idx: number) => (
-                <p key={idx} className="text-xs text-red-600">{reason}</p>
+                <p key={idx} className="text-xs text-red-600">
+                  {reason}
+                </p>
               ))}
             </div>
           </TooltipContent>
@@ -341,9 +369,9 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
       <Card
         key={classData.id}
         className={cn(
-          "transition-all duration-200 cursor-pointer hover:shadow-md",
-          isSelected && "ring-2 ring-primary bg-primary/5",
-          !eligibility.eligible && "opacity-60"
+          'transition-all duration-200 cursor-pointer hover:shadow-md',
+          isSelected && 'ring-2 ring-primary bg-primary/5',
+          !eligibility.eligible && 'opacity-60'
         )}
         onClick={() => {
           if (eligibility.eligible || stats.isFull) {
@@ -360,18 +388,16 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
                   disabled={!eligibility.eligible && !stats.isFull}
                   onChange={() => {}}
                 />
-                <CardTitle className="text-sm font-medium">
-                  {classData.name}
-                </CardTitle>
+                <CardTitle className="text-sm font-medium">{classData.name}</CardTitle>
                 {renderEligibilityStatus(dogId, eligibility)}
               </div>
-              
+
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {trial.name} - {trial.date}
                 </div>
-                
+
                 {classData.entryFee && (
                   <div className="flex items-center gap-1">
                     <DollarSign className="h-3 w-3" />
@@ -380,16 +406,16 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
                 )}
               </div>
             </div>
-            
+
             <div className="flex flex-col items-end gap-1">
               {renderCapacityIndicator(stats)}
-              
+
               {stats.isFull && (
                 <Badge variant="destructive" className="text-xs">
                   Full
                 </Badge>
               )}
-              
+
               {eligibility.warnings.length > 0 && (
                 <Badge variant="outline" className="text-xs text-yellow-600">
                   <AlertTriangle className="h-3 w-3 mr-1" />
@@ -412,14 +438,17 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
             <div className="space-y-2">
               <Label className="text-xs font-medium">Jump Height</Label>
               <Select
-                value={getSelectionForDog(dogId).selectedClasses.find(c => c.classId === classData.id)?.jumpHeight || ''}
-                onValueChange={(value) => handleJumpHeightChange(dogId, classData.id, value)}
+                value={
+                  getSelectionForDog(dogId).selectedClasses.find(c => c.classId === classData.id)
+                    ?.jumpHeight || ''
+                }
+                onValueChange={value => handleJumpHeightChange(dogId, classData.id, value)}
               >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Select height" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classData.jumpHeights.map((height) => (
+                  {classData.jumpHeights.map(height => (
                     <SelectItem key={height} value={height} className="text-xs">
                       {height}
                     </SelectItem>
@@ -447,7 +476,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
       if (!trialGroups.has(trialId)) {
         trialGroups.set(trialId, {
           trial: classWithTrial.trial,
-          classes: []
+          classes: [],
         });
       }
       trialGroups.get(trialId).classes.push(classWithTrial);
@@ -463,12 +492,15 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
               {dog.breed} • {selectedCount} class{selectedCount !== 1 ? 'es' : ''} selected
             </p>
           </div>
-          
+
           {selectedCount > 0 && (
             <Badge variant="secondary">
-              Total: {formatCurrency(
+              Total:{' '}
+              {formatCurrency(
                 dogSelections.selectedClasses.reduce((sum, selection) => {
-                  const classData = classesWithValidation.find(c => c.classData.id === selection.classId)?.classData;
+                  const classData = classesWithValidation.find(
+                    c => c.classData.id === selection.classId
+                  )?.classData;
                   return sum + (classData?.entryFee || 0);
                 }, 0)
               )}
@@ -486,9 +518,9 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
                   {trial.date}
                 </Badge>
               </h4>
-              
+
               <div className="grid gap-3">
-                {classes.map((classWithTrial: ClassWithValidation) => 
+                {classes.map((classWithTrial: ClassWithValidation) =>
                   renderClassCard(classWithTrial, dogId)
                 )}
               </div>
@@ -505,9 +537,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
       <div className="flex items-center justify-center p-8">
         <div className="text-center space-y-2">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-sm text-muted-foreground">
-            Validating class eligibility...
-          </p>
+          <p className="text-sm text-muted-foreground">Validating class eligibility...</p>
         </div>
       </div>
     );
@@ -528,9 +558,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
     return (
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertDescription>
-          Please select dogs first before choosing classes.
-        </AlertDescription>
+        <AlertDescription>Please select dogs first before choosing classes.</AlertDescription>
       </Alert>
     );
   }
@@ -545,7 +573,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
             Choose classes for each selected dog. Real-time validation is provided.
           </p>
         </div>
-        
+
         <Button
           variant="outline"
           size="sm"
@@ -561,11 +589,14 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
 
       {/* Dog tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${selectedDogs.length}, 1fr)` }}>
+        <TabsList
+          className="grid w-full"
+          style={{ gridTemplateColumns: `repeat(${selectedDogs.length}, 1fr)` }}
+        >
           {selectedDogs.map(dogId => {
             const dog = getDogById(dogId);
             const selections = getSelectionForDog(dogId);
-            
+
             return (
               <TabsTrigger key={dogId} value={dogId} className="text-xs">
                 {dog?.name}

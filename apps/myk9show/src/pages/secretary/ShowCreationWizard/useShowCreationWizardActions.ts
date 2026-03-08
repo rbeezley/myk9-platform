@@ -20,6 +20,7 @@ import {
 import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { rbacService } from '@/services/rbac';
 import { UserRole } from '@/types/auth-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
@@ -84,6 +85,7 @@ export function useShowCreationWizardActions({
   const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
   const { classes: existingDBClasses } = useClassStoreCompat();
   const { user } = useAuthContext();
+  const { triggerSync } = useReplicationSync();
 
   /**
    * Create trials in the trial store
@@ -257,9 +259,6 @@ export function useShowCreationWizardActions({
         // Create classes using the real trial UUIDs (await for offline-first storage)
         await createClasses(realShowId, trialIdMap);
 
-        // Trigger immediate sync to upload show/trial/class data to Supabase
-        window.dispatchEvent(new CustomEvent('replication:sync-requested'));
-
         // Auto-grant secretary role to the assigned secretary (fire-and-forget)
         if (show.secretary && show.clubId) {
           rbacService
@@ -271,14 +270,30 @@ export function useShowCreationWizardActions({
             );
         }
 
-        // Seed React Query cache so ShowDetailsPage finds the show immediately
-        // (addShow writes to IndexedDB/Zustand but the detail page reads from React Query)
+        // Seed React Query cache so pages find the show immediately while sync runs
         queryClient.setQueryData<Show>(showQueryKeys.detail(realShowId), savedShow);
         queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
           if (!old) return [savedShow];
           const exists = old.some(s => s.id === realShowId);
           return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
         });
+
+        // Sync to Supabase so the show is persisted before navigating away.
+        // triggerSync uploads pending mutations (Phase 1), then downloads fresh
+        // data (Phase 2), then invalidates React Query caches. Awaiting it
+        // ensures the show exists in Supabase before any query refetch runs,
+        // preventing the seeded cache from being overwritten with stale server
+        // data that doesn't include the new show.
+        try {
+          await triggerSync();
+        } catch (syncError) {
+          // Sync failed — the seeded React Query cache still has the show, so
+          // the user will see it on the next navigation. It will be uploaded on
+          // the next automatic sync cycle.
+          logger.warn('Post-create sync failed, show may not appear until next sync', 'wizard', {
+            error: syncError instanceof Error ? syncError.message : String(syncError),
+          });
+        }
 
         // Save progress to wizard store if draft
         if (status === 'draft') {
@@ -330,6 +345,7 @@ export function useShowCreationWizardActions({
       resetWizard,
       navigate,
       queryClient,
+      triggerSync,
       setIsLoading,
     ]
   );

@@ -1,6 +1,6 @@
 /**
  * Secretary Class Dashboard Component
- * 
+ *
  * Main dashboard for secretaries to manage class results, including:
  * - Class overview and entry statistics
  * - Results grid with inline editing
@@ -9,12 +9,22 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Clock, Users, Award, FileText, Download, Calculator, ArrowLeft, Play, Check } from 'lucide-react';
+import {
+  Clock,
+  Users,
+  Award,
+  FileText,
+  Download,
+  Calculator,
+  ArrowLeft,
+  Play,
+  Check,
+} from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 
 // Add imports for the same data stores ClassDetailsPage uses
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassStoreCompat';
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
@@ -39,12 +49,12 @@ import { PlacementCalculator } from './PlacementCalculator';
 import '@/styles/myk9-show-details.css';
 
 // Types
-import type { 
-  ScentWorkEntry, 
-  ScentWorkResult, 
+import type {
+  ScentWorkEntry,
+  ScentWorkResult,
   MultiAreaScentWorkResult,
   ScentWorkClassConfig,
-  QualificationStatus 
+  QualificationStatus,
 } from '@/types/scent-work-types';
 
 export interface SecretaryClassDashboardProps {
@@ -73,73 +83,83 @@ export function SecretaryClassDashboard({
   entries: propEntries,
   results: propResults,
   onCalculatePlacements,
-  onExportResults
+  onExportResults,
 }: SecretaryClassDashboardProps) {
   // Get route parameters
   const navigate = useNavigate();
   const { showId, trialId, classId: urlClassId } = useParams();
-  
+
   // Use URL classId if available, otherwise fall back to prop
   const activeClassId = urlClassId || propClassId;
 
   // Connect to the same data stores as ClassDetailsPage
   const { classes } = useClassStoreCompat();
   const { dogs } = useDogStore();
+  const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { updateResult } = useEntryStore();
   const { shows } = useShowStore();
   const { trials } = useTrialStore();
   const { user } = useAuthContext();
-  
+
   // Get current class, trial, and show data
   const currentClass = activeClassId ? classes.find(cls => cls.id === activeClassId) : null;
   const currentTrial = trialId ? trials.find(trial => trial.id === trialId) : null;
   const currentShow = showId ? shows.find(show => show.id === showId) : null;
-  
+
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'class',
     show: currentShow || undefined,
     trial: currentTrial || undefined,
-    classId: activeClassId || undefined
+    classId: activeClassId || undefined,
   });
-  
-  // Get entries for current class using the same hook as ClassDetailsPage
-  const rawEntries = useEntriesByClass(activeClassId || '');
-  
-  // Debug: Log when rawEntries change
+
+  // --- Entry sources ---
+  // 1. Database entries via React Query (primary source)
+  const { entries: dbEntries } = useClassEntriesWithQuery(activeClassId || '', !!activeClassId);
+
+  // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
+  const localEntries = useEntriesByClass(activeClassId || '');
+
+  // Merge: local entries are used as-is (they have full ShowEntry data);
+  // local-only entries not yet in DB are included automatically.
+  // The rawEntries is just localEntries — dedup with DB happens in actualEntries.
+  const rawEntries = localEntries;
+
+  // Debug: Log entry counts when sources change
   useEffect(() => {
-    logger.debug('SecretaryClassDashboard rawEntries changed', 'secretary', { count: rawEntries.length, entries: rawEntries.map((e: unknown) => {
-      const entry = e as ShowEntry & { updatedAt?: string; competitionData?: CompetitionData };
-      return { id: entry.id, updatedAt: entry.updatedAt, time: entry.competitionData?.time };
-    }) });
-  }, [rawEntries]);
-  
+    logger.debug('SecretaryClassDashboard entry sources', 'secretary', {
+      dbCount: dbEntries.length,
+      localCount: localEntries.length,
+    });
+  }, [dbEntries.length, localEntries.length]);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [isCalculatingPlacements, setIsCalculatingPlacements] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   // Mock data when not provided via props - wrapped in useMemo
-  const classConfig = useMemo(() => propClassConfig || {
-    element: 'Interior' as const,
-    level: 'Novice' as const,
-    timeLimit: 180000,
-    multiArea: false,
-    warningsEnabled: true
-  }, [propClassConfig]);
-  
-  // Transform entries to the format expected by this component (ScentWorkEntry)
-  const actualEntries = useMemo(() => {
-    return rawEntries.map(entry => {
-      const typedEntry = entry as ShowEntry;
-      const dog = dogs.find(d => d.id === typedEntry.dogId);
-      
-      // Safely access nested properties
+  const classConfig = useMemo(
+    () =>
+      propClassConfig || {
+        element: 'Interior' as const,
+        level: 'Novice' as const,
+        timeLimit: 180000,
+        multiArea: false,
+        warningsEnabled: true,
+      },
+    [propClassConfig]
+  );
+
+  // Helper: transform a local ShowEntry into ScentWorkEntry shape
+  const toScentWorkEntry = useCallback(
+    (typedEntry: ShowEntry) => {
+      const dog = dogsById.get(typedEntry.dogId);
       const registrationData = (typedEntry.registrationData || {}) as Record<string, unknown>;
-      const competitionData = typedEntry.competitionData || {} as CompetitionData;
-      
-      // Create ScentWorkEntry with proper structure
-      const scentWorkEntry = {
-        ...typedEntry, // Include all ShowEntry properties
+      const competitionData = typedEntry.competitionData || ({} as CompetitionData);
+
+      return {
+        ...typedEntry,
         classConfig: classConfig,
         displayInfo: {
           armband: registrationData.armband || '',
@@ -147,35 +167,98 @@ export function SecretaryClassDashboard({
           dogBreed: dog?.registrations?.[0]?.breed || 'Unknown Breed',
           handlerName: registrationData.handler || 'Unknown Handler',
           dogId: typedEntry.dogId || '',
-          handlerId: registrationData.handlerId || ''
+          handlerId: registrationData.handlerId || '',
         },
         judgingState: {
           isInProgress: false,
-          currentResult: competitionData.score || competitionData.time ? {
-            entryId: typedEntry.id,
-            classId: activeClassId || '',
-            searchTime: competitionData.score ? parseFloat(competitionData.score) * 1000 : 0, // Convert seconds to ms
-            maxTimeAllowed: classConfig.timeLimit,
-            qualification: (competitionData.qualified === true ? 'Qualified' : 
-                          competitionData.qualified === false ? 'Not Qualified' : 'Not Qualified') as QualificationStatus,
-            faults: 0,
-            judgeNotes: competitionData.judgeNotes || '',
-            recordedBy: competitionData.recordedBy || 'System',
-            recordedAt: new Date((competitionData as CompetitionData).recordedAt || Date.now())
-          } : undefined
-        }
+          currentResult:
+            competitionData.score || competitionData.time
+              ? {
+                  entryId: typedEntry.id,
+                  classId: activeClassId || '',
+                  searchTime: competitionData.score ? parseFloat(competitionData.score) * 1000 : 0,
+                  maxTimeAllowed: classConfig.timeLimit,
+                  qualification: (competitionData.qualified === true
+                    ? 'Qualified'
+                    : competitionData.qualified === false
+                      ? 'Not Qualified'
+                      : 'Not Qualified') as QualificationStatus,
+                  faults: 0,
+                  judgeNotes: competitionData.judgeNotes || '',
+                  recordedBy: competitionData.recordedBy || 'System',
+                  recordedAt: new Date(
+                    (competitionData as CompetitionData).recordedAt || Date.now()
+                  ),
+                }
+              : undefined,
+        },
       };
-      
-      return scentWorkEntry;
-    });
-  }, [rawEntries, dogs, classConfig, activeClassId]);
+    },
+    [dogsById, classConfig, activeClassId]
+  );
+
+  // Transform entries to the format expected by this component (ScentWorkEntry).
+  // Merge: local entries first (transformed from ShowEntry), then DB-only entries
+  // that aren't in the local store yet (transformed from DB display format).
+  const actualEntries = useMemo(() => {
+    // Transform local entries
+    const localScentWork = rawEntries.map(entry => toScentWorkEntry(entry as ShowEntry));
+    const localIds = new Set(rawEntries.map(e => (e as ShowEntry).id));
+
+    // Add DB-only entries not present locally
+    const dbOnlyEntries = dbEntries
+      .filter(e => !localIds.has(e.id))
+      .map(e => ({
+        id: e.id,
+        classId: e.classId || activeClassId || '',
+        dogId: '',
+        showId: '',
+        status: 'submitted' as const,
+        statusHistory: [],
+        createdAt: '',
+        updatedAt: '',
+        registrationData: {
+          submittedAt: '',
+          handler: e.handler || '',
+          entryFee: 0,
+          paymentStatus: 'pending' as const,
+        },
+        competitionData: {
+          score: e.score || '',
+          time: e.time || '',
+          qualified: e.status === 'Qualified',
+          placement: e.placement || '',
+          recordedAt: '',
+          recordedBy: 'System',
+        },
+        classConfig: classConfig,
+        displayInfo: {
+          armband: e.armband || '',
+          dogName: e.dog || 'Unknown Dog',
+          dogBreed: 'Unknown Breed',
+          handlerName: e.handler || 'Unknown Handler',
+          dogId: '',
+          handlerId: '',
+        },
+        judgingState: {
+          isInProgress: false,
+          currentResult: undefined,
+        },
+      }));
+
+    return [...localScentWork, ...dbOnlyEntries];
+  }, [rawEntries, dbEntries, toScentWorkEntry, classConfig, activeClassId]);
 
   const classInfo = propClassInfo || {
-    name: currentClass ? `${currentClass.element} ${currentClass.level} ${currentClass.section}` : 'Interior Novice A',
+    name: currentClass
+      ? `${currentClass.element} ${currentClass.level} ${currentClass.section}`
+      : 'Interior Novice A',
     judgeAssignment: currentClass?.judge || 'Jane Doe',
     scheduledTime: currentClass?.startTime ? new Date(currentClass.startTime) : new Date(),
     ring: 'Ring 1',
-    status: (currentClass?.status?.toLowerCase() === 'in progress' ? 'in-progress' : 'pending') as 'in-progress' | 'pending'
+    status: (currentClass?.status?.toLowerCase() === 'in progress' ? 'in-progress' : 'pending') as
+      | 'in-progress'
+      | 'pending',
   };
 
   // Use actual entries from the store, fallback to props if provided
@@ -190,36 +273,50 @@ export function SecretaryClassDashboard({
   }, [navigate, showId, trialId, activeClassId]);
 
   // Result update handler - saves results to entry store
-  const handleResultUpdate = useCallback(async (entryId: string, result: ScentWorkResult | MultiAreaScentWorkResult) => {
-    try {
-      // Find the entry to update
-      const entryToUpdate = rawEntries.find(entry => (entry as ShowEntry).id === entryId) as ShowEntry;
-      if (!entryToUpdate) {
-        logger.error('Entry not found', 'secretary', { entryId });
-        return;
+  const handleResultUpdate = useCallback(
+    async (entryId: string, result: ScentWorkResult | MultiAreaScentWorkResult) => {
+      try {
+        // Find the entry to update
+        const entryToUpdate = rawEntries.find(
+          entry => (entry as ShowEntry).id === entryId
+        ) as ShowEntry;
+        if (!entryToUpdate) {
+          logger.error('Entry not found', 'secretary', { entryId });
+          return;
+        }
+
+        // Save to store using updateResult method
+        const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
+        const competitionData: CompetitionData = {
+          score: searchTime ? (searchTime / 1000).toString() : '',
+          time: searchTime ? formatTime(searchTime) : '',
+          qualified: result.qualification === 'Qualified',
+          qualification: result.qualification, // Save the specific qualification status
+          faults: ('faults' in result ? result.faults : result.totalFaults) || 0,
+          placement:
+            (
+              result as ScentWorkResult & { placementCalculated?: number }
+            ).placementCalculated?.toString() || '',
+          judgeNotes: result.judgeNotes || '',
+          recordedBy: 'Secretary',
+          recordedAt: new Date().toISOString(),
+        };
+
+        logger.debug('Saving result for entry', 'secretary', {
+          entryId,
+          time: competitionData.time,
+          qualified: competitionData.qualified,
+          qualification: competitionData.qualification,
+          faults: competitionData.faults,
+          notes: competitionData.judgeNotes,
+        });
+        await updateResult(entryId, competitionData, user?.id || 'unknown');
+      } catch (error) {
+        logger.error('Error saving result', 'secretary', { entryId }, error as Error);
       }
-
-      // Save to store using updateResult method
-      const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
-      const competitionData: CompetitionData = {
-        score: searchTime ? (searchTime / 1000).toString() : '',
-        time: searchTime ? formatTime(searchTime) : '',
-        qualified: result.qualification === 'Qualified',
-        qualification: result.qualification, // Save the specific qualification status
-        faults: ('faults' in result ? result.faults : result.totalFaults) || 0,
-        placement: (result as ScentWorkResult & { placementCalculated?: number }).placementCalculated?.toString() || '',
-        judgeNotes: result.judgeNotes || '',
-        recordedBy: 'Secretary',
-        recordedAt: new Date().toISOString()
-      };
-      
-      logger.debug('Saving result for entry', 'secretary', { entryId, time: competitionData.time, qualified: competitionData.qualified, qualification: competitionData.qualification, faults: competitionData.faults, notes: competitionData.judgeNotes });
-      await updateResult(entryId, competitionData, user?.id || 'unknown');
-
-    } catch (error) {
-      logger.error('Error saving result', 'secretary', { entryId }, error as Error);
-    }
-  }, [rawEntries, updateResult, user]);
+    },
+    [rawEntries, updateResult, user]
+  );
 
   // Helper function to format time from milliseconds to MM:SS.HH format
   const formatTime = (ms: number): string => {
@@ -231,27 +328,23 @@ export function SecretaryClassDashboard({
     return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
   };
 
-  // Calculate statistics
+  // Calculate statistics in a single pass
   const stats = useMemo(() => {
     const totalEntries = entries.length;
-    const completedResults = Array.from(results.values()).length;
-    const pendingResults = totalEntries - completedResults;
-    
-    // Count qualifications
-    const qualifiedCount = Array.from(results.values()).filter(
-      result => result.qualification === 'Qualified'
-    ).length;
-    
-    const nqCount = Array.from(results.values()).filter(
-      result => result.qualification === 'Not Qualified'
-    ).length;
-    
-    const absentCount = Array.from(results.values()).filter(
-      result => result.qualification === 'Absent'
-    ).length;
+    let qualifiedCount = 0;
+    let nqCount = 0;
+    let absentCount = 0;
 
-    // Calculate completion percentage
-    const completionPercentage = totalEntries > 0 ? Math.round((completedResults / totalEntries) * 100) : 0;
+    for (const result of results.values()) {
+      if (result.qualification === 'Qualified') qualifiedCount++;
+      else if (result.qualification === 'Not Qualified') nqCount++;
+      else if (result.qualification === 'Absent') absentCount++;
+    }
+
+    const completedResults = results.size;
+    const pendingResults = totalEntries - completedResults;
+    const completionPercentage =
+      totalEntries > 0 ? Math.round((completedResults / totalEntries) * 100) : 0;
 
     return {
       totalEntries,
@@ -260,7 +353,7 @@ export function SecretaryClassDashboard({
       qualifiedCount,
       nqCount,
       absentCount,
-      completionPercentage
+      completionPercentage,
     };
   }, [entries, results]);
 
@@ -283,44 +376,54 @@ export function SecretaryClassDashboard({
   }, [onCalculatePlacements]);
 
   // Handle CSV export
-  const handleExport = useCallback(async (format: 'csv' | 'pdf') => {
-    setIsExporting(true);
-    try {
-      if (onExportResults) {
-        await onExportResults(format);
-      } else {
-        // Default behavior: log action
-        logger.debug('Export results requested', 'secretary', { format });
-        await new Promise(resolve => setTimeout(resolve, 1000));
+  const handleExport = useCallback(
+    async (format: 'csv' | 'pdf') => {
+      setIsExporting(true);
+      try {
+        if (onExportResults) {
+          await onExportResults(format);
+        } else {
+          // Default behavior: log action
+          logger.debug('Export results requested', 'secretary', { format });
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        logger.error('Failed to export results', 'secretary', { format }, error as Error);
+      } finally {
+        setIsExporting(false);
       }
-    } catch (error) {
-      logger.error('Failed to export results', 'secretary', { format }, error as Error);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [onExportResults]);
+    },
+    [onExportResults]
+  );
 
   // Premium status helpers
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'pending': return 'myk9-show-status-upcoming';
-      case 'in-progress': 
-      case 'in progress': return 'myk9-show-status-in-progress';
-      case 'completed': return 'myk9-show-status-completed';
-      default: return 'myk9-show-status-upcoming';
+      case 'pending':
+        return 'myk9-show-status-upcoming';
+      case 'in-progress':
+      case 'in progress':
+        return 'myk9-show-status-in-progress';
+      case 'completed':
+        return 'myk9-show-status-completed';
+      default:
+        return 'myk9-show-status-upcoming';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'pending': return <Clock className="w-3 h-3" />;
+      case 'pending':
+        return <Clock className="w-3 h-3" />;
       case 'in-progress':
-      case 'in progress': return <Play className="w-3 h-3" />;
-      case 'completed': return <Check className="w-3 h-3" />;
-      default: return <Clock className="w-3 h-3" />;
+      case 'in progress':
+        return <Play className="w-3 h-3" />;
+      case 'completed':
+        return <Check className="w-3 h-3" />;
+      default:
+        return <Clock className="w-3 h-3" />;
     }
   };
-
 
   return (
     <div className="myk9-show-container">
@@ -331,13 +434,8 @@ export function SecretaryClassDashboard({
       <div className="myk9-show-info-card">
         <div className="myk9-show-info-header">
           <div className="flex items-center gap-4">
-            {(showId && trialId && activeClassId) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleExit}
-                className="myk9-action-button"
-              >
+            {showId && trialId && activeClassId && (
+              <Button variant="ghost" size="sm" onClick={handleExit} className="myk9-action-button">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
@@ -350,7 +448,8 @@ export function SecretaryClassDashboard({
                 </div>
               </div>
               <p className="text-sm font-medium text-muted-foreground mt-2">
-                {classConfig.element} {classConfig.level} • Ring {classInfo.ring} • Judge: {classInfo.judgeAssignment}
+                {classConfig.element} {classConfig.level} • Ring {classInfo.ring} • Judge:{' '}
+                {classInfo.judgeAssignment}
               </p>
             </div>
           </div>
@@ -398,7 +497,12 @@ export function SecretaryClassDashboard({
               <span>Entry</span>
             </div>
             <div className="myk9-show-stat-progress">
-              <div className="myk9-show-stat-progress-bar trials" style={{ width: `${stats.totalEntries > 0 ? Math.round((stats.pendingResults / stats.totalEntries) * 100) : 0}%` }}></div>
+              <div
+                className="myk9-show-stat-progress-bar trials"
+                style={{
+                  width: `${stats.totalEntries > 0 ? Math.round((stats.pendingResults / stats.totalEntries) * 100) : 0}%`,
+                }}
+              ></div>
             </div>
           </div>
 
@@ -419,7 +523,12 @@ export function SecretaryClassDashboard({
               <span>NQ: {stats.nqCount}</span>
             </div>
             <div className="myk9-show-stat-progress">
-              <div className="myk9-show-stat-progress-bar qualified" style={{ width: `${stats.totalEntries > 0 ? Math.round((stats.qualifiedCount / stats.totalEntries) * 100) : 0}%` }}></div>
+              <div
+                className="myk9-show-stat-progress-bar qualified"
+                style={{
+                  width: `${stats.totalEntries > 0 ? Math.round((stats.qualifiedCount / stats.totalEntries) * 100) : 0}%`,
+                }}
+              ></div>
             </div>
           </div>
 
@@ -440,7 +549,10 @@ export function SecretaryClassDashboard({
               <span>Total: {stats.totalEntries}</span>
             </div>
             <div className="myk9-show-stat-progress">
-              <div className="myk9-show-stat-progress-bar classes" style={{ width: `${stats.completionPercentage}%` }}></div>
+              <div
+                className="myk9-show-stat-progress-bar classes"
+                style={{ width: `${stats.completionPercentage}%` }}
+              ></div>
             </div>
           </div>
         </div>
@@ -458,7 +570,7 @@ export function SecretaryClassDashboard({
               <Calculator className="h-4 w-4" />
               <span>{isCalculatingPlacements ? 'Calculating...' : 'Calculate Placements'}</span>
             </Button>
-            
+
             <Button
               variant="outline"
               onClick={() => handleExport('csv')}
@@ -482,20 +594,20 @@ export function SecretaryClassDashboard({
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex items-center justify-between border-b border-border mb-6">
             <TabsList className="bg-transparent border-0 rounded-none p-0 h-auto gap-6 justify-start">
-              <TabsTrigger 
-                value="overview" 
+              <TabsTrigger
+                value="overview"
                 className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
               >
                 Overview
               </TabsTrigger>
-              <TabsTrigger 
-                value="bulk" 
+              <TabsTrigger
+                value="bulk"
                 className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
               >
                 Results Entry ({entries.length})
               </TabsTrigger>
-              <TabsTrigger 
-                value="placements" 
+              <TabsTrigger
+                value="placements"
                 className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
               >
                 Placements
@@ -521,15 +633,21 @@ export function SecretaryClassDashboard({
                   </div>
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Time Limit</div>
-                    <div className="myk9-show-info-value">{Math.floor(classConfig.timeLimit / 60000)}:00</div>
+                    <div className="myk9-show-info-value">
+                      {Math.floor(classConfig.timeLimit / 60000)}:00
+                    </div>
                   </div>
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Multi-Area</div>
-                    <div className="myk9-show-info-value">{classConfig.multiArea ? 'Yes' : 'No'}</div>
+                    <div className="myk9-show-info-value">
+                      {classConfig.multiArea ? 'Yes' : 'No'}
+                    </div>
                   </div>
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Scheduled</div>
-                    <div className="myk9-show-info-value">{classInfo.scheduledTime.toLocaleTimeString()}</div>
+                    <div className="myk9-show-info-value">
+                      {classInfo.scheduledTime.toLocaleTimeString()}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -546,7 +664,7 @@ export function SecretaryClassDashboard({
                       <span className="font-medium">{stats.completionPercentage}%</span>
                     </div>
                     <div className="myk9-show-stat-progress">
-                      <div 
+                      <div
                         className="myk9-show-stat-progress-bar classes"
                         style={{ width: `${stats.completionPercentage}%` }}
                       />
@@ -584,7 +702,7 @@ export function SecretaryClassDashboard({
             <BulkResultEntry
               entries={entries as ScentWorkEntry[]}
               classConfig={classConfig}
-              onResultsSubmit={async (bulkResults) => {
+              onResultsSubmit={async bulkResults => {
                 // Process bulk results using our new handler
                 for (const result of bulkResults) {
                   await handleResultUpdate(result.entryId, result);

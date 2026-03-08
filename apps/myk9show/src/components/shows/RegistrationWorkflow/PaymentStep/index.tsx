@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
@@ -28,7 +28,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onEntryStatusChange,
   showId,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const { classes = [] } = useClassStoreCompat();
   const { shows = [] } = useShowStore();
   useRegistrationPermissions();

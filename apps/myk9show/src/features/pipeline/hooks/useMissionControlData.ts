@@ -2,12 +2,14 @@
  * Data hook for the Mission Control dashboard.
  *
  * Manages show/trial selection and computes class pipeline data.
+ *
+ * Uses the local-first trialStore for both trials AND classes so that
+ * newly created data appears immediately (even before Supabase sync).
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
-import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
 import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping';
 import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
 
@@ -23,6 +25,7 @@ export function useMissionControlData() {
     });
   }, [rawShows]);
   const allTrials = useTrialStore(s => s.trials);
+  const allTrialClasses = useTrialStore(s => s.trialClasses);
 
   // Selection state
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
@@ -46,40 +49,36 @@ export function useMissionControlData() {
     [trials, selectedTrialId]
   );
 
-  // Fetch classes for the selected trial
+  // Get classes for the selected trial from the local-first trialStore.
+  // This ensures newly created classes appear immediately without waiting
+  // for Supabase sync (which was the root cause of the missing-classes bug).
   const effectiveTrialId = selectedTrial?.id ?? '';
-  const { data: rawClasses, isLoading: classesLoading } = useClassesByTrialQuery(
-    effectiveTrialId,
-    !!effectiveTrialId
-  );
+  const localClasses = effectiveTrialId ? (allTrialClasses[effectiveTrialId] ?? []) : [];
+  const classesLoading = false; // Local data is always available synchronously
 
-  // Map raw DB classes → ClassPipelineItem[]
+  // Map local TrialClass → ClassPipelineItem[]
   const pipelineClasses = useMemo<ClassPipelineItem[]>(() => {
-    if (!rawClasses) return [];
-    // Robust entry count: prefer scored total_entries_count,
-    // fall back to entries relation length from the Supabase join.
-    return rawClasses.map((cls: Record<string, unknown>) => {
-      const entries = (cls as { entries?: { id: string }[] }).entries;
-      const totalEntries = Number(cls.total_entries_count) || entries?.length || 0;
+    if (!localClasses.length) return [];
+
+    return localClasses.map(cls => {
+      // Build a display name from element + level (TrialClass doesn't have a "name" field)
+      const name = [cls.element, cls.level].filter(Boolean).join(' ') || 'Unnamed Class';
 
       return {
-        id: String(cls.id),
-        name: String(cls.name ?? 'Unnamed Class'),
-        judge_name: cls.judge_name ? String(cls.judge_name) : null,
-        status: cls.status ? String(cls.status) : null,
-        stage: mapClassToStage(
-          cls.status as string | null,
-          cls.is_scoring_finalized as boolean | null
-        ),
-        scored_count: Number(cls.scored_count ?? 0),
-        total_entries: totalEntries,
-        is_scoring_finalized: Boolean(cls.is_scoring_finalized),
-        is_results_reviewed: Boolean((cls as Record<string, unknown>).is_results_reviewed),
-        start_time: cls.start_time ? String(cls.start_time) : null,
-        planned_start_time: cls.planned_start_time ? String(cls.planned_start_time) : null,
+        id: cls.id,
+        name,
+        judge_name: cls.judgeName ?? null,
+        status: cls.status ?? null,
+        stage: mapClassToStage(cls.status, null),
+        scored_count: cls.completedEntries ?? 0,
+        total_entries: cls.entries ?? 0,
+        is_scoring_finalized: false, // Not tracked on TrialClass; defaults to not-finalized
+        is_results_reviewed: false, // Not tracked on TrialClass
+        start_time: cls.startTime || null,
+        planned_start_time: null, // Not tracked on TrialClass
       };
     });
-  }, [rawClasses]);
+  }, [localClasses]);
 
   // Group by stage
   const classesByStage = useMemo(() => groupClassesByStage(pipelineClasses), [pipelineClasses]);

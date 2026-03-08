@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { logger } from '@/services/LoggingService';
 import {
@@ -58,7 +58,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
   onArmbandAssign,
   onNotificationToggle,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const [activeTab, setActiveTab] = useState('summary');
   const [statusNotes, setStatusNotes] = useState('');
 

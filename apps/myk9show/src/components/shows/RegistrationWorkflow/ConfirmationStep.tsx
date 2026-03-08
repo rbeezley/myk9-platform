@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ClassSelectionData, EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -61,7 +61,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   onArmbandAssign,
   onNotificationToggle,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { trials = [] } = useTrialStore();
   const { classes = [] } = useClassStoreCompat();

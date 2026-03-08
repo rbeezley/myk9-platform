@@ -28,6 +28,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { ResultBadge } from '@/components/common/ResultBadge';
+import { TipBanner } from '@/components/common/TipBanner';
+import { useMilestones } from '@/hooks/useMilestones';
 import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
@@ -51,6 +53,7 @@ interface DashboardEntry {
 const ExhibitorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState('entries');
+  const { activeTip, dismiss: dismissTip } = useMilestones();
 
   // Redirect if user switches to a different role while on this dashboard
   useRoleRedirect({
@@ -230,6 +233,9 @@ const ExhibitorDashboard: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Progressive Tip Banner */}
+      {activeTip && <TipBanner tip={activeTip} onDismiss={dismissTip} />}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

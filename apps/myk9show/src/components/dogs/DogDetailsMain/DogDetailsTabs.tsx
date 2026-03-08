@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Crown, FileText } from 'lucide-react';
+import { Activity, Crown, FileText } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useRememberedTab } from '@/hooks/useRememberedTab';
@@ -24,6 +24,7 @@ const TitleProgressSection = lazy(
   () => import('@/components/dogs/DogDetails/TitleTracking/TitleProgressSection')
 );
 const PedigreeSection = lazy(() => import('@/components/dogs/DogDetails/Pedigree/PedigreeSection'));
+const ActivityTimeline = lazy(() => import('@/components/common/ActivityTimeline'));
 const PerformanceStatisticsSection = lazy(
   () => import('@/components/dogs/DogDetails/Statistics/PerformanceStatisticsSection')
 );
@@ -124,6 +125,10 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
                 <p>Access Pedigree - Premium Feature</p>
               </TooltipContent>
             </Tooltip>
+            <TabsTrigger value="activity">
+              <Activity className="w-4 h-4" />
+              Activity
+            </TabsTrigger>
           </TabsList>
 
           {/* Tab Content */}
@@ -205,6 +210,12 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
                 trackingContext="pedigree"
               />
             )}
+          </TabsContent>
+
+          <TabsContent value="activity" className="pt-6">
+            <Suspense fallback={<TabContentSkeleton />}>
+              <ActivityTimeline recordType="dog" recordId={dog.id} />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </TooltipProvider>

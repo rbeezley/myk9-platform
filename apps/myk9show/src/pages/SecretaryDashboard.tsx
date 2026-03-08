@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Settings, Calendar, Plus, Copy, Bell, Activity } from 'lucide-react';
 import { ShowCloneDialog } from '@/components/shows/cloning';
+import { TipBanner } from '@/components/common/TipBanner';
+import { useMilestones } from '@/hooks/useMilestones';
 // Extracted modules
 import {
   useSecretaryDashboardData,
@@ -23,6 +25,7 @@ const SecretaryDashboard: React.FC = () => {
   // Get data from extracted hook
   const { shows, allTrials, activeTrials, upcomingTrials, completedTrials, statistics } =
     useSecretaryDashboardData();
+  const { activeTip, dismiss: dismissTip } = useMilestones();
 
   const handleManageTrial = (trial: TrialOverview) => {
     navigate(`/shows/${trial.showId}/trials/${trial.id}`);
@@ -102,6 +105,9 @@ const SecretaryDashboard: React.FC = () => {
             </Button>
           </div>
         </div>
+
+        {/* Progressive Tip Banner */}
+        {activeTip && <TipBanner tip={activeTip} onDismiss={dismissTip} />}
 
         {/* Statistics Cards */}
         <StatisticsCards statistics={statistics} totalTrialsCount={allTrials.length} />

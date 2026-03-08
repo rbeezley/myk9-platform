@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { lazy, Suspense, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,6 +49,8 @@ import { ClassAvailability } from '@/components/shows/ClassAvailability';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { formatFee } from '@/utils/format';
 import { EntriesTab } from './EntriesTab';
+
+const ActivityTimeline = lazy(() => import('@/components/common/ActivityTimeline'));
 
 // Types for extracted components
 interface RegistrationState {
@@ -679,6 +681,24 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
             </div>
           )}
         </div>
+      ),
+    });
+
+    // Activity tab — available for all roles
+    tabs.push({
+      id: 'activity',
+      label: 'Activity',
+      description: 'Timeline of changes and events',
+      content: (
+        <Suspense
+          fallback={
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              Loading activity...
+            </div>
+          }
+        >
+          <ActivityTimeline recordType="show" recordId={showData.id} />
+        </Suspense>
       ),
     });
 

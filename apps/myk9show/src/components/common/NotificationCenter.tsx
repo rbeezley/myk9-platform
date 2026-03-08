@@ -7,17 +7,26 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { logger } from '@/services/LoggingService';
 import {
-  enhancedNotificationService, 
-  EnhancedNotification, 
-  NotificationCategory, 
+  enhancedNotificationService,
+  EnhancedNotification,
+  NotificationCategory,
   NotificationPriority,
-  NotificationPreferences
+  NotificationPreferences,
 } from '@/services/EnhancedNotificationService';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { 
+import { useSmartNotifications } from '@/hooks/useSmartNotifications';
+import type { SmartNotificationUrgency } from '@/hooks/useSmartNotifications';
+import { Link } from 'react-router-dom';
+import {
   Bell,
   BellOff,
   Check,
@@ -33,15 +42,24 @@ import {
   Megaphone,
   User,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  ChevronRight,
 } from 'lucide-react';
 
 interface NotificationCenterProps {
   className?: string;
 }
 
-export const NotificationCenter: React.FC<NotificationCenterProps> = ({ className = "" }) => {
+const URGENCY_BORDER: Record<SmartNotificationUrgency, string> = {
+  action_required: 'border-l-destructive',
+  attention: 'border-l-amber-500',
+  info: 'border-l-primary',
+};
+
+export const NotificationCenter: React.FC<NotificationCenterProps> = ({ className = '' }) => {
   const { user } = useAuthContext();
+  const { notifications: smartNotifications } = useSmartNotifications();
   const [notifications, setNotifications] = useState<EnhancedNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -54,14 +72,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
 
   const loadNotifications = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setIsLoading(true);
     try {
       const result = await enhancedNotificationService.getUserNotifications(user.id, {
         category: selectedCategory === 'all' ? undefined : selectedCategory,
         priority: selectedPriority === 'all' ? undefined : selectedPriority,
         unreadOnly: showUnreadOnly,
-        limit: 50
+        limit: 50,
       });
       setNotifications(result.notifications);
     } catch (error) {
@@ -73,7 +91,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
 
   const loadUnreadCount = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       const count = await enhancedNotificationService.getUnreadCount(user.id);
       setUnreadCount(count);
@@ -84,7 +102,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
 
   const loadPreferences = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       const prefs = await enhancedNotificationService.getUserPreferences(user.id);
       setPreferences(prefs);
@@ -99,11 +117,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       loadPreferences();
       loadUnreadCount();
     }
-  }, [user?.id, selectedCategory, selectedPriority, showUnreadOnly, loadNotifications, loadPreferences, loadUnreadCount]);
+  }, [
+    user?.id,
+    selectedCategory,
+    selectedPriority,
+    showUnreadOnly,
+    loadNotifications,
+    loadPreferences,
+    loadUnreadCount,
+  ]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     if (!user?.id) return;
-    
+
     await enhancedNotificationService.markAsRead(notificationId, user.id);
     loadNotifications();
     loadUnreadCount();
@@ -111,9 +137,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
 
   const handleMarkAllAsRead = async () => {
     if (!user?.id) return;
-    
+
     await enhancedNotificationService.markAllAsRead(
-      user.id, 
+      user.id,
       selectedCategory === 'all' ? undefined : selectedCategory
     );
     loadNotifications();
@@ -122,14 +148,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
 
   const handleArchive = async (notificationId: string) => {
     if (!user?.id) return;
-    
+
     await enhancedNotificationService.archiveNotification(notificationId, user.id);
     loadNotifications();
   };
 
   const handleDelete = async (notificationId: string) => {
     if (!user?.id) return;
-    
+
     await enhancedNotificationService.deleteNotification(notificationId, user.id);
     loadNotifications();
     loadUnreadCount();
@@ -137,7 +163,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
 
   const handlePreferenceChange = async (updates: Partial<NotificationPreferences>) => {
     if (!user?.id || !preferences) return;
-    
+
     await enhancedNotificationService.updatePreferences(user.id, updates);
     setPreferences({ ...preferences, ...updates });
   };
@@ -200,17 +226,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
         <PopoverTrigger asChild>
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
-              <Badge 
-                variant="destructive" 
+            {unreadCount + smartNotifications.length > 0 && (
+              <Badge
+                variant="destructive"
                 className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs p-0"
               >
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {unreadCount + smartNotifications.length > 99
+                  ? '99+'
+                  : unreadCount + smartNotifications.length}
               </Badge>
             )}
           </Button>
         </PopoverTrigger>
-        
+
         <PopoverContent className="w-96 p-0" align="end">
           <Card className="border-0 shadow-none">
             <CardHeader className="pb-3">
@@ -225,19 +253,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                   )}
                 </CardTitle>
                 <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowSettings(!showSettings)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setShowSettings(!showSettings)}>
                     <Settings className="h-3 w-3" />
                   </Button>
                   {notifications.some(n => !n.isRead) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleMarkAllAsRead}
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
                       <CheckCheck className="h-3 w-3" />
                     </Button>
                   )}
@@ -252,24 +272,59 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                     <Label className="text-sm">Quiet Hours</Label>
                     <Switch
                       checked={preferences.quietHours.enabled}
-                      onCheckedChange={(enabled) => 
+                      onCheckedChange={enabled =>
                         handlePreferenceChange({
-                          quietHours: { ...preferences.quietHours, enabled }
+                          quietHours: { ...preferences.quietHours, enabled },
                         })
                       }
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <Label className="text-sm">Email Digest</Label>
                     <Switch
                       checked={preferences.digest.enabled}
-                      onCheckedChange={(enabled) => 
+                      onCheckedChange={enabled =>
                         handlePreferenceChange({
-                          digest: { ...preferences.digest, enabled }
+                          digest: { ...preferences.digest, enabled },
                         })
                       }
                     />
+                  </div>
+                </div>
+              </CardContent>
+            )}
+
+            {/* Smart Insights — computed from data, not persisted */}
+            {smartNotifications.length > 0 && (
+              <CardContent className="p-0 border-b">
+                <div className="px-4 py-2">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Zap className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      Smart Insights
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {smartNotifications.map(sn => (
+                      <div
+                        key={sn.id}
+                        className={`p-2.5 rounded-lg border border-border/50 border-l-[3px] ${URGENCY_BORDER[sn.urgency]} hover:bg-muted/30 transition-colors`}
+                      >
+                        <p className="text-sm font-medium">{sn.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{sn.detail}</p>
+                        {sn.actionHref && (
+                          <Link
+                            to={sn.actionHref}
+                            className="inline-flex items-center gap-1 text-xs text-primary font-medium mt-1.5 hover:underline"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            {sn.actionLabel ?? 'View'}
+                            <ChevronRight className="h-3 w-3" />
+                          </Link>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </CardContent>
@@ -279,16 +334,20 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
               {/* Filters */}
               <div className="p-3 border-b bg-muted/20">
                 <div className="flex items-center gap-2">
-                  <Select 
-                    value={selectedCategory} 
-                    onValueChange={(value) => setSelectedCategory(value as NotificationCategory | 'all')}
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={value =>
+                      setSelectedCategory(value as NotificationCategory | 'all')
+                    }
                   >
                     <SelectTrigger className="h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value={NotificationCategory.ENTRY_UPDATE}>Entry Updates</SelectItem>
+                      <SelectItem value={NotificationCategory.ENTRY_UPDATE}>
+                        Entry Updates
+                      </SelectItem>
                       <SelectItem value={NotificationCategory.PAYMENT_UPDATE}>Payments</SelectItem>
                       <SelectItem value={NotificationCategory.SCHEDULE_CHANGE}>Schedule</SelectItem>
                       <SelectItem value={NotificationCategory.SYSTEM_ALERT}>Alerts</SelectItem>
@@ -296,9 +355,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                     </SelectContent>
                   </Select>
 
-                  <Select 
-                    value={selectedPriority} 
-                    onValueChange={(value) => setSelectedPriority(value as NotificationPriority | 'all')}
+                  <Select
+                    value={selectedPriority}
+                    onValueChange={value =>
+                      setSelectedPriority(value as NotificationPriority | 'all')
+                    }
                   >
                     <SelectTrigger className="h-7 text-xs">
                       <SelectValue />
@@ -338,18 +399,20 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {notifications.map((notification) => (
-                      <div 
+                    {notifications.map(notification => (
+                      <div
                         key={notification.id}
                         className={`p-3 hover:bg-muted/30 transition-colors ${
                           !notification.isRead ? 'bg-blue-50/50 border-l-2 border-l-blue-500' : ''
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`flex-shrink-0 p-1.5 rounded-full ${getPriorityColor(notification.priority)}`}>
+                          <div
+                            className={`flex-shrink-0 p-1.5 rounded-full ${getPriorityColor(notification.priority)}`}
+                          >
                             {getCategoryIcon(notification.category)}
                           </div>
-                          
+
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between">
                               <div>
@@ -363,15 +426,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                                   <span className="text-xs text-muted-foreground">
                                     {formatRelativeTime(notification.timestamp)}
                                   </span>
-                                  <Badge 
-                                    variant="outline" 
+                                  <Badge
+                                    variant="outline"
                                     className={`text-xs ${getPriorityColor(notification.priority)}`}
                                   >
                                     {notification.priority}
                                   </Badge>
                                 </div>
                               </div>
-                              
+
                               <div className="flex items-center gap-1 ml-2">
                                 {!notification.isRead && (
                                   <Button
@@ -383,7 +446,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                                     <Check className="h-3 w-3" />
                                   </Button>
                                 )}
-                                
+
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -392,7 +455,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                                 >
                                   <Archive className="h-3 w-3" />
                                 </Button>
-                                
+
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -403,7 +466,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
                                 </Button>
                               </div>
                             </div>
-                            
+
                             {notification.actionUrl && (
                               <div className="mt-2">
                                 <Button

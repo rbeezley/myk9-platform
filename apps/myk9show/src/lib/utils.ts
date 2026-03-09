@@ -1,16 +1,18 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function getInitials(name1?: string, name2?: string): string {
-  if (name1 && name2) { // Both first and last name provided (human)
+  if (name1 && name2) {
+    // Both first and last name provided (human)
     const first = name1.charAt(0).toUpperCase();
     const last = name2.charAt(0).toUpperCase();
     return `${first}${last}`;
-  } else if (name1) { // Single name string provided (e.g., dog name or person with single name field)
+  } else if (name1) {
+    // Single name string provided (e.g., dog name or person with single name field)
     const parts = name1.trim().split(/\s+/);
     if (parts.length > 1 && parts[0] && parts[1]) {
       // If it's like "Max Power", take "MP"
@@ -32,18 +34,30 @@ export function formatCurrency(amount: number, currency: string = 'USD'): string
   }).format(amount);
 }
 
-export function formatDate(date: Date | string | number, options?: Intl.DateTimeFormatOptions): string {
+export function formatDate(
+  date: Date | string | number,
+  options?: Intl.DateTimeFormatOptions
+): string {
   const dateObj = date instanceof Date ? date : new Date(date);
-  
+
   if (isNaN(dateObj.getTime())) {
     return 'Invalid Date';
   }
-  
+
   const defaultOptions: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   };
-  
+
   return dateObj.toLocaleDateString('en-US', { ...defaultOptions, ...options });
+}
+
+/** Format a class element + level into a display label, with fallback to full class name. */
+export function formatClassLabel(
+  element: string | null,
+  level: string | null,
+  fallback: string
+): string {
+  return [element, level].filter(Boolean).join(' ') || fallback;
 }

@@ -24,7 +24,7 @@ export const SyncIntegrationSummary: React.FC = () => {
       syncType: 'Entity Status',
       description: 'Compact sync indicator in top-left corner of show cards',
       implemented: true,
-      entityTypes: ['show']
+      entityTypes: ['show'],
     },
     {
       component: 'PersonCard',
@@ -32,7 +32,7 @@ export const SyncIntegrationSummary: React.FC = () => {
       syncType: 'Entity Status',
       description: 'Sync status for people in both detailed and compact views',
       implemented: true,
-      entityTypes: ['person']
+      entityTypes: ['person'],
     },
     {
       component: 'LazyDogCard',
@@ -40,15 +40,15 @@ export const SyncIntegrationSummary: React.FC = () => {
       syncType: 'Entity Status',
       description: 'Dog card with sync indicator in header area',
       implemented: true,
-      entityTypes: ['dog']
+      entityTypes: ['dog'],
     },
     {
-      component: 'ExhibitorDashboard ClassCard',
-      location: '/src/components/exhibitor/ExhibitorDashboard.tsx',
+      component: 'ShowDayHero ClassTimelineCard',
+      location: '/src/components/exhibitor/ClassTimelineCard.tsx',
       syncType: 'Entry Status',
       description: 'Entry sync status on exhibitor class cards',
       implemented: true,
-      entityTypes: ['entry']
+      entityTypes: ['entry'],
     },
     {
       component: 'JudgeClassInterface',
@@ -56,7 +56,7 @@ export const SyncIntegrationSummary: React.FC = () => {
       syncType: 'Scoring Status',
       description: 'Sync status for judge scoring interface',
       implemented: true,
-      entityTypes: ['scoring', 'results']
+      entityTypes: ['scoring', 'results'],
     },
     {
       component: 'AppHeader',
@@ -64,7 +64,7 @@ export const SyncIntegrationSummary: React.FC = () => {
       syncType: 'Global Status',
       description: 'Global sync status indicator in main navigation',
       implemented: true,
-      entityTypes: ['global']
+      entityTypes: ['global'],
     },
     {
       component: 'SyncStatusPanel',
@@ -72,8 +72,8 @@ export const SyncIntegrationSummary: React.FC = () => {
       syncType: 'Comprehensive Dashboard',
       description: 'Full sync status dashboard for settings pages',
       implemented: true,
-      entityTypes: ['system', 'all entities']
-    }
+      entityTypes: ['system', 'all entities'],
+    },
   ];
 
   const implementedComponents = integrations.filter(i => i.implemented).length;
@@ -89,14 +89,14 @@ export const SyncIntegrationSummary: React.FC = () => {
             <div className="text-sm text-muted-foreground">Components Enhanced</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">{allEntityTypes.length}</div>
             <div className="text-sm text-muted-foreground">Entity Types Covered</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-purple-600">100%</div>
@@ -130,29 +130,27 @@ export const SyncIntegrationSummary: React.FC = () => {
                       )}
                       <h4 className="font-medium">{integration.component}</h4>
                     </div>
-                    <Badge 
-                      variant={integration.implemented ? "default" : "secondary"}
+                    <Badge
+                      variant={integration.implemented ? 'default' : 'secondary'}
                       className="text-xs"
                     >
                       {integration.syncType}
                     </Badge>
                   </div>
-                  
-                  <p className="text-sm text-muted-foreground">
-                    {integration.description}
-                  </p>
-                  
+
+                  <p className="text-sm text-muted-foreground">{integration.description}</p>
+
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">Entity Types:</span>
                     <div className="flex gap-1">
-                      {integration.entityTypes.map((type) => (
+                      {integration.entityTypes.map(type => (
                         <Badge key={type} variant="outline" className="text-xs px-1.5 py-0.5">
                           {type}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  
+
                   <div className="text-xs text-muted-foreground font-mono">
                     {integration.location}
                   </div>
@@ -183,7 +181,7 @@ export const SyncIntegrationSummary: React.FC = () => {
                 <div
                   key={type}
                   className={`flex items-center gap-2 p-3 rounded-lg border ${
-                    isImplemented 
+                    isImplemented
                       ? 'bg-green-50 border-green-200 text-green-700'
                       : 'bg-gray-50 border-gray-200 text-gray-500'
                   }`}
@@ -217,7 +215,7 @@ export const SyncIntegrationSummary: React.FC = () => {
               <li>• Network-aware sync status (online/offline)</li>
             </ul>
           </div>
-          
+
           <div className="text-sm space-y-2 pt-3 border-t">
             <h4 className="font-medium">Integration Approach:</h4>
             <ul className="space-y-1 text-muted-foreground ml-4">

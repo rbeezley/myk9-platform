@@ -58,7 +58,7 @@ export function StickyShowBar({ nextUp, heroRef, onTap, className }: StickyShowB
       onClick={handleTap}
       className={cn(
         'fixed top-0 left-0 right-0 z-50 lg:hidden',
-        'flex items-center gap-2 px-4 py-2.5 min-h-[40px]',
+        'flex items-center gap-2 px-4 py-2.5 min-h-[48px]',
         'bg-background/95 backdrop-blur-md border-b border-border shadow-sm',
         'transition-all duration-200',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',

@@ -94,6 +94,34 @@ describe('ClassTimelineCard', () => {
     expect(screen.getByText('Interior Advanced B')).toBeInTheDocument();
   });
 
+  // --- Phase 4: Accessibility ---
+
+  it('status indicator has aria-label "Completed" for scored classes', () => {
+    const { container } = render(
+      <ClassTimelineCard classData={makeClass({ isScored: true, resultStatus: 'qualified' })} />
+    );
+    const statusIndicator = container.querySelector('[role="img"]');
+    expect(statusIndicator).toBeInTheDocument();
+    expect(statusIndicator?.getAttribute('aria-label')).toBe('Completed');
+  });
+
+  it('status indicator has aria-label "Pending" for upcoming classes', () => {
+    const { container } = render(<ClassTimelineCard classData={makeClass()} />);
+    const statusIndicator = container.querySelector('[role="img"]');
+    expect(statusIndicator).toBeInTheDocument();
+    expect(statusIndicator?.getAttribute('aria-label')).toBe('Pending');
+  });
+
+  it('handles no estimated time gracefully', () => {
+    render(<ClassTimelineCard classData={makeClass({ estimatedTimeMinutes: null })} />);
+    expect(screen.queryByText(/~\d+m/)).not.toBeInTheDocument();
+  });
+
+  it('handles no armband gracefully', () => {
+    render(<ClassTimelineCard classData={makeClass({ armband: null })} />);
+    expect(screen.queryByText(/#/)).not.toBeInTheDocument();
+  });
+
   it('shows check circle icon for completed classes', () => {
     const { container } = render(
       <ClassTimelineCard classData={makeClass({ isScored: true, resultStatus: 'qualified' })} />

@@ -36,7 +36,7 @@ export function ClassTimelineCard({ classData, onNavigate, className }: ClassTim
       aria-label={`${classData.className}, ${classData.dogCallName}${isCompleted ? `, ${classData.resultStatus ?? 'completed'}` : ''}`}
     >
       {/* Status indicator */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0" role="img" aria-label={isCompleted ? 'Completed' : 'Pending'}>
         {isCompleted ? (
           <CheckCircle className="h-5 w-5 text-success-green" />
         ) : (

@@ -176,9 +176,123 @@ describe('ShowDayHero', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
-  it('renders fallback when no nextUp', () => {
+  it('renders fallback when no nextUp and classes remaining', () => {
     render(<ShowDayHero data={makeData({ nextUp: null })} />);
     expect(screen.queryByText('Next Up')).not.toBeInTheDocument();
+  });
+
+  // --- Phase 4: All-completed state ---
+
+  it('shows "All Done!" celebration when all classes completed', () => {
+    const completedClass = makeClass({
+      classId: 'class-1',
+      entryId: 'entry-1',
+      isScored: true,
+      resultStatus: 'qualified',
+    });
+    render(
+      <ShowDayHero
+        data={makeData({
+          nextUp: null,
+          myClasses: [completedClass],
+          completedToday: [completedClass],
+          stats: { total: 1, completed: 1, qualified: 1 },
+        })}
+      />
+    );
+    expect(screen.getByText('All Done!')).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.queryByText('Live')).not.toBeInTheDocument();
+  });
+
+  it('shows Q count in celebration state', () => {
+    const completed1 = makeClass({
+      classId: 'c1',
+      entryId: 'e1',
+      isScored: true,
+      resultStatus: 'qualified',
+    });
+    const completed2 = makeClass({
+      classId: 'c2',
+      entryId: 'e2',
+      isScored: true,
+      resultStatus: 'nq',
+    });
+    render(
+      <ShowDayHero
+        data={makeData({
+          nextUp: null,
+          myClasses: [completed1, completed2],
+          completedToday: [completed1, completed2],
+          stats: { total: 2, completed: 2, qualified: 1 },
+        })}
+      />
+    );
+    // Celebration card shows class count and Q summary
+    expect(screen.getByText('2 classes completed')).toBeInTheDocument();
+    // Q count appears in both celebration card and stats row
+    expect(screen.getAllByText(/1 Q/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('auto-expands completed section when all done', () => {
+    const completedClass = makeClass({
+      classId: 'c1',
+      entryId: 'e1',
+      isScored: true,
+      resultStatus: 'qualified',
+      className: 'Container Masters',
+      element: 'Container',
+      level: 'Masters',
+    });
+    render(
+      <ShowDayHero
+        data={makeData({
+          nextUp: null,
+          myClasses: [completedClass],
+          completedToday: [completedClass],
+          stats: { total: 1, completed: 1, qualified: 1 },
+        })}
+      />
+    );
+    // Completed section should be auto-expanded
+    expect(screen.getByText('Container Masters')).toBeInTheDocument();
+  });
+
+  it('shows "Live" badge when not all completed', () => {
+    render(<ShowDayHero data={makeData()} />);
+    expect(screen.getByText('Live')).toBeInTheDocument();
+    expect(screen.queryByText('Done')).not.toBeInTheDocument();
+    expect(screen.queryByText('All Done!')).not.toBeInTheDocument();
+  });
+
+  // --- Phase 4: Accessibility ---
+
+  it('has region role with aria-label', () => {
+    const { container } = render(<ShowDayHero data={makeData()} />);
+    const region = container.querySelector('[role="region"]');
+    expect(region).toBeInTheDocument();
+    expect(region?.getAttribute('aria-label')).toBe('Show day status');
+  });
+
+  it('completed toggle has aria-controls matching section id', () => {
+    render(<ShowDayHero data={makeData()} />);
+    const toggle = screen.getByText(/Completed \(1\)/);
+    const controlsId = toggle.getAttribute('aria-controls');
+    expect(controlsId).toBeTruthy();
+  });
+
+  it('stale indicator has accessible label', () => {
+    const lastUpdated = new Date(Date.now() - 5 * 60_000);
+    render(<ShowDayHero data={makeData({ isStale: true, lastUpdated })} />);
+    const staleIndicator = screen.getByRole('status', { name: /data may be outdated/i });
+    expect(staleIndicator).toBeInTheDocument();
+  });
+
+  it('tablist has aria-label for multi-show', () => {
+    const show1 = makeShow({ showId: 'show-1', showName: 'Show A' });
+    const show2 = makeShow({ showId: 'show-2', showName: 'Show B' });
+    render(<ShowDayHero data={makeData({ activeShows: [show1, show2], activeShow: show1 })} />);
+    expect(screen.getByRole('tablist', { name: 'Show selector' })).toBeInTheDocument();
   });
 
   it('passes onClassNavigate to child cards', async () => {

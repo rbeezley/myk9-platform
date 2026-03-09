@@ -1,42 +1,42 @@
 /**
  * Exhibitor Dashboard Page
  *
- * Main dashboard for exhibitors with entry management, show discovery,
- * and dog portfolio features focused on exhibitor workflow
+ * Context-aware dashboard with progressive disclosure:
+ * - Show day: ShowDayHero with live ring progress, entries/results collapsed below
+ * - Non-show day: CompactStatsRow, upcoming entries, collapsible results, action buttons
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { GlassCard } from '@/components/common/GlassCard';
 import {
   Heart,
-  FileText,
   Calendar,
   Search,
-  Activity,
   MapPin,
-  DollarSign,
-  Award,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   FolderOpen,
   Clock,
   AlertTriangle,
+  FileText,
 } from 'lucide-react';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import { TipBanner } from '@/components/common/TipBanner';
+import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
+import { ShowDayHero } from '@/components/exhibitor/ShowDayHero';
+import { StickyShowBar } from '@/components/exhibitor/StickyShowBar';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
+import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { format } from 'date-fns';
-import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import { FadeIn } from '@/components/layout/FadeIn';
 
 interface DashboardEntry {
@@ -55,17 +55,17 @@ interface DashboardEntry {
 
 const ExhibitorDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedTab, setSelectedTab] = useState('entries');
+  const heroRef = useRef<HTMLDivElement>(null);
   const { activeTip, dismiss: dismissTip } = useMilestones();
 
-  // Redirect if user switches to a different role while on this dashboard
   useRoleRedirect({
-    enabled: false, // Don't redirect on page load
-    redirectOnRoleChange: true, // Only redirect when roles change
+    enabled: false,
+    redirectOnRoleChange: true,
   });
 
-  // Real data from React Query hooks
+  // Data hooks
   const { user } = useAuthContext();
+  const showDayData = useShowDayData();
   const {
     data: rawEntries = [],
     isLoading: entriesLoading,
@@ -104,63 +104,23 @@ const ExhibitorDashboard: React.FC = () => {
     [rawEntries]
   );
 
-  // Calculate statistics from real data
-  const statistics = useMemo(() => {
-    const activeEntries = entries.filter(e => e.status === 'confirmed').length;
-    const pendingEntries = entries.filter(
-      e => e.status === 'pending' || e.status === 'draft'
-    ).length;
-    const totalFees =
-      stats?.totalRevenue ?? entries.reduce((sum, entry) => sum + entry.entryFee, 0);
-    const upcomingShows = entries.filter(e => e.showDate && e.showDate > new Date()).length;
+  const upcomingEntries = useMemo(() => {
+    const now = new Date();
+    return entries.filter(e => e.showDate && e.showDate > now);
+  }, [entries]);
 
-    return {
-      activeEntries,
-      pendingEntries,
-      totalFees,
-      upcomingShows,
+  const statistics = useMemo(
+    () => ({
+      activeEntries: entries.filter(e => e.status === 'confirmed').length,
+      totalFees: stats?.totalRevenue ?? entries.reduce((sum, entry) => sum + entry.entryFee, 0),
+      upcomingShows: upcomingEntries.length,
       totalDogs: dogs.length,
-    };
-  }, [entries, stats, dogs]);
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return (
-          <Badge className="bg-success-green/10 text-success-green border-success-green/20">
-            Confirmed
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20">
-            Pending
-          </Badge>
-        );
-      case 'cancelled':
-        return (
-          <Badge className="bg-error-red/10 text-error-red border-error-red/20">Cancelled</Badge>
-        );
-      default:
-        return <Badge className="bg-muted text-muted-foreground border-border">Unknown</Badge>;
-    }
-  };
-
-  const handleViewEntry = (entry: DashboardEntry) => {
-    navigate(`/shows/${entry.showId}`);
-  };
-
-  const handleEditEntry = (entry: DashboardEntry) => {
-    navigate(`/shows/${entry.showId}`);
-  };
-
-  const upcomingEntries = useMemo(
-    () => entries.filter(e => e.showDate && e.showDate > new Date()),
-    [entries]
+    }),
+    [entries, stats, dogs, upcomingEntries]
   );
 
   // Loading state
-  if (entriesLoading) {
+  if (entriesLoading && !showDayData.isShowDay) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
@@ -169,7 +129,7 @@ const ExhibitorDashboard: React.FC = () => {
   }
 
   // Error state
-  if (entriesError) {
+  if (entriesError && !showDayData.isShowDay) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card>
@@ -186,482 +146,326 @@ const ExhibitorDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-        <div className="space-y-3">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Avatar className="h-12 w-12 border-2 border-primary/20">
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-secondary/20 text-primary font-semibold text-lg">
-                  {displayName.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="absolute -top-1 -right-1 h-4 w-4 bg-success-green rounded-full border-2 border-background flex items-center justify-center">
-                <div className="h-2 w-2 bg-white rounded-full" />
-              </div>
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Exhibitor Dashboard
-              </h1>
-              <p className="text-muted-foreground text-lg font-medium">
-                Welcome back, {displayName} • {statistics.totalDogs} dog
-                {statistics.totalDogs !== 1 ? 's' : ''} registered
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className="flex items-center gap-1 px-2 py-1 bg-success-green/10 text-success-green rounded-full">
-              <Activity className="h-4 w-4" />
-              <span className="font-medium">Active</span>
-            </div>
-            {entries.length > 0 && (
-              <span className="text-muted-foreground">{entries.length} total entries</span>
-            )}
-          </div>
+      {/* Sticky bar for show day (mobile only) */}
+      {showDayData.isShowDay && <StickyShowBar nextUp={showDayData.nextUp} heroRef={heroRef} />}
+
+      {/* Header — compact on show day, full on planning day */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            {showDayData.isShowDay ? 'Show Day' : 'Exhibitor Dashboard'}
+          </h1>
+          <p className="text-muted-foreground text-sm sm:text-base mt-1">
+            Welcome back, {displayName}
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => navigate('/shows')}>
-            <Calendar className="h-4 w-4 mr-2" />
-            Enter a Show
-          </Button>
-          <Button
-            onClick={() => navigate('/dogs')}
-            variant="outline"
-            className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
-          >
-            <Heart className="h-4 w-4 mr-2" />
-            Manage Dogs
-          </Button>
-        </div>
+        {!showDayData.isShowDay && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => navigate('/shows')} size="sm">
+              <Calendar className="h-4 w-4 mr-2" />
+              Enter a Show
+            </Button>
+            <Button onClick={() => navigate('/dogs')} variant="outline" size="sm">
+              <Heart className="h-4 w-4 mr-2" />
+              My Dogs
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Progressive Tip Banner */}
       {activeTip && <TipBanner tip={activeTip} onDismiss={dismissTip} />}
 
-      {/* Statistics Cards */}
-      <StaggeredGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <GlassCard>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <FileText className="h-5 w-5 text-primary" />
-                </div>
-                Active Entries
+      {/* ---- SHOW DAY LAYOUT ---- */}
+      {showDayData.isShowDay && (
+        <>
+          <ShowDayHero ref={heroRef} data={showDayData} />
+
+          {/* Collapsed sections below the hero */}
+          {upcomingEntries.length > 0 && (
+            <CollapsibleSection
+              title="My Entries"
+              count={upcomingEntries.length}
+              defaultOpen={false}
+            >
+              <div className="space-y-3">
+                {upcomingEntries.map(entry => (
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    onView={() => navigate(`/shows/${entry.showId}`)}
+                  />
+                ))}
               </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              {statistics.activeEntries}
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground font-medium">
-                {statistics.pendingEntries} pending review
-              </p>
-              {statistics.activeEntries > 0 && (
-                <div className="flex items-center gap-1">
-                  <div className="h-2 w-2 bg-success-green rounded-full animate-pulse" />
-                  <span className="text-sm text-success-green font-medium">Active</span>
+            </CollapsibleSection>
+          )}
+
+          {recentResults.length > 0 && (
+            <CollapsibleSection
+              title="Recent Results"
+              count={recentResults.length}
+              defaultOpen={false}
+            >
+              <div className="space-y-3">
+                {recentResults.map(result => (
+                  <ResultRow
+                    key={result.id}
+                    result={result}
+                    onView={() =>
+                      navigate(
+                        result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            </CollapsibleSection>
+          )}
+        </>
+      )}
+
+      {/* ---- NON-SHOW DAY LAYOUT ---- */}
+      {!showDayData.isShowDay && (
+        <>
+          {/* Compact stats row */}
+          <CompactStatsRow
+            activeEntries={statistics.activeEntries}
+            upcomingShows={statistics.upcomingShows}
+            totalDogs={statistics.totalDogs}
+            onNavigate={navigate}
+          />
+
+          {/* Upcoming Entries — always visible */}
+          <FadeIn>
+            <section>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Upcoming Entries</h2>
+              {upcomingEntries.length > 0 ? (
+                <div className="space-y-3">
+                  {upcomingEntries.map(entry => (
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      onView={() => navigate(`/shows/${entry.showId}`)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="bg-muted/50 rounded-full p-6 mb-4">
+                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
+                  <p className="text-muted-foreground mb-6 max-w-sm text-center">
+                    You don't have any upcoming show entries. Browse shows to find your next
+                    competition.
+                  </p>
+                  <Button onClick={() => navigate('/shows')}>
+                    <Search className="h-4 w-4 mr-2" />
+                    Browse Shows
+                  </Button>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </GlassCard>
+            </section>
+          </FadeIn>
 
-        <GlassCard overlayGradient="from-blue-500/5">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <Calendar className="h-5 w-5 text-blue-500" />
-                </div>
-                Upcoming Shows
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              {statistics.upcomingShows}
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground font-medium">
-                {upcomingEntries[0]?.showDate
-                  ? `Next in ${Math.ceil(
-                      (upcomingEntries[0].showDate.getTime() - new Date().getTime()) /
-                        (1000 * 3600 * 24)
-                    )} days`
-                  : 'No upcoming shows'}
-              </p>
-            </div>
-          </CardContent>
-        </GlassCard>
-
-        <GlassCard overlayGradient="from-success-green/5">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <Heart className="h-5 w-5 text-success-green" />
-                </div>
-                My Dogs
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              {statistics.totalDogs}
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground font-medium">Registered dogs</p>
-            </div>
-          </CardContent>
-        </GlassCard>
-
-        <GlassCard overlayGradient="from-purple-500/5">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                  <DollarSign className="h-5 w-5 text-purple-500" />
-                </div>
-                Entry Fees
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              ${statistics.totalFees}
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground font-medium">This month's entries</p>
-            </div>
-          </CardContent>
-        </GlassCard>
-      </StaggeredGrid>
-
-      {/* Main Content Tabs */}
-      <FadeIn>
-        <Card className="bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold">Entry Management</CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Manage your show entries and track progress
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-              <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                <TabsTrigger
-                  value="entries"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                >
-                  Upcoming Entries
-                </TabsTrigger>
-                <TabsTrigger
-                  value="recent"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                >
-                  Recent Results
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="entries" className="space-y-6 mt-6">
-                {upcomingEntries.map(entry => (
-                  <div
-                    key={entry.id}
-                    className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                    <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                      <div className="flex-grow space-y-4">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors duration-300">
-                            <Heart className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="font-bold text-lg sm:text-xl text-foreground group-hover:text-primary transition-colors duration-300">
-                              {entry.showName}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4 flex-shrink-0" />
-                                <span>{entry.location}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4 flex-shrink-0" />
-                                <span>
-                                  {entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <DollarSign className="h-4 w-4 flex-shrink-0" />
-                                <span>${entry.entryFee}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Dog</p>
-                            <p className="font-semibold">{entry.dogName}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Class</p>
-                            <p className="font-semibold">{entry.className}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Status</p>
-                            {getStatusBadge(entry.status)}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">Days Until</p>
-                            <p className="font-semibold text-primary">
-                              {entry.showDate
-                                ? `${Math.ceil(
-                                    (entry.showDate.getTime() - new Date().getTime()) /
-                                      (1000 * 3600 * 24)
-                                  )} days`
-                                : '—'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-row md:flex-col gap-3">
-                        <Button
-                          onClick={() => handleViewEntry(entry)}
-                          className="flex-1 md:flex-initial"
-                        >
-                          View Details
-                          <ChevronRight className="h-4 w-4 ml-2" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="flex-1 md:flex-initial border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
-                          onClick={() => handleEditEntry(entry)}
-                        >
-                          Edit Entry
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {upcomingEntries.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="bg-muted/50 rounded-full p-6 mb-4">
-                      <FolderOpen className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
-                    <p className="text-muted-foreground mb-6 max-w-sm text-center">
-                      You don't have any upcoming show entries. Browse shows to find your next
-                      competition.
-                    </p>
-                    <Button onClick={() => navigate('/shows')}>
-                      <Search className="h-4 w-4 mr-2" />
-                      Browse Shows
-                    </Button>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="recent" className="space-y-6 mt-6">
-                {recentResults.map(result => (
-                  <div
-                    key={result.id}
-                    className="group relative overflow-hidden p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
-                  >
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-r ${result.resultText === 'Q' ? 'from-success-green/5' : 'from-error-red/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-                    />
-
-                    <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <ResultBadge resultStatus={result.resultStatus} variant="large" />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-lg text-foreground">{result.showName}</h3>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              {result.dogCallName}
-                            </span>
-                            <span>
-                              {result.className}
-                              {result.classElement ? ` — ${result.classElement}` : ''}
-                              {result.classLevel ? ` ${result.classLevel}` : ''}
-                            </span>
-                            <span>
-                              {result.showDate
-                                ? format(new Date(result.showDate), 'MMM d, yyyy')
-                                : ''}
-                            </span>
-                          </div>
-                          {/* Result details row */}
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
-                            {result.searchTimeSeconds != null && (
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <Clock className="h-3.5 w-3.5" />
-                                {result.searchTimeSeconds.toFixed(1)}s
-                              </span>
-                            )}
-                            {result.totalFaults != null && result.totalFaults > 0 && (
-                              <span className="flex items-center gap-1 text-warning-orange">
-                                <AlertTriangle className="h-3.5 w-3.5" />
-                                {result.totalFaults} fault
-                                {result.totalFaults !== 1 ? 's' : ''}
-                              </span>
-                            )}
-                            {result.finalPlacement != null && result.finalPlacement > 0 && (
-                              <span className="text-muted-foreground">
-                                Placement: {result.finalPlacement}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="w-full sm:w-auto border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
-                        onClick={() =>
-                          navigate(
-                            result.classId
-                              ? `/classes/${result.classId}`
-                              : `/shows/${result.showId}`
-                          )
-                        }
-                      >
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-
-                {recentResults.length === 0 && (
-                  <div className="text-center py-16">
-                    <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
-                      <Award className="h-12 w-12 text-success-green" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      No Recent Results
-                    </h3>
-                    <p className="text-muted-foreground mb-6">
-                      Your competition results will appear here after shows.
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </FadeIn>
-
-      {/* Quick Actions */}
-      <StaggeredGrid className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
-        <GlassCard>
-          <CardHeader className="pb-6">
-            <CardTitle className="text-xl font-bold flex items-center gap-4">
-              <div className="p-4 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                <Search className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <div className="text-foreground group-hover:text-primary transition-colors duration-300">
-                  Find Shows
-                </div>
-                <div className="text-sm font-normal text-muted-foreground mt-1">
-                  Discover upcoming competitions
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Upcoming entries</span>
-                <Badge className="bg-primary/10 text-primary border-primary/20">
-                  {statistics.upcomingShows}
-                </Badge>
-              </div>
-            </div>
-            <Button onClick={() => navigate('/shows')} className="w-full mt-6 font-semibold py-3">
-              <Search className="h-4 w-4 mr-2" />
-              Browse Shows
-            </Button>
-          </CardContent>
-        </GlassCard>
-
-        <GlassCard overlayGradient="from-blue-500/5">
-          <CardHeader className="pb-6">
-            <CardTitle className="text-xl font-bold flex items-center gap-4">
-              <div className="p-4 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                <Heart className="h-6 w-6 text-blue-500" />
-              </div>
-              <div>
-                <div className="text-foreground group-hover:text-blue-600 transition-colors duration-300">
-                  My Dogs
-                </div>
-                <div className="text-sm font-normal text-muted-foreground mt-1">
-                  Manage dog profiles and health
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Registered dogs</span>
-                <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                  {statistics.totalDogs}
-                </Badge>
-              </div>
-            </div>
-            <Button onClick={() => navigate('/dogs')} className="w-full mt-6 font-semibold py-3">
-              <Heart className="h-4 w-4 mr-2" />
-              Manage Dogs
-            </Button>
-          </CardContent>
-        </GlassCard>
-
-        <GlassCard overlayGradient="from-warning-orange/5">
-          <CardHeader className="pb-6">
-            <CardTitle className="text-xl font-bold flex items-center gap-4">
-              <div className="p-4 bg-gradient-to-br from-warning-orange/20 to-warning-orange/10 rounded-2xl shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300">
-                <FileText className="h-6 w-6 text-warning-orange" />
-              </div>
-              <div>
-                <div className="text-foreground group-hover:text-warning-orange transition-colors duration-300">
-                  My Entries
-                </div>
-                <div className="text-sm font-normal text-muted-foreground mt-1">
-                  Track and manage entries
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total entries</span>
-                <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20">
-                  {entries.length}
-                </Badge>
-              </div>
-            </div>
-            <Button
-              onClick={() => navigate('/exhibitor/entries')}
-              className="w-full mt-6 font-semibold py-3"
+          {/* Recent Results — collapsible */}
+          {recentResults.length > 0 && (
+            <CollapsibleSection
+              title="Recent Results"
+              count={recentResults.length}
+              defaultOpen={false}
             >
-              <FileText className="h-4 w-4 mr-2" />
-              View Entries
+              <div className="space-y-3">
+                {recentResults.map(result => (
+                  <ResultRow
+                    key={result.id}
+                    result={result}
+                    onView={() =>
+                      navigate(
+                        result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            </CollapsibleSection>
+          )}
+
+          {/* Quick actions — compact button row */}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button variant="outline" onClick={() => navigate('/shows')} className="gap-2">
+              <Search className="h-4 w-4" />
+              Find Shows
             </Button>
-          </CardContent>
-        </GlassCard>
-      </StaggeredGrid>
+            <Button variant="outline" onClick={() => navigate('/dogs')} className="gap-2">
+              <Heart className="h-4 w-4" />
+              My Dogs
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/exhibitor/entries')}
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              My Entries
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
 export default ExhibitorDashboard;
+
+// ---------------------------------------------------------------------------
+// Sub-components (internal to this file)
+// ---------------------------------------------------------------------------
+
+const ROW_BUTTON_CLASS =
+  'w-full text-left flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-card/90 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[48px]';
+
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  confirmed: 'bg-success-green/10 text-success-green border-success-green/20',
+  pending: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',
+  cancelled: 'bg-error-red/10 text-error-red border-error-red/20',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  confirmed: 'Confirmed',
+  pending: 'Pending',
+  cancelled: 'Cancelled',
+};
+
+/** Collapsible section with title and item count */
+function CollapsibleSection({
+  title,
+  count,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  count: number;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors min-h-[48px] w-full text-left"
+        aria-expanded={open}
+      >
+        {title} ({count})
+        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {open && <div className="mt-2">{children}</div>}
+    </section>
+  );
+}
+
+/** Compact entry row for upcoming entries */
+function EntryRow({ entry, onView }: { entry: DashboardEntry; onView: () => void }) {
+  const badgeStyle =
+    STATUS_BADGE_STYLES[entry.status] ?? 'bg-muted text-muted-foreground border-border';
+  const badgeLabel = STATUS_LABELS[entry.status] ?? 'Unknown';
+
+  return (
+    <button
+      type="button"
+      onClick={onView}
+      className={ROW_BUTTON_CLASS}
+      aria-label={`${entry.showName}, ${entry.dogName}, ${entry.className}`}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+          <span className="font-semibold text-foreground truncate">{entry.showName}</span>
+          <Badge className={badgeStyle}>{badgeLabel}</Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm text-muted-foreground">
+          <span>{entry.dogName}</span>
+          <span>&bull; {entry.className}</span>
+          {entry.showDate && (
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {format(entry.showDate, 'MMM d')}
+            </span>
+          )}
+          {entry.location !== 'TBD' && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {entry.location}
+            </span>
+          )}
+        </div>
+      </div>
+      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+    </button>
+  );
+}
+
+/** Compact result row */
+function ResultRow({
+  result,
+  onView,
+}: {
+  result: {
+    id: string;
+    resultStatus: string;
+    showName: string;
+    dogCallName: string;
+    className: string;
+    classElement: string | null;
+    classLevel: string | null;
+    showDate: string;
+    searchTimeSeconds: number | null;
+    totalFaults: number | null;
+    finalPlacement: number | null;
+  };
+  onView: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onView}
+      className={ROW_BUTTON_CLASS}
+      aria-label={`${result.showName}, ${result.dogCallName}, ${result.className}, ${result.resultStatus}`}
+    >
+      <ResultBadge resultStatus={result.resultStatus} variant="large" />
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold text-foreground truncate block">{result.showName}</span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{result.dogCallName}</span>
+          <span>
+            {result.className}
+            {result.classElement ? ` — ${result.classElement}` : ''}
+            {result.classLevel ? ` ${result.classLevel}` : ''}
+          </span>
+          {result.showDate && <span>{format(new Date(result.showDate), 'MMM d, yyyy')}</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm">
+          {result.searchTimeSeconds != null && (
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              {result.searchTimeSeconds.toFixed(1)}s
+            </span>
+          )}
+          {result.totalFaults != null && result.totalFaults > 0 && (
+            <span className="flex items-center gap-1 text-warning-orange">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {result.totalFaults} fault{result.totalFaults !== 1 ? 's' : ''}
+            </span>
+          )}
+          {result.finalPlacement != null && result.finalPlacement > 0 && (
+            <span className="text-muted-foreground">Placement: {result.finalPlacement}</span>
+          )}
+        </div>
+      </div>
+      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+    </button>
+  );
+}

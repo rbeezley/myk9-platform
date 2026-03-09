@@ -1,10 +1,9 @@
 import React from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Search, X, GraduationCap } from 'lucide-react';
+import { SearchablePopover } from '@/components/ui/searchable-popover';
+import { Plus, X, GraduationCap } from 'lucide-react';
 import type { User } from '@/types/user-types';
 import type { Club } from '@/types/club-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
@@ -21,63 +20,6 @@ const HEADING_CLASS =
   'text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300';
 const CREATE_BTN_CLASS =
   'w-full border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm';
-
-/* ------------------------------------------------------------------ */
-/*  SearchablePopover — reusable popover with search input + list     */
-/* ------------------------------------------------------------------ */
-
-interface SearchablePopoverProps<T> {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  triggerLabel: string;
-  searchPlaceholder: string;
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-  items: T[];
-  renderItem: (item: T) => React.ReactNode;
-  emptyMessage: string;
-}
-
-function SearchablePopover<T extends { id: string }>({
-  open,
-  onOpenChange,
-  triggerLabel,
-  searchPlaceholder,
-  searchTerm,
-  onSearchChange,
-  items,
-  renderItem,
-  emptyMessage,
-}: SearchablePopoverProps<T>) {
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-start">
-          {triggerLabel}
-          <Search className="ml-auto h-4 w-4" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
-        <div className="p-3 border-b">
-          <Input
-            placeholder={searchPlaceholder}
-            value={searchTerm}
-            onChange={e => onSearchChange(e.target.value)}
-            className="h-8"
-          />
-        </div>
-        <div className="max-h-60 overflow-auto">
-          {items.map(item => (
-            <React.Fragment key={item.id}>{renderItem(item)}</React.Fragment>
-          ))}
-          {items.length === 0 && (
-            <div className="p-3 text-sm text-muted-foreground text-center">{emptyMessage}</div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  ClubSection                                                        */

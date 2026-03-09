@@ -1,14 +1,23 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Mail, Phone, MapPin } from 'lucide-react';
+import { SearchablePopover } from '@/components/ui/searchable-popover';
+import { Building2, Mail, Phone, MapPin, Shield, Plus } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
+import { useUserStore } from '@/store/userStore';
+import { getAllPeopleSorted, filterPeopleByName, getPersonName } from '@/lib/people-utils';
 import { notifications } from '@/lib/notifications';
+import { rbacService } from '@/services/rbac';
+import { logger } from '@/services/LoggingService';
+import { UserRole } from '@/types/auth-types';
+import { panelManager } from '../PanelManager';
 import { BasePanelProps, EntityCreationResult } from '../types';
 import type { Club } from '@/types/club-types';
+import type { User } from '@/types/user-types';
 
 interface ClubData {
   name: string;
@@ -26,7 +35,12 @@ interface ClubData {
 }
 
 interface ClubCreationPanelProps extends BasePanelProps {
-  onStateChange?: (state: { isLoading: boolean; error: string | null; isDirty: boolean; isValid: boolean }) => void;
+  onStateChange?: (state: {
+    isLoading: boolean;
+    error: string | null;
+    isDirty: boolean;
+    isValid: boolean;
+  }) => void;
 }
 
 export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
@@ -36,7 +50,8 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
   onStateChange,
 }) => {
   const { addClub, updateClub, clubs } = useClubStore();
-  
+  const { people, loadUsers } = useUserStore();
+
   const [formData, setFormData] = useState<ClubData>({
     name: '',
     email: '',
@@ -53,25 +68,51 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     ...context.preFilledData,
   });
 
+  const [clubAdminId, setClubAdminId] = useState<string | null>(null);
+  const [showAdminSearch, setShowAdminSearch] = useState(false);
+  const [adminSearchTerm, setAdminSearchTerm] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasRequestedUsers = useRef(false);
+
+  // Load people on mount if store is empty (once only)
+  useEffect(() => {
+    if (people.length === 0 && !hasRequestedUsers.current) {
+      hasRequestedUsers.current = true;
+      loadUsers();
+    }
+  }, [people.length, loadUsers]);
+
+  const allPeopleSorted = useMemo(() => getAllPeopleSorted(people), [people]);
+
+  const filteredPeople = useMemo(
+    () => filterPeopleByName(allPeopleSorted, adminSearchTerm),
+    [allPeopleSorted, adminSearchTerm]
+  );
+
+  const selectedAdminName = useMemo(
+    () => getPersonName(people, clubAdminId) ?? null,
+    [clubAdminId, people]
+  );
 
   // Memoize validation to prevent unnecessary recalculations
   const validationState = useMemo(() => {
     // Defensive programming: ensure clubs is a valid array
     const safeClubs = Array.isArray(clubs) ? clubs : [];
-    
-    const isDuplicateName = safeClubs.some(club => 
-      club?.name?.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
-      club.id !== context.preFilledData?.id // Allow same name for edit mode
+
+    const isDuplicateName = safeClubs.some(
+      club =>
+        club?.name?.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
+        club.id !== context.preFilledData?.id // Allow same name for edit mode
     );
-    
-    const isValid = formData.name.trim().length > 0 && 
-                    formData.email.trim().length > 0 &&
-                    formData.address.city.trim().length > 0 &&
-                    formData.address.state.trim().length > 0 &&
-                    !isDuplicateName;
+
+    const isValid =
+      formData.name.trim().length > 0 &&
+      formData.email.trim().length > 0 &&
+      formData.address.city.trim().length > 0 &&
+      formData.address.state.trim().length > 0 &&
+      !isDuplicateName;
 
     return { isDuplicateName, isValid };
   }, [
@@ -80,7 +121,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     formData.address.city,
     formData.address.state,
     clubs,
-    context.preFilledData?.id
+    context.preFilledData?.id,
   ]);
 
   // Stable callback for state changes
@@ -104,74 +145,119 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
   };
 
   const updateAddress = (updates: Partial<ClubData['address']>) => {
-    updateFormData({
-      address: { ...formData.address, ...updates }
+    setFormData(prev => ({ ...prev, address: { ...prev.address, ...updates } }));
+    setIsDirty(true);
+  };
+
+  const handleCreateAdmin = () => {
+    panelManager.openPanel({
+      type: 'person',
+      title: 'Create New Club Admin',
+      subtitle: 'Add a new person to serve as club administrator',
+      context: {
+        entityType: 'person',
+        mode: 'create',
+        preFilledData: { role: 'club_admin', roleLabel: 'Club Admin' },
+        selectionCallback: async (person: Record<string, unknown>) => {
+          setClubAdminId(person.id as string);
+          setIsDirty(true);
+          await loadUsers();
+          logger.debug('Club admin created and selected', 'clubs', { adminId: person.id });
+        },
+      },
     });
   };
 
-  const handleSave = useCallback(async (action: 'save' | 'save_and_continue' | 'save_and_close') => {
-    if (!validationState.isValid) return;
+  const handleSave = useCallback(
+    async (action: 'save' | 'save_and_continue' | 'save_and_close') => {
+      if (!validationState.isValid) return;
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      // Generate a unique ID for the new club
-      const clubId = `club-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      const clubData: Club = {
-        id: clubId,
-        name: formData.name.trim(),
-        clubNumber: `CLUB-${Date.now()}`, // Generate a club number
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        website: formData.website.trim(),
-        address: formData.address,
-        description: formData.description.trim(),
-        logo: '', // Default empty logo
-        clubType: 'local' as const,
-        memberIds: [],
-        upcomingShows: [],
-        pastShows: [],
-        // Additional sync metadata
-        _version: 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: 'system',
-      };
+      try {
+        // Generate a unique ID for the new club
+        const clubId = `club-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      if (context.mode === 'edit' && context.preFilledData?.id) {
-        // Update existing club
-        await updateClub(clubData);
-      } else {
-        // Create new club — await so it's in IndexedDB before selectionCallback runs
-        await addClub(clubData);
+        const clubData: Club = {
+          id: clubId,
+          name: formData.name.trim(),
+          clubNumber: `CLUB-${Date.now()}`, // Generate a club number
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          website: formData.website.trim(),
+          address: formData.address,
+          description: formData.description.trim(),
+          logo: '', // Default empty logo
+          clubType: 'local' as const,
+          memberIds: [],
+          upcomingShows: [],
+          pastShows: [],
+          // Additional sync metadata
+          _version: 1,
+          _lastModified: new Date(),
+          _lastModifiedBy: 'system',
+        };
+
+        if (context.mode === 'edit' && context.preFilledData?.id) {
+          // Update existing club
+          await updateClub(clubData);
+        } else {
+          // Create new club — await so it's in IndexedDB before selectionCallback runs
+          await addClub(clubData);
+        }
+
+        // Auto-grant club admin role to the selected person (fire-and-forget)
+        if (clubAdminId) {
+          rbacService.ensureUserHasRole(clubAdminId, UserRole.CLUB_ADMIN, clubId).catch(err => {
+            logger.warn('Failed to auto-grant club admin role', 'clubs', {
+              error: err instanceof Error ? err.message : String(err),
+            });
+            notifications.warning(
+              'Club created, but failed to assign admin role. Assign manually from the club members page.'
+            );
+          });
+        }
+
+        // Call the selection callback if provided (may be async to refresh store)
+        if (context.selectionCallback) {
+          await context.selectionCallback(clubData as unknown as Record<string, unknown>);
+        }
+
+        const result: EntityCreationResult = {
+          success: true,
+          entity: clubData as unknown as Record<string, unknown>,
+          action,
+        };
+
+        const adminNote =
+          clubAdminId && selectedAdminName ? ` ${selectedAdminName} assigned as club admin.` : '';
+
+        notifications.success(
+          context.mode === 'edit'
+            ? `"${clubData.name}" updated successfully`
+            : `"${clubData.name}" created successfully.${adminNote}`
+        );
+
+        onResult(result);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to save club';
+        setError(errorMessage);
+        setIsLoading(false);
+        notifications.error(errorMessage);
       }
-
-      // Call the selection callback if provided (may be async to refresh store)
-      if (context.selectionCallback) {
-        await context.selectionCallback((clubData as unknown) as Record<string, unknown>);
-      }
-
-      const result: EntityCreationResult = {
-        success: true,
-        entity: (clubData as unknown) as Record<string, unknown>,
-        action,
-      };
-
-      notifications.success(
-        context.mode === 'edit'
-          ? `"${clubData.name}" updated successfully`
-          : `"${clubData.name}" created successfully`
-      );
-
-      onResult(result);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save club';
-      setError(errorMessage);
-      setIsLoading(false);
-      notifications.error(errorMessage);
-    }
-  }, [validationState.isValid, formData, context, addClub, updateClub, onResult]);
+    },
+    [
+      validationState.isValid,
+      formData,
+      context,
+      clubAdminId,
+      selectedAdminName,
+      addClub,
+      updateClub,
+      onResult,
+    ]
+  );
 
   // Override the parent component's save handler
   useEffect(() => {
@@ -180,10 +266,11 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
     };
 
     // Store reference for potential cleanup
-    ((window as unknown) as Window & { [key: string]: unknown })[`handleSave_${panelId}`] = handleParentSave;
+    (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`] =
+      handleParentSave;
 
     return () => {
-      delete ((window as unknown) as Window & { [key: string]: unknown })[`handleSave_${panelId}`];
+      delete (window as unknown as Window & { [key: string]: unknown })[`handleSave_${panelId}`];
     };
   }, [panelId, formData, validationState.isValid, handleSave]);
 
@@ -198,10 +285,9 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
           </h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          {context.mode === 'edit' 
+          {context.mode === 'edit'
             ? 'Update the club information below.'
-            : 'Add a new club that can host dog shows and trials.'
-          }
+            : 'Add a new club that can host dog shows and trials.'}
         </p>
       </div>
 
@@ -209,9 +295,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Basic Information</CardTitle>
-          <CardDescription>
-            Essential details about the club
-          </CardDescription>
+          <CardDescription>Essential details about the club</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -220,7 +304,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
               id="name"
               autoComplete="organization"
               value={formData.name}
-              onChange={(e) => updateFormData({ name: e.target.value })}
+              onChange={e => updateFormData({ name: e.target.value })}
               placeholder="Enter club name"
               className={`w-full ${validationState.isDuplicateName ? 'border-destructive focus:border-destructive' : ''}`}
             />
@@ -241,7 +325,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
                   type="email"
                   autoComplete="email"
                   value={formData.email}
-                  onChange={(e) => updateFormData({ email: e.target.value })}
+                  onChange={e => updateFormData({ email: e.target.value })}
                   placeholder="club@example.com"
                   className="pl-10"
                 />
@@ -257,7 +341,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
                   type="tel"
                   autoComplete="tel"
                   value={formData.phone}
-                  onChange={(e) => updateFormData({ phone: e.target.value })}
+                  onChange={e => updateFormData({ phone: e.target.value })}
                   placeholder="(555) 123-4567"
                   className="pl-10"
                 />
@@ -272,9 +356,78 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
               type="url"
               autoComplete="url"
               value={formData.website}
-              onChange={(e) => updateFormData({ website: e.target.value })}
+              onChange={e => updateFormData({ website: e.target.value })}
               placeholder="https://www.clubwebsite.com"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Club Admin Assignment */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Club Admin
+          </CardTitle>
+          <CardDescription>Assign a person to manage this club's members and shows</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Label>Club Administrator</Label>
+            <SearchablePopover
+              open={showAdminSearch}
+              onOpenChange={setShowAdminSearch}
+              triggerLabel={selectedAdminName || 'Select club admin'}
+              searchPlaceholder="Search people..."
+              searchTerm={adminSearchTerm}
+              onSearchChange={setAdminSearchTerm}
+              items={filteredPeople}
+              emptyMessage="No people found"
+              renderItem={(person: User) => (
+                <div
+                  className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                  onClick={() => {
+                    setClubAdminId(person.id);
+                    setIsDirty(true);
+                    setShowAdminSearch(false);
+                    setAdminSearchTerm('');
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      {person.firstName} {person.lastName}
+                    </span>
+                    {person.roles && person.roles.length > 0 && (
+                      <div className="flex gap-1">
+                        {person.roles.map(role => (
+                          <Badge key={role} variant="outline" className="text-[10px] px-1.5 py-0">
+                            {role.charAt(0).toUpperCase() + role.slice(1)}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {person.email && (
+                    <div className="text-sm text-muted-foreground">{person.email}</div>
+                  )}
+                </div>
+              )}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCreateAdmin}
+              className="w-full border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create New Person
+            </Button>
+            {clubAdminId && selectedAdminName && (
+              <p className="text-sm text-muted-foreground">
+                {selectedAdminName} will be granted the Club Admin role for this club.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -286,9 +439,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
             <MapPin className="h-4 w-4" />
             Address
           </CardTitle>
-          <CardDescription>
-            Club's primary location or mailing address
-          </CardDescription>
+          <CardDescription>Club's primary location or mailing address</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -297,7 +448,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
               id="street"
               autoComplete="street-address"
               value={formData.address.street}
-              onChange={(e) => updateAddress({ street: e.target.value })}
+              onChange={e => updateAddress({ street: e.target.value })}
               placeholder="123 Main Street"
             />
           </div>
@@ -309,7 +460,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
                 id="city"
                 autoComplete="address-level2"
                 value={formData.address.city}
-                onChange={(e) => updateAddress({ city: e.target.value })}
+                onChange={e => updateAddress({ city: e.target.value })}
                 placeholder="City"
               />
             </div>
@@ -320,7 +471,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
                 id="state"
                 autoComplete="address-level1"
                 value={formData.address.state}
-                onChange={(e) => updateAddress({ state: e.target.value })}
+                onChange={e => updateAddress({ state: e.target.value })}
                 placeholder="State"
               />
             </div>
@@ -331,7 +482,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
                 id="zipCode"
                 autoComplete="postal-code"
                 value={formData.address.zipCode}
-                onChange={(e) => updateAddress({ zipCode: e.target.value })}
+                onChange={e => updateAddress({ zipCode: e.target.value })}
                 placeholder="12345"
               />
             </div>
@@ -343,7 +494,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
               id="country"
               autoComplete="country-name"
               value={formData.address.country}
-              onChange={(e) => updateAddress({ country: e.target.value })}
+              onChange={e => updateAddress({ country: e.target.value })}
               placeholder="United States"
             />
           </div>
@@ -354,9 +505,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Description</CardTitle>
-          <CardDescription>
-            Optional details about the club
-          </CardDescription>
+          <CardDescription>Optional details about the club</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -364,7 +513,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => updateFormData({ description: e.target.value })}
+              onChange={e => updateFormData({ description: e.target.value })}
               placeholder="Brief description of the club, its mission, and activities..."
               rows={4}
             />

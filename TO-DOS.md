@@ -379,15 +379,11 @@ Phase 1 (quick filters), Phase 2 (three-panel layout), and Phase 3 (interactive 
 
 Pre-existing issues found during confirmation number implementation review. Address when naturally touching these files.
 
-- **Deduplicate entry mapping functions** — `mapEntryStatus`, `mapPaymentStatus`, `mapClassEntryStatus` are defined in both `utils/entryManagementUtils.ts` (lines 13-66) and `pages/MyEntriesPage/modules/useMyEntriesData.ts` (lines 22-64) with slightly different logic. Consolidate into the utils file and import from there. **Files:** `useMyEntriesData.ts`, `entryManagementUtils.ts`.
-
-- **Use buildBatchEntries helper in entryStore** — `entryStore.ts` `createMultipleEntries` (lines 351-375) inlines the same logic that `buildBatchEntries()` in `entry-store-helpers.ts` already provides. Replace inline code with helper call. **Files:** `store/entryStore.ts`, `store/entry-store-helpers.ts`.
-
-- **Extract shared filter predicates for entry status tabs** — "Pending" and "issues" tab predicates are duplicated between `useEntryManagementFilters.ts` (tabCounts + filteredEntries) and could also diverge from `useMyEntriesFilters.ts`. Extract named predicate functions (e.g., `isPendingEntry`, `isIssueEntry`) and reuse across tab counts and filtering. **Files:** `hooks/useEntryManagementFilters.ts`, `pages/MyEntriesPage/modules/useMyEntriesFilters.ts`.
-
-- **Single-pass stats + tab count calculation** — `useEntryManagementData.ts` computes stats with 4 `.filter()` calls and `useEntryManagementFilters.ts` computes tabCounts with 4 more `.filter()` calls over the same entries array — 8 passes total. Merge into a single `reduce()` that computes all counts in one pass. **Files:** `hooks/useEntryManagementData.ts`, `hooks/useEntryManagementFilters.ts`.
-
-- **Resolve conflicting EntryStats types** — Two different `EntryStats` interfaces with the same name exist: `entry-management-types.ts` (total/pending/accepted/waitlist/revenue) and `my-entries-types.ts` (total/accepted/pending/upcoming/fees/percents). Risk of importing the wrong one. Rename or namespace to disambiguate. **Files:** `types/entry-management-types.ts`, `pages/MyEntriesPage/modules/my-entries-types.ts`.
+- [x] **Deduplicate entry mapping functions** — Merged best of both versions into `entryManagementUtils.ts` (added `submitted`→PENDING, `withdrawn`→CANCELLED, `rejected`→`absent`). Removed duplicates from `useMyEntriesData.ts`. Commit `3b977f6`.
+- [x] **Use buildBatchEntries helper in entryStore** — Replaced 25-line inline block in `createMultipleEntries` with single `buildBatchEntries()` call. Updated helper to accept optional `initialStatus` and `registrationId`. Commit `3b977f6`.
+- [x] **Extract shared filter predicates for entry status tabs** — Created `entryPredicates.ts` with `isPendingEntry`, `isAcceptedEntry`, `isWaitlistEntry`, `isIssueEntry`. Used by both `useEntryManagementFilters` and `useMyEntriesFilters`. Commit `3b977f6`.
+- [x] **Single-pass stats + tab count calculation** — Replaced 8 `.filter()` passes with single `for...of` loop. `useEntryManagementFilters` now receives precomputed `tabCounts` as prop. Commit `3b977f6`.
+- [x] **Resolve conflicting EntryStats types** — Renamed MyEntries version to `MyEntryStats`. Updated all consumers (`useMyEntriesFilters`, `MyEntriesStatsCards`). Commit `3b977f6`.
 
 ## Pre-Existing Test Failures - 2026-03-09
 

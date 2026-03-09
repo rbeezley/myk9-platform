@@ -1,7 +1,11 @@
 import { isAfter } from 'date-fns';
+import { getAllPeopleSorted } from '@/lib/people-utils';
 import type { Club } from '@/types/club-types';
 import type { User } from '@/types/user-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
+
+// Re-export shared people utilities for backward compatibility
+export { getAllPeopleSorted, filterPeopleByName, getPersonName } from '@/lib/people-utils';
 
 /**
  * Filter clubs by a search term (matches name, email, or city/state).
@@ -18,34 +22,6 @@ export function filterClubs(clubs: Club[], searchTerm: string): Club[] {
 }
 
 /**
- * Compare two users by full name (case-insensitive).
- */
-function compareByName(a: User, b: User): number {
-  const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-  const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-  return nameA.localeCompare(nameB);
-}
-
-/**
- * Return all people deduplicated by ID and sorted by name.
- * Chairman/secretary are per-show assignments, not permanent roles,
- * so anyone in the system can be selected.
- */
-export function getAllPeopleSorted(people: User[]): User[] {
-  const deduped = [...new Map(people.map(p => [p.id, p])).values()];
-  return deduped.sort(compareByName);
-}
-
-/**
- * Filter a list of people by full-name substring match.
- */
-export function filterPeopleByName(people: User[], searchTerm: string): User[] {
-  if (!searchTerm.trim()) return people;
-  const term = searchTerm.toLowerCase();
-  return people.filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(term));
-}
-
-/**
  * Return judges not yet selected, optionally filtered by name/judge-number,
  * sorted alphabetically by name.
  */
@@ -54,25 +30,16 @@ export function getAvailableJudges(
   selectedIds: string[],
   searchTerm: string
 ): User[] {
-  return people
+  const sorted = getAllPeopleSorted(people);
+  return sorted
     .filter(person => person.roles?.includes('judge') && !selectedIds.includes(person.id))
     .filter(judge => {
       if (!searchTerm.trim()) return true;
       const term = searchTerm.toLowerCase();
-      const fullName = `${judge.firstName} ${judge.lastName}`.toLowerCase();
+      const fullName = `${judge.firstName ?? ''} ${judge.lastName ?? ''}`.toLowerCase();
       const judgeNumber = judge.judgeInfo?.judgeNumber?.toLowerCase() || '';
       return fullName.includes(term) || judgeNumber.includes(term);
-    })
-    .sort(compareByName);
-}
-
-/**
- * Look up a person's display name by ID.
- */
-export function getPersonName(people: User[], id: string | undefined): string | undefined {
-  if (!id) return undefined;
-  const person = people.find(p => p.id === id);
-  return person ? `${person.firstName} ${person.lastName}` : undefined;
+    });
 }
 
 /**

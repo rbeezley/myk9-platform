@@ -121,6 +121,23 @@ export async function removeClubOfficer(officerId: string): Promise<void> {
   if (error) throw error;
 }
 
+// --- Show Managers (RBAC SECRETARY role scoped to club) ---
+
+/**
+ * Get person IDs that have the SECRETARY RBAC role scoped to this club.
+ * These people can create and manage shows for the club.
+ */
+export async function getClubShowManagerIds(clubId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('user_id, roles!inner(name)')
+    .eq('roles.name', 'secretary')
+    .eq('club_id', clubId);
+
+  if (error) throw error;
+  return new Set((data ?? []).map(row => row.user_id));
+}
+
 // --- Mappers ---
 
 interface DbMemberRow {

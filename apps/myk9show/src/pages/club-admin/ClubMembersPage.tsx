@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
-import { Users, UserPlus, Shield, Search, Trash2 } from 'lucide-react';
+import { Users, UserPlus, Shield, Search, Trash2, KeyRound } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -36,7 +36,10 @@ import {
   removeClubMember,
   addClubOfficer,
   removeClubOfficer,
+  getClubShowManagerIds,
 } from '@/services/database/queries/clubMembershipQueries';
+import { rbacService } from '@/services/rbac/RBACService';
+import { logger } from '@/services/LoggingService';
 import {
   AddMemberDialog,
   AssignOfficerDialog,
@@ -89,8 +92,18 @@ const ClubMembersPage: React.FC = () => {
     enabled: !!clubId,
   });
 
-  const members = membersQuery.data ?? [];
-  const officers = officersQuery.data ?? [];
+  const showManagersQuery = useQuery({
+    queryKey: ['club-show-managers', clubId],
+    queryFn: () => getClubShowManagerIds(clubId!),
+    enabled: !!clubId,
+  });
+
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
+  const officers = useMemo(() => officersQuery.data ?? [], [officersQuery.data]);
+  const showManagerIds = useMemo(
+    () => showManagersQuery.data ?? new Set<string>(),
+    [showManagersQuery.data]
+  );
 
   // Sorted officers by position order
   const sortedOfficers = useMemo(() => {
@@ -160,6 +173,30 @@ const ClubMembersPage: React.FC = () => {
     },
   });
 
+  const toggleShowAccessMutation = useMutation({
+    mutationFn: async ({ personId, grant }: { personId: string; grant: boolean }) => {
+      if (grant) {
+        await rbacService.ensureUserHasRole(personId, UserRole.SECRETARY, clubId!);
+      } else {
+        await rbacService.revokeRole({
+          userId: personId,
+          roleName: UserRole.SECRETARY,
+          scopeType: ScopeType.CLUB,
+          scopeId: clubId!,
+        });
+      }
+    },
+    onSuccess: (_, { personId, grant }) => {
+      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      logger.info(`Show access ${grant ? 'granted to' : 'revoked from'} ${personId}`, 'club-admin');
+    },
+    onError: (error, { grant }) => {
+      logger.error(`Failed to ${grant ? 'grant' : 'revoke'} show access`, 'club-admin', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
   // Handlers
   const handleChangeType = (memberId: string, membershipType: MembershipType) => {
     updateMemberMutation.mutate({ memberId, updates: { membershipType } });
@@ -171,6 +208,10 @@ const ClubMembersPage: React.FC = () => {
 
   const handleRemoveMember = (memberId: string) => {
     removeMemberMutation.mutate(memberId);
+  };
+
+  const handleToggleShowAccess = (personId: string, grant: boolean) => {
+    toggleShowAccessMutation.mutate({ personId, grant });
   };
 
   const existingMemberPersonIds = useMemo(() => new Set(members.map(m => m.personId)), [members]);
@@ -309,7 +350,15 @@ const ClubMembersPage: React.FC = () => {
                           className="border-b border-border/20 hover:bg-muted/30 transition-colors"
                         >
                           <td className="px-4 py-3 font-medium text-foreground">
-                            {member.personName || 'Unknown'}
+                            <span className="flex items-center gap-2">
+                              {member.personName || 'Unknown'}
+                              {showManagerIds.has(member.personId) && (
+                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">
+                                  <KeyRound className="h-3 w-3 mr-1" />
+                                  Show Manager
+                                </Badge>
+                              )}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
                             {member.personEmail || '—'}
@@ -332,9 +381,11 @@ const ClubMembersPage: React.FC = () => {
                           <td className="px-4 py-3 text-right">
                             <MemberActionMenu
                               member={member}
+                              hasShowAccess={showManagerIds.has(member.personId)}
                               onChangeType={handleChangeType}
                               onChangeStatus={handleChangeStatus}
                               onRemove={handleRemoveMember}
+                              onToggleShowAccess={handleToggleShowAccess}
                             />
                           </td>
                         </tr>

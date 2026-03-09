@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { UserPlus, Shield, Search, X, MoreVertical, Trash2 } from 'lucide-react';
+import { UserPlus, Shield, Search, X, MoreVertical, Trash2, KeyRound } from 'lucide-react';
 import type { User } from '@/types/user-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import {
@@ -42,16 +42,20 @@ export const STATUS_BADGE_CLASSES: Record<MembershipStatus, string> = {
 
 interface ActionMenuProps {
   member: ClubMember;
+  hasShowAccess: boolean;
   onChangeType: (memberId: string, type: MembershipType) => void;
   onChangeStatus: (memberId: string, status: MembershipStatus) => void;
   onRemove: (memberId: string) => void;
+  onToggleShowAccess: (personId: string, grant: boolean) => void;
 }
 
 export const MemberActionMenu: React.FC<ActionMenuProps> = ({
   member,
+  hasShowAccess,
   onChangeType,
   onChangeStatus,
   onRemove,
+  onToggleShowAccess,
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -122,6 +126,27 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
                 </button>
               )
             )}
+
+            <div className="my-1 border-t border-border/30" />
+
+            {/* Show Access */}
+            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Show Access
+            </div>
+            <button
+              onClick={() => {
+                onToggleShowAccess(member.personId, !hasShowAccess);
+                setOpen(false);
+              }}
+              className={`w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center gap-2 ${
+                hasShowAccess
+                  ? 'text-warning-orange hover:bg-warning-orange/10'
+                  : 'text-success-green hover:bg-success-green/10'
+              }`}
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              {hasShowAccess ? 'Revoke Show Access' : 'Grant Show Access'}
+            </button>
 
             <div className="my-1 border-t border-border/30" />
 

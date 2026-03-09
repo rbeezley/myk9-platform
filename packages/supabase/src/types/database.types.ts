@@ -753,6 +753,7 @@ export type Database = {
           points_earned: number | null;
           points_possible: number | null;
           preferred_judge: string | null;
+          registration_id: string | null;
           result_status: string | null;
           ring_entry_time: string | null;
           ring_exit_time: string | null;
@@ -819,6 +820,7 @@ export type Database = {
           points_earned?: number | null;
           points_possible?: number | null;
           preferred_judge?: string | null;
+          registration_id?: string | null;
           result_status?: string | null;
           ring_entry_time?: string | null;
           ring_exit_time?: string | null;
@@ -885,6 +887,7 @@ export type Database = {
           points_earned?: number | null;
           points_possible?: number | null;
           preferred_judge?: string | null;
+          registration_id?: string | null;
           result_status?: string | null;
           ring_entry_time?: string | null;
           ring_exit_time?: string | null;
@@ -2085,6 +2088,57 @@ export type Database = {
           user_id?: string | null;
         };
         Relationships: [];
+      };
+      registrations: {
+        Row: {
+          id: string;
+          confirmation_number: string;
+          show_id: string;
+          handler_id: string;
+          payment_status: string;
+          payment_reference: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          confirmation_number?: string;
+          show_id: string;
+          handler_id: string;
+          payment_status?: string;
+          payment_reference?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          confirmation_number?: string;
+          show_id?: string;
+          handler_id?: string;
+          payment_status?: string;
+          payment_reference?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'registrations_show_id_fkey';
+            columns: ['show_id'];
+            isOneToOne: false;
+            referencedRelation: 'shows';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'registrations_handler_id_fkey';
+            columns: ['handler_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       role_permissions: {
         Row: {

@@ -35,11 +35,19 @@ import {
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
 
+export interface ClubContext {
+  clubId: string;
+  clubName: string;
+}
+
 function hasAnyRole(userRoles: UserRole[], required: UserRole[]): boolean {
   return required.some(r => userRoles.includes(r));
 }
 
-export function buildUnifiedSidebarConfig(userRoles: UserRole[]): SidebarConfig {
+export function buildUnifiedSidebarConfig(
+  userRoles: UserRole[],
+  clubContext?: ClubContext
+): SidebarConfig {
   const groups: NavGroup[] = [];
 
   // Browse — always visible
@@ -142,6 +150,33 @@ export function buildUnifiedSidebarConfig(userRoles: UserRole[]): SidebarConfig 
           href: '/secretary/run-order',
           icon: List,
           description: 'Class scheduling and ordering',
+        },
+      ],
+    });
+  }
+
+  // My Club (club admin — only if club context is available)
+  if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
+    groups.push({
+      title: 'My Club',
+      items: [
+        {
+          title: 'Our Shows',
+          href: `/shows?club=${clubContext.clubId}`,
+          icon: Calendar,
+          description: `Shows for ${clubContext.clubName}`,
+        },
+        {
+          title: 'Members',
+          href: '/club-admin/members',
+          icon: Users,
+          description: 'Manage club members',
+        },
+        {
+          title: 'Club Profile',
+          href: `/clubs/${clubContext.clubId}`,
+          icon: Building2,
+          description: 'Club details and settings',
         },
       ],
     });

@@ -545,6 +545,114 @@ export type Database = {
         };
         Relationships: [];
       };
+      club_members: {
+        Row: {
+          id: string;
+          club_id: string;
+          person_id: string;
+          membership_type: string;
+          membership_status: string;
+          joined_date: string | null;
+          dues_paid_through: string | null;
+          voting_eligible: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          person_id: string;
+          membership_type?: string;
+          membership_status?: string;
+          joined_date?: string | null;
+          dues_paid_through?: string | null;
+          voting_eligible?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          club_id?: string;
+          person_id?: string;
+          membership_type?: string;
+          membership_status?: string;
+          joined_date?: string | null;
+          dues_paid_through?: string | null;
+          voting_eligible?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'club_members_club_id_fkey';
+            columns: ['club_id'];
+            isOneToOne: false;
+            referencedRelation: 'clubs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'club_members_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      club_officers: {
+        Row: {
+          id: string;
+          club_id: string;
+          person_id: string;
+          position: string;
+          term_start: string | null;
+          term_end: string | null;
+          elected_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          person_id: string;
+          position: string;
+          term_start?: string | null;
+          term_end?: string | null;
+          elected_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          club_id?: string;
+          person_id?: string;
+          position?: string;
+          term_start?: string | null;
+          term_end?: string | null;
+          elected_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'club_officers_club_id_fkey';
+            columns: ['club_id'];
+            isOneToOne: false;
+            referencedRelation: 'clubs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'club_officers_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       dog_registrations: {
         Row: {
           application_number: string | null;

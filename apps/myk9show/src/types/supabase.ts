@@ -507,6 +507,114 @@ export type Database = {
         };
         Relationships: [];
       };
+      club_members: {
+        Row: {
+          id: string;
+          club_id: string;
+          person_id: string;
+          membership_type: string;
+          membership_status: string;
+          joined_date: string | null;
+          dues_paid_through: string | null;
+          voting_eligible: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          person_id: string;
+          membership_type?: string;
+          membership_status?: string;
+          joined_date?: string | null;
+          dues_paid_through?: string | null;
+          voting_eligible?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          club_id?: string;
+          person_id?: string;
+          membership_type?: string;
+          membership_status?: string;
+          joined_date?: string | null;
+          dues_paid_through?: string | null;
+          voting_eligible?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'club_members_club_id_fkey';
+            columns: ['club_id'];
+            isOneToOne: false;
+            referencedRelation: 'clubs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'club_members_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      club_officers: {
+        Row: {
+          id: string;
+          club_id: string;
+          person_id: string;
+          position: string;
+          term_start: string | null;
+          term_end: string | null;
+          elected_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          person_id: string;
+          position: string;
+          term_start?: string | null;
+          term_end?: string | null;
+          elected_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          club_id?: string;
+          person_id?: string;
+          position?: string;
+          term_start?: string | null;
+          term_end?: string | null;
+          elected_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'club_officers_club_id_fkey';
+            columns: ['club_id'];
+            isOneToOne: false;
+            referencedRelation: 'clubs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'club_officers_person_id_fkey';
+            columns: ['person_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       dog_registrations: {
         Row: {
           application_number: string | null;
@@ -731,6 +839,7 @@ export type Database = {
           points_possible: number | null;
           preferred_judge: string | null;
           promo_code_id: string | null;
+          registration_id: string | null;
           result_status: string | null;
           ring_entry_time: string | null;
           ring_exit_time: string | null;
@@ -801,6 +910,7 @@ export type Database = {
           points_possible?: number | null;
           preferred_judge?: string | null;
           promo_code_id?: string | null;
+          registration_id?: string | null;
           result_status?: string | null;
           ring_entry_time?: string | null;
           ring_exit_time?: string | null;
@@ -871,6 +981,7 @@ export type Database = {
           points_possible?: number | null;
           preferred_judge?: string | null;
           promo_code_id?: string | null;
+          registration_id?: string | null;
           result_status?: string | null;
           ring_entry_time?: string | null;
           ring_exit_time?: string | null;
@@ -933,6 +1044,13 @@ export type Database = {
             columns: ['trial_id'];
             isOneToOne: false;
             referencedRelation: 'trials';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entries_registration_id_fkey';
+            columns: ['registration_id'];
+            isOneToOne: false;
+            referencedRelation: 'registrations';
             referencedColumns: ['id'];
           },
         ];
@@ -2445,6 +2563,57 @@ export type Database = {
           user_id?: string | null;
         };
         Relationships: [];
+      };
+      registrations: {
+        Row: {
+          id: string;
+          confirmation_number: string;
+          show_id: string;
+          handler_id: string;
+          payment_status: string;
+          payment_reference: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          confirmation_number?: string;
+          show_id: string;
+          handler_id: string;
+          payment_status?: string;
+          payment_reference?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          confirmation_number?: string;
+          show_id?: string;
+          handler_id?: string;
+          payment_status?: string;
+          payment_reference?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'registrations_show_id_fkey';
+            columns: ['show_id'];
+            isOneToOne: false;
+            referencedRelation: 'shows';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'registrations_handler_id_fkey';
+            columns: ['handler_id'];
+            isOneToOne: false;
+            referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       role_permissions: {
         Row: {

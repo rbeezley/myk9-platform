@@ -143,6 +143,19 @@ const BrowseShowsPage: React.FC = () => {
     [savedViewsList, applyView, setFilters]
   );
 
+  // Build club filter options from available shows
+  const clubFilterOptions = useMemo(() => {
+    const clubMap = new Map<string, string>();
+    shows.forEach(show => {
+      if (show.clubId && show.clubName) {
+        clubMap.set(show.clubId, show.clubName);
+      }
+    });
+    return [...clubMap.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => ({ label: name, value: id }));
+  }, [shows]);
+
   // FilterBar definitions for the 4 show filters
   const filterDefs: FilterDefinition[] = useMemo(
     () => [
@@ -188,8 +201,14 @@ const BrowseShowsPage: React.FC = () => {
           { label: 'Within 200 miles', value: 'within_200' },
         ],
       },
+      {
+        key: 'club',
+        label: 'Club',
+        type: 'select' as const,
+        options: clubFilterOptions,
+      },
     ],
-    []
+    [clubFilterOptions]
   );
 
   // Bridge existing filters state to FilterBarState
@@ -199,8 +218,9 @@ const BrowseShowsPage: React.FC = () => {
     if (filters.entryStatus !== 'all') filterState.entryStatus = filters.entryStatus;
     if (filters.dateRange !== 'all') filterState.dateRange = filters.dateRange;
     if (filters.location !== 'all') filterState.location = filters.location;
+    if (filters.club !== 'all') filterState.club = filters.club;
     return { filters: filterState, sortKey: null, sortDirection: 'asc' as const };
-  }, [filters.discipline, filters.entryStatus, filters.dateRange, filters.location]);
+  }, [filters.discipline, filters.entryStatus, filters.dateRange, filters.location, filters.club]);
 
   // Bridge FilterBarState changes back to existing setFilters
   const handleFilterBarChange = useCallback(
@@ -211,6 +231,7 @@ const BrowseShowsPage: React.FC = () => {
         entryStatus: (newState.filters.entryStatus as string) || 'all',
         dateRange: (newState.filters.dateRange as string) || 'all',
         location: (newState.filters.location as string) || 'all',
+        club: (newState.filters.club as string) || 'all',
       }));
     },
     [setFilters]
@@ -299,6 +320,10 @@ const BrowseShowsPage: React.FC = () => {
     }
     if (viewFromUrl !== viewMode) {
       queueMicrotask(() => setViewMode(viewFromUrl));
+    }
+    const clubFromUrl = searchParams.get('club');
+    if (clubFromUrl && clubFromUrl !== (filters.club === 'all' ? null : filters.club)) {
+      queueMicrotask(() => setFilters(prev => ({ ...prev, club: clubFromUrl })));
     }
   }, [searchParams, tabConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 

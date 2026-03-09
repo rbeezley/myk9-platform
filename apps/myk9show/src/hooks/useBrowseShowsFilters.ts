@@ -15,6 +15,7 @@ export interface ShowFilters {
   dateRange: string;
   location: string;
   organization: string;
+  club: string;
 }
 
 /**
@@ -27,6 +28,7 @@ const DEFAULT_FILTERS: ShowFilters = {
   dateRange: 'all',
   location: 'all',
   organization: 'all',
+  club: 'all',
 };
 
 /**
@@ -76,7 +78,8 @@ export function useBrowseShowsFilters({
       filters.entryStatus !== 'all' ||
       filters.dateRange !== 'all' ||
       filters.location !== 'all' ||
-      filters.organization !== 'all'
+      filters.organization !== 'all' ||
+      filters.club !== 'all'
     );
   }, [filters]);
 
@@ -108,6 +111,11 @@ export function useBrowseShowsFilters({
           show.location.toLowerCase().includes(searchLower) ||
           show.organization.toLowerCase().includes(searchLower)
       );
+    }
+
+    // Club filter
+    if (filters.club !== 'all') {
+      filtered = filtered.filter(show => show.clubId === filters.club);
     }
 
     // Discipline filter (map to show type)

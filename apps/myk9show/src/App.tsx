@@ -23,6 +23,7 @@ const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 import { AdminRoutes } from './routes/adminRoutes';
 import { JudgeSidebarRoutes, JudgeScoringRoutes } from './routes/judgeRoutes';
 import { SecretaryRoutes } from './routes/secretaryRoutes';
+import { ClubAdminRoutes } from './routes/clubAdminRoutes';
 import { PublicRoutes } from './routes/publicRoutes';
 
 // Unified layout
@@ -280,6 +281,7 @@ function App() {
                                 {AdminRoutes()}
                                 {JudgeSidebarRoutes()}
                                 {SecretaryRoutes()}
+                                {ClubAdminRoutes()}
                                 {PublicRoutes()}
                               </Route>
 

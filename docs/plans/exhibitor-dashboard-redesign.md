@@ -510,6 +510,15 @@ Type: `EntryStatus = 'no-status' | 'checked-in' | 'at-gate' | 'come-to-gate' | '
 - `ShowDayHero.tsx` — pass check-in handlers through to child components
 - `show-day-types.ts` — add `checkInStatus` field to `ShowDayClass` (already defined but not populated)
 
+### [ADDED] Conflict Resolution — Concurrent Check-In
+
+When both myK9Q (secretary) and myK9Show (exhibitor) update the same entry's check-in status:
+
+- **RLS policy**: Exhibitors can only update their own entries' `check_in_status` when `self_checkin_enabled` cascade is true
+- **Last-write-wins**: Supabase `updated_at` timestamp determines winner. Both apps set `updated_at = now()` on write
+- **Secretary override**: Secretary status changes (at-gate, come-to-gate, in-ring) always take priority because exhibitors can only set `checked-in`, `conflict`, or `pulled` via self-check-in
+- **Replication sync**: `@myk9/replication` polls every 5s — both apps converge within one polling interval
+
 ### Tests
 
 - `CheckInStatusBadge.test.tsx` — renders correct icon/color per status, fires onStatusChange
@@ -564,7 +573,20 @@ Type: `EntryStatus = 'no-status' | 'checked-in' | 'at-gate' | 'come-to-gate' | '
    - "Your turn" alert: watch `useShowDayData` for `scoredEntries` changes approaching `myRunningOrder`
    - Results posted: watch for `isScored` transitioning to `true` on user's entries
 
-4. **Shared Edge Function**: `send-push-notification` already deployed, keyed by subscription endpoint — works for both apps
+4. **Shared Edge Function**: `send-push-notification` currently lives at `apps/myk9q/supabase/functions/`. [ADDED] Either move to root `supabase/functions/` (shared) or deploy a copy from myK9Show's Supabase config. Both apps use the same Supabase project, so the function is already accessible — but deployment ownership needs to be clarified.
+
+### [ADDED] Service Worker Integration (Vite)
+
+myK9Show uses Vite, not CRA. Service worker setup requires:
+
+- Install `vite-plugin-pwa` (or manual SW registration)
+- Create `apps/myk9show/src/sw-custom.ts` with push event handler (adapted from myK9Q's `sw-custom.js`)
+- Configure `vite.config.ts` with `VitePWA({ strategies: 'injectManifest', srcDir: 'src', filename: 'sw-custom.ts' })`
+- Handle background push: when app is closed, SW shows a browser notification with class name + action URL
+
+### [ADDED] VAPID Key Configuration
+
+Move VAPID public key to environment variable `VITE_VAPID_PUBLIC_KEY` (already in `.env` for myK9Q). Both apps share the same Supabase project and VAPID key pair. The `@myk9/notifications` package reads the key from a config parameter, not hardcoded.
 
 ### Files to Create (Package)
 

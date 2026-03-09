@@ -544,6 +544,11 @@ export const getUserEntries = async (userId: string) => {
         submitted_at,
         created_at,
         updated_at,
+        registration_id,
+        registration:registration_id (
+          id,
+          confirmation_number
+        ),
         dog:dog_id (
           id,
           name,

@@ -127,6 +127,9 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
           lastUpdated: new Date(entry.updated_at || Date.now()),
           ...(entry.special_requests ? { notes: entry.special_requests } : {}),
           ...(entry.armband ? { armbandNumber: entry.armband } : {}),
+          ...(entry.registration?.confirmation_number
+            ? { confirmationNumber: entry.registration.confirmation_number }
+            : {}),
         })
       );
 

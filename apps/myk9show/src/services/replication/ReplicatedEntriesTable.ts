@@ -41,6 +41,7 @@ export interface ReplicatedEntry {
   preferredJudge?: string | undefined;
   specialRequests?: string | undefined;
   submittedAt?: string | undefined;
+  registrationId?: string | undefined;
 
   // Extra fields for scoring/display (camelCase)
   isScored?: boolean | undefined;
@@ -110,6 +111,7 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     preferredJudge: row.preferred_judge ?? undefined,
     specialRequests: row.special_requests ?? undefined,
     submittedAt: row.submitted_at ?? undefined,
+    registrationId: (dbRow.registration_id as string | undefined) ?? undefined,
 
     // CamelCase fields
     isScored: (dbRow.is_scored as boolean | undefined) ?? false,
@@ -188,6 +190,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       preferred_judge: entry.preferredJudge ?? null,
       special_requests: entry.specialRequests ?? null,
       submitted_at: entry.submittedAt ?? null,
+      registration_id: entry.registrationId ?? null,
       is_scored: entry.isScored ?? null,
       result_status: entry.resultStatus ?? null,
       search_time_seconds: entry.searchTimeSeconds ?? null,

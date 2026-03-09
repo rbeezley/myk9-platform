@@ -53,16 +53,22 @@ export function useEntryManagementFilters({
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
   // Calculate tab counts
-  const tabCounts = useMemo(() => ({
-    all: entries.length,
-    pending: entries.filter(e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING).length,
-    accepted: entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length,
-    waitlist: entries.filter(e => e.entryStatus === EntryStatus.WAITLIST).length,
-    issues: entries.filter(e =>
-      e.entryStatus === EntryStatus.MISSING_INFO ||
-      (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
-    ).length,
-  }), [entries]);
+  const tabCounts = useMemo(
+    () => ({
+      all: entries.length,
+      pending: entries.filter(
+        e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
+      ).length,
+      accepted: entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length,
+      waitlist: entries.filter(e => e.entryStatus === EntryStatus.WAITLIST).length,
+      issues: entries.filter(
+        e =>
+          e.entryStatus === EntryStatus.MISSING_INFO ||
+          (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
+      ).length,
+    }),
+    [entries]
+  );
 
   // Derive filtered entries from current filter state
   const filteredEntries = useMemo(() => {
@@ -70,17 +76,18 @@ export function useEntryManagementFilters({
 
     // Apply tab filters
     if (selectedTab === 'pending') {
-      filtered = filtered.filter(e =>
-        e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
+      filtered = filtered.filter(
+        e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
       );
     } else if (selectedTab === 'accepted') {
       filtered = filtered.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
     } else if (selectedTab === 'waitlist') {
       filtered = filtered.filter(e => e.entryStatus === EntryStatus.WAITLIST);
     } else if (selectedTab === 'issues') {
-      filtered = filtered.filter(e =>
-        e.entryStatus === EntryStatus.MISSING_INFO ||
-        (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
+      filtered = filtered.filter(
+        e =>
+          e.entryStatus === EntryStatus.MISSING_INFO ||
+          (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
       );
     }
 
@@ -97,11 +104,13 @@ export function useEntryManagementFilters({
     // Apply search
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(entry =>
-        entry.dogName.toLowerCase().includes(search) ||
-        entry.ownerName.toLowerCase().includes(search) ||
-        entry.entryNumber.toLowerCase().includes(search) ||
-        entry.armbandNumber?.toLowerCase().includes(search)
+      filtered = filtered.filter(
+        entry =>
+          entry.dogName.toLowerCase().includes(search) ||
+          entry.ownerName.toLowerCase().includes(search) ||
+          entry.entryNumber.toLowerCase().includes(search) ||
+          entry.armbandNumber?.toLowerCase().includes(search) ||
+          entry.confirmationNumber?.toLowerCase().includes(search)
       );
     }
 
@@ -121,13 +130,16 @@ export function useEntryManagementFilters({
     });
   }, []);
 
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (checked) {
-      setSelectedEntries(new Set(filteredEntries.map(e => e.id)));
-    } else {
-      setSelectedEntries(new Set());
-    }
-  }, [filteredEntries]);
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        setSelectedEntries(new Set(filteredEntries.map(e => e.id)));
+      } else {
+        setSelectedEntries(new Set());
+      }
+    },
+    [filteredEntries]
+  );
 
   // Clear filters
   const clearFilters = useCallback(() => {

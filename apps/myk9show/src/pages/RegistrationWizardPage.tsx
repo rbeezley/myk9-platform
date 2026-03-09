@@ -318,14 +318,18 @@ function RegistrationWizardContent() {
           : undefined
       );
 
-      if (entryInputs.length > 0) {
-        await createMultipleEntries(entryInputs, userId, 'submitted');
+      await submitRegistration(registrationId);
+
+      // Create DB registration to get confirmation number + ID, then create entries with registration_id
+      let dbRegistrationId: string | undefined;
+      if (registrationData.paymentMethod === 'credit_card') {
+        const result = await confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');
+        setRegistrationNumber(result.confirmationNumber ?? currentRegistration.registrationNumber);
+        dbRegistrationId = result.dbRegistrationId;
       }
 
-      await submitRegistration(registrationId);
-      if (registrationData.paymentMethod === 'credit_card') {
-        confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');
-        setRegistrationNumber(currentRegistration.registrationNumber);
+      if (entryInputs.length > 0) {
+        await createMultipleEntries(entryInputs, userId, 'submitted', dbRegistrationId);
       }
     }
 

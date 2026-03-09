@@ -197,6 +197,7 @@ export function entryToReplicated(entry: SyncableShowEntry): ReplicatedEntry {
     preferredJudge: entry.registrationData.preferredJudge,
     specialRequests: entry.registrationData.specialRequests,
     submittedAt: entry.registrationData.submittedAt,
+    registrationId: entry.registrationId,
     _version: entry._version,
     _lastModified: entry._lastModified,
     _lastModifiedBy: entry._lastModifiedBy,

@@ -131,9 +131,17 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
     const entryStatus = mapEntryStatus(entry.entry_status as string);
     const paymentStatus = mapPaymentStatus(entry.payment_status as string);
 
+    // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries
+    const registration = entry.registration as {
+      id: string;
+      confirmation_number: string;
+    } | null;
+    const confirmationNumber =
+      registration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
+
     return {
       id: entry.id as string,
-      registrationId: entry.id as string,
+      registrationId: (entry.registration_id as string) ?? (entry.id as string),
       showId: show?.id || '',
       showName: show?.name || 'Unknown Show',
       showDate: new Date(show?.start_date || Date.now()),
@@ -148,8 +156,8 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
       paymentStatus,
-      registrationNumber: undefined,
-      confirmationNumber: (entry.id as string).slice(0, 8).toUpperCase(),
+      registrationNumber: registration?.confirmation_number,
+      confirmationNumber,
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),
       lastUpdated: new Date(entry.updated_at as string),
     };

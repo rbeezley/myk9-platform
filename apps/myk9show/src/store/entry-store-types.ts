@@ -73,6 +73,9 @@ export interface ShowEntry {
   // Audit trail
   statusHistory: StatusHistoryEntry[];
 
+  // Registration reference
+  registrationId?: string | undefined;
+
   // Metadata
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
@@ -138,7 +141,8 @@ export interface EntryStoreState {
   createMultipleEntries: (
     entries: ShowEntryInput[],
     userId: string,
-    initialStatus?: EntryStatus
+    initialStatus?: EntryStatus,
+    registrationId?: string
   ) => Promise<SyncableShowEntry[]>;
   updateEntriesStatus: (
     entryIds: string[],

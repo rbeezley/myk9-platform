@@ -340,7 +340,8 @@ export const useEntryStore = create<EntryStoreState>()(
     createMultipleEntries: async (
       entriesData: ShowEntryInput[],
       userId: string,
-      initialStatus?: EntryStatus
+      initialStatus?: EntryStatus,
+      registrationId?: string
     ): Promise<SyncableShowEntry[]> => {
       try {
         set({ isLoading: true, error: null });
@@ -354,6 +355,7 @@ export const useEntryStore = create<EntryStoreState>()(
             ...data,
             id,
             status,
+            registrationId,
             statusHistory: [
               {
                 status,

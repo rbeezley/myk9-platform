@@ -26,6 +26,11 @@ export interface SecretaryEntry {
   jump_height: string | null;
   run_order: number | null;
   is_in_ring: boolean | null;
+  registration_id: string | null;
+  registration: {
+    id: string;
+    confirmation_number: string;
+  } | null;
   dog: {
     id: string;
     name: string;
@@ -49,7 +54,8 @@ export const getEntriesForShow = async (showId: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         dog_id,
         class_id,
@@ -68,6 +74,11 @@ export const getEntriesForShow = async (showId: string) => {
         jump_height,
         run_order,
         is_in_ring,
+        registration_id,
+        registration:registration_id (
+          id,
+          confirmation_number
+        ),
         dog:dog_id (
           id,
           name,
@@ -80,7 +91,8 @@ export const getEntriesForShow = async (showId: string) => {
           class_number,
           max_entries
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
@@ -124,10 +136,10 @@ export const getEntryCountsByStatus = async (showId: string) => {
 
     const counts = {
       total: entries?.length || 0,
-      pending: entries?.filter((e) => e.entry_status === 'pending').length || 0,
-      accepted: entries?.filter((e) => e.entry_status === 'accepted').length || 0,
-      waitlist: entries?.filter((e) => e.entry_status === 'waitlisted').length || 0,
-      paymentDue: entries?.filter((e) => e.payment_status === 'pending').length || 0,
+      pending: entries?.filter(e => e.entry_status === 'pending').length || 0,
+      accepted: entries?.filter(e => e.entry_status === 'accepted').length || 0,
+      waitlist: entries?.filter(e => e.entry_status === 'waitlisted').length || 0,
+      paymentDue: entries?.filter(e => e.payment_status === 'pending').length || 0,
     };
 
     return { data: counts, error: null };
@@ -207,11 +219,7 @@ export const bulkUpdateEntryStatus = async (entryIds: string[], status: string) 
 /**
  * Update entry check-in status (mark as in ring)
  */
-export const updateCheckInStatus = async (
-  entryId: string,
-  status: string,
-  notes?: string
-) => {
+export const updateCheckInStatus = async (entryId: string, status: string, notes?: string) => {
   const startTime = Date.now();
 
   try {
@@ -454,7 +462,8 @@ export const getEntriesForExport = async (showId: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         armband,
         handler,
@@ -475,7 +484,8 @@ export const getEntriesForExport = async (showId: string) => {
           name,
           class_number
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('armband', { ascending: true, nullsFirst: false });

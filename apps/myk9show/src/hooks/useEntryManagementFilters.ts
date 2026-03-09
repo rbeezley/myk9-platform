@@ -1,9 +1,23 @@
 import { useState, useMemo, useCallback } from 'react';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import {
+  isPendingEntry,
+  isAcceptedEntry,
+  isWaitlistEntry,
+  isIssueEntry,
+} from '@/utils/entryPredicates';
+
+interface TabCounts {
+  all: number;
+  pending: number;
+  accepted: number;
+  waitlist: number;
+  issues: number;
+}
 
 interface UseEntryManagementFiltersProps {
   entries: EntryManagementEntry[];
+  tabCounts: TabCounts;
 }
 
 interface UseEntryManagementFiltersReturn {
@@ -29,14 +43,8 @@ interface UseEntryManagementFiltersReturn {
   // Actions
   clearFilters: () => void;
 
-  // Tab counts
-  tabCounts: {
-    all: number;
-    pending: number;
-    accepted: number;
-    waitlist: number;
-    issues: number;
-  };
+  // Tab counts (precomputed, passed through)
+  tabCounts: TabCounts;
 }
 
 /**
@@ -45,6 +53,7 @@ interface UseEntryManagementFiltersReturn {
  */
 export function useEntryManagementFilters({
   entries,
+  tabCounts,
 }: UseEntryManagementFiltersProps): UseEntryManagementFiltersReturn {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -52,43 +61,19 @@ export function useEntryManagementFilters({
   const [selectedTab, setSelectedTab] = useState('all');
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
 
-  // Calculate tab counts
-  const tabCounts = useMemo(
-    () => ({
-      all: entries.length,
-      pending: entries.filter(
-        e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
-      ).length,
-      accepted: entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length,
-      waitlist: entries.filter(e => e.entryStatus === EntryStatus.WAITLIST).length,
-      issues: entries.filter(
-        e =>
-          e.entryStatus === EntryStatus.MISSING_INFO ||
-          (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
-      ).length,
-    }),
-    [entries]
-  );
-
   // Derive filtered entries from current filter state
   const filteredEntries = useMemo(() => {
     let filtered = entries;
 
     // Apply tab filters
     if (selectedTab === 'pending') {
-      filtered = filtered.filter(
-        e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
-      );
+      filtered = filtered.filter(isPendingEntry);
     } else if (selectedTab === 'accepted') {
-      filtered = filtered.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
+      filtered = filtered.filter(isAcceptedEntry);
     } else if (selectedTab === 'waitlist') {
-      filtered = filtered.filter(e => e.entryStatus === EntryStatus.WAITLIST);
+      filtered = filtered.filter(isWaitlistEntry);
     } else if (selectedTab === 'issues') {
-      filtered = filtered.filter(
-        e =>
-          e.entryStatus === EntryStatus.MISSING_INFO ||
-          (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
-      );
+      filtered = filtered.filter(isIssueEntry);
     }
 
     // Apply status filter

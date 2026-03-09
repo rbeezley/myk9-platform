@@ -6,7 +6,8 @@
 
 import { useState, useMemo } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import type { MyEntry, EntryStats, EntryTabFilter } from './my-entries-types';
+import { isPendingEntry, isAcceptedEntry, isWaitlistEntry } from '@/utils/entryPredicates';
+import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
 interface UseMyEntriesFiltersProps {
   entries: MyEntry[];
@@ -16,7 +17,7 @@ interface UseMyEntriesFiltersReturn {
   filteredEntries: MyEntry[];
   selectedTab: EntryTabFilter;
   setSelectedTab: (tab: EntryTabFilter) => void;
-  entryStats: EntryStats;
+  entryStats: MyEntryStats;
 }
 
 /**
@@ -32,17 +33,13 @@ export function useMyEntriesFilters({
 
     switch (selectedTab) {
       case 'pending':
-        filtered = filtered.filter(
-          entry =>
-            entry.entryStatus === EntryStatus.PENDING ||
-            entry.paymentStatus === PaymentStatus.PENDING
-        );
+        filtered = filtered.filter(isPendingEntry);
         break;
       case 'accepted':
-        filtered = filtered.filter(entry => entry.entryStatus === EntryStatus.ACCEPTED);
+        filtered = filtered.filter(isAcceptedEntry);
         break;
       case 'waitlist':
-        filtered = filtered.filter(entry => entry.entryStatus === EntryStatus.WAITLIST);
+        filtered = filtered.filter(isWaitlistEntry);
         break;
       case 'upcoming': {
         const now = new Date();
@@ -70,7 +67,7 @@ export function useMyEntriesFilters({
   /**
    * Computed statistics for entries
    */
-  const entryStats = useMemo<EntryStats>(() => {
+  const entryStats = useMemo<MyEntryStats>(() => {
     const now = new Date();
     const accepted = entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
     const pending = entries.filter(e => e.entryStatus === EntryStatus.PENDING);

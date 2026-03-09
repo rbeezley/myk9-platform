@@ -6,10 +6,10 @@
 
 import React from 'react';
 import { Users, CheckCircle2, AlertCircle, DollarSign } from 'lucide-react';
-import type { EntryStats } from './my-entries-types';
+import type { MyEntryStats } from './my-entries-types';
 
 interface MyEntriesStatsCardsProps {
-  stats: EntryStats;
+  stats: MyEntryStats;
 }
 
 /**

@@ -147,18 +147,22 @@ export function buildBatchEntries(
     registrationData: SyncableShowEntry['registrationData'];
     competitionData?: SyncableShowEntry['competitionData'];
   }>,
-  userId: string
+  userId: string,
+  initialStatus?: EntryStatus,
+  registrationId?: string
 ): SyncableShowEntry[] {
+  const status = initialStatus || 'draft';
   const now = new Date().toISOString();
   return entriesData.map(data => {
     const id = crypto.randomUUID();
     return {
       ...data,
       id,
-      status: 'draft' as EntryStatus,
+      status,
+      registrationId,
       statusHistory: [
         {
-          status: 'draft' as EntryStatus,
+          status,
           timestamp: now,
           userId,
           reason: 'Entry created in batch',

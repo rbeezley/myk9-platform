@@ -9,59 +9,16 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useStatusUpdates } from '@/services/NotificationService';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { logger } from '@/services/LoggingService';
 import { getUserEntries } from '@/services/database/queries/entryQueries';
 import { updateCheckInStatus } from '@/services/database/queries/secretaryEntryQueries';
+import {
+  mapEntryStatus,
+  mapPaymentStatus,
+  mapClassEntryStatus,
+} from '@/utils/entryManagementUtils';
 import type { MyEntry, EntryClass, EntryUpdateEvent } from './my-entries-types';
-
-/**
- * Maps database entry status to EntryStatus enum
- */
-const mapEntryStatus = (status?: string | null): EntryStatus => {
-  switch (status) {
-    case 'submitted':
-      return EntryStatus.PENDING;
-    case 'accepted':
-      return EntryStatus.ACCEPTED;
-    case 'rejected':
-      return EntryStatus.REJECTED;
-    case 'withdrawn':
-      return EntryStatus.CANCELLED;
-    default:
-      return EntryStatus.PENDING;
-  }
-};
-
-/**
- * Maps database payment status to PaymentStatus enum
- */
-const mapPaymentStatus = (status?: string | null): PaymentStatus => {
-  switch (status) {
-    case 'paid':
-      return PaymentStatus.PAID_ONLINE;
-    case 'refunded':
-      return PaymentStatus.REFUNDED;
-    case 'pending':
-    default:
-      return PaymentStatus.PENDING;
-  }
-};
-
-/**
- * Maps class entry status to component status type
- */
-const mapClassEntryStatus = (status?: string): 'entered' | 'scratched' | 'moved' | 'absent' => {
-  switch (status) {
-    case 'withdrawn':
-      return 'scratched';
-    case 'rejected':
-      return 'absent';
-    default:
-      return 'entered';
-  }
-};
 
 interface UseMyEntriesDataReturn {
   entries: MyEntry[];

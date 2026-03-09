@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import { getSecretaryShows } from '@/services/database/queries/showQueries';
@@ -6,7 +6,6 @@ import {
   getEntriesForShow,
   SecretaryEntry,
 } from '@/services/database/queries/secretaryEntryQueries';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
 import type {
   EntryManagementEntry,
@@ -18,6 +17,12 @@ import {
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
+import {
+  isPendingEntry,
+  isAcceptedEntry,
+  isWaitlistEntry,
+  isIssueEntry,
+} from '@/utils/entryPredicates';
 
 interface UseEntryManagementDataReturn {
   // Auth
@@ -41,6 +46,13 @@ interface UseEntryManagementDataReturn {
 
   // Computed
   stats: EntryStats;
+  tabCounts: {
+    all: number;
+    pending: number;
+    accepted: number;
+    waitlist: number;
+    issues: number;
+  };
 }
 
 const LAST_SHOW_KEY = 'myk9show:entryMgmt:lastShowId';
@@ -174,16 +186,33 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     }
   }, [selectedShowId, loadEntries]);
 
-  // Calculate stats
-  const stats: EntryStats = {
-    total: entries.length,
-    pending: entries.filter(
-      e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
-    ).length,
-    accepted: entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length,
-    waitlist: entries.filter(e => e.entryStatus === EntryStatus.WAITLIST).length,
-    revenue: entries.reduce((sum, e) => sum + e.paidAmount, 0),
-  };
+  // Single-pass computation for stats and tab counts
+  const { stats, tabCounts } = useMemo(() => {
+    const acc = { pending: 0, accepted: 0, waitlist: 0, issues: 0, revenue: 0 };
+    for (const e of entries) {
+      if (isPendingEntry(e)) acc.pending++;
+      if (isAcceptedEntry(e)) acc.accepted++;
+      if (isWaitlistEntry(e)) acc.waitlist++;
+      if (isIssueEntry(e)) acc.issues++;
+      acc.revenue += e.paidAmount;
+    }
+    return {
+      stats: {
+        total: entries.length,
+        pending: acc.pending,
+        accepted: acc.accepted,
+        waitlist: acc.waitlist,
+        revenue: acc.revenue,
+      } satisfies EntryStats,
+      tabCounts: {
+        all: entries.length,
+        pending: acc.pending,
+        accepted: acc.accepted,
+        waitlist: acc.waitlist,
+        issues: acc.issues,
+      },
+    };
+  }, [entries]);
 
   return {
     user,
@@ -200,5 +229,6 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     setError,
     loadEntries,
     stats,
+    tabCounts,
   };
 }

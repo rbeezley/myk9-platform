@@ -61,7 +61,7 @@ export interface MyEntry {
 /**
  * Computed statistics for entries
  */
-export interface EntryStats {
+export interface MyEntryStats {
   total: number;
   accepted: number;
   pending: number;

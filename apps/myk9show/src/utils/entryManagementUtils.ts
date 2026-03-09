@@ -10,17 +10,19 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 /**
  * Map database entry status to UI enum
  */
-export const mapEntryStatus = (status: string | null): EntryStatus => {
+export const mapEntryStatus = (status?: string | null): EntryStatus => {
   switch (status) {
     case 'accepted':
       return EntryStatus.ACCEPTED;
     case 'pending':
+    case 'submitted':
       return EntryStatus.PENDING;
     case 'waitlisted':
       return EntryStatus.WAITLIST;
     case 'rejected':
       return EntryStatus.REJECTED;
     case 'cancelled':
+    case 'withdrawn':
       return EntryStatus.CANCELLED;
     default:
       return EntryStatus.PENDING;
@@ -30,7 +32,7 @@ export const mapEntryStatus = (status: string | null): EntryStatus => {
 /**
  * Map database payment status to UI enum
  */
-export const mapPaymentStatus = (status: string | null): PaymentStatus => {
+export const mapPaymentStatus = (status?: string | null): PaymentStatus => {
   switch (status) {
     case 'paid':
       return PaymentStatus.PAID_ONLINE;
@@ -47,7 +49,7 @@ export const mapPaymentStatus = (status: string | null): PaymentStatus => {
  * Map database class entry status to UI string
  */
 export const mapClassEntryStatus = (
-  status: string | null
+  status?: string | null
 ): 'entered' | 'scratched' | 'moved' | 'absent' => {
   switch (status) {
     case 'accepted':
@@ -58,6 +60,7 @@ export const mapClassEntryStatus = (
       return 'scratched';
     case 'moved':
       return 'moved';
+    case 'rejected':
     case 'absent':
       return 'absent';
     default:

@@ -87,6 +87,7 @@ const EntryManagementPage: React.FC = () => {
     setError,
     loadEntries,
     stats,
+    tabCounts,
   } = useEntryManagementData(urlShowId);
 
   // Filter hook
@@ -105,8 +106,7 @@ const EntryManagementPage: React.FC = () => {
     handleSelectAll,
     filteredEntries,
     clearFilters,
-    tabCounts,
-  } = useEntryManagementFilters({ entries });
+  } = useEntryManagementFilters({ entries, tabCounts });
 
   // Actions hook
   const {

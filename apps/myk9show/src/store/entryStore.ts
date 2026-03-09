@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { replicatedEntriesTable } from '@/services/replication';
-import { mergeEntryData, entryToReplicated, buildNewSyncableEntry } from './entry-store-helpers';
+import {
+  mergeEntryData,
+  entryToReplicated,
+  buildNewSyncableEntry,
+  buildBatchEntries,
+} from './entry-store-helpers';
 import { createLegacyActions } from './entry-store-legacy';
 import type {
   EntryStatus,
@@ -346,33 +351,7 @@ export const useEntryStore = create<EntryStoreState>()(
       try {
         set({ isLoading: true, error: null });
 
-        const status = initialStatus || 'draft';
-        const now = new Date().toISOString();
-        const newEntries: SyncableShowEntry[] = entriesData.map(data => {
-          const id = crypto.randomUUID();
-
-          return {
-            ...data,
-            id,
-            status,
-            registrationId,
-            statusHistory: [
-              {
-                status,
-                timestamp: now,
-                userId,
-                reason: 'Entry created in batch',
-              },
-            ],
-            createdAt: now,
-            updatedAt: now,
-            _version: 1,
-            _lastModified: new Date(),
-            _lastModifiedBy: userId,
-            _syncStatus: 'pending' as const,
-            _localOnly: true,
-          };
-        });
+        const newEntries = buildBatchEntries(entriesData, userId, initialStatus, registrationId);
 
         // Save all to replicated table and queue INSERT mutations for Supabase sync
         for (const entry of newEntries) {

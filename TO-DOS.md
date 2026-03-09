@@ -388,3 +388,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 - **Single-pass stats + tab count calculation** — `useEntryManagementData.ts` computes stats with 4 `.filter()` calls and `useEntryManagementFilters.ts` computes tabCounts with 4 more `.filter()` calls over the same entries array — 8 passes total. Merge into a single `reduce()` that computes all counts in one pass. **Files:** `hooks/useEntryManagementData.ts`, `hooks/useEntryManagementFilters.ts`.
 
 - **Resolve conflicting EntryStats types** — Two different `EntryStats` interfaces with the same name exist: `entry-management-types.ts` (total/pending/accepted/waitlist/revenue) and `my-entries-types.ts` (total/accepted/pending/upcoming/fees/percents). Risk of importing the wrong one. Rename or namespace to disambiguate. **Files:** `types/entry-management-types.ts`, `pages/MyEntriesPage/modules/my-entries-types.ts`.
+
+## Pre-Existing Test Failures - 2026-03-09
+
+- **Fix PaymentStep test failures (label mismatch)** — 3 failures in `phase3-5-payment-components.test.tsx`: `getByLabelText('Expiry Date')` can't find the element — likely the label text changed in the CreditCardVisual redesign but tests weren't updated. **Files:** `apps/myk9show/src/test/components/phase3-5-payment-components.test.tsx`, `apps/myk9show/src/components/registration/steps/PaymentStep.tsx`.

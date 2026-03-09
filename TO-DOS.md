@@ -347,7 +347,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Phase 3: Platform admin club onboarding** — Implemented in `55be327`. ClubCreationPanel now includes "Club Admin" SearchablePopover person picker with role badges, email search, and "Create New Person" button (opens UserCreationPanel in nested slide-over). On save, fire-and-forget `ensureUserHasRole(adminId, CLUB_ADMIN, clubId)` with user-visible warning toast on failure. Extracted SearchablePopover to shared `components/ui/searchable-popover.tsx`. Promoted people utilities (`getAllPeopleSorted`, `filterPeopleByName`, `getPersonName`) from wizard-specific helpers to shared `lib/people-utils.ts`.
 
-- **Phase 4: Secretary dashboard scoping** — Scope secretary dashboard to only show shows for clubs the secretary is associated with. **Problem:** Secretary dashboard currently shows all shows regardless of club association. Harmless at small scale but won't scale. **Files:** `apps/myk9show/src/features/pipeline/hooks/useMissionControlData.ts`, `apps/myk9show/src/services/database/queries/showQueries.ts`. **Solution:** Filter shows by secretary's `club_id` from `user_roles`. Support multi-club secretaries. See `docs/plans/club-admin-role.md` Phase 4.
+- [x] **Phase 4: Secretary dashboard scoping** — Client-side filtering in `useMissionControlData`: extracts club IDs from `userWithRoles.scopes`, filters shows by `clubId`. Platform admins and users with no club scopes see all shows (graceful fallback). Multi-club secretaries see all their clubs' shows. 8 unit tests. **Files:** `useMissionControlData.ts`, `useMissionControlData.test.ts`.
 
 ## Fix BrowseShowsPage Test Failure - 2026-03-08 07:54
 

@@ -10,20 +10,38 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { ScopeType } from '@/types/auth-types';
 import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping';
 import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
 
 export function useMissionControlData() {
   const { shows: rawShows, isLoading: showsLoading } = useShowStore();
+  const { userWithRoles, isAdmin } = useAuthContext();
+
+  // Stable key for club scope IDs (avoids recomputation when AuthContext rebuilds the scopes array)
+  const clubScopeKey = useMemo(
+    () =>
+      (userWithRoles?.scopes ?? [])
+        .filter(s => s.scopeType === ScopeType.CLUB)
+        .map(s => s.scopeId)
+        .sort()
+        .join(','),
+    [userWithRoles?.scopes]
+  );
 
   const shows = useMemo(() => {
+    const clubIdSet = new Set(clubScopeKey ? clubScopeKey.split(',') : []);
+    const skipFilter = isAdmin || clubIdSet.size === 0;
     const seen = new Set<string>();
+
     return rawShows.filter(s => {
       if (seen.has(s.id)) return false;
       seen.add(s.id);
-      return true;
+      // Platform admins see all shows; users with no club scopes fall back to all shows
+      return skipFilter || clubIdSet.has(s.clubId);
     });
-  }, [rawShows]);
+  }, [rawShows, isAdmin, clubScopeKey]);
   const allTrials = useTrialStore(s => s.trials);
   const allTrialClasses = useTrialStore(s => s.trialClasses);
 

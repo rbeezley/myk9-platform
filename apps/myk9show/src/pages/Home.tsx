@@ -2,6 +2,7 @@ import React, { useMemo, Suspense } from 'react';
 import Hero from '@/components/landing/Hero';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import Pricing from '@/components/landing/Pricing';
+import ClubOnboardingForm from '@/components/landing/ClubOnboardingForm';
 import FAQSection from '@/components/landing/FAQSection';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import features from '@/data/features';
@@ -74,6 +75,11 @@ const Home: React.FC = () => {
       {/* Pricing Section */}
       <FadeIn>
         <Pricing />
+      </FadeIn>
+
+      {/* Club Onboarding Form */}
+      <FadeIn>
+        <ClubOnboardingForm />
       </FadeIn>
 
       {/* FAQ Section */}

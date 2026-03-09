@@ -1833,6 +1833,51 @@ export type Database = {
           },
         ];
       };
+      onboarding_requests: {
+        Row: {
+          id: string;
+          auth_user_id: string;
+          club_name: string;
+          organization: string;
+          contact_name: string;
+          contact_email: string;
+          contact_phone: string | null;
+          first_show_date: string | null;
+          message: string | null;
+          status: string;
+          created_at: string;
+          notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          auth_user_id: string;
+          club_name: string;
+          organization: string;
+          contact_name: string;
+          contact_email: string;
+          contact_phone?: string | null;
+          first_show_date?: string | null;
+          message?: string | null;
+          status?: string;
+          created_at?: string;
+          notes?: string | null;
+        };
+        Update: {
+          id?: string;
+          auth_user_id?: string;
+          club_name?: string;
+          organization?: string;
+          contact_name?: string;
+          contact_email?: string;
+          contact_phone?: string | null;
+          first_show_date?: string | null;
+          message?: string | null;
+          status?: string;
+          created_at?: string;
+          notes?: string | null;
+        };
+        Relationships: [];
+      };
       people: {
         Row: {
           auth_user_id: string | null;

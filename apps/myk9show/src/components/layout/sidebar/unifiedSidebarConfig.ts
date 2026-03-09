@@ -31,6 +31,7 @@ import {
   RefreshCw,
   FileSearch,
   Compass,
+  UserPlus,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -248,6 +249,12 @@ export function buildUnifiedSidebarConfig(
           href: '/admin/templates',
           icon: FileText,
           description: 'Show and class templates',
+        },
+        {
+          title: 'Onboarding',
+          href: '/admin/onboarding',
+          icon: UserPlus,
+          description: 'Club onboarding requests',
         },
       ],
     });

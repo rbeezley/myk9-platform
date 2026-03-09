@@ -349,6 +349,8 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Phase 4: Secretary dashboard scoping** — Client-side filtering in `useMissionControlData`: extracts club IDs from `userWithRoles.scopes`, filters shows by `clubId`. Platform admins and users with no club scopes see all shows (graceful fallback). Multi-club secretaries see all their clubs' shows. 8 unit tests. **Files:** `useMissionControlData.ts`, `useMissionControlData.test.ts`.
 
+- [x] **Phase 5: Show access delegation + wizard scoping** — Implemented in `da084df`. Club admins can grant/revoke show management (SECRETARY RBAC role) via "Grant Show Access" / "Revoke Show Access" in member action menu. "Show Manager" badge on members with access. Show wizard filters club list to user's assigned clubs (SECRETARY or CLUB_ADMIN scope), auto-selects single club. Platform admins see all clubs. Single joined query for show manager lookup. Plan: `docs/plans/club-admin-show-access.md`. **Files:** `ClubMembersPage.tsx`, `ClubMemberDialogs.tsx`, `clubMembershipQueries.ts`, `ShowDetailsStep.tsx`.
+
 ## Fix BrowseShowsPage Test Failure - 2026-03-08 07:54
 
 - [x] **Fix error state text mismatch in BrowseShowsPage test** — Fixed: updated assertion from `/failed to load shows/i` to `/error loading shows/i` to match actual UI text. Commit `cc014c3`.
@@ -384,6 +386,10 @@ Pre-existing issues found during confirmation number implementation review. Addr
 - [x] **Extract shared filter predicates for entry status tabs** — Created `entryPredicates.ts` with `isPendingEntry`, `isAcceptedEntry`, `isWaitlistEntry`, `isIssueEntry`. Used by both `useEntryManagementFilters` and `useMyEntriesFilters`. Commit `3b977f6`.
 - [x] **Single-pass stats + tab count calculation** — Replaced 8 `.filter()` passes with single `for...of` loop. `useEntryManagementFilters` now receives precomputed `tabCounts` as prop. Commit `3b977f6`.
 - [x] **Resolve conflicting EntryStats types** — Renamed MyEntries version to `MyEntryStats`. Updated all consumers (`useMyEntriesFilters`, `MyEntriesStatsCards`). Commit `3b977f6`.
+
+## Club Onboarding Request Form - 2026-03-09
+
+- [x] **Build club onboarding request form on landing page** — Implemented Phase 1 (landing page form with sign-in gate, pre-fill, existing request check) and Phase 2 (admin console with status tracking, notes, one-click onboard link). Migration `055_onboarding_requests.sql` pushed to Supabase. Fixed migration 054 trigger function name (`update_updated_at()` → `update_updated_at_column()`). Phase 3 (MyK9T.com link) and Phase 4 (email notifications) deferred.
 
 ## Pre-Existing Test Failures - 2026-03-09
 

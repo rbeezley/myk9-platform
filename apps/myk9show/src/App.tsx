@@ -99,6 +99,10 @@ const HomeRedirect = () => {
     if (params.get('wizard') === 'true') {
       return <Navigate to="/secretary/create-show/wizard" replace />;
     }
+    // Allow authenticated users to see landing page for onboarding form
+    if (params.get('onboarding') === 'true') {
+      return <Home />;
+    }
     return <Navigate to="/shows" replace />;
   }
   return <Home />;

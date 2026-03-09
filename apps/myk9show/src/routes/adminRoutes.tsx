@@ -142,6 +142,11 @@ const JudgeAnalyticsPage = createEnhancedLazy(() => import('@/pages/admin/JudgeA
   displayName: 'JudgeAnalyticsPage',
 });
 
+const OnboardingRequestsPage = createEnhancedLazy(
+  () => import('@/pages/admin/OnboardingRequestsPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'OnboardingRequestsPage' }
+);
+
 // Admin-specific components - Placeholder components for future development
 const SystemSettingsPage = () =>
   React.createElement('div', { className: 'p-6 text-center' }, 'System Settings Coming Soon');
@@ -393,6 +398,18 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <JudgeAnalyticsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
+    />
+
+    {/* Onboarding Requests */}
+    <Route
+      path="/admin/onboarding"
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <OnboardingRequestsPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

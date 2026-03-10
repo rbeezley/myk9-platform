@@ -8,9 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Building, MapPin, Phone, Camera } from 'lucide-react';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
+import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
 import { cn } from '@/lib/utils';
@@ -45,6 +52,7 @@ interface ClubEditFormData extends Record<string, unknown> {
   country: string;
   founded?: string; // ISO date string for forms
   clubType?: string;
+  accentColor?: string;
 }
 
 // Form validation
@@ -116,6 +124,7 @@ const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
     country: club.address?.country || DEFAULT_COUNTRY,
     founded: club.founded ? new Date(club.founded).toISOString().slice(0, 10) : '',
     clubType: club.clubType || '',
+    accentColor: club.accentColor || '',
   };
 };
 
@@ -136,34 +145,40 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
     country: formData.country,
   },
   founded: formData.founded ? new Date(formData.founded) : undefined,
-  clubType: formData.clubType as Club['clubType'] || undefined,
+  clubType: (formData.clubType as Club['clubType']) || undefined,
+  accentColor: formData.accentColor || '',
 });
 
 // Form content component
 const ClubEditForm: React.FC = () => {
   const { data, updateData, errors } = useEditPanel<ClubEditFormData>();
-  
+
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Handle input changes
-  const handleInputChange = useCallback((field: keyof ClubEditFormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    updateData({ [field]: e.target.value });
-  }, [updateData]);
+  const handleInputChange = useCallback(
+    (field: keyof ClubEditFormData) =>
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        updateData({ [field]: e.target.value });
+      },
+    [updateData]
+  );
 
   // Handle select changes
-  const handleSelectChange = useCallback((field: keyof ClubEditFormData) => (value: string) => {
-    updateData({ [field]: value });
-  }, [updateData]);
+  const handleSelectChange = useCallback(
+    (field: keyof ClubEditFormData) => (value: string) => {
+      updateData({ [field]: value });
+    },
+    [updateData]
+  );
 
   // Handle file upload (shared logic for drag & drop and file input)
   const handleFileUpload = useCallback((file: File) => {
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = ev => {
       const result = ev.target?.result as string;
       setPreviewImage(result);
     };
@@ -175,37 +190,46 @@ const ClubEditForm: React.FC = () => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
-  
+
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
-  
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileUpload(file);
-    }
-  }, [handleFileUpload]);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        handleFileUpload(file);
+      }
+    },
+    [handleFileUpload]
+  );
 
   // File input handler
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
-    }
-  }, [handleFileUpload]);
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleFileUpload(file);
+      }
+    },
+    [handleFileUpload]
+  );
 
-  const handlePhotoSave = useCallback((savedImage: string | null) => {
-    if (savedImage) {
-      updateData({ logo: savedImage });
-    }
-    setIsPhotoModalOpen(false);
-    setPreviewImage(null);
-  }, [updateData]);
-  
+  const handlePhotoSave = useCallback(
+    (savedImage: string | null) => {
+      if (savedImage) {
+        updateData({ logo: savedImage });
+      }
+      setIsPhotoModalOpen(false);
+      setPreviewImage(null);
+    },
+    [updateData]
+  );
+
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
@@ -227,7 +251,10 @@ const ClubEditForm: React.FC = () => {
         </TabsList>
 
         {/* Basic Information Tab */}
-        <TabsContent value="basic" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="basic"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -245,7 +272,9 @@ const ClubEditForm: React.FC = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Club Logo</Label>
+                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+                    Club Logo
+                  </Label>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -271,10 +300,15 @@ const ClubEditForm: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Club Name *</Label>
+                  <Label
+                    htmlFor="name"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Club Name *
+                  </Label>
                   <Input
                     id="name"
                     value={data.name}
@@ -285,9 +319,14 @@ const ClubEditForm: React.FC = () => {
                     )}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="clubNumber" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Club Number</Label>
+                  <Label
+                    htmlFor="clubNumber"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Club Number
+                  </Label>
                   <Input
                     id="clubNumber"
                     value={data.clubNumber}
@@ -298,7 +337,12 @@ const ClubEditForm: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Description</Label>
+                <Label
+                  htmlFor="description"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Description
+                </Label>
                 <textarea
                   id="description"
                   value={data.description || ''}
@@ -308,11 +352,23 @@ const ClubEditForm: React.FC = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <AccentColorPicker
+                  value={data.accentColor || null}
+                  onChange={color => updateData({ accentColor: color ?? '' })}
+                />
+              </div>
+
               <Separator />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="clubType" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Club Type</Label>
+                  <Label
+                    htmlFor="clubType"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Club Type
+                  </Label>
                   <Select
                     value={data.clubType || ''}
                     onValueChange={handleSelectChange('clubType')}
@@ -321,7 +377,7 @@ const ClubEditForm: React.FC = () => {
                       <SelectValue placeholder="Select club type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CLUB_TYPES.map((type) => (
+                      {CLUB_TYPES.map(type => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
                         </SelectItem>
@@ -331,7 +387,12 @@ const ClubEditForm: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="founded" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Founded</Label>
+                  <Label
+                    htmlFor="founded"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Founded
+                  </Label>
                   <Input
                     id="founded"
                     type="date"
@@ -345,7 +406,10 @@ const ClubEditForm: React.FC = () => {
         </TabsContent>
 
         {/* Contact Information Tab */}
-        <TabsContent value="contact" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="contact"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -356,7 +420,12 @@ const ClubEditForm: React.FC = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Email Address *</Label>
+                  <Label
+                    htmlFor="email"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Email Address *
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -364,28 +433,37 @@ const ClubEditForm: React.FC = () => {
                     onChange={handleInputChange('email')}
                     placeholder="Enter email address"
                     className={cn(
-                      errors.some(e => e.includes('email') || e.includes('Email')) && 'border-destructive'
+                      errors.some(e => e.includes('email') || e.includes('Email')) &&
+                        'border-destructive'
                     )}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Phone Number *</Label>
+                  <Label
+                    htmlFor="phone"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Phone Number *
+                  </Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={data.phone}
                     onChange={handleInputChange('phone')}
                     placeholder="Enter phone number"
-                    className={cn(
-                      errors.some(e => e.includes('Phone')) && 'border-destructive'
-                    )}
+                    className={cn(errors.some(e => e.includes('Phone')) && 'border-destructive')}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="website" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Website</Label>
+                <Label
+                  htmlFor="website"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Website
+                </Label>
                 <Input
                   id="website"
                   type="url"
@@ -393,86 +471,103 @@ const ClubEditForm: React.FC = () => {
                   onChange={handleInputChange('website')}
                   placeholder="https://www.clubwebsite.com"
                   className={cn(
-                    errors.some(e => e.includes('website') || e.includes('URL')) && 'border-destructive'
+                    errors.some(e => e.includes('website') || e.includes('URL')) &&
+                      'border-destructive'
                   )}
                 />
               </div>
-              
+
               <Separator />
-              
+
               <div className="space-y-4">
                 <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   <MapPin className="h-3 w-3" />
                   Address Information
                 </h4>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="street" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Street Address *</Label>
+                  <Label
+                    htmlFor="street"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Street Address *
+                  </Label>
                   <Input
                     id="street"
                     value={data.street}
                     onChange={handleInputChange('street')}
                     placeholder="123 Main Street"
-                    className={cn(
-                      errors.some(e => e.includes('Street')) && 'border-destructive'
-                    )}
+                    className={cn(errors.some(e => e.includes('Street')) && 'border-destructive')}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="city" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">City *</Label>
+                    <Label
+                      htmlFor="city"
+                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                    >
+                      City *
+                    </Label>
                     <Input
                       id="city"
                       value={data.city}
                       onChange={handleInputChange('city')}
                       placeholder="Enter city"
-                      className={cn(
-                        errors.some(e => e.includes('City')) && 'border-destructive'
-                      )}
+                      className={cn(errors.some(e => e.includes('City')) && 'border-destructive')}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="state" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">State/Province *</Label>
+                    <Label
+                      htmlFor="state"
+                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                    >
+                      State/Province *
+                    </Label>
                     <Input
                       id="state"
                       value={data.state}
                       onChange={handleInputChange('state')}
                       placeholder="Enter state"
-                      className={cn(
-                        errors.some(e => e.includes('State')) && 'border-destructive'
-                      )}
+                      className={cn(errors.some(e => e.includes('State')) && 'border-destructive')}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="zipCode" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">ZIP Code *</Label>
+                    <Label
+                      htmlFor="zipCode"
+                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                    >
+                      ZIP Code *
+                    </Label>
                     <Input
                       id="zipCode"
                       value={data.zipCode}
                       onChange={handleInputChange('zipCode')}
                       placeholder="12345"
-                      className={cn(
-                        errors.some(e => e.includes('ZIP')) && 'border-destructive'
-                      )}
+                      className={cn(errors.some(e => e.includes('ZIP')) && 'border-destructive')}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="country" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Country *</Label>
-                  <Select
-                    value={data.country}
-                    onValueChange={handleSelectChange('country')}
+                  <Label
+                    htmlFor="country"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
                   >
-                    <SelectTrigger className={cn(
-                      errors.some(e => e.includes('Country')) && 'border-destructive'
-                    )}>
+                    Country *
+                  </Label>
+                  <Select value={data.country} onValueChange={handleSelectChange('country')}>
+                    <SelectTrigger
+                      className={cn(
+                        errors.some(e => e.includes('Country')) && 'border-destructive'
+                      )}
+                    >
                       <SelectValue placeholder="Select country" />
                     </SelectTrigger>
                     <SelectContent>
-                      {COUNTRIES.map((country) => (
+                      {COUNTRIES.map(country => (
                         <SelectItem key={country.value} value={country.value}>
                           {country.label}
                         </SelectItem>
@@ -519,23 +614,30 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
 }) => {
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
-  
+
   // Handle save
-  const handleSave = useCallback(async (formData: ClubEditFormData) => {
-    logger.debug('ClubEditPanel handleSave - Raw form data:', 'panels', { data: formData });
-    const clubData = formDataToClub(formData);
-    logger.debug('ClubEditPanel handleSave - Converted club data:', 'panels', { data: clubData });
-    if (onSave) {
-      await onSave(clubData);
-    }
-  }, [onSave]);
+  const handleSave = useCallback(
+    async (formData: ClubEditFormData) => {
+      logger.debug('ClubEditPanel handleSave - Raw form data:', 'panels', { data: formData });
+      const clubData = formDataToClub(formData);
+      logger.debug('ClubEditPanel handleSave - Converted club data:', 'panels', { data: clubData });
+      if (onSave) {
+        await onSave(clubData);
+      }
+    },
+    [onSave]
+  );
 
   return (
     <EditPanelWrapper<ClubEditFormData>
       open={open}
       onClose={onClose}
       title={mode === 'create' ? 'Create Club' : 'Edit Club'}
-      subtitle={mode === 'create' ? 'Fill in the details for your new club' : `Editing profile for ${clubName}`}
+      subtitle={
+        mode === 'create'
+          ? 'Fill in the details for your new club'
+          : `Editing profile for ${clubName}`
+      }
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}

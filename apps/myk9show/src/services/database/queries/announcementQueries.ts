@@ -35,7 +35,7 @@ export async function fetchShowAnnouncements(showId: string): Promise<ShowAnnoun
     .select('announcement_id')
     .in('announcement_id', announcementIds);
 
-  const readSet = new Set((reads ?? []).map((r: { announcement_id: string }) => r.announcement_id));
+  const readSet = new Set((reads ?? []).map(r => r.announcement_id));
 
   return (announcements as DbShowAnnouncement[]).map(a => ({
     ...a,

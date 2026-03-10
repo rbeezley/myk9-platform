@@ -11,91 +11,28 @@ export default defineConfig({
   plugins: [
     react(),
     saveTemplatesPlugin() as PluginOption,
-    // PWA Configuration - Enabled for asset caching and installability
+    // PWA Configuration - injectManifest strategy for custom service worker with push support
     VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw-custom.ts',
+      injectRegister: null,
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
-        cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit for large chunks
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'gstatic-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-              }
-            }
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-              }
-            }
-          },
-          {
-            urlPattern: ({ request }) => request.destination === 'document',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'pages-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
-              }
-            }
-          },
-          {
-            urlPattern: ({ request }: { request: Request }) => request.destination === 'script' || request.destination === 'style',
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'assets-cache',
-              expiration: {
-                maxEntries: 60,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-              },
-              matchOptions: {
-                ignoreVary: true  // Fix for "Vary: Origin" header issues
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/sojmvhhwsjxmfistvzbe\.supabase\.co\/rest\/v1\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 // 1 hour
-              },
-              networkTimeoutSeconds: 10
-            }
-          }
-        ]
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: [
+        'favicon.ico',
+        'apple-touch-icon.png',
+        'mask-icon.svg',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+      ],
       manifest: {
         name: 'MyK9Show - Dog Show Management',
         short_name: 'MyK9Show',
-        description: 'Comprehensive dog show management platform for exhibitors, organizers, and judges',
+        description:
+          'Comprehensive dog show management platform for exhibitors, organizers, and judges',
         theme_color: '#007AFF',
         background_color: '#ffffff',
         display: 'standalone',
@@ -107,21 +44,24 @@ export default defineConfig({
           {
             src: '/pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: '/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      }
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      devOptions: {
+        enabled: false,
+      },
     }),
     // Bundle analyzer - generates stats.html
     visualizer({
@@ -129,8 +69,8 @@ export default defineConfig({
       open: process.env.ANALYZE_BUNDLE === 'true',
       gzipSize: true,
       brotliSize: true,
-      template: 'treemap' // Options: treemap, sunburst, network
-    }) as PluginOption
+      template: 'treemap', // Options: treemap, sunburst, network
+    }) as PluginOption,
   ],
   optimizeDeps: {
     exclude: ['workbox-window'], // Removed lucide-react - it breaks production build
@@ -149,10 +89,10 @@ export default defineConfig({
       'framer-motion',
       '@base-ui/react',
       'react-day-picker',
-      'lucide-react'
+      'lucide-react',
     ],
     // Force dependency optimization to prevent chunk errors
-    force: true
+    force: true,
   },
   resolve: {
     alias: {
@@ -188,10 +128,10 @@ export default defineConfig({
           }
           return undefined; // Let Vite decide
         },
-        assetFileNames: (assetInfo) => {
+        assetFileNames: assetInfo => {
           // Organize assets in subfolders for CDN optimization
           if (!assetInfo.name) return 'assets/[name]-[hash][extname]';
-          
+
           let extType = assetInfo.name.split('.').at(1) || '';
           if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
             extType = 'images';
@@ -203,8 +143,8 @@ export default defineConfig({
           return `assets/${extType}/[name]-[hash][extname]`;
         },
         chunkFileNames: 'assets/scripts/[name]-[hash].js',
-        entryFileNames: 'assets/scripts/[name]-[hash].js'
-      }
+        entryFileNames: 'assets/scripts/[name]-[hash].js',
+      },
     },
     // Enable source maps for better debugging
     sourcemap: process.env.NODE_ENV !== 'production',
@@ -219,7 +159,7 @@ export default defineConfig({
         unused: true,
         dead_code: true,
         // FIXED: Remove side_effects: false to prevent infinite analysis loops
-        // Advanced compression options for better LCP  
+        // Advanced compression options for better LCP
         passes: 1, // FIXED: Reduced from 2 to prevent exponential processing time
         pure_getters: true,
         unsafe: false, // Keep safe for React apps
@@ -241,17 +181,17 @@ export default defineConfig({
         // Mangle top-level names for better compression
         toplevel: false, // FIXED: Disabled to prevent conflicts with manual chunking
         safari10: true, // Fix Safari 10 compatibility
-      }
+      },
     },
     // Code splitting settings - optimized for Core Web Vitals
     target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'], // Modern browsers for better performance
     cssCodeSplit: true,
     // Asset optimization - optimized for LCP
     assetsInlineLimit: 4096, // Increased from 2048 for better caching vs requests trade-off
-    
+
     // Enhanced build performance
     reportCompressedSize: false, // Disable in CI for faster builds
-    
+
     // Optimize for production deployment
     emptyOutDir: true,
   },
@@ -262,41 +202,41 @@ export default defineConfig({
     warmup: {
       clientFiles: [
         './src/store/dogStore.ts',
-        './src/store/userStore.ts', 
+        './src/store/userStore.ts',
         './src/store/clubStore.ts',
-        './src/store/entryStore.ts'
-      ]
+        './src/store/entryStore.ts',
+      ],
     },
     headers: {
       // Disable caching in development more aggressively
       'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-      'Pragma': 'no-cache',
-      'Expires': '0',
+      Pragma: 'no-cache',
+      Expires: '0',
       'Last-Modified': '0',
-      'ETag': 'false'
+      ETag: 'false',
     },
     // Force reload on file changes
     hmr: {
       overlay: true,
-      port: 24678
+      port: 24678,
     },
     // Force file watching
     watch: {
       usePolling: true,
-      interval: 100
+      interval: 100,
     },
     // Proxy API calls during development
     proxy: {
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:3000',
         changeOrigin: true,
-        secure: false
-      }
-    }
+        secure: false,
+      },
+    },
   },
   preview: {
     port: 4173,
-    host: true
+    host: true,
   },
   // Environment variables
   define: {
@@ -305,6 +245,6 @@ export default defineConfig({
   },
   // Worker configuration for compression worker
   worker: {
-    format: 'es'
-  }
+    format: 'es',
+  },
 });

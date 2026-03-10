@@ -6,7 +6,7 @@
  * - Non-show day: CompactStatsRow, upcoming entries, collapsible results, action buttons
  */
 
-import React, { useCallback, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { CheckInStatus } from '@myk9/core';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
@@ -37,6 +37,8 @@ import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEnt
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
+import { useShowDayAlerts } from '@/hooks/useShowDayAlerts';
+import { useNotificationStore } from '@/store/notificationStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { format } from 'date-fns';
 import { FadeIn } from '@/components/layout/FadeIn';
@@ -68,6 +70,15 @@ const ExhibitorDashboard: React.FC = () => {
   // Data hooks
   const { user } = useAuthContext();
   const showDayData = useShowDayData();
+  useShowDayAlerts(showDayData);
+
+  // Sync isInRing status to notification store for push suppression
+  const setInRing = useNotificationStore(s => s.setInRing);
+  useEffect(() => {
+    const anyInRing = showDayData.myClasses.some(cls => cls.entryStatus === 'in-ring');
+    setInRing(anyInRing);
+  }, [showDayData.myClasses, setInRing]);
+
   const {
     data: rawEntries = [],
     isLoading: entriesLoading,

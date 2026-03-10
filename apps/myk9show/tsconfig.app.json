@@ -11,9 +11,7 @@
     "declarationMap": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     },
     /* Re-enabled 2026-02-03 - Sprint 25: Type Safety Focus */
     "strict": true,
@@ -35,13 +33,13 @@
     /* Re-enabled 2025-01-17 - fixing implicit any types incrementally */
     "noImplicitAny": true
   },
-  "include": [
-    "src"
-  ],
+  "include": ["src"],
   "exclude": [
     "src/test/**/*",
     "src/**/__tests__/**/*",
     "src/**/*.test.ts",
+
+    "src/sw-custom.ts",
 
     "src/services/sync/**/*",
     "src/services/conflict/**/*",

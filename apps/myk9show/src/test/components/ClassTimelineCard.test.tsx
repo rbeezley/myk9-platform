@@ -42,9 +42,17 @@ describe('ClassTimelineCard', () => {
     expect(screen.getByText(/#175/)).toBeInTheDocument();
   });
 
-  it('renders estimated time for upcoming classes', () => {
-    render(<ClassTimelineCard classData={makeClass()} />);
+  it('renders estimated time for upcoming classes with no-status', () => {
+    // Estimated time only shows when entryStatus is 'no-status' (no check-in badge shown)
+    render(<ClassTimelineCard classData={makeClass({ entryStatus: 'no-status' })} />);
     expect(screen.getByText('~21m')).toBeInTheDocument();
+  });
+
+  it('shows check-in badge instead of time for checked-in classes', () => {
+    render(<ClassTimelineCard classData={makeClass({ entryStatus: 'checked-in' })} />);
+    // Without onCheckInChange, shows compact (icon-only) read-only badge via aria-label
+    expect(screen.getByLabelText('Status: Checked-in')).toBeInTheDocument();
+    expect(screen.queryByText('~21m')).not.toBeInTheDocument();
   });
 
   it('renders result badge for completed classes', () => {
@@ -60,11 +68,12 @@ describe('ClassTimelineCard', () => {
   });
 
   it('applies muted styling for completed classes', () => {
-    render(
+    const { container } = render(
       <ClassTimelineCard classData={makeClass({ isScored: true, resultStatus: 'qualified' })} />
     );
-    const button = screen.getByRole('button');
-    expect(button.className).toContain('opacity-70');
+    // The outer div (first child) has opacity-70
+    const outerDiv = container.firstElementChild;
+    expect(outerDiv?.className).toContain('opacity-70');
   });
 
   it('shows strikethrough on completed class name', () => {
@@ -85,7 +94,9 @@ describe('ClassTimelineCard', () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     render(<ClassTimelineCard classData={makeClass()} onNavigate={onNavigate} />);
-    await user.click(screen.getByRole('button'));
+    // Component now has multiple buttons; click the class info area
+    const classInfoButton = screen.getByLabelText(/Interior Advanced B, Luna/);
+    await user.click(classInfoButton);
     expect(onNavigate).toHaveBeenCalledWith('class-1');
   });
 
@@ -94,26 +105,26 @@ describe('ClassTimelineCard', () => {
     expect(screen.getByText('Interior Advanced B')).toBeInTheDocument();
   });
 
-  // --- Phase 4: Accessibility ---
+  // --- Accessibility ---
 
-  it('status indicator has aria-label "Completed" for scored classes', () => {
-    const { container } = render(
+  it('status indicator button has aria-label "Completed" for scored classes', () => {
+    render(
       <ClassTimelineCard classData={makeClass({ isScored: true, resultStatus: 'qualified' })} />
     );
-    const statusIndicator = container.querySelector('[role="img"]');
-    expect(statusIndicator).toBeInTheDocument();
-    expect(statusIndicator?.getAttribute('aria-label')).toBe('Completed');
+    expect(screen.getByLabelText('Completed')).toBeInTheDocument();
   });
 
-  it('status indicator has aria-label "Pending" for upcoming classes', () => {
-    const { container } = render(<ClassTimelineCard classData={makeClass()} />);
-    const statusIndicator = container.querySelector('[role="img"]');
-    expect(statusIndicator).toBeInTheDocument();
-    expect(statusIndicator?.getAttribute('aria-label')).toBe('Pending');
+  it('status indicator button has aria-label "Pending" for upcoming classes', () => {
+    render(<ClassTimelineCard classData={makeClass()} />);
+    expect(screen.getByLabelText('Pending')).toBeInTheDocument();
   });
 
   it('handles no estimated time gracefully', () => {
-    render(<ClassTimelineCard classData={makeClass({ estimatedTimeMinutes: null })} />);
+    render(
+      <ClassTimelineCard
+        classData={makeClass({ estimatedTimeMinutes: null, entryStatus: 'no-status' })}
+      />
+    );
     expect(screen.queryByText(/~\d+m/)).not.toBeInTheDocument();
   });
 
@@ -126,7 +137,6 @@ describe('ClassTimelineCard', () => {
     const { container } = render(
       <ClassTimelineCard classData={makeClass({ isScored: true, resultStatus: 'qualified' })} />
     );
-    // CheckCircle SVG should be present
     const svgs = container.querySelectorAll('svg');
     expect(svgs.length).toBeGreaterThan(0);
   });

@@ -3,6 +3,8 @@
  * Used by useShowDayData hook for exhibitor dashboard progressive disclosure.
  */
 
+import type { CheckInStatus } from '@myk9/core';
+
 /** Top-level return type from useShowDayData */
 export interface ShowDayData {
   /** Whether the exhibitor has a show today */
@@ -62,7 +64,7 @@ export interface ShowDayClass {
   myRunningOrder: number | null;
   estimatedTimeMinutes: number | null;
   // Status
-  entryStatus: string;
+  entryStatus: CheckInStatus;
   isScored: boolean;
   resultStatus: string | null;
   classStatus: string;

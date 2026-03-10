@@ -7,6 +7,7 @@
 
 import { forwardRef, useCallback, useId, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
+import type { CheckInStatus } from '@myk9/core';
 import type { ShowDayData } from '@/types/show-day-types';
 import { NextUpCard } from './NextUpCard';
 import { ClassTimelineCard } from './ClassTimelineCard';
@@ -15,14 +16,18 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface ShowDayHeroProps {
   data: ShowDayData;
-  onClassNavigate?: (classId: string) => void;
+  onClassNavigate?: ((classId: string) => void) | undefined;
   /** Called when user selects a different show (multi-show day) */
-  onShowSelect?: (showId: string) => void;
-  className?: string;
+  onShowSelect?: ((showId: string) => void) | undefined;
+  /** Called when the user changes check-in status for an entry */
+  onCheckInChange?: ((entryId: string, newStatus: CheckInStatus) => void) | undefined;
+  /** Map of classId → whether self-check-in is enabled */
+  selfCheckinEnabledMap?: Record<string, boolean> | undefined;
+  className?: string | undefined;
 }
 
 export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function ShowDayHero(
-  { data, onClassNavigate, onShowSelect, className },
+  { data, onClassNavigate, onShowSelect, onCheckInChange, selfCheckinEnabledMap, className },
   ref
 ) {
   const isAllDone =
@@ -155,7 +160,14 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
       )}
 
       {/* Next Up */}
-      {data.nextUp && <NextUpCard classData={data.nextUp} onNavigate={onClassNavigate} />}
+      {data.nextUp && (
+        <NextUpCard
+          classData={data.nextUp}
+          onNavigate={onClassNavigate}
+          onCheckInChange={onCheckInChange}
+          selfCheckinEnabled={selfCheckinEnabledMap?.[data.nextUp.classId] ?? true}
+        />
+      )}
 
       {/* Later Today */}
       {laterToday.length > 0 && (
@@ -164,7 +176,13 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
             Later Today
           </h3>
           {laterToday.map(c => (
-            <ClassTimelineCard key={c.entryId} classData={c} onNavigate={onClassNavigate} />
+            <ClassTimelineCard
+              key={c.entryId}
+              classData={c}
+              onNavigate={onClassNavigate}
+              onCheckInChange={onCheckInChange}
+              selfCheckinEnabled={selfCheckinEnabledMap?.[c.classId] ?? true}
+            />
           ))}
         </div>
       )}

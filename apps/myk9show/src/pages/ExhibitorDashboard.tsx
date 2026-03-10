@@ -6,9 +6,11 @@
  * - Non-show day: CompactStatsRow, upcoming entries, collapsible results, action buttons
  */
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { CheckInStatus } from '@myk9/core';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
+import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -74,6 +76,14 @@ const ExhibitorDashboard: React.FC = () => {
   const { data: stats } = useEntryStatisticsQuery();
   const { data: dogs = [] } = useDogsQuery();
   const { data: recentResults = [] } = useExhibitorResults();
+  const checkInMutation = useCheckInMutation();
+
+  const handleCheckInChange = useCallback(
+    (entryId: string, newStatus: CheckInStatus) => {
+      checkInMutation.mutate({ entryId, newStatus });
+    },
+    [checkInMutation]
+  );
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';
 
@@ -180,7 +190,7 @@ const ExhibitorDashboard: React.FC = () => {
       {/* ---- SHOW DAY LAYOUT ---- */}
       {showDayData.isShowDay && (
         <>
-          <ShowDayHero ref={heroRef} data={showDayData} />
+          <ShowDayHero ref={heroRef} data={showDayData} onCheckInChange={handleCheckInChange} />
 
           {/* Collapsed sections below the hero */}
           {upcomingEntries.length > 0 && (

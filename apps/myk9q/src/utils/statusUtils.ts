@@ -5,13 +5,27 @@
  * Provides consistent status display across the application.
  */
 
-// Entry status type is imported from entryStore (single source of truth)
-import type { EntryStatus } from '../stores/entryStore';
-export type { EntryStatus } from '../stores/entryStore';
+// Entry status type — canonical definition in @myk9/core
+import type { EntryStatus } from '@myk9/core';
+export type { EntryStatus } from '@myk9/core';
 
 // Type definitions
-export type ClassStatus = 'setup' | 'briefing' | 'break' | 'start_time' | 'in_progress' | 'offline-scoring' | 'completed' | 'no-status';
-export type EntryCheckInStatus = 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate' | 'pending';
+export type ClassStatus =
+  | 'setup'
+  | 'briefing'
+  | 'break'
+  | 'start_time'
+  | 'in_progress'
+  | 'offline-scoring'
+  | 'completed'
+  | 'no-status';
+export type EntryCheckInStatus =
+  | 'checked-in'
+  | 'conflict'
+  | 'pulled'
+  | 'at-gate'
+  | 'come-to-gate'
+  | 'pending';
 export type EntryResultStatus = 'qualified' | 'not-qualified' | 'excused' | 'pending';
 
 /**
@@ -53,7 +67,9 @@ export interface DogEntry {
  * Gets display status for a class (used for smart status detection)
  * Priority: is_scoring_finalized > manual class_status > automatic detection
  */
-export function getClassDisplayStatus(classEntry: ClassEntry): 'not-started' | 'in-progress' | 'completed' {
+export function getClassDisplayStatus(
+  classEntry: ClassEntry
+): 'not-started' | 'in-progress' | 'completed' {
   // PRIORITY 1: Check is_scoring_finalized field (set automatically when all entries scored)
   if (classEntry.is_scoring_finalized === true) {
     return 'completed';
@@ -71,7 +87,8 @@ export function getClassDisplayStatus(classEntry: ClassEntry): 'not-started' | '
   // Manual statuses like setup, briefing, break, start_time should always be respected
   if (classEntry.class_status === 'no-status') {
     // A class is completed when all dogs are scored
-    const isCompleted = classEntry.completed_count === classEntry.entry_count && classEntry.entry_count > 0;
+    const isCompleted =
+      classEntry.completed_count === classEntry.entry_count && classEntry.entry_count > 0;
     if (isCompleted) {
       return 'completed';
     }
@@ -87,10 +104,7 @@ export function getClassDisplayStatus(classEntry: ClassEntry): 'not-started' | '
 /**
  * Gets the CSS class name for class status coloring
  */
-export function getClassStatusColor(
-  status: ClassStatus,
-  classEntry?: ClassEntry
-): string {
+export function getClassStatusColor(status: ClassStatus, classEntry?: ClassEntry): string {
   // PRIORITY 1: Offline scoring status should always use its own color
   // This must be checked BEFORE smart detection to prevent override
   if (status === 'offline-scoring') {
@@ -105,18 +119,26 @@ export function getClassStatusColor(
   }
 
   switch (status) {
-    case 'no-status': return 'no-status';
-    case 'setup': return 'setup';
-    case 'briefing': return 'briefing';
-    case 'break': return 'break';
-    case 'start_time': return 'start-time';
-    case 'in_progress': return 'in-progress';
-    case 'completed': return 'completed';
+    case 'no-status':
+      return 'no-status';
+    case 'setup':
+      return 'setup';
+    case 'briefing':
+      return 'briefing';
+    case 'break':
+      return 'break';
+    case 'start_time':
+      return 'start-time';
+    case 'in_progress':
+      return 'in-progress';
+    case 'completed':
+      return 'completed';
     default:
       // Note: offline-scoring is handled at the top of the function before smart detection
       // Intelligent color based on actual class progress
       if (classEntry) {
-        const isCompleted = classEntry.completed_count === classEntry.entry_count && classEntry.entry_count > 0;
+        const isCompleted =
+          classEntry.completed_count === classEntry.entry_count && classEntry.entry_count > 0;
         const hasDogsInRing = classEntry.dogs && classEntry.dogs.some(dog => dog.in_ring);
 
         if (isCompleted) return 'completed';
@@ -161,17 +183,17 @@ export function getFormattedClassStatus(classEntry: ClassEntry): FormattedStatus
     case 'briefing':
       return {
         label: 'Briefing at',
-        time: classEntry.briefing_time || null
+        time: classEntry.briefing_time || null,
       };
     case 'break':
       return {
         label: 'Break until',
-        time: classEntry.break_until || null
+        time: classEntry.break_until || null,
       };
     case 'start_time':
       return {
         label: 'Start at',
-        time: classEntry.start_time || null
+        time: classEntry.start_time || null,
       };
     case 'setup':
       return { label: 'Setup', time: null };
@@ -253,7 +275,9 @@ export function getEntryStatusLabel(entry: DogEntry): string {
  * Gets the icon name for a check-in status
  * Returns Lucide React icon names to match dialog
  */
-export function getCheckInStatusIcon(checkInStatus?: string): 'Circle' | 'Check' | 'AlertTriangle' | 'XCircle' | 'Star' | 'Bell' {
+export function getCheckInStatusIcon(
+  checkInStatus?: string
+): 'Circle' | 'Check' | 'AlertTriangle' | 'XCircle' | 'Star' | 'Bell' {
   switch (checkInStatus) {
     case 'checked-in':
       return 'Check';
@@ -287,10 +311,7 @@ export function getCheckInStatusIcon(checkInStatus?: string): 'Circle' | 'Check'
  * determineEntryStatus(undefined, true) // 'in-ring'
  * determineEntryStatus(undefined, false) // 'no-status'
  */
-export function determineEntryStatus(
-  entryStatus?: string | null,
-  isInRing?: boolean
-): EntryStatus {
+export function determineEntryStatus(entryStatus?: string | null, isInRing?: boolean): EntryStatus {
   // If entry_status exists, use it directly
   if (entryStatus) {
     return entryStatus as EntryStatus;

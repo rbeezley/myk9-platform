@@ -88,11 +88,7 @@ export {
 } from './utils/dateFormatting';
 
 // Error handling utilities
-export {
-  ensureError,
-  isErrorLike,
-  getErrorMessage,
-} from './utils/errors';
+export { ensureError, isErrorLike, getErrorMessage } from './utils/errors';
 
 // Type guard utilities
 export {
@@ -157,6 +153,22 @@ export {
   type NationalsRanking,
   type NationalsScoringInterface,
 } from './services/nationalsScoring';
+
+// Check-in status constants
+export {
+  CHECKIN_STATUS,
+  CHECKIN_STATUSES,
+  ENTRY_STATUSES,
+  EXHIBITOR_ALLOWED_STATUSES,
+  SECRETARY_ONLY_STATUSES,
+  getCheckinStatusConfig,
+  isCheckInStatus,
+  isEntryStatus,
+  isExhibitorAllowedStatus,
+  type CheckInStatus,
+  type EntryStatus,
+  type CheckInStatusConfig,
+} from './constants/check-in-status';
 
 // Nationals scoring constants
 export {

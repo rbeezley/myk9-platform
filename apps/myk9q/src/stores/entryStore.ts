@@ -1,16 +1,9 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { EntryStatus } from '@myk9/core';
 
-// Entry status type - single source of truth
-export type EntryStatus =
-  | 'no-status'      // Not checked in
-  | 'checked-in'     // Checked in
-  | 'at-gate'        // Called to gate
-  | 'come-to-gate'   // Being called to gate
-  | 'conflict'       // Scheduling conflict
-  | 'pulled'         // Withdrawn from class
-  | 'in-ring'        // Currently competing
-  | 'completed';     // Finished (manual completion, no score)
+// Entry status type — canonical definition in @myk9/core
+export type { EntryStatus } from '@myk9/core';
 
 export interface Entry {
   id: number;
@@ -78,17 +71,17 @@ interface EntryState {
   entries: Entry[];
   currentClassEntries: Entry[];
   currentEntry: Entry | null;
-  
+
   // UI State
   filters: EntryFilters;
   isLoading: boolean;
   error: string | null;
-  
+
   // Pagination
   currentPage: number;
   entriesPerPage: number;
   totalEntries: number;
-  
+
   // Actions
   setEntries: (entries: Entry[]) => void;
   setCurrentClassEntries: (classId: number) => void;
@@ -96,16 +89,16 @@ interface EntryState {
   updateEntry: (entryId: number, updates: Partial<Entry>) => void;
   markAsScored: (entryId: number, resultText: string) => void;
   markInRing: (entryId: number, inRing: boolean) => void;
-  
+
   // Filter Actions
   setFilter: (filter: Partial<EntryFilters>) => void;
   resetFilters: () => void;
-  
+
   // Pagination Actions
   setPage: (page: number) => void;
   nextPage: () => void;
   previousPage: () => void;
-  
+
   // Utility
   getFilteredEntries: () => Entry[];
   getEntryByArmband: (armband: number) => Entry | undefined;
@@ -118,7 +111,7 @@ const defaultFilters: EntryFilters = {
   showUnscored: true,
   searchTerm: '',
   sortBy: 'armband',
-  sortDirection: 'asc'
+  sortDirection: 'asc',
 };
 
 export const useEntryStore = create<EntryState>()(
@@ -136,39 +129,40 @@ export const useEntryStore = create<EntryState>()(
       totalEntries: 0,
 
       // Data Actions
-      setEntries: (entries) => {
+      setEntries: entries => {
         set({
           entries,
           totalEntries: entries.length,
           currentPage: 1,
-          error: null
+          error: null,
         });
       },
 
-      setCurrentClassEntries: (classId) => {
+      setCurrentClassEntries: classId => {
         const classEntries = get().entries.filter(e => e.classId === classId);
         set({
           currentClassEntries: classEntries,
           totalEntries: classEntries.length,
-          currentPage: 1
+          currentPage: 1,
         });
       },
 
-      setCurrentEntry: (entry) => {
+      setCurrentEntry: entry => {
         set({ currentEntry: entry });
       },
 
       updateEntry: (entryId, updates) => {
-        set((state) => ({
+        set(state => ({
           entries: state.entries.map(entry =>
             entry.id === entryId ? { ...entry, ...updates } : entry
           ),
           currentClassEntries: state.currentClassEntries.map(entry =>
             entry.id === entryId ? { ...entry, ...updates } : entry
           ),
-          currentEntry: state.currentEntry?.id === entryId
-            ? { ...state.currentEntry, ...updates }
-            : state.currentEntry
+          currentEntry:
+            state.currentEntry?.id === entryId
+              ? { ...state.currentEntry, ...updates }
+              : state.currentEntry,
         }));
       },
 
@@ -176,8 +170,8 @@ export const useEntryStore = create<EntryState>()(
         get().updateEntry(entryId, {
           isScored: true,
           resultText,
-          status: 'completed',  // Move to completed tab
-          inRing: false         // Deprecated field for backward compat
+          status: 'completed', // Move to completed tab
+          inRing: false, // Deprecated field for backward compat
         });
       },
 
@@ -186,25 +180,25 @@ export const useEntryStore = create<EntryState>()(
       },
 
       // Filter Actions
-      setFilter: (filter) => {
-        set((state) => ({
+      setFilter: filter => {
+        set(state => ({
           filters: { ...state.filters, ...filter },
-          currentPage: 1
+          currentPage: 1,
         }));
       },
 
       resetFilters: () => {
         set({
           filters: defaultFilters,
-          currentPage: 1
+          currentPage: 1,
         });
       },
 
       // Pagination Actions
-      setPage: (page) => {
+      setPage: page => {
         const maxPage = Math.ceil(get().totalEntries / get().entriesPerPage);
         set({
-          currentPage: Math.min(Math.max(1, page), maxPage)
+          currentPage: Math.min(Math.max(1, page), maxPage),
         });
       },
 
@@ -226,7 +220,7 @@ export const useEntryStore = create<EntryState>()(
       // Utility Functions
       getFilteredEntries: () => {
         const { currentClassEntries, filters } = get();
-        
+
         let filtered = [...currentClassEntries];
 
         // Apply scored/unscored filter
@@ -240,18 +234,19 @@ export const useEntryStore = create<EntryState>()(
         // Apply search filter
         if (filters.searchTerm) {
           const term = filters.searchTerm.toLowerCase();
-          filtered = filtered.filter(e =>
-            e.callName.toLowerCase().includes(term) ||
-            e.handler.toLowerCase().includes(term) ||
-            e.breed.toLowerCase().includes(term) ||
-            e.armband.toString().includes(term)
+          filtered = filtered.filter(
+            e =>
+              e.callName.toLowerCase().includes(term) ||
+              e.handler.toLowerCase().includes(term) ||
+              e.breed.toLowerCase().includes(term) ||
+              e.armband.toString().includes(term)
           );
         }
 
         // Apply sorting
         filtered.sort((a, b) => {
           let comparison = 0;
-          
+
           switch (filters.sortBy) {
             case 'armband':
               comparison = a.armband - b.armband;
@@ -273,7 +268,7 @@ export const useEntryStore = create<EntryState>()(
         return filtered;
       },
 
-      getEntryByArmband: (armband) => {
+      getEntryByArmband: armband => {
         return get().entries.find(e => e.armband === armband);
       },
 
@@ -283,7 +278,7 @@ export const useEntryStore = create<EntryState>()(
 
       getScoredEntries: () => {
         return get().currentClassEntries.filter(e => e.isScored);
-      }
+      },
     }),
     { enabled: import.meta.env.DEV } // Only enable devtools in development
   )

@@ -83,17 +83,16 @@ describe('NextUpCard', () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     render(<NextUpCard classData={makeClass()} onNavigate={onNavigate} />);
-    await user.click(screen.getByRole('button'));
+    // Component now has multiple buttons; click the content area button (has aria-label)
+    const contentButton = screen.getByLabelText(/Next up: Container Novice A/);
+    await user.click(contentButton);
     expect(onNavigate).toHaveBeenCalledWith('class-1');
   });
 
-  it('has accessible aria-label', () => {
+  it('has accessible aria-label on content button', () => {
     render(<NextUpCard classData={makeClass()} />);
-    const button = screen.getByRole('button');
-    expect(button).toHaveAttribute(
-      'aria-label',
-      expect.stringContaining('Next up: Container Novice A')
-    );
+    const contentButton = screen.getByLabelText(/Next up: Container Novice A/);
+    expect(contentButton).toBeInTheDocument();
   });
 
   it('renders dog position in class', () => {

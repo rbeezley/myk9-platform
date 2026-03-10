@@ -10,6 +10,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -212,7 +213,7 @@ export function buildShowDayClasses(
       currentDogInRing: progress?.currentDogInRing ?? null,
       myRunningOrder: row.run_order,
       estimatedTimeMinutes: computeEstimatedTime(row.run_order, scoredEntries, scoredTimestamps),
-      entryStatus: row.entry_status,
+      entryStatus: row.entry_status as CheckInStatus,
       isScored: row.is_scored,
       resultStatus: row.result_status,
       classStatus: row.class.status,

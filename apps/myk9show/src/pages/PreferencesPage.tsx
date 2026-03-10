@@ -25,7 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ThemeSelector } from '@/components/preferences/ThemeSelector';
-import { NotificationSettings } from '@/components/preferences/NotificationSettings';
+import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { CompetitionSettings } from '@/components/preferences/CompetitionSettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
 import { PrivacySettings } from '@/components/preferences/PrivacySettings';
@@ -369,13 +369,7 @@ export function PreferencesPage() {
           />
         );
       case 'notifications':
-        return (
-          <NotificationSettings
-            preferences={preferences?.notifications}
-            onUpdate={notifications => handleUpdate({ notifications })}
-            onReset={() => handleReset('notifications')}
-          />
-        );
+        return <NotificationSettings />;
       case 'competition':
         return (
           <CompetitionSettings

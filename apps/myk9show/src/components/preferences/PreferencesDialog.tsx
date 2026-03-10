@@ -1,24 +1,24 @@
 /**
  * Preferences Dialog Component
  * Phase 6.4: User Preferences & UI State
- * 
+ *
  * Main preferences management interface with tabs for different categories
  */
 
 import { useState } from 'react';
-import { 
-  Settings, 
-  Monitor, 
-  Bell, 
-  Wifi, 
-  Shield, 
-  Download, 
-  Upload, 
+import {
+  Settings,
+  Monitor,
+  Bell,
+  Wifi,
+  Shield,
+  Download,
+  Upload,
   RotateCcw,
   X,
   AlertTriangle,
   CheckCircle2,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuthUser } from '@/hooks/useAuthUser';
@@ -29,17 +29,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { ThemeSelector } from './ThemeSelector';
-import { NotificationSettings } from './NotificationSettings';
+import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 import { CompetitionSettings } from './CompetitionSettings';
 import { DataSettings } from './DataSettings';
 import { PrivacySettings } from './PrivacySettings';
@@ -95,9 +90,11 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
     try {
       setActionLoading('reset');
       setActionError(null);
-      
+
       await resetToDefaults(category);
-      setSuccessMessage(`${category ? `${category} preferences` : 'All preferences'} reset to defaults`);
+      setSuccessMessage(
+        `${category ? `${category} preferences` : 'All preferences'} reset to defaults`
+      );
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error: unknown) {
       setActionError(error instanceof Error ? error.message : 'Failed to reset preferences');
@@ -113,9 +110,9 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
     try {
       setActionLoading('export');
       setActionError(null);
-      
+
       const data = await exportPreferences();
-      
+
       // Create download
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -126,7 +123,7 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       setSuccessMessage('Preferences exported successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error: unknown) {
@@ -143,20 +140,20 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
     try {
       setActionLoading('import');
       setActionError(null);
-      
+
       // Create file input
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.json';
-      
-      input.onchange = async (e) => {
+
+      input.onchange = async e => {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (!file) return;
-        
+
         try {
           const text = await file.text();
           await importPreferences(text);
-          
+
           setSuccessMessage('Preferences imported successfully');
           setTimeout(() => setSuccessMessage(null), 3000);
         } catch (error: unknown) {
@@ -165,7 +162,7 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
           setActionLoading(null);
         }
       };
-      
+
       input.click();
     } catch (error: unknown) {
       setActionError(error instanceof Error ? error.message : 'Failed to import preferences');
@@ -180,7 +177,7 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
     try {
       setActionLoading('sync');
       setActionError(null);
-      
+
       await forceSync();
       setSuccessMessage('Preferences synchronized successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -298,13 +295,13 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
           <div className="flex-1 flex min-h-0">
             <Tabs
               value={activeTab}
-              onValueChange={(value) => setActiveTab(value as TabValue)}
+              onValueChange={value => setActiveTab(value as TabValue)}
               className="flex-1 flex min-h-0"
             >
               {/* Sidebar Navigation */}
               <div className="w-64 border-r border-border/30 bg-muted/20">
                 <TabsList className="flex flex-col h-full w-full justify-start bg-transparent p-2 space-y-1">
-                  {tabs.map((tab) => (
+                  {tabs.map(tab => (
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
@@ -328,23 +325,19 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
                   <TabsContent value="theme" className="mt-0">
                     <ThemeSelector
                       preferences={preferences?.theme}
-                      onUpdate={(theme) => handleUpdate({ theme })}
+                      onUpdate={theme => handleUpdate({ theme })}
                       onReset={() => handleReset('theme')}
                     />
                   </TabsContent>
 
                   <TabsContent value="notifications" className="mt-0">
-                    <NotificationSettings
-                      preferences={preferences?.notifications}
-                      onUpdate={(notifications) => handleUpdate({ notifications })}
-                      onReset={() => handleReset('notifications')}
-                    />
+                    <NotificationSettings />
                   </TabsContent>
 
                   <TabsContent value="competition" className="mt-0">
                     <CompetitionSettings
                       preferences={preferences?.competition}
-                      onUpdate={(competition) => handleUpdate({ competition })}
+                      onUpdate={competition => handleUpdate({ competition })}
                       onReset={() => handleReset('competition')}
                     />
                   </TabsContent>
@@ -352,7 +345,7 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
                   <TabsContent value="data" className="mt-0">
                     <DataSettings
                       preferences={preferences?.data}
-                      onUpdate={(data) => handleUpdate({ data })}
+                      onUpdate={data => handleUpdate({ data })}
                       onReset={() => handleReset('data')}
                     />
                   </TabsContent>
@@ -360,7 +353,7 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
                   <TabsContent value="privacy" className="mt-0">
                     <PrivacySettings
                       preferences={preferences?.privacy}
-                      onUpdate={(privacy) => handleUpdate({ privacy })}
+                      onUpdate={privacy => handleUpdate({ privacy })}
                       onReset={() => handleReset('privacy')}
                     />
                   </TabsContent>
@@ -388,7 +381,7 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
                         )}
                         Export
                       </Button>
-                      
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -422,9 +415,11 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
 
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">
-                        {devices.filter(d => d.isCurrentDevice).length > 0 ? 'Current Device' : 'Unknown Device'}
+                        {devices.filter(d => d.isCurrentDevice).length > 0
+                          ? 'Current Device'
+                          : 'Unknown Device'}
                       </Badge>
-                      
+
                       <Button
                         variant="outline"
                         size="sm"

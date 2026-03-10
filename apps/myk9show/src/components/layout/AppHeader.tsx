@@ -41,6 +41,7 @@ import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount } from '@/stores/cartStore';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -171,6 +172,9 @@ const AppHeader: React.FC = () => {
                 >
                   <Search className="h-4 w-4" />
                 </Button>
+
+                {/* Notifications */}
+                <NotificationBell />
 
                 {/* Cart Icon */}
                 {cartItemCount > 0 && (

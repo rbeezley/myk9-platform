@@ -22,11 +22,17 @@ vi.mock('@/hooks/useAuthContext', () => ({
   }),
 }));
 
+const mockSelectShow = vi.fn();
+
 vi.mock('@/store/showStore', () => ({
-  useShowStore: () => ({
-    shows: mockShowsOverride ?? mockShows,
-    isLoading: false,
-  }),
+  useShowStore: (selector?: (s: Record<string, unknown>) => unknown) => {
+    const state = {
+      shows: mockShowsOverride ?? mockShows,
+      isLoading: false,
+      selectShow: mockSelectShow,
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 
 vi.mock('@/store/trialStore', () => ({

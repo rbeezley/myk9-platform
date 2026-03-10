@@ -1,10 +1,44 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { NotificationCenter } from '../NotificationCenter';
 import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
+
+vi.mock('@/store/announcementStore', async () => {
+  const { create } = await import('zustand');
+  const useAnnouncementStore = create<Record<string, unknown>>()(() => ({
+    announcements: [],
+    unreadCount: 0,
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+  }));
+  return { useAnnouncementStore };
+});
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    userWithRoles: {
+      id: 'user-1',
+      email: 'test@test.com',
+      roles: ['secretary'],
+      scopes: [],
+      user_metadata: { full_name: 'Test User' },
+    },
+  }),
+}));
+
+// Mock AnnouncementItem and CreateAnnouncementDialog to avoid deep dependency chains
+vi.mock('@/components/announcements/AnnouncementItem', () => ({
+  AnnouncementItem: ({ announcement }: { announcement: { title: string } }) => (
+    <div data-testid="announcement-item">{announcement.title}</div>
+  ),
+}));
+
+vi.mock('@/components/announcements/CreateAnnouncementDialog', () => ({
+  CreateAnnouncementDialog: () => <div data-testid="create-announcement-dialog" />,
+}));
 
 function makePayload(
   id: string,
@@ -30,7 +64,7 @@ function renderCenter() {
   );
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   useNotificationStore.setState({
     preferences: { ...DEFAULT_PREFERENCES },
     isInRing: false,
@@ -38,6 +72,13 @@ beforeEach(() => {
     unreadCount: 0,
     isCenterOpen: true,
     permissionStatus: 'default' as NotificationPermission,
+  });
+
+  // Reset announcement store to empty state
+  const { useAnnouncementStore: annStore } = await import('@/store/announcementStore');
+  (annStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    announcements: [],
+    unreadCount: 0,
   });
 });
 
@@ -124,15 +165,36 @@ describe('NotificationCenter', () => {
     expect(screen.queryByText('Alert 2')).not.toBeInTheDocument();
   });
 
-  it('filters by Announcements tab', () => {
+  it('filters by Announcements tab (hides alert-type items, shows store announcements)', async () => {
     useNotificationStore.getState().addAlert(makePayload('1', 'your_turn'));
-    useNotificationStore.getState().addAlert(makePayload('2', 'announcement'));
-    renderCenter();
 
+    const { useAnnouncementStore: annStore } = await import('@/store/announcementStore');
+    (annStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      announcements: [
+        {
+          id: 'ann-1',
+          show_id: 'show-1',
+          author_id: 'other-user',
+          author_role: 'secretary',
+          author_name: 'Admin',
+          title: 'Store Announcement',
+          content: 'Content here',
+          priority: 'normal',
+          expires_at: null,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_read: false,
+        },
+      ],
+      unreadCount: 1,
+    });
+
+    renderCenter();
     fireEvent.click(screen.getByRole('tab', { name: /announcements/i }));
 
     expect(screen.queryByText('Alert 1')).not.toBeInTheDocument();
-    expect(screen.getByText('Alert 2')).toBeInTheDocument();
+    expect(screen.getByText('Store Announcement')).toBeInTheDocument();
   });
 
   it('filters by unread only toggle', () => {
@@ -153,5 +215,46 @@ describe('NotificationCenter', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /dismiss.*1/i }));
     expect(useNotificationStore.getState().recentAlerts).toHaveLength(0);
+  });
+
+  it('renders announcements from announcement store on Announcements tab', async () => {
+    const { useAnnouncementStore: annStore } = await import('@/store/announcementStore');
+    (annStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      announcements: [
+        {
+          id: 'ann-1',
+          show_id: 'show-1',
+          author_id: 'other-user',
+          author_role: 'secretary',
+          author_name: 'Admin',
+          title: 'Gate Moved',
+          content: 'Gate 3 moved to Ring B',
+          priority: 'normal',
+          expires_at: null,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_read: false,
+        },
+      ],
+      unreadCount: 1,
+    });
+
+    renderCenter();
+    fireEvent.click(screen.getByRole('tab', { name: /announcements/i }));
+
+    expect(screen.getByText('Gate Moved')).toBeInTheDocument();
+  });
+
+  it('shows combined unread count in header', async () => {
+    useNotificationStore.getState().addAlert(makePayload('1'));
+    const { useAnnouncementStore: annStore } = await import('@/store/announcementStore');
+    (annStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      announcements: [],
+      unreadCount: 2,
+    });
+
+    renderCenter();
+    expect(screen.getByText('3 unread')).toBeInTheDocument();
   });
 });

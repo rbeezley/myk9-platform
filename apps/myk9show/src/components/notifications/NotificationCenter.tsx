@@ -1,10 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Dog, Megaphone, AlertCircle, AlertTriangle, Inbox } from 'lucide-react';
+import { X, Dog, Megaphone, AlertCircle, AlertTriangle, Inbox, Plus } from 'lucide-react';
 import { useNotificationStore } from '@/store/notificationStore';
 import type { AlertEntry } from '@/store/notificationStore';
 import type { NotificationType, NotificationPriority } from '@myk9/notifications';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
+import { useAnnouncementStore } from '@/store/announcementStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
+import { CreateAnnouncementDialog } from '@/components/announcements/CreateAnnouncementDialog';
+import { ANNOUNCEMENT_OFFICIAL_ROLES } from '@/types/announcement-types';
+import type { AnnouncementAuthorRole } from '@/types/announcement-types';
 
 type FilterTab = 'all' | 'dogs' | 'announcements';
 
@@ -111,8 +117,28 @@ export function NotificationCenter() {
   const dismissAlert = useNotificationStore(s => s.dismissAlert);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const storeAnnouncements = useAnnouncementStore(s => s.announcements);
+  const announcementUnread = useAnnouncementStore(s => s.unreadCount);
+  const annMarkRead = useAnnouncementStore(s => s.markRead);
+  const annMarkAllRead = useAnnouncementStore(s => s.markAllRead);
+  const { userWithRoles } = useAuthContext();
+
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const userRole = (userWithRoles?.roles ?? []).find(r =>
+    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(r)
+  );
+  const isOfficial = !!userRole;
+  const authorRole: AnnouncementAuthorRole = (userRole as AnnouncementAuthorRole) ?? 'secretary';
+  const authorId = userWithRoles?.id ?? '';
+  const authorName =
+    (userWithRoles?.user_metadata?.full_name as string | undefined) ??
+    userWithRoles?.email ??
+    'Unknown';
+
+  const totalUnread = unreadCount + announcementUnread;
 
   // Body scroll lock
   useEffect(() => {
@@ -162,7 +188,7 @@ export function NotificationCenter() {
     if (activeTab === 'dogs') {
       filtered = filtered.filter(a => (DOG_TYPES as readonly string[]).includes(a.payload.type));
     } else if (activeTab === 'announcements') {
-      filtered = filtered.filter(a => a.payload.type === 'announcement');
+      filtered = []; // Announcements come from announcementStore, rendered separately
     }
 
     if (unreadOnly) {
@@ -172,9 +198,25 @@ export function NotificationCenter() {
     return filtered;
   }, [recentAlerts, activeTab, unreadOnly]);
 
+  const filteredAnnouncements = useMemo(() => {
+    if (activeTab === 'dogs') return [];
+    let filtered = storeAnnouncements;
+    if (unreadOnly) {
+      filtered = filtered.filter(a => !a.is_read);
+    }
+    return filtered;
+  }, [storeAnnouncements, activeTab, unreadOnly]);
+
   const handleView = (id: string) => {
     markRead(id);
     closeCenter();
+  };
+
+  const handleMarkAllRead = () => {
+    markAllRead();
+    if (authorId) {
+      void annMarkAllRead(authorId);
+    }
   };
 
   if (!isCenterOpen) return null;
@@ -201,14 +243,14 @@ export function NotificationCenter() {
         <div className="flex items-center justify-between border-b border-border/50 p-4">
           <div>
             <h2 className="text-base font-semibold">Notifications</h2>
-            {unreadCount > 0 && (
-              <p className="mt-0.5 text-[11px] text-muted-foreground">{unreadCount} unread</p>
+            {totalUnread > 0 && (
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{totalUnread} unread</p>
             )}
           </div>
           <div className="flex items-center gap-2">
-            {unreadCount > 0 && (
+            {totalUnread > 0 && (
               <button
-                onClick={markAllRead}
+                onClick={handleMarkAllRead}
                 className="text-[11px] font-medium text-orange-500 hover:text-orange-400"
               >
                 Mark all read
@@ -266,7 +308,7 @@ export function NotificationCenter() {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
-          {filteredAlerts.length === 0 ? (
+          {filteredAlerts.length === 0 && filteredAnnouncements.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
               <Inbox className="mb-3 h-8 w-8 text-muted-foreground/30" />
               <p className="text-sm text-muted-foreground">No notifications</p>
@@ -275,17 +317,51 @@ export function NotificationCenter() {
               </p>
             </div>
           ) : (
-            filteredAlerts.map(entry => (
-              <NotificationItem
-                key={entry.payload.id}
-                entry={entry}
-                onView={handleView}
-                onDismiss={dismissAlert}
-              />
-            ))
+            <>
+              {/* Officials see "+ New" on Announcements tab */}
+              {activeTab === 'announcements' && isOfficial && (
+                <div className="border-b border-border/50 p-2">
+                  <button
+                    onClick={() => setIsCreateOpen(true)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/50 py-2 text-xs font-medium text-muted-foreground hover:border-border hover:text-foreground"
+                  >
+                    <Plus className="h-3 w-3" />
+                    New Announcement
+                  </button>
+                </div>
+              )}
+              {filteredAnnouncements.map(ann => (
+                <AnnouncementItem
+                  key={`ann-${ann.id}`}
+                  announcement={ann}
+                  onMarkRead={id => {
+                    if (authorId) void annMarkRead(id, authorId);
+                  }}
+                />
+              ))}
+              {filteredAlerts.map(entry => (
+                <NotificationItem
+                  key={entry.payload.id}
+                  entry={entry}
+                  onView={handleView}
+                  onDismiss={dismissAlert}
+                />
+              ))}
+            </>
           )}
         </div>
       </div>
+
+      {isCreateOpen && userWithRoles && (
+        <CreateAnnouncementDialog
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          showId={storeAnnouncements[0]?.show_id ?? ''}
+          authorId={authorId}
+          authorRole={authorRole}
+          authorName={authorName}
+        />
+      )}
     </>
   );
 }

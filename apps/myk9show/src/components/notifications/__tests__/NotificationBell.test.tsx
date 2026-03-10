@@ -25,6 +25,7 @@ beforeEach(() => {
     isInRing: false,
     recentAlerts: [],
     unreadCount: 0,
+    isCenterOpen: false,
     permissionStatus: 'default' as NotificationPermission,
   });
 });

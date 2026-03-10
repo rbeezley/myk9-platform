@@ -21,6 +21,8 @@ describe('notificationStore', () => {
       permissionStatus: 'default' as NotificationPermission,
       isInRing: false,
       recentAlerts: [],
+      unreadCount: 0,
+      isCenterOpen: false,
     });
   });
 
@@ -61,16 +63,6 @@ describe('notificationStore', () => {
     expect(alerts[0].read).toBe(false);
   });
 
-  it('limits recent alerts to 10', () => {
-    for (let i = 0; i < 12; i++) {
-      useNotificationStore.getState().addAlert(makePayload(`id-${i}`));
-    }
-
-    expect(useNotificationStore.getState().recentAlerts).toHaveLength(10);
-    // Most recent should be first
-    expect(useNotificationStore.getState().recentAlerts[0].payload.id).toBe('id-11');
-  });
-
   it('marks all alerts as read', () => {
     useNotificationStore.getState().addAlert(makePayload('1'));
     useNotificationStore.getState().addAlert(makePayload('2'));
@@ -89,5 +81,61 @@ describe('notificationStore', () => {
 
     useNotificationStore.getState().markAllRead();
     expect(useNotificationStore.getState().unreadCount).toBe(0);
+  });
+
+  it('limits recent alerts to 50', () => {
+    for (let i = 0; i < 55; i++) {
+      useNotificationStore.getState().addAlert(makePayload(`id-${i}`));
+    }
+    expect(useNotificationStore.getState().recentAlerts).toHaveLength(50);
+    expect(useNotificationStore.getState().recentAlerts[0].payload.id).toBe('id-54');
+  });
+
+  it('markRead marks a single alert as read and recomputes unreadCount', () => {
+    useNotificationStore.getState().addAlert(makePayload('1'));
+    useNotificationStore.getState().addAlert(makePayload('2'));
+    expect(useNotificationStore.getState().unreadCount).toBe(2);
+
+    useNotificationStore.getState().markRead('1');
+
+    const state = useNotificationStore.getState();
+    const alert1 = state.recentAlerts.find(a => a.payload.id === '1');
+    expect(alert1?.read).toBe(true);
+    expect(state.unreadCount).toBe(1);
+  });
+
+  it('markRead is a no-op for unknown ids', () => {
+    useNotificationStore.getState().addAlert(makePayload('1'));
+    useNotificationStore.getState().markRead('unknown');
+    expect(useNotificationStore.getState().unreadCount).toBe(1);
+  });
+
+  it('dismissAlert removes an alert from the list', () => {
+    useNotificationStore.getState().addAlert(makePayload('1'));
+    useNotificationStore.getState().addAlert(makePayload('2'));
+
+    useNotificationStore.getState().dismissAlert('1');
+
+    const state = useNotificationStore.getState();
+    expect(state.recentAlerts).toHaveLength(1);
+    expect(state.recentAlerts[0].payload.id).toBe('2');
+  });
+
+  it('dismissAlert recomputes unreadCount', () => {
+    useNotificationStore.getState().addAlert(makePayload('1'));
+    useNotificationStore.getState().addAlert(makePayload('2'));
+    useNotificationStore.getState().markRead('1');
+    expect(useNotificationStore.getState().unreadCount).toBe(1);
+
+    useNotificationStore.getState().dismissAlert('2');
+    expect(useNotificationStore.getState().unreadCount).toBe(0);
+  });
+
+  it('openCenter / closeCenter toggles isCenterOpen', () => {
+    expect(useNotificationStore.getState().isCenterOpen).toBe(false);
+    useNotificationStore.getState().openCenter();
+    expect(useNotificationStore.getState().isCenterOpen).toBe(true);
+    useNotificationStore.getState().closeCenter();
+    expect(useNotificationStore.getState().isCenterOpen).toBe(false);
   });
 });

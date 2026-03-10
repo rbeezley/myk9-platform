@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react';
 import { Camera, Loader2, Trash2 } from 'lucide-react';
+import { BRANDING_ALLOWED_TYPES, MAX_FILE_SIZE } from '@/services/imageUploadService';
 
 interface CoverImageUploadProps {
   children: ReactNode;
@@ -9,9 +10,6 @@ interface CoverImageUploadProps {
   onUpload: (file: File) => void;
   onRemove: () => void;
 }
-
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export function CoverImageUpload({
   children,
@@ -27,7 +25,7 @@ export function CoverImageUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!BRANDING_ALLOWED_TYPES.includes(file.type)) {
       return;
     }
     if (file.size > MAX_FILE_SIZE) {

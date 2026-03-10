@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserPlus, Settings, ArrowRight } from 'lucide-react';
 import { UserRole, PERMISSIONS } from '@/types/auth-types';
@@ -9,11 +9,11 @@ import { CoverImageUpload } from '@/components/ui/cover-image-upload';
 import { resolveShowBranding } from '@/lib/branding';
 import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
-import { supabase } from '@/services/database/supabaseClient';
 import { uploadShowCover, deleteImage } from '@/services/imageUploadService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
+import type { ShowInput } from '@/types/show-types';
 import type { ShowHeaderProps } from './types';
 
 export const ShowHeader: React.FC<ShowHeaderProps> = ({
@@ -24,9 +24,8 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
   onEditShow,
   breadcrumbItems,
 }) => {
-  const updateShowLegacy = useShowStore(s => s.updateShowLegacy);
-  const clubs = useClubStore(s => s.clubs);
-  const club = clubs.find(c => c.id === showData.clubId);
+  const updateShow = useShowStore(s => s.updateShow);
+  const club = useClubStore(s => s.clubs.find(c => c.id === showData.clubId));
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   const canEditBranding =
@@ -40,12 +39,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
       try {
         const result = await uploadShowCover(showData.id, file);
         if (result.success && result.url) {
-          const { error } = await supabase
-            .from('shows')
-            .update({ cover_image_url: result.url } as Record<string, unknown>)
-            .eq('id', showData.id);
-          if (error) throw new Error(error.message);
-          updateShowLegacy({ ...showData, coverImageUrl: result.url });
+          await updateShow(showData.id, { coverImageUrl: result.url } as Partial<ShowInput>);
           notifications.success('Cover image updated');
         } else {
           notifications.error('Failed to upload cover image', {
@@ -61,7 +55,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
         setIsUploadingCover(false);
       }
     },
-    [showData, updateShowLegacy]
+    [showData.id, updateShow]
   );
 
   const handleCoverRemove = useCallback(async () => {
@@ -69,12 +63,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
       if (showData.coverImageUrl) {
         await deleteImage(showData.coverImageUrl);
       }
-      const { error } = await supabase
-        .from('shows')
-        .update({ cover_image_url: null } as Record<string, unknown>)
-        .eq('id', showData.id);
-      if (error) throw new Error(error.message);
-      updateShowLegacy({ ...showData, coverImageUrl: '' });
+      await updateShow(showData.id, { coverImageUrl: '' } as Partial<ShowInput>);
       notifications.success('Cover image removed');
     } catch (error) {
       logger.error('Cover remove failed', 'shows', { showId: showData.id }, error as Error);
@@ -82,19 +71,30 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
         description: getErrorMessage(error),
       });
     }
-  }, [showData, updateShowLegacy]);
+  }, [showData.id, showData.coverImageUrl, updateShow]);
 
-  const branding = resolveShowBranding(
-    {
-      logoUrl: showData.logoUrl,
-      coverImageUrl: showData.coverImageUrl,
-      accentColor: showData.accentColor,
-    },
-    {
-      logo: club?.logo ?? null,
-      coverImage: club?.coverImage ?? null,
-      accentColor: club?.accentColor ?? null,
-    }
+  const branding = useMemo(
+    () =>
+      resolveShowBranding(
+        {
+          logoUrl: showData.logoUrl,
+          coverImageUrl: showData.coverImageUrl,
+          accentColor: showData.accentColor,
+        },
+        {
+          logo: club?.logo ?? null,
+          coverImage: club?.coverImage ?? null,
+          accentColor: club?.accentColor ?? null,
+        }
+      ),
+    [
+      showData.logoUrl,
+      showData.coverImageUrl,
+      showData.accentColor,
+      club?.logo,
+      club?.coverImage,
+      club?.accentColor,
+    ]
   );
 
   return (

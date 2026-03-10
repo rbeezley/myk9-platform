@@ -64,23 +64,20 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // Auth context for RBAC
   const { userWithRoles, hasPermission } = useAuthContext();
 
-  // RBAC permission check
-  const canManageMembers = useMemo(() => {
-    return !!(
-      userWithRoles &&
-      selectedClub &&
-      userWithRoles.databaseUserId &&
-      (hasPermission('club:manage_members', { type: ScopeType.CLUB, id: selectedClub.id }) ||
-        ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id))
-    );
-  }, [userWithRoles, selectedClub, hasPermission]);
-
-  const canEditBranding = useMemo(() => {
-    if (!userWithRoles || !selectedClub || !userWithRoles.databaseUserId) return false;
+  // RBAC permission checks — derive both from a single isClubAdmin call
+  const { canManageMembers, canEditBranding } = useMemo(() => {
+    if (!userWithRoles || !selectedClub || !userWithRoles.databaseUserId) {
+      return { canManageMembers: false, canEditBranding: false };
+    }
+    const isAdmin = ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id);
     const isPlatformAdmin = userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false;
-    const isClubAdmin = ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id);
-    return isPlatformAdmin || isClubAdmin;
-  }, [userWithRoles, selectedClub]);
+    return {
+      canManageMembers:
+        isAdmin ||
+        hasPermission('club:manage_members', { type: ScopeType.CLUB, id: selectedClub.id }),
+      canEditBranding: isPlatformAdmin || isAdmin,
+    };
+  }, [userWithRoles, selectedClub, hasPermission]);
 
   // Get shows for this club from the show store (club store doesn't populate shows)
   const now = useMemo(() => new Date(), []);

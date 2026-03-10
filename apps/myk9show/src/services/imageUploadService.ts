@@ -8,7 +8,7 @@ import { supabase } from './database/supabaseClient';
 import { logger } from './LoggingService';
 
 const BUCKET_NAME = 'images';
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export interface UploadResult {
@@ -141,7 +141,7 @@ export async function deleteImage(imageUrl: string): Promise<boolean> {
   }
 }
 
-const BRANDING_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const BRANDING_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 async function uploadBrandingImage(
   folder: string,

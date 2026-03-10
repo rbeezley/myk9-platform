@@ -306,6 +306,10 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.chairman !== undefined) replicatedUpdates.chairman = updates.chairman;
       if (updates.secretary !== undefined) replicatedUpdates.secretary = updates.secretary;
       if (updates.chiefSteward !== undefined) replicatedUpdates.chiefSteward = updates.chiefSteward;
+      if ('logoUrl' in updates) replicatedUpdates.logoUrl = updates.logoUrl as string;
+      if ('coverImageUrl' in updates)
+        replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
+      if ('accentColor' in updates) replicatedUpdates.accentColor = updates.accentColor as string;
 
       await replicatedShowsTable.updateShow(id, replicatedUpdates);
 
@@ -332,6 +336,10 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.chairman !== undefined) definedUpdates.chairman = updates.chairman;
       if (updates.secretary !== undefined) definedUpdates.secretary = updates.secretary;
       if (updates.chiefSteward !== undefined) definedUpdates.chiefSteward = updates.chiefSteward;
+      if ('logoUrl' in updates) definedUpdates.logoUrl = updates.logoUrl as string;
+      if ('coverImageUrl' in updates)
+        definedUpdates.coverImageUrl = updates.coverImageUrl as string;
+      if ('accentColor' in updates) definedUpdates.accentColor = updates.accentColor as string;
       if (updates.assignedJudges !== undefined)
         definedUpdates.assignedJudges = updates.assignedJudges;
       if (updates.trials !== undefined) definedUpdates.trials = updates.trials;

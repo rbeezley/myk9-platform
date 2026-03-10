@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   MapPin,
   Mail,
@@ -46,7 +46,10 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   isUploadingCover = false,
   canEditBranding = false,
 }) => {
-  const palette = club.accentColor ? generatePalette(club.accentColor) : null;
+  const palette = useMemo(
+    () => (club.accentColor ? generatePalette(club.accentColor) : null),
+    [club.accentColor]
+  );
 
   // Gradient fallback when no cover image — uses org-inspired dark gradient
   const gradientFallback = palette

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Calendar, MapPin, Building2 } from 'lucide-react';
 import { getShowPlaceholder } from './show-card-placeholders';
 import { generatePalette } from '../../lib/branding';
@@ -75,7 +76,7 @@ export function ShowBrandedHero({
   coverImage,
   accentColor,
 }: ShowBrandedHeroProps) {
-  const palette = accentColor ? generatePalette(accentColor) : null;
+  const palette = useMemo(() => (accentColor ? generatePalette(accentColor) : null), [accentColor]);
   const placeholder = getShowPlaceholder(organization, showName);
 
   return (

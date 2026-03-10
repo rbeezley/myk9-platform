@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Ban, Check } from 'lucide-react';
 import { PRESET_COLORS, generatePalette } from '../../lib/branding';
 
@@ -7,7 +8,7 @@ interface AccentColorPickerProps {
 }
 
 export function AccentColorPicker({ value, onChange }: AccentColorPickerProps) {
-  const palette = value ? generatePalette(value) : null;
+  const palette = useMemo(() => (value ? generatePalette(value) : null), [value]);
 
   return (
     <div>

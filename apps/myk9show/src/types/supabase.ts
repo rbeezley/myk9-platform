@@ -604,9 +604,11 @@ export type Database = {
       };
       clubs: {
         Row: {
+          accent_color: string | null;
           address: string | null;
           city: string | null;
           club_number: string | null;
+          cover_image_url: string | null;
           created_at: string | null;
           deleted_at: string | null;
           deleted_by: string | null;
@@ -623,9 +625,11 @@ export type Database = {
           zip_code: string | null;
         };
         Insert: {
+          accent_color?: string | null;
           address?: string | null;
           city?: string | null;
           club_number?: string | null;
+          cover_image_url?: string | null;
           created_at?: string | null;
           deleted_at?: string | null;
           deleted_by?: string | null;
@@ -642,9 +646,11 @@ export type Database = {
           zip_code?: string | null;
         };
         Update: {
+          accent_color?: string | null;
           address?: string | null;
           city?: string | null;
           club_number?: string | null;
+          cover_image_url?: string | null;
           created_at?: string | null;
           deleted_at?: string | null;
           deleted_by?: string | null;

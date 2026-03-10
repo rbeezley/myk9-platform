@@ -10,8 +10,6 @@ export const mapClubInputToInsert = (input: ClubInput): DbClubInsert => {
   // Combine address fields into a single string for the database
   const fullAddress = `${input.street}, ${input.city}, ${input.state} ${input.zipCode}, ${input.country}`;
 
-  // cover_image_url / accent_color are new DB columns not yet in generated Supabase types.
-  // Cast via unknown until the types are regenerated after migration.
   return {
     name: input.name,
     email: input.email || null,
@@ -27,7 +25,7 @@ export const mapClubInputToInsert = (input: ClubInput): DbClubInsert => {
     state: input.state || null,
     zip_code: input.zipCode || null,
     club_number: input.clubNumber || null,
-  } as unknown as DbClubInsert;
+  };
 };
 
 /**
@@ -78,8 +76,6 @@ export const mapClubInputToUpdate = (input: Partial<ClubInput>): DbClubUpdate =>
 export const mapDatabaseToClub = (
   dbClub: DbClub & {
     show?: unknown[];
-    cover_image_url?: string | null;
-    accent_color?: string | null;
   }
 ): Club => {
   // Parse address: prefer dedicated city/state/zip_code columns, fall back to parsing address string
@@ -139,8 +135,6 @@ export const mapDatabaseToClub = (
 export const mapDatabaseClubsArray = (
   dbClubs: (DbClub & {
     show?: unknown[];
-    cover_image_url?: string | null;
-    accent_color?: string | null;
   })[]
 ): Club[] => {
   return dbClubs.map(mapDatabaseToClub);
@@ -176,8 +170,6 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
   // Combine address fields into a single string for the database
   const fullAddress = `${club.address.street}, ${club.address.city}, ${club.address.state} ${club.address.zipCode}, ${club.address.country}`;
 
-  // cover_image_url / accent_color are new DB columns not yet in generated Supabase types.
-  // Cast via unknown until the types are regenerated after migration.
   return {
     name: club.name,
     email: club.email || null,
@@ -192,7 +184,7 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
     state: club.address.state || null,
     zip_code: club.address.zipCode || null,
     club_number: club.clubNumber || null,
-  } as unknown as DbClubUpdate;
+  };
 };
 
 /**

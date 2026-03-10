@@ -237,6 +237,9 @@ importers:
       '@myk9/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@myk9/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@myk9/replication':
         specifier: workspace:*
         version: link:../../packages/replication

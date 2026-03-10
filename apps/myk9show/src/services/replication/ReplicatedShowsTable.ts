@@ -40,6 +40,9 @@ export interface ReplicatedShow {
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   allowsNonOwnerHandlers?: boolean | undefined;
+  logoUrl?: string | undefined;
+  coverImageUrl?: string | undefined;
+  accentColor?: string | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -71,6 +74,9 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
     allowsNonOwnerHandlers: row.allow_non_owner_handlers ?? undefined,
+    logoUrl: row.logo_url ?? undefined,
+    coverImageUrl: row.cover_image_url ?? undefined,
+    accentColor: row.accent_color ?? undefined,
   };
 }
 
@@ -136,6 +142,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       max_entries_per_dog: show.maxEntriesPerDog ?? null,
       max_total_entries: show.maxTotalEntries ?? null,
       allow_non_owner_handlers: show.allowsNonOwnerHandlers ?? null,
+      logo_url: show.logoUrl ?? null,
+      cover_image_url: show.coverImageUrl ?? null,
+      accent_color: show.accentColor ?? null,
       updated_at: new Date().toISOString(),
     };
   }

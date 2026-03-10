@@ -42,9 +42,9 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store
     clubEmail: '', // Derived from club store
-    logoUrl: '',
-    coverImageUrl: '',
-    accentColor: '',
+    logoUrl: replicated.logoUrl || '',
+    coverImageUrl: replicated.coverImageUrl || '',
+    accentColor: replicated.accentColor || '',
     chairman: replicated.chairman || '',
     secretary: replicated.secretary || '',
     chiefSteward: replicated.chiefSteward || '',

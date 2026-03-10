@@ -52,6 +52,16 @@ describe('resolveShowBranding', () => {
       accentColor: '#16a34a',
     });
   });
+
+  it('falls back to club values when show fields are empty strings', () => {
+    const show = { logoUrl: '', coverImageUrl: '', accentColor: '' };
+    const result = resolveShowBranding(show, club);
+    expect(result).toEqual({
+      logo: 'club-logo.png',
+      coverImage: 'club-cover.png',
+      accentColor: '#2563eb',
+    });
+  });
 });
 
 describe('generatePalette', () => {

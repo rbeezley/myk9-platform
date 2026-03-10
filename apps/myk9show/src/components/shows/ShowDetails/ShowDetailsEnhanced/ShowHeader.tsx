@@ -8,6 +8,7 @@ import { ShowBrandedHero } from '../../ShowBrandedHero';
 import { CoverImageUpload } from '@/components/ui/cover-image-upload';
 import { resolveShowBranding } from '@/lib/branding';
 import { useShowStore } from '@/store/showStore';
+import { useClubStore } from '@/store/clubStore';
 import { supabase } from '@/services/database/supabaseClient';
 import { uploadShowCover, deleteImage } from '@/services/imageUploadService';
 import { notifications } from '@/lib/notifications';
@@ -24,6 +25,8 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
   breadcrumbItems,
 }) => {
   const updateShowLegacy = useShowStore(s => s.updateShowLegacy);
+  const clubs = useClubStore(s => s.clubs);
+  const club = clubs.find(c => c.id === showData.clubId);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   const canEditBranding =
@@ -87,7 +90,11 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
       coverImageUrl: showData.coverImageUrl,
       accentColor: showData.accentColor,
     },
-    {}
+    {
+      logo: club?.logo ?? null,
+      coverImage: club?.coverImage ?? null,
+      accentColor: club?.accentColor ?? null,
+    }
   );
 
   return (

@@ -47,9 +47,9 @@ export function resolveShowBranding(
   club: ClubBrandingInput
 ): ShowBranding {
   return {
-    logo: show.logoUrl ?? club.logo ?? null,
-    coverImage: show.coverImageUrl ?? club.coverImage ?? null,
-    accentColor: show.accentColor ?? club.accentColor ?? null,
+    logo: show.logoUrl || club.logo || null,
+    coverImage: show.coverImageUrl || club.coverImage || null,
+    accentColor: show.accentColor || club.accentColor || null,
   };
 }
 

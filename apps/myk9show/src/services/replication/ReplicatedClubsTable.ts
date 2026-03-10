@@ -54,6 +54,8 @@ export interface ReplicatedClub {
   state?: string | undefined;
   zipCode?: string | undefined;
   clubNumber?: string | undefined;
+  coverImageUrl?: string | undefined;
+  accentColor?: string | undefined;
   // Timestamps
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
@@ -82,6 +84,8 @@ function rowToClub(row: ClubRow): ReplicatedClub {
     state: row.state ?? undefined,
     zipCode: row.zip_code ?? undefined,
     clubNumber: row.club_number ?? undefined,
+    coverImageUrl: row.cover_image_url ?? undefined,
+    accentColor: row.accent_color ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -118,6 +122,8 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       state: club.state ?? null,
       zip_code: club.zipCode ?? null,
       club_number: club.clubNumber ?? null,
+      cover_image_url: club.coverImageUrl ?? null,
+      accent_color: club.accentColor ?? null,
       updated_at: new Date().toISOString(),
     };
   }
@@ -141,7 +147,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       const isCacheEmpty = allCachedClubs.length === 0;
 
       // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
-      const lastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(
         `[${this.getTableName()}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedClubs.length} clubs`
@@ -269,10 +275,11 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     const allClubs = await this.getAll();
     const term = searchTerm.toLowerCase();
     return allClubs
-      .filter(club =>
-        club.name.toLowerCase().includes(term) ||
-        club.email?.toLowerCase().includes(term) ||
-        club.city?.toLowerCase().includes(term)
+      .filter(
+        club =>
+          club.name.toLowerCase().includes(term) ||
+          club.email?.toLowerCase().includes(term) ||
+          club.city?.toLowerCase().includes(term)
       )
       .sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -328,7 +335,10 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * Delete club locally (soft delete, queued for sync)
    */
   async deleteClubLocal(clubId: string): Promise<void> {
-    await this.queueMutation('DELETE', clubId, { id: clubId, deleted_at: new Date().toISOString() });
+    await this.queueMutation('DELETE', clubId, {
+      id: clubId,
+      deleted_at: new Date().toISOString(),
+    });
     await this.delete(clubId);
     logger.log(`[${this.getTableName()}] Deleted club ${clubId} from local cache`);
   }

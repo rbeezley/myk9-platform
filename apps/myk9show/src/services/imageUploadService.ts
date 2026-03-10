@@ -125,7 +125,8 @@ export async function deleteImage(imageUrl: string): Promise<boolean> {
       return false;
     }
 
-    const filePath = pathMatch[1];
+    // Strip query params (e.g., ?t=timestamp cache busters) from the path
+    const filePath = pathMatch[1].split('?')[0];
     const { error } = await supabase.storage.from(BUCKET_NAME).remove([filePath]);
 
     if (error) {

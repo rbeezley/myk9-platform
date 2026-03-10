@@ -44,10 +44,7 @@ function generateFilePath(folder: string, userId: string, fileName: string): str
 /**
  * Upload a profile photo for a person
  */
-export async function uploadProfilePhoto(
-  userId: string,
-  file: File
-): Promise<UploadResult> {
+export async function uploadProfilePhoto(userId: string, file: File): Promise<UploadResult> {
   const validationError = validateFile(file);
   if (validationError) {
     return { success: false, error: validationError };
@@ -56,21 +53,19 @@ export async function uploadProfilePhoto(
   const filePath = generateFilePath('profiles', userId, file.name);
 
   try {
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
+    const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true,
+    });
 
     if (uploadError) {
       logger.error('Upload error', 'image-upload', { error: uploadError.message });
       return { success: false, error: uploadError.message };
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
 
     return { success: true, url: publicUrl };
   } catch (error) {
@@ -95,21 +90,19 @@ export async function uploadDogPhoto(
   const filePath = generateFilePath(`dogs/${ownerId}`, dogId, file.name);
 
   try {
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-      });
+    const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true,
+    });
 
     if (uploadError) {
       logger.error('Upload error', 'image-upload', { error: uploadError.message });
       return { success: false, error: uploadError.message };
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
 
     return { success: true, url: publicUrl };
   } catch (error) {
@@ -133,9 +126,7 @@ export async function deleteImage(imageUrl: string): Promise<boolean> {
     }
 
     const filePath = pathMatch[1];
-    const { error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .remove([filePath]);
+    const { error } = await supabase.storage.from(BUCKET_NAME).remove([filePath]);
 
     if (error) {
       logger.error('Delete error', 'image-upload', { error: error.message });
@@ -147,6 +138,54 @@ export async function deleteImage(imageUrl: string): Promise<boolean> {
     logger.error('Delete failed', 'image-upload', undefined, error as Error);
     return false;
   }
+}
+
+async function uploadBrandingImage(
+  folder: string,
+  entityId: string,
+  fileName: string,
+  file: File
+): Promise<UploadResult> {
+  const validationError = validateFile(file);
+  if (validationError) {
+    return { success: false, error: validationError };
+  }
+
+  const filePath = `${folder}/${entityId}/${fileName}`;
+
+  try {
+    const { error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: true,
+    });
+
+    if (error) {
+      logger.error('Upload error', 'image-upload', { error: error.message });
+      return { success: false, error: error.message };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+    // Cache bust: append timestamp so browsers refetch after re-upload
+    const url = `${publicUrl}?t=${Date.now()}`;
+    return { success: true, url };
+  } catch (error) {
+    logger.error('Upload failed', 'image-upload', undefined, error as Error);
+    return { success: false, error: 'Failed to upload image. Please try again.' };
+  }
+}
+
+export async function uploadClubCover(clubId: string, file: File): Promise<UploadResult> {
+  return uploadBrandingImage('clubs', clubId, 'cover.webp', file);
+}
+
+export async function uploadShowCover(showId: string, file: File): Promise<UploadResult> {
+  return uploadBrandingImage('shows', showId, 'cover.webp', file);
+}
+
+export async function uploadShowLogo(showId: string, file: File): Promise<UploadResult> {
+  return uploadBrandingImage('shows', showId, 'logo.webp', file);
 }
 
 /**

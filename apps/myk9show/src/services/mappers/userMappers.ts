@@ -168,8 +168,8 @@ export const mapDbAvailabilityToUI = (db: DbJudgeAvailability): JudgeInfo['avail
   startDate: db.start_date ? new Date(db.start_date) : null,
   endDate: db.end_date ? new Date(db.end_date) : null,
   blackoutDates: (db.blackout_dates || []).map((d: string) => new Date(d)),
-  maxShowsPerMonth: db.max_shows_per_month,
-  travelRadius: db.travel_radius_miles,
+  maxShowsPerMonth: db.max_shows_per_month ?? 0,
+  travelRadius: db.travel_radius_miles ?? 0,
 });
 
 /**

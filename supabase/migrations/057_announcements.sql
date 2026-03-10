@@ -60,7 +60,7 @@ create policy "Author or admin can update announcements"
         and user_roles.role_id in (
           select id from roles where name = 'platform_admin'
         )
-        and user_roles.is_active = true
+        and (user_roles.expires_at is null or user_roles.expires_at > now())
     )
   );
 
@@ -75,7 +75,7 @@ create policy "Author or admin can delete announcements"
         and user_roles.role_id in (
           select id from roles where name = 'platform_admin'
         )
-        and user_roles.is_active = true
+        and (user_roles.expires_at is null or user_roles.expires_at > now())
     )
   );
 

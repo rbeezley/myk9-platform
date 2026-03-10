@@ -7,11 +7,6 @@ import type {
   AnnouncementAuthorRole,
 } from '@/types/announcement-types';
 
-// Tables not yet in generated Supabase types (migration 057 not pushed).
-// TODO: Remove these casts after running `supabase gen types` with migration 057.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
-
 /**
  * Fetch active announcements for a show, with read status for current user.
  * Two queries joined client-side (avoids Supabase filtered LEFT JOIN limitation).
@@ -20,7 +15,7 @@ export async function fetchShowAnnouncements(showId: string): Promise<ShowAnnoun
   const now = new Date().toISOString();
 
   // Query 1: active, non-expired announcements
-  const { data: announcements, error: annError } = await db
+  const { data: announcements, error: annError } = await supabase
     .from('show_announcements')
     .select('*')
     .eq('show_id', showId)
@@ -35,7 +30,7 @@ export async function fetchShowAnnouncements(showId: string): Promise<ShowAnnoun
   const announcementIds = (announcements as DbShowAnnouncement[]).map(a => a.id);
   if (announcementIds.length === 0) return [];
 
-  const { data: reads } = await db
+  const { data: reads } = await supabase
     .from('show_announcement_reads')
     .select('announcement_id')
     .in('announcement_id', announcementIds);
@@ -57,7 +52,7 @@ export async function createAnnouncement(
   authorRole: AnnouncementAuthorRole,
   authorName: string
 ): Promise<DbShowAnnouncement> {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from('show_announcements')
     .insert({
       show_id: input.show_id,
@@ -83,7 +78,7 @@ export async function updateAnnouncement(
   id: string,
   updates: UpdateAnnouncementInput
 ): Promise<DbShowAnnouncement> {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from('show_announcements')
     .update(updates)
     .eq('id', id)
@@ -98,7 +93,7 @@ export async function updateAnnouncement(
  * Delete an announcement (hard delete).
  */
 export async function deleteAnnouncement(id: string): Promise<void> {
-  const { error } = await db.from('show_announcements').delete().eq('id', id);
+  const { error } = await supabase.from('show_announcements').delete().eq('id', id);
 
   if (error) throw error;
 }
@@ -107,7 +102,7 @@ export async function deleteAnnouncement(id: string): Promise<void> {
  * Mark a single announcement as read for the current user.
  */
 export async function markAnnouncementRead(announcementId: string, userId: string): Promise<void> {
-  const { error } = await db
+  const { error } = await supabase
     .from('show_announcement_reads')
     .upsert(
       { announcement_id: announcementId, user_id: userId },
@@ -131,7 +126,7 @@ export async function markAllAnnouncementsRead(
     user_id: userId,
   }));
 
-  const { error } = await db
+  const { error } = await supabase
     .from('show_announcement_reads')
     .upsert(rows, { onConflict: 'announcement_id,user_id' });
 

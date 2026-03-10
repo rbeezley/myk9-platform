@@ -16,6 +16,7 @@ import { logger } from '@/services/LoggingService';
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const SignInPage = React.lazy(() => import('./pages/SignInPage'));
 const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
+const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
 const TestPanelPage = React.lazy(() => import('./pages/TestPanelPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
@@ -267,6 +268,16 @@ function App() {
                                   <PageTransition>
                                     <Suspense fallback={<PageLoadingFallback />}>
                                       <SignUpPage />
+                                    </Suspense>
+                                  </PageTransition>
+                                }
+                              />
+                              <Route
+                                path="/forgot-password"
+                                element={
+                                  <PageTransition>
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <ForgotPasswordPage />
                                     </Suspense>
                                   </PageTransition>
                                 }

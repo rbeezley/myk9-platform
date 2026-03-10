@@ -1,9 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NotificationBell } from '../NotificationBell';
 import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
+
+vi.mock('@/store/announcementStore', async () => {
+  const { create } = await import('zustand');
+  const useAnnouncementStore = create<Record<string, unknown>>()(() => ({
+    announcements: [],
+    unreadCount: 0,
+  }));
+  return { useAnnouncementStore };
+});
 
 function makePayload(
   id: string,
@@ -19,7 +28,7 @@ function makePayload(
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   useNotificationStore.setState({
     preferences: { ...DEFAULT_PREFERENCES },
     isInRing: false,
@@ -27,6 +36,13 @@ beforeEach(() => {
     unreadCount: 0,
     isCenterOpen: false,
     permissionStatus: 'default' as NotificationPermission,
+  });
+
+  // Reset announcement store
+  const { useAnnouncementStore: annStore } = await import('@/store/announcementStore');
+  (annStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+    announcements: [],
+    unreadCount: 0,
   });
 });
 
@@ -84,5 +100,16 @@ describe('NotificationBell', () => {
     fireEvent.click(screen.getByText(/mark all read/i));
 
     expect(useNotificationStore.getState().unreadCount).toBe(0);
+  });
+
+  it('shows combined unread count from both stores', async () => {
+    useNotificationStore.getState().addAlert(makePayload('1'));
+    const { useAnnouncementStore: annStore } = await import('@/store/announcementStore');
+    (annStore as unknown as { setState: (s: Record<string, unknown>) => void }).setState({
+      unreadCount: 3,
+    });
+
+    render(<NotificationBell />);
+    expect(screen.getByText('4')).toBeInTheDocument();
   });
 });

@@ -4,21 +4,16 @@ import { useNotificationStore } from '@/store/notificationStore';
 import type { AlertEntry } from '@/store/notificationStore';
 import type { NotificationType, NotificationPriority } from '@myk9/notifications';
 import { formatRelativeTime } from '@/lib/timeUtils';
+import { PRIORITY_BORDER } from './notification-styles';
 
 type FilterTab = 'all' | 'dogs' | 'announcements';
 
-const DOG_TYPES: NotificationType[] = [
+const DOG_TYPES = [
   'your_turn',
   'check_in_reminder',
   'results_posted',
   'class_starting',
-];
-
-const PRIORITY_BORDER: Record<NotificationPriority, string> = {
-  urgent: 'border-l-red-500',
-  high: 'border-l-amber-500',
-  normal: 'border-l-blue-500',
-};
+] as const satisfies readonly NotificationType[];
 
 function PriorityIcon({
   priority,
@@ -165,7 +160,7 @@ export function NotificationCenter() {
     let filtered = recentAlerts;
 
     if (activeTab === 'dogs') {
-      filtered = filtered.filter(a => DOG_TYPES.includes(a.payload.type));
+      filtered = filtered.filter(a => (DOG_TYPES as readonly string[]).includes(a.payload.type));
     } else if (activeTab === 'announcements') {
       filtered = filtered.filter(a => a.payload.type === 'announcement');
     }

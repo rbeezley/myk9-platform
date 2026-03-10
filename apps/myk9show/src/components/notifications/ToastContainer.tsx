@@ -2,23 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Dog, Megaphone } from 'lucide-react';
 import { useToastStore } from '@/store/toastStore';
 import type { ToastEntry } from '@/store/toastStore';
-import type { NotificationPriority, NotificationType } from '@myk9/notifications';
+import type { NotificationType } from '@myk9/notifications';
 import { formatRelativeTime } from '@/lib/timeUtils';
+import { PRIORITY_BORDER } from './notification-styles';
 
 const AUTO_DISMISS_MS = 8000;
 
-const PRIORITY_BORDER: Record<NotificationPriority, string> = {
-  urgent: 'border-l-red-500',
-  high: 'border-l-amber-500',
-  normal: 'border-l-blue-500',
-};
-
-function isAnnouncementType(type: NotificationType): boolean {
-  return type === 'announcement';
-}
-
 function ToastIcon({ type }: { type: NotificationType }) {
-  if (isAnnouncementType(type)) {
+  if (type === 'announcement') {
     return <Megaphone className="h-4 w-4 text-purple-400" aria-label="Announcement" />;
   }
   return <Dog className="h-4 w-4 text-orange-400" aria-label="Dog alert" />;
@@ -29,11 +20,10 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pausedRef = useRef(false);
   const remainingRef = useRef(AUTO_DISMISS_MS);
-  const startTimeRef = useRef(Date.now());
-  const [exiting, setExiting] = useState(false);
+  const startTimeRef = useRef(0);
+  const [hovered, setHovered] = useState(false);
 
   const dismiss = useCallback(() => {
-    setExiting(true);
     onDismiss(payload.id);
   }, [onDismiss, payload.id]);
 
@@ -52,6 +42,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
   const handleMouseEnter = () => {
     if (payload.priority === 'urgent') return;
     pausedRef.current = true;
+    setHovered(true);
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -62,6 +53,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
   const handleMouseLeave = () => {
     if (payload.priority === 'urgent' || !pausedRef.current) return;
     pausedRef.current = false;
+    setHovered(false);
     startTimeRef.current = Date.now();
     timerRef.current = setTimeout(dismiss, Math.max(remainingRef.current, 500));
   };
@@ -71,9 +63,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
       role="status"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden rounded-lg border border-border/50 border-l-[3px] bg-popover shadow-lg transition-all duration-300 ${
-        exiting ? 'translate-x-full opacity-0' : 'animate-in slide-in-from-right-full'
-      } ${PRIORITY_BORDER[payload.priority]}`}
+      className={`relative overflow-hidden rounded-lg border border-border/50 border-l-[3px] bg-popover shadow-lg animate-in slide-in-from-right-full ${PRIORITY_BORDER[payload.priority]}`}
     >
       <div className="flex items-start gap-3 p-3">
         <div className="mt-0.5 flex-shrink-0">
@@ -118,6 +108,7 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
             className={`h-full ${payload.priority === 'high' ? 'bg-amber-500' : 'bg-blue-500'}`}
             style={{
               animation: `toast-progress ${AUTO_DISMISS_MS}ms linear forwards`,
+              animationPlayState: hovered ? 'paused' : 'running',
             }}
           />
         </div>

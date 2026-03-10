@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useStatusUpdates, notificationService } from '@/services/NotificationService';
 import { auditService } from '@/services/AuditService';
-import { AuditAction, NotificationType } from '@/types/audit-types';
+import { AuditAction } from '@/types/audit-types';
 import { logger } from '@/services/LoggingService';
 import { GlassCard } from '@/components/common/GlassCard';
 import {
@@ -44,17 +43,6 @@ const JudgeDashboard: React.FC = () => {
   const { user } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
   const [assignments, setAssignments] = useState<JudgeClass[]>([]);
-
-  // Real-time status updates for judge assignments
-  const assignmentUpdates = useStatusUpdates('judge_assignments', user?.id || '');
-
-  const handleAssignmentUpdate = useCallback((update: Record<string, unknown>) => {
-    // Handle real-time updates to assignments
-    if (update.type === 'assignment_created' || update.type === 'assignment_updated') {
-      // Would call loadJudgeData(); to refresh data
-      logger.debug('Assignment update received:', 'pages', { data: update });
-    }
-  }, []);
 
   const loadJudgeData = async () => {
     // Mock data - replace with actual data from stores
@@ -107,12 +95,6 @@ const JudgeDashboard: React.FC = () => {
     });
   }, [user?.id]);
 
-  useEffect(() => {
-    if (assignmentUpdates) {
-      handleAssignmentUpdate(assignmentUpdates);
-    }
-  }, [assignmentUpdates, handleAssignmentUpdate]);
-
   // Use assignments state instead of todaysClasses const
   const todaysClasses = assignments;
 
@@ -160,23 +142,6 @@ const JudgeDashboard: React.FC = () => {
           action: 'start_judging',
           classId: judgeClass.classId,
           judgeId: user?.id,
-        },
-      });
-
-      // Notify secretary via real-time system
-      notificationService.publish({
-        type: NotificationType.INFO,
-        channel: 'role:secretary',
-        sender: {
-          id: user?.id || 'judge',
-          name: user?.email || 'Judge',
-          role: 'judge',
-        },
-        data: {
-          type: 'judging_started',
-          classId: judgeClass.classId,
-          judgeId: user?.id,
-          startedAt: new Date().toISOString(),
         },
       });
 

@@ -6,7 +6,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useStatusUpdates } from '@/services/NotificationService';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
@@ -18,7 +17,7 @@ import {
   mapPaymentStatus,
   mapClassEntryStatus,
 } from '@/utils/entryManagementUtils';
-import type { MyEntry, EntryClass, EntryUpdateEvent } from './my-entries-types';
+import type { MyEntry, EntryClass } from './my-entries-types';
 
 interface UseMyEntriesDataReturn {
   entries: MyEntry[];
@@ -42,9 +41,6 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
   const [entries, setEntries] = useState<MyEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Real-time status updates for user's entries
-  const { status: entryUpdates } = useStatusUpdates('user_entries', user?.id || '');
 
   /**
    * Transforms database entry to MyEntry format
@@ -148,21 +144,6 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
     }
   }, [user?.id, transformEntry]);
 
-  /**
-   * Handles real-time entry updates
-   */
-  const handleEntryUpdate = useCallback((update: EntryUpdateEvent) => {
-    if (update.type === 'entry_status_change' || update.type === 'payment_status_change') {
-      setEntries(prev =>
-        prev.map(entry =>
-          entry.id === update.entryId
-            ? { ...entry, ...update.changes, lastUpdated: new Date() }
-            : entry
-        )
-      );
-    }
-  }, []);
-
   // Initial load
   useEffect(() => {
     loadMyEntries();
@@ -176,16 +157,6 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       },
     });
   }, [loadMyEntries, user?.id]);
-
-  // Real-time updates
-  useEffect(() => {
-    if (entryUpdates && typeof entryUpdates === 'object') {
-      const update = entryUpdates as unknown as EntryUpdateEvent;
-      if (update.type && update.entryId) {
-        handleEntryUpdate(update);
-      }
-    }
-  }, [entryUpdates, handleEntryUpdate]);
 
   /**
    * Refreshes entries data

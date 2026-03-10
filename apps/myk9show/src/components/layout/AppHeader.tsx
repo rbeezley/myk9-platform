@@ -36,7 +36,6 @@ import {
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { ResetDataButton } from '@/components/common/ResetDataButton';
 import { ClearCacheButton } from '@/components/common/ClearCacheButton';
-import { NotificationCenter } from '@/components/common/NotificationCenter';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount } from '@/stores/cartStore';
@@ -188,9 +187,6 @@ const AppHeader: React.FC = () => {
                     </span>
                   </Button>
                 )}
-
-                {/* Notification Center */}
-                <NotificationCenter />
 
                 {/* Theme Toggle */}
                 <Button

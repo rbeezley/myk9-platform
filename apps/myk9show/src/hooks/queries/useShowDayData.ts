@@ -96,7 +96,7 @@ async function fetchShowDayDetails(userId: string, today: string): Promise<ShowD
       dog:dogs!inner(id, call_name),
       class:classes!inner(
         id, name, element, level, status,
-        total_entries_count, scored_count
+        total_entries_count, scored_count, ring_number
       ),
       trial:trials!inner(
         id, date,
@@ -213,6 +213,7 @@ export function buildShowDayClasses(
       currentDogInRing: progress?.currentDogInRing ?? null,
       myRunningOrder: row.run_order,
       estimatedTimeMinutes: computeEstimatedTime(row.run_order, scoredEntries, scoredTimestamps),
+      ringNumber: row.class.ring_number,
       entryStatus: row.entry_status as CheckInStatus,
       isScored: row.is_scored,
       resultStatus: row.result_status,

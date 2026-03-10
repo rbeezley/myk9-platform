@@ -63,6 +63,7 @@ export interface ShowDayClass {
   currentDogInRing: string | null;
   myRunningOrder: number | null;
   estimatedTimeMinutes: number | null;
+  ringNumber: number | null;
   // Status
   entryStatus: CheckInStatus;
   isScored: boolean;
@@ -110,6 +111,7 @@ export interface ShowDayDetailRow {
     status: string;
     total_entries_count: number;
     scored_count: number;
+    ring_number: number | null;
   };
   trial: {
     id: string;

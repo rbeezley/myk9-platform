@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useStatusUpdates } from '@/services/NotificationService';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
@@ -247,8 +246,7 @@ const BrowseShowsPage: React.FC = () => {
     }
   }, [tabConfig, selectedTab]);
 
-  // Real-time status updates for shows
-  useStatusUpdates('shows', 'all');
+  // Real-time updates
   useRealTimeUpdates();
 
   // Update URL params when tab or view mode changes

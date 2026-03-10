@@ -3,9 +3,8 @@
  * Foundation Phase implementation supporting all role workflows
  */
 
-import { ImpersonationContext, ImpersonationSession, AuditAction, NotificationType } from '@/types/audit-types';
+import { ImpersonationContext, ImpersonationSession, AuditAction } from '@/types/audit-types';
 import { auditService } from './AuditService';
-import { notificationService } from './NotificationService';
 import { logger } from '@/services/LoggingService';
 import { supabase } from '@/lib/supabase';
 
@@ -36,7 +35,7 @@ export class ImpersonationService {
       require2FA: true,
       allowedRoles: ['site_admin', 'club_admin'],
       sessionWarningTime: 5 * 60 * 1000, // 5 minutes warning
-      ...config
+      ...config,
     };
 
     // Load active sessions from storage on initialization
@@ -81,8 +80,8 @@ export class ImpersonationService {
       metadata: {
         userAgent: navigator.userAgent,
         ipAddress: await this.getClientIP(),
-        requestedDuration: duration
-      }
+        requestedDuration: duration,
+      },
     };
 
     const context: ImpersonationContext = {
@@ -93,7 +92,7 @@ export class ImpersonationService {
       startedAt: session.startedAt,
       expiresAt: new Date(session.startedAt.getTime() + duration),
       reason: request.reason,
-      isActive: true
+      isActive: true,
     };
 
     // Store session
@@ -116,8 +115,8 @@ export class ImpersonationService {
         targetUserId: request.targetUserId,
         reason: request.reason,
         duration,
-        expiresAt: context.expiresAt.toISOString()
-      }
+        expiresAt: context.expiresAt.toISOString(),
+      },
     });
 
     // Set audit service context
@@ -165,8 +164,8 @@ export class ImpersonationService {
       metadata: {
         targetUserId: session.targetUserId,
         duration: session.endedAt.getTime() - session.startedAt.getTime(),
-        endedAt: session.endedAt.toISOString()
-      }
+        endedAt: session.endedAt.toISOString(),
+      },
     });
 
     // Notify target user
@@ -190,7 +189,7 @@ export class ImpersonationService {
         startedAt: session.startedAt,
         expiresAt: new Date(session.startedAt.getTime() + this.config.maxSessionDuration),
         reason: session.reason,
-        isActive: !session.endedAt
+        isActive: !session.endedAt,
       };
     }
     return null;
@@ -216,7 +215,11 @@ export class ImpersonationService {
   /**
    * Extend session duration
    */
-  async extendSession(sessionId: string, additionalTime: number, adminUserId: string): Promise<void> {
+  async extendSession(
+    sessionId: string,
+    additionalTime: number,
+    adminUserId: string
+  ): Promise<void> {
     const session = this.activeSessions.get(sessionId);
     if (!session) {
       throw new Error('Impersonation session not found');
@@ -247,8 +250,8 @@ export class ImpersonationService {
       metadata: {
         action: 'extend_session',
         additionalTime,
-        newExpiryTime: new Date(Date.now() + newDuration).toISOString()
-      }
+        newExpiryTime: new Date(Date.now() + newDuration).toISOString(),
+      },
     });
   }
 
@@ -256,8 +259,9 @@ export class ImpersonationService {
    * Force end all sessions for a user (emergency)
    */
   async forceEndAllSessionsForUser(targetUserId: string, adminUserId: string): Promise<number> {
-    const sessionsToEnd = Array.from(this.activeSessions.values())
-      .filter(session => session.targetUserId === targetUserId && !session.endedAt);
+    const sessionsToEnd = Array.from(this.activeSessions.values()).filter(
+      session => session.targetUserId === targetUserId && !session.endedAt
+    );
 
     for (const session of sessionsToEnd) {
       await this.endImpersonation(session.id, adminUserId);
@@ -272,8 +276,8 @@ export class ImpersonationService {
       metadata: {
         targetUserId,
         endedSessionCount: sessionsToEnd.length,
-        reason: 'emergency_termination'
-      }
+        reason: 'emergency_termination',
+      },
     });
 
     return sessionsToEnd.length;
@@ -282,7 +286,9 @@ export class ImpersonationService {
   // Private helper methods
 
   private async validateAdminPermissions(): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user?.id) {
       throw new Error('Authentication required for impersonation');
     }
@@ -329,8 +335,9 @@ export class ImpersonationService {
   }
 
   private findActiveSessionByAdmin(adminUserId: string): ImpersonationSession | undefined {
-    return Array.from(this.activeSessions.values())
-      .find(session => session.adminUserId === adminUserId && !session.endedAt);
+    return Array.from(this.activeSessions.values()).find(
+      session => session.adminUserId === adminUserId && !session.endedAt
+    );
   }
 
   private setSessionTimer(sessionId: string, duration: number): void {
@@ -367,21 +374,15 @@ export class ImpersonationService {
 
   private async handleSessionExpiry(sessionId: string): Promise<void> {
     logger.warn('Impersonation session expired', 'impersonation', { sessionId });
-    
+
     const session = this.activeSessions.get(sessionId);
     if (session) {
       await this.endImpersonation(sessionId);
-      
-      // Notify about expiry
-      await notificationService.publish({
-        type: NotificationType.SYSTEM_ALERT,
-        channel: `user:${session.adminUserId}`,
-        sender: { id: 'system', name: 'System', role: 'system' },
-        data: {
-          type: 'impersonation_expired',
-          sessionId,
-          targetUserId: session.targetUserId
-        }
+
+      // TODO: Phase 6 notifications
+      logger.debug('Impersonation session expired notification', 'impersonation', {
+        sessionId,
+        adminUserId: session.adminUserId,
       });
     }
   }
@@ -389,44 +390,31 @@ export class ImpersonationService {
   private async handleSessionWarning(sessionId: string): Promise<void> {
     const session = this.activeSessions.get(sessionId);
     if (session) {
-      await notificationService.publish({
-        type: NotificationType.SYSTEM_ALERT,
-        channel: `user:${session.adminUserId}`,
-        sender: { id: 'system', name: 'System', role: 'system' },
-        data: {
-          type: 'impersonation_warning',
-          sessionId,
-          targetUserId: session.targetUserId,
-          expiresIn: this.config.sessionWarningTime
-        }
+      // TODO: Phase 6 notifications
+      logger.debug('Impersonation session warning', 'impersonation', {
+        sessionId,
+        adminUserId: session.adminUserId,
+        expiresIn: this.config.sessionWarningTime,
       });
     }
   }
 
-  private async notifyTargetUser(targetUserId: string, context: ImpersonationContext): Promise<void> {
-    await notificationService.publish({
-      type: NotificationType.SYSTEM_ALERT,
-      channel: `user:${targetUserId}`,
-      sender: { id: 'system', name: 'System', role: 'system' },
-      data: {
-        type: 'impersonation_started',
-        sessionId: context.id,
-        adminUserId: context.originalUserId,
-        reason: context.reason,
-        expiresAt: context.expiresAt.toISOString()
-      }
+  private async notifyTargetUser(
+    targetUserId: string,
+    context: ImpersonationContext
+  ): Promise<void> {
+    // TODO: Phase 6 notifications
+    logger.debug('Impersonation started notification', 'impersonation', {
+      targetUserId,
+      sessionId: context.id,
     });
   }
 
   private async notifySessionEnd(targetUserId: string, sessionId: string): Promise<void> {
-    await notificationService.publish({
-      type: NotificationType.SYSTEM_ALERT,
-      channel: `user:${targetUserId}`,
-      sender: { id: 'system', name: 'System', role: 'system' },
-      data: {
-        type: 'impersonation_ended',
-        sessionId
-      }
+    // TODO: Phase 6 notifications
+    logger.debug('Impersonation ended notification', 'impersonation', {
+      targetUserId,
+      sessionId,
     });
   }
 
@@ -437,8 +425,8 @@ export class ImpersonationService {
         session: {
           ...session,
           startedAt: session.startedAt.toISOString(),
-          endedAt: session.endedAt?.toISOString()
-        }
+          endedAt: session.endedAt?.toISOString(),
+        },
       }));
 
       localStorage.setItem('impersonationSessions', JSON.stringify(sessions));
@@ -452,7 +440,7 @@ export class ImpersonationService {
       const stored = localStorage.getItem('impersonationSessions');
       if (stored) {
         const sessions = JSON.parse(stored);
-        
+
         interface StoredSession {
           id: string;
           adminUserId: string;
@@ -463,7 +451,7 @@ export class ImpersonationService {
           endedAt?: string;
           metadata?: Record<string, unknown>;
         }
-        
+
         sessions.forEach(({ id, session }: { id: string; session: unknown }) => {
           const sessionData = session as StoredSession;
           const restoredSession: ImpersonationSession = {
@@ -474,20 +462,22 @@ export class ImpersonationService {
             sessionToken: sessionData.sessionToken || '',
             startedAt: new Date(sessionData.startedAt),
             endedAt: sessionData.endedAt ? new Date(sessionData.endedAt) : undefined,
-            metadata: sessionData.metadata || {}
+            metadata: sessionData.metadata || {},
           };
 
           // Only restore active sessions that haven't expired
           const now = new Date();
-          const expiryTime = new Date(restoredSession.startedAt.getTime() + this.config.maxSessionDuration);
-          
+          const expiryTime = new Date(
+            restoredSession.startedAt.getTime() + this.config.maxSessionDuration
+          );
+
           if (!restoredSession.endedAt && now < expiryTime) {
             this.activeSessions.set(id, restoredSession);
-            
+
             // Restart timers for active sessions
             const remainingTime = expiryTime.getTime() - now.getTime();
             this.setSessionTimer(id, remainingTime);
-            
+
             const warningTime = remainingTime - this.config.sessionWarningTime;
             if (warningTime > 0) {
               this.setWarningTimer(id, warningTime);
@@ -519,7 +509,7 @@ export const impersonationService = new ImpersonationService({
   maxSessionDuration: 30 * 60 * 1000, // 30 minutes
   require2FA: true,
   allowedRoles: ['site_admin', 'club_admin'],
-  sessionWarningTime: 5 * 60 * 1000 // 5 minutes warning
+  sessionWarningTime: 5 * 60 * 1000, // 5 minutes warning
 });
 
 // React hook for impersonation context
@@ -551,7 +541,7 @@ export const useImpersonationContext = () => {
 
     const newContext = await impersonationService.startImpersonation({
       ...request,
-      adminUserId: user.id
+      adminUserId: user.id,
     });
 
     setContext(newContext);
@@ -569,6 +559,6 @@ export const useImpersonationContext = () => {
     context,
     isImpersonating: !!context?.isActive,
     startImpersonation,
-    endImpersonation
+    endImpersonation,
   };
 };

@@ -6,8 +6,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
-import { notificationService } from '@/services/NotificationService';
-import { NotificationType } from '@/types/audit-types';
 import {
   getClassesWithWaitlistCounts,
   getWaitlistByClass,
@@ -15,12 +13,7 @@ import {
   removeFromWaitlist,
 } from '@/services/database/queries/waitlistQueries';
 import { getSecretaryShows } from '@/services/database/queries/showQueries';
-import type {
-  Show,
-  ActionDialogState,
-  WaitlistEntry,
-  ClassWithWaitlistCount,
-} from './types';
+import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
 
 export function useWaitlistManagementData() {
   const { user } = useAuthContext();
@@ -149,23 +142,11 @@ export function useWaitlistManagementData() {
         setError('Failed to offer spot. Please try again.');
         logger.error('Error offering waitlist spot:', 'secretary', {}, error as Error);
       } else {
-        // Send notification to exhibitor
+        // TODO: Phase 6 notifications — notify exhibitor of offered spot
         if (data?.exhibitor_id) {
-          notificationService.publish({
-            type: NotificationType.ENTRY_CHANGE,
-            channel: `user:${data.exhibitor_id}`,
-            sender: {
-              id: user?.id || 'secretary',
-              name: user?.email || 'Secretary',
-              role: 'secretary',
-            },
-            data: {
-              type: 'waitlist_spot_offered',
-              classEntryId: actionDialog.entry.id,
-              className: actionDialog.entry.class?.name,
-              dogName: actionDialog.entry.dog?.name,
-              offeredAt: new Date().toISOString(),
-            },
+          logger.debug('Waitlist spot offered notification', 'secretary', {
+            exhibitorId: data.exhibitor_id,
+            classEntryId: actionDialog.entry.id,
           });
         }
 
@@ -230,14 +211,14 @@ export function useWaitlistManagementData() {
     if (!searchTerm) return waitlistEntries;
     const search = searchTerm.toLowerCase();
     return waitlistEntries.filter(
-      (entry) =>
+      entry =>
         entry.dog?.name?.toLowerCase().includes(search) ||
         entry.dog?.call_name?.toLowerCase().includes(search)
     );
   }, [waitlistEntries, searchTerm]);
 
   const selectedClass = useMemo(
-    () => classes.find((c) => c.id === selectedClassId),
+    () => classes.find(c => c.id === selectedClassId),
     [classes, selectedClassId]
   );
 

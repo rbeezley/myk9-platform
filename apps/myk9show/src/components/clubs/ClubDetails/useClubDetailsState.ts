@@ -5,11 +5,12 @@ import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClubAdminService } from '@/services/clubAdminService';
-import { ScopeType } from '@/types/auth-types';
+import { ScopeType, UserRole } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
+import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import type { ClubTab, ClubShow, StatCard } from './types';
 
 /** Maximum photo file size in bytes (5 MB) */
@@ -57,6 +58,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // Add member dialog state
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
 
+  // Cover image upload state
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
   // Auth context for RBAC
   const { userWithRoles, hasPermission } = useAuthContext();
 
@@ -70,6 +74,13 @@ export function useClubDetailsState(selectedClub: Club | null) {
         ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id))
     );
   }, [userWithRoles, selectedClub, hasPermission]);
+
+  const canEditBranding = useMemo(() => {
+    if (!userWithRoles || !selectedClub || !userWithRoles.databaseUserId) return false;
+    const isPlatformAdmin = userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false;
+    const isClubAdmin = ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id);
+    return isPlatformAdmin || isClubAdmin;
+  }, [userWithRoles, selectedClub]);
 
   // Get shows for this club from the show store (club store doesn't populate shows)
   const now = useMemo(() => new Date(), []);
@@ -314,6 +325,49 @@ export function useClubDetailsState(selectedClub: Club | null) {
     setShowAddMemberDialog(true);
   }, []);
 
+  // Cover image handlers
+  const handleCoverUpload = useCallback(
+    async (file: File) => {
+      if (!selectedClub) return;
+      setIsUploadingCover(true);
+      try {
+        const result = await uploadClubCover(selectedClub.id, file);
+        if (result.success && result.url) {
+          await updateClub({ ...selectedClub, coverImage: result.url });
+          notifications.success('Cover image updated');
+        } else {
+          notifications.error('Failed to upload cover image', {
+            description: result.error ?? 'Unknown error',
+          });
+        }
+      } catch (error) {
+        logger.error('Cover upload failed', 'clubs', { clubId: selectedClub.id }, error as Error);
+        notifications.error('Failed to upload cover image', {
+          description: getErrorMessage(error),
+        });
+      } finally {
+        setIsUploadingCover(false);
+      }
+    },
+    [selectedClub, updateClub]
+  );
+
+  const handleCoverRemove = useCallback(async () => {
+    if (!selectedClub) return;
+    try {
+      if (selectedClub.coverImage) {
+        await deleteImage(selectedClub.coverImage);
+      }
+      await updateClub({ ...selectedClub, coverImage: '' });
+      notifications.success('Cover image removed');
+    } catch (error) {
+      logger.error('Cover remove failed', 'clubs', { clubId: selectedClub.id }, error as Error);
+      notifications.error('Failed to remove cover image', {
+        description: getErrorMessage(error),
+      });
+    }
+  }, [selectedClub, updateClub]);
+
   return {
     // Tab
     activeTab,
@@ -325,6 +379,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     stats,
     // Permissions
     canManageMembers,
+    canEditBranding,
     // Edit panel
     showEditPanel,
     setShowEditPanel,
@@ -356,6 +411,10 @@ export function useClubDetailsState(selectedClub: Club | null) {
     showAddMemberDialog,
     setShowAddMemberDialog,
     handleAddMember,
+    // Cover image
+    isUploadingCover,
+    handleCoverUpload,
+    handleCoverRemove,
     // Navigation
     handleViewShowDetails,
   };

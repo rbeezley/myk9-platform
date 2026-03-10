@@ -67,6 +67,10 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
         onEditClub={state.handleEditClub}
         onEditPhoto={state.handleEditPhoto}
         onDeleteClub={state.handleDeleteClub}
+        onCoverUpload={state.handleCoverUpload}
+        onCoverRemove={state.handleCoverRemove}
+        isUploadingCover={state.isUploadingCover}
+        canEditBranding={state.canEditBranding}
       />
 
       {/* Statistics Cards */}

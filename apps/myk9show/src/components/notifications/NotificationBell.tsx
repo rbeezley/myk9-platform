@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { useNotificationStore } from '@/store/notificationStore';
+import { formatRelativeTime } from '@/lib/timeUtils';
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -48,7 +49,7 @@ export function NotificationBell() {
                     <div className="font-medium text-sm">{payload.title}</div>
                     <div className="text-xs text-muted-foreground">{payload.body}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {formatRelativeTime(payload.timestamp)}
+                      {formatRelativeTime(new Date(payload.timestamp))}
                     </div>
                   </div>
                 ))}
@@ -65,13 +66,4 @@ export function NotificationBell() {
       )}
     </div>
   );
-}
-
-function formatRelativeTime(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ago`;
 }

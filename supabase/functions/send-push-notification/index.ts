@@ -45,6 +45,7 @@ Deno.serve(async (req: Request) => {
 
     let sent = 0;
     const errors: string[] = [];
+    const expiredEndpoints: string[] = [];
 
     for (const sub of subscriptions) {
       try {
@@ -59,11 +60,15 @@ Deno.serve(async (req: Request) => {
       } catch (err: unknown) {
         const statusCode = (err as { statusCode?: number }).statusCode;
         if (statusCode === 410 || statusCode === 404) {
-          // Subscription expired — clean up
-          await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          expiredEndpoints.push(sub.endpoint);
         }
         errors.push(`${sub.endpoint}: ${(err as Error).message}`);
       }
+    }
+
+    // Batch-delete expired subscriptions in a single query
+    if (expiredEndpoints.length > 0) {
+      await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints);
     }
 
     return new Response(JSON.stringify({ sent, errors: errors.length ? errors : undefined }), {

@@ -69,11 +69,8 @@ export function useNotificationDelivery() {
         navigator.vibrate(pattern);
       }
 
-      // [ADDED] Push — not client-triggered. Push notifications are server-side:
-      // Supabase realtime database webhooks call the send-push-notification edge function
-      // when relevant DB changes occur. The service worker (sw-custom.ts) handles
-      // incoming push events when the tab is backgrounded. No client-side push
-      // delivery is needed in this hook.
+      // Push is server-triggered (database webhooks → edge function → service worker).
+      // No client-side push delivery needed in this hook.
     },
     [preferences, isInRing, addAlert]
   );

@@ -14,20 +14,36 @@ import { useNotificationDelivery } from './useNotificationDelivery';
  * Each trigger fires at most once per entry/class (tracked by ref sets).
  * On initial mount, pre-populates "already seen" sets to avoid false positives
  * for classes that are already in_progress or already scored.
+ *
+ * Notification batching: If multiple triggers fire on the same poll cycle
+ * (e.g., 3 classes start simultaneously), each fires independently.
+ * The sound module's 1000ms throttle prevents audio overload. Toast stacking
+ * is handled by Sonner's built-in queue. Voice TTS cancels previous utterance
+ * before speaking new one.
  */
 export function useShowDayAlerts(showDayData: ShowDayData): void {
   const { deliver } = useNotificationDelivery();
   const leadDogs = useNotificationStore(s => s.preferences.leadDogs);
 
+  // Stable refs to avoid effect re-runs when deliver/leadDogs change
+  const deliverRef = useRef(deliver);
+  deliverRef.current = deliver;
+  const leadDogsRef = useRef(leadDogs);
+  leadDogsRef.current = leadDogs;
+
   // Track which notifications have already fired (prevents duplicates)
-  const firedYourTurn = useRef(new Set<string>());
-  const firedClassStarting = useRef(new Set<string>());
-  const firedCheckInReminder = useRef(new Set<string>());
-  const firedResultsPosted = useRef(new Set<string>());
+  const fired = useRef({
+    yourTurn: new Set<string>(),
+    classStarting: new Set<string>(),
+    checkInReminder: new Set<string>(),
+    resultsPosted: new Set<string>(),
+  });
   const isInitialMount = useRef(true);
 
   useEffect(() => {
     if (showDayData.isLoading || showDayData.error) return;
+
+    const currentLeadDogs = leadDogsRef.current;
 
     // On first data load, seed "already seen" sets with current state
     // to avoid firing notifications for pre-existing conditions
@@ -35,46 +51,42 @@ export function useShowDayAlerts(showDayData: ShowDayData): void {
       isInitialMount.current = false;
       for (const cls of showDayData.myClasses) {
         if (cls.classStatus === 'in_progress') {
-          firedClassStarting.current.add(cls.classId);
+          fired.current.classStarting.add(cls.classId);
         }
         if (cls.isScored) {
-          firedResultsPosted.current.add(cls.entryId);
+          fired.current.resultsPosted.add(cls.entryId);
         }
         if (!cls.isScored && cls.myRunningOrder !== null) {
           const dogsAhead = cls.myRunningOrder - cls.scoredEntries;
-          if (dogsAhead <= leadDogs) {
-            firedYourTurn.current.add(`${cls.entryId}-${dogsAhead}`);
+          if (dogsAhead <= currentLeadDogs) {
+            fired.current.yourTurn.add(cls.entryId);
           }
+        }
+        if (cls.classStatus === 'check_in_open' && cls.entryStatus === 'no-status') {
+          fired.current.checkInReminder.add(cls.entryId);
         }
       }
       return; // Don't fire on initial mount
     }
 
-    // [ADDED] Notification batching note: If multiple triggers fire on the same
-    // poll cycle (e.g., 3 classes start simultaneously), each fires independently.
-    // The sound module's 1000ms throttle prevents audio overload. Toast stacking
-    // is handled by Sonner's built-in queue. Voice TTS cancels previous utterance
-    // before speaking new one. This is acceptable for v1 — exhibitors rarely have
-    // 3+ classes starting in the same 30-second polling window.
-
     for (const cls of showDayData.myClasses) {
-      checkYourTurn(cls);
+      checkYourTurn(cls, currentLeadDogs);
       checkClassStarting(cls);
       checkCheckInReminder(cls);
       checkResultsPosted(cls);
     }
 
-    function checkYourTurn(cls: ShowDayClass) {
+    function checkYourTurn(cls: ShowDayClass, ld: number) {
       if (cls.isScored || cls.myRunningOrder === null) return;
 
       const dogsAhead = cls.myRunningOrder - cls.scoredEntries;
-      if (dogsAhead > leadDogs) return;
+      if (dogsAhead > ld) return;
 
-      const key = `${cls.entryId}-${dogsAhead}`;
-      if (firedYourTurn.current.has(key)) return;
-      firedYourTurn.current.add(key);
+      // Track by entryId only — fires once when threshold is first crossed
+      if (fired.current.yourTurn.has(cls.entryId)) return;
+      fired.current.yourTurn.add(cls.entryId);
 
-      deliver(
+      deliverRef.current(
         buildYourTurnPayload({
           dogName: cls.dogCallName,
           className: cls.className,
@@ -87,10 +99,10 @@ export function useShowDayAlerts(showDayData: ShowDayData): void {
 
     function checkClassStarting(cls: ShowDayClass) {
       if (cls.classStatus !== 'in_progress') return;
-      if (firedClassStarting.current.has(cls.classId)) return;
-      firedClassStarting.current.add(cls.classId);
+      if (fired.current.classStarting.has(cls.classId)) return;
+      fired.current.classStarting.add(cls.classId);
 
-      deliver(
+      deliverRef.current(
         buildClassStartingPayload({
           className: cls.className,
           ...(cls.ringNumber !== null && { ringNumber: cls.ringNumber }),
@@ -101,10 +113,10 @@ export function useShowDayAlerts(showDayData: ShowDayData): void {
     function checkCheckInReminder(cls: ShowDayClass) {
       if (cls.classStatus !== 'check_in_open') return;
       if (cls.entryStatus !== 'no-status') return;
-      if (firedCheckInReminder.current.has(cls.entryId)) return;
-      firedCheckInReminder.current.add(cls.entryId);
+      if (fired.current.checkInReminder.has(cls.entryId)) return;
+      fired.current.checkInReminder.add(cls.entryId);
 
-      deliver(
+      deliverRef.current(
         buildCheckInReminderPayload({
           dogName: cls.dogCallName,
           className: cls.className,
@@ -114,15 +126,17 @@ export function useShowDayAlerts(showDayData: ShowDayData): void {
 
     function checkResultsPosted(cls: ShowDayClass) {
       if (!cls.isScored) return;
-      if (firedResultsPosted.current.has(cls.entryId)) return;
-      firedResultsPosted.current.add(cls.entryId);
+      if (fired.current.resultsPosted.has(cls.entryId)) return;
+      fired.current.resultsPosted.add(cls.entryId);
 
-      deliver(
+      deliverRef.current(
         buildResultsPostedPayload({
           dogName: cls.dogCallName,
           className: cls.className,
         })
       );
     }
-  }, [showDayData, deliver, leadDogs]);
+    // Only re-run when showDayData changes (refs handle deliver/leadDogs)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDayData]);
 }

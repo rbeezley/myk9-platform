@@ -140,15 +140,22 @@ export async function deleteImage(imageUrl: string): Promise<boolean> {
   }
 }
 
+const BRANDING_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 async function uploadBrandingImage(
   folder: string,
   entityId: string,
   fileName: string,
   file: File
 ): Promise<UploadResult> {
-  const validationError = validateFile(file);
-  if (validationError) {
-    return { success: false, error: validationError };
+  if (!BRANDING_ALLOWED_TYPES.includes(file.type)) {
+    return {
+      success: false,
+      error: 'Invalid file type. Please upload a JPEG, PNG, or WebP image.',
+    };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return { success: false, error: 'File is too large. Maximum size is 5MB.' };
   }
 
   const filePath = `${folder}/${entityId}/${fileName}`;

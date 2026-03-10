@@ -59,10 +59,20 @@ describe('uploadClubCover', () => {
     expect(mockUpload).toHaveBeenCalledWith(
       'clubs/club-1/cover.webp',
       file,
-      expect.objectContaining({ upsert: true })
+      expect.objectContaining({ upsert: true, cacheControl: '3600' })
     );
     expect(result.success).toBe(true);
     expect(result.url).toContain('clubs/club-1/cover.webp');
+    expect(result.url).toMatch(/\?t=\d+$/);
+  });
+
+  it('rejects GIF files (branding only allows JPEG/PNG/WebP)', async () => {
+    const file = makeFile('cover.gif', 'image/gif', 1024);
+    const result = await uploadClubCover('club-1', file);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/invalid file type/i);
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 
   it('rejects files over 5MB', async () => {
@@ -113,10 +123,11 @@ describe('uploadShowCover', () => {
     expect(mockUpload).toHaveBeenCalledWith(
       'shows/show-42/cover.webp',
       file,
-      expect.objectContaining({ upsert: true })
+      expect.objectContaining({ upsert: true, cacheControl: '3600' })
     );
     expect(result.success).toBe(true);
     expect(result.url).toContain('shows/show-42/cover.webp');
+    expect(result.url).toMatch(/\?t=\d+$/);
   });
 
   it('rejects files over 5MB', async () => {
@@ -158,14 +169,24 @@ describe('uploadShowLogo', () => {
     expect(mockUpload).toHaveBeenCalledWith(
       'shows/show-42/logo.webp',
       file,
-      expect.objectContaining({ upsert: true })
+      expect.objectContaining({ upsert: true, cacheControl: '3600' })
     );
     expect(result.success).toBe(true);
     expect(result.url).toContain('shows/show-42/logo.webp');
+    expect(result.url).toMatch(/\?t=\d+$/);
+  });
+
+  it('rejects GIF files (branding only allows JPEG/PNG/WebP)', async () => {
+    const file = makeFile('logo.gif', 'image/gif', 1024);
+    const result = await uploadShowLogo('show-42', file);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/invalid file type/i);
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 
   it('rejects files over 5MB', async () => {
-    const file = makeFile('huge.gif', 'image/gif', 10 * 1024 * 1024);
+    const file = makeFile('huge.png', 'image/png', 10 * 1024 * 1024);
     const result = await uploadShowLogo('show-42', file);
 
     expect(result.success).toBe(false);

@@ -18,3 +18,10 @@ export {
   buildCheckInReminderPayload,
   buildAnnouncementPayload,
 } from './handlers';
+
+export type { VoiceAnnouncementText } from './voice-text';
+export { generateVoiceText } from './voice-text';
+
+export { playNotificationSound, testSound } from './sound';
+
+export { speak, cancelSpeech, isSpeechSupported } from './voice';

@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserPlus, Settings, ArrowRight } from 'lucide-react';
 import { UserRole, PERMISSIONS } from '@/types/auth-types';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { ShowBrandedHero } from '../../ShowBrandedHero';
+import { CoverImageUpload } from '@/components/ui/cover-image-upload';
 import { resolveShowBranding } from '@/lib/branding';
+import { useShowStore } from '@/store/showStore';
+import { supabase } from '@/services/database/supabaseClient';
+import { uploadShowCover, deleteImage } from '@/services/imageUploadService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import type { ShowHeaderProps } from './types';
 
 export const ShowHeader: React.FC<ShowHeaderProps> = ({
@@ -16,6 +23,64 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
   onEditShow,
   breadcrumbItems,
 }) => {
+  const updateShowLegacy = useShowStore(s => s.updateShowLegacy);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  const canEditBranding =
+    primaryRole === UserRole.SECRETARY ||
+    primaryRole === UserRole.CLUB_ADMIN ||
+    primaryRole === UserRole.SITE_ADMIN;
+
+  const handleCoverUpload = useCallback(
+    async (file: File) => {
+      setIsUploadingCover(true);
+      try {
+        const result = await uploadShowCover(showData.id, file);
+        if (result.success && result.url) {
+          const { error } = await supabase
+            .from('shows')
+            .update({ cover_image_url: result.url } as Record<string, unknown>)
+            .eq('id', showData.id);
+          if (error) throw new Error(error.message);
+          updateShowLegacy({ ...showData, coverImageUrl: result.url });
+          notifications.success('Cover image updated');
+        } else {
+          notifications.error('Failed to upload cover image', {
+            description: result.error ?? 'Unknown error',
+          });
+        }
+      } catch (error) {
+        logger.error('Cover upload failed', 'shows', { showId: showData.id }, error as Error);
+        notifications.error('Failed to upload cover image', {
+          description: getErrorMessage(error),
+        });
+      } finally {
+        setIsUploadingCover(false);
+      }
+    },
+    [showData, updateShowLegacy]
+  );
+
+  const handleCoverRemove = useCallback(async () => {
+    try {
+      if (showData.coverImageUrl) {
+        await deleteImage(showData.coverImageUrl);
+      }
+      const { error } = await supabase
+        .from('shows')
+        .update({ cover_image_url: null } as Record<string, unknown>)
+        .eq('id', showData.id);
+      if (error) throw new Error(error.message);
+      updateShowLegacy({ ...showData, coverImageUrl: '' });
+      notifications.success('Cover image removed');
+    } catch (error) {
+      logger.error('Cover remove failed', 'shows', { showId: showData.id }, error as Error);
+      notifications.error('Failed to remove cover image', {
+        description: getErrorMessage(error),
+      });
+    }
+  }, [showData, updateShowLegacy]);
+
   const branding = resolveShowBranding(
     {
       logoUrl: showData.logoUrl,
@@ -30,18 +95,26 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
       <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
 
       <div className="mt-8">
-        <ShowBrandedHero
-          showName={showData.name}
-          location={showData.location ?? ''}
-          startDate={showData.startDate}
-          endDate={showData.endDate}
-          clubName={showData.clubName}
-          organization={showData.organization}
-          status={showData.status}
-          logo={branding.logo}
-          coverImage={branding.coverImage}
-          accentColor={branding.accentColor}
-        />
+        <CoverImageUpload
+          editable={canEditBranding}
+          hasCover={!!showData.coverImageUrl}
+          isUploading={isUploadingCover}
+          onUpload={handleCoverUpload}
+          onRemove={handleCoverRemove}
+        >
+          <ShowBrandedHero
+            showName={showData.name}
+            location={showData.location ?? ''}
+            startDate={showData.startDate}
+            endDate={showData.endDate}
+            clubName={showData.clubName}
+            organization={showData.organization}
+            status={showData.status}
+            logo={branding.logo}
+            coverImage={branding.coverImage}
+            accentColor={branding.accentColor}
+          />
+        </CoverImageUpload>
       </div>
 
       {/* Action Buttons */}

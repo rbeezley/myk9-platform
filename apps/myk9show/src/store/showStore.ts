@@ -42,6 +42,9 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     clubName: '', // Derived from club store
     clubAddress: '', // Derived from club store
     clubEmail: '', // Derived from club store
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
     chairman: replicated.chairman || '',
     secretary: replicated.secretary || '',
     chiefSteward: replicated.chiefSteward || '',
@@ -513,7 +516,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
 
     // Subscribe to replicated table changes
     const unsubscribe = replicatedShowsTable.subscribe(shows => {
-
       const currentShows = get().shows;
 
       // Merge replicated data with existing local-only fields

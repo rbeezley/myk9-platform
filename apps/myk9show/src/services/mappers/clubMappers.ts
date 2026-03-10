@@ -10,6 +10,8 @@ export const mapClubInputToInsert = (input: ClubInput): DbClubInsert => {
   // Combine address fields into a single string for the database
   const fullAddress = `${input.street}, ${input.city}, ${input.state} ${input.zipCode}, ${input.country}`;
 
+  // cover_image_url / accent_color are new DB columns not yet in generated Supabase types.
+  // Cast via unknown until the types are regenerated after migration.
   return {
     name: input.name,
     email: input.email || null,
@@ -17,13 +19,15 @@ export const mapClubInputToInsert = (input: ClubInput): DbClubInsert => {
     website: input.website || null,
     description: input.description || null,
     logo_url: input.logo || null,
+    cover_image_url: input.coverImage || null,
+    accent_color: input.accentColor || null,
     address: fullAddress,
     // Store city, state, zip_code in their dedicated columns for search
     city: input.city || null,
     state: input.state || null,
     zip_code: input.zipCode || null,
     club_number: input.clubNumber || null,
-  };
+  } as unknown as DbClubInsert;
 };
 
 /**
@@ -45,15 +49,19 @@ export const mapClubInputToUpdate = (input: Partial<ClubInput>): DbClubUpdate =>
   if (input.state !== undefined) update.state = input.state || null;
   if (input.zipCode !== undefined) update.zip_code = input.zipCode || null;
 
-  if (input.street !== undefined || input.city !== undefined ||
-      input.state !== undefined || input.zipCode !== undefined ||
-      input.country !== undefined) {
+  if (
+    input.street !== undefined ||
+    input.city !== undefined ||
+    input.state !== undefined ||
+    input.zipCode !== undefined ||
+    input.country !== undefined
+  ) {
     // Reconstruct the combined address string from available fields
     const addressParts = [
       input.street,
       input.city,
       input.state ? `${input.state} ${input.zipCode || ''}`.trim() : input.zipCode,
-      input.country
+      input.country,
     ].filter(Boolean);
 
     if (addressParts.length > 0) {
@@ -67,7 +75,13 @@ export const mapClubInputToUpdate = (input: Partial<ClubInput>): DbClubUpdate =>
 /**
  * Maps DbClub (from Supabase) to Club (for Zustand store)
  */
-export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club => {
+export const mapDatabaseToClub = (
+  dbClub: DbClub & {
+    show?: unknown[];
+    cover_image_url?: string | null;
+    accent_color?: string | null;
+  }
+): Club => {
   // Parse address: prefer dedicated city/state/zip_code columns, fall back to parsing address string
   const addressParts = dbClub.address?.split(', ') || [];
   const address: ClubAddress = {
@@ -75,7 +89,7 @@ export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club =
     city: dbClub.city || addressParts[1] || '',
     state: dbClub.state || addressParts[2]?.split(' ')[0] || '',
     zipCode: dbClub.zip_code || addressParts[2]?.split(' ')[1] || '',
-    country: addressParts[3] || 'US'
+    country: addressParts[3] || 'US',
   };
 
   // Map shows from database format (if available)
@@ -85,8 +99,8 @@ export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club =
       id: showObj.id as string,
       name: showObj.name as string,
       date: showObj.start_date as string,
-      location: showObj.location as string || '',
-      description: showObj.description as string || ''
+      location: (showObj.location as string) || '',
+      description: (showObj.description as string) || '',
     };
   });
 
@@ -104,6 +118,8 @@ export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club =
     website: dbClub.website || undefined,
     description: dbClub.description || '',
     logo: dbClub.logo_url || '',
+    coverImage: dbClub.cover_image_url || '',
+    accentColor: dbClub.accent_color || '',
     address,
     upcomingShows,
     pastShows,
@@ -113,14 +129,20 @@ export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club =
     _lastModified: new Date(dbClub.updated_at || dbClub.created_at || new Date().toISOString()),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
+    _localOnly: false,
   };
 };
 
 /**
  * Maps array of DbClub to array of Club
  */
-export const mapDatabaseClubsArray = (dbClubs: (DbClub & { show?: unknown[] })[]): Club[] => {
+export const mapDatabaseClubsArray = (
+  dbClubs: (DbClub & {
+    show?: unknown[];
+    cover_image_url?: string | null;
+    accent_color?: string | null;
+  })[]
+): Club[] => {
   return dbClubs.map(mapDatabaseToClub);
 };
 
@@ -143,7 +165,7 @@ export const mapClubToClubInput = (club: Club): ClubInput => {
     country: club.address.country,
     founded: club.founded,
     clubType: club.clubType,
-    memberIds: club.memberIds
+    memberIds: club.memberIds,
   };
 };
 
@@ -154,6 +176,8 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
   // Combine address fields into a single string for the database
   const fullAddress = `${club.address.street}, ${club.address.city}, ${club.address.state} ${club.address.zipCode}, ${club.address.country}`;
 
+  // cover_image_url / accent_color are new DB columns not yet in generated Supabase types.
+  // Cast via unknown until the types are regenerated after migration.
   return {
     name: club.name,
     email: club.email || null,
@@ -161,12 +185,14 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
     website: club.website || null,
     description: club.description || null,
     logo_url: club.logo || null,
+    cover_image_url: club.coverImage || null,
+    accent_color: club.accentColor || null,
     address: fullAddress,
     city: club.address.city || null,
     state: club.address.state || null,
     zip_code: club.address.zipCode || null,
     club_number: club.clubNumber || null,
-  };
+  } as unknown as DbClubUpdate;
 };
 
 /**
@@ -174,7 +200,7 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
  */
 export const safeParseJson = <T>(jsonString: string | null | undefined, fallback: T): T => {
   if (!jsonString) return fallback;
-  
+
   try {
     return JSON.parse(jsonString) as T;
   } catch (error) {
@@ -266,7 +292,7 @@ export const createDefaultClubInput = (): Partial<ClubInput> => {
     zipCode: '',
     country: 'US',
     clubType: 'local',
-    memberIds: []
+    memberIds: [],
   };
 };
 
@@ -296,8 +322,8 @@ export const formatClubAddress = (address: ClubAddress): string => {
     address.street,
     address.city,
     `${address.state} ${address.zipCode}`.trim(),
-    address.country
+    address.country,
   ].filter(part => part && part.trim());
-  
+
   return parts.join(', ');
 };

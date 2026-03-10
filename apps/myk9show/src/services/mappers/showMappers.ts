@@ -7,6 +7,8 @@ import { logger } from '@/services/LoggingService';
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
  */
 export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
+  // logo_url / cover_image_url / accent_color are new DB columns not yet in generated
+  // Supabase types. Cast via unknown until the types are regenerated after migration.
   return {
     name: input.name,
     organization: input.organization,
@@ -25,12 +27,15 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     max_entries_per_dog: null, // Will be set from trials
     max_total_entries: null, // Will be set from trials
     allow_non_owner_handlers: true, // Default to true
+    logo_url: input.logoUrl || null,
+    cover_image_url: input.coverImageUrl || null,
+    accent_color: input.accentColor || null,
 
     // Note: events, source, club_name, club_address, club_email do NOT exist in the
     // database schema. These are app-only fields derived from the club relation or
     // computed locally. Sending them to Supabase would cause insert errors.
     // assignedJudges are stored in the separate judge_assignments table, not on shows.
-  };
+  } as unknown as DbShowInsert;
 };
 
 /**
@@ -54,6 +59,9 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.chairman !== undefined) update.chairman = input.chairman;
   if (input.secretary !== undefined) update.secretary = input.secretary;
   if (input.chiefSteward !== undefined) update.chief_steward = input.chiefSteward;
+  if (input.logoUrl !== undefined) update.logo_url = input.logoUrl || null;
+  if (input.coverImageUrl !== undefined) update.cover_image_url = input.coverImageUrl || null;
+  if (input.accentColor !== undefined) update.accent_color = input.accentColor || null;
 
   // Note: events, source, club_name, club_address, club_email do NOT exist in the
   // database schema. These are app-only fields derived from the club relation or
@@ -72,6 +80,9 @@ export const mapDatabaseToShow = (
     club?: unknown;
     judge_assignment?: unknown[];
     judge_assignments?: unknown[];
+    logo_url?: string | null;
+    cover_image_url?: string | null;
+    accent_color?: string | null;
   }
 ): Show => {
   // Map trials from database format (if available)
@@ -192,6 +203,9 @@ export const mapDatabaseToShow = (
       ((dbShow as Record<string, unknown>).club_email as string) ||
       ((dbShow.club as Record<string, unknown>)?.email as string) ||
       '', // Direct field or relation
+    logoUrl: dbShow.logo_url || '',
+    coverImageUrl: dbShow.cover_image_url || '',
+    accentColor: dbShow.accent_color || '',
     chairman: dbShow.chairman || '',
     secretary: dbShow.secretary || '',
     chiefSteward: dbShow.chief_steward || '',
@@ -221,6 +235,9 @@ export const mapDatabaseShowsArray = (
     club?: unknown;
     judge_assignment?: unknown[];
     judge_assignments?: unknown[];
+    logo_url?: string | null;
+    cover_image_url?: string | null;
+    accent_color?: string | null;
   })[]
 ): Show[] => {
   return dbShows.map(mapDatabaseToShow);

@@ -15,6 +15,8 @@ export interface Club {
   website?: string | undefined;
   description: string;
   logo: string;
+  coverImage: string;
+  accentColor: string;
 
   // Enhanced address structure
   address: ClubAddress;
@@ -24,7 +26,7 @@ export interface Club {
   clubType?: 'specialty' | 'all-breed' | 'local' | 'regional' | 'national' | undefined;
 
   // Membership data
-  memberIds?: string[] | undefined;  // Array of person IDs
+  memberIds?: string[] | undefined; // Array of person IDs
   // Note: Club admins are now managed through RBAC system instead of clubAdminId
 
   // Show data
@@ -59,6 +61,8 @@ export interface ClubInput {
   website?: string | undefined;
   description: string;
   logo?: string | undefined;
+  coverImage?: string | undefined;
+  accentColor?: string | undefined;
 
   // Address fields
   street: string;
@@ -100,7 +104,7 @@ export const CLUB_TYPES = [
   { value: 'all-breed', label: 'All-Breed Club' },
   { value: 'local', label: 'Local Club' },
   { value: 'regional', label: 'Regional Club' },
-  { value: 'national', label: 'National Club' }
+  { value: 'national', label: 'National Club' },
 ] as const;
 
 export const COUNTRIES = [

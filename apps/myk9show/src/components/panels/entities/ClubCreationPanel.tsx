@@ -189,6 +189,8 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
           address: formData.address,
           description: formData.description.trim(),
           logo: '', // Default empty logo
+          coverImage: '',
+          accentColor: '',
           clubType: 'local' as const,
           memberIds: [],
           upcomingShows: [],

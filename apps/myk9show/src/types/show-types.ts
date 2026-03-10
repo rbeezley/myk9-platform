@@ -76,6 +76,9 @@ export interface Show {
   clubName: string;
   clubAddress: string;
   clubEmail: string;
+  logoUrl: string;
+  coverImageUrl: string;
+  accentColor: string;
   // Key personnel
   chairman: string;
   secretary: string;
@@ -120,6 +123,9 @@ export interface ShowInput {
   clubName: string;
   clubAddress: string;
   clubEmail: string;
+  logoUrl?: string | undefined;
+  coverImageUrl?: string | undefined;
+  accentColor?: string | undefined;
   chairman: string;
   secretary: string;
   chiefSteward: string;

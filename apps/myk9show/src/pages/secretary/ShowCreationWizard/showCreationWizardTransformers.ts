@@ -263,6 +263,9 @@ export function transformWizardDataToShow(
           .join(', ')
       : '',
     clubEmail: selectedClub?.email || '',
+    logoUrl: '',
+    coverImageUrl: '',
+    accentColor: '',
     chairman: show.chairman,
     secretary: show.secretary,
     chiefSteward: '',

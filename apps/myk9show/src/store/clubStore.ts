@@ -26,6 +26,8 @@ function replicatedToClub(rc: ReplicatedClub): Club {
     website: rc.website,
     description: rc.description || '',
     logo: rc.logoUrl || '',
+    coverImage: '',
+    accentColor: '',
     address: {
       street: addressParts[0] || '',
       city: rc.city || addressParts[1] || '',

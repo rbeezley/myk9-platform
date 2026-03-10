@@ -111,6 +111,8 @@ const BrowseClubsPage: React.FC = () => {
             country: clubData.address?.country || 'US',
           },
           logo: clubData.logo || '',
+          coverImage: clubData.coverImage || '',
+          accentColor: clubData.accentColor || '',
           founded: clubData.founded instanceof Date ? clubData.founded : undefined,
           clubType: clubData.clubType,
           upcomingShows: [],

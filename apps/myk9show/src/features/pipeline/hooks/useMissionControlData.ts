@@ -146,12 +146,16 @@ export function useMissionControlData() {
     setSelectedTrialId(trialId);
   }, []);
 
+  const selectShow = useShowStore(s => s.selectShow);
+
   // Persist selected show so other secretary pages (Entry Management) can pick it up
+  // Also sync to showStore so announcement subscriptions know which show is active
   useEffect(() => {
     if (selectedShow) {
       localStorage.setItem('myk9show:entryMgmt:lastShowId', selectedShow.id);
+      selectShow(selectedShow.id);
     }
-  }, [selectedShow]);
+  }, [selectedShow, selectShow]);
 
   // Determine if any class is actively being scored
   const hasLiveClasses = pipelineClasses.some(c => c.stage === 'in-progress');

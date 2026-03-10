@@ -20,6 +20,7 @@ import { TrialContextRow } from './TrialContextRow';
 import { CLASS_PIPELINE_STAGES } from '../mission-control-types';
 import type { ClassPipelineStage } from '../mission-control-types';
 import { stageToDefaultStatus } from '../utils/classStageMapping';
+import { AnnouncementsCard } from './AnnouncementsCard';
 import type { DbClassUpdate } from '@/types/database-mappings';
 import { parseLocalDateString } from '@myk9/core';
 
@@ -174,6 +175,11 @@ export const PipelineDashboard: React.FC = () => {
           onTrialChange={handleTrialChange}
           stats={trialStats}
         />
+      )}
+
+      {/* Announcements */}
+      {selectedShow && (
+        <AnnouncementsCard showId={selectedShow.id} showEndDate={selectedShow.endDate} />
       )}
 
       {/* Empty state: no shows */}

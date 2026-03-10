@@ -38,6 +38,7 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 // Context
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
 import { FormErrorProvider } from './providers/FormErrorProvider';
 import { StoreProvider } from './providers/StoreProvider';
@@ -178,6 +179,11 @@ function UserDataInitializer() {
   return null;
 }
 
+function AnnouncementSubscriptionInitializer() {
+  useAnnouncementSubscription();
+  return null;
+}
+
 function App() {
   // Initialize global error handler - deferred to not block initial render
   React.useEffect(() => {
@@ -210,6 +216,7 @@ function App() {
           <StoreProvider>
             <AuthProvider>
               <UserDataInitializer />
+              <AnnouncementSubscriptionInitializer />
               <AudioSettingsProvider>
                 <FormErrorProvider>
                   <PanelProvider>

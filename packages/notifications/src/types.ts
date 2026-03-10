@@ -17,6 +17,7 @@ export interface NotificationPayload {
   body: string;
   priority: NotificationPriority;
   data?: Record<string, unknown>;
+  actionUrl?: string;
   timestamp: number;
 }
 

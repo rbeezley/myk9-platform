@@ -610,9 +610,11 @@ export type Database = {
       }
       clubs: {
         Row: {
+          accent_color: string | null
           address: string | null
           city: string | null
           club_number: string | null
+          cover_image_url: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -629,9 +631,11 @@ export type Database = {
           zip_code: string | null
         }
         Insert: {
+          accent_color?: string | null
           address?: string | null
           city?: string | null
           club_number?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -648,9 +652,11 @@ export type Database = {
           zip_code?: string | null
         }
         Update: {
+          accent_color?: string | null
           address?: string | null
           city?: string | null
           club_number?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3243,12 +3249,14 @@ export type Database = {
       }
       shows: {
         Row: {
+          accent_color: string | null
           address: string | null
           allow_non_owner_handlers: boolean | null
           chairman: string | null
           chief_steward: string | null
           city: string | null
           club_id: string | null
+          cover_image_url: string | null
           created_at: string | null
           day_of_show_fee: number | null
           deleted_at: string | null
@@ -3260,6 +3268,7 @@ export type Database = {
           id: string
           license_key: string | null
           location: string | null
+          logo_url: string | null
           max_entries_per_dog: number | null
           max_total_entries: number | null
           name: string
@@ -3276,12 +3285,14 @@ export type Database = {
           zip_code: string | null
         }
         Insert: {
+          accent_color?: string | null
           address?: string | null
           allow_non_owner_handlers?: boolean | null
           chairman?: string | null
           chief_steward?: string | null
           city?: string | null
           club_id?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           day_of_show_fee?: number | null
           deleted_at?: string | null
@@ -3293,6 +3304,7 @@ export type Database = {
           id?: string
           license_key?: string | null
           location?: string | null
+          logo_url?: string | null
           max_entries_per_dog?: number | null
           max_total_entries?: number | null
           name: string
@@ -3309,12 +3321,14 @@ export type Database = {
           zip_code?: string | null
         }
         Update: {
+          accent_color?: string | null
           address?: string | null
           allow_non_owner_handlers?: boolean | null
           chairman?: string | null
           chief_steward?: string | null
           city?: string | null
           club_id?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           day_of_show_fee?: number | null
           deleted_at?: string | null
@@ -3326,6 +3340,7 @@ export type Database = {
           id?: string
           license_key?: string | null
           location?: string | null
+          logo_url?: string | null
           max_entries_per_dog?: number | null
           max_total_entries?: number | null
           name?: string

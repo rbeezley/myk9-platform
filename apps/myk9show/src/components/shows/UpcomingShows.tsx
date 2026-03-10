@@ -12,6 +12,8 @@ export interface Show {
   imageUrl: string;
   organization?: string | undefined;
   status?: string | undefined;
+  coverImageUrl?: string | undefined;
+  accentColor?: string | null | undefined;
 }
 
 export type UpcomingShowsVariant = 'carousel' | 'grid';

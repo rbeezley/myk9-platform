@@ -22,6 +22,8 @@ export interface ShowCardProps {
   status?: string | undefined;
   onViewDetails?: (() => void) | undefined;
   onSyncRetry?: (() => void) | undefined;
+  coverImageUrl?: string | undefined;
+  accentColor?: string | null | undefined;
 }
 
 export const ShowCard: React.FC<ShowCardProps> = ({
@@ -39,6 +41,8 @@ export const ShowCard: React.FC<ShowCardProps> = ({
   showSyncStatus = false,
   onViewDetails = () => {},
   onSyncRetry,
+  coverImageUrl,
+  accentColor,
 }) => {
   return (
     <Card
@@ -74,15 +78,31 @@ export const ShowCard: React.FC<ShowCardProps> = ({
         </div>
       </div>
       <CardHeader className="pb-0 relative">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={title}
-            className="rounded-xl w-full h-40 object-cover mb-4 group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <ShowPlaceholder organization={organization} title={title} />
-        )}
+        <div className="relative">
+          {accentColor && (
+            <div
+              data-testid="accent-bar"
+              className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl z-10"
+              style={{ backgroundColor: accentColor }}
+            />
+          )}
+          {coverImageUrl ? (
+            <img
+              src={coverImageUrl}
+              alt={`${title} cover`}
+              className="rounded-xl w-full h-40 object-cover mb-4 group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          ) : imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={title}
+              className="rounded-xl w-full h-40 object-cover mb-4 group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <ShowPlaceholder organization={organization} title={title} />
+          )}
+        </div>
         <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors duration-300">
           {title}
         </h3>

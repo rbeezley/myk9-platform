@@ -418,7 +418,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Add Forgot Password to Sign-In - 2026-03-10 12:31
 
-- **Add forgot password link and flow to sign-in dialog** — Users need a way to reset their password from the sign-in page. **Problem:** No "Forgot password?" link exists on the sign-in page, so users who forget their password have no self-service recovery path. **Files:** `apps/myk9show/src/pages/SignInPage.tsx`, `apps/myk9show/src/context/AuthContext.tsx` (has resetPassword method), `apps/myk9show/src/hooks/useAuth.ts` (exposes resetPassword). **Solution:** Add "Forgot password?" link below sign-in form that triggers Supabase `resetPasswordForEmail()` flow (already wired in AuthContext/useAuth). May need a dedicated reset password page to handle the email callback link.
+- [x] **Add forgot password link and flow to sign-in dialog** — Implemented: ForgotPasswordPage with form/success states, "Forgot your password?" link on SignInPage, `/forgot-password` route. Network error handling + email enumeration protection. 8 tests passing.
 
 ## Fix Bulk Actions on Shows List Page - 2026-03-10 12:37
 

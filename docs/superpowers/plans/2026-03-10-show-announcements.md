@@ -682,6 +682,8 @@ export const useAnnouncementStore = create<AnnouncementState>()((set, get) => ({
                 is_read: false,
               };
               set(state => {
+                // Dedup: skip if already present (optimistic create or duplicate event)
+                if (state.announcements.some(a => a.id === newAnn.id)) return state;
                 const updated = [newAnn, ...state.announcements];
                 return { announcements: updated, unreadCount: computeUnreadCount(updated) };
               });
@@ -1134,13 +1136,17 @@ This hook manages the store's `subscribe`/`unsubscribe` lifecycle. **Must be mou
 - [ ] **Step 1: Write the subscription hook**
 
 ```typescript
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAnnouncementStore } from '@/store/announcementStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useShowDayData } from '@/hooks/queries/useShowDayData';
+import { useShowStore } from '@/store/showStore';
 
 /**
  * Manages announcement store subscription lifecycle.
- * Reads active show IDs from the user's RBAC scopes and subscribes to realtime.
+ * Combines two show ID sources:
+ *   - Exhibitors: shows they have entries for today (via useShowDayData)
+ *   - Officials: the show they're managing in Mission Control (via showStore)
  * Mount once inside AuthProvider tree (App.tsx, not main.tsx — needs useAuthContext).
  */
 export function useAnnouncementSubscription() {
@@ -1148,31 +1154,32 @@ export function useAnnouncementSubscription() {
   const subscribe = useAnnouncementStore(s => s.subscribe);
   const unsubscribe = useAnnouncementStore(s => s.unsubscribe);
 
+  // Exhibitor path: shows they have entries for today
+  const { activeShows } = useShowDayData();
+  const exhibitorShowIds = useMemo(() => activeShows.map(s => s.showId), [activeShows]);
+
+  // Official path: show they're managing in Mission Control
+  const selectedShowId = useShowStore(s => s.selectedShowId);
+
+  // Union both sources, deduplicated
+  const showIds = useMemo(() => {
+    const ids = new Set(exhibitorShowIds);
+    if (selectedShowId) ids.add(selectedShowId);
+    return [...ids];
+  }, [exhibitorShowIds, selectedShowId]);
+
   useEffect(() => {
     if (!userWithRoles) {
       unsubscribe();
       return;
     }
 
-    // Extract show IDs from user's role scopes
-    // Officials have scopes with scopeType 'club' — we need show IDs
-    // For now, we use the shows the user is associated with via the show store
-    // This will be refined when show-day detection feeds show IDs
-    const showScopes = (userWithRoles.scopes ?? [])
-      .filter(s => s.scopeType === 'show')
-      .map(s => s.scopeId);
-
-    // Also include club-scoped roles — we'll need to resolve these to show IDs
-    // For MVP: subscribe to show-scoped roles only
-    // Club-scoped officials will see announcements when they select a show in Mission Control
-    if (showScopes.length > 0) {
-      subscribe(showScopes);
-    }
+    subscribe(showIds);
 
     return () => {
       unsubscribe();
     };
-  }, [userWithRoles, subscribe, unsubscribe]);
+  }, [userWithRoles, showIds, subscribe, unsubscribe]);
 }
 ```
 
@@ -1931,7 +1938,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
       id: 'user-1',
       name: 'Jane Doe',
       email: 'jane@test.com',
-      roles: [{ role_name: 'secretary' }],
+      roles: ['secretary'],
       scopes: [],
     },
   }),

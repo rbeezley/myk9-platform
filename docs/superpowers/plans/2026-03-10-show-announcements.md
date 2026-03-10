@@ -14,26 +14,26 @@
 
 ## File Structure
 
-| File                                                                      | Action | Responsibility                          |
-| ------------------------------------------------------------------------- | ------ | --------------------------------------- |
-| `supabase/migrations/057_announcements.sql`                               | Create | DB tables, indexes, RLS, trigger        |
-| `apps/myk9show/src/types/announcement-types.ts`                           | Create | TypeScript interfaces for announcements |
-| `apps/myk9show/src/services/database/queries/announcementQueries.ts`      | Create | Supabase CRUD functions                 |
-| `apps/myk9show/src/store/announcementStore.ts`                            | Create | Zustand store with realtime             |
-| `apps/myk9show/src/hooks/useAnnouncementSubscription.ts`                  | Create | Lifecycle hook for app layout           |
-| `apps/myk9show/src/components/announcements/CreateAnnouncementDialog.tsx` | Create | Create/edit form dialog                 |
-| `apps/myk9show/src/components/announcements/AnnouncementItem.tsx`         | Create | Single announcement display component   |
-| `apps/myk9show/src/features/pipeline/components/AnnouncementsCard.tsx`    | Create | Mission Control dashboard card          |
-| `apps/myk9show/src/components/notifications/NotificationCenter.tsx`       | Modify | Announcements tab reads from store      |
-| `apps/myk9show/src/components/notifications/NotificationBell.tsx`         | Modify | Combined unread count                   |
-| `apps/myk9show/src/main.tsx`                                              | Modify | Mount subscription hook                 |
-| `apps/myk9show/src/features/pipeline/components/PipelineDashboard.tsx`    | Modify | Add AnnouncementsCard                   |
+| File                                                                      | Action | Responsibility                                |
+| ------------------------------------------------------------------------- | ------ | --------------------------------------------- |
+| `supabase/migrations/057_announcements.sql`                               | Create | DB tables, indexes, RLS, trigger              |
+| `apps/myk9show/src/types/announcement-types.ts`                           | Create | TypeScript interfaces for announcements       |
+| `apps/myk9show/src/services/database/queries/announcementQueries.ts`      | Create | Supabase CRUD functions                       |
+| `apps/myk9show/src/store/announcementStore.ts`                            | Create | Zustand store with realtime                   |
+| `apps/myk9show/src/hooks/useAnnouncementSubscription.ts`                  | Create | Lifecycle hook for app layout                 |
+| `apps/myk9show/src/components/announcements/CreateAnnouncementDialog.tsx` | Create | Create/edit form dialog                       |
+| `apps/myk9show/src/components/announcements/AnnouncementItem.tsx`         | Create | Single announcement display component         |
+| `apps/myk9show/src/features/pipeline/components/AnnouncementsCard.tsx`    | Create | Mission Control dashboard card                |
+| `apps/myk9show/src/components/notifications/NotificationCenter.tsx`       | Modify | Announcements tab reads from store            |
+| `apps/myk9show/src/components/notifications/NotificationBell.tsx`         | Modify | Combined unread count                         |
+| `apps/myk9show/src/App.tsx`                                               | Modify | Mount subscription hook (inside AuthProvider) |
+| `apps/myk9show/src/features/pipeline/components/PipelineDashboard.tsx`    | Modify | Add AnnouncementsCard                         |
 
 **Test files:**
 
 | File                                                                                     | Tests for                            |
-| ---------------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
-| `apps/myk9show/src/services/database/queries/__tests__/announcementQueries.test.ts`      | Create                               | Supabase CRUD |
+| ---------------------------------------------------------------------------------------- | ------------------------------------ |
+| `apps/myk9show/src/services/database/queries/__tests__/announcementQueries.test.ts`      | Supabase CRUD                        |
 | `apps/myk9show/src/store/__tests__/announcementStore.test.ts`                            | Store actions, optimistic updates    |
 | `apps/myk9show/src/components/announcements/__tests__/CreateAnnouncementDialog.test.tsx` | Form validation, submit, role gating |
 | `apps/myk9show/src/components/announcements/__tests__/AnnouncementItem.test.tsx`         | Render, actions                      |
@@ -51,7 +51,7 @@
 
 - Create: `supabase/migrations/057_announcements.sql`
 
-**Note on `author_role`:** The spec says `trial_secretary` but the app's `UserRole` enum (in `apps/myk9show/src/types/auth-types.ts`) uses `secretary`. Use `secretary` in the DB CHECK constraint to match the app-layer enum, avoiding a mapping layer.
+**Note on `author_role`:** The spec says `trial_secretary` but the app's `UserRole` enum (in `apps/myk9show/src/types/auth-types.ts`) uses `secretary`. Use `secretary` in the DB CHECK constraint to match the app-layer enum, avoiding a mapping layer. **Deliberate divergence from DB `roles` table** which uses `trial_secretary` — the `author_role` column is display-only (used with `ROLE_LABELS` in the UI), not joined to the `roles` table. If future code needs to join, add a mapping constant.
 
 - [ ] **Step 1: Write the migration file**
 
@@ -599,6 +599,7 @@ import {
   markAnnouncementRead,
   markAllAnnouncementsRead,
 } from '@/services/database/queries/announcementQueries';
+import { useToastStore } from '@/store/toastStore';
 import { logger } from '@/services/LoggingService';
 
 interface AnnouncementState {
@@ -684,6 +685,18 @@ export const useAnnouncementStore = create<AnnouncementState>()((set, get) => ({
                 const updated = [newAnn, ...state.announcements];
                 return { announcements: updated, unreadCount: computeUnreadCount(updated) };
               });
+
+              // Trigger toast for high/urgent announcements (per spec: realtime flow step 4)
+              if (newAnn.priority === 'high' || newAnn.priority === 'urgent') {
+                useToastStore.getState().addToast({
+                  id: `ann-${newAnn.id}`,
+                  type: 'announcement',
+                  title: newAnn.title,
+                  body: newAnn.content,
+                  priority: newAnn.priority,
+                  timestamp: Date.now(),
+                });
+              }
             }
           )
           .on(
@@ -1114,9 +1127,9 @@ git commit -m "feat(store): add announcement Zustand store with realtime and tes
 **Files:**
 
 - Create: `apps/myk9show/src/hooks/useAnnouncementSubscription.ts`
-- Modify: `apps/myk9show/src/main.tsx`
+- Modify: `apps/myk9show/src/App.tsx`
 
-This hook manages the store's `subscribe`/`unsubscribe` lifecycle. Mounted at the app layout level.
+This hook manages the store's `subscribe`/`unsubscribe` lifecycle. **Must be mounted inside `AuthProvider`** (in `App.tsx`, not `main.tsx`) because it calls `useAuthContext()`.
 
 - [ ] **Step 1: Write the subscription hook**
 
@@ -1128,7 +1141,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 /**
  * Manages announcement store subscription lifecycle.
  * Reads active show IDs from the user's RBAC scopes and subscribes to realtime.
- * Mount once at the app layout level (main.tsx).
+ * Mount once inside AuthProvider tree (App.tsx, not main.tsx — needs useAuthContext).
  */
 export function useAnnouncementSubscription() {
   const { userWithRoles } = useAuthContext();
@@ -1163,35 +1176,23 @@ export function useAnnouncementSubscription() {
 }
 ```
 
-- [ ] **Step 2: Create a wrapper component for main.tsx**
+- [ ] **Step 2: Mount in App.tsx (inside AuthProvider)**
 
-We need a component (not just a hook) to mount in main.tsx since the hook needs AuthContext which is inside the providers. Create a thin wrapper:
-
-```typescript
-// Add to the bottom of useAnnouncementSubscription.ts:
-
-/** Wrapper component to mount the subscription hook inside the provider tree */
-export function AnnouncementSubscriptionProvider() {
-  useAnnouncementSubscription();
-  return null;
-}
-```
-
-- [ ] **Step 3: Mount in main.tsx**
-
-In `apps/myk9show/src/main.tsx`, add the import and component after `<NotificationCenter />`:
+In `apps/myk9show/src/App.tsx`, import and call the hook inside a component that is a child of `AuthProvider`. Add the hook call inside the main app component, after `UserDataInitializer` or similar initialization hooks:
 
 Add import:
 
 ```typescript
-import { AnnouncementSubscriptionProvider } from '@/hooks/useAnnouncementSubscription';
+import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 ```
 
-Add component inside the provider tree (after `<NotificationCenter />`):
+Call the hook inside the component body (alongside other initialization hooks):
 
-```tsx
-<AnnouncementSubscriptionProvider />
+```typescript
+useAnnouncementSubscription();
 ```
+
+**Do NOT mount in `main.tsx`** — `main.tsx` renders `<ToastContainer />` and `<NotificationCenter />` outside `<App />`, which is outside `AuthProvider`. The hook needs `useAuthContext()` which requires `AuthProvider` as an ancestor.
 
 - [ ] **Step 4: Run typecheck**
 
@@ -1202,7 +1203,7 @@ Expected: PASS
 
 ```bash
 git add apps/myk9show/src/hooks/useAnnouncementSubscription.ts \
-       apps/myk9show/src/main.tsx
+       apps/myk9show/src/App.tsx
 git commit -m "feat(hooks): add announcement subscription lifecycle hook"
 ```
 
@@ -1443,6 +1444,8 @@ git commit -m "feat(ui): add AnnouncementItem component with tests"
 
 - Create: `apps/myk9show/src/components/announcements/CreateAnnouncementDialog.tsx`
 - Create: `apps/myk9show/src/components/announcements/__tests__/CreateAnnouncementDialog.test.tsx`
+
+**Note:** Edit mode (pre-populating the form with existing announcement data) is deferred. The dialog is create-only for now. The `editingAnnouncement` state in `AnnouncementsCard` opens the same create dialog — adding an `initialData` prop for edit mode can be done as a follow-up.
 
 - [ ] **Step 1: Write the dialog component**
 
@@ -1811,14 +1814,12 @@ export function AnnouncementsCard({ showId, showEndDate }: AnnouncementsCardProp
   const [editingAnnouncement, setEditingAnnouncement] = useState<ShowAnnouncement | null>(null);
 
   // Determine if user is an official who can create announcements
+  // UserWithRoles.roles is UserRole[] (string enum values like 'secretary', 'judge', 'club_admin')
   const userRole = (userWithRoles?.roles ?? []).find(r =>
-    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(
-      typeof r === 'string' ? r : r.role_name
-    )
+    (ANNOUNCEMENT_OFFICIAL_ROLES as readonly string[]).includes(r)
   );
   const isOfficial = !!userRole;
-  const authorRole: AnnouncementAuthorRole =
-    (typeof userRole === 'string' ? userRole : userRole?.role_name) as AnnouncementAuthorRole ?? 'secretary';
+  const authorRole: AnnouncementAuthorRole = (userRole as AnnouncementAuthorRole) ?? 'secretary';
   const authorId = userWithRoles?.id ?? '';
   const authorName = userWithRoles?.name ?? userWithRoles?.email ?? 'Unknown';
 

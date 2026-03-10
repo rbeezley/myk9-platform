@@ -8,6 +8,8 @@ import { Toaster } from 'sonner';
 import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
 import { initializeSettings } from './stores/settingsStore';
+import { ToastContainer } from '@/components/notifications/ToastContainer';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 // Initialize settings (applies accent color, theme, etc. from localStorage)
 initializeSettings();
@@ -35,6 +37,8 @@ createRoot(document.getElementById('root')!).render(
         <ThemeProvider>
           <App />
           <Toaster theme="system" richColors closeButton />
+          <ToastContainer />
+          <NotificationCenter />
         </ThemeProvider>
       </QueryProvider>
     </BrowserRouter>

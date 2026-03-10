@@ -346,7 +346,10 @@ export function getTabQuickActions(currentTab: string, user: UserWithRoles | nul
         label: 'Analytics',
         icon: 'BarChart3',
         variant: 'default',
-        onClick: () => logger.logUserAction('view_analytics', 'shows', {}),
+        onClick: () => {
+          logger.logUserAction('view_analytics', 'shows', {});
+          window.location.href = '/admin/analytics';
+        },
       });
       break;
 

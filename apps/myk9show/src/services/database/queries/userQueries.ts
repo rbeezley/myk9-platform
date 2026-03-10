@@ -8,10 +8,9 @@ export const getAllUsers = async () => {
   const startTime = Date.now();
 
   try {
-    // Include judge data via nested selects (returns empty arrays for non-judges)
     const { data, error } = await supabase
       .from('people')
-      .select('*, judge_qualifications(*), judge_certifications(*)')
+      .select('*')
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });

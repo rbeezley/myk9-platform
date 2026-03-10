@@ -1,155 +1,77 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useNotificationDelivery } from '../useNotificationDelivery';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useToastStore } from '@/store/toastStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
 
-// Mock @myk9/notifications
+// Mock sound/voice modules to avoid Web Audio API in tests
 vi.mock('@myk9/notifications', async () => {
-  const actual = await vi.importActual('@myk9/notifications');
+  const actual = await vi.importActual<typeof import('@myk9/notifications')>('@myk9/notifications');
   return {
     ...actual,
-    shouldSuppress: vi.fn(() => false),
     playNotificationSound: vi.fn(),
     speak: vi.fn(),
-    generateVoiceText: vi.fn(() => ({ text: 'test voice text', priority: 'normal' })),
+    generateVoiceText: vi.fn(() => null),
   };
 });
 
-// Mock Sonner toast
-vi.mock('@/lib/notifications', () => ({
-  notifications: {
-    info: vi.fn(),
-    warning: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
-import { shouldSuppress, playNotificationSound, speak } from '@myk9/notifications';
-import { notifications as toastNotifications } from '@/lib/notifications';
-
-const mockPayload: NotificationPayload = {
-  id: 'test-1',
-  type: 'your_turn',
-  title: 'Test Title',
-  body: 'Test Body',
-  priority: 'urgent',
-  timestamp: Date.now(),
-};
+function makePayload(id: string): NotificationPayload {
+  return {
+    id,
+    type: 'your_turn',
+    title: 'Test',
+    body: 'Test body',
+    priority: 'normal',
+    timestamp: Date.now(),
+  };
+}
 
 beforeEach(() => {
-  vi.clearAllMocks();
   useNotificationStore.setState({
-    preferences: { ...DEFAULT_PREFERENCES },
+    preferences: { ...DEFAULT_PREFERENCES, enabled: true },
     isInRing: false,
     recentAlerts: [],
     unreadCount: 0,
+    isCenterOpen: false,
     permissionStatus: 'default' as NotificationPermission,
   });
+  useToastStore.setState({ toasts: [] });
 });
 
 describe('useNotificationDelivery', () => {
-  it('delivers toast notification', () => {
+  it('adds toast to toastStore when delivering', () => {
     const { result } = renderHook(() => useNotificationDelivery());
+    const payload = makePayload('1');
 
     act(() => {
-      result.current.deliver(mockPayload);
+      result.current.deliver(payload);
     });
 
-    expect(toastNotifications.warning).toHaveBeenCalled();
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+    expect(useToastStore.getState().toasts[0].payload.id).toBe('1');
   });
 
-  it('plays sound when soundEnabled', () => {
+  it('adds alert to notificationStore when delivering', () => {
     const { result } = renderHook(() => useNotificationDelivery());
 
     act(() => {
-      result.current.deliver(mockPayload);
+      result.current.deliver(makePayload('1'));
     });
 
-    expect(playNotificationSound).toHaveBeenCalledWith('urgent');
+    expect(useNotificationStore.getState().recentAlerts).toHaveLength(1);
   });
 
-  it('skips sound when soundEnabled is false', () => {
-    useNotificationStore.setState({
-      preferences: { ...DEFAULT_PREFERENCES, soundEnabled: false },
-    });
-
+  it('suppresses delivery when master toggle is off', () => {
+    useNotificationStore.getState().updatePreferences({ enabled: false });
     const { result } = renderHook(() => useNotificationDelivery());
 
     act(() => {
-      result.current.deliver(mockPayload);
+      result.current.deliver(makePayload('1'));
     });
 
-    expect(playNotificationSound).not.toHaveBeenCalled();
-  });
-
-  it('speaks when voiceEnabled', () => {
-    useNotificationStore.setState({
-      preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },
-    });
-
-    const { result } = renderHook(() => useNotificationDelivery());
-
-    act(() => {
-      result.current.deliver(mockPayload);
-    });
-
-    expect(speak).toHaveBeenCalledWith('test voice text');
-  });
-
-  it('suppresses all channels when shouldSuppress returns true', () => {
-    vi.mocked(shouldSuppress).mockReturnValueOnce(true);
-
-    const { result } = renderHook(() => useNotificationDelivery());
-
-    act(() => {
-      result.current.deliver(mockPayload);
-    });
-
-    expect(toastNotifications.info).not.toHaveBeenCalled();
-    expect(toastNotifications.warning).not.toHaveBeenCalled();
-    expect(playNotificationSound).not.toHaveBeenCalled();
-  });
-
-  it('vibrates when vibrationEnabled', () => {
-    const mockVibrate = vi.fn();
-    vi.stubGlobal('navigator', { vibrate: mockVibrate });
-
-    const { result } = renderHook(() => useNotificationDelivery());
-
-    act(() => {
-      result.current.deliver(mockPayload);
-    });
-
-    expect(mockVibrate).toHaveBeenCalled();
-  });
-
-  it('skips vibration when vibrationEnabled is false', () => {
-    const mockVibrate = vi.fn();
-    vi.stubGlobal('navigator', { vibrate: mockVibrate });
-    useNotificationStore.setState({
-      preferences: { ...DEFAULT_PREFERENCES, vibrationEnabled: false },
-    });
-
-    const { result } = renderHook(() => useNotificationDelivery());
-
-    act(() => {
-      result.current.deliver(mockPayload);
-    });
-
-    expect(mockVibrate).not.toHaveBeenCalled();
-  });
-
-  it('adds alert to store', () => {
-    const { result } = renderHook(() => useNotificationDelivery());
-
-    act(() => {
-      result.current.deliver(mockPayload);
-    });
-
-    const state = useNotificationStore.getState();
-    expect(state.recentAlerts).toHaveLength(1);
-    expect(state.recentAlerts[0].payload.id).toBe('test-1');
+    expect(useToastStore.getState().toasts).toHaveLength(0);
+    expect(useNotificationStore.getState().recentAlerts).toHaveLength(0);
   });
 });

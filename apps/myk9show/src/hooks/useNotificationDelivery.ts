@@ -7,37 +7,29 @@ import {
   generateVoiceText,
 } from '@myk9/notifications';
 import { useNotificationStore } from '@/store/notificationStore';
-import { notifications } from '@/lib/notifications';
+import { useToastStore } from '@/store/toastStore';
 
 /**
  * Returns a `deliver` function that sends a notification through all enabled channels:
- * toast, sound, voice, vibration, and push (background tab).
+ * toast (custom ToastContainer), sound, voice, vibration, and push (background tab).
  */
 export function useNotificationDelivery() {
   const preferences = useNotificationStore(s => s.preferences);
   const isInRing = useNotificationStore(s => s.isInRing);
   const addAlert = useNotificationStore(s => s.addAlert);
+  const addToast = useToastStore(s => s.addToast);
 
   const deliver = useCallback(
     (payload: NotificationPayload) => {
       // Check suppression
       if (shouldSuppress(preferences, { isInRing })) return;
 
-      // Always add to store (for bell dropdown)
+      // Always add to store (for bell dropdown + center)
       addAlert(payload);
 
-      // [EXPANDED] Each channel is wrapped in try/catch so one failure
-      // doesn't prevent other channels from delivering.
-
-      // Toast (always)
+      // Toast (custom ToastContainer — NOT Sonner; Sonner remains for app-wide CRUD toasts)
       try {
-        const toastMethod =
-          payload.priority === 'urgent'
-            ? notifications.warning
-            : payload.priority === 'high'
-              ? notifications.warning
-              : notifications.info;
-        toastMethod(payload.title, { description: payload.body });
+        addToast(payload);
       } catch {
         /* toast failure is non-fatal */
       }
@@ -72,7 +64,7 @@ export function useNotificationDelivery() {
       // Push is server-triggered (database webhooks → edge function → service worker).
       // No client-side push delivery needed in this hook.
     },
-    [preferences, isInRing, addAlert]
+    [preferences, isInRing, addAlert, addToast]
   );
 
   return { deliver };

@@ -13,7 +13,7 @@ Complete the notification inbox feature by adding show-scoped announcements with
 | Decision           | Choice                                               | Rationale                                                                     |
 | ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Announcement scope | Per-show (`show_id`)                                 | Users at different concurrent shows should not see each other's announcements |
-| Who can create     | Secretary, judge, steward, club_admin                | All show officials may need to communicate                                    |
+| Who can create     | trial_secretary, judge, club_admin                   | All show officials may need to communicate                                    |
 | Create UI location | Mission Control + NotificationCenter quick-compose   | Full management on dashboard, quick access in inbox                           |
 | Expiry behavior    | Optional per-announcement, defaults to show end date | Covers transient ("gate moved") and persistent ("results posted") use cases   |
 | Data persistence   | Supabase table, not ephemeral                        | Announcements survive page refresh; historical record after show              |
@@ -28,8 +28,9 @@ Complete the notification inbox feature by adding show-scoped announcements with
 CREATE TABLE show_announcements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   show_id UUID NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
-  author_id UUID NOT NULL REFERENCES people(id),
-  author_role TEXT NOT NULL CHECK (author_role IN ('secretary', 'judge', 'steward', 'club_admin')),
+  author_id UUID NOT NULL REFERENCES auth.users(id),
+  author_role TEXT NOT NULL CHECK (author_role IN ('trial_secretary', 'judge', 'club_admin')),
+  author_name TEXT,  -- denormalized for display (avoids join to people)
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('normal', 'high', 'urgent')),
@@ -39,6 +40,8 @@ CREATE TABLE show_announcements (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
+
+Note: `author_id` references `auth.users(id)` (not `people(id)`) for consistency with `show_announcement_reads.user_id`. The app layer uses `auth.uid()` directly — no people table lookup needed. `author_name` is denormalized to avoid a join on every read.
 
 **`show_announcement_reads` table:**
 
@@ -60,14 +63,18 @@ CREATE TABLE show_announcement_reads (
 
 **RLS policies:**
 
-- SELECT on `show_announcements`: authenticated users (filter to relevant shows in app layer)
-- INSERT/UPDATE/DELETE on `show_announcements`: show officials only (secretary, judge, steward, club_admin for that show's club) — enforced via `is_show_official(show_id)` helper or app-layer check
+- SELECT on `show_announcements`: all authenticated users (app layer filters to relevant shows)
+- INSERT on `show_announcements`: all authenticated users (app layer verifies official role before calling insert — same pattern as other tables with permissive RLS + app-layer auth)
+- UPDATE on `show_announcements`: author only (`author_id = auth.uid()`) OR platform admin
+- DELETE on `show_announcements`: author only (`author_id = auth.uid()`) OR platform admin
 - SELECT on `show_announcement_reads`: own reads only (`user_id = auth.uid()`)
-- INSERT on `show_announcement_reads`: own reads only
+- INSERT on `show_announcement_reads`: own reads only (`user_id = auth.uid()`)
 
-**Trigger:** `update_updated_at_column()` on `show_announcements` before UPDATE.
+**RLS strategy:** Write authorization (who is a show official) is enforced at the app layer, consistent with how other tables in this project handle role-based writes. UPDATE/DELETE use row-level `author_id` checks in RLS as a safety net.
 
-**Realtime:** `ALTER PUBLICATION supabase_realtime ADD TABLE show_announcements;`
+**Trigger:** Only `CREATE TRIGGER ... EXECUTE FUNCTION update_updated_at_column()` — the function already exists from migration 001.
+
+**Realtime:** Supabase hosted projects have realtime enabled for the public schema by default. If needed, add `ALTER PUBLICATION supabase_realtime ADD TABLE show_announcements;` in the migration.
 
 ## Data Layer
 
@@ -75,7 +82,7 @@ CREATE TABLE show_announcement_reads (
 
 Supabase query functions:
 
-- `fetchShowAnnouncements(showId: string)` — SELECT with LEFT JOIN on reads for current user's `is_read` status. Filters: `is_active = true`, `expires_at > now() OR expires_at IS NULL`.
+- `fetchShowAnnouncements(showId: string)` — two queries: (1) SELECT announcements filtered by `is_active = true` and `expires_at > now() OR expires_at IS NULL`, (2) SELECT read IDs from `show_announcement_reads` for current user. Join client-side to compute `is_read` per announcement. Avoids Supabase query builder limitations with filtered LEFT JOINs.
 - `createAnnouncement(data)` — INSERT with `.select()` to return created row.
 - `updateAnnouncement(id, updates)` — partial UPDATE (title, content, priority, expires_at, is_active).
 - `deleteAnnouncement(id)` — DELETE.
@@ -109,14 +116,11 @@ interface AnnouncementState {
 
 **Realtime:** One channel per subscribed show_id, listening for INSERT/UPDATE/DELETE on `show_announcements`.
 
-### React Query Hooks
+### Data flow (no React Query)
 
-- `useShowAnnouncements(showId)` — initial fetch, cache key `['announcements', showId]`
-- `useCreateAnnouncement()` — mutation with optimistic cache update
-- `useUpdateAnnouncement()` / `useDeleteAnnouncement()` — mutations
-- `useMarkAnnouncementRead()` — mutation
+The Zustand store is the sole source of truth — no React Query hooks for announcements. This matches the existing store pattern in myK9Show (showStore, classStore, etc.) and avoids cache synchronization complexity between two state systems.
 
-Store handles realtime pushes; React Query handles initial fetch + cache. Store is the source of truth once subscribed.
+Flow: Component calls `announcementStore.subscribe(showIds)` → store fetches via `announcementQueries` → store opens realtime channels → all reads come from store selectors.
 
 ## UI Components
 
@@ -153,17 +157,17 @@ Store handles realtime pushes; React Query handles initial fetch + cache. Store 
 ### Authorization in UI
 
 - All show participants see announcements in inbox
-- Only officials (secretary, judge, steward, club_admin for that show) see compose buttons
-- Only the author or a secretary can edit/delete an announcement
+- Only officials (trial_secretary, judge, club_admin for that show) see compose buttons
+- Only the author or a trial_secretary can edit/delete an announcement
 - Role check uses existing RBAC context (`useAuth` / `userWithRoles`)
 
 ## Show Scoping & Lifecycle
 
 ### How users get scoped
 
-- `useShowDayData` already detects active shows for exhibitors — same show IDs feed into `announcementStore.subscribe()`
-- Officials scoped via role assignments (secretary of show X, judge for show X)
-- Multi-show users: announcements labeled with show name, grouped or interleaved
+- **Subscription lifecycle:** A `useAnnouncementSubscription()` hook manages `announcementStore.subscribe(showIds)` / `unsubscribe()` on mount/unmount. Mounted in the app layout (same level as ToastContainer and NotificationCenter).
+- **Show ID resolution:** The hook reads active show IDs from the user's context — for exhibitors via `useShowDayData`, for officials via their RBAC scopes (`userWithRoles.scopes` filtered to secretary/judge/club_admin roles that reference a show's club). Falls back to an empty array (no subscription) if no active shows.
+- Multi-show users: announcements labeled with show name, grouped or interleaved.
 
 ### Announcement lifecycle
 
@@ -188,7 +192,6 @@ Store handles realtime pushes; React Query handles initial fetch + cache. Store 
 | `apps/myk9show/src/types/announcement-types.ts`                           | Create    | TypeScript interfaces                      |
 | `apps/myk9show/src/services/database/queries/announcementQueries.ts`      | Create    | Supabase CRUD functions                    |
 | `apps/myk9show/src/store/announcementStore.ts`                            | Create    | Zustand store with realtime                |
-| `apps/myk9show/src/hooks/queries/useAnnouncementHooks.ts`                 | Create    | React Query hooks                          |
 | `apps/myk9show/src/components/announcements/CreateAnnouncementDialog.tsx` | Create    | Create/edit form dialog                    |
 | `apps/myk9show/src/components/announcements/AnnouncementItem.tsx`         | Create    | Single announcement display                |
 | `apps/myk9show/src/features/pipeline/components/AnnouncementsCard.tsx`    | Create    | Mission Control card                       |

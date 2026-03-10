@@ -5,11 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { logger } from '@/services/LoggingService';
 import {
   Clock,
-  AlertTriangle, 
+  AlertTriangle,
   MapPin,
   Users,
   CheckCircle,
@@ -20,7 +26,7 @@ import {
   Edit,
   Eye,
   AlertCircle,
-  Info
+  Info,
 } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 
@@ -58,13 +64,13 @@ interface ConflictingItem {
 
 /**
  * ScheduleConflictAlerts - Monitor and resolve scheduling conflicts
- * 
+ *
  * Detects and displays scheduling conflicts such as time overlaps, ring conflicts,
  * judge double-bookings, and resource conflicts with resolution suggestions.
  */
 export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
   showId,
-  className = ''
+  className = '',
 }) => {
   const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,7 +101,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
               duration: 90,
               ring: 'Ring 1',
               judge: 'Judge Smith',
-              entryCount: 24
+              entryCount: 24,
             },
             {
               id: 'class-2',
@@ -105,13 +111,13 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
               duration: 75,
               ring: 'Ring 1',
               judge: 'Judge Davis',
-              entryCount: 18
-            }
+              entryCount: 18,
+            },
           ],
           detectedAt: new Date(Date.now() - 1800000), // 30 minutes ago
           canAutoResolve: true,
           suggestedResolution: 'Move Open B to 10:45 or assign to Ring 2',
-          showName: 'Spring Classic Dog Show'
+          showName: 'Spring Classic Dog Show',
         },
         {
           id: 'conflict-2',
@@ -128,7 +134,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
               duration: 60,
               ring: 'Ring 2',
               judge: 'Judge Williams',
-              entryCount: 12
+              entryCount: 12,
             },
             {
               id: 'class-4',
@@ -138,13 +144,13 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
               duration: 45,
               ring: 'Ring 3',
               judge: 'Judge Williams',
-              entryCount: 15
-            }
+              entryCount: 15,
+            },
           ],
           detectedAt: new Date(Date.now() - 3600000), // 1 hour ago
           canAutoResolve: false,
           suggestedResolution: 'Assign different judge or reschedule one class',
-          showName: 'Spring Classic Dog Show'
+          showName: 'Spring Classic Dog Show',
         },
         {
           id: 'conflict-3',
@@ -161,7 +167,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
               duration: 120,
               ring: 'Ring 4',
               judge: 'Judge Brown',
-              entryCount: 30
+              entryCount: 30,
             },
             {
               id: 'setup-1',
@@ -169,18 +175,18 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
               name: 'Agility Equipment Setup',
               scheduledTime: '11:30',
               duration: 30,
-              ring: 'Ring 4'
-            }
+              ring: 'Ring 4',
+            },
           ],
           detectedAt: new Date(Date.now() - 900000), // 15 minutes ago
           canAutoResolve: true,
           suggestedResolution: 'Move setup to 13:00 after class completion',
-          showName: 'Spring Classic Dog Show'
-        }
+          showName: 'Spring Classic Dog Show',
+        },
       ];
 
       // Filter by show if specified
-      const filteredConflicts = showId 
+      const filteredConflicts = showId
         ? mockConflicts.filter(c => c.showName === shows.find(s => s.id === showId)?.name)
         : mockConflicts;
 
@@ -192,15 +198,16 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
 
   // Filter conflicts based on search and filters
   const filteredConflicts = conflicts.filter(conflict => {
-    const matchesSearch = conflict.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         conflict.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         conflict.conflictingItems.some(item => 
-                           item.name.toLowerCase().includes(searchTerm.toLowerCase())
-                         );
-    
+    const matchesSearch =
+      conflict.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conflict.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      conflict.conflictingItems.some(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
     const matchesSeverity = severityFilter === 'all' || conflict.severity === severityFilter;
     const matchesType = typeFilter === 'all' || conflict.type === typeFilter;
-    
+
     return matchesSearch && matchesSeverity && matchesType;
   });
 
@@ -211,7 +218,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
     high: conflicts.filter(c => c.severity === 'high').length,
     medium: conflicts.filter(c => c.severity === 'medium').length,
     low: conflicts.filter(c => c.severity === 'low').length,
-    resolved: conflicts.filter(c => c.resolvedAt).length
+    resolved: conflicts.filter(c => c.resolvedAt).length,
   };
 
   const handleRefresh = async () => {
@@ -231,40 +238,53 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
 
     logger.debug('Auto-resolving conflict:', 'sync', { data: conflictId });
     // Update conflict as resolved
-    setConflicts(prev => prev.map(c => 
-      c.id === conflictId 
-        ? { ...c, resolvedAt: new Date() }
-        : c
-    ));
+    setConflicts(prev =>
+      prev.map(c => (c.id === conflictId ? { ...c, resolvedAt: new Date() } : c))
+    );
   };
 
   const getSeverityColor = (severity: ScheduleConflict['severity']): string => {
     switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
-      case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-blue-600 bg-blue-50 border-blue-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'critical':
+        return 'text-red-600 bg-red-50 border-red-200';
+      case 'high':
+        return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'medium':
+        return 'text-amber-600 bg-amber-50 border-amber-200';
+      case 'low':
+        return 'text-blue-600 bg-blue-50 border-blue-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
 
   const getTypeLabel = (type: ScheduleConflict['type']): string => {
     switch (type) {
-      case 'time_overlap': return 'Time Overlap';
-      case 'ring_conflict': return 'Ring Conflict';
-      case 'judge_conflict': return 'Judge Conflict';
-      case 'resource_conflict': return 'Resource Conflict';
-      default: return 'Unknown';
+      case 'time_overlap':
+        return 'Time Overlap';
+      case 'ring_conflict':
+        return 'Ring Conflict';
+      case 'judge_conflict':
+        return 'Judge Conflict';
+      case 'resource_conflict':
+        return 'Resource Conflict';
+      default:
+        return 'Unknown';
     }
   };
 
   const getTypeIcon = (type: ScheduleConflict['type']) => {
     switch (type) {
-      case 'time_overlap': return Clock;
-      case 'ring_conflict': return MapPin;
-      case 'judge_conflict': return Users;
-      case 'resource_conflict': return AlertTriangle;
-      default: return AlertCircle;
+      case 'time_overlap':
+        return Clock;
+      case 'ring_conflict':
+        return MapPin;
+      case 'judge_conflict':
+        return Users;
+      case 'resource_conflict':
+        return AlertTriangle;
+      default:
+        return AlertCircle;
     }
   };
 
@@ -287,10 +307,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
             Monitor and resolve scheduling conflicts automatically or manually
           </p>
         </div>
-        <Button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-        >
+        <Button onClick={handleRefresh} disabled={isRefreshing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
           {isRefreshing ? 'Checking...' : 'Check Conflicts'}
         </Button>
@@ -339,9 +356,9 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Medium</p>
-                <p className="text-xl font-bold text-yellow-600">{statusCounts.medium}</p>
+                <p className="text-xl font-bold text-amber-600">{statusCounts.medium}</p>
               </div>
-              <Clock className="h-6 w-6 text-yellow-600" />
+              <Clock className="h-6 w-6 text-amber-600" />
             </div>
           </CardContent>
         </Card>
@@ -351,9 +368,9 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Resolved</p>
-                <p className="text-xl font-bold text-green-600">{statusCounts.resolved}</p>
+                <p className="text-xl font-bold text-teal-600">{statusCounts.resolved}</p>
               </div>
-              <CheckCircle className="h-6 w-6 text-green-600" />
+              <CheckCircle className="h-6 w-6 text-teal-600" />
             </div>
           </CardContent>
         </Card>
@@ -367,13 +384,13 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
             <Input
               placeholder="Search conflicts..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="pl-10 bg-background border-border/50 focus:border-primary 
                          focus:ring-2 focus:ring-primary/20 rounded-lg"
             />
           </div>
         </div>
-        
+
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
           <SelectTrigger className="w-[140px] bg-background border-border/50">
             <Filter className="h-4 w-4 mr-2" />
@@ -406,54 +423,54 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
       {/* Conflicts list */}
       <Card className="bg-card/95 backdrop-blur-sm border-0 shadow-sm">
         <CardHeader>
-          <CardTitle>
-            Schedule Conflicts ({filteredConflicts.length})
-          </CardTitle>
+          <CardTitle>Schedule Conflicts ({filteredConflicts.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {filteredConflicts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600 opacity-50" />
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-teal-600 opacity-50" />
               <h4 className="font-medium mb-2">No Schedule Conflicts</h4>
               <p className="text-sm">All scheduled items are properly arranged without conflicts</p>
             </div>
           ) : (
             <ScrollArea className="h-[500px]">
               <div className="space-y-4">
-                {filteredConflicts.map((conflict) => {
+                {filteredConflicts.map(conflict => {
                   const TypeIcon = getTypeIcon(conflict.type);
                   const isResolved = !!conflict.resolvedAt;
-                  
+
                   return (
                     <div
                       key={conflict.id}
                       className={`p-4 rounded-lg border transition-all duration-200 ${
-                        isResolved 
-                          ? 'bg-green-50 border-green-200' 
+                        isResolved
+                          ? 'bg-teal-50 border-teal-200'
                           : 'bg-muted/30 border-border/50 hover:border-border'
                       }`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-start gap-3">
-                          <TypeIcon className={`h-5 w-5 mt-0.5 ${
-                            isResolved ? 'text-green-600' : 'text-red-600'
-                          }`} />
+                          <TypeIcon
+                            className={`h-5 w-5 mt-0.5 ${
+                              isResolved ? 'text-teal-600' : 'text-red-600'
+                            }`}
+                          />
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <h4 className="font-medium">{conflict.title}</h4>
                               {isResolved && (
-                                <Badge className="text-xs bg-green-100 text-green-700 border-green-200">
+                                <Badge className="text-xs bg-teal-100 text-teal-700 border-teal-200">
                                   Resolved
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {conflict.description}
-                            </p>
-                            <Badge 
+                            <p className="text-sm text-muted-foreground">{conflict.description}</p>
+                            <Badge
                               className={`text-xs px-2 py-1 rounded-full border ${getSeverityColor(conflict.severity)}`}
                             >
-                              {conflict.severity.charAt(0).toUpperCase() + conflict.severity.slice(1)} • {getTypeLabel(conflict.type)}
+                              {conflict.severity.charAt(0).toUpperCase() +
+                                conflict.severity.slice(1)}{' '}
+                              • {getTypeLabel(conflict.type)}
                             </Badge>
                           </div>
                         </div>
@@ -464,12 +481,17 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
                         <h5 className="text-sm font-medium mb-2">Conflicting Items:</h5>
                         <div className="grid gap-2">
                           {conflict.conflictingItems.map((item, index) => (
-                            <div key={item.id} className="flex items-center justify-between p-3 
-                                                         bg-background rounded border border-border/50">
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between p-3 
+                                                         bg-background rounded border border-border/50"
+                            >
                               <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  index === 0 ? 'bg-red-500' : 'bg-orange-500'
-                                }`} />
+                                <div
+                                  className={`w-2 h-2 rounded-full ${
+                                    index === 0 ? 'bg-red-500' : 'bg-orange-500'
+                                  }`}
+                                />
                                 <div>
                                   <span className="font-medium">{item.name}</span>
                                   <div className="text-xs text-muted-foreground">
@@ -507,33 +529,31 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
                             <span> • Resolved: {conflict.resolvedAt?.toLocaleString()}</span>
                           )}
                         </div>
-                        
+
                         {!isResolved && (
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => logger.debug('View details for:', 'sync', { id: conflict.id })}
+                              onClick={() =>
+                                logger.debug('View details for:', 'sync', { id: conflict.id })
+                              }
                               className="gap-2"
                             >
                               <Eye className="h-3 w-3" />
                               Details
                             </Button>
-                            
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2"
-                            >
+
+                            <Button variant="outline" size="sm" className="gap-2">
                               <Edit className="h-3 w-3" />
                               Edit Schedule
                             </Button>
-                            
+
                             {conflict.canAutoResolve && (
                               <Button
                                 size="sm"
                                 onClick={() => handleAutoResolve(conflict.id)}
-                                className="gap-2 bg-green-600 hover:bg-green-700"
+                                className="gap-2 bg-teal-600 hover:bg-teal-700"
                               >
                                 <CheckCircle className="h-3 w-3" />
                                 Auto Resolve

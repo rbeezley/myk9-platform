@@ -1,7 +1,7 @@
 /**
  * Presence Indicators Component
  * Phase 6.2: Live Competition Features
- * 
+ *
  * Component for displaying user presence information including who's online,
  * their activity status, and analytics about user engagement.
  */
@@ -14,8 +14,8 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { 
-  Users, 
+import {
+  Users,
   Activity,
   Eye,
   Clock,
@@ -28,14 +28,14 @@ import {
   Gavel,
   FileText,
   ShieldCheck,
-  UserCheck
+  UserCheck,
 } from 'lucide-react';
 
-import type { 
-  UserPresence, 
-  PresenceGroup, 
-  ActivityIndicator, 
-  PresenceAnalytics 
+import type {
+  UserPresence,
+  PresenceGroup,
+  ActivityIndicator,
+  PresenceAnalytics,
 } from '../../services/competition/presenceService';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -66,13 +66,13 @@ const ROLE_CONFIG = {
   steward: {
     label: 'Steward',
     icon: UserCheck,
-    color: 'bg-green-100 text-green-700 border-green-200',
+    color: 'bg-teal-100 text-teal-700 border-teal-200',
     priority: 3,
   },
   admin: {
     label: 'Admin',
     icon: ShieldCheck,
-    color: 'bg-purple-100 text-purple-700 border-purple-200',
+    color: 'bg-violet-100 text-violet-700 border-violet-200',
     priority: 4,
   },
   exhibitor: {
@@ -92,13 +92,13 @@ const ROLE_CONFIG = {
 const STATUS_CONFIG = {
   active: {
     label: 'Active',
-    color: 'bg-green-500',
-    textColor: 'text-green-600',
+    color: 'bg-teal-500',
+    textColor: 'text-teal-600',
   },
   idle: {
     label: 'Idle',
-    color: 'bg-yellow-500',
-    textColor: 'text-yellow-600',
+    color: 'bg-amber-500',
+    textColor: 'text-amber-600',
   },
   away: {
     label: 'Away',
@@ -148,9 +148,10 @@ export function PresenceIndicators({
     // Apply filters
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      users = users.filter(user => 
-        user.userName.toLowerCase().includes(term) ||
-        user.displayName.toLowerCase().includes(term)
+      users = users.filter(
+        user =>
+          user.userName.toLowerCase().includes(term) ||
+          user.displayName.toLowerCase().includes(term)
       );
     }
 
@@ -186,8 +187,8 @@ export function PresenceIndicators({
 
   // Get activity indicator for user
   const getUserActivityIndicator = (userId: string) => {
-    return activityIndicators.find(indicator => 
-      indicator.userId === userId && indicator.expiresAt > new Date()
+    return activityIndicators.find(
+      indicator => indicator.userId === userId && indicator.expiresAt > new Date()
     );
   };
 
@@ -223,8 +224,8 @@ export function PresenceIndicators({
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                 {user.avatar ? (
-                  <img 
-                    src={user.avatar} 
+                  <img
+                    src={user.avatar}
                     alt={user.displayName}
                     className="w-full h-full rounded-full object-cover"
                   />
@@ -236,9 +237,7 @@ export function PresenceIndicators({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{user.displayName}</p>
-                <p className="text-sm text-muted-foreground truncate">
-                  {user.userName}
-                </p>
+                <p className="text-sm text-muted-foreground truncate">{user.userName}</p>
               </div>
             </div>
 
@@ -272,11 +271,15 @@ export function PresenceIndicators({
             {/* Activity indicator */}
             {activityIndicator && (
               <div className="flex items-center gap-1 text-xs">
-                <div className={`w-2 h-2 rounded-full animate-pulse ${
-                  activityIndicator.intensity === 'high' ? 'bg-red-500' :
-                  activityIndicator.intensity === 'medium' ? 'bg-yellow-500' :
-                  'bg-green-500'
-                }`} />
+                <div
+                  className={`w-2 h-2 rounded-full animate-pulse ${
+                    activityIndicator.intensity === 'high'
+                      ? 'bg-red-500'
+                      : activityIndicator.intensity === 'medium'
+                        ? 'bg-amber-500'
+                        : 'bg-teal-500'
+                  }`}
+                />
                 <span className="text-muted-foreground">
                   {activityIndicator.type} in {activityIndicator.context}
                 </span>
@@ -286,7 +289,9 @@ export function PresenceIndicators({
             {/* Last seen */}
             <div className="text-xs text-muted-foreground">
               <Clock className="w-3 h-3 inline mr-1" />
-              {user.status === 'active' ? 'Now' : formatDistanceToNow(user.lastSeen, { addSuffix: true })}
+              {user.status === 'active'
+                ? 'Now'
+                : formatDistanceToNow(user.lastSeen, { addSuffix: true })}
             </div>
           </div>
         </CardContent>
@@ -327,9 +332,7 @@ export function PresenceIndicators({
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="users">Users ({filteredUsers.length})</TabsTrigger>
           <TabsTrigger value="groups">Groups ({presenceGroups.length})</TabsTrigger>
-          {showAnalytics && (
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          )}
+          {showAnalytics && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
         </TabsList>
 
         {/* Users Tab */}
@@ -342,7 +345,7 @@ export function PresenceIndicators({
                 <Input
                   placeholder="Search users..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -375,7 +378,7 @@ export function PresenceIndicators({
                 </SelectContent>
               </Select>
 
-              <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+              <Select value={sortBy} onValueChange={value => setSortBy(value as typeof sortBy)}>
                 <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Sort By" />
                 </SelectTrigger>
@@ -399,9 +402,9 @@ export function PresenceIndicators({
                   <Users className="h-8 w-8 mx-auto mb-4 opacity-50" />
                   <p>No users match the current filters</p>
                   {showFilters && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-2"
                       onClick={() => {
                         setSearchTerm('');
@@ -422,23 +425,21 @@ export function PresenceIndicators({
         <TabsContent value="groups" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {presenceGroups.length > 0 ? (
-              presenceGroups.map((group) => (
+              presenceGroups.map(group => (
                 <Card key={group.id}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm">{group.name}</CardTitle>
                       <Badge variant="outline">{group.userCount}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {group.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{group.description}</p>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-2">
-                      {group.users.slice(0, 5).map((user) => {
+                      {group.users.slice(0, 5).map(user => {
                         const roleConfig = getRoleConfig(user.role);
                         const statusConfig = getStatusConfig(user.status);
-                        
+
                         return (
                           <div key={user.userId} className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${statusConfig.color}`} />
@@ -481,7 +482,7 @@ export function PresenceIndicators({
                     {Object.entries(analytics.usersByRole).map(([role, count]) => {
                       const config = getRoleConfig(role as UserPresence['role']);
                       const percentage = (count / analytics.totalUsers) * 100;
-                      
+
                       return (
                         <div key={role} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -490,7 +491,7 @@ export function PresenceIndicators({
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-primary"
                                 style={{ width: `${percentage}%` }}
                               />
@@ -514,7 +515,7 @@ export function PresenceIndicators({
                     {Object.entries(analytics.usersByStatus).map(([status, count]) => {
                       const config = getStatusConfig(status as UserPresence['status']);
                       const percentage = (count / analytics.totalUsers) * 100;
-                      
+
                       return (
                         <div key={status} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -523,7 +524,7 @@ export function PresenceIndicators({
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-primary"
                                 style={{ width: `${percentage}%` }}
                               />
@@ -545,9 +546,10 @@ export function PresenceIndicators({
                 <CardContent>
                   <div className="space-y-2">
                     {Object.entries(analytics.usersByDevice).map(([device, count]) => {
-                      const DeviceIcon = DEVICE_ICONS[device as keyof typeof DEVICE_ICONS] || Monitor;
+                      const DeviceIcon =
+                        DEVICE_ICONS[device as keyof typeof DEVICE_ICONS] || Monitor;
                       const percentage = (count / analytics.totalUsers) * 100;
-                      
+
                       return (
                         <div key={device} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -556,7 +558,7 @@ export function PresenceIndicators({
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-primary"
                                 style={{ width: `${percentage}%` }}
                               />
@@ -593,7 +595,9 @@ export function PresenceIndicators({
                       <div className="text-xs text-muted-foreground">Peak Concurrent</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{Math.round(analytics.averageSessionDuration)}</div>
+                      <div className="text-2xl font-bold">
+                        {Math.round(analytics.averageSessionDuration)}
+                      </div>
                       <div className="text-xs text-muted-foreground">Avg Session (min)</div>
                     </div>
                   </div>

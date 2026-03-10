@@ -140,7 +140,7 @@ export function PermissionTestChecklist() {
     setTesting(true);
     const results: Record<string, boolean | null> = {};
 
-    permissionTests.forEach((test) => {
+    permissionTests.forEach(test => {
       results[test.id] = runTest(test);
     });
 
@@ -150,7 +150,7 @@ export function PermissionTestChecklist() {
 
   const getTestIcon = (result: boolean | null) => {
     if (result === null) return <AlertCircle className="h-5 w-5 text-muted-foreground" />;
-    if (result) return <CheckCircle className="h-5 w-5 text-green-600" />;
+    if (result) return <CheckCircle className="h-5 w-5 text-teal-600" />;
     return <XCircle className="h-5 w-5 text-red-600" />;
   };
 
@@ -172,7 +172,7 @@ export function PermissionTestChecklist() {
               Current Role: <span className="font-semibold">{currentRole}</span>
             </div>
             <Button onClick={runAllTests} disabled={testing} size="sm">
-              <RefreshCw className={cn("h-4 w-4 mr-2", testing && "animate-spin")} />
+              <RefreshCw className={cn('h-4 w-4 mr-2', testing && 'animate-spin')} />
               Run Tests
             </Button>
           </div>
@@ -184,10 +184,10 @@ export function PermissionTestChecklist() {
           <div className="border rounded-lg p-4 bg-muted/50">
             <h3 className="font-semibold mb-2">Test as Different Role:</h3>
             <div className="flex gap-2 flex-wrap">
-              {Object.values(UserRole).map((role) => (
+              {Object.values(UserRole).map(role => (
                 <Button
                   key={role}
-                  variant={currentRole === role ? "default" : "outline"}
+                  variant={currentRole === role ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => {
                     // Switch to mock user with this role
@@ -200,7 +200,10 @@ export function PermissionTestChecklist() {
                       [UserRole.SITE_ADMIN]: 'admin@example.com',
                     };
                     // Role switching not implemented - would require backend changes
-                    logger.debug('Would switch to role:', 'admin', { role, email: mockEmails[role as keyof typeof mockEmails] });
+                    logger.debug('Would switch to role:', 'admin', {
+                      role,
+                      email: mockEmails[role as keyof typeof mockEmails],
+                    });
                     setTestResults({}); // Clear results when switching roles
                   }}
                 >
@@ -212,10 +215,10 @@ export function PermissionTestChecklist() {
 
           {/* Test Results */}
           <div className="space-y-2">
-            {permissionTests.map((test) => {
+            {permissionTests.map(test => {
               const result = testResults[test.id];
               const expected = test.expectedResult[currentRole];
-              
+
               return (
                 <div
                   key={test.id}
@@ -226,21 +229,22 @@ export function PermissionTestChecklist() {
                       <div className="flex items-center gap-2">
                         {getTestIcon(result)}
                         <h4 className="font-semibold">{test.name}</h4>
-                        <span className={cn(
-                          "text-xs px-2 py-1 rounded-full",
-                          result === null && "bg-gray-100 text-gray-600",
-                          result === true && "bg-green-100 text-green-700",
-                          result === false && "bg-red-100 text-red-700"
-                        )}>
+                        <span
+                          className={cn(
+                            'text-xs px-2 py-1 rounded-full',
+                            result === null && 'bg-gray-100 text-gray-600',
+                            result === true && 'bg-teal-100 text-teal-700',
+                            result === false && 'bg-red-100 text-red-700'
+                          )}
+                        >
                           {getTestStatus(result)}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {test.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{test.description}</p>
                       {test.permission && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Permission: <code className="bg-muted px-1 py-0.5 rounded">{test.permission}</code>
+                          Permission:{' '}
+                          <code className="bg-muted px-1 py-0.5 rounded">{test.permission}</code>
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">

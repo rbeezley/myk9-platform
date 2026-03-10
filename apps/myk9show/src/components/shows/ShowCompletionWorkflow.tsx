@@ -5,12 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  FileText, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
   Mail,
   Trophy,
   Users,
@@ -18,7 +24,7 @@ import {
   Database,
   AlertTriangle,
   Printer,
-  Upload
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -51,10 +57,10 @@ interface ShowCompletionWorkflowProps {
   onClose: () => void;
 }
 
-export function ShowCompletionWorkflow({ 
-  showData, 
-  onComplete, 
-  onClose 
+export function ShowCompletionWorkflow({
+  showData,
+  onComplete,
+  onClose,
 }: ShowCompletionWorkflowProps) {
   const [processing, setProcessing] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -66,7 +72,7 @@ export function ShowCompletionWorkflow({
       status: showData.completedClasses === showData.totalClasses ? 'completed' : 'pending',
       required: true,
       icon: Trophy,
-      estimatedTime: '5 min'
+      estimatedTime: '5 min',
     },
     {
       id: 'process_awards',
@@ -76,7 +82,7 @@ export function ShowCompletionWorkflow({
       required: true,
       icon: Trophy,
       estimatedTime: '10 min',
-      dependencies: ['verify_results']
+      dependencies: ['verify_results'],
     },
     {
       id: 'publish_results',
@@ -86,7 +92,7 @@ export function ShowCompletionWorkflow({
       required: true,
       icon: Upload,
       estimatedTime: '2 min',
-      dependencies: ['process_awards']
+      dependencies: ['process_awards'],
     },
     {
       id: 'process_payments',
@@ -95,7 +101,7 @@ export function ShowCompletionWorkflow({
       status: showData.pendingPayments === 0 ? 'completed' : 'pending',
       required: false,
       icon: CreditCard,
-      estimatedTime: '15 min'
+      estimatedTime: '15 min',
     },
     {
       id: 'generate_reports',
@@ -105,7 +111,7 @@ export function ShowCompletionWorkflow({
       required: true,
       icon: FileText,
       estimatedTime: '8 min',
-      dependencies: ['publish_results']
+      dependencies: ['publish_results'],
     },
     {
       id: 'send_notifications',
@@ -115,7 +121,7 @@ export function ShowCompletionWorkflow({
       required: false,
       icon: Mail,
       estimatedTime: '5 min',
-      dependencies: ['generate_reports']
+      dependencies: ['generate_reports'],
     },
     {
       id: 'backup_data',
@@ -124,7 +130,7 @@ export function ShowCompletionWorkflow({
       status: 'pending',
       required: true,
       icon: Database,
-      estimatedTime: '10 min'
+      estimatedTime: '10 min',
     },
     {
       id: 'print_materials',
@@ -134,29 +140,28 @@ export function ShowCompletionWorkflow({
       required: false,
       icon: Printer,
       estimatedTime: '20 min',
-      dependencies: ['process_awards']
-    }
+      dependencies: ['process_awards'],
+    },
   ]);
 
   const executeStep = async (stepId: string) => {
     setProcessing(true);
-    
-    setCompletionSteps(prev => prev.map(step => 
-      step.id === stepId ? { ...step, status: 'in_progress' } : step
-    ));
+
+    setCompletionSteps(prev =>
+      prev.map(step => (step.id === stepId ? { ...step, status: 'in_progress' } : step))
+    );
 
     try {
       // Simulate step processing
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setCompletionSteps(prev => prev.map(step => 
-        step.id === stepId ? { ...step, status: 'completed' } : step
-      ));
-      
+
+      setCompletionSteps(prev =>
+        prev.map(step => (step.id === stepId ? { ...step, status: 'completed' } : step))
+      );
     } catch {
-      setCompletionSteps(prev => prev.map(step => 
-        step.id === stepId ? { ...step, status: 'error' } : step
-      ));
+      setCompletionSteps(prev =>
+        prev.map(step => (step.id === stepId ? { ...step, status: 'error' } : step))
+      );
     } finally {
       setProcessing(false);
     }
@@ -164,13 +169,13 @@ export function ShowCompletionWorkflow({
 
   const executeAllSteps = async () => {
     setProcessing(true);
-    
+
     for (const step of completionSteps) {
       if (step.status === 'pending') {
         await executeStep(step.id);
       }
     }
-    
+
     setProcessing(false);
     setShowConfirmDialog(true);
   };
@@ -184,19 +189,23 @@ export function ShowCompletionWorkflow({
 
   const getStepColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-green-600';
-      case 'error': return 'text-red-600';
-      case 'in_progress': return 'text-blue-600';
-      default: return 'text-muted-foreground';
+      case 'completed':
+        return 'text-teal-600';
+      case 'error':
+        return 'text-red-600';
+      case 'in_progress':
+        return 'text-blue-600';
+      default:
+        return 'text-muted-foreground';
     }
   };
 
   const canExecuteStep = (step: CompletionStep) => {
     if (step.status === 'completed') return false;
     if (!step.dependencies) return true;
-    
-    return step.dependencies.every(depId => 
-      completionSteps.find(s => s.id === depId)?.status === 'completed'
+
+    return step.dependencies.every(
+      depId => completionSteps.find(s => s.id === depId)?.status === 'completed'
     );
   };
 
@@ -204,10 +213,12 @@ export function ShowCompletionWorkflow({
     .filter(step => step.required)
     .every(step => step.status === 'completed');
 
-  const totalProgress = (completionSteps.filter(step => step.status === 'completed').length / completionSteps.length) * 100;
+  const totalProgress =
+    (completionSteps.filter(step => step.status === 'completed').length / completionSteps.length) *
+    100;
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -218,9 +229,7 @@ export function ShowCompletionWorkflow({
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Show Completion Workflow</span>
-            <Badge variant="outline">
-              {Math.round(totalProgress)}% Complete
-            </Badge>
+            <Badge variant="outline">{Math.round(totalProgress)}% Complete</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -244,11 +253,13 @@ export function ShowCompletionWorkflow({
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Pending Payments</div>
-                  <div className={cn(
-                    "font-semibold",
-                    showData.pendingPayments > 0 ? "text-orange-600" : "text-green-600"
-                  )}>
-                    {showData.pendingPayments === 0 ? "None" : showData.pendingPayments}
+                  <div
+                    className={cn(
+                      'font-semibold',
+                      showData.pendingPayments > 0 ? 'text-orange-600' : 'text-teal-600'
+                    )}
+                  >
+                    {showData.pendingPayments === 0 ? 'None' : showData.pendingPayments}
                   </div>
                 </div>
               </div>
@@ -269,17 +280,16 @@ export function ShowCompletionWorkflow({
               const IconComponent = getStepIcon(step);
               const iconColor = getStepColor(step.status);
               const isExecutable = canExecuteStep(step);
-              
+
               return (
                 <div key={step.id} className="space-y-3">
                   <div className="flex items-start gap-4">
-                    <div className={cn("p-2 rounded-full bg-muted flex-shrink-0", iconColor)}>
-                      <IconComponent className={cn(
-                        "h-4 w-4",
-                        step.status === 'in_progress' && "animate-spin"
-                      )} />
+                    <div className={cn('p-2 rounded-full bg-muted flex-shrink-0', iconColor)}>
+                      <IconComponent
+                        className={cn('h-4 w-4', step.status === 'in_progress' && 'animate-spin')}
+                      />
                     </div>
-                    
+
                     <div className="flex-grow">
                       <div className="flex items-center justify-between">
                         <div>
@@ -291,16 +301,14 @@ export function ShowCompletionWorkflow({
                               </Badge>
                             )}
                           </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {step.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{step.description}</p>
                           {step.estimatedTime && (
                             <p className="text-xs text-muted-foreground">
                               Est. time: {step.estimatedTime}
                             </p>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           {step.status === 'pending' && isExecutable && (
                             <Button
@@ -311,7 +319,7 @@ export function ShowCompletionWorkflow({
                               Execute
                             </Button>
                           )}
-                          
+
                           {step.status === 'error' && (
                             <Button
                               size="sm"
@@ -321,33 +329,32 @@ export function ShowCompletionWorkflow({
                               Retry
                             </Button>
                           )}
-                          
+
                           {step.status === 'completed' && (
-                            <Badge variant="default" className="bg-green-100 text-green-800">
+                            <Badge variant="default" className="bg-teal-100 text-teal-800">
                               Complete
                             </Badge>
                           )}
-                          
+
                           {step.status === 'pending' && !isExecutable && (
-                            <Badge variant="outline">
-                              Waiting
-                            </Badge>
+                            <Badge variant="outline">Waiting</Badge>
                           )}
                         </div>
                       </div>
-                      
+
                       {step.dependencies && step.dependencies.length > 0 && (
                         <div className="mt-2">
                           <p className="text-xs text-muted-foreground">
-                            Depends on: {step.dependencies.map(depId => 
-                              completionSteps.find(s => s.id === depId)?.title
-                            ).join(', ')}
+                            Depends on:{' '}
+                            {step.dependencies
+                              .map(depId => completionSteps.find(s => s.id === depId)?.title)
+                              .join(', ')}
                           </p>
                         </div>
                       )}
                     </div>
                   </div>
-                  
+
                   {index < completionSteps.length - 1 && <Separator />}
                 </div>
               );
@@ -363,26 +370,26 @@ export function ShowCompletionWorkflow({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex items-center gap-2"
               onClick={() => window.open(`/reports/show/${showData.showId}`, '_blank')}
             >
               <FileText className="h-4 w-4" />
               View Reports
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="flex items-center gap-2"
               onClick={() => window.open(`/results/show/${showData.showId}`, '_blank')}
             >
               <Trophy className="h-4 w-4" />
               View Results
             </Button>
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               className="flex items-center gap-2"
               onClick={() => window.open(`/entries/show/${showData.showId}`, '_blank')}
             >
@@ -395,7 +402,7 @@ export function ShowCompletionWorkflow({
 
       {/* Action Buttons */}
       <div className="flex gap-3">
-        <Button 
+        <Button
           onClick={executeAllSteps}
           disabled={processing || totalProgress === 100}
           className="flex-1"
@@ -417,20 +424,16 @@ export function ShowCompletionWorkflow({
             </>
           )}
         </Button>
-        
-        <Button 
-          variant="outline" 
-          onClick={onClose}
-          disabled={processing}
-        >
+
+        <Button variant="outline" onClick={onClose} disabled={processing}>
           Close
         </Button>
-        
+
         {requiredStepsCompleted && (
-          <Button 
+          <Button
             onClick={() => setShowConfirmDialog(true)}
             disabled={processing}
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-teal-600 hover:bg-teal-700"
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Complete Show
@@ -443,27 +446,27 @@ export function ShowCompletionWorkflow({
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CheckCircle2 className="h-5 w-5 text-teal-600" />
               Complete Show?
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <p className="text-muted-foreground">
               Are you ready to mark this show as complete? This action will:
             </p>
-            
+
             <ul className="space-y-1 text-sm">
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-green-600" />
+                <CheckCircle2 className="h-3 w-3 text-teal-600" />
                 Finalize all results and awards
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-green-600" />
+                <CheckCircle2 className="h-3 w-3 text-teal-600" />
                 Archive show data permanently
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-green-600" />
+                <CheckCircle2 className="h-3 w-3 text-teal-600" />
                 Generate completion certificates
               </li>
               <li className="flex items-center gap-2">
@@ -471,25 +474,25 @@ export function ShowCompletionWorkflow({
                 Prevent further modifications
               </li>
             </ul>
-            
+
             <div className="bg-amber-50 dark:bg-amber-950 p-3 rounded-lg">
               <p className="text-sm text-amber-800 dark:text-amber-200">
-                <strong>Warning:</strong> Once completed, show results cannot be modified. 
-                Ensure all scores and awards are correct before proceeding.
+                <strong>Warning:</strong> Once completed, show results cannot be modified. Ensure
+                all scores and awards are correct before proceeding.
               </p>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 setShowConfirmDialog(false);
                 onComplete();
               }}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-teal-600 hover:bg-teal-700"
             >
               Complete Show
             </Button>

@@ -176,7 +176,7 @@ export const ShowSelector: React.FC<ShowSelectorProps> = ({ shows, onShowSelecte
       case 'upcoming':
         return 'bg-blue-100 text-blue-800';
       case 'active':
-        return 'bg-green-100 text-green-800';
+        return 'bg-teal-100 text-teal-800';
       case 'completed':
         return 'bg-gray-100 text-gray-800';
       case 'cancelled':
@@ -381,13 +381,13 @@ export const ShowSelector: React.FC<ShowSelectorProps> = ({ shows, onShowSelecte
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4 text-green-500" />
+                              <Building2 className="h-4 w-4 text-teal-500" />
                               <span>
                                 {stats.classCount} class{stats.classCount !== 1 ? 'es' : ''}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-purple-500" />
+                              <Users className="h-4 w-4 text-violet-500" />
                               <span>
                                 {stats.judgeCount} judge{stats.judgeCount !== 1 ? 's' : ''}
                               </span>

@@ -8,17 +8,17 @@ import { Separator } from '@/components/ui/separator';
 import { LiveUpdate, collaborationHub } from '@/services/collaboration/CollaborationHubService';
 import { logger } from '@/services/LoggingService';
 import {
-  Activity, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  RefreshCw, 
-  Users, 
-  Dog, 
-  User, 
-  Building, 
+  Activity,
+  Plus,
+  Edit,
+  Trash2,
+  RefreshCw,
+  Users,
+  Dog,
+  User,
+  Building,
   Trophy,
-  Clock
+  Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -38,27 +38,27 @@ const entityIcons: Record<string, React.ComponentType<{ className?: string }>> =
   club: Building,
   entry: Users,
   class: Activity,
-  score: RefreshCw
+  score: RefreshCw,
 };
 
 const actionIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   created: Plus,
   updated: Edit,
   deleted: Trash2,
-  status_changed: RefreshCw
+  status_changed: RefreshCw,
 };
 
 const actionColors: Record<string, string> = {
-  created: 'bg-green-100 text-green-800 border-green-200',
+  created: 'bg-teal-100 text-teal-800 border-teal-200',
   updated: 'bg-blue-100 text-blue-800 border-blue-200',
   deleted: 'bg-red-100 text-red-800 border-red-200',
-  status_changed: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+  status_changed: 'bg-amber-100 text-amber-800 border-amber-200',
 };
 
 const priorityColors: Record<string, string> = {
   high: 'border-l-red-500',
-  medium: 'border-l-yellow-500',
-  low: 'border-l-green-500'
+  medium: 'border-l-amber-500',
+  low: 'border-l-teal-500',
 };
 
 export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
@@ -66,30 +66,33 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
   entityId,
   showId,
   className = '',
-  maxVisible = 5
+  maxVisible = 5,
 }) => {
   const [updates, setUpdates] = useState<LiveUpdate[]>([]);
   const [recentCount, setRecentCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleUpdate = useCallback((update: LiveUpdate) => {
-    setUpdates(prev => {
-      const newUpdates = [update, ...prev].slice(0, 50); // Keep last 50 updates
-      return newUpdates;
-    });
+  const handleUpdate = useCallback(
+    (update: LiveUpdate) => {
+      setUpdates(prev => {
+        const newUpdates = [update, ...prev].slice(0, 50); // Keep last 50 updates
+        return newUpdates;
+      });
 
-    // Count recent updates (last 5 minutes)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    setRecentCount(() => {
-      const recent = updates.filter(u => u.timestamp > fiveMinutesAgo).length + 1;
-      return recent;
-    });
+      // Count recent updates (last 5 minutes)
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      setRecentCount(() => {
+        const recent = updates.filter(u => u.timestamp > fiveMinutesAgo).length + 1;
+        return recent;
+      });
 
-    // Auto-hide the recent count after 10 seconds
-    setTimeout(() => {
-      setRecentCount(prev => Math.max(0, prev - 1));
-    }, 10000);
-  }, [updates]);
+      // Auto-hide the recent count after 10 seconds
+      setTimeout(() => {
+        setRecentCount(prev => Math.max(0, prev - 1));
+      }, 10000);
+    },
+    [updates]
+  );
 
   useEffect(() => {
     const subscriptions: string[] = [];
@@ -121,15 +124,15 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
   const formatUpdateMessage = (update: LiveUpdate): string => {
     const entityName = update.entityType.charAt(0).toUpperCase() + update.entityType.slice(1);
     const action = update.action.replace('_', ' ');
-    
+
     if (update.data && update.data.count !== undefined) {
       return `Entry count updated to ${update.data.count}`;
     }
-    
+
     if (update.action === 'status_changed' && update.data?.status) {
       return `Status changed to ${update.data.status}`;
     }
-    
+
     return `${entityName} ${action}`;
   };
 
@@ -158,19 +161,19 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
           <div className="p-1 rounded-md bg-muted">
             <EntityIcon className="w-3 h-3" />
           </div>
-          <div className={cn(
-            'p-1 rounded-md',
-            actionColors[update.action] || 'bg-gray-100 text-gray-800'
-          )}>
+          <div
+            className={cn(
+              'p-1 rounded-md',
+              actionColors[update.action] || 'bg-gray-100 text-gray-800'
+            )}
+          >
             <ActionIcon className="w-3 h-3" />
           </div>
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
-            <p className="text-sm font-medium truncate">
-              {formatUpdateMessage(update)}
-            </p>
+            <p className="text-sm font-medium truncate">{formatUpdateMessage(update)}</p>
             <Badge variant="outline" className="text-xs shrink-0">
               {update.action.replace('_', ' ')}
             </Badge>
@@ -205,11 +208,7 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
     <div className={cn('flex items-center', className)}>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="relative h-8 px-2"
-          >
+          <Button variant="ghost" size="sm" className="relative h-8 px-2">
             <Activity className="w-4 h-4" />
             {recentCount > 0 && (
               <Badge
@@ -239,7 +238,9 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
               <ScrollArea className="h-80">
                 {updates.length > 0 ? (
                   <div className="divide-y">
-                    {updates.slice(0, maxVisible).map((update, index) => renderUpdate(update, index))}
+                    {updates
+                      .slice(0, maxVisible)
+                      .map((update, index) => renderUpdate(update, index))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -251,7 +252,7 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
                   </div>
                 )}
               </ScrollArea>
-              
+
               {updates.length > maxVisible && (
                 <div className="p-3 border-t">
                   <Button
@@ -277,8 +278,14 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
         <div className="ml-2 flex items-center">
           <div className="flex space-x-1">
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }} />
-            <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+            <div
+              className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"
+              style={{ animationDelay: '0.1s' }}
+            />
+            <div
+              className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"
+              style={{ animationDelay: '0.2s' }}
+            />
           </div>
         </div>
       )}

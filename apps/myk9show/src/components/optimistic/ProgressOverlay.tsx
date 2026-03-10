@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Loader2, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
+import {
+  Loader2,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -21,7 +21,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
   operations = [],
   showDetails = false,
   allowCancel = false,
-  onCancel
+  onCancel,
 }) => {
   const [expanded, setExpanded] = useState(showDetails);
   const [visible, setVisible] = useState(operations.length > 0);
@@ -30,19 +30,19 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
     setVisible(operations.length > 0);
   }, [operations]);
 
-  const getStatusIcon = (status: string, className = "w-4 h-4") => {
+  const getStatusIcon = (status: string, className = 'w-4 h-4') => {
     switch (status) {
       case 'pending':
         return <Loader2 className={cn(className, 'animate-spin text-blue-500')} />;
       case 'retrying':
         return <Clock className={cn(className, 'text-orange-500')} />;
       case 'confirmed':
-        return <CheckCircle className={cn(className, 'text-green-500')} />;
+        return <CheckCircle className={cn(className, 'text-teal-500')} />;
       case 'failed':
       case 'rolled_back':
         return <XCircle className={cn(className, 'text-red-500')} />;
       case 'rolling_back':
-        return <AlertTriangle className={cn(className, 'text-yellow-500 animate-pulse')} />;
+        return <AlertTriangle className={cn(className, 'text-amber-500 animate-pulse')} />;
       default:
         return <Loader2 className={cn(className, 'animate-spin text-gray-500')} />;
     }
@@ -52,14 +52,16 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
     const variants = {
       pending: 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
       retrying: 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
-      confirmed: 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+      confirmed: 'bg-teal-100 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400',
       failed: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
       rolled_back: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
-      rolling_back: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+      rolling_back: 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
     };
 
     return (
-      <Badge className={cn('text-xs', variants[status as keyof typeof variants] || variants.pending)}>
+      <Badge
+        className={cn('text-xs', variants[status as keyof typeof variants] || variants.pending)}
+      >
         {status.replace('_', ' ')}
       </Badge>
     );
@@ -67,11 +69,11 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
 
   const getOperationDescription = (operation: OptimisticOperation) => {
     const { type, entityType, payload } = operation;
-    
+
     // Type guard for payload with name property
     const hasName = payload && typeof payload === 'object' && 'name' in payload;
     const name = hasName ? (payload as { name: string }).name : undefined;
-    
+
     switch (type) {
       case 'create':
         return `Creating ${entityType}${name ? `: ${name}` : ''}`;
@@ -88,27 +90,27 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
 
   const calculateProgress = () => {
     if (operations.length === 0) return 100;
-    
-    const completed = operations.filter(op => 
-      op.status === 'confirmed' || op.status === 'failed' || op.status === 'rolled_back'
+
+    const completed = operations.filter(
+      op => op.status === 'confirmed' || op.status === 'failed' || op.status === 'rolled_back'
     ).length;
-    
+
     return Math.round((completed / operations.length) * 100);
   };
 
   const getOverallStatus = () => {
     if (operations.length === 0) return 'completed';
-    
+
     const hasRetrying = operations.some(op => op.status === 'retrying');
     const hasPending = operations.some(op => op.status === 'pending');
     const hasFailed = operations.some(op => op.status === 'failed' || op.status === 'rolled_back');
     const hasRollingBack = operations.some(op => op.status === 'rolling_back');
-    
+
     if (hasRollingBack) return 'rolling_back';
     if (hasFailed) return 'failed';
     if (hasRetrying) return 'retrying';
     if (hasPending) return 'pending';
-    
+
     return 'completed';
   };
 
@@ -139,12 +141,12 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                 {getStatusIcon(overallStatus)}
                 Processing Operations
               </CardTitle>
-              
+
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs">
                   {operations.length}
                 </Badge>
-                
+
                 {operations.length > 1 && (
                   <Button
                     variant="ghost"
@@ -159,7 +161,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                     )}
                   </Button>
                 )}
-                
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -170,7 +172,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                 </Button>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Progress value={progress} className="h-2" />
               <p className="text-xs text-muted-foreground">
@@ -178,7 +180,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
               </p>
             </div>
           </CardHeader>
-          
+
           <CardContent className="pt-0">
             <AnimatePresence>
               {expanded && operations.length > 1 ? (
@@ -189,7 +191,7 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                   transition={{ duration: 0.2 }}
                   className="space-y-2 max-h-60 overflow-y-auto"
                 >
-                  {operations.map((operation) => (
+                  {operations.map(operation => (
                     <motion.div
                       key={operation.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -198,26 +200,26 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                       className="flex items-center justify-between p-2 bg-muted/30 rounded-lg"
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {getStatusIcon(operation.status, "w-3 h-3")}
+                        {getStatusIcon(operation.status, 'w-3 h-3')}
                         <span className="text-xs text-foreground truncate">
                           {getOperationDescription(operation)}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         {getStatusBadge(operation.status)}
-                        
-                        {allowCancel && 
-                         (operation.status === 'pending' || operation.status === 'retrying') && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCancel(operation.id)}
-                            className="h-5 w-5 p-0 text-muted-foreground hover:text-red-500"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        )}
+
+                        {allowCancel &&
+                          (operation.status === 'pending' || operation.status === 'retrying') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCancel(operation.id)}
+                              className="h-5 w-5 p-0 text-muted-foreground hover:text-red-500"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
                       </div>
                     </motion.div>
                   ))}
@@ -226,28 +228,28 @@ export const ProgressOverlay: React.FC<ProgressOverlayProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">
-                      {operations.length === 1 
+                      {operations.length === 1
                         ? getOperationDescription(operations[0])
-                        : `${operations.length} operations in progress`
-                      }
+                        : `${operations.length} operations in progress`}
                     </span>
                   </div>
-                  
+
                   {operations.length === 1 && (
                     <div className="flex items-center gap-2">
                       {getStatusBadge(operations[0].status)}
-                      
-                      {allowCancel && 
-                       (operations[0].status === 'pending' || operations[0].status === 'retrying') && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleCancel(operations[0].id)}
-                          className="h-6 px-2 text-xs text-muted-foreground hover:text-red-500"
-                        >
-                          Cancel
-                        </Button>
-                      )}
+
+                      {allowCancel &&
+                        (operations[0].status === 'pending' ||
+                          operations[0].status === 'retrying') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancel(operations[0].id)}
+                            className="h-6 px-2 text-xs text-muted-foreground hover:text-red-500"
+                          >
+                            Cancel
+                          </Button>
+                        )}
                     </div>
                   )}
                 </div>
@@ -276,11 +278,7 @@ export const FormSubmissionOverlay: React.FC<{
 export const BulkOperationOverlay: React.FC<{
   operations: OptimisticOperation[];
 }> = ({ operations }) => (
-  <ProgressOverlay
-    operations={operations}
-    showDetails={true}
-    allowCancel={false}
-  />
+  <ProgressOverlay operations={operations} showDetails={true} allowCancel={false} />
 );
 
 export const FileUploadOverlay: React.FC<{

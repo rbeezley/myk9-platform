@@ -10,15 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Grid, 
+import {
+  Search,
+  Grid,
   Filter,
   ChevronDown,
   ChevronRight,
   Check,
   Minus,
-  RotateCcw
+  RotateCcw,
 } from 'lucide-react';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -43,11 +43,13 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
   permissions,
   rolePermissions,
   onPermissionChange,
-  readOnly = false
+  readOnly = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [resourceFilter, setResourceFilter] = useState<string>('all');
-  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['show', 'entry']));
+  const [expandedResources, setExpandedResources] = useState<Set<string>>(
+    new Set(['show', 'entry'])
+  );
 
   // Helper to get resource from permission (from code or resource field)
   const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'other';
@@ -63,26 +65,31 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
   // Filter and group permissions
   const filteredPermissions = useMemo(() => {
     return permissions.filter(permission => {
-      const matchesSearch = searchTerm === '' ||
+      const matchesSearch =
+        searchTerm === '' ||
         permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         getDisplayName(permission).toLowerCase().includes(searchTerm.toLowerCase()) ||
         getResource(permission).toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesResource = resourceFilter === 'all' || getResource(permission) === resourceFilter;
+      const matchesResource =
+        resourceFilter === 'all' || getResource(permission) === resourceFilter;
 
       return matchesSearch && matchesResource;
     });
   }, [permissions, searchTerm, resourceFilter]);
 
   const permissionsByResource = useMemo(() => {
-    const grouped = filteredPermissions.reduce((acc, permission) => {
-      const resource = getResource(permission);
-      if (!acc[resource]) {
-        acc[resource] = [];
-      }
-      acc[resource].push(permission);
-      return acc;
-    }, {} as Record<string, Permission[]>);
+    const grouped = filteredPermissions.reduce(
+      (acc, permission) => {
+        const resource = getResource(permission);
+        if (!acc[resource]) {
+          acc[resource] = [];
+        }
+        acc[resource].push(permission);
+        return acc;
+      },
+      {} as Record<string, Permission[]>
+    );
 
     // Sort permissions within each resource group
     Object.keys(grouped).forEach(resource => {
@@ -104,23 +111,23 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
 
   // Helper to check if a role has a permission
   const hasPermission = (roleId: string, permissionId: string) => {
-    return rolePermissions.some(rp => 
-      rp.role_id === roleId && rp.permission_id === permissionId
-    );
+    return rolePermissions.some(rp => rp.role_id === roleId && rp.permission_id === permissionId);
   };
 
   // Helper to get role permission stats
   const getRoleStats = (roleId: string) => {
     const rolePerms = rolePermissions.filter(rp => rp.role_id === roleId);
-    const grantedInFiltered = rolePerms.filter(rp => 
+    const grantedInFiltered = rolePerms.filter(rp =>
       filteredPermissions.some(p => p.id === rp.permission_id)
     ).length;
-    
+
     return {
       total: filteredPermissions.length,
       granted: grantedInFiltered,
-      percentage: filteredPermissions.length > 0 ? 
-        Math.round((grantedInFiltered / filteredPermissions.length) * 100) : 0
+      percentage:
+        filteredPermissions.length > 0
+          ? Math.round((grantedInFiltered / filteredPermissions.length) * 100)
+          : 0,
     };
   };
 
@@ -145,9 +152,7 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
         <CardContent className="p-12 text-center">
           <Grid className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No roles to display</h3>
-          <p className="text-muted-foreground">
-            Add roles to see the permission grid
-          </p>
+          <p className="text-muted-foreground">Add roles to see the permission grid</p>
         </CardContent>
       </Card>
     );
@@ -173,7 +178,7 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
               <Input
                 placeholder="Search permissions..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -204,10 +209,11 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
       {/* Role Headers with Stats */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid gap-4" style={{ gridTemplateColumns: `300px repeat(${roles.length}, 1fr)` }}>
-            <div className="font-medium text-sm text-muted-foreground">
-              Permission / Role
-            </div>
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: `300px repeat(${roles.length}, 1fr)` }}
+          >
+            <div className="font-medium text-sm text-muted-foreground">Permission / Role</div>
             {roles.map(role => {
               const stats = getRoleStats(role.id);
               return (
@@ -216,9 +222,7 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
                   <Badge variant="outline" className="text-xs">
                     {stats.granted}/{stats.total}
                   </Badge>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {stats.percentage}%
-                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">{stats.percentage}%</div>
                 </div>
               );
             })}
@@ -236,8 +240,8 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
 
             return (
               <Card key={resource}>
-                <Collapsible 
-                  open={isExpanded} 
+                <Collapsible
+                  open={isExpanded}
                   onOpenChange={() => toggleResourceExpansion(resource)}
                 >
                   <CollapsibleTrigger asChild>
@@ -248,21 +252,17 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
                         ) : (
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         )}
-                        <CardTitle className="text-lg capitalize">
-                          {resource} Permissions
-                        </CardTitle>
-                        <Badge variant="outline">
-                          {resourcePermissions.length} permissions
-                        </Badge>
+                        <CardTitle className="text-lg capitalize">{resource} Permissions</CardTitle>
+                        <Badge variant="outline">{resourcePermissions.length} permissions</Badge>
                       </div>
                     </CardHeader>
                   </CollapsibleTrigger>
-                  
+
                   <CollapsibleContent>
                     <CardContent className="pt-0">
                       <div className="space-y-2">
                         {resourcePermissions.map(permission => (
-                          <div 
+                          <div
                             key={permission.id}
                             className="grid gap-4 items-center py-2 border-b border-border/50 last:border-b-0"
                             style={{ gridTemplateColumns: `300px repeat(${roles.length}, 1fr)` }}
@@ -282,15 +282,17 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
                             </div>
                             {roles.map(role => {
                               const hasPermissionGranted = hasPermission(role.id, permission.id);
-                              
+
                               return (
                                 <div key={role.id} className="flex justify-center">
                                   {readOnly || !onPermissionChange ? (
-                                    <div className={`w-6 h-6 rounded flex items-center justify-center ${
-                                      hasPermissionGranted 
-                                        ? 'bg-green-100 text-green-600' 
-                                        : 'bg-gray-100 text-gray-400'
-                                    }`}>
+                                    <div
+                                      className={`w-6 h-6 rounded flex items-center justify-center ${
+                                        hasPermissionGranted
+                                          ? 'bg-teal-100 text-teal-600'
+                                          : 'bg-gray-100 text-gray-400'
+                                      }`}
+                                    >
                                       {hasPermissionGranted ? (
                                         <Check className="h-4 w-4" />
                                       ) : (
@@ -300,7 +302,7 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
                                   ) : (
                                     <Checkbox
                                       checked={hasPermissionGranted}
-                                      onCheckedChange={(checked) => 
+                                      onCheckedChange={checked =>
                                         onPermissionChange(permission.id, !!checked)
                                       }
                                       disabled={(role.is_system ?? false) && roles.length > 1}
@@ -329,8 +331,7 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
             <p className="text-muted-foreground">
               {searchTerm || resourceFilter !== 'all'
                 ? 'No permissions match your current filters'
-                : 'No permissions available'
-              }
+                : 'No permissions available'}
             </p>
             {(searchTerm || resourceFilter !== 'all') && (
               <Button variant="outline" onClick={clearFilters} className="mt-4">
@@ -346,8 +347,8 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
         <CardContent className="p-4">
           <div className="flex items-center justify-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-100 rounded flex items-center justify-center">
-                <Check className="h-3 w-3 text-green-600" />
+              <div className="w-4 h-4 bg-teal-100 rounded flex items-center justify-center">
+                <Check className="h-3 w-3 text-teal-600" />
               </div>
               <span>Permission Granted</span>
             </div>

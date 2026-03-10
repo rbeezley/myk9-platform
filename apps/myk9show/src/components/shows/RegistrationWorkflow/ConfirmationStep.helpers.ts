@@ -217,11 +217,11 @@ export function getStatusBadgeVariant(
 export function getEntryStatusBadgeColor(status: EntryStatus): string {
   switch (status) {
     case EntryStatus.ACCEPTED:
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'bg-teal-100 text-teal-800 border-teal-200';
     case EntryStatus.REJECTED:
       return 'bg-red-100 text-red-800 border-red-200';
     case EntryStatus.WAITLIST:
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      return 'bg-amber-100 text-amber-800 border-amber-200';
     case EntryStatus.MISSING_INFO:
       return 'bg-orange-100 text-orange-800 border-orange-200';
     default:
@@ -234,7 +234,7 @@ export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:
     case PaymentStatus.PAID_BY_CASH:
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'bg-teal-100 text-teal-800 border-teal-200';
     case PaymentStatus.REFUNDED:
     case PaymentStatus.PARTIAL_REFUND:
       return 'bg-red-100 text-red-800 border-red-200';

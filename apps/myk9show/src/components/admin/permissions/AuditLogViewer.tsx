@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -20,9 +20,9 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { 
-  FileText, 
-  Download, 
+import {
+  FileText,
+  Download,
   Filter,
   Calendar as CalendarIcon,
   Search,
@@ -32,7 +32,7 @@ import {
   Clock,
   Activity,
   Shield,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 import { format, subDays, subWeeks } from 'date-fns';
 import { auditService } from '@/services/AuditService';
@@ -57,7 +57,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   entityId,
   userId,
   showFilters = true,
-  maxHeight = '600px'
+  maxHeight = '600px',
 }) => {
   const [auditEntries, setAuditEntries] = useState<EnhancedAuditEntry[]>([]);
   // const [rbacAuditEntries] = useState<AuditLogEntry[]>([]); // Commented out as not used
@@ -69,7 +69,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
     startDate: subWeeks(new Date(), 1), // Default to last week
     endDate: new Date(),
     page: 1,
-    pageSize: 50
+    pageSize: 50,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: subWeeks(new Date(), 1),
-    to: new Date()
+    to: new Date(),
   });
 
   const loadAuditData = useCallback(async () => {
@@ -87,7 +87,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
 
       // Load general audit entries
       const auditResult = await auditService.searchAuditTrail(filters);
-      
+
       // Load RBAC-specific audit entries
       const rbacEntries = await rbacService.getAuditLog({
         startDate: filters.startDate,
@@ -95,28 +95,29 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
         userId: filters.userId,
         entityType: filters.entityType,
         page: filters.page || 1,
-        pageSize: filters.pageSize || 50
+        pageSize: filters.pageSize || 50,
       });
 
       // Combine and enhance entries
       const enhancedEntries: EnhancedAuditEntry[] = auditResult.entries.map(entry => {
-        const rbacDetail = rbacEntries.entries.find(rbac => 
-          rbac.created_at && 
-          Math.abs(new Date(rbac.created_at).getTime() - entry.timestamp.getTime()) < 5000 // 5 second window
+        const rbacDetail = rbacEntries.entries.find(
+          rbac =>
+            rbac.created_at &&
+            Math.abs(new Date(rbac.created_at).getTime() - entry.timestamp.getTime()) < 5000 // 5 second window
         );
-        
+
         return {
           ...entry,
-          rbacDetails: rbacDetail
+          rbacDetails: rbacDetail,
         };
       });
 
       // Add RBAC entries that don't have general audit counterparts
       rbacEntries.entries.forEach(rbacEntry => {
-        const hasGeneralEntry = enhancedEntries.some(entry => 
-          entry.rbacDetails?.id === rbacEntry.id
+        const hasGeneralEntry = enhancedEntries.some(
+          entry => entry.rbacDetails?.id === rbacEntry.id
         );
-        
+
         if (!hasGeneralEntry) {
           enhancedEntries.push({
             id: rbacEntry.id,
@@ -125,7 +126,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
             action: mapRbacActionToAuditAction(rbacEntry.action),
             entityType: rbacEntry.target_type || 'rbac_permission',
             entityId: rbacEntry.target_id || 'unknown',
-            rbacDetails: rbacEntry
+            rbacDetails: rbacEntry,
           });
         }
       });
@@ -165,7 +166,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       ...prev,
       startDate: range.from,
       endDate: range.to,
-      page: 1
+      page: 1,
     }));
   };
 
@@ -178,12 +179,12 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   const exportAuditLog = async () => {
     try {
       setIsLoading(true);
-      
+
       // Export with current filters but no pagination
       const exportData = await auditService.exportAuditTrail({
         ...filters,
         page: 1,
-        pageSize: 10000 // Large number to get all entries
+        pageSize: 10000, // Large number to get all entries
       });
 
       // Create blob and download
@@ -204,9 +205,17 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
   const getActionBadge = (action: AuditAction) => {
     switch (action) {
       case AuditAction.CREATE:
-        return <Badge variant="default" className="bg-green-100 text-green-700">Create</Badge>;
+        return (
+          <Badge variant="default" className="bg-teal-100 text-teal-700">
+            Create
+          </Badge>
+        );
       case AuditAction.UPDATE:
-        return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Update</Badge>;
+        return (
+          <Badge variant="outline" className="border-amber-500 text-amber-700">
+            Update
+          </Badge>
+        );
       case AuditAction.DELETE:
         return <Badge variant="destructive">Delete</Badge>;
       case AuditAction.LOGIN:
@@ -214,13 +223,29 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
       case AuditAction.LOGOUT:
         return <Badge variant="outline">Logout</Badge>;
       case AuditAction.IMPERSONATE_START:
-        return <Badge variant="outline" className="border-purple-500 text-purple-700">Impersonate Start</Badge>;
+        return (
+          <Badge variant="outline" className="border-violet-500 text-violet-700">
+            Impersonate Start
+          </Badge>
+        );
       case AuditAction.IMPERSONATE_END:
-        return <Badge variant="outline" className="border-purple-300 text-purple-600">Impersonate End</Badge>;
+        return (
+          <Badge variant="outline" className="border-violet-300 text-violet-600">
+            Impersonate End
+          </Badge>
+        );
       case AuditAction.EXPORT:
-        return <Badge variant="outline" className="border-blue-500 text-blue-700">Export</Badge>;
+        return (
+          <Badge variant="outline" className="border-blue-500 text-blue-700">
+            Export
+          </Badge>
+        );
       case AuditAction.IMPORT:
-        return <Badge variant="outline" className="border-indigo-500 text-indigo-700">Import</Badge>;
+        return (
+          <Badge variant="outline" className="border-indigo-500 text-indigo-700">
+            Import
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">System</Badge>;
     }
@@ -257,20 +282,12 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
               <div className="text-sm text-muted-foreground">
                 Showing {filteredEntries.length} of {totalCount} entries
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadAuditData}
-                disabled={isLoading}
-              >
+              <Button variant="outline" size="sm" onClick={loadAuditData} disabled={isLoading}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
             </div>
-            <Button
-              onClick={exportAuditLog}
-              disabled={isLoading || filteredEntries.length === 0}
-            >
+            <Button onClick={exportAuditLog} disabled={isLoading || filteredEntries.length === 0}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
@@ -297,7 +314,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                   <Input
                     placeholder="Search entries..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={e => setSearchTerm(e.target.value)}
                     className="pl-8"
                   />
                 </div>
@@ -306,9 +323,10 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
               {/* Action Filter */}
               <div className="space-y-2">
                 <Label>Action</Label>
-                <Select value={filters.action || ''} onValueChange={(value) => 
-                  handleFilterChange('action', value || undefined)
-                }>
+                <Select
+                  value={filters.action || ''}
+                  onValueChange={value => handleFilterChange('action', value || undefined)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All actions" />
                   </SelectTrigger>
@@ -329,7 +347,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 <Input
                   placeholder="e.g. role, user, permission"
                   value={filters.entityType || ''}
-                  onChange={(e) => handleFilterChange('entityType', e.target.value || undefined)}
+                  onChange={e => handleFilterChange('entityType', e.target.value || undefined)}
                 />
               </div>
 
@@ -339,7 +357,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 <Input
                   placeholder="Filter by user ID"
                   value={filters.userId || ''}
-                  onChange={(e) => handleFilterChange('userId', e.target.value || undefined)}
+                  onChange={e => handleFilterChange('userId', e.target.value || undefined)}
                 />
               </div>
             </div>
@@ -354,24 +372,25 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                       <CalendarIcon className="h-4 w-4 mr-2" />
                       {dateRange.from && dateRange.to
                         ? `${format(dateRange.from, 'MMM d')} - ${format(dateRange.to, 'MMM d')}`
-                        : 'Select date range'
-                      }
+                        : 'Select date range'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="range"
                       selected={dateRange}
-                      onSelect={(range) => handleDateRangeChange({
-                        from: range?.from,
-                        to: range?.to
-                      })}
+                      onSelect={range =>
+                        handleDateRangeChange({
+                          from: range?.from,
+                          to: range?.to,
+                        })
+                      }
                       numberOfMonths={2}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Quick Filters</Label>
                 <div className="flex gap-2">
@@ -415,7 +434,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                 </p>
               </div>
             ) : (
-              filteredEntries.map((entry) => (
+              filteredEntries.map(entry => (
                 <div
                   key={entry.id}
                   className="p-4 border rounded-lg hover:bg-muted/30 transition-colors"
@@ -432,7 +451,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                           {format(entry.timestamp, 'MMM d, yyyy HH:mm:ss')}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         {entry.userId && (
                           <div className="flex items-center gap-1">
@@ -459,11 +478,14 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                           <span className="font-medium">Changes:</span>
                           <div className="ml-2 mt-1 space-y-1">
                             {Object.entries(entry.changes).map(([field, change]) => (
-                              <div key={field} className="text-xs font-mono bg-muted/50 p-2 rounded">
-                                <span className="font-medium">{field}:</span> 
+                              <div
+                                key={field}
+                                className="text-xs font-mono bg-muted/50 p-2 rounded"
+                              >
+                                <span className="font-medium">{field}:</span>
                                 <span className="text-red-600"> {JSON.stringify(change.from)}</span>
                                 <span className="mx-1">→</span>
-                                <span className="text-green-600">{JSON.stringify(change.to)}</span>
+                                <span className="text-teal-600">{JSON.stringify(change.to)}</span>
                               </div>
                             ))}
                           </div>
@@ -476,18 +498,18 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                           <div className="text-blue-700">
                             Action: {entry.rbacDetails.action}
                             {entry.rbacDetails.target_id && (
-                              <span> • {entry.rbacDetails.target_type || 'Target'}: {entry.rbacDetails.target_id}</span>
+                              <span>
+                                {' '}
+                                • {entry.rbacDetails.target_type || 'Target'}:{' '}
+                                {entry.rbacDetails.target_id}
+                              </span>
                             )}
                           </div>
                         </div>
                       )}
                     </div>
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedEntry(entry)}
-                    >
+
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedEntry(entry)}>
                       <Eye className="h-4 w-4" />
                     </Button>
                   </div>
@@ -552,7 +574,9 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Entity</Label>
-                <p className="text-sm">{selectedEntry.entityType}:{selectedEntry.entityId}</p>
+                <p className="text-sm">
+                  {selectedEntry.entityType}:{selectedEntry.entityId}
+                </p>
               </div>
               {selectedEntry.userId && (
                 <div>
@@ -605,7 +629,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground">To:</span>
-                          <span className="font-mono text-green-600">
+                          <span className="font-mono text-teal-600">
                             {JSON.stringify(change.to)}
                           </span>
                         </div>

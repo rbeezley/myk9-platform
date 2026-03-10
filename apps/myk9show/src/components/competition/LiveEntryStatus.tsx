@@ -1,7 +1,7 @@
 /**
  * Live Entry Status Component
  * Phase 6.2: Live Competition Features
- * 
+ *
  * Real-time display component for entry statuses during live competitions,
  * showing ring status, check-in status, and call notifications.
  */
@@ -15,7 +15,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ScrollArea } from '../ui/scroll-area';
 import {
-  Search, 
+  Search,
   Filter,
   Clock,
   CheckCircle,
@@ -35,7 +35,10 @@ import {
 } from '../ui/dropdown-menu';
 
 import type { EntryStatus } from '../../services/competition/liveCompetitionService';
-import type { RingStatusEvent, CallToRingNotification } from '../../services/competition/entryStatusBroadcaster';
+import type {
+  RingStatusEvent,
+  CallToRingNotification,
+} from '../../services/competition/entryStatusBroadcaster';
 import { CHECK_IN_STATUS_CONFIG } from '../../types/check-in-types';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -59,7 +62,7 @@ const RING_STATUS_CONFIG = {
   },
   'on-deck': {
     label: 'On Deck',
-    color: 'bg-yellow-100 text-yellow-700',
+    color: 'bg-amber-100 text-amber-700',
     icon: Clock,
     priority: 2,
   },
@@ -77,7 +80,7 @@ const RING_STATUS_CONFIG = {
   },
   completed: {
     label: 'Completed',
-    color: 'bg-green-100 text-green-700',
+    color: 'bg-teal-100 text-teal-700',
     icon: CheckCircle,
     priority: 5,
   },
@@ -119,10 +122,15 @@ export function LiveEntryStatus({
     // Apply filters
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      entries = entries.filter(entry => 
-        entry.armband.toLowerCase().includes(term) ||
-        (entry as EntryStatus & { dogName?: string; ownerName?: string }).dogName?.toLowerCase().includes(term) ||
-        (entry as EntryStatus & { dogName?: string; ownerName?: string }).ownerName?.toLowerCase().includes(term)
+      entries = entries.filter(
+        entry =>
+          entry.armband.toLowerCase().includes(term) ||
+          (entry as EntryStatus & { dogName?: string; ownerName?: string }).dogName
+            ?.toLowerCase()
+            .includes(term) ||
+          (entry as EntryStatus & { dogName?: string; ownerName?: string }).ownerName
+            ?.toLowerCase()
+            .includes(term)
       );
     }
 
@@ -137,7 +145,7 @@ export function LiveEntryStatus({
     // Apply sorting
     entries.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
         case 'sequence':
           comparison = a.sequence - b.sequence;
@@ -146,7 +154,9 @@ export function LiveEntryStatus({
           comparison = a.armband.localeCompare(b.armband);
           break;
         case 'name':
-          comparison = ((a as EntryStatus & { dogName?: string }).dogName || '').localeCompare((b as EntryStatus & { dogName?: string }).dogName || '');
+          comparison = ((a as EntryStatus & { dogName?: string }).dogName || '').localeCompare(
+            (b as EntryStatus & { dogName?: string }).dogName || ''
+          );
           break;
         case 'status': {
           const aConfig = RING_STATUS_CONFIG[a.ringStatus];
@@ -164,9 +174,7 @@ export function LiveEntryStatus({
 
   // Get recent calls for an entry
   const getRecentCalls = (entryId: string) => {
-    return callNotifications
-      .filter(call => call.entryId === entryId)
-      .slice(-3);
+    return callNotifications.filter(call => call.entryId === entryId).slice(-3);
   };
 
   // Get entry ring status config
@@ -219,7 +227,7 @@ export function LiveEntryStatus({
           <Input
             placeholder="Search by armband, dog name, or owner..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
@@ -252,11 +260,14 @@ export function LiveEntryStatus({
           </SelectContent>
         </Select>
 
-        <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
-          const [sort, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
-          setSortBy(sort);
-          setSortOrder(order);
-        }}>
+        <Select
+          value={`${sortBy}-${sortOrder}`}
+          onValueChange={value => {
+            const [sort, order] = value.split('-') as [typeof sortBy, typeof sortOrder];
+            setSortBy(sort);
+            setSortOrder(order);
+          }}
+        >
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Sort By" />
           </SelectTrigger>
@@ -280,7 +291,7 @@ export function LiveEntryStatus({
             {selectedView === 'list' ? (
               <div className="divide-y">
                 {filteredEntries.length > 0 ? (
-                  filteredEntries.map((entry) => {
+                  filteredEntries.map(entry => {
                     const ringConfig = getRingStatusConfig(entry.ringStatus);
                     const checkInConfig = CHECK_IN_STATUS_CONFIG[entry.checkInStatus];
                     const recentCalls = getRecentCalls(entry.entryId);
@@ -311,7 +322,8 @@ export function LiveEntryStatus({
                             {(entry as EntryStatus & { dogName?: string }).dogName || 'Unknown Dog'}
                           </p>
                           <p className="text-sm text-muted-foreground truncate">
-                            {(entry as EntryStatus & { ownerName?: string }).ownerName || 'Unknown Owner'}
+                            {(entry as EntryStatus & { ownerName?: string }).ownerName ||
+                              'Unknown Owner'}
                           </p>
                           {entry.ringAssignment && (
                             <p className="text-xs text-muted-foreground">
@@ -322,10 +334,12 @@ export function LiveEntryStatus({
 
                         {/* Check-in Status */}
                         <div className="w-32">
-                          <Badge 
+                          <Badge
                             className={`${checkInConfig.backgroundColor} ${checkInConfig.color} border-0`}
                           >
-                            {checkInConfig.icon && <span className="mr-1">{checkInConfig.icon}</span>}
+                            {checkInConfig.icon && (
+                              <span className="mr-1">{checkInConfig.icon}</span>
+                            )}
                             {checkInConfig.label}
                           </Badge>
                         </div>
@@ -366,47 +380,47 @@ export function LiveEntryStatus({
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                              
+
                               <DropdownMenuSeparator />
-                              
-                              <DropdownMenuItem 
+
+                              <DropdownMenuItem
                                 onClick={() => handleStatusUpdate(entry.entryId, 'on-deck')}
                                 disabled={entry.ringStatus === 'on-deck'}
                               >
                                 Set On Deck
                               </DropdownMenuItem>
-                              
-                              <DropdownMenuItem 
+
+                              <DropdownMenuItem
                                 onClick={() => handleStatusUpdate(entry.entryId, 'called')}
                                 disabled={entry.ringStatus === 'called'}
                               >
                                 Call to Ring
                               </DropdownMenuItem>
-                              
-                              <DropdownMenuItem 
+
+                              <DropdownMenuItem
                                 onClick={() => handleStatusUpdate(entry.entryId, 'in-ring')}
                                 disabled={entry.ringStatus === 'in-ring'}
                               >
                                 Mark In Ring
                               </DropdownMenuItem>
-                              
-                              <DropdownMenuItem 
+
+                              <DropdownMenuItem
                                 onClick={() => handleStatusUpdate(entry.entryId, 'completed')}
                                 disabled={entry.ringStatus === 'completed'}
                               >
                                 Mark Completed
                               </DropdownMenuItem>
-                              
+
                               <DropdownMenuSeparator />
-                              
-                              <DropdownMenuItem 
+
+                              <DropdownMenuItem
                                 onClick={() => handleStatusUpdate(entry.entryId, 'absent')}
                                 className="text-red-600"
                               >
                                 Mark Absent
                               </DropdownMenuItem>
-                              
-                              <DropdownMenuItem 
+
+                              <DropdownMenuItem
                                 onClick={() => handleStatusUpdate(entry.entryId, 'excused')}
                                 className="text-gray-600"
                               >
@@ -422,9 +436,9 @@ export function LiveEntryStatus({
                   <div className="text-center py-12 text-muted-foreground">
                     <Filter className="h-8 w-8 mx-auto mb-4 opacity-50" />
                     <p>No entries match the current filters</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-2"
                       onClick={() => {
                         setSearchTerm('');
@@ -440,14 +454,14 @@ export function LiveEntryStatus({
             ) : (
               /* Grid View */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-                {filteredEntries.map((entry) => {
+                {filteredEntries.map(entry => {
                   const ringConfig = getRingStatusConfig(entry.ringStatus);
                   const checkInConfig = CHECK_IN_STATUS_CONFIG[entry.checkInStatus];
                   const recentCalls = getRecentCalls(entry.entryId);
                   const RingIcon = ringConfig.icon;
 
                   return (
-                    <Card 
+                    <Card
                       key={entry.entryId}
                       className="cursor-pointer hover:shadow-md transition-shadow"
                       onClick={() => onEntryClick?.(entry.entryId)}
@@ -457,9 +471,7 @@ export function LiveEntryStatus({
                           <Badge variant="outline" className="font-mono">
                             {entry.armband}
                           </Badge>
-                          <div className="text-sm text-muted-foreground">
-                            #{entry.sequence}
-                          </div>
+                          <div className="text-sm text-muted-foreground">#{entry.sequence}</div>
                         </div>
 
                         <div className="space-y-2 mb-3">
@@ -467,7 +479,8 @@ export function LiveEntryStatus({
                             {(entry as EntryStatus & { dogName?: string }).dogName || 'Unknown Dog'}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {(entry as EntryStatus & { ownerName?: string }).ownerName || 'Unknown Owner'}
+                            {(entry as EntryStatus & { ownerName?: string }).ownerName ||
+                              'Unknown Owner'}
                           </p>
                           {entry.ringAssignment && (
                             <p className="text-xs text-muted-foreground">
@@ -477,14 +490,18 @@ export function LiveEntryStatus({
                         </div>
 
                         <div className="space-y-2">
-                          <Badge 
+                          <Badge
                             className={`w-full justify-center ${checkInConfig.backgroundColor} ${checkInConfig.color} border-0 text-xs`}
                           >
-                            {checkInConfig.icon && <span className="mr-1">{checkInConfig.icon}</span>}
+                            {checkInConfig.icon && (
+                              <span className="mr-1">{checkInConfig.icon}</span>
+                            )}
                             {checkInConfig.label}
                           </Badge>
 
-                          <Badge className={`w-full justify-center ${ringConfig.color} border-0 text-xs`}>
+                          <Badge
+                            className={`w-full justify-center ${ringConfig.color} border-0 text-xs`}
+                          >
                             <RingIcon className="w-3 h-3 mr-1" />
                             {ringConfig.label}
                           </Badge>

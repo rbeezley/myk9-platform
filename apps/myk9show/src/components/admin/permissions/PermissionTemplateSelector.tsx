@@ -7,15 +7,15 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Sparkles, 
-  Shield, 
-  Users, 
-  Eye, 
+import {
+  Sparkles,
+  Shield,
+  Users,
+  Eye,
   Settings,
   Briefcase,
   Crown,
-  CheckCircle
+  CheckCircle,
 } from 'lucide-react';
 
 interface PermissionTemplate {
@@ -43,14 +43,35 @@ const PERMISSION_TEMPLATES: PermissionTemplate[] = [
     color: 'bg-blue-100 text-blue-700 border-blue-200',
     category: 'system',
     permissions: [
-      'show:create', 'show:read', 'show:update', 'show:delete', 'show:manage',
-      'trial:create', 'trial:read', 'trial:update', 'trial:delete', 'trial:manage',
-      'class:create', 'class:read', 'class:update', 'class:delete', 'class:manage',
-      'entry:read', 'entry:update', 'entry:manage',
-      'judge:assign', 'judge:view', 'judge:manage',
-      'report:generate', 'report:export',
-      'template:create', 'template:read', 'template:update', 'template:delete', 'template:manage'
-    ]
+      'show:create',
+      'show:read',
+      'show:update',
+      'show:delete',
+      'show:manage',
+      'trial:create',
+      'trial:read',
+      'trial:update',
+      'trial:delete',
+      'trial:manage',
+      'class:create',
+      'class:read',
+      'class:update',
+      'class:delete',
+      'class:manage',
+      'entry:read',
+      'entry:update',
+      'entry:manage',
+      'judge:assign',
+      'judge:view',
+      'judge:manage',
+      'report:generate',
+      'report:export',
+      'template:create',
+      'template:read',
+      'template:update',
+      'template:delete',
+      'template:manage',
+    ],
   },
   {
     id: 'show-manager',
@@ -58,13 +79,19 @@ const PERMISSION_TEMPLATES: PermissionTemplate[] = [
     displayName: 'Show Manager',
     description: 'Full show management capabilities with advanced permissions',
     icon: Crown,
-    color: 'bg-purple-100 text-purple-700 border-purple-200',
+    color: 'bg-violet-100 text-violet-700 border-violet-200',
     category: 'system',
     permissions: [
-      'show:manage', 'trial:manage', 'class:manage',
-      'entry:manage', 'judge:manage', 'report:manage',
-      'club:read', 'people:read', 'dog:read'
-    ]
+      'show:manage',
+      'trial:manage',
+      'class:manage',
+      'entry:manage',
+      'judge:manage',
+      'report:manage',
+      'club:read',
+      'people:read',
+      'dog:read',
+    ],
   },
   {
     id: 'read-only-admin',
@@ -72,13 +99,20 @@ const PERMISSION_TEMPLATES: PermissionTemplate[] = [
     displayName: 'Read-Only Administrator',
     description: 'Can view all data but cannot modify anything',
     icon: Eye,
-    color: 'bg-green-100 text-green-700 border-green-200',
+    color: 'bg-teal-100 text-teal-700 border-teal-200',
     category: 'system',
     permissions: [
-      'show:read', 'trial:read', 'class:read',
-      'entry:read', 'dog:read', 'people:read', 'club:read',
-      'judge:read', 'report:generate', 'template:read'
-    ]
+      'show:read',
+      'trial:read',
+      'class:read',
+      'entry:read',
+      'dog:read',
+      'people:read',
+      'club:read',
+      'judge:read',
+      'report:generate',
+      'template:read',
+    ],
   },
   {
     id: 'event-coordinator',
@@ -89,10 +123,19 @@ const PERMISSION_TEMPLATES: PermissionTemplate[] = [
     color: 'bg-orange-100 text-orange-700 border-orange-200',
     category: 'system',
     permissions: [
-      'show:read', 'show:update', 'trial:read', 'trial:update',
-      'class:read', 'class:update', 'entry:read', 'entry:update',
-      'judge:read', 'judge:assign', 'people:read', 'club:read'
-    ]
+      'show:read',
+      'show:update',
+      'trial:read',
+      'trial:update',
+      'class:read',
+      'class:update',
+      'entry:read',
+      'entry:update',
+      'judge:read',
+      'judge:assign',
+      'people:read',
+      'club:read',
+    ],
   },
   {
     id: 'judge-panel',
@@ -103,10 +146,15 @@ const PERMISSION_TEMPLATES: PermissionTemplate[] = [
     color: 'bg-indigo-100 text-indigo-700 border-indigo-200',
     category: 'system',
     permissions: [
-      'show:read', 'trial:read', 'class:read',
-      'entry:read', 'dog:read', 'people:read',
-      'judge:read', 'judge:view'
-    ]
+      'show:read',
+      'trial:read',
+      'class:read',
+      'entry:read',
+      'dog:read',
+      'people:read',
+      'judge:read',
+      'judge:view',
+    ],
   },
   {
     id: 'data-analyst',
@@ -117,15 +165,23 @@ const PERMISSION_TEMPLATES: PermissionTemplate[] = [
     color: 'bg-teal-100 text-teal-700 border-teal-200',
     category: 'system',
     permissions: [
-      'show:read', 'trial:read', 'class:read', 'entry:read',
-      'dog:read', 'people:read', 'club:read', 'judge:read',
-      'report:generate', 'report:export', 'template:read'
-    ]
-  }
+      'show:read',
+      'trial:read',
+      'class:read',
+      'entry:read',
+      'dog:read',
+      'people:read',
+      'club:read',
+      'judge:read',
+      'report:generate',
+      'report:export',
+      'template:read',
+    ],
+  },
 ];
 
 export const PermissionTemplateSelector: React.FC<PermissionTemplateSelectorProps> = ({
-  onTemplateSelect
+  onTemplateSelect,
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
@@ -147,12 +203,12 @@ export const PermissionTemplateSelector: React.FC<PermissionTemplateSelectorProp
       </div>
 
       <div className="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto">
-        {PERMISSION_TEMPLATES.map((template) => {
+        {PERMISSION_TEMPLATES.map(template => {
           const Icon = template.icon;
           const isSelected = selectedTemplate === template.id;
-          
+
           return (
-            <Card 
+            <Card
               key={template.id}
               className={`cursor-pointer transition-all hover:shadow-md ${
                 isSelected ? 'ring-2 ring-primary shadow-md' : ''
@@ -167,18 +223,14 @@ export const PermissionTemplateSelector: React.FC<PermissionTemplateSelectorProp
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="font-medium text-sm">{template.displayName}</h4>
-                      {isSelected && (
-                        <CheckCircle className="h-4 w-4 text-primary" />
-                      )}
+                      {isSelected && <CheckCircle className="h-4 w-4 text-primary" />}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {template.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-2">{template.description}</p>
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="text-xs">
                         {template.permissions.length} permissions
                       </Badge>
-                      <Badge 
+                      <Badge
                         variant={template.category === 'system' ? 'secondary' : 'default'}
                         className="text-xs"
                       >
@@ -200,8 +252,8 @@ export const PermissionTemplateSelector: React.FC<PermissionTemplateSelectorProp
             <div>
               <p className="text-sm font-medium text-blue-900">Template Selected</p>
               <p className="text-xs text-blue-700">
-                {PERMISSION_TEMPLATES.find(t => t.id === selectedTemplate)?.permissions.length} permissions 
-                will be pre-selected. You can modify these in the next step.
+                {PERMISSION_TEMPLATES.find(t => t.id === selectedTemplate)?.permissions.length}{' '}
+                permissions will be pre-selected. You can modify these in the next step.
               </p>
             </div>
           </div>

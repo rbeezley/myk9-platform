@@ -71,7 +71,7 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
       {existingEntryCount > 0 && (
         <Badge
           variant="default"
-          className="h-5 px-1.5 text-xs bg-green-600"
+          className="h-5 px-1.5 text-xs bg-teal-600"
           title={`Already entered in ${existingEntryCount} class${existingEntryCount !== 1 ? 'es' : ''}`}
         >
           <CheckCircle2 className="h-3 w-3 mr-0.5" />
@@ -199,7 +199,7 @@ export const ClassCardRow: React.FC<ClassCardRowProps> = ({
         className={cn(
           'myk9-class-card myk9-class-card-compact',
           (isSelected || isAlreadyEntered) && 'selected',
-          isAlreadyEntered && 'bg-green-50 border-green-300',
+          isAlreadyEntered && 'bg-teal-50 border-teal-300',
           isFull && !isAlreadyEntered && 'bg-gray-50 border-gray-200 opacity-75',
           isIneligible && !isAlreadyEntered && 'bg-orange-50 border-orange-200 opacity-75',
           isProcessing && 'opacity-50'
@@ -222,7 +222,7 @@ export const ClassCardRow: React.FC<ClassCardRowProps> = ({
                   <span
                     className={cn(
                       'myk9-class-card-title-compact',
-                      isAlreadyEntered && 'text-green-700',
+                      isAlreadyEntered && 'text-teal-700',
                       isFull && !isAlreadyEntered && 'text-gray-500',
                       isIneligible && !isAlreadyEntered && !isFull && 'text-orange-600'
                     )}
@@ -231,8 +231,8 @@ export const ClassCardRow: React.FC<ClassCardRowProps> = ({
                   </span>
                   {isAlreadyEntered && (
                     <div className="flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      <span className="text-xs text-green-600 font-medium">Already Entered</span>
+                      <CheckCircle2 className="h-4 w-4 text-teal-600" />
+                      <span className="text-xs text-teal-600 font-medium">Already Entered</span>
                     </div>
                   )}
                   <IneligibleBadge
@@ -259,7 +259,7 @@ export const ClassCardRow: React.FC<ClassCardRowProps> = ({
                   <div
                     className={cn(
                       'myk9-class-card-price-compact',
-                      isAlreadyEntered && 'bg-green-100 text-green-700',
+                      isAlreadyEntered && 'bg-teal-100 text-teal-700',
                       isFull && !isAlreadyEntered && 'bg-gray-100 text-gray-500'
                     )}
                   >
@@ -359,10 +359,7 @@ const WarningsBadge: React.FC<{
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge
-            variant="outline"
-            className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300"
-          >
+          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
             <AlertTriangle className="h-3 w-3" />
           </Badge>
         </TooltipTrigger>

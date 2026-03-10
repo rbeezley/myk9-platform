@@ -18,7 +18,7 @@ import {
   Settings,
   ChevronRight,
   Save,
-  Eye
+  Eye,
 } from 'lucide-react';
 
 // Import our new components
@@ -37,8 +37,8 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
   const { trialId: paramTrialId } = useParams<{ trialId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  
-  const { 
+
+  const {
     selectedTemplate,
     selectedClasses,
     fieldOverrides,
@@ -48,11 +48,11 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     updateFieldOverride,
     resetFieldOverride,
     createClasses,
-    resetCreation
+    resetCreation,
   } = useClassCreationStore();
 
   const effectiveTrialId = trialId || paramTrialId;
-  
+
   const [currentStep, setCurrentStep] = useState<WizardStep>('template');
   const [isCreating, setIsCreating] = useState(false);
   const [createdClasses, setCreatedClasses] = useState<CreatedClass[]>([]);
@@ -73,13 +73,13 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           errors.push('Please select a template');
         }
         break;
-      
+
       case 'classes':
         if (selectedClasses.length === 0) {
           errors.push('Please select at least one class');
         }
         break;
-      
+
       case 'overrides':
         // Validate field overrides
         if (selectedTemplate) {
@@ -92,7 +92,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           });
         }
         break;
-      
+
       case 'review':
         if (!effectiveTrialId) {
           errors.push('Trial ID is required');
@@ -105,17 +105,17 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
   const handleNext = () => {
     const { isValid, errors } = validateCurrentStep();
-    
+
     if (!isValid) {
       setValidationErrors(errors);
       return;
     }
-    
+
     setValidationErrors([]);
-    
+
     const steps: WizardStep[] = ['template', 'classes', 'overrides', 'review'];
     const currentIndex = steps.indexOf(currentStep);
-    
+
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
     }
@@ -124,7 +124,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
   const handlePrevious = () => {
     const steps: WizardStep[] = ['template', 'classes', 'overrides', 'review'];
     const currentIndex = steps.indexOf(currentStep);
-    
+
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
     }
@@ -132,9 +132,9 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
   const handleCreateClasses = async () => {
     if (!effectiveTrialId || !selectedTemplate) return;
-    
+
     setIsCreating(true);
-    
+
     try {
       const result = createClasses(effectiveTrialId, user?.id || 'unknown');
       setCreatedClasses(result.classes);
@@ -186,11 +186,14 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
       };
     });
 
-    navigator.clipboard.writeText(JSON.stringify(copyData, null, 2)).then(() => {
-      toast.success(`Copied ${selected.length} class settings to clipboard`);
-    }).catch(() => {
-      toast.error('Failed to copy to clipboard');
-    });
+    navigator.clipboard
+      .writeText(JSON.stringify(copyData, null, 2))
+      .then(() => {
+        toast.success(`Copied ${selected.length} class settings to clipboard`);
+      })
+      .catch(() => {
+        toast.error('Failed to copy to clipboard');
+      });
   };
 
   const handleBatchDelete = () => {
@@ -252,7 +255,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     const steps: WizardStep[] = ['template', 'classes', 'overrides', 'review'];
     const currentIndex = steps.indexOf(currentStep);
     const stepIndex = steps.indexOf(step);
-    
+
     if (stepIndex < currentIndex) return 'completed';
     if (stepIndex === currentIndex) return 'current';
     return 'pending';
@@ -275,7 +278,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <Badge variant="outline">
             Step {['template', 'classes', 'overrides', 'review'].indexOf(currentStep) + 1} of 4
@@ -294,19 +297,23 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
               { id: 'template', label: 'Select Template', icon: Settings },
               { id: 'classes', label: 'Choose Classes', icon: Eye },
               { id: 'overrides', label: 'Set Values', icon: Settings },
-              { id: 'review', label: 'Review & Create', icon: Check }
+              { id: 'review', label: 'Review & Create', icon: Check },
             ].map((step, index) => {
               const status = getStepStatus(step.id as WizardStep);
               const Icon = step.icon;
-              
+
               return (
                 <React.Fragment key={step.id}>
                   <div className="flex flex-col items-center gap-2">
-                    <div className={`rounded-full p-3 ${
-                      status === 'completed' ? 'bg-green-100 text-green-600' :
-                      status === 'current' ? 'bg-blue-100 text-blue-600' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
+                    <div
+                      className={`rounded-full p-3 ${
+                        status === 'completed'
+                          ? 'bg-teal-100 text-teal-600'
+                          : status === 'current'
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
                       {status === 'completed' ? (
                         <Check className="h-5 w-5" />
                       ) : (
@@ -314,16 +321,16 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                       )}
                     </div>
                     <div className="text-center">
-                      <div className={`text-sm font-medium ${
-                        status === 'current' ? 'text-foreground' : 'text-muted-foreground'
-                      }`}>
+                      <div
+                        className={`text-sm font-medium ${
+                          status === 'current' ? 'text-foreground' : 'text-muted-foreground'
+                        }`}
+                      >
                         {step.label}
                       </div>
                     </div>
                   </div>
-                  {index < 3 && (
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  )}
+                  {index < 3 && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
                 </React.Fragment>
               );
             })}
@@ -341,7 +348,9 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                 <h4 className="font-medium text-red-900 mb-2">Please correct the following:</h4>
                 <ul className="space-y-1">
                   {validationErrors.map((error, index) => (
-                    <li key={index} className="text-sm text-red-700">• {error}</li>
+                    <li key={index} className="text-sm text-red-700">
+                      • {error}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -365,13 +374,17 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           <div className="space-y-6">
             <ClassSelectionGrid
               template={selectedTemplate}
-              selectedClasses={selectedClasses.filter(item => item.selected).map(item => item.classDefinition)}
+              selectedClasses={selectedClasses
+                .filter(item => item.selected)
+                .map(item => item.classDefinition)}
               onSelectionChange={handleClassSelectionChange}
             />
-            
+
             {selectedClasses.length > 0 && (
               <ClassBatchActions
-                selectedClasses={selectedClasses.filter(item => item.selected).map(item => item.classDefinition)}
+                selectedClasses={selectedClasses
+                  .filter(item => item.selected)
+                  .map(item => item.classDefinition)}
                 availableFields={selectedTemplate.fieldSpecifications}
                 onBatchEdit={handleBatchEdit}
                 onBatchCopy={handleBatchCopy}
@@ -386,7 +399,9 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
         {currentStep === 'overrides' && selectedTemplate && selectedClasses.length > 0 && (
           <FieldOverrideForm
             template={selectedTemplate}
-            selectedClasses={selectedClasses.filter(item => item.selected).map(item => item.classDefinition)}
+            selectedClasses={selectedClasses
+              .filter(item => item.selected)
+              .map(item => item.classDefinition)}
             fieldOverrides={fieldOverrides}
             onOverrideChange={updateFieldOverride}
             onResetField={resetFieldOverride}
@@ -408,27 +423,28 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                   <div className="bg-muted p-3 rounded">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{selectedTemplate.templateName}</span>
-                      <Badge variant={selectedTemplate.isOfficial ? "default" : "secondary"}>
+                      <Badge variant={selectedTemplate.isOfficial ? 'default' : 'secondary'}>
                         {selectedTemplate.isOfficial ? 'Official' : 'Custom'}
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {selectedTemplate.organization} • {selectedTemplate.trialType} • v{selectedTemplate.version}
+                      {selectedTemplate.organization} • {selectedTemplate.trialType} • v
+                      {selectedTemplate.version}
                     </div>
                   </div>
                 </div>
 
                 {/* Selected Classes Summary */}
                 <div>
-                  <h4 className="font-medium mb-2">
-                    Selected Classes ({selectedClasses.length})
-                  </h4>
+                  <h4 className="font-medium mb-2">Selected Classes ({selectedClasses.length})</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                     {selectedClasses.map((cls, index) => (
                       <div key={index} className="bg-muted p-2 rounded text-sm">
                         <div className="font-medium">{cls.classDefinition.className}</div>
                         <div className="text-muted-foreground">
-                          {cls.classDefinition.element}{cls.classDefinition.level ? ` ${cls.classDefinition.level}` : ''}{cls.classDefinition.section ? ` ${cls.classDefinition.section}` : ''}
+                          {cls.classDefinition.element}
+                          {cls.classDefinition.level ? ` ${cls.classDefinition.level}` : ''}
+                          {cls.classDefinition.section ? ` ${cls.classDefinition.section}` : ''}
                         </div>
                       </div>
                     ))}
@@ -443,7 +459,9 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                     </h4>
                     <div className="bg-muted p-3 rounded space-y-2">
                       {Object.entries(fieldOverrides).map(([fieldName, value]) => {
-                        const field = selectedTemplate.fieldSpecifications.find(f => f.fieldName === fieldName);
+                        const field = selectedTemplate.fieldSpecifications.find(
+                          f => f.fieldName === fieldName
+                        );
                         return field ? (
                           <div key={fieldName} className="flex justify-between text-sm">
                             <span className="font-medium">{field.displayName}:</span>
@@ -462,14 +480,17 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                     <div className="text-sm text-muted-foreground">Classes</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                      {selectedClasses.length * (selectedTemplate.defaults?.judgingTimeEstimate || 15)}
+                    <div className="text-2xl font-bold text-teal-600">
+                      {selectedClasses.length *
+                        (selectedTemplate.defaults?.judgingTimeEstimate || 15)}
                     </div>
                     <div className="text-sm text-muted-foreground">Minutes</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">
-                      ${selectedClasses.length * (selectedTemplate.defaults?.entryFees?.preEntry || 25)}
+                    <div className="text-2xl font-bold text-violet-600">
+                      $
+                      {selectedClasses.length *
+                        (selectedTemplate.defaults?.entryFees?.preEntry || 25)}
                     </div>
                     <div className="text-sm text-muted-foreground">Revenue</div>
                   </div>
@@ -487,22 +508,27 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
         {currentStep === 'complete' && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="p-3 bg-green-100 rounded-full mb-4">
-                <Check className="h-12 w-12 text-green-600" />
+              <div className="p-3 bg-teal-100 rounded-full mb-4">
+                <Check className="h-12 w-12 text-teal-600" />
               </div>
               <h3 className="text-2xl font-bold mb-2">Classes Created Successfully!</h3>
               <p className="text-muted-foreground text-center mb-6">
                 {createdClasses.length} classes have been created for your trial.
               </p>
               <div className="flex gap-4">
-                <Button onClick={() => startTransition(() => navigate(`/trials/${effectiveTrialId}`))}>
+                <Button
+                  onClick={() => startTransition(() => navigate(`/trials/${effectiveTrialId}`))}
+                >
                   View Trial
                 </Button>
-                <Button variant="outline" onClick={() => {
-                  resetCreation();
-                  setCurrentStep('template');
-                  setCreatedClasses([]);
-                }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    resetCreation();
+                    setCurrentStep('template');
+                    setCreatedClasses([]);
+                  }}
+                >
                   Create More Classes
                 </Button>
               </div>
@@ -544,9 +570,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                 )}
               </Button>
             ) : (
-              <Button
-                onClick={handleNext}
-              >
+              <Button onClick={handleNext}>
                 Next
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>

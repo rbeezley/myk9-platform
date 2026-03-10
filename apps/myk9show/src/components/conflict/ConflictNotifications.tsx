@@ -5,15 +5,9 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Alert, AlertDescription } from '../ui/alert';
-import {
-  useConflictResolution
-} from '../../hooks/useConflictResolution';
+import { useConflictResolution } from '../../hooks/useConflictResolution';
 import { ConflictResolutionDialog } from '../sync/ConflictResolutionDialog';
-import type { 
-  Conflict, 
-  ResolutionStrategy,
-  ConflictResolution
-} from '../../types/conflict-types';
+import type { Conflict, ResolutionStrategy, ConflictResolution } from '../../types/conflict-types';
 
 // Define types directly to avoid import issues
 type ConflictPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -33,7 +27,7 @@ import {
   XCircle,
   Info,
   Bell,
-  BellOff
+  BellOff,
 } from 'lucide-react';
 
 interface ConflictNotificationsProps {
@@ -45,7 +39,7 @@ interface ConflictNotificationsProps {
 export function ConflictNotifications({
   entityType,
   showStats = true,
-  maxNotifications = 5
+  maxNotifications = 5,
 }: ConflictNotificationsProps) {
   const {
     conflicts,
@@ -55,12 +49,12 @@ export function ConflictNotifications({
     error,
     resolveConflict,
     dismissNotification,
-    clearNotifications
-  } = useConflictResolution({ 
+    clearNotifications,
+  } = useConflictResolution({
     entityType,
     enableNotifications: true,
     autoRefresh: true,
-    refreshInterval: 30000
+    refreshInterval: 30000,
   });
 
   const [selectedConflict, setSelectedConflict] = useState<Conflict | null>(null);
@@ -105,7 +99,10 @@ export function ConflictNotifications({
     }
   };
 
-  const handleResolveConflict = async (strategy: ResolutionStrategy, customResolution?: Record<string, unknown>): Promise<ConflictResolution<Record<string, unknown>>> => {
+  const handleResolveConflict = async (
+    strategy: ResolutionStrategy,
+    customResolution?: Record<string, unknown>
+  ): Promise<ConflictResolution<Record<string, unknown>>> => {
     if (!selectedConflict) {
       throw new Error('No conflict selected');
     }
@@ -122,16 +119,21 @@ export function ConflictNotifications({
   };
 
   // Adapter function for the ConflictResolutionDialog interface
-  const handleDialogResolve = (resolution: 'local' | 'remote' | 'merge', mergedData?: Record<string, unknown>) => {
+  const handleDialogResolve = (
+    resolution: 'local' | 'remote' | 'merge',
+    mergedData?: Record<string, unknown>
+  ) => {
     // Map simple resolution strings to ResolutionStrategy enum
     const strategyMap: Record<string, ResolutionStrategy> = {
       local: ResolutionStrategy.LAST_WRITE_WINS, // Favor local
-      remote: ResolutionStrategy.LAST_WRITE_WINS, // Favor remote  
-      merge: ResolutionStrategy.FIELD_MERGE
+      remote: ResolutionStrategy.LAST_WRITE_WINS, // Favor remote
+      merge: ResolutionStrategy.FIELD_MERGE,
     };
-    
+
     const strategy = strategyMap[resolution] || ResolutionStrategy.MANUAL_REQUIRED;
-    handleResolveConflict(strategy, mergedData).catch((err) => logger.error('Error', 'conflict', {}, err as Error));
+    handleResolveConflict(strategy, mergedData).catch(err =>
+      logger.error('Error', 'conflict', {}, err as Error)
+    );
   };
 
   const visibleNotifications = notifications.slice(0, maxNotifications);
@@ -154,9 +156,7 @@ export function ConflictNotifications({
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          Failed to load conflicts: {error}
-        </AlertDescription>
+        <AlertDescription>Failed to load conflicts: {error}</AlertDescription>
       </Alert>
     );
   }
@@ -177,7 +177,7 @@ export function ConflictNotifications({
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -189,19 +189,19 @@ export function ConflictNotifications({
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Resolved</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.resolvedConflicts}</p>
+                  <p className="text-2xl font-bold text-teal-600">{stats.resolvedConflicts}</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-8 w-8 text-teal-600" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -228,9 +228,7 @@ export function ConflictNotifications({
                   <Badge variant="secondary">{notifications.length}</Badge>
                 )}
               </CardTitle>
-              <CardDescription>
-                Active conflicts requiring your attention
-              </CardDescription>
+              <CardDescription>Active conflicts requiring your attention</CardDescription>
             </div>
             {notifications.length > 0 && (
               <Button
@@ -255,7 +253,7 @@ export function ConflictNotifications({
           ) : (
             <ScrollArea className="h-64">
               <div className="space-y-3">
-                {visibleNotifications.map((notification) => (
+                {visibleNotifications.map(notification => (
                   <div
                     key={notification.conflictId}
                     className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -264,10 +262,11 @@ export function ConflictNotifications({
                       {getPriorityIcon(notification.priority)}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">
-                            {notification.entityType} Conflict
-                          </span>
-                          <Badge variant={getPriorityColor(notification.priority)} className="text-xs">
+                          <span className="font-medium">{notification.entityType} Conflict</span>
+                          <Badge
+                            variant={getPriorityColor(notification.priority)}
+                            className="text-xs"
+                          >
                             {ConflictPriority[notification.priority]}
                           </Badge>
                           {notification.requiresManualResolution && (
@@ -352,7 +351,7 @@ export function ConflictNotificationWidget() {
   const { stats } = useConflictResolution({
     enableNotifications: true,
     autoRefresh: true,
-    refreshInterval: 30000
+    refreshInterval: 30000,
   });
 
   const [isExpanded, setIsExpanded] = useState(false);

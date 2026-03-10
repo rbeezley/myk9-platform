@@ -3,7 +3,11 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { collaborationHub, EditLock, TypingIndicator } from '@/services/collaboration/CollaborationHubService';
+import {
+  collaborationHub,
+  EditLock,
+  TypingIndicator,
+} from '@/services/collaboration/CollaborationHubService';
 import { Lock, Eye, Type, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -29,12 +33,12 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
   fieldName,
   className = '',
   showAsAlert = false,
-  showTypingIndicators = true
+  showTypingIndicators = true,
 }) => {
   const [state, setState] = useState<EditingIndicatorState>({
     editLock: null,
     typingIndicators: [],
-    isLocked: false
+    isLocked: false,
   });
 
   useEffect(() => {
@@ -54,7 +58,7 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
     updateState();
 
     // Subscribe to collaboration events
-    const unsubscribe = collaborationHub.subscribe((event) => {
+    const unsubscribe = collaborationHub.subscribe(event => {
       if (event.type === 'edit_lock' || event.type === 'typing') {
         updateState();
       }
@@ -99,8 +103,14 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
                     </Avatar>
                     <div className="flex space-x-0.5">
                       <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" />
-                      <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                      <div
+                        className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.1s' }}
+                      />
+                      <div
+                        className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.2s' }}
+                      />
                     </div>
                   </div>
                 </TooltipTrigger>
@@ -112,10 +122,9 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
           ))}
         </div>
         <span className="text-xs text-muted-foreground">
-          {state.typingIndicators.length === 1 
+          {state.typingIndicators.length === 1
             ? `${state.typingIndicators[0].userName} is typing...`
-            : `${state.typingIndicators.length} people are typing...`
-          }
+            : `${state.typingIndicators.length} people are typing...`}
         </span>
       </div>
     );
@@ -138,10 +147,12 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
 
     if (showAsAlert) {
       return (
-        <Alert className={cn(
-          'mb-4',
-          isExpiringSoon ? 'border-yellow-200 bg-yellow-50' : 'border-blue-200 bg-blue-50'
-        )}>
+        <Alert
+          className={cn(
+            'mb-4',
+            isExpiringSoon ? 'border-amber-200 bg-amber-50' : 'border-blue-200 bg-blue-50'
+          )}
+        >
           <Lock className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -157,10 +168,9 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="w-3 h-3" />
               <span>
-                {isExpiringSoon 
+                {isExpiringSoon
                   ? 'Expires soon'
-                  : `Expires ${formatDistanceToNow(editLock.expiresAt)} from now`
-                }
+                  : `Expires ${formatDistanceToNow(editLock.expiresAt)} from now`}
               </span>
             </div>
           </AlertDescription>
@@ -174,23 +184,20 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded-md">
-                <Lock className={cn(
-                  'w-3 h-3',
-                  isExpiringSoon ? 'text-yellow-600' : 'text-blue-600'
-                )} />
+                <Lock
+                  className={cn('w-3 h-3', isExpiringSoon ? 'text-amber-600' : 'text-blue-600')}
+                />
                 <Avatar className="h-5 w-5">
                   <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
                     {getInitials(editLock.userName)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs font-medium text-blue-700">
-                  {editLock.userName}
-                </span>
-                <Badge 
-                  variant="secondary" 
+                <span className="text-xs font-medium text-blue-700">{editLock.userName}</span>
+                <Badge
+                  variant="secondary"
                   className={cn(
                     'text-xs',
-                    isExpiringSoon ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
+                    isExpiringSoon ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
                   )}
                 >
                   Editing
@@ -204,10 +211,9 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
                   Started {formatDistanceToNow(editLock.lockedAt)} ago
                 </p>
                 <p className="text-muted-foreground">
-                  {isExpiringSoon 
+                  {isExpiringSoon
                     ? 'Lock expires soon'
-                    : `Expires ${formatDistanceToNow(editLock.expiresAt)} from now`
-                  }
+                    : `Expires ${formatDistanceToNow(editLock.expiresAt)} from now`}
                 </p>
               </div>
             </TooltipContent>
@@ -220,9 +226,9 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
   const renderViewingIndicator = () => {
     // Get users who are viewing this entity but not editing
     const activeUsers = collaborationHub.getActiveUsersForEntity(entityType, entityId);
-    const viewingUsers = activeUsers.filter(user => 
-      user.activity?.type === 'viewing' && 
-      (!state.editLock || user.id !== state.editLock.userId)
+    const viewingUsers = activeUsers.filter(
+      user =>
+        user.activity?.type === 'viewing' && (!state.editLock || user.id !== state.editLock.userId)
     );
 
     if (viewingUsers.length === 0) {
@@ -236,12 +242,12 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
       <div className="flex items-center gap-2 mt-2">
         <Eye className="w-3 h-3 text-muted-foreground" />
         <div className="flex -space-x-1">
-          {displayUsers.map((user) => (
+          {displayUsers.map(user => (
             <TooltipProvider key={user.id}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Avatar className="h-5 w-5 border border-background">
-                    <AvatarFallback className="text-xs bg-green-100 text-green-700">
+                    <AvatarFallback className="text-xs bg-teal-100 text-teal-700">
                       {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -254,17 +260,14 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
           ))}
           {remainingCount > 0 && (
             <Avatar className="h-5 w-5 border border-background bg-muted">
-              <AvatarFallback className="text-xs">
-                +{remainingCount}
-              </AvatarFallback>
+              <AvatarFallback className="text-xs">+{remainingCount}</AvatarFallback>
             </Avatar>
           )}
         </div>
         <span className="text-xs text-muted-foreground">
-          {viewingUsers.length === 1 
+          {viewingUsers.length === 1
             ? `${viewingUsers[0].name} is viewing`
-            : `${viewingUsers.length} people viewing`
-          }
+            : `${viewingUsers.length} people viewing`}
         </span>
       </div>
     );

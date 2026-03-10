@@ -12,7 +12,7 @@ export const ShowTemplateTestPage: React.FC = () => {
   const [selectedTrialId] = useState('test-trial-1');
   const { getClassesByTrialId } = useClassStoreCompat();
   const { getAllPresets } = useShowTemplateStore();
-  
+
   const trialClasses = getClassesByTrialId(selectedTrialId);
   const allPresets = getAllPresets();
 
@@ -22,29 +22,31 @@ export const ShowTemplateTestPage: React.FC = () => {
 
   // Group presets by organization
   const presetsByOrg = {
-    'AKC': Object.entries(allPresets).filter(([, preset]) => preset.organization === 'AKC'),
-    'UKC': Object.entries(allPresets).filter(([, preset]) => preset.organization === 'UKC'),
-    'Other': Object.entries(allPresets).filter(([, preset]) => !['AKC', 'UKC'].includes(preset.organization))
+    AKC: Object.entries(allPresets).filter(([, preset]) => preset.organization === 'AKC'),
+    UKC: Object.entries(allPresets).filter(([, preset]) => preset.organization === 'UKC'),
+    Other: Object.entries(allPresets).filter(
+      ([, preset]) => !['AKC', 'UKC'].includes(preset.organization)
+    ),
   };
 
   const organizationIcons = {
-    'AKC': '🏆',
-    'UKC': '🥇',
-    'NACSW': '👃',
-    'CPE': '🎯',
-    'USDAA': '🚀',
-    'NADAC': '⚡',
-    'ASCA': '🐕',
-    'OTHER': '📋'
+    AKC: '🏆',
+    UKC: '🥇',
+    NACSW: '👃',
+    CPE: '🎯',
+    USDAA: '🚀',
+    NADAC: '⚡',
+    ASCA: '🐕',
+    OTHER: '📋',
   };
 
   const showTypeColors = {
     'Scent Work': 'bg-blue-100 text-blue-800 border-blue-200',
-    'Agility': 'bg-green-100 text-green-800 border-green-200',
-    'Conformation': 'bg-purple-100 text-purple-800 border-purple-200',
-    'Obedience': 'bg-orange-100 text-orange-800 border-orange-200',
-    'Rally': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    'FastCAT': 'bg-red-100 text-red-800 border-red-200'
+    Agility: 'bg-teal-100 text-teal-800 border-teal-200',
+    Conformation: 'bg-violet-100 text-violet-800 border-violet-200',
+    Obedience: 'bg-orange-100 text-orange-800 border-orange-200',
+    Rally: 'bg-amber-100 text-amber-800 border-amber-200',
+    FastCAT: 'bg-red-100 text-red-800 border-red-200',
   };
 
   return (
@@ -52,7 +54,7 @@ export const ShowTemplateTestPage: React.FC = () => {
       <div>
         <h1 className="text-3xl font-bold mb-2">Universal Show Template System</h1>
         <p className="text-gray-600">
-          Comprehensive template system supporting multiple organizations (AKC, UKC) and show types 
+          Comprehensive template system supporting multiple organizations (AKC, UKC) and show types
           (Scent Work, Agility, Conformation, Obedience, Rally, FastCAT, etc.)
         </p>
       </div>
@@ -65,9 +67,10 @@ export const ShowTemplateTestPage: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Select from {Object.keys(allPresets).length} available templates to create multiple classes at once for trial: <strong>{selectedTrialId}</strong>
+              Select from {Object.keys(allPresets).length} available templates to create multiple
+              classes at once for trial: <strong>{selectedTrialId}</strong>
             </p>
-            
+
             <ShowTemplateManager
               trialId={selectedTrialId}
               onClassesCreated={handleClassesCreated}
@@ -88,7 +91,7 @@ export const ShowTemplateTestPage: React.FC = () => {
               <TabsTrigger value="UKC">🥇 UKC ({presetsByOrg.UKC.length})</TabsTrigger>
               <TabsTrigger value="Other">📋 Other ({presetsByOrg.Other.length})</TabsTrigger>
             </TabsList>
-            
+
             {Object.entries(presetsByOrg).map(([orgName, presets]) => (
               <TabsContent key={orgName} value={orgName}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -98,31 +101,37 @@ export const ShowTemplateTestPage: React.FC = () => {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="text-xl">{organizationIcons[preset.organization]}</span>
+                              <span className="text-xl">
+                                {organizationIcons[preset.organization]}
+                              </span>
                               <h3 className="font-semibold text-sm">{preset.name}</h3>
                             </div>
                             <Badge variant="outline" className="text-xs">
                               {preset.organization}
                             </Badge>
                           </div>
-                          
+
                           <p className="text-xs text-gray-600">{preset.description}</p>
-                          
+
                           <div className="space-y-2">
-                            <Badge 
+                            <Badge
                               className={`text-xs ${showTypeColors[preset.trialType as keyof typeof showTypeColors] || 'bg-gray-100 text-gray-800'}`}
                             >
                               {preset.trialType}
                             </Badge>
-                            
+
                             <div className="text-xs space-y-1">
                               <div className="flex justify-between">
                                 <span>Entry Fee:</span>
-                                <span className="font-medium">${preset.defaults.entryFee || 'N/A'}</span>
+                                <span className="font-medium">
+                                  ${preset.defaults.entryFee || 'N/A'}
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span>Max Entries:</span>
-                                <span className="font-medium">{preset.defaults.maxEntries || 'N/A'}</span>
+                                <span className="font-medium">
+                                  {preset.defaults.maxEntries || 'N/A'}
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span>Jump Heights:</span>
@@ -132,10 +141,11 @@ export const ShowTemplateTestPage: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="pt-2 border-t">
                             <p className="text-xs text-gray-500">
-                              <strong>{preset.classFields.length}</strong> field{preset.classFields.length !== 1 ? 's' : ''}: {' '}
+                              <strong>{preset.classFields.length}</strong> field
+                              {preset.classFields.length !== 1 ? 's' : ''}:{' '}
                               {preset.classFields.map(f => f.name).join(', ')}
                             </p>
                           </div>
@@ -144,7 +154,7 @@ export const ShowTemplateTestPage: React.FC = () => {
                     </Card>
                   ))}
                 </div>
-                
+
                 {presets.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <p>No templates available for {orgName}</p>
@@ -175,17 +185,21 @@ export const ShowTemplateTestPage: React.FC = () => {
           ) : (
             <ScrollArea className="h-64">
               <div className="space-y-2">
-                {trialClasses.map((cls) => (
-                  <div key={cls.id} className="flex items-center justify-between p-3 border rounded">
+                {trialClasses.map(cls => (
+                  <div
+                    key={cls.id}
+                    className="flex items-center justify-between p-3 border rounded"
+                  >
                     <div>
                       <p className="font-medium">
-                        {cls.className || `${cls.element || ''} ${cls.level || ''} ${cls.section || ''}`.trim()}
+                        {cls.className ||
+                          `${cls.element || ''} ${cls.level || ''} ${cls.section || ''}`.trim()}
                       </p>
                       <p className="text-sm text-gray-600">
                         Order: {cls.classOrder} • Judge: {cls.judge} • Status: {cls.status}
                       </p>
                       {cls.entryFee && (
-                        <p className="text-sm text-green-600">Entry Fee: ${cls.entryFee}</p>
+                        <p className="text-sm text-teal-600">Entry Fee: ${cls.entryFee}</p>
                       )}
                     </div>
                     <div className="flex gap-2">
@@ -214,19 +228,21 @@ export const ShowTemplateTestPage: React.FC = () => {
               <p className="text-2xl font-bold text-blue-600">7+</p>
               <p className="text-sm text-blue-700">AKC, UKC, NACSW, CPE, USDAA, NADAC, ASCA</p>
             </div>
-            
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <h4 className="font-semibold text-green-800">Show Types</h4>
-              <p className="text-2xl font-bold text-green-600">15+</p>
-              <p className="text-sm text-green-700">Scent Work, Agility, Conformation, Obedience, Rally, FastCAT, etc.</p>
+
+            <div className="text-center p-4 bg-teal-50 rounded-lg">
+              <h4 className="font-semibold text-teal-800">Show Types</h4>
+              <p className="text-2xl font-bold text-teal-600">15+</p>
+              <p className="text-sm text-teal-700">
+                Scent Work, Agility, Conformation, Obedience, Rally, FastCAT, etc.
+              </p>
             </div>
-            
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <h4 className="font-semibold text-purple-800">Templates</h4>
-              <p className="text-2xl font-bold text-purple-600">{Object.keys(allPresets).length}</p>
-              <p className="text-sm text-purple-700">Ready-to-use presets</p>
+
+            <div className="text-center p-4 bg-violet-50 rounded-lg">
+              <h4 className="font-semibold text-violet-800">Templates</h4>
+              <p className="text-2xl font-bold text-violet-600">{Object.keys(allPresets).length}</p>
+              <p className="text-sm text-violet-700">Ready-to-use presets</p>
             </div>
-            
+
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <h4 className="font-semibold text-orange-800">Flexibility</h4>
               <p className="text-2xl font-bold text-orange-600">∞</p>

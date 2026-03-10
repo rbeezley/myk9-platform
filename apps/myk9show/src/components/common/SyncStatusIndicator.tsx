@@ -4,15 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  Wifi, 
-  WifiOff, 
-  CloudOff, 
-  AlertCircle, 
-  CheckCircle, 
-  Clock,
-  RefreshCw
-} from 'lucide-react';
+import { Wifi, WifiOff, CloudOff, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBackgroundSync } from '@/hooks/useBackgroundSync';
 
@@ -25,17 +17,10 @@ interface SyncStatusIndicatorProps {
 export function SyncStatusIndicator({
   className,
   showDetails = false,
-  size = 'md'
+  size = 'md',
 }: SyncStatusIndicatorProps) {
-  const {
-    isOnline,
-    isSyncing,
-    queueSize,
-    lastSyncAt,
-    error,
-    networkState,
-    forceSyncNow
-  } = useBackgroundSync();
+  const { isOnline, isSyncing, queueSize, lastSyncAt, error, networkState, forceSyncNow } =
+    useBackgroundSync();
 
   // Track current time for relative time display
   const [now, setNow] = useState(() => Date.now());
@@ -48,8 +33,8 @@ export function SyncStatusIndicator({
     if (error) return 'text-red-500';
     if (isSyncing) return 'text-blue-500';
     if (!isOnline) return 'text-orange-500';
-    if (queueSize > 0) return 'text-yellow-500';
-    return 'text-green-500';
+    if (queueSize > 0) return 'text-amber-500';
+    return 'text-teal-500';
   };
 
   const getSyncMessage = () => {
@@ -62,21 +47,21 @@ export function SyncStatusIndicator({
 
   const getNetworkColor = () => {
     if (!isOnline) return 'text-red-500';
-    if (networkState.quality === 'excellent') return 'text-green-500';
+    if (networkState.quality === 'excellent') return 'text-teal-500';
     if (networkState.quality === 'good') return 'text-blue-500';
-    return 'text-yellow-500';
+    return 'text-amber-500';
   };
 
   const iconSize = {
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
-    lg: 'w-6 h-6'
+    lg: 'w-6 h-6',
   }[size];
 
   const textSize = {
     sm: 'text-xs',
     md: 'text-sm',
-    lg: 'text-base'
+    lg: 'text-base',
   }[size];
 
   // Render the appropriate sync icon based on state
@@ -115,11 +100,7 @@ export function SyncStatusIndicator({
         title={getSyncMessage()}
       >
         {renderSyncIcon()}
-        {showDetails && (
-          <span className={cn(textSize, getSyncColor())}>
-            {getSyncMessage()}
-          </span>
-        )}
+        {showDetails && <span className={cn(textSize, getSyncColor())}>{getSyncMessage()}</span>}
       </div>
 
       {/* Detailed Status */}
@@ -127,8 +108,11 @@ export function SyncStatusIndicator({
         <div className={cn(textSize, 'text-muted-foreground')}>
           {lastSyncAt && (
             <span>
-              Last: {new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
-                .format(-Math.floor((now - lastSyncAt.getTime()) / 60000), 'minute')}
+              Last:{' '}
+              {new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
+                -Math.floor((now - lastSyncAt.getTime()) / 60000),
+                'minute'
+              )}
             </span>
           )}
         </div>
@@ -145,8 +129,8 @@ export function SyncStatusBadge({ className }: { className?: string }) {
     if (error) return 'bg-red-100 text-red-800 border-red-200';
     if (!isOnline) return 'bg-orange-100 text-orange-800 border-orange-200';
     if (isSyncing) return 'bg-blue-100 text-blue-800 border-blue-200';
-    if (queueSize > 0) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    return 'bg-green-100 text-green-800 border-green-200';
+    if (queueSize > 0) return 'bg-amber-100 text-amber-800 border-amber-200';
+    return 'bg-teal-100 text-teal-800 border-teal-200';
   };
 
   const getBadgeText = () => {
@@ -158,11 +142,13 @@ export function SyncStatusBadge({ className }: { className?: string }) {
   };
 
   return (
-    <span className={cn(
-      'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
-      getBadgeColor(),
-      className
-    )}>
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        getBadgeColor(),
+        className
+      )}
+    >
       {getBadgeText()}
     </span>
   );
@@ -179,7 +165,7 @@ export function SyncStatusPanel({ className }: { className?: string }) {
     metrics,
     networkState,
     forceSyncNow,
-    clearError
+    clearError,
   } = useBackgroundSync();
 
   // Track current time for relative time display
@@ -202,18 +188,20 @@ export function SyncStatusPanel({ className }: { className?: string }) {
           <span className="text-muted-foreground">Connection:</span>
           <div className="flex items-center gap-1 mt-1">
             {isOnline ? (
-              <><Wifi className="w-4 h-4 text-green-500" /> Online</>
+              <>
+                <Wifi className="w-4 h-4 text-teal-500" /> Online
+              </>
             ) : (
-              <><WifiOff className="w-4 h-4 text-red-500" /> Offline</>
+              <>
+                <WifiOff className="w-4 h-4 text-red-500" /> Offline
+              </>
             )}
           </div>
         </div>
-        
+
         <div>
           <span className="text-muted-foreground">Queue:</span>
-          <div className="mt-1">
-            {queueSize > 0 ? `${queueSize} pending` : 'Empty'}
-          </div>
+          <div className="mt-1">{queueSize > 0 ? `${queueSize} pending` : 'Empty'}</div>
         </div>
       </div>
 
@@ -224,10 +212,7 @@ export function SyncStatusPanel({ className }: { className?: string }) {
             <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm text-red-700">{error}</p>
-              <button
-                onClick={clearError}
-                className="text-xs text-red-600 hover:text-red-800 mt-1"
-              >
+              <button onClick={clearError} className="text-xs text-red-600 hover:text-red-800 mt-1">
                 Clear error
               </button>
             </div>
@@ -243,11 +228,13 @@ export function SyncStatusPanel({ className }: { className?: string }) {
           <div>Avg Sync Time: {(metrics.averageSyncTime / 1000).toFixed(1)}s</div>
           <div>Network: {networkState.quality}</div>
           <div>
-            Last Sync: {lastSyncAt ?
-              new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
-                .format(-Math.floor((now - lastSyncAt.getTime()) / 60000), 'minute') :
-              'Never'
-            }
+            Last Sync:{' '}
+            {lastSyncAt
+              ? new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
+                  -Math.floor((now - lastSyncAt.getTime()) / 60000),
+                  'minute'
+                )
+              : 'Never'}
           </div>
         </div>
       </div>

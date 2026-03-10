@@ -161,9 +161,9 @@ export const PerformanceModeToggle: React.FC = () => {
       case 'development':
         return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'production':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-teal-100 text-teal-800 border-teal-300';
       case 'optimized':
-        return 'bg-purple-100 text-purple-800 border-purple-300';
+        return 'bg-violet-100 text-violet-800 border-violet-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-300';
     }
@@ -218,7 +218,7 @@ export const PerformanceModeToggle: React.FC = () => {
                 </div>
 
                 <div className="group relative overflow-hidden p-6 bg-muted/50 rounded-2xl border border-border transition-all duration-500 hover:shadow-lg hover:-translate-y-1">
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative">
                     <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide mb-2">
                       Connections
@@ -233,7 +233,7 @@ export const PerformanceModeToggle: React.FC = () => {
                 </div>
 
                 <div className="group relative overflow-hidden p-6 bg-muted/50 rounded-2xl border border-border transition-all duration-500 hover:shadow-lg hover:-translate-y-1">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="relative">
                     <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide mb-2">
                       Compression
@@ -305,15 +305,15 @@ export const PerformanceModeToggle: React.FC = () => {
                             mode === 'development'
                               ? 'bg-gradient-to-br from-blue-500/20 to-blue-400/10 shadow-lg'
                               : mode === 'production'
-                                ? 'bg-gradient-to-br from-green-500/20 to-green-400/10 shadow-lg'
-                                : 'bg-gradient-to-br from-purple-500/20 to-purple-400/10 shadow-lg'
+                                ? 'bg-gradient-to-br from-teal-500/20 to-teal-400/10 shadow-lg'
+                                : 'bg-gradient-to-br from-violet-500/20 to-violet-400/10 shadow-lg'
                           }`}
                         >
                           {mode === 'development' && <Zap className="h-6 w-6 text-blue-500" />}
                           {mode === 'production' && (
-                            <CheckCircle2 className="h-6 w-6 text-green-500" />
+                            <CheckCircle2 className="h-6 w-6 text-teal-500" />
                           )}
-                          {mode === 'optimized' && <Activity className="h-6 w-6 text-purple-500" />}
+                          {mode === 'optimized' && <Activity className="h-6 w-6 text-violet-500" />}
                         </div>
                       </div>
                       <div className="flex-1">
@@ -355,8 +355,8 @@ export const PerformanceModeToggle: React.FC = () => {
               <div className="grid gap-6">
                 <div className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500/20 to-green-400/10 rounded-lg flex items-center justify-center">
-                      <Activity className="h-4 w-4 text-green-500" />
+                    <div className="w-8 h-8 bg-gradient-to-br from-teal-500/20 to-teal-400/10 rounded-lg flex items-center justify-center">
+                      <Activity className="h-4 w-4 text-teal-500" />
                     </div>
                     <div>
                       <span className="font-medium">Performance Metrics</span>

@@ -4,8 +4,14 @@ import { CreatedClass } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Calendar,
   AlertTriangle,
   Download,
@@ -13,7 +19,7 @@ import {
   Filter,
   BarChart3,
   User,
-  MapPin
+  MapPin,
 } from 'lucide-react';
 
 interface ClassScheduleViewProps {
@@ -26,7 +32,7 @@ interface ClassScheduleViewProps {
 export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
   classes,
   config,
-  onExport
+  onExport,
 }) => {
   const [viewMode, setViewMode] = useState<'timeline' | 'grid' | 'judge' | 'element'>('timeline');
   const [filterJudge, setFilterJudge] = useState<string>('');
@@ -80,24 +86,24 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
     if (errorCount > 0) {
       return <AlertTriangle className="h-4 w-4 text-red-500" />;
     }
-    return conflicts.length > 0 ? <AlertTriangle className="h-4 w-4 text-yellow-500" /> : null;
+    return conflicts.length > 0 ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : null;
   };
 
   const calculateTimelinePosition = (item: ScheduleItem) => {
     const dayStart = new Date(config.trialStartTime);
     dayStart.setHours(8, 0, 0, 0); // 8 AM start for timeline
-    
+
     const dayEnd = new Date(config.trialStartTime);
     dayEnd.setHours(18, 0, 0, 0); // 6 PM end for timeline
-    
+
     const totalMinutes = (dayEnd.getTime() - dayStart.getTime()) / 60000;
     const startOffset = (item.calculatedStartTime.getTime() - dayStart.getTime()) / 60000;
     const duration = (item.fieldValues?.estimatedJudgingTime as number) || 15;
-    
+
     return {
       left: `${(startOffset / totalMinutes) * 100}%`,
       width: `${(duration / totalMinutes) * 100}%`,
-      isVisible: startOffset >= 0 && startOffset < totalMinutes
+      isVisible: startOffset >= 0 && startOffset < totalMinutes,
     };
   };
 
@@ -112,12 +118,10 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
               Schedule Preview
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={stats.errorConflicts > 0 ? "destructive" : "default"}>
+              <Badge variant={stats.errorConflicts > 0 ? 'destructive' : 'default'}>
                 {stats.totalConflicts} conflicts
               </Badge>
-              <Badge variant="outline">
-                {stats.totalClasses} classes
-              </Badge>
+              <Badge variant="outline">{stats.totalClasses} classes</Badge>
             </div>
           </CardTitle>
         </CardHeader>
@@ -129,11 +133,13 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
               <div className="text-sm text-muted-foreground">Classes</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{formatDuration(stats.totalDuration)}</div>
+              <div className="text-2xl font-bold text-teal-600">
+                {formatDuration(stats.totalDuration)}
+              </div>
               <div className="text-sm text-muted-foreground">Duration</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{stats.judgeCount}</div>
+              <div className="text-2xl font-bold text-violet-600">{stats.judgeCount}</div>
               <div className="text-sm text-muted-foreground">Judges</div>
             </div>
             <div className="text-center">
@@ -141,11 +147,15 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
               <div className="text-sm text-muted-foreground">Elements</div>
             </div>
             <div className="text-center">
-              <div className="text-sm font-mono">{stats.startTime ? formatTime(stats.startTime) : '--:--'}</div>
+              <div className="text-sm font-mono">
+                {stats.startTime ? formatTime(stats.startTime) : '--:--'}
+              </div>
               <div className="text-sm text-muted-foreground">Start</div>
             </div>
             <div className="text-center">
-              <div className="text-sm font-mono">{stats.endTime ? formatTime(stats.endTime) : '--:--'}</div>
+              <div className="text-sm font-mono">
+                {stats.endTime ? formatTime(stats.endTime) : '--:--'}
+              </div>
               <div className="text-sm text-muted-foreground">End</div>
             </div>
           </div>
@@ -158,13 +168,15 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                 { value: 'timeline', label: 'Timeline', icon: BarChart3 },
                 { value: 'grid', label: 'Grid', icon: Calendar },
                 { value: 'judge', label: 'By Judge', icon: User },
-                { value: 'element', label: 'By Element', icon: MapPin }
+                { value: 'element', label: 'By Element', icon: MapPin },
               ].map(mode => (
                 <Button
                   key={mode.value}
                   variant={viewMode === mode.value ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setViewMode(mode.value as 'timeline' | 'grid' | 'judge' | 'element')}
+                  onClick={() =>
+                    setViewMode(mode.value as 'timeline' | 'grid' | 'judge' | 'element')
+                  }
                 >
                   <mode.icon className="h-4 w-4 mr-1" />
                   {mode.label}
@@ -175,26 +187,30 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
             {/* Filters */}
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={""} onValueChange={setFilterJudge}>
+              <Select value={''} onValueChange={setFilterJudge}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="All Judges" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Judges</SelectItem>
                   {judges.map(judgeId => (
-                    <SelectItem key={judgeId} value={judgeId || ""}>Judge {judgeId}</SelectItem>
+                    <SelectItem key={judgeId} value={judgeId || ''}>
+                      Judge {judgeId}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
-              <Select value={""} onValueChange={setFilterElement}>
+              <Select value={''} onValueChange={setFilterElement}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue placeholder="All Elements" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Elements</SelectItem>
                   {elements.map(element => (
-                    <SelectItem key={element} value={""}>{element}</SelectItem>
+                    <SelectItem key={element} value={''}>
+                      {element}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -224,27 +240,37 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
           {viewMode === 'timeline' && (
             <div className="space-y-4">
               <div className="h-2 bg-muted rounded relative">
-                <div className="absolute left-0 top-0 text-xs text-muted-foreground -mt-5">8:00</div>
-                <div className="absolute left-1/4 top-0 text-xs text-muted-foreground -mt-5">10:30</div>
-                <div className="absolute left-1/2 top-0 text-xs text-muted-foreground -mt-5">13:00</div>
-                <div className="absolute left-3/4 top-0 text-xs text-muted-foreground -mt-5">15:30</div>
-                <div className="absolute right-0 top-0 text-xs text-muted-foreground -mt-5">18:00</div>
+                <div className="absolute left-0 top-0 text-xs text-muted-foreground -mt-5">
+                  8:00
+                </div>
+                <div className="absolute left-1/4 top-0 text-xs text-muted-foreground -mt-5">
+                  10:30
+                </div>
+                <div className="absolute left-1/2 top-0 text-xs text-muted-foreground -mt-5">
+                  13:00
+                </div>
+                <div className="absolute left-3/4 top-0 text-xs text-muted-foreground -mt-5">
+                  15:30
+                </div>
+                <div className="absolute right-0 top-0 text-xs text-muted-foreground -mt-5">
+                  18:00
+                </div>
               </div>
-              
+
               <div className="space-y-2">
                 {filteredSchedule.map(item => {
                   const position = calculateTimelinePosition(item);
                   if (!position.isVisible) return null;
-                  
+
                   return (
                     <div key={item.id} className="relative h-12 bg-muted rounded">
-                      <div 
+                      <div
                         className={`absolute h-full rounded flex items-center px-2 text-xs font-medium ${
-                          item.conflicts.some(c => c.severity === 'error') 
-                            ? 'bg-red-500 text-white' 
+                          item.conflicts.some(c => c.severity === 'error')
+                            ? 'bg-red-500 text-white'
                             : item.conflicts.length > 0
-                            ? 'bg-yellow-500 text-black'
-                            : 'bg-blue-500 text-white'
+                              ? 'bg-amber-500 text-black'
+                              : 'bg-blue-500 text-white'
                         }`}
                         style={{ left: position.left, width: position.width }}
                       >
@@ -256,7 +282,8 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                         </div>
                       </div>
                       <div className="absolute right-2 top-1 text-xs text-muted-foreground">
-                        {formatTime(item.calculatedStartTime)} - {formatTime(item.calculatedEndTime)}
+                        {formatTime(item.calculatedStartTime)} -{' '}
+                        {formatTime(item.calculatedEndTime)}
                       </div>
                     </div>
                   );
@@ -276,7 +303,9 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                   <div className="flex-1">
                     <div className="font-medium">{item.className}</div>
                     <div className="text-sm text-muted-foreground">
-                      {item.element}{item.level ? ` ${item.level}` : ''}{item.section ? ` ${item.section}` : ''}
+                      {item.element}
+                      {item.level ? ` ${item.level}` : ''}
+                      {item.section ? ` ${item.section}` : ''}
                     </div>
                   </div>
                   <div className="text-center">
@@ -284,7 +313,9 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                     <div className="text-xs text-muted-foreground">Start</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-sm">{(item.fieldValues?.estimatedJudgingTime as number) || 15}m</div>
+                    <div className="text-sm">
+                      {(item.fieldValues?.estimatedJudgingTime as number) || 15}m
+                    </div>
                     <div className="text-xs text-muted-foreground">Duration</div>
                   </div>
                   <div className="text-center">
@@ -318,8 +349,12 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                       <div key={item.id} className="flex items-center gap-4 p-2 bg-muted rounded">
                         <div className="text-sm font-mono">#{item.runOrder}</div>
                         <div className="flex-1 text-sm">{item.className}</div>
-                        <div className="text-sm font-mono">{formatTime(item.calculatedStartTime)}</div>
-                        <div className="text-sm">{(item.fieldValues?.estimatedJudgingTime as number) || 15}m</div>
+                        <div className="text-sm font-mono">
+                          {formatTime(item.calculatedStartTime)}
+                        </div>
+                        <div className="text-sm">
+                          {(item.fieldValues?.estimatedJudgingTime as number) || 15}m
+                        </div>
                         {getConflictIcon(item.conflicts)}
                       </div>
                     ))}
@@ -344,7 +379,9 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                       <div key={item.id} className="flex items-center gap-4 p-2 bg-muted rounded">
                         <div className="text-sm font-mono">#{item.runOrder}</div>
                         <div className="flex-1 text-sm">{item.className}</div>
-                        <div className="text-sm font-mono">{formatTime(item.calculatedStartTime)}</div>
+                        <div className="text-sm font-mono">
+                          {formatTime(item.calculatedStartTime)}
+                        </div>
                         <div className="text-sm">Judge {item.personnel.judgeId || 'TBD'}</div>
                         {getConflictIcon(item.conflicts)}
                       </div>
@@ -361,10 +398,9 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Classes Found</h3>
               <p className="text-muted-foreground">
-                {schedule.length === 0 
-                  ? "No classes scheduled for this trial."
-                  : "No classes match the selected filters."
-                }
+                {schedule.length === 0
+                  ? 'No classes scheduled for this trial.'
+                  : 'No classes match the selected filters.'}
               </p>
             </div>
           )}
@@ -388,13 +424,14 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                   <div className="text-sm text-red-700">Errors</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">{stats.warningConflicts}</div>
-                  <div className="text-sm text-yellow-700">Warnings</div>
+                  <div className="text-2xl font-bold text-amber-600">{stats.warningConflicts}</div>
+                  <div className="text-sm text-amber-700">Warnings</div>
                 </div>
               </div>
-              
+
               <div className="text-sm text-red-700">
-                Review scheduling conflicts before finalizing. Use the timeline view to see overlapping classes.
+                Review scheduling conflicts before finalizing. Use the timeline view to see
+                overlapping classes.
               </div>
             </div>
           </CardContent>

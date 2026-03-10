@@ -57,9 +57,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       case 'completed':
         return {
           icon: CheckCircle,
-          color: 'text-green-600 dark:text-green-400',
-          bgColor: 'bg-green-50 dark:bg-green-950/30',
-          borderColor: 'border-green-200 dark:border-green-800',
+          color: 'text-teal-600 dark:text-teal-400',
+          bgColor: 'bg-teal-50 dark:bg-teal-950/30',
+          borderColor: 'border-teal-200 dark:border-teal-800',
           title: 'RBAC Migration Complete',
           description: 'Your account is using the new database-driven permission system.',
           progress: 100,
@@ -87,9 +87,9 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
       default:
         return {
           icon: Info,
-          color: 'text-yellow-600 dark:text-yellow-400',
-          bgColor: 'bg-yellow-50 dark:bg-yellow-950/30',
-          borderColor: 'border-yellow-200 dark:border-yellow-800',
+          color: 'text-amber-600 dark:text-amber-400',
+          bgColor: 'bg-amber-50 dark:bg-amber-950/30',
+          borderColor: 'border-amber-200 dark:border-amber-800',
           title: 'Using Legacy RBAC System',
           description: 'Your account will be migrated to the new system automatically.',
           progress: 10,
@@ -172,16 +172,16 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
             </div>
             <div className="text-sm text-muted-foreground">
               {useDatabase ? (
-                <span className="text-green-600">✓ Using database permissions</span>
+                <span className="text-teal-600">✓ Using database permissions</span>
               ) : (
-                <span className="text-yellow-600">⚠ Using legacy permissions</span>
+                <span className="text-amber-600">⚠ Using legacy permissions</span>
               )}
             </div>
           </div>
 
           <div className="p-4 border border-border rounded-lg space-y-2 bg-card">
             <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-600" />
+              <Shield className="h-4 w-4 text-teal-600" />
               <span className="font-medium">Active Roles</span>
             </div>
             <div className="text-sm text-muted-foreground">
@@ -225,7 +225,7 @@ export const CompactMigrationStatus: React.FC = () => {
       case 'error':
         return 'bg-red-100 text-red-800';
       default:
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-100 text-amber-800';
     }
   };
 

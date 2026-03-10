@@ -208,11 +208,11 @@ export function stripNonDigits(value: string): string {
 export function getEntryStatusBadgeColor(status: EntryStatus): string {
   switch (status) {
     case EntryStatusEnum.ACCEPTED:
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'bg-teal-100 text-teal-800 border-teal-200';
     case EntryStatusEnum.REJECTED:
       return 'bg-red-100 text-red-800 border-red-200';
     case EntryStatusEnum.WAITLIST:
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      return 'bg-amber-100 text-amber-800 border-amber-200';
     case EntryStatusEnum.MISSING_INFO:
       return 'bg-orange-100 text-orange-800 border-orange-200';
     default:
@@ -228,7 +228,7 @@ export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
     case PaymentStatusEnum.PAID_ONLINE:
     case PaymentStatusEnum.PAID_BY_CHECK:
     case PaymentStatusEnum.PAID_BY_CASH:
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'bg-teal-100 text-teal-800 border-teal-200';
     case PaymentStatusEnum.REFUNDED:
     case PaymentStatusEnum.PARTIAL_REFUND:
       return 'bg-red-100 text-red-800 border-red-200';

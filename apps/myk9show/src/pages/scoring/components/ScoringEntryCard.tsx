@@ -34,12 +34,12 @@ function getStatusDisplay(entry: ScoringEntry) {
     const isQualified = entry.result?.qualification === 'Qualified';
     return {
       icon: isQualified ? (
-        <CheckCircle2 className="h-5 w-5 text-green-500" />
+        <CheckCircle2 className="h-5 w-5 text-teal-500" />
       ) : (
         <AlertCircle className="h-5 w-5 text-amber-500" />
       ),
       badge: isQualified ? 'Q' : 'NQ',
-      badgeClass: isQualified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700',
+      badgeClass: isQualified ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700',
     };
   }
 
@@ -99,33 +99,31 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
         {/* Entry Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground truncate">
-              {entry.callName}
-            </h3>
+            <h3 className="font-semibold text-foreground truncate">{entry.callName}</h3>
             {status.badge && (
-              <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', status.badgeClass)}>
+              <span
+                className={cn('px-2 py-0.5 text-xs font-medium rounded-full', status.badgeClass)}
+              >
                 {status.badge}
               </span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground truncate">
-            {entry.breed}
-          </p>
-          <p className="text-xs text-muted-foreground truncate">
-            Handler: {entry.handler}
-          </p>
+          <p className="text-sm text-muted-foreground truncate">{entry.breed}</p>
+          <p className="text-xs text-muted-foreground truncate">Handler: {entry.handler}</p>
         </div>
 
         {/* Placement (if scored) */}
         {entry.placement && entry.placement <= 4 && (
           <div className="shrink-0 flex items-center gap-1">
-            <Trophy className={cn(
-              'h-5 w-5',
-              entry.placement === 1 && 'text-yellow-500',
-              entry.placement === 2 && 'text-gray-400',
-              entry.placement === 3 && 'text-amber-700',
-              entry.placement === 4 && 'text-blue-500',
-            )} />
+            <Trophy
+              className={cn(
+                'h-5 w-5',
+                entry.placement === 1 && 'text-amber-500',
+                entry.placement === 2 && 'text-gray-400',
+                entry.placement === 3 && 'text-amber-700',
+                entry.placement === 4 && 'text-blue-500'
+              )}
+            />
             <span className="text-sm font-medium">{entry.placement}</span>
           </div>
         )}
@@ -149,18 +147,10 @@ ScoringEntryCard.displayName = 'ScoringEntryCard';
 /**
  * Sortable wrapper for drag-and-drop
  */
-export function SortableScoringEntryCard({
-  entry,
-  onSelect,
-}: ScoringEntryCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: entry.id });
+export function SortableScoringEntryCard({ entry, onSelect }: ScoringEntryCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: entry.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),

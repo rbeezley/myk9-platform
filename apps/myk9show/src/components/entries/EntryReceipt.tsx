@@ -289,8 +289,8 @@ export function EntryReceipt({
     return parts.join(', ') || 'Location TBD';
   };
 
-  const activeClasses = entry.classes.filter((c) => c.status !== 'scratched');
-  const scratchedClasses = entry.classes.filter((c) => c.status === 'scratched');
+  const activeClasses = entry.classes.filter(c => c.status !== 'scratched');
+  const scratchedClasses = entry.classes.filter(c => c.status === 'scratched');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -300,9 +300,7 @@ export function EntryReceipt({
             <Printer className="h-5 w-5" />
             Entry Receipt
           </DialogTitle>
-          <DialogDescription>
-            Print or save this receipt for your records
-          </DialogDescription>
+          <DialogDescription>Print or save this receipt for your records</DialogDescription>
         </DialogHeader>
 
         {/* Printable Content */}
@@ -356,7 +354,9 @@ export function EntryReceipt({
               </div>
               <div className="info-item">
                 <div className="info-label text-xs text-muted-foreground">Handler</div>
-                <div className="info-value font-medium">{entry.handler || exhibitorName || 'Not specified'}</div>
+                <div className="info-value font-medium">
+                  {entry.handler || exhibitorName || 'Not specified'}
+                </div>
               </div>
               {exhibitorEmail && (
                 <div className="info-item">
@@ -379,13 +379,19 @@ export function EntryReceipt({
             <table className="classes-table w-full">
               <thead>
                 <tr className="border-b-2">
-                  <th className="text-left py-2 text-xs font-semibold text-muted-foreground uppercase">Class</th>
-                  <th className="text-left py-2 text-xs font-semibold text-muted-foreground uppercase">Jump Height</th>
-                  <th className="text-right py-2 text-xs font-semibold text-muted-foreground uppercase">Fee</th>
+                  <th className="text-left py-2 text-xs font-semibold text-muted-foreground uppercase">
+                    Class
+                  </th>
+                  <th className="text-left py-2 text-xs font-semibold text-muted-foreground uppercase">
+                    Jump Height
+                  </th>
+                  <th className="text-right py-2 text-xs font-semibold text-muted-foreground uppercase">
+                    Fee
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {activeClasses.map((cls) => (
+                {activeClasses.map(cls => (
                   <tr key={cls.id} className="border-b">
                     <td className="py-3">
                       {cls.name}
@@ -395,7 +401,7 @@ export function EntryReceipt({
                     <td className="py-3 text-right font-mono">{formatCurrency(cls.fee)}</td>
                   </tr>
                 ))}
-                {scratchedClasses.map((cls) => (
+                {scratchedClasses.map(cls => (
                   <tr key={cls.id} className="border-b text-muted-foreground line-through">
                     <td className="py-3">
                       {cls.name}
@@ -428,7 +434,7 @@ export function EntryReceipt({
             <span
               className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
                 entry.paymentStatus === 'Paid'
-                  ? 'bg-green-100 text-green-800'
+                  ? 'bg-teal-100 text-teal-800'
                   : 'bg-amber-100 text-amber-800'
               }`}
             >
@@ -439,12 +445,8 @@ export function EntryReceipt({
           {/* Footer */}
           <div className="footer mt-8 pt-4 border-t text-center text-xs text-muted-foreground">
             <p>Thank you for your entry!</p>
-            <p className="mt-1">
-              Entry ID: {entry.id}
-            </p>
-            <p className="mt-1">
-              Generated on {formatDateTime(new Date())}
-            </p>
+            <p className="mt-1">Entry ID: {entry.id}</p>
+            <p className="mt-1">Generated on {formatDateTime(new Date())}</p>
           </div>
         </div>
 

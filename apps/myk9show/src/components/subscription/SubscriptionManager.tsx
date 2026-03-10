@@ -160,7 +160,7 @@ export function SubscriptionManager() {
     switch (status) {
       case 'active': {
         return (
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+          <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">
             Active
           </Badge>
         );

@@ -107,16 +107,16 @@ export function dispatchHealthItem(
 
 /** Status badge colors for OFA screenings */
 export const ofaStatusColors: Record<string, string> = {
-  normal: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  carrier: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+  normal: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
+  carrier: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
   affected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
   pending: 'bg-muted text-muted-foreground',
 };
 
 /** Status badge colors for genetic marker statuses */
 export const geneticStatusColors: Record<string, string> = {
-  clear: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-  carrier: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+  clear: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
+  carrier: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
   affected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
   at_risk: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
 };

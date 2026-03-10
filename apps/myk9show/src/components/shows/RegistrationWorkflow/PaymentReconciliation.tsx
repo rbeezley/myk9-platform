@@ -1,18 +1,43 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, Download, Upload, Search, CheckCircle, AlertCircle, Clock, X } from 'lucide-react';
+import {
+  DollarSign,
+  Download,
+  Upload,
+  Search,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  X,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
-import { useRegistrationPermissions, REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
+import {
+  useRegistrationPermissions,
+  REGISTRATION_PERMISSIONS,
+} from '@/hooks/useRegistrationPermissions';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { logger } from '@/services/LoggingService';
 
@@ -33,7 +58,12 @@ interface PaymentEntry {
 interface PaymentReconciliationProps {
   showId: string;
   entries: PaymentEntry[];
-  onPaymentStatusUpdate: (entryId: string, status: PaymentStatus, reference?: string, notes?: string) => void;
+  onPaymentStatusUpdate: (
+    entryId: string,
+    status: PaymentStatus,
+    reference?: string,
+    notes?: string
+  ) => void;
   onBulkPaymentUpdate: (entryIds: string[], status: PaymentStatus, reference?: string) => void;
   onExportReport: (entries: PaymentEntry[]) => void;
   onImportPayments: (file: File) => void;
@@ -45,17 +75,22 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
   onPaymentStatusUpdate,
   onBulkPaymentUpdate,
   onExportReport,
-  onImportPayments
+  onImportPayments,
 }) => {
   useRegistrationPermissions();
-  
+
   // Log for debugging purposes
-  logger.debug('PaymentReconciliation for show:', 'shows', { showId, entriesCount: entries.length });
-  
+  logger.debug('PaymentReconciliation for show:', 'shows', {
+    showId,
+    entriesCount: entries.length,
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all');
   const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
-  const [bulkPaymentStatus, setBulkPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PAID_BY_CHECK);
+  const [bulkPaymentStatus, setBulkPaymentStatus] = useState<PaymentStatus>(
+    PaymentStatus.PAID_BY_CHECK
+  );
   const [bulkReference, setBulkReference] = useState('');
   const [reconciliationNotes, setReconciliationNotes] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -63,13 +98,14 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
   // Filter and search entries
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
-      const matchesSearch = !searchTerm || 
+      const matchesSearch =
+        !searchTerm ||
         entry.dogName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entry.registrationId.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const matchesStatus = statusFilter === 'all' || entry.paymentStatus === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [entries, searchTerm, statusFilter]);
@@ -77,21 +113,23 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
   // Payment statistics
   const paymentStats = useMemo(() => {
     const totalEntries = entries.length;
-    const paidEntries = entries.filter(e => 
-      e.paymentStatus === PaymentStatus.PAID_ONLINE ||
-      e.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-      e.paymentStatus === PaymentStatus.PAID_BY_CASH
+    const paidEntries = entries.filter(
+      e =>
+        e.paymentStatus === PaymentStatus.PAID_ONLINE ||
+        e.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+        e.paymentStatus === PaymentStatus.PAID_BY_CASH
     ).length;
     const pendingEntries = entries.filter(e => e.paymentStatus === PaymentStatus.PENDING).length;
     const totalFees = entries.reduce((sum, e) => sum + e.totalFee, 0);
     const paidFees = entries
-      .filter(e => 
-        e.paymentStatus === PaymentStatus.PAID_ONLINE ||
-        e.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-        e.paymentStatus === PaymentStatus.PAID_BY_CASH
+      .filter(
+        e =>
+          e.paymentStatus === PaymentStatus.PAID_ONLINE ||
+          e.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+          e.paymentStatus === PaymentStatus.PAID_BY_CASH
       )
       .reduce((sum, e) => sum + e.totalFee, 0);
-    
+
     return {
       totalEntries,
       paidEntries,
@@ -99,16 +137,12 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
       totalFees,
       paidFees,
       pendingFees: totalFees - paidFees,
-      paymentRate: totalEntries > 0 ? (paidEntries / totalEntries) * 100 : 0
+      paymentRate: totalEntries > 0 ? (paidEntries / totalEntries) * 100 : 0,
     };
   }, [entries]);
 
   const handleSelectEntry = (entryId: string, selected: boolean) => {
-    setSelectedEntries(prev => 
-      selected 
-        ? [...prev, entryId]
-        : prev.filter(id => id !== entryId)
-    );
+    setSelectedEntries(prev => (selected ? [...prev, entryId] : prev.filter(id => id !== entryId)));
   };
 
   const handleSelectAll = (selected: boolean) => {
@@ -139,9 +173,9 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
       case PaymentStatus.PAID_ONLINE:
       case PaymentStatus.PAID_BY_CHECK:
       case PaymentStatus.PAID_BY_CASH:
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-teal-500" />;
       case PaymentStatus.PENDING:
-        return <Clock className="h-4 w-4 text-yellow-500" />;
+        return <Clock className="h-4 w-4 text-amber-500" />;
       case PaymentStatus.REFUNDED:
       case PaymentStatus.PARTIAL_REFUND:
         return <AlertCircle className="h-4 w-4 text-red-500" />;
@@ -155,7 +189,7 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
       case PaymentStatus.PAID_ONLINE:
       case PaymentStatus.PAID_BY_CHECK:
       case PaymentStatus.PAID_BY_CASH:
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-teal-100 text-teal-800 border-teal-200';
       case PaymentStatus.REFUNDED:
       case PaymentStatus.PARTIAL_REFUND:
         return 'bg-red-100 text-red-800 border-red-200';
@@ -185,19 +219,25 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
               {/* Payment Statistics Dashboard */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-700">{paymentStats.totalEntries}</div>
+                  <div className="text-2xl font-bold text-blue-700">
+                    {paymentStats.totalEntries}
+                  </div>
                   <div className="text-xs text-blue-600">Total Entries</div>
                 </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-700">{paymentStats.paidEntries}</div>
-                  <div className="text-xs text-green-600">Paid Entries</div>
+                <div className="text-center p-4 bg-teal-50 rounded-lg">
+                  <div className="text-2xl font-bold text-teal-700">{paymentStats.paidEntries}</div>
+                  <div className="text-xs text-teal-600">Paid Entries</div>
                 </div>
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-700">{paymentStats.pendingEntries}</div>
-                  <div className="text-xs text-yellow-600">Pending Payment</div>
+                <div className="text-center p-4 bg-amber-50 rounded-lg">
+                  <div className="text-2xl font-bold text-amber-700">
+                    {paymentStats.pendingEntries}
+                  </div>
+                  <div className="text-xs text-amber-600">Pending Payment</div>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-700">{paymentStats.paymentRate.toFixed(1)}%</div>
+                  <div className="text-2xl font-bold text-gray-700">
+                    {paymentStats.paymentRate.toFixed(1)}%
+                  </div>
                   <div className="text-xs text-gray-600">Payment Rate</div>
                 </div>
               </div>
@@ -210,11 +250,15 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
                 </div>
                 <div className="p-4 border rounded-lg">
                   <div className="text-sm text-gray-600">Collected Fees</div>
-                  <div className="text-xl font-bold text-green-700">${paymentStats.paidFees.toFixed(2)}</div>
+                  <div className="text-xl font-bold text-teal-700">
+                    ${paymentStats.paidFees.toFixed(2)}
+                  </div>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <div className="text-sm text-gray-600">Outstanding Fees</div>
-                  <div className="text-xl font-bold text-yellow-700">${paymentStats.pendingFees.toFixed(2)}</div>
+                  <div className="text-xl font-bold text-amber-700">
+                    ${paymentStats.pendingFees.toFixed(2)}
+                  </div>
                 </div>
               </div>
 
@@ -253,14 +297,17 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
                       id="search"
                       placeholder="Search by dog name, owner, or registration ID..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={e => setSearchTerm(e.target.value)}
                       className="pl-8"
                     />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="status-filter">Filter by Status</Label>
-                  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as PaymentStatus | 'all')}>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={value => setStatusFilter(value as PaymentStatus | 'all')}
+                  >
                     <SelectTrigger id="status-filter" className="w-40">
                       <SelectValue />
                     </SelectTrigger>
@@ -283,7 +330,10 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
                     <TableRow>
                       <TableHead className="w-12">
                         <Checkbox
-                          checked={selectedEntries.length === filteredEntries.length && filteredEntries.length > 0}
+                          checked={
+                            selectedEntries.length === filteredEntries.length &&
+                            filteredEntries.length > 0
+                          }
                           onCheckedChange={handleSelectAll}
                         />
                       </TableHead>
@@ -297,12 +347,14 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEntries.map((entry) => (
+                    {filteredEntries.map(entry => (
                       <TableRow key={entry.id}>
                         <TableCell>
                           <Checkbox
                             checked={selectedEntries.includes(entry.id)}
-                            onCheckedChange={(checked) => handleSelectEntry(entry.id, checked as boolean)}
+                            onCheckedChange={checked =>
+                              handleSelectEntry(entry.id, checked as boolean)
+                            }
                           />
                         </TableCell>
                         <TableCell>
@@ -322,7 +374,9 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
                           </div>
                         </TableCell>
                         <TableCell>{entry.paymentMethod || '-'}</TableCell>
-                        <TableCell className="font-mono text-sm">{entry.paymentReference || '-'}</TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {entry.paymentReference || '-'}
+                        </TableCell>
                         <TableCell>
                           <Button
                             size="sm"
@@ -354,52 +408,60 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     Selected {selectedEntries.length} entries for bulk operation.
-                    {selectedEntries.length === 0 && " Select entries from the Payment Entries tab first."}
+                    {selectedEntries.length === 0 &&
+                      ' Select entries from the Payment Entries tab first.'}
                   </AlertDescription>
                 </Alert>
 
                 {selectedEntries.length > 0 && (
                   <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
                     <h4 className="font-medium">Bulk Payment Update</h4>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="bulk-status">Payment Status</Label>
-                        <Select value={bulkPaymentStatus} onValueChange={(value) => setBulkPaymentStatus(value as PaymentStatus)}>
+                        <Select
+                          value={bulkPaymentStatus}
+                          onValueChange={value => setBulkPaymentStatus(value as PaymentStatus)}
+                        >
                           <SelectTrigger id="bulk-status">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={PaymentStatus.PAID_BY_CHECK}>Mark as Paid by Check</SelectItem>
-                            <SelectItem value={PaymentStatus.PAID_BY_CASH}>Mark as Paid by Cash</SelectItem>
+                            <SelectItem value={PaymentStatus.PAID_BY_CHECK}>
+                              Mark as Paid by Check
+                            </SelectItem>
+                            <SelectItem value={PaymentStatus.PAID_BY_CASH}>
+                              Mark as Paid by Cash
+                            </SelectItem>
                             <SelectItem value={PaymentStatus.PENDING}>Reset to Pending</SelectItem>
                             <SelectItem value={PaymentStatus.REFUNDED}>Mark as Refunded</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       <div>
                         <Label htmlFor="bulk-reference">Payment Reference</Label>
                         <Input
                           id="bulk-reference"
                           placeholder="Check number, batch ID, etc."
                           value={bulkReference}
-                          onChange={(e) => setBulkReference(e.target.value)}
+                          onChange={e => setBulkReference(e.target.value)}
                         />
                       </div>
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="reconciliation-notes">Reconciliation Notes</Label>
                       <Textarea
                         id="reconciliation-notes"
                         placeholder="Add notes about this bulk payment update..."
                         value={reconciliationNotes}
-                        onChange={(e) => setReconciliationNotes(e.target.value)}
+                        onChange={e => setReconciliationNotes(e.target.value)}
                         rows={3}
                       />
                     </div>
-                    
+
                     <div className="flex gap-2">
                       <Button onClick={handleBulkPaymentUpdate}>
                         Apply to {selectedEntries.length} Entries

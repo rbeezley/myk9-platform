@@ -5,15 +5,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Archive,
-  Activity,
-  FileText,
-  Play,
-  Pause,
-  Trash2,
-  CheckCircle,
-} from 'lucide-react';
+import { Archive, Activity, FileText, Play, Pause, Trash2, CheckCircle } from 'lucide-react';
 import type { OverviewTabProps } from './types';
 
 export function OverviewTab({
@@ -79,7 +71,7 @@ export function OverviewTab({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Status:</span>
                   {schedulerStatus.isRunning ? (
-                    <Badge className="bg-green-100 text-green-800">
+                    <Badge className="bg-teal-100 text-teal-800">
                       <Play className="h-3 w-3 mr-1" />
                       Running
                     </Badge>
@@ -95,7 +87,11 @@ export function OverviewTab({
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Last Run:</span>
                     <span className="font-medium text-sm">
-                      {String(new Date(schedulerStatus.lastRunTime as string | number | Date).toLocaleString())}
+                      {String(
+                        new Date(
+                          schedulerStatus.lastRunTime as string | number | Date
+                        ).toLocaleString()
+                      )}
                     </span>
                   </div>
                 ) : null}
@@ -104,7 +100,11 @@ export function OverviewTab({
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Next Run:</span>
                     <span className="font-medium text-sm">
-                      {String(new Date(schedulerStatus.nextRunTime as string | number | Date).toLocaleString())}
+                      {String(
+                        new Date(
+                          schedulerStatus.nextRunTime as string | number | Date
+                        ).toLocaleString()
+                      )}
                     </span>
                   </div>
                 ) : null}
@@ -121,10 +121,7 @@ export function OverviewTab({
                       Stop
                     </Button>
                   ) : (
-                    <Button
-                      size="sm"
-                      onClick={onStartScheduler}
-                    >
+                    <Button size="sm" onClick={onStartScheduler}>
                       <Play className="h-4 w-4 mr-2" />
                       Start
                     </Button>
@@ -160,7 +157,7 @@ export function OverviewTab({
         <CardContent>
           <div className="space-y-2">
             <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-teal-600" />
               <span className="text-sm">Archive scheduler started</span>
               <span className="text-xs text-muted-foreground ml-auto">2 min ago</span>
             </div>

@@ -50,7 +50,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
       <TabsTrigger value="vaccinations" className="myk9-sub-tab">
         Vaccinations
         {vaccinationAlerts.length > 0 && (
-          <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[10px] font-bold text-white">
+          <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
             {vaccinationAlerts.length}
           </span>
         )}
@@ -124,7 +124,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
           return (
             <div
               key={vacc.id}
-              className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-red-50 dark:bg-red-950/10' : isExpiringSoon ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/10' : ''}`}
+              className={`p-4 border rounded-lg ${isOverdue ? 'border-red-300 bg-red-50 dark:bg-red-950/10' : isExpiringSoon ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/10' : ''}`}
             >
               <div className="flex justify-between items-start">
                 <div>
@@ -134,7 +134,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                   </p>
                   {vacc.expiration_date && (
                     <p
-                      className={`text-sm ${isOverdue ? 'text-red-600 font-medium' : isExpiringSoon ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}`}
+                      className={`text-sm ${isOverdue ? 'text-red-600 font-medium' : isExpiringSoon ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}
                     >
                       {isOverdue ? 'Overdue since' : 'Next Due'}:{' '}
                       {new Date(vacc.expiration_date).toLocaleDateString()}
@@ -174,7 +174,7 @@ export const HealthRecordsTraditionalView: React.FC<TraditionalViewProps> = ({
                 {med.notes && <p className="text-sm text-muted-foreground">{med.notes}</p>}
               </div>
               {med.is_active && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300">
                   Active
                 </span>
               )}

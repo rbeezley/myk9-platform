@@ -1,6 +1,6 @@
 /**
  * Result Entry Navigation Component
- * 
+ *
  * Provides armband-focused navigation between entries in a class,
  * following the proven Flutter app UX patterns with visual status indicators
  * and progress tracking.
@@ -56,7 +56,7 @@ export interface ResultEntryNavigationProps {
 
 /**
  * Entry navigation component with armband grid and progress tracking
- * 
+ *
  * Features:
  * - Armband-focused grid layout (3-4 per row)
  * - Color-coded status indicators
@@ -69,17 +69,23 @@ export function ResultEntryNavigation({
   classInfo,
   onSelectEntry,
   showProgress = true,
-  className
+  className,
 }: ResultEntryNavigationProps) {
   const { hasRole } = useAuthContext();
   const [checkInDialogOpen, setCheckInDialogOpen] = useState(false);
   const [checkInManagementOpen, setCheckInManagementOpen] = useState(false);
-  const [selectedEntryForCheckIn, setSelectedEntryForCheckIn] = useState<EntryWithResult | null>(null);
+  const [selectedEntryForCheckIn, setSelectedEntryForCheckIn] = useState<EntryWithResult | null>(
+    null
+  );
 
   const updateEntryMutation = useUpdateEntryMutation();
 
   // Check if user can manage check-in status
-  const canManageCheckIn = hasRole(UserRole.JUDGE) || hasRole(UserRole.SECRETARY) || hasRole(UserRole.GATE_STEWARD) || hasRole(UserRole.SITE_ADMIN);
+  const canManageCheckIn =
+    hasRole(UserRole.JUDGE) ||
+    hasRole(UserRole.SECRETARY) ||
+    hasRole(UserRole.GATE_STEWARD) ||
+    hasRole(UserRole.SITE_ADMIN);
 
   // Calculate progress statistics
   const progressStats = useMemo(() => {
@@ -93,17 +99,20 @@ export function ResultEntryNavigation({
       completed,
       inProgress,
       pending,
-      completionPercentage: total > 0 ? Math.round((completed / total) * 100) : 0
+      completionPercentage: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
   }, [entries]);
 
-  const updateCheckInStatus = useCallback(async (entryId: string, status: CheckInStatus) => {
-    logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
-    await updateEntryMutation.mutateAsync({
-      id: entryId,
-      updates: { result_status: status } as Record<string, unknown>,
-    });
-  }, [updateEntryMutation]);
+  const updateCheckInStatus = useCallback(
+    async (entryId: string, status: CheckInStatus) => {
+      logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
+      await updateEntryMutation.mutateAsync({
+        id: entryId,
+        updates: { result_status: status } as Record<string, unknown>,
+      });
+    },
+    [updateEntryMutation]
+  );
 
   const handleCheckInStatusUpdate = async (status: CheckInStatus) => {
     if (!selectedEntryForCheckIn) return;
@@ -125,8 +134,6 @@ export function ResultEntryNavigation({
       throw error;
     }
   };
-
-
 
   return (
     <div className={cn('space-y-8', className)}>
@@ -168,14 +175,14 @@ export function ResultEntryNavigation({
                 {progressStats.completed} of {progressStats.total} completed
               </span>
             </div>
-            
+
             <div className="myk9-judge-progress-bar">
-              <div 
-                className="myk9-judge-progress-fill" 
+              <div
+                className="myk9-judge-progress-fill"
                 style={{ width: `${progressStats.completionPercentage}%` }}
               />
             </div>
-            
+
             <div className="myk9-judge-progress-indicators">
               <div className="flex items-center space-x-4">
                 <div className="myk9-judge-progress-indicator">
@@ -197,7 +204,6 @@ export function ResultEntryNavigation({
         )}
       </div>
 
-
       {/* Entry Grid */}
       <div className="space-y-4">
         <div>
@@ -206,42 +212,44 @@ export function ResultEntryNavigation({
             Select an entry to begin or continue judging
           </p>
         </div>
-        
+
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {entries.map((entry) => {
+          {entries.map(entry => {
             const getStatusClass = () => {
               if (entry.isCurrentEntry) return 'current';
               return entry.navigationStatus;
             };
-            
+
             // Debug logging for entries #107 and #108
             if (['107', '108'].includes(entry.displayInfo.armband)) {
-              logger.debug(`🐕 Entry #${entry.displayInfo.armband}:`, 'scoring', { data: {
-                navigationStatus: entry.navigationStatus,
-                hasResult: !!entry.result,
-                result: entry.result,
-                statusClass: getStatusClass()
-              } });
+              logger.debug(`🐕 Entry #${entry.displayInfo.armband}:`, 'scoring', {
+                data: {
+                  navigationStatus: entry.navigationStatus,
+                  hasResult: !!entry.result,
+                  result: entry.result,
+                  statusClass: getStatusClass(),
+                },
+              });
             }
-            
+
             return (
               <div
                 key={entry.id}
                 className={cn('myk9-entry-card', getStatusClass())}
-                onPointerDown={(e) => {
+                onPointerDown={e => {
                   e.preventDefault();
                   e.stopPropagation();
                   onSelectEntry(entry.id);
                 }}
-                onTouchStart={(e) => {
+                onTouchStart={e => {
                   // Immediate visual feedback on touch start
                   e.currentTarget.style.transform = 'scale(0.96)';
                 }}
-                onTouchEnd={(e) => {
+                onTouchEnd={e => {
                   // Reset visual state on touch end
                   e.currentTarget.style.transform = '';
                 }}
-                onTouchCancel={(e) => {
+                onTouchCancel={e => {
                   // Reset if touch is cancelled
                   e.currentTarget.style.transform = '';
                 }}
@@ -249,25 +257,31 @@ export function ResultEntryNavigation({
                 {/* Armband and Status */}
                 <div className="myk9-entry-header">
                   <div className="flex items-center gap-2">
-                    <div className="myk9-entry-armband">
-                      #{entry.displayInfo.armband}
-                    </div>
+                    <div className="myk9-entry-armband">#{entry.displayInfo.armband}</div>
                   </div>
                   <div className="myk9-entry-status-indicator">
                     {/* For completed entries, show placement badge or nothing */}
                     {entry.navigationStatus === 'completed' ? (
                       entry.placement ? (
-                        <div className={cn(
-                          'myk9-entry-placement-badge',
-                          entry.placement === 1 ? 'first-place' :
-                          entry.placement === 2 ? 'second-place' :
-                          entry.placement === 3 ? 'third-place' :
-                          'other-place'
-                        )}>
-                          {entry.placement === 1 ? '1st' : 
-                           entry.placement === 2 ? '2nd' : 
-                           entry.placement === 3 ? '3rd' : 
-                           `${entry.placement}th`}
+                        <div
+                          className={cn(
+                            'myk9-entry-placement-badge',
+                            entry.placement === 1
+                              ? 'first-place'
+                              : entry.placement === 2
+                                ? 'second-place'
+                                : entry.placement === 3
+                                  ? 'third-place'
+                                  : 'other-place'
+                          )}
+                        >
+                          {entry.placement === 1
+                            ? '1st'
+                            : entry.placement === 2
+                              ? '2nd'
+                              : entry.placement === 3
+                                ? '3rd'
+                                : `${entry.placement}th`}
                         </div>
                       ) : null
                     ) : (
@@ -286,12 +300,8 @@ export function ResultEntryNavigation({
 
                 {/* Dog Information */}
                 <div className="myk9-entry-dog-info">
-                  <div className="myk9-entry-dog-name">
-                    {entry.displayInfo.dogName}
-                  </div>
-                  <div className="myk9-entry-handler-name">
-                    {entry.displayInfo.handlerName}
-                  </div>
+                  <div className="myk9-entry-dog-name">{entry.displayInfo.dogName}</div>
+                  <div className="myk9-entry-handler-name">{entry.displayInfo.handlerName}</div>
                 </div>
 
                 {/* Result/Time Information */}
@@ -303,7 +313,7 @@ export function ResultEntryNavigation({
                       </div>
                       {(() => {
                         const { qualification, faults } = entry.result;
-                        
+
                         switch (qualification) {
                           case 'Qualified':
                             return (
@@ -313,9 +323,7 @@ export function ResultEntryNavigation({
                             );
                           case 'Not Qualified':
                             return (
-                              <div className="myk9-entry-result-badge myk9-entry-result-nq">
-                                NQ
-                              </div>
+                              <div className="myk9-entry-result-badge myk9-entry-result-nq">NQ</div>
                             );
                           case 'Absent':
                             return (
@@ -345,15 +353,11 @@ export function ResultEntryNavigation({
                       })()}
                     </>
                   ) : entry.navigationStatus === 'in-progress' ? (
-                    <div className="myk9-entry-status-text in-progress">
-                      In Progress
-                    </div>
+                    <div className="myk9-entry-status-text in-progress">In Progress</div>
                   ) : (
                     // For pending entries, show check-in status badge in bottom-right corner
                     <div className="flex items-center justify-between w-full">
-                      <div className="myk9-entry-status-text pending">
-                        Not Started
-                      </div>
+                      <div className="myk9-entry-status-text pending">Not Started</div>
                       {(() => {
                         const status = entry.checkInStatus || 'none';
                         switch (status) {
@@ -365,13 +369,13 @@ export function ResultEntryNavigation({
                             );
                           case 'conflict':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded-md border border-yellow-200 dark:border-yellow-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded-md border border-amber-200 dark:border-amber-700">
                                 Conflict
                               </div>
                             );
                           case 'at-gate':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-md border border-green-200 dark:border-green-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 rounded-md border border-teal-200 dark:border-teal-700">
                                 At Gate
                               </div>
                             );
@@ -383,7 +387,7 @@ export function ResultEntryNavigation({
                             );
                           case 'go-to-gate':
                             return (
-                              <div className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 rounded-md border border-purple-200 dark:border-purple-700">
+                              <div className="px-2 py-1 text-xs font-medium bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 rounded-md border border-violet-200 dark:border-violet-700">
                                 Go to Gate
                               </div>
                             );
@@ -403,12 +407,8 @@ export function ResultEntryNavigation({
         {entries.length === 0 && (
           <div className="text-center py-12">
             <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              No Entries Found
-            </h3>
-            <p className="text-muted-foreground">
-              There are no entries in this class yet.
-            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Entries Found</h3>
+            <p className="text-muted-foreground">There are no entries in this class yet.</p>
           </div>
         )}
       </div>
@@ -425,7 +425,7 @@ export function ResultEntryNavigation({
             dogName: selectedEntryForCheckIn.displayInfo.dogName,
             handlerName: selectedEntryForCheckIn.displayInfo.handlerName,
             className: `${classInfo.element} ${classInfo.level}`,
-            classNumber: classInfo.classNumber || '1'
+            classNumber: classInfo.classNumber || '1',
           }}
         />
       )}
@@ -440,7 +440,7 @@ export function ResultEntryNavigation({
           dogName: entry.displayInfo.dogName,
           handlerName: entry.displayInfo.handlerName,
           checkInStatus: entry.checkInStatus,
-          navigationStatus: entry.navigationStatus
+          navigationStatus: entry.navigationStatus,
         }))}
         onUpdateStatus={handleBulkCheckInStatusUpdate}
       />

@@ -402,7 +402,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Notification Inbox + System Announcements - 2026-03-09
 
-- **Build notification inbox with system announcements** — myK9Q has an inbox where users can see all their notifications and system-wide announcements in one place. Replicate this for myK9Show: persistent notification history, read/unread state, filtering by type (personal alerts vs system announcements), announcement management for admins. Separate from the notification delivery system (Phase 6) — this is the inbox/history UI and announcement CRUD. **Files:** `apps/myk9q/src/components/notifications/NotificationCenter.tsx` (reference), `apps/myk9q/src/stores/announcementStore.ts` (reference).
+- [x] **Build notification inbox with system announcements** — Implemented show-scoped announcements with DB tables (`show_announcements` + `show_announcement_reads`, migration 057), TypeScript types, Supabase CRUD queries, Zustand store with realtime channels + optimistic updates, subscription lifecycle hook, AnnouncementItem/CreateAnnouncementDialog/AnnouncementsCard UI components, NotificationCenter integration (Announcements tab reads from store, combined unread count, "+ New" for officials), NotificationBell combined unread badge. 12 tasks, 51+ tests. **Spec:** `docs/superpowers/specs/2026-03-10-show-announcements-design.md`. **Plan:** `docs/superpowers/plans/2026-03-10-show-announcements.md`. **Note:** `announcementQueries.ts` uses `db` cast (`supabase as any`) because Supabase generated types don't include migration 057 tables yet — remove after `supabase gen types`.
 
 ## Color System Audit - 2026-03-09
 
@@ -411,3 +411,23 @@ Pre-existing issues found during confirmation number implementation review. Addr
 ## Pre-Existing Test Failures - 2026-03-09
 
 - [x] **Fix PaymentStep test failures (label mismatch)** — CreditCardVisual uses lowercase aria-labels (`"Card number"`, `"Cardholder name"`, `"Expiry date"`) but tests used title-case (`"Card Number"`, etc.). Updated 3 test assertions to match. 28/28 passing.
+
+## Fix Admin User Management Page - 2026-03-10 12:31
+
+- **Fix admin user management showing no users** - The admin user management page at `/admin/users` displays 0 users with skeleton loading placeholders but never populates data. **Problem:** User Directory shows "Users (0)" and "Page 1 of 0" despite users existing in the database. Statistics section also shows 0 for Total Users, Active Users, and Roles Assigned. The page appears to load (skeletons visible) but data never arrives. **Files:** `apps/myk9show/src/pages/admin/UserManagementPage.tsx:57`, `apps/myk9show/src/hooks/queries/useUsersQuery.ts`, `apps/myk9show/src/components/admin/users/UserTable.tsx`.
+
+## Add Forgot Password to Sign-In - 2026-03-10 12:31
+
+- **Add forgot password link and flow to sign-in dialog** — Users need a way to reset their password from the sign-in page. **Problem:** No "Forgot password?" link exists on the sign-in page, so users who forget their password have no self-service recovery path. **Files:** `apps/myk9show/src/pages/SignInPage.tsx`, `apps/myk9show/src/context/AuthContext.tsx` (has resetPassword method), `apps/myk9show/src/hooks/useAuth.ts` (exposes resetPassword). **Solution:** Add "Forgot password?" link below sign-in form that triggers Supabase `resetPasswordForEmail()` flow (already wired in AuthContext/useAuth). May need a dedicated reset password page to handle the email callback link.
+
+## Fix Bulk Actions on Shows List Page - 2026-03-10 12:37
+
+- **Fix bulk actions button on shows list page** - Bulk actions do not work on the Browse Shows page at `/shows`. **Problem:** The bulk actions feature is non-functional — likely missing selection checkboxes, bulk action bar, or handler wiring. The admin UserManagementPage has a working BulkActionsBar pattern to reference. **Files:** `apps/myk9show/src/pages/BrowseShowsPage.tsx`, `apps/myk9show/src/components/shows/browse/ShowsListView.tsx`, `apps/myk9show/src/components/shows/browse/ShowsGridView.tsx`, `apps/myk9show/src/components/shows/browse/ShowsTableView.tsx`. **Solution:** Add show selection (checkboxes on cards/rows), a BulkActionsBar component (delete, export, status change), and wire handlers. Reference `apps/myk9show/src/components/admin/users/BulkActionsBar.tsx` for the pattern.
+
+## Fix Analytics Button on Shows Page - 2026-03-10 12:39
+
+- **Fix Analytics button on shows list page** - The Analytics button on the Browse Shows page at `/shows` does nothing when clicked. **Problem:** The `analytics` quick action in `getTabQuickActions` only calls `logger.logUserAction('view_analytics', ...)` — it doesn't navigate anywhere or open a dialog. **Files:** `apps/myk9show/src/utils/show-actions.ts:343-351`. **Solution:** Either navigate to an analytics page (e.g., `/admin/analytics` or a show-specific analytics view) or remove the button if no analytics page exists yet.
+
+## Add Drag and Drop to Kanban View on Shows Page - 2026-03-10 12:41
+
+- **Add drag-and-drop functionality to shows kanban view** - The kanban view on the Browse Shows page at `/shows?view=kanban` needs drag-and-drop to move shows between status columns. **Problem:** The `KanbanView` component already imports and sets up `@dnd-kit` (`DndContext`, `SortableContext`, `useSortable`, `DragOverlay`) but drag-and-drop between columns may not be fully wired — cards need to update the show's status when dropped into a new column. **Files:** `apps/myk9show/src/components/common/KanbanView.tsx`, `apps/myk9show/src/pages/BrowseShowsPage.tsx:58-80` (kanban columns and `getShowKanbanStatus`), `apps/myk9show/src/pages/BrowseShowsPage.tsx:367-432` (kanban card renderer and view rendering). **Solution:** Verify `onDragEnd` handler in `KanbanView` properly updates show status via mutation when a card is moved between columns. Wire a `BrowseShowsPage`-level callback that calls the show update mutation to persist the status change.

@@ -1407,7 +1407,7 @@ In `ShowCard.tsx`, add to the `ShowCardProps` interface:
 
 In the ShowCard component body, modify the image rendering section:
 
-- If `coverImageUrl` is provided, render an `<img>` with `object-cover` instead of `<ShowPlaceholder>`
+- If `coverImageUrl` is provided, render an `<img>` with `object-cover` and `loading="lazy"` instead of `<ShowPlaceholder>` [ADDED: lazy loading per spec edge case for list page performance]
 - If not, keep existing `<ShowPlaceholder>` rendering unchanged
 - Add a 3px accent color bar at the top of the image area when `accentColor` is present
 
@@ -1426,10 +1426,41 @@ Map from show data: `show.coverImageUrl` → `coverImageUrl`, `show.accentColor`
 Run: `pnpm typecheck && cd apps/myk9show && pnpm vitest run`
 Expected: PASS. Update any ShowCard test fixtures if they fail due to new optional props.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: [ADDED] Write ShowCard branding unit tests**
+
+Add tests to the existing ShowCard test file (or create `apps/myk9show/src/components/shows/__tests__/ShowCard.branding.test.tsx`):
+
+```typescript
+describe('ShowCard branding', () => {
+  it('renders cover image with lazy loading when coverImageUrl provided', () => {
+    render(<ShowCard {...baseProps} coverImageUrl="https://example.com/cover.webp" />);
+    const img = screen.getByRole('img', { name: /cover/i });
+    expect(img).toHaveAttribute('src', 'https://example.com/cover.webp');
+    expect(img).toHaveAttribute('loading', 'lazy');
+  });
+
+  it('renders gradient placeholder when no coverImageUrl', () => {
+    render(<ShowCard {...baseProps} />);
+    expect(screen.queryByRole('img', { name: /cover/i })).not.toBeInTheDocument();
+  });
+
+  it('renders accent color bar when accentColor provided', () => {
+    render(<ShowCard {...baseProps} accentColor="#dc2626" />);
+    const bar = screen.getByTestId('accent-bar');
+    expect(bar).toHaveStyle({ backgroundColor: '#dc2626' });
+  });
+
+  it('does not render accent bar when accentColor is null', () => {
+    render(<ShowCard {...baseProps} accentColor={null} />);
+    expect(screen.queryByTestId('accent-bar')).not.toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/myk9show/src/components/shows/ShowCard.tsx
+git add apps/myk9show/src/components/shows/ShowCard.tsx apps/myk9show/src/components/shows/__tests__/
 git commit -m "feat(branding): show cover image and accent bar on ShowCard"
 ```
 
@@ -1524,14 +1555,18 @@ Read `apps/myk9show/src/components/clubs/ClubDetails/index.tsx` to see how `onEd
 
 Add an `onCoverUpload` handler that:
 
-1. Calls `uploadClubCover(club.id, file)` from `imageUploadService`
-2. On success, updates the club store with the new `cover_image_url`
-3. Pass the handler and authorization flag down to `ClubHeader`
+1. Sets `isUploading` state to true (passed to CoverImageUpload for spinner)
+2. Calls `uploadClubCover(club.id, file)` from `imageUploadService`
+3. On success, updates the club store with the new `cover_image_url` and shows success toast
+4. [ADDED] On failure, shows error toast with `result.error` message
+5. Sets `isUploading` to false
+6. Pass the handler, `isUploading`, and authorization flag down to `ClubHeader`
 
 Add an `onCoverRemove` handler that:
 
 1. Calls `supabase.storage.from('images').remove(['clubs/{clubId}/cover.webp'])`
 2. Updates the club store to clear `cover_image_url`
+3. [ADDED] Shows success toast on remove, error toast on failure
 
 - [ ] **Step 3: Run typecheck**
 
@@ -1563,14 +1598,18 @@ Identify where the `ShowBrandedHero` was integrated in Task 8. The `CoverImageUp
 
 Add an `onShowCoverUpload` handler that:
 
-1. Calls `uploadShowCover(show.id, file)` from `imageUploadService`
-2. On success, updates the show data (invalidate React Query cache or update store)
-3. Wrap the hero cover area with `<CoverImageUpload editable={isSecretary || isPlatformAdmin}>`
+1. Sets `isUploading` state to true
+2. Calls `uploadShowCover(show.id, file)` from `imageUploadService`
+3. On success, updates the show data (invalidate React Query cache or update store) and shows success toast
+4. [ADDED] On failure, shows error toast with `result.error` message
+5. Sets `isUploading` to false
+6. Wrap the hero cover area with `<CoverImageUpload editable={isSecretary || isPlatformAdmin} isUploading={isUploading}>`
 
 Add an `onShowCoverRemove` handler that:
 
 1. Calls `supabase.storage.from('images').remove([`shows/${show.id}/cover.webp`])`
 2. Updates show to clear `cover_image_url`
+3. [ADDED] Shows success toast on remove, error toast on failure
 
 Check authorization: use existing RBAC context to determine if the user has `SECRETARY` or `platform_admin` role for this show's club.
 

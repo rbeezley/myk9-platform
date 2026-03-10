@@ -398,7 +398,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 - [x] **Phase 3: Dashboard restructure** — Progressive disclosure: show day hero above-the-fold on mobile, compact stats row, collapsible results, button row replacing 3 quick action cards. Commit `1baf19a`. **Plan:** `docs/plans/exhibitor-dashboard-redesign.md`. **Files:** `apps/myk9show/src/pages/ExhibitorDashboard.tsx`, `apps/myk9show/src/components/exhibitor/CompactStatsRow.tsx`.
 - [x] **Phase 4: Edge cases + accessibility** — All-completed celebration state (Done/Live badge toggle, auto-expanding completed section), 48px+ touch targets, ARIA roles/labels (region, status, img, tablist, aria-controls, aria-expanded), stale data indicator with screen reader labels. Code review cleanup: `useId()` for section IDs, deduplicated `formatDistanceToNow`. Commit `2399800`. **Plan:** `docs/plans/exhibitor-dashboard-redesign.md`.
 - [x] **Phase 5: Exhibitor check-in** — Extracted `CheckInStatus` type + config to `@myk9/core`. Updated myK9Q to import from core. Built `CheckInStatusBadge`, `CheckInStatusMenu`, `useCheckInMutation`, `useSelfCheckinEnabled`. Wired into `NextUpCard` + `ClassTimelineCard` + `ShowDayHero` + `ExhibitorDashboard`. 83 tests across 6 files. Commit `343de58`. **Plan:** `docs/plans/exhibitor-dashboard-redesign.md`.
-- **Phase 6: Exhibitor notifications** — Reuse myK9Q's notification system. Create `@myk9/notifications` package (push subscription, sounds, TTS, handlers, DND). Rebuild UI in Tailwind (bell + inbox + toasts + settings). Adapt trigger logic for React Query/Supabase realtime. **Plan:** `docs/plans/exhibitor-dashboard-redesign.md`.
+- [x] **Phase 6: Exhibitor notifications** — Implemented `@myk9/notifications` package (push subscription, sounds, TTS, handlers, DND). Built NotificationCenter inbox, ToastContainer, NotificationBell, NotificationSettings in Tailwind. Wired delivery hook, service worker, server-side push triggers. **Plan:** `docs/plans/exhibitor-dashboard-redesign.md`.
 
 ## Notification Inbox + System Announcements - 2026-03-09
 
@@ -410,4 +410,4 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Pre-Existing Test Failures - 2026-03-09
 
-- **Fix PaymentStep test failures (label mismatch)** — 3 failures in `phase3-5-payment-components.test.tsx`: `getByLabelText('Expiry Date')` can't find the element — likely the label text changed in the CreditCardVisual redesign but tests weren't updated. **Files:** `apps/myk9show/src/test/components/phase3-5-payment-components.test.tsx`, `apps/myk9show/src/components/registration/steps/PaymentStep.tsx`.
+- [x] **Fix PaymentStep test failures (label mismatch)** — CreditCardVisual uses lowercase aria-labels (`"Card number"`, `"Cardholder name"`, `"Expiry date"`) but tests used title-case (`"Card Number"`, etc.). Updated 3 test assertions to match. 28/28 passing.

@@ -156,9 +156,9 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       // Should show credit card form fields when credit_card is selected
       await waitFor(() => {
-        expect(screen.getByLabelText('Cardholder Name')).toBeInTheDocument();
-        expect(screen.getByLabelText('Card Number')).toBeInTheDocument();
-        expect(screen.getByLabelText('Expiry Date')).toBeInTheDocument();
+        expect(screen.getByLabelText('Cardholder name')).toBeInTheDocument();
+        expect(screen.getByLabelText('Card number')).toBeInTheDocument();
+        expect(screen.getByLabelText('Expiry date')).toBeInTheDocument();
         expect(screen.getByLabelText('CVV')).toBeInTheDocument();
       });
     });
@@ -167,7 +167,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
 
-      const cardNumberInput = screen.getByLabelText('Card Number');
+      const cardNumberInput = screen.getByLabelText('Card number');
 
       await user.type(cardNumberInput, '4111111111111111');
 
@@ -178,7 +178,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
 
-      const expiryInput = screen.getByLabelText('Expiry Date');
+      const expiryInput = screen.getByLabelText('Expiry date');
 
       await user.type(expiryInput, '1225');
 

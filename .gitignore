@@ -62,6 +62,9 @@ supabase/.temp/
 # Auto Claude data directory
 .auto-claude/
 
+# Superpowers
+.superpowers/
+
 # Session handoff
 save-next.md
 handoff.md

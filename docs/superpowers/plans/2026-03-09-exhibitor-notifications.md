@@ -1556,6 +1556,19 @@ git commit -m "feat(notifications): add push_subscriptions table migration"
 
 **Note:** Do NOT run `supabase db push` yet — apply after the full feature is ready to deploy.
 
+**[ADDED] VAPID Environment Variables:**
+
+Before deploying push notifications, these env vars must be configured:
+
+| Variable                | Where                      | Purpose                                           |
+| ----------------------- | -------------------------- | ------------------------------------------------- |
+| `VAPID_PUBLIC_KEY`      | Supabase Edge Function env | Public key for Web Push protocol                  |
+| `VAPID_PRIVATE_KEY`     | Supabase Edge Function env | Private key for signing push payloads             |
+| `VAPID_SUBJECT`         | Supabase Edge Function env | Contact URI (e.g., `mailto:support@myk9show.com`) |
+| `VITE_VAPID_PUBLIC_KEY` | `apps/myk9show/.env`       | Client-side public key for push subscription      |
+
+Generate a VAPID key pair with: `npx web-push generate-vapid-keys`
+
 ---
 
 ### Task 10: Edge Function for sending push notifications
@@ -2276,25 +2289,40 @@ export function useNotificationDelivery() {
       // Always add to store (for bell dropdown)
       addAlert(payload);
 
+      // [EXPANDED] Each channel is wrapped in try/catch so one failure
+      // doesn't prevent other channels from delivering.
+
       // Toast (always)
-      const toastMethod =
-        payload.priority === 'urgent'
-          ? notifications.warning
-          : payload.priority === 'high'
+      try {
+        const toastMethod =
+          payload.priority === 'urgent'
             ? notifications.warning
-            : notifications.info;
-      toastMethod(payload.title, { description: payload.body });
+            : payload.priority === 'high'
+              ? notifications.warning
+              : notifications.info;
+        toastMethod(payload.title, { description: payload.body });
+      } catch {
+        /* toast failure is non-fatal */
+      }
 
       // Sound
       if (preferences.soundEnabled) {
-        playNotificationSound(payload.priority);
+        try {
+          playNotificationSound(payload.priority);
+        } catch {
+          /* sound failure is non-fatal */
+        }
       }
 
       // Voice
       if (preferences.voiceEnabled) {
-        const voiceText = generateVoiceText(payload);
-        if (voiceText) {
-          speak(voiceText.text);
+        try {
+          const voiceText = generateVoiceText(payload);
+          if (voiceText) {
+            speak(voiceText.text);
+          }
+        } catch {
+          /* voice failure is non-fatal */
         }
       }
 
@@ -2303,6 +2331,12 @@ export function useNotificationDelivery() {
         const pattern = payload.priority === 'urgent' ? [200, 100, 200, 100, 200] : [150];
         navigator.vibrate(pattern);
       }
+
+      // [ADDED] Push — not client-triggered. Push notifications are server-side:
+      // Supabase realtime database webhooks call the send-push-notification edge function
+      // when relevant DB changes occur. The service worker (sw-custom.ts) handles
+      // incoming push events when the tab is backgrounded. No client-side push
+      // delivery is needed in this hook.
     },
     [preferences, isInRing, addAlert]
   );
@@ -2642,6 +2676,13 @@ export function useShowDayAlerts(showDayData: ShowDayData): void {
       return; // Don't fire on initial mount
     }
 
+    // [ADDED] Notification batching note: If multiple triggers fire on the same
+    // poll cycle (e.g., 3 classes start simultaneously), each fires independently.
+    // The sound module's 1000ms throttle prevents audio overload. Toast stacking
+    // is handled by Sonner's built-in queue. Voice TTS cancels previous utterance
+    // before speaking new one. This is acceptable for v1 — exhibitors rarely have
+    // 3+ classes starting in the same 30-second polling window.
+
     for (const cls of showDayData.myClasses) {
       checkYourTurn(cls);
       checkClassStarting(cls);
@@ -2830,16 +2871,87 @@ cd apps/myk9show && pnpm test -- src/components/notifications/__tests__/Notifica
 
 Create `apps/myk9show/src/components/notifications/NotificationBell.tsx`:
 
-Build a Tailwind-styled bell icon button with:
+[EXPANDED] Implementation skeleton — fill in Tailwind classes to match existing app styling:
 
-- Bell icon (from lucide-react)
-- Red badge with unread count (hidden when 0)
-- Click opens a dropdown panel (use a simple state toggle + absolute positioning, or use Base UI Popover if already available)
-- Dropdown shows `recentAlerts` from store, newest first
-- Each alert shows: title, body, relative timestamp
-- "Mark all read" button at bottom
-- "No notifications" empty state
-- Close dropdown when clicking outside
+```tsx
+import { useState, useRef, useEffect } from 'react';
+import { Bell } from 'lucide-react';
+import { useNotificationStore } from '@/store/notificationStore';
+
+export function NotificationBell() {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const recentAlerts = useNotificationStore(s => s.recentAlerts);
+  const unreadCount = useNotificationStore(s => s.unreadCount);
+  const markAllRead = useNotificationStore(s => s.markAllRead);
+
+  // Close on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        aria-label="Notifications"
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative rounded-md p-2 hover:bg-muted"
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border bg-popover shadow-lg z-50">
+          <div className="p-3 font-semibold border-b">Notifications</div>
+          {recentAlerts.length === 0 ? (
+            <div className="p-6 text-center text-muted-foreground text-sm">No notifications</div>
+          ) : (
+            <>
+              <div className="max-h-80 overflow-y-auto divide-y">
+                {recentAlerts.map(({ payload, read }) => (
+                  <div key={payload.id} className={`p-3 ${read ? 'opacity-60' : ''}`}>
+                    <div className="font-medium text-sm">{payload.title}</div>
+                    <div className="text-xs text-muted-foreground">{payload.body}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formatRelativeTime(payload.timestamp)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => markAllRead()}
+                className="w-full p-2 text-center text-sm text-muted-foreground hover:bg-muted border-t"
+              >
+                Mark all read
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatRelativeTime(timestamp: number): string {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
+```
 
 Reference `apps/myk9show/src/components/layout/AppHeader.tsx` for header component patterns and styling conventions.
 
@@ -2957,15 +3069,106 @@ cd apps/myk9show && pnpm test -- src/components/notifications/__tests__/Notifica
 
 Create `apps/myk9show/src/components/notifications/NotificationSettings.tsx`:
 
-Build a Tailwind-styled settings panel with:
+[EXPANDED] Implementation skeleton — adapt Tailwind classes to match existing PreferencesPage styling:
 
-- Master toggle: "Enable notifications" switch
-- Lead dogs slider: label "Alert when this many dogs ahead", range input 1-5, showing current value
-- Channel section: Sound, Voice, Vibration toggles
-- Push section: Push notification toggle (calls `requestPushPermission` when enabled, shows permission state)
-- Test button: "Test notification" that calls `testSound('normal')`
-- All toggles read from and write to `useNotificationStore`
-- Follow existing settings patterns in the codebase (check `PreferencesPage.tsx` for layout conventions)
+```tsx
+import { useNotificationStore } from '@/store/notificationStore';
+import { testSound } from '@myk9/notifications';
+
+export function NotificationSettings() {
+  const preferences = useNotificationStore(s => s.preferences);
+  const permissionStatus = useNotificationStore(s => s.permissionStatus);
+  const updatePreferences = useNotificationStore(s => s.updatePreferences);
+  const requestPermission = useNotificationStore(s => s.requestPermission);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <label htmlFor="notif-enabled" className="font-medium">
+          Enable notifications
+        </label>
+        <input
+          id="notif-enabled"
+          type="checkbox"
+          role="switch"
+          checked={preferences.enabled}
+          onChange={e => updatePreferences({ enabled: e.target.checked })}
+          className="h-5 w-5"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="lead-dogs" className="block font-medium mb-1">
+          Alert when this many dogs ahead: {preferences.leadDogs}
+        </label>
+        <input
+          id="lead-dogs"
+          type="range"
+          min={1}
+          max={5}
+          value={preferences.leadDogs}
+          onChange={e => updatePreferences({ leadDogs: Number(e.target.value) })}
+          className="w-full"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>1</span>
+          <span>5</span>
+        </div>
+      </div>
+
+      <fieldset className="space-y-3">
+        <legend className="font-medium">Channels</legend>
+        {[
+          ['soundEnabled', 'Sound'] as const,
+          ['voiceEnabled', 'Voice announcements'] as const,
+          ['vibrationEnabled', 'Vibration'] as const,
+        ].map(([key, label]) => (
+          <div key={key} className="flex items-center justify-between">
+            <label htmlFor={key}>{label}</label>
+            <input
+              id={key}
+              type="checkbox"
+              checked={preferences[key]}
+              onChange={e => updatePreferences({ [key]: e.target.checked })}
+              className="h-5 w-5"
+            />
+          </div>
+        ))}
+      </fieldset>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <label htmlFor="push-enabled" className="font-medium">
+            Push notifications
+          </label>
+          {permissionStatus === 'denied' && (
+            <p className="text-xs text-destructive">Blocked in browser settings</p>
+          )}
+        </div>
+        <input
+          id="push-enabled"
+          type="checkbox"
+          checked={preferences.pushEnabled}
+          onChange={async e => {
+            if (e.target.checked) await requestPermission();
+            updatePreferences({ pushEnabled: e.target.checked });
+          }}
+          className="h-5 w-5"
+        />
+      </div>
+
+      <button
+        onClick={() => testSound('normal')}
+        className="w-full rounded-md border px-4 py-2 text-sm hover:bg-muted"
+      >
+        Test notification
+      </button>
+    </div>
+  );
+}
+```
+
+Follow existing settings patterns in the codebase (check `PreferencesPage.tsx` for layout conventions). The old stub uses props (`preferences`, `onUpdate`, `onReset`) — the new component reads from the store directly, so callers need no props.
 
 - [ ] **Step 4: Delete old stub and update imports**
 

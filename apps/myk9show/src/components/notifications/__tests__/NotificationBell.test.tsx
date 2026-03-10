@@ -65,6 +65,17 @@ describe('NotificationBell', () => {
     expect(screen.getByText(/no notifications/i)).toBeInTheDocument();
   });
 
+  it('opens NotificationCenter when "View all" clicked', () => {
+    useNotificationStore.getState().addAlert(makePayload('1'));
+
+    render(<NotificationBell />);
+    fireEvent.click(screen.getByRole('button', { name: /notification/i }));
+    const viewAllButtons = screen.getAllByText(/view all/i);
+    fireEvent.click(viewAllButtons[0]);
+
+    expect(useNotificationStore.getState().isCenterOpen).toBe(true);
+  });
+
   it('marks all read when button clicked', () => {
     useNotificationStore.getState().addAlert(makePayload('1'));
 

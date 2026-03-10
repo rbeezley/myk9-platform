@@ -9,6 +9,7 @@ export function NotificationBell() {
   const recentAlerts = useNotificationStore(s => s.recentAlerts);
   const unreadCount = useNotificationStore(s => s.unreadCount);
   const markAllRead = useNotificationStore(s => s.markAllRead);
+  const openCenter = useNotificationStore(s => s.openCenter);
 
   // Close on click outside
   useEffect(() => {
@@ -20,6 +21,11 @@ export function NotificationBell() {
     if (isOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
+
+  const handleViewAll = () => {
+    setIsOpen(false);
+    openCenter();
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -38,13 +44,23 @@ export function NotificationBell() {
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border bg-popover shadow-lg z-50">
-          <div className="p-3 font-semibold border-b">Notifications</div>
+          <div className="flex items-center justify-between p-3 border-b">
+            <span className="font-semibold">Notifications</span>
+            {recentAlerts.length > 0 && (
+              <button
+                onClick={handleViewAll}
+                className="text-xs font-medium text-orange-500 hover:text-orange-400"
+              >
+                View all
+              </button>
+            )}
+          </div>
           {recentAlerts.length === 0 ? (
             <div className="p-6 text-center text-muted-foreground text-sm">No notifications</div>
           ) : (
             <>
               <div className="max-h-80 overflow-y-auto divide-y">
-                {recentAlerts.map(({ payload, read }) => (
+                {recentAlerts.slice(0, 5).map(({ payload, read }) => (
                   <div key={payload.id} className={`p-3 ${read ? 'opacity-60' : ''}`}>
                     <div className="font-medium text-sm">{payload.title}</div>
                     <div className="text-xs text-muted-foreground">{payload.body}</div>
@@ -54,12 +70,20 @@ export function NotificationBell() {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => markAllRead()}
-                className="w-full p-2 text-center text-sm text-muted-foreground hover:bg-muted border-t"
-              >
-                Mark all read
-              </button>
+              <div className="flex border-t">
+                <button
+                  onClick={() => markAllRead()}
+                  className="flex-1 p-2 text-center text-sm text-muted-foreground hover:bg-muted"
+                >
+                  Mark all read
+                </button>
+                <button
+                  onClick={handleViewAll}
+                  className="flex-1 p-2 text-center text-sm font-medium text-orange-500 hover:bg-muted border-l border-border"
+                >
+                  View all
+                </button>
+              </div>
             </>
           )}
         </div>

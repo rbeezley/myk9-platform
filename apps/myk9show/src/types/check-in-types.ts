@@ -1,10 +1,10 @@
 /**
  * Check-in Status Types and Utilities
- * 
+ *
  * Manages the check-in workflow for exhibitors at dog shows
  */
 
-export type CheckInStatus = 
+export type CheckInStatus =
   | 'none'
   | 'checked-in'
   | 'conflict'
@@ -31,58 +31,58 @@ export const CHECK_IN_STATUS_CONFIG: Record<CheckInStatus, CheckInStatusConfig> 
     backgroundColor: 'bg-gray-100',
     borderColor: 'border-gray-200',
     description: 'Exhibitor has not checked in yet',
-    priority: 0
+    priority: 0,
   },
   'checked-in': {
     status: 'checked-in',
     label: 'Checked In',
-    color: 'text-blue-600',
-    backgroundColor: 'bg-blue-100',
-    borderColor: 'border-blue-200',
+    color: 'text-teal-600',
+    backgroundColor: 'bg-teal-100',
+    borderColor: 'border-teal-200',
     icon: '✓',
     description: 'Exhibitor has checked in and is ready',
-    priority: 1
+    priority: 1,
   },
   conflict: {
     status: 'conflict',
     label: 'Conflict',
-    color: 'text-red-600',
-    backgroundColor: 'bg-red-100',
-    borderColor: 'border-red-200',
+    color: 'text-amber-600',
+    backgroundColor: 'bg-amber-100',
+    borderColor: 'border-amber-200',
     icon: '!',
     description: 'Schedule conflict detected',
-    priority: 5
+    priority: 5,
   },
   pulled: {
     status: 'pulled',
     label: 'Pulled',
-    color: 'text-gray-600',
-    backgroundColor: 'bg-gray-200',
-    borderColor: 'border-gray-300',
+    color: 'text-red-600',
+    backgroundColor: 'bg-red-100',
+    borderColor: 'border-red-200',
     icon: '—',
     description: 'Entry has been pulled from competition',
-    priority: 6
+    priority: 6,
   },
   'at-gate': {
     status: 'at-gate',
     label: 'At Gate',
-    color: 'text-green-600',
-    backgroundColor: 'bg-green-100',
-    borderColor: 'border-green-200',
+    color: 'text-violet-600',
+    backgroundColor: 'bg-violet-100',
+    borderColor: 'border-violet-200',
     icon: '●',
     description: 'Exhibitor is at the gate and ready',
-    priority: 3
+    priority: 3,
   },
   'go-to-gate': {
     status: 'go-to-gate',
     label: 'Go to Gate',
-    color: 'text-orange-600',
-    backgroundColor: 'bg-orange-100',
-    borderColor: 'border-orange-200',
+    color: 'text-blue-600',
+    backgroundColor: 'bg-blue-100',
+    borderColor: 'border-blue-200',
     icon: '→',
     description: 'Exhibitor should proceed to gate',
-    priority: 2
-  }
+    priority: 2,
+  },
 };
 
 export interface CheckInInfo {

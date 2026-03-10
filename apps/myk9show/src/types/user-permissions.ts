@@ -10,22 +10,22 @@ export interface UserPermissions {
   canEditEntries: boolean;
   canDeleteEntries: boolean;
   canAddEntries: boolean;
-  
+
   // Result management permissions
   canEditResults: boolean;
   canViewResults: boolean;
   canSubmitResults: boolean;
-  
+
   // Bulk operations
   canBulkEdit: boolean;
   canImportData: boolean;
   canExportData: boolean;
-  
+
   // Advanced features
   canAccessAdvancedFeatures: boolean;
   canManageClass: boolean;
   canViewStatistics: boolean;
-  
+
   // User identification
   role: UserRole;
   userId?: string | undefined;
@@ -35,7 +35,10 @@ export interface UserPermissions {
 /**
  * Role-based permission configurations
  */
-export const ROLE_PERMISSIONS: Record<UserRole, Omit<UserPermissions, 'role' | 'userId' | 'displayName'>> = {
+export const ROLE_PERMISSIONS: Record<
+  UserRole,
+  Omit<UserPermissions, 'role' | 'userId' | 'displayName'>
+> = {
   // Exhibitors can only view their own entries
   exhibitor: {
     canViewEntries: true,
@@ -50,9 +53,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Omit<UserPermissions, 'role' | '
     canExportData: false,
     canAccessAdvancedFeatures: false,
     canManageClass: false,
-    canViewStatistics: false
+    canViewStatistics: false,
   },
-  
+
   // Stewards can view and make basic edits
   steward: {
     canViewEntries: true,
@@ -67,9 +70,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Omit<UserPermissions, 'role' | '
     canExportData: false,
     canAccessAdvancedFeatures: false,
     canManageClass: false,
-    canViewStatistics: true
+    canViewStatistics: true,
   },
-  
+
   // Judges can enter results but not manage entries
   judge: {
     canViewEntries: true,
@@ -84,9 +87,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Omit<UserPermissions, 'role' | '
     canExportData: true,
     canAccessAdvancedFeatures: true,
     canManageClass: false,
-    canViewStatistics: true
+    canViewStatistics: true,
   },
-  
+
   // Secretaries have full entry and result management
   secretary: {
     canViewEntries: true,
@@ -101,9 +104,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Omit<UserPermissions, 'role' | '
     canExportData: true,
     canAccessAdvancedFeatures: true,
     canManageClass: true,
-    canViewStatistics: true
+    canViewStatistics: true,
   },
-  
+
   // Admins have all permissions
   admin: {
     canViewEntries: true,
@@ -118,8 +121,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Omit<UserPermissions, 'role' | '
     canExportData: true,
     canAccessAdvancedFeatures: true,
     canManageClass: true,
-    canViewStatistics: true
-  }
+    canViewStatistics: true,
+  },
 };
 
 /**
@@ -134,7 +137,7 @@ export const createUserPermissions = (
     ...ROLE_PERMISSIONS[role],
     role,
     userId,
-    displayName
+    displayName,
   };
 };
 
@@ -151,10 +154,7 @@ export const hasPermission = (
 /**
  * Check if feature should be visible based on permissions
  */
-export const shouldShowFeature = (
-  feature: string,
-  permissions: UserPermissions
-): boolean => {
+export const shouldShowFeature = (feature: string, permissions: UserPermissions): boolean => {
   switch (feature) {
     case 'delete':
       return permissions.canDeleteEntries;
@@ -189,29 +189,29 @@ export const getRoleDisplayInfo = (role: UserRole) => {
     secretary: {
       label: 'Secretary',
       color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-      description: 'Full access to entries and results management'
+      description: 'Full access to entries and results management',
     },
     judge: {
       label: 'Judge',
-      color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      description: 'Can enter and submit results'
+      color: 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200',
+      description: 'Can enter and submit results',
     },
     admin: {
       label: 'Administrator',
       color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      description: 'Full system access'
+      description: 'Full system access',
     },
     steward: {
       label: 'Steward',
-      color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      description: 'Can assist with basic entry management'
+      color: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+      description: 'Can assist with basic entry management',
     },
     exhibitor: {
       label: 'Exhibitor',
       color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-      description: 'Can view own entries and results'
-    }
+      description: 'Can view own entries and results',
+    },
   };
-  
+
   return roleInfo[role];
 };

@@ -94,11 +94,11 @@ export const mapStatusToDb = (status: EntryStatus): string => {
 export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
   switch (status) {
     case EntryStatus.ACCEPTED:
-      return React.createElement(Badge, { className: 'bg-green-100 text-green-800' }, 'Accepted');
+      return React.createElement(Badge, { className: 'bg-teal-100 text-teal-800' }, 'Accepted');
     case EntryStatus.PENDING:
       return React.createElement(Badge, { variant: 'secondary' }, 'Pending');
     case EntryStatus.WAITLIST:
-      return React.createElement(Badge, { className: 'bg-yellow-100 text-yellow-800' }, 'Waitlist');
+      return React.createElement(Badge, { className: 'bg-amber-100 text-amber-800' }, 'Waitlist');
     case EntryStatus.REJECTED:
       return React.createElement(Badge, { variant: 'destructive' }, 'Rejected');
     case EntryStatus.CANCELLED:
@@ -106,7 +106,7 @@ export function getEntryStatusBadge(status: EntryStatus): React.ReactNode {
     case EntryStatus.MISSING_INFO:
       return React.createElement(
         Badge,
-        { className: 'bg-orange-100 text-orange-800' },
+        { className: 'bg-amber-100 text-amber-800' },
         'Missing Info'
       );
     default:
@@ -122,7 +122,7 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:
     case PaymentStatus.PAID_BY_CASH:
-      return React.createElement(Badge, { className: 'bg-green-100 text-green-800' }, 'Paid');
+      return React.createElement(Badge, { className: 'bg-teal-100 text-teal-800' }, 'Paid');
     case PaymentStatus.PENDING:
       return React.createElement(Badge, { className: 'bg-red-100 text-red-800' }, 'Payment Due');
     case PaymentStatus.REFUNDED:
@@ -144,10 +144,10 @@ export function getEntryStatusClasses(status: string | null): string {
   switch (status?.toLowerCase()) {
     case 'confirmed':
     case 'accepted':
-      return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-200';
+      return 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900 dark:text-teal-200';
     case 'pending':
     case 'submitted':
-      return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-yellow-900 dark:text-yellow-200';
+      return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900 dark:text-amber-200';
     case 'cancelled':
     case 'withdrawn':
       return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-200';

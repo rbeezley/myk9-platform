@@ -106,10 +106,10 @@ describe('CheckInStatusBadge', () => {
       expect(badge).toHaveClass('my-custom-class');
     });
 
-    it('should have emerald colors for checked-in', () => {
+    it('should have teal colors for checked-in', () => {
       render(<CheckInStatusBadge status="checked-in" />);
       const badge = screen.getByLabelText('Status: Checked-in');
-      expect(badge).toHaveClass('bg-emerald-500/15');
+      expect(badge).toHaveClass('bg-teal-500/15');
     });
 
     it('should have amber colors for conflict', () => {

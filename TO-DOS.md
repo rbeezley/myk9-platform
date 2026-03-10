@@ -406,7 +406,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Color System Audit - 2026-03-09
 
-- **Audit CSS color tokens for consistency** — myK9 has 4 brand colors (orange, blue, green, purple). Audit the codebase for raw Tailwind color classes (e.g., `emerald-500`, `amber-500`) that should use semantic CSS variable tokens instead. Ensure brand colors are defined as semantic tokens in `tailwind.config` / CSS variables and used consistently across components. Check `CheckInStatusBadge.tsx` STATUS_COLORS, `CheckInManagementOverlay.tsx`, `charts.tsx`, and other components for hardcoded color values that should reference shared tokens.
+- [x] **Audit CSS color tokens for consistency** — Audited 2026-03-10. Found ~1,100+ hardcoded Tailwind color classes across 150+ files, 4 critical check-in status color inconsistencies between `check-in-types.ts`, `CheckInStatusBadge.tsx`, and `design-tokens.css`. Full report: `docs/color-token-audit.md`. Next step: define shared semantic tokens and fix inconsistencies.
 
 ## Pre-Existing Test Failures - 2026-03-09
 
@@ -414,7 +414,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Fix Admin User Management Page - 2026-03-10 12:31
 
-- **Fix admin user management showing no users** - The admin user management page at `/admin/users` displays 0 users with skeleton loading placeholders but never populates data. **Problem:** User Directory shows "Users (0)" and "Page 1 of 0" despite users existing in the database. Statistics section also shows 0 for Total Users, Active Users, and Roles Assigned. The page appears to load (skeletons visible) but data never arrives. **Files:** `apps/myk9show/src/pages/admin/UserManagementPage.tsx:57`, `apps/myk9show/src/hooks/queries/useUsersQuery.ts`, `apps/myk9show/src/components/admin/users/UserTable.tsx`.
+- [x] **Fix admin user management showing no users** — Fixed 2026-03-10. Root cause: `getAllUsers()` had unused nested selects for `judge_qualifications(*)` and `judge_certifications(*)` that failed silently due to RLS issues. Simplified to `.select('*')`. **File:** `userQueries.ts`.
 
 ## Add Forgot Password to Sign-In - 2026-03-10 12:31
 
@@ -426,7 +426,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Fix Analytics Button on Shows Page - 2026-03-10 12:39
 
-- **Fix Analytics button on shows list page** - The Analytics button on the Browse Shows page at `/shows` does nothing when clicked. **Problem:** The `analytics` quick action in `getTabQuickActions` only calls `logger.logUserAction('view_analytics', ...)` — it doesn't navigate anywhere or open a dialog. **Files:** `apps/myk9show/src/utils/show-actions.ts:343-351`. **Solution:** Either navigate to an analytics page (e.g., `/admin/analytics` or a show-specific analytics view) or remove the button if no analytics page exists yet.
+- [x] **Fix Analytics button on shows list page** — Fixed 2026-03-10. Added `window.location.href = '/admin/analytics'` navigation to the onClick handler (route already existed). **File:** `show-actions.ts`.
 
 ## Add Drag and Drop to Kanban View on Shows Page - 2026-03-10 12:41
 

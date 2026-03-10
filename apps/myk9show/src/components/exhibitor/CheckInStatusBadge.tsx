@@ -10,7 +10,7 @@ import { getCheckinStatusConfig, isExhibitorAllowedStatus } from '@myk9/core';
 import { Circle } from 'lucide-react';
 import { CHECKIN_ICON_MAP } from './checkin-icons';
 
-/** Tailwind color classes per status (maps CSS vars to Tailwind equivalents) */
+/** Tailwind color classes per status — aligned with design-tokens.css */
 const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: string }> = {
   'no-status': {
     bg: 'bg-muted/50',
@@ -18,9 +18,9 @@ const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: s
     border: 'border-muted-foreground/30',
   },
   'checked-in': {
-    bg: 'bg-emerald-500/15',
-    text: 'text-emerald-600 dark:text-emerald-400',
-    border: 'border-emerald-500/30',
+    bg: 'bg-teal-500/15',
+    text: 'text-teal-600 dark:text-teal-400',
+    border: 'border-teal-500/30',
   },
   conflict: {
     bg: 'bg-amber-500/15',
@@ -33,19 +33,19 @@ const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: s
     border: 'border-red-500/30',
   },
   'at-gate': {
-    bg: 'bg-purple-500/15',
-    text: 'text-purple-600 dark:text-purple-400',
-    border: 'border-purple-500/30',
+    bg: 'bg-violet-500/15',
+    text: 'text-violet-600 dark:text-violet-400',
+    border: 'border-violet-500/30',
   },
   'come-to-gate': {
-    bg: 'bg-purple-500/15',
-    text: 'text-purple-600 dark:text-purple-400',
-    border: 'border-purple-500/30',
-  },
-  'in-ring': {
     bg: 'bg-blue-500/15',
     text: 'text-blue-600 dark:text-blue-400',
     border: 'border-blue-500/30',
+  },
+  'in-ring': {
+    bg: 'bg-blue-600/15',
+    text: 'text-blue-700 dark:text-blue-400',
+    border: 'border-blue-600/30',
   },
   completed: {
     bg: 'bg-slate-500/15',

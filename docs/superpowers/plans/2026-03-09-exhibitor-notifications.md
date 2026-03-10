@@ -3361,7 +3361,205 @@ git commit -m "feat(myk9show): wire useShowDayAlerts into exhibitor dashboard"
 
 ---
 
-### Task 20: Final integration test + full build verification
+### Task 20: Server-side push triggers (Supabase database webhooks)
+
+When the app tab is closed or backgrounded, client-side hooks can't fire. Server-side triggers watch for DB changes and call the `send-push-notification` edge function to deliver push notifications.
+
+**Files:**
+
+- Create: `supabase/functions/push-trigger-scoring/index.ts`
+- Create: `supabase/functions/push-trigger-class-status/index.ts`
+- Docs: Update `supabase/README.md` or equivalent with webhook setup instructions
+
+**Context:** Supabase Database Webhooks (via `pg_net`) call an edge function whenever a row changes. We need two webhooks:
+
+1. **Scoring completed** — when `entries.scoring_completed_at` changes from `NULL` to a timestamp, notify the exhibitor that results are posted.
+2. **Class status change** — when `classes.status` changes to `in_progress`, notify all exhibitors entered in that class.
+
+- [ ] **Step 1: Create scoring trigger edge function**
+
+Create `supabase/functions/push-trigger-scoring/index.ts`:
+
+```typescript
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+interface WebhookPayload {
+  type: 'UPDATE';
+  table: string;
+  record: {
+    id: string;
+    dog_id: string;
+    class_id: string;
+    user_id: string;
+    scoring_completed_at: string | null;
+  };
+  old_record: {
+    id: string;
+    scoring_completed_at: string | null;
+  };
+}
+
+Deno.serve(async (req: Request) => {
+  try {
+    const payload: WebhookPayload = await req.json();
+
+    // Only fire when scoring_completed_at transitions from null to a value
+    if (
+      payload.old_record.scoring_completed_at !== null ||
+      payload.record.scoring_completed_at === null
+    ) {
+      return new Response('No action needed', { status: 200 });
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Look up dog name and class name for the notification body
+    const { data: entry } = await supabase
+      .from('entries')
+      .select('dog:dogs(call_name), class:classes(name)')
+      .eq('id', payload.record.id)
+      .single();
+
+    const dogName = entry?.dog?.call_name ?? 'Your dog';
+    const className = entry?.class?.name ?? 'a class';
+
+    // Call the send-push-notification function
+    await supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: payload.record.user_id,
+        payload: {
+          type: 'results_posted',
+          title: 'Results Posted',
+          body: `${dogName} — ${className}`,
+          priority: 'normal',
+        },
+      },
+    });
+
+    return new Response('Push sent', { status: 200 });
+  } catch (error) {
+    console.error('push-trigger-scoring error:', error);
+    return new Response('Error', { status: 500 });
+  }
+});
+```
+
+- [ ] **Step 2: Create class status trigger edge function**
+
+Create `supabase/functions/push-trigger-class-status/index.ts`:
+
+```typescript
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+interface WebhookPayload {
+  type: 'UPDATE';
+  table: string;
+  record: {
+    id: string;
+    name: string;
+    status: string;
+  };
+  old_record: {
+    id: string;
+    status: string;
+  };
+}
+
+Deno.serve(async (req: Request) => {
+  try {
+    const payload: WebhookPayload = await req.json();
+
+    // Only fire when status transitions to 'in_progress'
+    if (payload.record.status !== 'in_progress' || payload.old_record.status === 'in_progress') {
+      return new Response('No action needed', { status: 200 });
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Find all exhibitors entered in this class
+    const { data: entries } = await supabase
+      .from('entries')
+      .select('user_id')
+      .eq('class_id', payload.record.id)
+      .not('entry_status', 'eq', 'pulled');
+
+    if (!entries || entries.length === 0) {
+      return new Response('No exhibitors to notify', { status: 200 });
+    }
+
+    // Deduplicate user_ids (one user may have multiple dogs in the class)
+    const userIds = [...new Set(entries.map(e => e.user_id))];
+
+    // Send push to each affected user
+    await Promise.allSettled(
+      userIds.map(userId =>
+        supabase.functions.invoke('send-push-notification', {
+          body: {
+            user_id: userId,
+            payload: {
+              type: 'class_starting',
+              title: 'Class Starting',
+              body: `${payload.record.name} is now in progress`,
+              priority: 'high',
+            },
+          },
+        })
+      )
+    );
+
+    return new Response(`Push sent to ${userIds.length} users`, { status: 200 });
+  } catch (error) {
+    console.error('push-trigger-class-status error:', error);
+    return new Response('Error', { status: 500 });
+  }
+});
+```
+
+- [ ] **Step 3: Deploy trigger functions**
+
+```bash
+supabase functions deploy push-trigger-scoring --no-verify-jwt
+supabase functions deploy push-trigger-class-status --no-verify-jwt
+```
+
+- [ ] **Step 4: Configure database webhooks in Supabase dashboard**
+
+This step is manual (Supabase dashboard → Database → Webhooks):
+
+**Webhook 1: `on_scoring_completed`**
+
+- Table: `entries`
+- Events: `UPDATE`
+- Filter: `scoring_completed_at` changed (old is null, new is not null)
+- URL: `https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/push-trigger-scoring`
+- Headers: `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`
+
+**Webhook 2: `on_class_in_progress`**
+
+- Table: `classes`
+- Events: `UPDATE`
+- Filter: `status` changed to `in_progress`
+- URL: `https://sojmvhhwsjxmfistvzbe.supabase.co/functions/v1/push-trigger-class-status`
+- Headers: `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`
+
+**Note:** Database webhooks use `pg_net` extension (enabled by default in Supabase). The webhook fires the HTTP request from within Postgres, so the edge functions receive the old and new row data automatically.
+
+- [ ] **Step 5: Commit edge functions**
+
+```bash
+git add supabase/functions/push-trigger-scoring/ supabase/functions/push-trigger-class-status/
+git commit -m "feat(supabase): add server-side push trigger functions for scoring and class status"
+```
+
+---
+
+### Task 21: Final integration test + full build verification
 
 - [ ] **Step 1: Run all package tests**
 
@@ -3416,12 +3614,12 @@ git commit -m "fix(notifications): address integration issues from final verific
 
 ## Summary
 
-| Chunk | Tasks | What it delivers                                     |
-| ----- | ----- | ---------------------------------------------------- |
-| 1     | 1-4   | Package scaffold, types, suppression, handlers       |
-| 2     | 5-7   | Voice-text, sound, voice modules                     |
-| 3     | 8-10  | Push subscription, DB migration, edge function       |
-| 4     | 11-12 | Stub cleanup, ringNumber addition                    |
-| 5     | 13-15 | Notification store, delivery hook, alert triggers    |
-| 6     | 16-17 | NotificationBell, NotificationSettings UI            |
-| 7     | 18-20 | Service worker, dashboard wiring, final verification |
+| Chunk | Tasks | What it delivers                                                                |
+| ----- | ----- | ------------------------------------------------------------------------------- |
+| 1     | 1-4   | Package scaffold, types, suppression, handlers                                  |
+| 2     | 5-7   | Voice-text, sound, voice modules                                                |
+| 3     | 8-10  | Push subscription, DB migration, edge function                                  |
+| 4     | 11-12 | Stub cleanup, ringNumber addition                                               |
+| 5     | 13-15 | Notification store, delivery hook, alert triggers                               |
+| 6     | 16-17 | NotificationBell, NotificationSettings UI                                       |
+| 7     | 18-21 | Service worker, dashboard wiring, server-side push triggers, final verification |

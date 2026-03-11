@@ -410,6 +410,10 @@ export interface ScoresheetScoringReturn {
   faultCount: number;
   setFaultCount: (value: number) => void;
 
+  // [ADDED] Submission state — tracks async onSubmit lifecycle
+  isSubmitting: boolean;
+  submitError: string | null;
+
   // Area management
   handleAreaUpdate: (
     index: number,
@@ -419,6 +423,12 @@ export interface ScoresheetScoringReturn {
 
   // Calculations
   calculateTotalTime: () => string;
+
+  // [ADDED] Submit wrapper that manages isSubmitting/submitError state
+  handleSubmit: (
+    onSubmit: (data: ScoreData) => void | Promise<void>,
+    extra?: Partial<ScoreData>
+  ) => Promise<void>;
 
   // Output
   buildScoreData: (extra?: Partial<ScoreData>) => ScoreData;
@@ -561,12 +571,36 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     return { valid: errors.length === 0, errors, warnings };
   }, [qualifying, rules.maxTimeSeconds, calculateTotalTime]);
 
+  // [ADDED] Submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // [ADDED] Submit wrapper — manages loading/error lifecycle
+  const handleSubmit = useCallback(
+    async (onSubmit: (data: ScoreData) => void | Promise<void>, extra?: Partial<ScoreData>) => {
+      const validation = validate();
+      if (!validation.valid) return;
+
+      setIsSubmitting(true);
+      setSubmitError(null);
+      try {
+        await onSubmit(buildScoreData(extra));
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Score submission failed');
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [validate, buildScoreData]
+  );
+
   // Reset
   const reset = useCallback(() => {
     setAreas(initializeAreas(rules, areaNames));
     setQualifyingRaw('');
     setNonQualifyingReason('');
     setFaultCount(0);
+    setSubmitError(null);
   }, [rules, areaNames]);
 
   return {
@@ -577,8 +611,11 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     setNonQualifyingReason,
     faultCount,
     setFaultCount,
+    isSubmitting,
+    submitError,
     handleAreaUpdate,
     calculateTotalTime,
+    handleSubmit,
     buildScoreData,
     validate,
     reset,
@@ -1103,6 +1140,13 @@ Build the remaining 6 scoresheet types following the same Live/Entry pattern est
 - No found/correct toggles — just time and result
 - Entry variant: distance input + time input → auto-calculate MPH
 
+**[EXPANDED] Required test cases:**
+
+- MPH calculation: distance=100yd, time=6.5s → correct MPH
+- MPH edge case: time=0 → no division by zero
+- Entry variant: changing distance or time recalculates MPH
+- No found/correct toggles rendered (unlike scent work)
+
 - [ ] **Steps:** Follow same TDD pattern as Task 5-6 (tests → fail → implement → pass → commit)
 
 ---
@@ -1124,6 +1168,13 @@ Build the remaining 6 scoresheet types following the same Live/Entry pattern est
 - Nationals-specific area initialization (mostly 1 area except Handler Discrimination)
 - Confirmation dialog includes placement and points summary
 
+**[EXPANDED] Required test cases:**
+
+- Placement chips render (1st-4th) alongside Q/NQ/EX/ABS
+- Points calculation: 1st=10, 2nd=7, 3rd=5, 4th=3 (verify against myK9Q logic)
+- Handler Discrimination: initializes with rules-based area count, not 1
+- buildScoreData includes points and placement in output
+
 - [ ] **Steps:** Follow same TDD pattern
 
 ---
@@ -1144,6 +1195,13 @@ Build the remaining 6 scoresheet types following the same Live/Entry pattern est
 - Uses both `useStopwatch` and `useElementTimer`
 - Multi-area support (1-3 areas based on level)
 - Entry variant: two time inputs per area when dual mode
+
+**[EXPANDED] Required test cases:**
+
+- Dual timer: both stopwatch and element timer render when `rules.timerMode === 'dual'`
+- Single timer: only stopwatch renders when `rules.timerMode === 'single'`
+- Multi-area: renders 1, 2, or 3 area sections based on rules.areaCount
+- Entry variant: two time columns per area when dual mode, one when single
 
 - [ ] **Steps:** Follow same TDD pattern
 
@@ -1373,7 +1431,25 @@ git commit -m "chore(myk9q): add Tailwind CSS for shared scoresheet components"
 
 ---
 
+### [ADDED] Task 17b: Reconcile useStopwatch 30-second warning threshold
+
+**Problem:** myK9Q's local `useStopwatch` triggers the 30-second warning at 32 seconds remaining (2-second buffer for display latency on mobile). The shared `useStopwatch` triggers at exactly 30 seconds. The shared version's behavior is correct per competition rules — keep 30 seconds. The 2-second buffer was a workaround for slow rendering that is no longer needed with the 100ms interval.
+
+**Files:**
+
+- Read: `apps/myk9q/src/pages/scoresheets/hooks/useStopwatch.ts` (line ~246: `remainingSeconds <= 32`)
+- Read: `packages/scoring-ui/src/hooks/useStopwatch.ts` (line ~246: `remainingSeconds <= 30`)
+
+- [ ] **Step 1: Verify shared version behavior is correct** — 30-second threshold is the competition standard
+- [ ] **Step 2: Add a test to shared useStopwatch confirming the 30-second threshold**
+- [ ] **Step 3: Document decision** — Add comment in shared useStopwatch: "30-second threshold per competition rules. No buffer needed with 100ms update interval."
+- [ ] **Step 4: Commit**
+
+---
+
 ### Task 18: Migrate myK9Q AKC Scent Work to shared component
+
+**[ADDED] Rollout safety:** Migrate one scoresheet at a time (AKC Scent Work first). Deploy to staging (`app.myk9q.com`) and manually verify scoring flow works before migrating the remaining 6. If a visual regression is found, the git history preserves the old component for quick revert. Do NOT batch all 7 migrations into one commit.
 
 **Files:**
 

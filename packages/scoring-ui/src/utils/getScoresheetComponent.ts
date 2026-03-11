@@ -35,7 +35,23 @@ export function registerScoresheet(
   if (!registry[sportType]) {
     registry[sportType] = { live: null, entry: null };
   }
+  if (registry[sportType]?.[mode] != null && registry[sportType]?.[mode] !== component) {
+    console.warn(
+      `[scoring-ui] Overwriting ${sportType}/${mode} registration. ` +
+        `This usually means two modules register the same slot.`
+    );
+  }
   (registry[sportType] as Record<string, unknown>)[mode] = component;
+}
+
+/**
+ * Reset the registry. For testing only.
+ * @internal
+ */
+export function resetScoresheetRegistry(): void {
+  for (const key of Object.keys(registry)) {
+    delete registry[key];
+  }
 }
 
 /**

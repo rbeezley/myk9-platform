@@ -19,7 +19,9 @@ export {
   toScoringEntry,
   toClassInfo,
   mapSportType,
+  detectScoresheetType,
   toRegistryKey,
   toScoresheetEntry,
   toScoresheetClassInfo,
+  toOptimisticScorePayload,
 } from './types';

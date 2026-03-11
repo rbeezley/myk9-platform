@@ -82,17 +82,15 @@ export const AKCFastCatEntryScoresheet: React.FC<EntryScoresheetProps> = ({
     setFastcatResult(value as FastCATResult);
   };
 
-  const validate = (): boolean => {
+  // FastCAT uses its own result options (Q/NQ/E/DQ) and validation,
+  // so we call buildScoreData directly instead of handleSubmit
+  // (which would check stale React state from setQualifying).
+  const submitScore = async (): Promise<boolean> => {
     if (!fastcatResult) {
       setValidationError('No result selected');
       return false;
     }
-    return true;
-  };
-
-  const submitScore = async (): Promise<boolean> => {
-    if (!validate()) return false;
-    if (!fastcatResult) return false;
+    setValidationError('');
     try {
       const scoreData = scoring.buildScoreData({
         resultText: fastcatResult,

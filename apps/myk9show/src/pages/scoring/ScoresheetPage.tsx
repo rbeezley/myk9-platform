@@ -23,64 +23,17 @@ import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 // Ensure all live scoresheets are registered (import triggers self-registration)
 import '@myk9/scoring-ui';
 
-import type { ScoringEntry, ClassInfo, Organization, SportType } from './types';
+import type { ScoringEntry, ClassInfo } from './types';
 import {
   toScoringEntry,
   toClassInfo,
   mapSportType,
+  detectScoresheetType,
   toRegistryKey,
   toScoresheetEntry,
   toScoresheetClassInfo,
+  toOptimisticScorePayload,
 } from './types';
-
-/**
- * Detect organization and sport type from class info.
- * @deprecated Use mapSportType() with trial.sportType instead. Kept as fallback
- * for pre-migration trials that don't have sport_type set.
- */
-function detectScoresheetType(classInfo: ClassInfo): {
-  organization: Organization;
-  sportType: SportType;
-} {
-  const name = classInfo.name.toLowerCase();
-
-  let organization: Organization = 'AKC';
-  if (name.includes('ukc') || name.includes('united kennel')) {
-    organization = 'UKC';
-  } else if (name.includes('asca') || name.includes('australian shepherd')) {
-    organization = 'ASCA';
-  } else if (name.includes('akc') || name.includes('american kennel')) {
-    organization = 'AKC';
-  }
-
-  let sportType: SportType = 'unknown';
-  if (name.includes('nationals') || name.includes('national')) {
-    sportType = 'scent-work-nationals';
-  } else if (name.includes('fast cat') || name.includes('fastcat')) {
-    sportType = 'fast-cat';
-  } else if (name.includes('nosework')) {
-    sportType = 'nosework';
-  } else if (name.includes('scent detection')) {
-    sportType = 'scent-work';
-  } else if (
-    name.includes('container') ||
-    name.includes('interior') ||
-    name.includes('exterior') ||
-    name.includes('buried') ||
-    name.includes('scent') ||
-    name.includes('handler disc')
-  ) {
-    sportType = 'scent-work';
-  } else if (name.includes('rally')) {
-    sportType = 'rally';
-  } else if (name.includes('obedience')) {
-    sportType = 'obedience';
-  } else if (name.includes('agility')) {
-    sportType = 'agility';
-  }
-
-  return { organization, sportType };
-}
 
 /**
  * Main scoresheet page - routes to correct scoresheet component
@@ -163,23 +116,7 @@ export function ScoresheetPage() {
       classId: parseInt(classInfo.id, 10),
       armband: entry.armband,
       className: classInfo.name,
-      scoreData: {
-        resultText: scoreData.resultText,
-        searchTime: scoreData.searchTime || '',
-        faultCount: scoreData.faultCount || 0,
-        ...(scoreData.areaTimes &&
-          scoreData.areaTimes.length > 0 && { areaTimes: scoreData.areaTimes }),
-        ...(scoreData.nonQualifyingReason && {
-          nonQualifyingReason: scoreData.nonQualifyingReason,
-        }),
-        ...(scoreData.element && { element: scoreData.element }),
-        ...(scoreData.level && { level: scoreData.level }),
-        ...(scoreData.correctCount > 0 && { correctCount: scoreData.correctCount }),
-        ...(scoreData.incorrectCount > 0 && { incorrectCount: scoreData.incorrectCount }),
-        ...(scoreData.finishCallErrors > 0 && { finishCallErrors: scoreData.finishCallErrors }),
-        ...(scoreData.points > 0 && { points: scoreData.points }),
-        ...(Object.keys(scoreData.areas).length > 0 && { areas: scoreData.areas }),
-      },
+      scoreData: toOptimisticScorePayload(scoreData),
       onSuccess: () => {
         setEntry(prev => (prev ? { ...prev, isScored: true, status: 'scored' } : null));
       },

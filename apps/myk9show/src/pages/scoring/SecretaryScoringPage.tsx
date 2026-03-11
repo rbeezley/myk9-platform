@@ -22,14 +22,19 @@ import { logger } from '@/services/LoggingService';
 import { getScoresheetComponent, buildResolvedClassRules } from '@myk9/scoring-ui';
 import type { ScoreData, ResolvedClassRules } from '@myk9/scoring-ui';
 
-import type { ScoringEntry, ClassInfo, Organization, SportType } from './types';
+// Ensure all scoresheets are registered (import triggers self-registration)
+import '@myk9/scoring-ui';
+
+import type { ScoringEntry, ClassInfo } from './types';
 import {
   toScoringEntry,
   toClassInfo,
   mapSportType,
+  detectScoresheetType,
   toRegistryKey,
   toScoresheetEntry,
   toScoresheetClassInfo,
+  toOptimisticScorePayload,
 } from './types';
 
 export function SecretaryScoringPage() {
@@ -76,18 +81,16 @@ export function SecretaryScoringPage() {
 
         const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
 
-        const dogsMap = new Map();
-        for (const e of rawEntries) {
-          if (e.dogId) {
-            const dog = await replicatedDogsTable.get(e.dogId);
-            if (dog) {
-              dogsMap.set(e.dogId, dog);
-            }
-          }
-        }
+        // Load all dogs in parallel (deduplicate by dogId)
+        const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];
+        const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
+        const dogsMap = new Map<string, NonNullable<(typeof dogs)[number]>>();
+        dogs.forEach((dog, i) => {
+          if (dog) dogsMap.set(uniqueDogIds[i], dog);
+        });
 
         const scoringEntries = rawEntries.map((e, i) => {
-          const dog = e.dogId ? dogsMap.get(e.dogId) : null;
+          const dog = e.dogId ? (dogsMap.get(e.dogId) ?? null) : null;
           return toScoringEntry(e, dog, i);
         });
 
@@ -138,33 +141,7 @@ export function SecretaryScoringPage() {
       classId: parseInt(classInfo.id, 10),
       armband: entry.armband,
       className: classInfo.name,
-      scoreData: {
-        resultText: scoreData.resultText,
-        searchTime: scoreData.searchTime || '',
-        faultCount: scoreData.faultCount || 0,
-        ...(scoreData.areaTimes &&
-          scoreData.areaTimes.length > 0 && {
-            areaTimes: scoreData.areaTimes,
-          }),
-        ...(scoreData.nonQualifyingReason && {
-          nonQualifyingReason: scoreData.nonQualifyingReason,
-        }),
-        ...(scoreData.element && { element: scoreData.element }),
-        ...(scoreData.level && { level: scoreData.level }),
-        ...(scoreData.correctCount > 0 && {
-          correctCount: scoreData.correctCount,
-        }),
-        ...(scoreData.incorrectCount > 0 && {
-          incorrectCount: scoreData.incorrectCount,
-        }),
-        ...(scoreData.finishCallErrors > 0 && {
-          finishCallErrors: scoreData.finishCallErrors,
-        }),
-        ...(scoreData.points > 0 && { points: scoreData.points }),
-        ...(Object.keys(scoreData.areas).length > 0 && {
-          areas: scoreData.areas,
-        }),
-      },
+      scoreData: toOptimisticScorePayload(scoreData),
       onSuccess: () => {
         setEntry(prev => (prev ? { ...prev, isScored: true, status: 'scored' } : null));
       },
@@ -199,10 +176,10 @@ export function SecretaryScoringPage() {
     );
   }
 
-  // Resolve sport type
+  // Resolve sport type from trial (preferred) or class name (fallback)
   const { organization, sportType } = trialSportType
     ? mapSportType(trialSportType)
-    : { organization: 'Unknown' as Organization, sportType: 'unknown' as SportType };
+    : detectScoresheetType(classInfo);
 
   const registryKey = toRegistryKey(organization, sportType);
   const EntryScoresheet = registryKey ? getScoresheetComponent(registryKey, 'entry') : null;

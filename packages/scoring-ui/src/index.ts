@@ -91,7 +91,11 @@ export {
 } from './utils/timeUtils';
 export { buildResolvedClassRules } from './utils/buildResolvedClassRules';
 export { parseSmartTime } from './utils/parseSmartTime';
-export { getScoresheetComponent, registerScoresheet } from './utils/getScoresheetComponent';
+export {
+  getScoresheetComponent,
+  registerScoresheet,
+  resetScoresheetRegistry,
+} from './utils/getScoresheetComponent';
 
 // Types
 export type {

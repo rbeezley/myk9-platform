@@ -7,7 +7,7 @@
  * Uses useScoresheetScoring for state and useStopwatch for timer.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, ClipboardCheck, X } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { useStopwatch } from '../../../hooks/useStopwatch';
@@ -67,12 +67,12 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     },
   });
 
-  const handleStopTimer = useCallback(() => {
+  const handleStopTimer = () => {
     stopwatch.pause();
     if (scoring.areas.length === 1) {
       scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(stopwatch.time));
     }
-  }, [stopwatch, scoring]);
+  };
 
   const handleResultSelect = (value: ExtendedResult) => {
     scoring.setQualifying(value);
@@ -326,8 +326,11 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               {/* NQ Reason */}
               {scoring.qualifying === 'NQ' && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">NQ Reason:</label>
+                  <label className="text-sm font-medium" htmlFor="nq-reason-select">
+                    NQ Reason:
+                  </label>
                   <select
+                    id="nq-reason-select"
                     value={scoring.nonQualifyingReason}
                     onChange={e => scoring.setNonQualifyingReason(e.target.value)}
                     className="w-full h-10 px-3 rounded-md border border-input bg-background"

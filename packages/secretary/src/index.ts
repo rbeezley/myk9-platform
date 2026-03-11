@@ -21,3 +21,6 @@ export type {
 
 // Visibility presets
 export { PRESET_CONFIGS, PRESET_INFO, resolvePreset } from './visibility/visibility-presets';
+
+// Visibility cascade
+export { resolveVisibilityCascade, getVisibleResultFields } from './visibility/visibility-cascade';

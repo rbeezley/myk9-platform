@@ -51,6 +51,21 @@ const PRESET_ICONS: Record<VisibilityPreset, React.ReactNode> = {
 const ALL_TIMINGS: VisibilityTiming[] = ['immediate', 'class_complete', 'manual_release'];
 const PLACEMENT_TIMINGS: VisibilityTiming[] = ['class_complete', 'manual_release'];
 
+/** Detect which preset (if any) matches the given field timings */
+function detectPreset(timings: FieldTimings): VisibilityPreset | null {
+  for (const [name, cfg] of Object.entries(PRESET_CONFIGS)) {
+    if (
+      cfg.placement === timings.placement &&
+      cfg.qualification === timings.qualification &&
+      cfg.time === timings.time &&
+      cfg.faults === timings.faults
+    ) {
+      return name as VisibilityPreset;
+    }
+  }
+  return null;
+}
+
 interface TimingSelectProps {
   value: VisibilityTiming;
   timings: VisibilityTiming[];
@@ -139,10 +154,12 @@ export function ResultsVisibilitySection({
   }
 
   function applyCustomTimings() {
+    // Detect if custom timings match a known preset; fall back to 'standard' for DB constraint
+    const matched = detectPreset(customTimings);
     updateVisibility.mutate(
       {
         showId,
-        preset: 'standard', // custom = no named preset; fall back to standard as label
+        preset: matched ?? 'standard',
         placementTiming: customTimings.placement,
         qualificationTiming: customTimings.qualification,
         timeTiming: customTimings.time,
@@ -194,7 +211,8 @@ export function ResultsVisibilitySection({
     );
   }
 
-  const activePreset = settings.visibility.preset;
+  // Determine active preset from actual field values, not stored preset label
+  const activePreset = detectPreset(fieldTimingsFromSettings(settings.visibility));
 
   return (
     <div className="space-y-6">

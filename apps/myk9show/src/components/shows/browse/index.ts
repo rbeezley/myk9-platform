@@ -6,3 +6,4 @@
 export { ShowsGridView } from './ShowsGridView';
 export { ShowsListView } from './ShowsListView';
 export { ShowsTableView } from './ShowsTableView';
+export { ShowBulkActionsBar } from './ShowBulkActionsBar';

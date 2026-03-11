@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Calendar,
   MapPin,
@@ -62,6 +63,8 @@ interface ShowsListViewProps {
   entries: SyncableShowEntry[];
   selectedTab: string;
   user: UserWithRoles | null;
+  isSelected?: (item: EnhancedShow) => boolean;
+  onToggleSelect?: (item: EnhancedShow) => void;
 }
 
 /**
@@ -73,6 +76,8 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
   entries,
   selectedTab,
   user,
+  isSelected,
+  onToggleSelect,
 }) => {
   const navigate = useNavigate();
 
@@ -85,6 +90,8 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
         const canEnterShow =
           entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
 
+        const checked = isSelected?.(show) ?? false;
+
         return (
           <Card
             key={show.id}
@@ -92,12 +99,23 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
               'group relative overflow-hidden bg-gradient-to-r from-card to-card/80 border border-border rounded-2xl backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]',
               entryStatus.status === 'closing_soon' &&
                 'ring-2 ring-orange-400/50 shadow-orange-200/30',
-              entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50'
+              entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50',
+              checked && 'ring-2 ring-primary/50'
             )}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardContent className="relative p-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                {/* Selection checkbox */}
+                {onToggleSelect && (
+                  <div className="flex items-center shrink-0">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => onToggleSelect(show)}
+                      aria-label={`Select ${show.name}`}
+                    />
+                  </div>
+                )}
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">

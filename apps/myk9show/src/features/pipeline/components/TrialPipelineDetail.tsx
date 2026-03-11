@@ -15,18 +15,20 @@ import { useTrialChecklist, canAdvanceStage } from '../hooks/useTrialChecklist';
 import { usePipelineMutations } from '../hooks/usePipelineMutations';
 import { STAGE_META } from '../constants';
 import type { PipelineStage, PanelKey, ChecklistEvalContext } from '../types';
+import { SettingsOverrideCard } from '@/components/secretary/SettingsOverrideCard';
+import { useShowSettings, useTrialOverrides } from '@/hooks/queries/useShowSettingsDatabase';
+import { resolveVisibilityCascade, resolveCheckinCascade } from '@myk9/secretary';
 
 export const TrialPipelineDetail: React.FC = () => {
   const { trialId } = useParams<{ trialId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const getTrialById = useTrialStore((s) => s.getTrialById);
+  const getTrialById = useTrialStore(s => s.getTrialById);
 
   const trial = trialId ? getTrialById(trialId) : null;
   // Cast needed: pipeline_stage not yet in SyncableTrial type
-  const pipelineStage = (
-    (trial as unknown as { pipeline_stage?: number })?.pipeline_stage ?? 1
-  ) as PipelineStage;
+  const pipelineStage = ((trial as unknown as { pipeline_stage?: number })?.pipeline_stage ??
+    1) as PipelineStage;
   const [viewingStage, setViewingStage] = useState<PipelineStage>(pipelineStage);
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
 
@@ -61,6 +63,26 @@ export const TrialPipelineDetail: React.FC = () => {
   const { data: checklistItems } = useTrialChecklist(trialId, viewingStage, evalCtx);
   const canAdvance = canAdvanceStage(checklistItems);
   const mutations = usePipelineMutations(trialId ?? '');
+
+  // Show settings + trial overrides for the SettingsOverrideCard.
+  // Hooks must be called unconditionally — trial?.showId is null-safe.
+  const showId = trial?.showId ?? null;
+  const { data: showSettings, isLoading: showSettingsLoading } = useShowSettings(showId);
+  const { data: trialOverrides, isLoading: trialOverridesLoading } = useTrialOverrides(showId);
+
+  // Resolve trial-level effective settings client-side
+  const trialEffectiveSettings = useMemo(() => {
+    if (!showSettings) return null;
+    const trialOverride = trialOverrides?.find(o => o.trialId === trialId)?.override;
+    return {
+      visibility: resolveVisibilityCascade(showSettings.visibility, trialOverride),
+      selfCheckinEnabled: resolveCheckinCascade(
+        showSettings.selfCheckinEnabled,
+        trialOverrides?.find(o => o.trialId === trialId)?.selfCheckinEnabled ?? null,
+        null
+      ),
+    };
+  }, [showSettings, trialOverrides, trialId]);
 
   const isViewingCurrentStage = viewingStage === pipelineStage;
   const isReadOnly = viewingStage < pipelineStage || pipelineStage === 6;
@@ -169,8 +191,7 @@ export const TrialPipelineDetail: React.FC = () => {
                       disabled={!canAdvance || mutations.advanceStage.isPending}
                       className="gap-1.5"
                     >
-                      Advance to{' '}
-                      {STAGE_META[(pipelineStage + 1) as PipelineStage]?.label ?? 'Next'}
+                      Advance to {STAGE_META[(pipelineStage + 1) as PipelineStage]?.label ?? 'Next'}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                     {!canAdvance && (
@@ -204,6 +225,20 @@ export const TrialPipelineDetail: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Visibility settings override — shown below the checklist */}
+            {trialEffectiveSettings && (
+              <div className="mt-4">
+                <SettingsOverrideCard
+                  level="trial"
+                  entityId={trial.id}
+                  showId={trial.showId}
+                  currentSettings={trialEffectiveSettings.visibility}
+                  selfCheckinEnabled={trialEffectiveSettings.selfCheckinEnabled}
+                  isLoading={showSettingsLoading || trialOverridesLoading}
+                />
+              </div>
+            )}
           </div>
 
           <div>

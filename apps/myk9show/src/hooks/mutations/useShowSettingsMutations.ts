@@ -40,6 +40,18 @@ interface TrialOverrideUpdate {
   selfCheckinEnabled?: boolean | null;
 }
 
+interface ClassOverrideUpdate {
+  classId: string;
+  trialId: string; // for cache invalidation
+  showId: string; // for cache invalidation
+  preset?: VisibilityPreset | null;
+  placementTiming?: VisibilityTiming | null;
+  qualificationTiming?: VisibilityTiming | null;
+  timeTiming?: VisibilityTiming | null;
+  faultsTiming?: VisibilityTiming | null;
+  selfCheckinEnabled?: boolean | null;
+}
+
 interface OverrideReset {
   entityId: string;
   showId: string;
@@ -173,6 +185,34 @@ export function useUpdateTrialOverride() {
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.trialOverride(variables.trialId),
       });
+    },
+  });
+}
+
+export function useUpdateClassOverride() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (update: ClassOverrideUpdate) => {
+      const { error } = await untypedSupabase.from('class_visibility_overrides').upsert({
+        class_id: update.classId,
+        preset: update.preset,
+        placement_timing: update.placementTiming,
+        qualification_timing: update.qualificationTiming,
+        time_timing: update.timeTiming,
+        faults_timing: update.faultsTiming,
+        self_checkin_enabled: update.selfCheckinEnabled,
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverride(variables.classId),
+      });
+      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
     },
   });
 }

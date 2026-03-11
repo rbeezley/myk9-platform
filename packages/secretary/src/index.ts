@@ -6,4 +6,18 @@
  * - Self check-in (show → trial → class cascade)
  */
 
-// Types and cascade logic will be exported here as they are created
+// Visibility types
+export type {
+  VisibilityTiming,
+  VisibilityPreset,
+  ResultField,
+  VisibilitySettings,
+  VisibleResultFields,
+  ClassState,
+  VisibilityUserRole,
+  VisibilityOverride,
+  PresetInfo,
+} from './visibility/visibility-types';
+
+// Visibility presets
+export { PRESET_CONFIGS, PRESET_INFO, resolvePreset } from './visibility/visibility-presets';

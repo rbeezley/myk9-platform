@@ -13,8 +13,8 @@
  * Tasks 18-19: Scoresheet convergence migration.
  */
 
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { AKCNationalsLiveScoresheet } from '@myk9/scoring-ui';
 import type { ScoresheetEntry, ScoresheetClassInfo, ScoreData } from '@myk9/scoring-ui';
 import { useSettingsStore } from '../../../stores/settingsStore';
@@ -24,7 +24,7 @@ import { useClassCompletion } from '../../../hooks/useClassCompletion';
 import { markInRing } from '../../../services/entryService';
 import { nationalsScoring } from '../../../services/nationalsScoring';
 import { ScoresheetLoader } from '../../../components/LoadingSpinner';
-import { useScoresheetCore, useEntryNavigation } from '../hooks';
+import { useEntryNavigation } from '../hooks';
 import { mapElementToNationalsType, convertTimeToSeconds } from './AKCNationalsScoresheetHelpers';
 import { logger } from '@/utils/logger';
 
@@ -33,23 +33,23 @@ export const AKCNationalsScoresheet: React.FC = () => {
   const settings = useSettingsStore(state => state.settings);
   const { showContext } = useAuth();
 
-  // Core scoresheet state (provides classId/entryId from route params)
-  const core = useScoresheetCore({ sportType: 'AKC_SCENT_WORK_NATIONAL', isNationals: true });
+  const { classId, entryId } = useParams<{ classId: string; entryId: string }>();
+  const [isLoadingEntry, setIsLoadingEntry] = useState(true);
 
   // Entry navigation and loading
   const navigation = useEntryNavigation({
-    classId: core.classId,
-    entryId: core.entryId,
+    classId: classId,
+    entryId: entryId,
     isNationals: true,
     sportType: 'AKC_SCENT_WORK_NATIONAL',
-    onLoadingChange: core.setIsLoadingEntry,
+    onLoadingChange: setIsLoadingEntry,
   });
 
   const { submitScoreOptimistically } = useOptimisticScoring();
-  const { CelebrationModal, checkCompletion } = useClassCompletion(core.classId);
+  const { CelebrationModal, checkCompletion } = useClassCompletion(classId);
 
   if (
-    core.isLoadingEntry ||
+    isLoadingEntry ||
     !navigation.currentEntry ||
     !navigation.classInfo ||
     !navigation.rules
@@ -79,7 +79,7 @@ export const AKCNationalsScoresheet: React.FC = () => {
   const handleSubmit = async (scoreData: ScoreData) => {
     await submitScoreOptimistically({
       entryId: currentEntry.id,
-      classId: parseInt(core.classId!, 10),
+      classId: parseInt(classId!, 10),
       armband: currentEntry.armband,
       className: entry.className,
       scoreData: {

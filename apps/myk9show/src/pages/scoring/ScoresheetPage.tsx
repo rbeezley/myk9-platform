@@ -24,16 +24,21 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 // Scoresheets from shared package
 import { logger } from '@/services/LoggingService';
 import {
-  AKCScentWorkScoresheet,
-  AKCNationalsScoresheet,
-  AKCFastCatScoresheet,
-  UKCNoseworkScoresheet,
-  UKCRallyScoresheet,
-  UKCObedienceScoresheet,
-  ASCAScentDetectionScoresheet,
+  AKCScentWorkLiveScoresheet,
+  AKCNationalsLiveScoresheet,
+  AKCFastCatLiveScoresheet,
+  UKCNoseworkLiveScoresheet,
+  UKCRallyLiveScoresheet,
+  UKCObedienceLiveScoresheet,
+  ASCAScentDetectionLiveScoresheet,
   buildResolvedClassRules,
 } from '@myk9/scoring-ui';
-import type { ResolvedClassRules } from '@myk9/scoring-ui';
+import type {
+  ResolvedClassRules,
+  ScoresheetEntry,
+  ScoresheetClassInfo,
+  ScoreData,
+} from '@myk9/scoring-ui';
 
 // Types
 import type { ScoringEntry, ClassInfo } from './types';
@@ -43,25 +48,24 @@ import { toScoringEntry, toClassInfo } from './types';
  * Organization and sport type detection
  */
 type Organization = 'AKC' | 'UKC' | 'ASCA' | 'Unknown';
-type SportType = 'scent-work' | 'scent-work-nationals' | 'nosework' | 'rally' | 'obedience' | 'agility' | 'fast-cat' | 'unknown';
+type SportType =
+  | 'scent-work'
+  | 'scent-work-nationals'
+  | 'nosework'
+  | 'rally'
+  | 'obedience'
+  | 'agility'
+  | 'fast-cat'
+  | 'unknown';
 
 interface ScoresheetContext {
-  entry: ScoringEntry;
-  classInfo: ClassInfo;
+  entry: ScoresheetEntry;
+  classInfo: ScoresheetClassInfo;
   rules: ResolvedClassRules;
   organization: Organization;
   sportType: SportType;
-  onSave: (result: ScoringResult) => Promise<void>;
-  onNavigate: (direction: 'prev' | 'next') => void;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
-interface ScoringResult {
-  time: number;
-  faults: number;
-  qualification: string;
-  notes?: string;
+  onSubmit: (scoreData: ScoreData) => Promise<void>;
+  onBack: () => void;
 }
 
 /**
@@ -72,18 +76,13 @@ export function ScoresheetPage() {
   const navigate = useNavigate();
 
   // Offline-first scoring hook
-  const {
-    submitScoreOptimistically,
-    isSyncing,
-    hasError: hasSyncError,
-  } = useOptimisticScoring();
+  const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
 
   // Data state
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [rules, setRules] = useState<ResolvedClassRules | null>(null);
   const [trialSportType, setTrialSportType] = useState<string | undefined>(undefined);
-  const [allEntries, setAllEntries] = useState<ScoringEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,13 +137,12 @@ export function ScoresheetPage() {
         scoringEntries.sort((a, b) => a.exhibitorOrder - b.exhibitorOrder);
 
         // Find current entry
-        const currentEntry = scoringEntries.find((e) => e.entryId === entryId);
+        const currentEntry = scoringEntries.find(e => e.entryId === entryId);
         if (!currentEntry) {
           setError('Entry not found');
           return;
         }
 
-        setAllEntries(scoringEntries);
         setEntry(currentEntry);
         setClassInfo(toClassInfo(cls, scoringEntries.length));
         setRules(buildResolvedClassRules(cls));
@@ -159,74 +157,30 @@ export function ScoresheetPage() {
     loadData();
   }, [classId, entryId]);
 
-  // Navigation handlers
-  const currentIndex = allEntries.findIndex((e) => e.entryId === entryId);
-  const hasNext = currentIndex < allEntries.length - 1;
-  const hasPrev = currentIndex > 0;
-
-  const handleNavigate = (direction: 'prev' | 'next') => {
-    const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-    const newEntry = allEntries[newIndex];
-    if (newEntry) {
-      navigate(`/scoring/classes/${classId}/entries/${newEntry.entryId}`);
-    }
-  };
-
-  // Save handler with offline-first support
-  const handleSave = async (result: ScoringResult) => {
+  // Submit handler — receives ScoreData from shared scoresheet component
+  const handleSubmit = async (scoreData: ScoreData) => {
     if (!entry || !classInfo) return;
 
-    // Convert time from ms to formatted string (M:SS.ss)
-    const formatTimeForSubmission = (ms: number): string => {
-      const totalSeconds = ms / 1000;
-      const minutes = Math.floor(totalSeconds / 60);
-      const seconds = (totalSeconds % 60).toFixed(2);
-      return `${minutes}:${seconds.padStart(5, '0')}`;
-    };
-
-    // Map qualification string to result text
-    const mapQualification = (qual: string): string => {
-      switch (qual) {
-        case 'Q':
-        case 'Qualified':
-          return 'Q';
-        case 'NQ':
-        case 'Not Qualified':
-          return 'NQ';
-        case 'ABS':
-        case 'Absent':
-          return 'ABS';
-        case 'EX':
-        case 'Excused':
-          return 'EX';
-        default:
-          return qual;
-      }
-    };
-
-    // Submit with offline-first optimistic update
     await submitScoreOptimistically({
       entryId: parseInt(entry.entryId, 10),
       classId: parseInt(classInfo.id, 10),
       armband: entry.armband,
       className: classInfo.name,
       scoreData: {
-        resultText: mapQualification(result.qualification),
-        searchTime: formatTimeForSubmission(result.time),
-        faultCount: result.faults,
-        ...(result.notes !== undefined && { nonQualifyingReason: result.notes }),
-        ...(classInfo.element !== undefined && { element: classInfo.element }),
-        ...(classInfo.level !== undefined && { level: classInfo.level }),
+        resultText: scoreData.resultText,
+        searchTime: scoreData.searchTime,
+        faultCount: scoreData.faultCount,
+        ...(scoreData.nonQualifyingReason && {
+          nonQualifyingReason: scoreData.nonQualifyingReason,
+        }),
+        ...(scoreData.element && { element: scoreData.element }),
+        ...(scoreData.level && { level: scoreData.level }),
       },
       onSuccess: () => {
-        // Update local state to reflect scored status
-        setEntry((prev) =>
-          prev ? { ...prev, isScored: true, status: 'scored' } : null
-        );
+        setEntry(prev => (prev ? { ...prev, isScored: true, status: 'scored' } : null));
       },
-      onError: (err) => {
+      onError: err => {
         logger.error('Score submission failed:', 'pages', {}, err as Error);
-        // Error is handled by the hook - score is queued for retry
       },
     });
   };
@@ -267,17 +221,31 @@ export function ScoresheetPage() {
     ? mapSportType(trialSportType)
     : detectScoresheetType(classInfo);
 
+  // Convert to shared types
+  const scoresheetEntry: ScoresheetEntry = {
+    id: parseInt(entry.entryId, 10),
+    armband: entry.armband,
+    dogName: entry.callName,
+    handlerName: entry.handler,
+    className: classInfo.name,
+    ...(classInfo.element !== undefined && { element: classInfo.element }),
+    ...(classInfo.level !== undefined && { level: classInfo.level }),
+  };
+
+  const scoresheetClassInfo: ScoresheetClassInfo = {
+    element: classInfo.element || '',
+    level: classInfo.level || '',
+  };
+
   // Render appropriate scoresheet
   const scoresheetContext: ScoresheetContext = {
-    entry,
-    classInfo,
+    entry: scoresheetEntry,
+    classInfo: scoresheetClassInfo,
     rules,
     organization,
     sportType,
-    onSave: handleSave,
-    onNavigate: handleNavigate,
-    hasNext,
-    hasPrev,
+    onSubmit: handleSubmit,
+    onBack: handleBack,
   };
 
   return (
@@ -299,7 +267,7 @@ export function ScoresheetPage() {
           )}
         </div>
       )}
-      {renderScoresheet(scoresheetContext, handleBack)}
+      {renderScoresheet(scoresheetContext)}
     </>
   );
 }
@@ -389,69 +357,56 @@ function detectScoresheetType(classInfo: ClassInfo): {
 /**
  * Render the appropriate scoresheet based on context
  */
-function renderScoresheet(
-  context: ScoresheetContext,
-  onBack: () => void
-) {
-  const { organization, sportType, entry, classInfo, rules, onSave, onNavigate, hasNext, hasPrev } = context;
-
-  // Common props for all scoresheets
-  // Create classInfo with required maxTime for scoresheet components
-  const scoresheetClassInfo = {
-    ...classInfo,
-    maxTime: classInfo.maxTime || '3:00', // Default to 3 minutes if not set
-  };
+function renderScoresheet(context: ScoresheetContext) {
+  const { organization, sportType, entry, classInfo, rules, onSubmit, onBack } = context;
 
   const scoresheetProps = {
     entry,
-    classInfo: scoresheetClassInfo,
+    classInfo,
     rules,
-    onSave,
-    onNavigate,
+    onSubmit,
     onBack,
-    hasNext,
-    hasPrev,
   };
 
   // === AKC Scoresheets ===
 
   // AKC Scent Work Nationals (multi-area)
   if (organization === 'AKC' && sportType === 'scent-work-nationals') {
-    return <AKCNationalsScoresheet {...scoresheetProps} />;
+    return <AKCNationalsLiveScoresheet {...scoresheetProps} />;
   }
 
   // AKC Scent Work (single area)
   if (organization === 'AKC' && sportType === 'scent-work') {
-    return <AKCScentWorkScoresheet {...scoresheetProps} />;
+    return <AKCScentWorkLiveScoresheet {...scoresheetProps} />;
   }
 
   // AKC Fast CAT
   if (organization === 'AKC' && sportType === 'fast-cat') {
-    return <AKCFastCatScoresheet {...scoresheetProps} />;
+    return <AKCFastCatLiveScoresheet {...scoresheetProps} />;
   }
 
   // === UKC Scoresheets ===
 
   // UKC Nosework
   if (organization === 'UKC' && sportType === 'nosework') {
-    return <UKCNoseworkScoresheet {...scoresheetProps} />;
+    return <UKCNoseworkLiveScoresheet {...scoresheetProps} />;
   }
 
   // UKC Rally
   if (organization === 'UKC' && sportType === 'rally') {
-    return <UKCRallyScoresheet {...scoresheetProps} />;
+    return <UKCRallyLiveScoresheet {...scoresheetProps} />;
   }
 
   // UKC Obedience
   if (organization === 'UKC' && sportType === 'obedience') {
-    return <UKCObedienceScoresheet {...scoresheetProps} />;
+    return <UKCObedienceLiveScoresheet {...scoresheetProps} />;
   }
 
   // === ASCA Scoresheets ===
 
   // ASCA Scent Detection
   if (organization === 'ASCA' && sportType === 'scent-work') {
-    return <ASCAScentDetectionScoresheet {...scoresheetProps} />;
+    return <ASCAScentDetectionLiveScoresheet {...scoresheetProps} />;
   }
 
   // Fallback - generic scoresheet

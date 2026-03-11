@@ -28,7 +28,7 @@ import {
   type RouteState,
   loadFromRouteState,
   loadFromIndexedDB,
-  getMaxTimeForAreaHelper
+  getMaxTimeForAreaHelper,
 } from './useEntryNavigationHelpers';
 
 /**
@@ -42,7 +42,14 @@ export interface EntryNavigationConfig {
   /** Whether this is a Nationals scoresheet (affects area initialization) */
   isNationals?: boolean;
   /** Sport type for scoring session */
-  sportType?: 'AKC_SCENT_WORK' | 'AKC_SCENT_WORK_NATIONAL' | 'AKC_FASTCAT' | 'UKC_NOSEWORK' | 'ASCA_SCENT_DETECTION';
+  sportType?:
+    | 'AKC_SCENT_WORK'
+    | 'AKC_SCENT_WORK_NATIONAL'
+    | 'AKC_FASTCAT'
+    | 'UKC_NOSEWORK'
+    | 'UKC_OBEDIENCE'
+    | 'UKC_RALLY'
+    | 'ASCA_SCENT_DETECTION';
   /** Callback when entry is loaded and areas should be initialized */
   onEntryLoaded?: (entry: Entry, areas: AreaScore[]) => void;
   /** Callback to set trial date */
@@ -111,7 +118,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     onEntryLoaded,
     onTrialDateLoaded,
     onTrialNumberLoaded,
-    onLoadingChange
+    onLoadingChange,
   } = config;
 
   const navigate = useNavigate();
@@ -122,17 +129,9 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   const routeState = location.state as RouteState | null;
 
   // Store hooks
-  const {
-    isScoring,
-    startScoringSession
-  } = useScoringStore();
+  const { isScoring, startScoringSession } = useScoringStore();
 
-  const {
-    currentEntry,
-    setEntries,
-    setCurrentClassEntries,
-    setCurrentEntry
-  } = useEntryStore();
+  const { currentEntry, setEntries, setCurrentClassEntries, setCurrentEntry } = useEntryStore();
 
   // Local state
   const [entries, setLocalEntries] = useState<Entry[]>([]);
@@ -173,9 +172,11 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     return () => {
       const entry = currentEntryRef.current;
       if (entry?.id) {
-        markInRing(entry.id, false).then(() => {}).catch((error) => {
-          logger.error('❌ Cleanup: Failed to remove dog from ring:', error);
-        });
+        markInRing(entry.id, false)
+          .then(() => {})
+          .catch(error => {
+            logger.error('❌ Cleanup: Failed to remove dog from ring:', error);
+          });
       }
     };
   }, []);
@@ -226,7 +227,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     try {
       const result = await loadFromIndexedDB(classId, entryId, isNationals, {
         onTrialDateLoaded: onTrialDateLoadedRef.current,
-        onTrialNumberLoaded: onTrialNumberLoadedRef.current
+        onTrialNumberLoaded: onTrialNumberLoadedRef.current,
       });
 
       setClassInfo(result.classInfo);
@@ -250,7 +251,6 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
           result.entries.length
         );
       }
-
     } catch (error) {
       logger.error('[EntryNavigation] Error loading entries:', error);
     } finally {
@@ -268,7 +268,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     setEntries,
     setCurrentClassEntries,
     setCurrentEntry,
-    startScoringSession
+    startScoringSession,
   ]);
 
   // Load entries on mount
@@ -282,9 +282,12 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   // NAVIGATION
   // ==========================================================================
 
-  const navigateToEntry = useCallback((targetEntryId: number) => {
-    navigate(`/class/${classId}/score/${targetEntryId}`);
-  }, [classId, navigate]);
+  const navigateToEntry = useCallback(
+    (targetEntryId: number) => {
+      navigate(`/class/${classId}/score/${targetEntryId}`);
+    },
+    [classId, navigate]
+  );
 
   const navigateToNextEntry = useCallback(() => {
     if (!currentEntry || entries.length === 0) return;
@@ -306,9 +309,12 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   // MAX TIME HELPER (refactored to use helper function)
   // ==========================================================================
 
-  const getMaxTimeForArea = useCallback((areaIndex: number): string => {
-    return getMaxTimeForAreaHelper(currentEntry, areaIndex, sportType);
-  }, [currentEntry, sportType]);
+  const getMaxTimeForArea = useCallback(
+    (areaIndex: number): string => {
+      return getMaxTimeForAreaHelper(currentEntry, areaIndex, sportType);
+    },
+    [currentEntry, sportType]
+  );
 
   // ==========================================================================
   // RETURN
@@ -324,6 +330,6 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     navigateToNextEntry,
     navigateToPreviousEntry,
     getMaxTimeForArea,
-    reloadEntries: loadEntries
+    reloadEntries: loadEntries,
   };
 }

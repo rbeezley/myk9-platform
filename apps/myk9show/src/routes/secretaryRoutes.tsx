@@ -39,6 +39,10 @@ const SyncDashboardPage = lazy(() =>
   import('@/pages/sync/SyncDashboardPage').then(m => ({ default: m.SyncDashboardPage }))
 );
 
+// Secretary scoring (scoresheet convergence)
+const SecretaryScoringPage = lazy(() => import('@/pages/scoring/SecretaryScoringPage'));
+const SecretaryScoringRedirect = lazy(() => import('@/pages/scoring/SecretaryScoringRedirect'));
+
 // Entry management
 const EntryManagementPage = lazy(() =>
   import('@/pages/secretary/EntryManagementPage').catch(() => ({
@@ -213,6 +217,29 @@ export const SecretaryRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <SecretaryClassDashboard />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    {/* Secretary scoring — entry-by-entry scoresheet flow */}
+    <Route
+      path="/scoring/secretary/classes/:classId"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <SecretaryScoringRedirect />
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/scoring/secretary/classes/:classId/entries/:entryId"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <SecretaryScoringPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

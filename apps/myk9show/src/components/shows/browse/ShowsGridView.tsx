@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Calendar,
   MapPin,
@@ -60,6 +61,8 @@ interface ShowsGridViewProps {
   entries: SyncableShowEntry[];
   selectedTab: string;
   user: UserWithRoles | null;
+  isSelected?: (item: EnhancedShow) => boolean;
+  onToggleSelect?: (item: EnhancedShow) => void;
 }
 
 /**
@@ -71,6 +74,8 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
   entries,
   selectedTab,
   user,
+  isSelected,
+  onToggleSelect,
 }) => {
   const navigate = useNavigate();
 
@@ -82,6 +87,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
         const entryStatus = getEntryStatus(show, hasUserEntries);
         const canEnterShow =
           entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
+        const checked = isSelected?.(show) ?? false;
 
         return (
           <div
@@ -90,9 +96,22 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
               'myk9-browse-card relative',
               entryStatus.status === 'closing_soon' &&
                 'ring-2 ring-orange-400/50 shadow-orange-200/30',
-              entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50'
+              entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50',
+              checked && 'ring-2 ring-primary/50'
             )}
           >
+            {/* Selection checkbox */}
+            {onToggleSelect && (
+              <div className="absolute top-3 left-3 z-20">
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={() => onToggleSelect(show)}
+                  aria-label={`Select ${show.name}`}
+                  className="bg-background/80 backdrop-blur-sm"
+                />
+              </div>
+            )}
+
             {/* Urgency ribbon for closing soon */}
             {entryStatus.status === 'closing_soon' && entryStatus.daysUntilClose !== undefined && (
               <div className="absolute top-3 right-3 z-20 bg-orange-500 text-white px-2.5 py-1 text-xs font-semibold rounded-full shadow-md">

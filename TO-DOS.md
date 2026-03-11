@@ -159,7 +159,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Scoresheet Codebase Convergence - 2026-02-26
 
-- **Migrate myK9Q scoresheets to shared scoring-ui package** — myK9Show and myK9Q have separate implementations of the same scoresheets. Every scoresheet change must happen in two places. myK9Q is a mobile-first lightweight app for in-ring scoring and exhibitor check-in — it continues as a separate product. Needs a design session to abstract the hook-driven (myK9Q) vs. props-driven (myK9Show) data patterns. **Tracking:** `docs/plans/2026-02-26-phase1-cleanup.md` item 6. **Files:** `apps/myk9q/src/pages/scoresheets/` (hook-driven), `packages/scoring-ui/src/components/scoresheets/` (shared, props-driven), `apps/myk9show/src/pages/scoring/scoresheets/` (thin wrappers over shared).
+- [x] **Migrate myK9Q scoresheets to shared scoring-ui package** — Completed 2026-03-10. Consolidated 7 triplicated scoresheet implementations into shared `@myk9/scoring-ui` package with two UI modes: LiveScoresheet (mobile-first, stopwatch, touch for judges) and EntryScoresheet (keyboard-first, compact form for secretaries). Both apps now use thin wrappers over shared components. Deleted ~15,700 lines of duplicated code. Added SecretaryScoringPage with getScoresheetComponent registry. 277 tests passing. **Plan:** `docs/superpowers/plans/2026-03-10-scoresheet-convergence.md`.
 
 ## Test Complete Person CRUD Capabilities - 2026-02-23 22:07
 

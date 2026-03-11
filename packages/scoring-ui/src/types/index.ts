@@ -199,3 +199,18 @@ export interface DragAndDropReturn {
   /** Ref to check drag state (for sync protection) */
   isDraggingRef: React.MutableRefObject<boolean>;
 }
+
+// Score data types (scoresheet convergence)
+export type {
+  QualifyingResult,
+  NationalsResult,
+  ExtendedResult,
+  AreaScore,
+  ScoreData,
+  ScoresheetEntry,
+  ScoresheetClassInfo,
+  ScoresheetSportType,
+  BaseScoresheetProps,
+  LiveScoresheetProps,
+  EntryScoresheetProps,
+} from './scoreData';

@@ -50,7 +50,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     onTimeExpired,
     onWarningChime,
     onVoiceAnnouncement,
-    onScoringActiveChange
+    onScoringActiveChange,
   } = options;
 
   // Timer state
@@ -131,9 +131,11 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     // Parse max time to milliseconds
     const maxTimeMs = parseMaxTimeToMs(maxTime);
 
-    // Show warning if less than 30 seconds remaining
+    // 30-second threshold per competition rules. No buffer needed with 100ms
+    // update interval (myK9Q's local copy used 32s as a workaround for slow
+    // rendering — that's no longer necessary).
     const remainingMs = maxTimeMs - time;
-    return remainingMs > 0 && remainingMs <= 30000; // 30 seconds
+    return remainingMs > 0 && remainingMs <= 30000;
   };
 
   /**
@@ -154,9 +156,9 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    */
   const getWarningMessage = (): string | null => {
     if (isTimeExpired()) {
-      return "Time Expired";
+      return 'Time Expired';
     } else if (shouldShow30SecondWarning()) {
-      return "30 Second Warning";
+      return '30 Second Warning';
     }
     return null;
   };
@@ -260,7 +262,15 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     if (remainingSeconds > 30 && has30SecondAnnouncedRef.current) {
       has30SecondAnnouncedRef.current = false;
     }
-  }, [time, isRunning, enableVoiceAnnouncements, level, maxTime, onWarningChime, onVoiceAnnouncement]);
+  }, [
+    time,
+    isRunning,
+    enableVoiceAnnouncements,
+    level,
+    maxTime,
+    onWarningChime,
+    onVoiceAnnouncement,
+  ]);
 
   // Notify scoring active state change
   useEffect(() => {
@@ -288,6 +298,6 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     reset,
     shouldShow30SecondWarning,
     isTimeExpired,
-    getWarningMessage
+    getWarningMessage,
   };
 }

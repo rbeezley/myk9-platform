@@ -16,13 +16,13 @@ import { ScoresheetLoader } from '../../../components/LoadingSpinner';
 // Lazy load both scoresheets (only one will be loaded per session)
 const AKCScentWorkScoresheet = React.lazy(() =>
   import('./AKCScentWorkScoresheet').then(module => ({
-    default: module.AKCScentWorkScoresheet
+    default: module.AKCScentWorkScoresheet,
   }))
 );
 
 const AKCNationalsScoresheet = React.lazy(() =>
   import('./AKCNationalsScoresheet').then(module => ({
-    default: module.AKCNationalsScoresheet
+    default: module.AKCNationalsScoresheet,
   }))
 );
 

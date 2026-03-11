@@ -28,12 +28,22 @@ export { useStopwatch } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
+export { useScoresheetScoring } from './hooks/useScoresheetScoring';
 
 // Phase 1: Quick Win Hooks (Sprint 25)
-export { useHapticFeedback, haptic, type HapticPattern, type HapticFeedbackAPI } from './hooks/useHapticFeedback';
+export {
+  useHapticFeedback,
+  haptic,
+  type HapticPattern,
+  type HapticFeedbackAPI,
+} from './hooks/useHapticFeedback';
 export { useDebounce } from './hooks/useDebounce';
 export { useIsTouchDevice } from './hooks/useIsTouchDevice';
-export { useLongPress, type UseLongPressOptions, type LongPressHandlers } from './hooks/useLongPress';
+export {
+  useLongPress,
+  type UseLongPressOptions,
+  type LongPressHandlers,
+} from './hooks/useLongPress';
 export {
   useSwipeGesture,
   useSwipeToAction,
@@ -42,7 +52,7 @@ export {
   type SwipeGestureHandlers,
   type SwipeToActionOptions,
   type SwipeToActionHandlers,
-  type SwipeToActionReturn
+  type SwipeToActionReturn,
 } from './hooks/useSwipeGesture';
 
 // Phase 3: Extracted Hooks (Sprint 25)
@@ -80,6 +90,12 @@ export {
   formatTimeInputToMMSS,
 } from './utils/timeUtils';
 export { buildResolvedClassRules } from './utils/buildResolvedClassRules';
+export { parseSmartTime } from './utils/parseSmartTime';
+export {
+  getScoresheetComponent,
+  registerScoresheet,
+  resetScoresheetRegistry,
+} from './utils/getScoresheetComponent';
 
 // Types
 export type {
@@ -99,15 +115,42 @@ export type {
   ClassRuleFields,
 } from './types';
 
+export type {
+  ScoresheetScoringConfig,
+  ScoresheetScoringReturn,
+  ValidationResult,
+} from './hooks/useScoresheetScoring';
+
+export type {
+  QualifyingResult,
+  NationalsResult,
+  ExtendedResult,
+  AreaScore,
+  ScoreData,
+  ScoresheetEntry,
+  ScoresheetClassInfo,
+  ScoresheetSportType,
+  BaseScoresheetProps,
+  LiveScoresheetProps,
+  EntryScoresheetProps,
+} from './types';
+
 // Scoresheets - AKC
-export { AKCScentWorkScoresheet } from './components/scoresheets/AKC/AKCScentWorkScoresheet';
-export { AKCNationalsScoresheet } from './components/scoresheets/AKC/AKCNationalsScoresheet';
-export { AKCFastCatScoresheet } from './components/scoresheets/AKC/AKCFastCatScoresheet';
+export { AKCScentWorkLiveScoresheet } from './components/scoresheets/AKC/AKCScentWorkLiveScoresheet';
+export { AKCScentWorkEntryScoresheet } from './components/scoresheets/AKC/AKCScentWorkEntryScoresheet';
+export { AKCNationalsLiveScoresheet } from './components/scoresheets/AKC/AKCNationalsLiveScoresheet';
+export { AKCNationalsEntryScoresheet } from './components/scoresheets/AKC/AKCNationalsEntryScoresheet';
+export { AKCFastCatLiveScoresheet } from './components/scoresheets/AKC/AKCFastCatLiveScoresheet';
+export { AKCFastCatEntryScoresheet } from './components/scoresheets/AKC/AKCFastCatEntryScoresheet';
 
 // Scoresheets - UKC
-export { UKCNoseworkScoresheet } from './components/scoresheets/UKC/UKCNoseworkScoresheet';
-export { UKCRallyScoresheet } from './components/scoresheets/UKC/UKCRallyScoresheet';
-export { UKCObedienceScoresheet } from './components/scoresheets/UKC/UKCObedienceScoresheet';
+export { UKCNoseworkLiveScoresheet } from './components/scoresheets/UKC/UKCNoseworkLiveScoresheet';
+export { UKCNoseworkEntryScoresheet } from './components/scoresheets/UKC/UKCNoseworkEntryScoresheet';
+export { UKCRallyLiveScoresheet } from './components/scoresheets/UKC/UKCRallyLiveScoresheet';
+export { UKCRallyEntryScoresheet } from './components/scoresheets/UKC/UKCRallyEntryScoresheet';
+export { UKCObedienceLiveScoresheet } from './components/scoresheets/UKC/UKCObedienceLiveScoresheet';
+export { UKCObedienceEntryScoresheet } from './components/scoresheets/UKC/UKCObedienceEntryScoresheet';
 
 // Scoresheets - ASCA
-export { ASCAScentDetectionScoresheet } from './components/scoresheets/ASCA/ASCAScentDetectionScoresheet';
+export { ASCAScentDetectionLiveScoresheet } from './components/scoresheets/ASCA/ASCAScentDetectionLiveScoresheet';
+export { ASCAScentDetectionEntryScoresheet } from './components/scoresheets/ASCA/ASCAScentDetectionEntryScoresheet';

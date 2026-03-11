@@ -47,11 +47,18 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 // Extracted hooks and components
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
-import { ShowsGridView, ShowsListView, ShowsTableView } from '@/components/shows/browse';
+import {
+  ShowsGridView,
+  ShowsListView,
+  ShowsTableView,
+  ShowBulkActionsBar,
+} from '@/components/shows/browse';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { ViewPicker } from '@/components/common/ViewPicker';
 import { KanbanView, type KanbanColumn } from '@/components/common/KanbanView';
 import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
 import { parseLocalDateString } from '@myk9/core';
+import { useShowStore } from '@/store/showStore';
 
 type ViewMode = 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
 
@@ -83,6 +90,20 @@ function getShowKanbanStatus(show: Show): string {
   if (entryOpen && today >= entryOpen) return 'entries_open';
   return 'planning';
 }
+
+/**
+ * Maps a kanban column key to an actual show status value.
+ * Date-derived columns (entries_open, entries_closed, show_day) map to 'active'
+ * since those columns are determined by the show's date fields, not its status.
+ */
+const KANBAN_TO_SHOW_STATUS: Record<string, string> = {
+  planning: 'planning',
+  entries_open: 'active',
+  entries_closed: 'active',
+  show_day: 'active',
+  completed: 'completed',
+  archived: 'archived',
+};
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -141,6 +162,9 @@ const BrowseShowsPage: React.FC = () => {
     },
     [savedViewsList, applyView, setFilters]
   );
+
+  // Show store for status updates via kanban drag-and-drop
+  const updateShow = useShowStore(state => state.updateShow);
 
   // Build club filter options from available shows
   const clubFilterOptions = useMemo(() => {
@@ -238,6 +262,52 @@ const BrowseShowsPage: React.FC = () => {
 
   // Get enhanced shows from data hook with actual filtered shows
   const { enhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
+
+  /** Handle kanban card drag to a new column — updates the show's status. */
+  const handleKanbanStatusChange = useCallback(
+    (showId: string, newKanbanColumn: string) => {
+      const newStatus = KANBAN_TO_SHOW_STATUS[newKanbanColumn];
+      if (!newStatus) return;
+
+      const show = enhancedShows.find(s => s.id === showId);
+      if (!show) return;
+
+      // Skip if the show already has this status (date-derived columns can't be changed via status)
+      if (show.status === newStatus) {
+        logger.info('Show already has this status; column is date-derived', 'shows', {
+          showId,
+          currentStatus: show.status,
+          targetColumn: newKanbanColumn,
+        });
+        return;
+      }
+
+      logger.info('Updating show status via kanban', 'shows', {
+        showId,
+        showName: show.name,
+        fromStatus: show.status,
+        toStatus: newStatus,
+        targetColumn: newKanbanColumn,
+      });
+
+      updateShow(showId, { status: newStatus }).catch(error => {
+        logger.error('Failed to update show status', 'shows', { showId, error });
+      });
+    },
+    [enhancedShows, updateShow]
+  );
+
+  // Bulk selection for shows
+  const getShowId = useCallback((show: { id: string }) => show.id, []);
+  const bulkSelection = useBulkSelection({
+    items: enhancedShows,
+    getItemId: getShowId,
+  });
+
+  const handleBulkComplete = useCallback(() => {
+    bulkSelection.clearSelection();
+    handleRetry(); // Refresh data after bulk action
+  }, [bulkSelection, handleRetry]);
 
   // Update selected tab if current tab is not available for this user
   useEffect(() => {
@@ -429,6 +499,7 @@ const BrowseShowsPage: React.FC = () => {
             columns={SHOW_KANBAN_COLUMNS}
             getItemStatus={getShowKanbanStatus}
             renderCard={renderKanbanCard}
+            onStatusChange={handleKanbanStatusChange}
             className="mt-4"
           />
         );
@@ -446,7 +517,15 @@ const BrowseShowsPage: React.FC = () => {
         );
 
       case 'table':
-        return <ShowsTableView shows={enhancedShows} />;
+        return (
+          <ShowsTableView
+            shows={enhancedShows}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
+            isAllSelected={bulkSelection.isAllSelected}
+            onToggleAll={bulkSelection.toggleAll}
+          />
+        );
 
       case 'list':
         return (
@@ -455,6 +534,8 @@ const BrowseShowsPage: React.FC = () => {
             entries={entries}
             selectedTab={selectedTab}
             user={user}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
           />
         );
 
@@ -466,6 +547,8 @@ const BrowseShowsPage: React.FC = () => {
             entries={entries}
             selectedTab={selectedTab}
             user={user}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
           />
         );
     }
@@ -682,6 +765,13 @@ const BrowseShowsPage: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Bulk Actions Bar */}
+              <ShowBulkActionsBar
+                selectedShows={bulkSelection.selectedItems}
+                onClearSelection={bulkSelection.clearSelection}
+                onBulkComplete={handleBulkComplete}
+              />
 
               {/* Tabs */}
               <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6">

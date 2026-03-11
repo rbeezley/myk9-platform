@@ -7,7 +7,7 @@
 import { startTransition, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Info, Calendar, Building2, Trophy } from 'lucide-react';
+import { Info, Calendar, Building2, Trophy, ClipboardEdit } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -27,7 +27,7 @@ import { DeleteEntryDialog } from './DeleteEntryDialog';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isSecretary, isAdmin } = useAuthContext();
 
   // Data hook
   const {
@@ -256,9 +256,20 @@ const ClassDetailsPage: React.FC = () => {
         icon: Calendar,
         badge: String(entryCount),
       });
+
+      // Secretary/admin: quick link to enter scores
+      if ((isSecretary || isAdmin) && classId) {
+        items.push({
+          key: 'enter-scores',
+          title: 'Enter Scores',
+          subtitle: 'Open scoring flow',
+          icon: ClipboardEdit,
+          href: `/scoring/secretary/classes/${classId}`,
+        });
+      }
     }
     return items;
-  }, [parentTrial, parentShow, classEntries.length]);
+  }, [parentTrial, parentShow, classEntries.length, isSecretary, isAdmin, classId]);
 
   // Early returns for different states
   if (classId && !currentClass && trialClasses.length > 0) {

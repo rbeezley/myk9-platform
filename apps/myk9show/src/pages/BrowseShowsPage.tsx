@@ -47,7 +47,13 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 // Extracted hooks and components
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
-import { ShowsGridView, ShowsListView, ShowsTableView } from '@/components/shows/browse';
+import {
+  ShowsGridView,
+  ShowsListView,
+  ShowsTableView,
+  ShowBulkActionsBar,
+} from '@/components/shows/browse';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { ViewPicker } from '@/components/common/ViewPicker';
 import { KanbanView, type KanbanColumn } from '@/components/common/KanbanView';
 import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
@@ -291,6 +297,18 @@ const BrowseShowsPage: React.FC = () => {
     [enhancedShows, updateShow]
   );
 
+  // Bulk selection for shows
+  const getShowId = useCallback((show: { id: string }) => show.id, []);
+  const bulkSelection = useBulkSelection({
+    items: enhancedShows,
+    getItemId: getShowId,
+  });
+
+  const handleBulkComplete = useCallback(() => {
+    bulkSelection.clearSelection();
+    handleRetry(); // Refresh data after bulk action
+  }, [bulkSelection, handleRetry]);
+
   // Update selected tab if current tab is not available for this user
   useEffect(() => {
     if (!tabConfig.tabs.some(tab => tab.id === selectedTab)) {
@@ -499,7 +517,15 @@ const BrowseShowsPage: React.FC = () => {
         );
 
       case 'table':
-        return <ShowsTableView shows={enhancedShows} />;
+        return (
+          <ShowsTableView
+            shows={enhancedShows}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
+            isAllSelected={bulkSelection.isAllSelected}
+            onToggleAll={bulkSelection.toggleAll}
+          />
+        );
 
       case 'list':
         return (
@@ -508,6 +534,8 @@ const BrowseShowsPage: React.FC = () => {
             entries={entries}
             selectedTab={selectedTab}
             user={user}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
           />
         );
 
@@ -519,6 +547,8 @@ const BrowseShowsPage: React.FC = () => {
             entries={entries}
             selectedTab={selectedTab}
             user={user}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
           />
         );
     }
@@ -735,6 +765,13 @@ const BrowseShowsPage: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Bulk Actions Bar */}
+              <ShowBulkActionsBar
+                selectedShows={bulkSelection.selectedItems}
+                onClearSelection={bulkSelection.clearSelection}
+                onBulkComplete={handleBulkComplete}
+              />
 
               {/* Tabs */}
               <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6">

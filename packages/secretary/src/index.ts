@@ -24,3 +24,6 @@ export { PRESET_CONFIGS, PRESET_INFO, resolvePreset } from './visibility/visibil
 
 // Visibility cascade
 export { resolveVisibilityCascade, getVisibleResultFields } from './visibility/visibility-cascade';
+
+// Check-in cascade
+export { resolveCheckinCascade } from './checkin/checkin-cascade';

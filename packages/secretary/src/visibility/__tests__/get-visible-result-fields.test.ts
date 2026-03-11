@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getVisibleResultFields } from '../visibility-cascade';
-import type { VisibilitySettings, ClassState, VisibilityUserRole } from '../visibility-types';
+import type { VisibilitySettings } from '../visibility-types';
 
 const standardSettings: VisibilitySettings = {
   placement: 'class_complete',

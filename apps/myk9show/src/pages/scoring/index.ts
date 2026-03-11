@@ -14,5 +14,12 @@ export { SecretaryScoringPage } from './SecretaryScoringPage';
 export { ScoringEntryCard, SortableScoringEntryCard } from './components/ScoringEntryCard';
 
 // Types
-export type { ScoringEntry, ScoringResult, ClassInfo } from './types';
-export { toScoringEntry, toClassInfo } from './types';
+export type { ScoringEntry, ScoringResult, ClassInfo, Organization, SportType } from './types';
+export {
+  toScoringEntry,
+  toClassInfo,
+  mapSportType,
+  toRegistryKey,
+  toScoresheetEntry,
+  toScoresheetClassInfo,
+} from './types';

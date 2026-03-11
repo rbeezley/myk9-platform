@@ -4,7 +4,12 @@
  * Adapts myK9Show's ReplicatedEntry to work with @myk9/scoring-ui hooks.
  */
 
-import type { BaseEntry } from '@myk9/scoring-ui';
+import type {
+  BaseEntry,
+  ScoresheetEntry,
+  ScoresheetClassInfo,
+  ScoresheetSportType,
+} from '@myk9/scoring-ui';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -137,7 +142,14 @@ export function toClassInfo(
   let level = cls.level;
 
   // Common scent work elements
-  const elements = ['Container', 'Interior', 'Exterior', 'Buried', 'Handler Discrimination', 'Elite'];
+  const elements = [
+    'Container',
+    'Interior',
+    'Exterior',
+    'Buried',
+    'Handler Discrimination',
+    'Elite',
+  ];
   for (const el of elements) {
     if (cls.name.includes(el)) {
       element = el;
@@ -166,4 +178,89 @@ function formatTimeLimitFromClass(timeLimitSeconds?: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ── Shared scoring page utilities ──────────────────────────────────────────
+
+export type Organization = 'AKC' | 'UKC' | 'ASCA' | 'Unknown';
+export type SportType =
+  | 'scent-work'
+  | 'scent-work-nationals'
+  | 'nosework'
+  | 'rally'
+  | 'obedience'
+  | 'agility'
+  | 'fast-cat'
+  | 'unknown';
+
+/**
+ * Map trial sport_type code to organization and sport type.
+ * Uses the authoritative sport_type from the trial record (Migration 029).
+ */
+export function mapSportType(sportTypeCode: string): {
+  organization: Organization;
+  sportType: SportType;
+} {
+  switch (sportTypeCode) {
+    case 'akc-scent-work':
+      return { organization: 'AKC', sportType: 'scent-work' };
+    case 'akc-scent-work-nationals':
+      return { organization: 'AKC', sportType: 'scent-work-nationals' };
+    case 'akc-fast-cat':
+      return { organization: 'AKC', sportType: 'fast-cat' };
+    case 'ukc-nosework':
+      return { organization: 'UKC', sportType: 'nosework' };
+    case 'ukc-rally':
+      return { organization: 'UKC', sportType: 'rally' };
+    case 'ukc-obedience':
+      return { organization: 'UKC', sportType: 'obedience' };
+    case 'asca-scent-detection':
+      return { organization: 'ASCA', sportType: 'scent-work' };
+    default:
+      return { organization: 'Unknown', sportType: 'unknown' };
+  }
+}
+
+/** Map organization + sport string to ScoresheetSportType registry key. */
+export function toRegistryKey(org: string, sport: string): ScoresheetSportType | null {
+  const key = `${org}:${sport}`;
+  switch (key) {
+    case 'AKC:scent-work':
+      return 'AKC_SCENT_WORK';
+    case 'AKC:scent-work-nationals':
+      return 'AKC_SCENT_WORK_NATIONAL';
+    case 'AKC:fast-cat':
+      return 'AKC_FASTCAT';
+    case 'UKC:nosework':
+      return 'UKC_NOSEWORK';
+    case 'UKC:rally':
+      return 'UKC_RALLY';
+    case 'UKC:obedience':
+      return 'UKC_OBEDIENCE';
+    case 'ASCA:scent-work':
+      return 'ASCA_SCENT_DETECTION';
+    default:
+      return null;
+  }
+}
+
+/** Convert ScoringEntry to ScoresheetEntry for scoresheet props. */
+export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): ScoresheetEntry {
+  return {
+    id: parseInt(entry.entryId, 10) || 0,
+    armband: entry.armband,
+    dogName: entry.callName,
+    handlerName: entry.handler,
+    className: classInfo.name,
+    ...(classInfo.element != null && { element: classInfo.element }),
+    ...(classInfo.level != null && { level: classInfo.level }),
+  };
+}
+
+/** Convert ClassInfo to ScoresheetClassInfo for scoresheet props. */
+export function toScoresheetClassInfo(info: ClassInfo): ScoresheetClassInfo {
+  return {
+    element: info.element || '',
+    level: info.level || '',
+  };
 }

@@ -73,12 +73,13 @@ export const TrialPipelineDetail: React.FC = () => {
   // Resolve trial-level effective settings client-side
   const trialEffectiveSettings = useMemo(() => {
     if (!showSettings) return null;
-    const trialOverride = trialOverrides?.find(o => o.trialId === trialId)?.override;
+    const trialEntry = trialOverrides?.find(o => o.trialId === trialId);
+    const trialOverride = trialEntry?.override;
     return {
       visibility: resolveVisibilityCascade(showSettings.visibility, trialOverride),
       selfCheckinEnabled: resolveCheckinCascade(
         showSettings.selfCheckinEnabled,
-        trialOverrides?.find(o => o.trialId === trialId)?.selfCheckinEnabled ?? null,
+        trialEntry?.selfCheckinEnabled ?? null,
         null
       ),
     };

@@ -10,6 +10,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { cacheStrategies } from '@/lib/queryClient';
 import {
   resolveVisibilityCascade,
   resolveCheckinCascade,
@@ -30,11 +31,6 @@ export const settingsQueryKeys = {
   trials: (showId: string) => [...settingsQueryKeys.all, 'trials', showId] as const,
   trialOverride: (trialId: string) => [...settingsQueryKeys.all, 'trial', trialId] as const,
   classOverride: (classId: string) => [...settingsQueryKeys.all, 'class', classId] as const,
-};
-
-const cacheStrategy = {
-  staleTime: 5 * 60 * 1000, // 5 min
-  gcTime: 10 * 60 * 1000, // 10 min
 };
 
 /** DB row shape for show_visibility_settings */
@@ -130,7 +126,7 @@ export function useShowSettings(showId: string | null) {
     queryKey: settingsQueryKeys.show(showId!),
     queryFn: () => fetchShowSettings(showId!),
     enabled: !!showId,
-    ...cacheStrategy,
+    ...cacheStrategies.moderate,
   });
 }
 
@@ -171,7 +167,7 @@ export function useTrialOverrides(showId: string | null) {
     queryKey: settingsQueryKeys.trials(showId!),
     queryFn: () => fetchTrialOverrides(showId!),
     enabled: !!showId,
-    ...cacheStrategy,
+    ...cacheStrategies.moderate,
   });
 }
 
@@ -237,6 +233,6 @@ export function useClassEffectiveSettings(
     queryKey: settingsQueryKeys.classOverride(classId!),
     queryFn: () => fetchClassEffectiveSettings(classId!, trialId!, showId!),
     enabled: !!classId && !!trialId && !!showId,
-    ...cacheStrategy,
+    ...cacheStrategies.moderate,
   });
 }

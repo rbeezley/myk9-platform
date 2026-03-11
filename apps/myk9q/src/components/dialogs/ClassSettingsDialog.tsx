@@ -5,11 +5,7 @@ import { setClassVisibility } from '../../services/resultVisibilityService';
 import { PRESET_INFO } from '@myk9/secretary';
 import type { VisibilityPreset } from '@myk9/secretary';
 
-const PRESET_ICONS: Record<VisibilityPreset, string> = {
-  open: '⚡',
-  standard: '⏱️',
-  review: '🔒',
-};
+import { PRESET_ICONS } from '../../utils/visibilityIcons';
 import { DialogContainer } from './DialogContainer';
 import { useAuth } from '../../contexts/AuthContext';
 import { parseOrganizationData } from '../../utils/organizationUtils';

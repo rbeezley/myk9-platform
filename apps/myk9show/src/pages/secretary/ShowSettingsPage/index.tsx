@@ -68,7 +68,6 @@ export default function ShowSettingsPage() {
               settings={settings}
               trialOverrides={trialOverrides}
               trials={showTrials}
-              isLoading={false}
             />
           )}
         </CardContent>
@@ -94,7 +93,6 @@ export default function ShowSettingsPage() {
               settings={settings}
               trialOverrides={trialOverrides}
               trials={showTrials}
-              isLoading={false}
             />
           )}
         </CardContent>

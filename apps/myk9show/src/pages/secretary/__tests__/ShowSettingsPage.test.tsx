@@ -286,8 +286,7 @@ describe('ShowSettingsPage', () => {
         expect.objectContaining({
           entityId: 'trial-1',
           showId: 'show-1',
-          table: 'trial_visibility_overrides',
-          idColumn: 'trial_id',
+          level: 'trial',
         }),
         expect.any(Object)
       );

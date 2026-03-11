@@ -8,7 +8,6 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import { RotateCcw, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ShowSettings, TrialOverrideEntry } from '@/hooks/queries/useShowSettingsDatabase';
@@ -24,7 +23,6 @@ interface SelfCheckinSectionProps {
   settings: ShowSettings;
   trialOverrides: TrialOverrideEntry[];
   trials: SyncableTrial[];
-  isLoading: boolean;
 }
 
 export function SelfCheckinSection({
@@ -32,7 +30,6 @@ export function SelfCheckinSection({
   settings,
   trialOverrides,
   trials,
-  isLoading,
 }: SelfCheckinSectionProps) {
   const updateCheckin = useUpdateShowCheckin();
   const updateTrialOverride = useUpdateTrialOverride();
@@ -61,20 +58,11 @@ export function SelfCheckinSection({
 
   function handleResetTrial(trialId: string) {
     resetOverride.mutate(
-      { entityId: trialId, showId, table: 'trial_visibility_overrides', idColumn: 'trial_id' },
+      { entityId: trialId, showId, level: 'trial' },
       {
         onSuccess: () => toast.success('Trial reset to show defaults'),
         onError: () => toast.error('Failed to reset trial override'),
       }
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-16 w-full" />
-      </div>
     );
   }
 

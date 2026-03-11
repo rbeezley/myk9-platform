@@ -12,11 +12,7 @@ import { Eye, UserCheck, UserX } from 'lucide-react';
 import { PRESET_INFO } from '@myk9/secretary';
 import type { VisibilityPreset } from '@myk9/secretary';
 
-const PRESET_ICONS: Record<VisibilityPreset, string> = {
-  open: '⚡',
-  standard: '⏱️',
-  review: '🔒',
-};
+import { PRESET_ICONS } from '../../../utils/visibilityIcons';
 import type { ClassInfo } from '../hooks/useCompetitionAdminData';
 import { formatTrialDate } from '../../../utils/dateUtils';
 

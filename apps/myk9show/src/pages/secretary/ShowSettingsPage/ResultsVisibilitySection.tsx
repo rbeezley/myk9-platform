@@ -5,7 +5,7 @@
  * for per-field timing overrides and per-trial override controls.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Zap, Clock, Lock, ChevronDown, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -26,6 +25,7 @@ import {
   type VisibilityPreset,
   type VisibilityTiming,
 } from '@myk9/secretary';
+import { TIMING_LABELS } from '@/components/secretary/settingsConstants';
 import type { ShowSettings, TrialOverrideEntry } from '@/hooks/queries/useShowSettingsDatabase';
 import {
   useUpdateShowVisibility,
@@ -35,12 +35,6 @@ import {
 import type { SyncableTrial } from '@/store/trial-store-types';
 
 // --- helpers ---
-
-const TIMING_LABELS: Record<VisibilityTiming, string> = {
-  immediate: 'Immediate',
-  class_complete: 'After Class',
-  manual_release: 'Manual Release',
-};
 
 const PRESET_ICONS: Record<VisibilityPreset, React.ReactNode> = {
   open: <Zap className="h-5 w-5 text-green-500" />,
@@ -115,7 +109,6 @@ interface ResultsVisibilitySectionProps {
   settings: ShowSettings;
   trialOverrides: TrialOverrideEntry[];
   trials: SyncableTrial[];
-  isLoading: boolean;
 }
 
 export function ResultsVisibilitySection({
@@ -123,12 +116,21 @@ export function ResultsVisibilitySection({
   settings,
   trialOverrides,
   trials,
-  isLoading,
 }: ResultsVisibilitySectionProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [customTimings, setCustomTimings] = useState<FieldTimings>(() =>
     fieldTimingsFromSettings(settings.visibility)
   );
+
+  // Sync with server data when it changes (e.g., after mutation settles)
+  useEffect(() => {
+    setCustomTimings(fieldTimingsFromSettings(settings.visibility));
+  }, [
+    settings.visibility.placement,
+    settings.visibility.qualification,
+    settings.visibility.time,
+    settings.visibility.faults,
+  ]);
 
   const updateVisibility = useUpdateShowVisibility();
   const updateTrialOverride = useUpdateTrialOverride();
@@ -193,21 +195,11 @@ export function ResultsVisibilitySection({
 
   function handleResetTrial(trialId: string) {
     resetOverride.mutate(
-      { entityId: trialId, showId, table: 'trial_visibility_overrides', idColumn: 'trial_id' },
+      { entityId: trialId, showId, level: 'trial' },
       {
         onSuccess: () => toast.success('Trial reset to show defaults'),
         onError: () => toast.error('Failed to reset trial override'),
       }
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
     );
   }
 

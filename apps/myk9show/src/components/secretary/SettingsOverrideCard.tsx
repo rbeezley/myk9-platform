@@ -32,6 +32,7 @@ import {
   type VisibilityTiming,
   type ResultField,
 } from '@myk9/secretary';
+import { TIMING_LABELS, RESULT_FIELDS } from './settingsConstants';
 import {
   useUpdateTrialOverride,
   useUpdateClassOverride,
@@ -53,19 +54,6 @@ export interface SettingsOverrideCardProps {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const TIMING_LABELS: Record<VisibilityTiming, string> = {
-  immediate: 'Immediately',
-  class_complete: 'When class completes',
-  manual_release: 'After manual release',
-};
-
-const RESULT_FIELDS: { key: ResultField; label: string }[] = [
-  { key: 'qualification', label: 'Q/NQ' },
-  { key: 'time', label: 'Time' },
-  { key: 'faults', label: 'Faults' },
-  { key: 'placement', label: 'Placement' },
-];
 
 const PRESETS = (['open', 'standard', 'review'] as VisibilityPreset[]).map(p => ({
   value: p,
@@ -175,21 +163,7 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
   // ── Reset ─────────────────────────────────────────────────────────────────
 
   function handleReset() {
-    if (level === 'trial') {
-      resetOverride.mutate({
-        entityId,
-        showId,
-        table: 'trial_visibility_overrides',
-        idColumn: 'trial_id',
-      });
-    } else {
-      resetOverride.mutate({
-        entityId,
-        showId,
-        table: 'class_visibility_overrides',
-        idColumn: 'class_id',
-      });
-    }
+    resetOverride.mutate({ entityId, showId, level });
   }
 
   const inheritedLabel = inheritedFromLabel(level, currentSettings.inheritedFrom);

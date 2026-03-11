@@ -55,8 +55,7 @@ interface ClassOverrideUpdate {
 interface OverrideReset {
   entityId: string;
   showId: string;
-  table: 'trial_visibility_overrides' | 'class_visibility_overrides';
-  idColumn: 'trial_id' | 'class_id';
+  level: 'trial' | 'class';
 }
 
 export function useUpdateShowVisibility() {
@@ -110,7 +109,6 @@ export function useUpdateShowVisibility() {
     },
     onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
-      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
     },
   });
 }
@@ -228,8 +226,11 @@ export function useResetOverride() {
 
   return useMutation({
     mutationFn: async (reset: OverrideReset) => {
-      const { error } = await untypedSupabase.from(reset.table).upsert({
-        [reset.idColumn]: reset.entityId,
+      const table =
+        reset.level === 'trial' ? 'trial_visibility_overrides' : 'class_visibility_overrides';
+      const idColumn = reset.level === 'trial' ? 'trial_id' : 'class_id';
+      const { error } = await untypedSupabase.from(table).upsert({
+        [idColumn]: reset.entityId,
         preset: null,
         placement_timing: null,
         qualification_timing: null,

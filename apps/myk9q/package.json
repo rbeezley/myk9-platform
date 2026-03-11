@@ -35,7 +35,7 @@
     "@myk9/replication": "workspace:*",
     "@myk9/scoring": "workspace:*",
     "@myk9/scoring-ui": "workspace:*",
-    "@myk9/secretary": "workspace:^",
+    "@myk9/secretary": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@myk9/ui": "workspace:*",
     "@supabase/supabase-js": "^2.93.3",

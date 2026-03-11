@@ -230,7 +230,7 @@ export function useClassEffectiveSettings(
   showId: string | null
 ) {
   return useQuery({
-    queryKey: settingsQueryKeys.classOverride(classId!),
+    queryKey: [...settingsQueryKeys.classOverride(classId!), trialId!, showId!],
     queryFn: () => fetchClassEffectiveSettings(classId!, trialId!, showId!),
     enabled: !!classId && !!trialId && !!showId,
     ...cacheStrategies.moderate,

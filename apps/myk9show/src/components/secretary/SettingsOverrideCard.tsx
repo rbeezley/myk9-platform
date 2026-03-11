@@ -125,19 +125,27 @@ export const SettingsOverrideCard: React.FC<SettingsOverrideCardProps> = ({
   // ── Per-field timing override ─────────────────────────────────────────────
 
   function applyFieldOverride(field: ResultField, timing: VisibilityTiming) {
+    // Send all current field values alongside the changed one to prevent
+    // upsert from clobbering existing overrides with undefined/null.
+    const allTimings = {
+      placementTiming: field === 'placement' ? timing : currentSettings.placement,
+      qualificationTiming: field === 'qualification' ? timing : currentSettings.qualification,
+      timeTiming: field === 'time' ? timing : currentSettings.time,
+      faultsTiming: field === 'faults' ? timing : currentSettings.faults,
+    };
     if (level === 'trial') {
       updateTrialOverride.mutate({
         trialId: entityId,
         showId,
-        [`${field}Timing`]: timing,
-      } as Parameters<typeof updateTrialOverride.mutate>[0]);
+        ...allTimings,
+      });
     } else {
       updateClassOverride.mutate({
         classId: entityId,
         trialId: trialId ?? '',
         showId,
-        [`${field}Timing`]: timing,
-      } as Parameters<typeof updateClassOverride.mutate>[0]);
+        ...allTimings,
+      });
     }
   }
 

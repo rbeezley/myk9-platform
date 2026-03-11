@@ -119,41 +119,47 @@ export function useUpdateShowCheckin() {
 
   return useMutation({
     mutationFn: async (update: ShowCheckinUpdate) => {
-      // Use .update() when row exists to avoid clobbering visibility fields.
-      // If no row exists yet, insert with standard preset defaults.
+      // Upsert with standard preset defaults for the required visibility columns.
+      // If the row already exists, onConflict on show_id means only the columns
+      // listed here are updated — but since upsert sends ALL columns, we must
+      // read existing visibility values first to avoid clobbering them.
       const { data: existing } = await untypedSupabase
         .from('show_visibility_settings')
-        .select('show_id')
+        .select('preset, placement_timing, qualification_timing, time_timing, faults_timing')
         .eq('show_id', update.showId)
         .maybeSingle();
 
-      if (existing) {
-        const { error } = await untypedSupabase
-          .from('show_visibility_settings')
-          .update({
-            self_checkin_enabled: update.enabled,
-            updated_by: user?.id ?? null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('show_id', update.showId);
-        if (error) throw error;
-      } else {
-        // First-time: create row with standard preset + the check-in value
-        const { error } = await untypedSupabase.from('show_visibility_settings').insert({
-          show_id: update.showId,
-          preset: 'standard',
-          placement_timing: 'class_complete',
-          qualification_timing: 'immediate',
-          time_timing: 'class_complete',
-          faults_timing: 'class_complete',
-          self_checkin_enabled: update.enabled,
-          updated_by: user?.id ?? null,
-          updated_at: new Date().toISOString(),
-        });
-        if (error) throw error;
+      const { error } = await untypedSupabase.from('show_visibility_settings').upsert({
+        show_id: update.showId,
+        preset: existing?.preset ?? 'standard',
+        placement_timing: existing?.placement_timing ?? 'class_complete',
+        qualification_timing: existing?.qualification_timing ?? 'immediate',
+        time_timing: existing?.time_timing ?? 'class_complete',
+        faults_timing: existing?.faults_timing ?? 'class_complete',
+        self_checkin_enabled: update.enabled,
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onMutate: async variables => {
+      await queryClient.cancelQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
+      const previous = queryClient.getQueryData(settingsQueryKeys.show(variables.showId));
+      queryClient.setQueryData(
+        settingsQueryKeys.show(variables.showId),
+        (old: ShowSettings | undefined) => {
+          if (!old) return old;
+          return { ...old, selfCheckinEnabled: variables.enabled };
+        }
+      );
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(settingsQueryKeys.show(variables.showId), context.previous);
       }
     },
-    onSuccess: (_, variables) => {
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
     },
   });

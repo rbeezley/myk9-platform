@@ -14,15 +14,61 @@
 import { supabase } from '../lib/supabase';
 import type { UserRole } from '../utils/auth';
 import { logger } from '@/utils/logger';
+import { resolvePreset } from '@myk9/secretary';
 import type {
   VisibilityPreset,
   VisibilityTiming,
   VisibilitySettings,
   VisibleResultFields,
-  ShowVisibilityDefault,
-  TrialVisibilityOverride,
-  ClassVisibilityOverride
-} from '../types/visibility';
+} from '@myk9/secretary';
+
+/**
+ * Database row from show_result_visibility_defaults
+ * Kept local: uses license_key TEXT PK specific to myK9Q's schema
+ */
+interface ShowVisibilityDefault {
+  license_key: string;
+  preset_name: VisibilityPreset;
+  placement_timing: VisibilityTiming | null;
+  qualification_timing: VisibilityTiming | null;
+  time_timing: VisibilityTiming | null;
+  faults_timing: VisibilityTiming | null;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+/**
+ * Database row from trial_result_visibility_overrides
+ * Kept local: uses trial_id integer FK specific to myK9Q's schema
+ */
+interface TrialVisibilityOverride {
+  trial_id: number;
+  preset_name: VisibilityPreset | null;
+  placement_timing: VisibilityTiming | null;
+  qualification_timing: VisibilityTiming | null;
+  time_timing: VisibilityTiming | null;
+  faults_timing: VisibilityTiming | null;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+/**
+ * Database row from class_result_visibility_overrides
+ * Kept local: uses class_id integer FK specific to myK9Q's schema
+ */
+interface ClassVisibilityOverride {
+  class_id: number;
+  preset_name: VisibilityPreset | null;
+  placement_timing: VisibilityTiming | null;
+  qualification_timing: VisibilityTiming | null;
+  time_timing: VisibilityTiming | null;
+  faults_timing: VisibilityTiming | null;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
+}
 
 /**
  * Context for evaluating result field visibility
@@ -130,7 +176,7 @@ function resolveSettings(
       time: row.time_timing || presetSettings.time,
       faults: row.faults_timing || presetSettings.faults,
       inheritedFrom: source,
-      preset: row.preset_name
+      preset: row.preset_name,
     };
   }
 
@@ -140,49 +186,8 @@ function resolveSettings(
     qualification: row.qualification_timing || 'immediate',
     time: row.time_timing || 'class_complete',
     faults: row.faults_timing || 'class_complete',
-    inheritedFrom: source
+    inheritedFrom: source,
   };
-}
-
-/**
- * Convert preset name to specific field timings
- *
- * @param preset - Preset name
- * @param source - Where the preset is being applied
- * @returns Complete visibility settings for the preset
- */
-function resolvePreset(
-  preset: VisibilityPreset,
-  source: 'show' | 'trial' | 'class'
-): VisibilitySettings {
-  const presets: Record<VisibilityPreset, VisibilitySettings> = {
-    open: {
-      placement: 'class_complete', // Can't be immediate (calculated when class completes)
-      qualification: 'immediate',
-      time: 'immediate',
-      faults: 'immediate',
-      inheritedFrom: source,
-      preset: 'open'
-    },
-    standard: {
-      placement: 'class_complete',
-      qualification: 'immediate',
-      time: 'class_complete',
-      faults: 'class_complete',
-      inheritedFrom: source,
-      preset: 'standard'
-    },
-    review: {
-      placement: 'manual_release',
-      qualification: 'manual_release',
-      time: 'manual_release',
-      faults: 'manual_release',
-      inheritedFrom: source,
-      preset: 'review'
-    }
-  };
-
-  return presets[preset];
 }
 
 /**
@@ -205,7 +210,7 @@ export async function getVisibleResultFields(
       showPlacement: true,
       showQualification: true,
       showTime: true,
-      showFaults: true
+      showFaults: true,
     };
   }
 
@@ -217,7 +222,7 @@ export async function getVisibleResultFields(
     showPlacement: shouldShowField(settings.placement, isClassComplete, resultsReleasedAt),
     showQualification: shouldShowField(settings.qualification, isClassComplete, resultsReleasedAt),
     showTime: shouldShowField(settings.time, isClassComplete, resultsReleasedAt),
-    showFaults: shouldShowField(settings.faults, isClassComplete, resultsReleasedAt)
+    showFaults: shouldShowField(settings.faults, isClassComplete, resultsReleasedAt),
   };
 }
 
@@ -261,19 +266,17 @@ export async function setShowVisibility(
   preset: VisibilityPreset,
   adminName: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('show_result_visibility_defaults')
-    .upsert({
-      license_key: licenseKey,
-      preset_name: preset,
-      // Clear granular overrides when setting preset
-      placement_timing: null,
-      qualification_timing: null,
-      time_timing: null,
-      faults_timing: null,
-      updated_by: adminName,
-      updated_at: new Date().toISOString()
-    });
+  const { error } = await supabase.from('show_result_visibility_defaults').upsert({
+    license_key: licenseKey,
+    preset_name: preset,
+    // Clear granular overrides when setting preset
+    placement_timing: null,
+    qualification_timing: null,
+    time_timing: null,
+    faults_timing: null,
+    updated_by: adminName,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     logger.error('Error setting show visibility:', error);
@@ -294,19 +297,17 @@ export async function setTrialVisibility(
   preset: VisibilityPreset,
   adminName: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('trial_result_visibility_overrides')
-    .upsert({
-      trial_id: trialId,
-      preset_name: preset,
-      // Clear granular overrides when setting preset
-      placement_timing: null,
-      qualification_timing: null,
-      time_timing: null,
-      faults_timing: null,
-      updated_by: adminName,
-      updated_at: new Date().toISOString()
-    });
+  const { error } = await supabase.from('trial_result_visibility_overrides').upsert({
+    trial_id: trialId,
+    preset_name: preset,
+    // Clear granular overrides when setting preset
+    placement_timing: null,
+    qualification_timing: null,
+    time_timing: null,
+    faults_timing: null,
+    updated_by: adminName,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     logger.error('Error setting trial visibility:', error);
@@ -327,19 +328,17 @@ export async function setClassVisibility(
   preset: VisibilityPreset,
   adminName: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('class_result_visibility_overrides')
-    .upsert({
-      class_id: classId,
-      preset_name: preset,
-      // Clear granular overrides when setting preset
-      placement_timing: null,
-      qualification_timing: null,
-      time_timing: null,
-      faults_timing: null,
-      updated_by: adminName,
-      updated_at: new Date().toISOString()
-    });
+  const { error } = await supabase.from('class_result_visibility_overrides').upsert({
+    class_id: classId,
+    preset_name: preset,
+    // Clear granular overrides when setting preset
+    placement_timing: null,
+    qualification_timing: null,
+    time_timing: null,
+    faults_timing: null,
+    updated_by: adminName,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     logger.error('Error setting class visibility:', error);
@@ -403,12 +402,10 @@ export async function bulkSetClassVisibility(
     time_timing: null,
     faults_timing: null,
     updated_by: adminName,
-    updated_at: timestamp
+    updated_at: timestamp,
   }));
 
-  const { error } = await supabase
-    .from('class_result_visibility_overrides')
-    .upsert(updates);
+  const { error } = await supabase.from('class_result_visibility_overrides').upsert(updates);
 
   if (error) {
     logger.error('Error bulk setting class visibility:', error);
@@ -424,10 +421,7 @@ export async function bulkSetClassVisibility(
  * @param timing - Field's visibility timing
  * @returns Human-readable availability message
  */
-export function getAvailabilityMessage(
-  isClassComplete: boolean,
-  timing: VisibilityTiming
-): string {
+export function getAvailabilityMessage(isClassComplete: boolean, timing: VisibilityTiming): string {
   if (timing === 'immediate') {
     return ''; // Shouldn't happen for hidden fields
   }
@@ -517,10 +511,7 @@ export async function getEffectiveSelfCheckin(
  * @param licenseKey - Show license key
  * @param enabled - Whether self check-in is enabled
  */
-export async function setShowSelfCheckin(
-  licenseKey: string,
-  enabled: boolean
-): Promise<void> {
+export async function setShowSelfCheckin(licenseKey: string, enabled: boolean): Promise<void> {
   const { error } = await supabase
     .from('shows')
     .update({ self_checkin_enabled: enabled })
@@ -538,10 +529,7 @@ export async function setShowSelfCheckin(
  * @param trialId - Trial ID
  * @param enabled - Whether self check-in is enabled (null to remove override)
  */
-export async function setTrialSelfCheckin(
-  trialId: number,
-  enabled: boolean | null
-): Promise<void> {
+export async function setTrialSelfCheckin(trialId: number, enabled: boolean | null): Promise<void> {
   const { error } = await supabase
     .from('trials')
     .update({ self_checkin_enabled: enabled })
@@ -558,9 +546,7 @@ export async function setTrialSelfCheckin(
  *
  * @param trialId - Trial ID
  */
-export async function removeTrialSelfCheckinOverride(
-  trialId: number
-): Promise<void> {
+export async function removeTrialSelfCheckinOverride(trialId: number): Promise<void> {
   await setTrialSelfCheckin(trialId, null);
 }
 
@@ -570,10 +556,7 @@ export async function removeTrialSelfCheckinOverride(
  * @param classId - Class ID
  * @param enabled - Whether self check-in is enabled (null to remove override)
  */
-export async function setClassSelfCheckin(
-  classId: number,
-  enabled: boolean | null
-): Promise<void> {
+export async function setClassSelfCheckin(classId: number, enabled: boolean | null): Promise<void> {
   const { error } = await supabase
     .from('classes')
     .update({ self_checkin_enabled: enabled })
@@ -591,10 +574,7 @@ export async function setClassSelfCheckin(
  * @param classIds - Array of class IDs
  * @param enabled - Whether self check-in is enabled
  */
-export async function bulkSetClassSelfCheckin(
-  classIds: number[],
-  enabled: boolean
-): Promise<void> {
+export async function bulkSetClassSelfCheckin(classIds: number[], enabled: boolean): Promise<void> {
   const { error } = await supabase
     .from('classes')
     .update({ self_checkin_enabled: enabled })

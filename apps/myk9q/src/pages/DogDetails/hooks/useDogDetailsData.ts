@@ -12,7 +12,7 @@
 
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { VisibleResultFields, VisibilityTiming } from '../../../types/visibility';
+import type { VisibleResultFields, VisibilityTiming } from '@myk9/secretary';
 import type { CheckinStatus } from '../../../components/dialogs/CheckinStatusDialog';
 import type { UserRole } from '../../../utils/auth';
 import { logger } from '../../../utils/logger';
@@ -24,7 +24,7 @@ import {
   extractDogInfo,
   processEntriesToClassEntries,
   type ClassData,
-  type TrialData
+  type TrialData,
 } from './dogDetailsDataHelpers';
 
 // ============================================================
@@ -120,10 +120,8 @@ async function fetchDogDetails(
 
     // Get all entries for this show and filter by armband
     // CRITICAL: Pass license_key to filter entries to current show only (multi-tenant isolation)
-    const allEntries = await entriesTable.getAll(licenseKey) as Entry[];
-    const dogEntries = allEntries.filter(
-      entry => entry.armband_number === parseInt(armband)
-    );
+    const allEntries = (await entriesTable.getAll(licenseKey)) as Entry[];
+    const dogEntries = allEntries.filter(entry => entry.armband_number === parseInt(armband));
 
     // If cache is empty, fall back to Supabase (cache may still be syncing)
     if (dogEntries.length === 0) {
@@ -134,17 +132,23 @@ async function fetchDogDetails(
 
       // Get all classes and trials for joins
       // CRITICAL: Pass license_key to filter to current show only (multi-tenant isolation)
-      const allClasses = await classesTable.getAll(licenseKey) as Class[];
-      const allTrials = await trialsTable.getAll(licenseKey) as Trial[];
+      const allClasses = (await classesTable.getAll(licenseKey)) as Class[];
+      const allTrials = (await trialsTable.getAll(licenseKey)) as Trial[];
 
       // If classes haven't synced yet, fall back to Supabase to avoid "Unknown Class" display
       if (allClasses.length === 0) {
-        logger.warn('[DogDetails] ⚠️ No classes found in cache - falling back to Supabase for complete data');
+        logger.warn(
+          '[DogDetails] ⚠️ No classes found in cache - falling back to Supabase for complete data'
+        );
         // Fall through to Supabase query below
       } else {
         // Create lookup maps for performance
-        const classMap = new Map<string, ClassData>(allClasses.map(c => [String(c.id), c as ClassData]));
-        const trialMap = new Map<string, TrialData>(allTrials.map(t => [String(t.id), t as TrialData]));
+        const classMap = new Map<string, ClassData>(
+          allClasses.map(c => [String(c.id), c as ClassData])
+        );
+        const trialMap = new Map<string, TrialData>(
+          allTrials.map(t => [String(t.id), t as TrialData])
+        );
 
         // Extract dog info and process entries using helpers
         // Pass allEntries to calculate queue position for each class
@@ -161,9 +165,11 @@ async function fetchDogDetails(
         return { dogInfo, classes: classesWithVisibility };
       }
     }
-
   } catch (error) {
-    logger.error('[REPLICATION] ❌ Error loading dog details from cache, falling back to Supabase:', error);
+    logger.error(
+      '[REPLICATION] ❌ Error loading dog details from cache, falling back to Supabase:',
+      error
+    );
   }
 
   // Fall back to original Supabase implementation
@@ -187,7 +193,9 @@ async function fetchDogDetails(
       return { dogInfo: null, classes: [] };
     }
 
-    logger.log(`[REPLICATION] ✅ Loaded ${entries.length} entries from Supabase for armband ${armband}`);
+    logger.log(
+      `[REPLICATION] ✅ Loaded ${entries.length} entries from Supabase for armband ${armband}`
+    );
 
     // For queue position, we need all entries in the classes this dog is entered in
     // Get the unique class IDs from the dog's entries
@@ -201,7 +209,10 @@ async function fetchDogDetails(
       .eq('license_key', licenseKey);
 
     if (classEntriesError) {
-      logger.warn('[REPLICATION] ⚠️ Could not fetch class entries for queue position:', classEntriesError);
+      logger.warn(
+        '[REPLICATION] ⚠️ Could not fetch class entries for queue position:',
+        classEntriesError
+      );
     }
 
     // Extract dog info and process entries using helpers
@@ -216,7 +227,6 @@ async function fetchDogDetails(
     );
 
     return { dogInfo, classes: classesWithVisibility };
-
   } catch (error) {
     logger.error('[REPLICATION] ❌ Error loading dog details from Supabase:', error);
     throw error;

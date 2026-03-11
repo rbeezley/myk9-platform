@@ -33,7 +33,7 @@ import {
 
 // Utils
 import { formatTrialDate } from '../../../utils/dateUtils';
-import type { VisibilityPreset } from '../../../types/visibility';
+import type { VisibilityPreset } from '@myk9/secretary';
 
 // Styles
 import '../../Admin/CompetitionAdmin.css';
@@ -43,12 +43,16 @@ interface ResultsControlTabProps {
   isReadOnly: boolean;
 }
 
-export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
-  licenseKey,
-  isReadOnly,
-}) => {
+export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({ licenseKey, isReadOnly }) => {
   // Data fetching
-  const { classes, trials, isLoading, isOffline, error: queryError, refetch } = useCompetitionAdminData(licenseKey);
+  const {
+    classes,
+    trials,
+    isLoading,
+    isOffline,
+    error: queryError,
+    refetch,
+  } = useCompetitionAdminData(licenseKey);
 
   // Admin name management
   const { adminName, setAdminName, requireAdminName } = useAdminName();
@@ -104,12 +108,15 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
   // Helper to get trial label for messages
   const getTrialLabel = (trialId: number) => {
     const trial = trials.find(t => t.trial_id === trialId);
-    return trial ? `${formatTrialDate(trial.trial_date)} • Trial ${trial.trial_number}` : `Trial ${trialId}`;
+    return trial
+      ? `${formatTrialDate(trial.trial_date)} • Trial ${trial.trial_number}`
+      : `Trial ${trialId}`;
   };
 
   // Wrapped handlers that check admin name and show dialogs
   const onSetShowVisibility = async (preset: VisibilityPreset) => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onSetShowVisibility(preset)))) return;
+    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onSetShowVisibility(preset))))
+      return;
     const result = await handleSetShowVisibility(preset, adminName, licenseKey);
     setSuccessDialog({
       isOpen: true,
@@ -117,25 +124,40 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `Result visibility set to "${preset.toUpperCase()}" for all classes in this show.`
         : result.error || 'Failed to update show visibility.',
-      details: []
+      details: [],
     });
   };
 
   const onSetTrialVisibility = async (trialId: number, preset: VisibilityPreset) => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onSetTrialVisibility(trialId, preset)))) return;
-    const result = await handleSetTrialVisibility(trialId, preset, adminName, getTrialLabel(trialId));
+    if (
+      !requireAdminName(() =>
+        openAdminNameDialog(adminName, () => onSetTrialVisibility(trialId, preset))
+      )
+    )
+      return;
+    const result = await handleSetTrialVisibility(
+      trialId,
+      preset,
+      adminName,
+      getTrialLabel(trialId)
+    );
     setSuccessDialog({
       isOpen: true,
       title: result.success ? 'Trial Visibility Updated!' : 'Error',
       message: result.success
         ? `Result visibility set to "${preset.toUpperCase()}" for ${getTrialLabel(trialId)}.`
         : result.error || 'Failed to update trial visibility.',
-      details: []
+      details: [],
     });
   };
 
   const onRemoveTrialVisibility = async (trialId: number) => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onRemoveTrialVisibility(trialId)))) return;
+    if (
+      !requireAdminName(() =>
+        openAdminNameDialog(adminName, () => onRemoveTrialVisibility(trialId))
+      )
+    )
+      return;
     const result = await handleRemoveTrialVisibility(trialId, getTrialLabel(trialId));
     setSuccessDialog({
       isOpen: true,
@@ -143,12 +165,15 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `${getTrialLabel(trialId)} will now inherit the show default visibility setting.`
         : result.error || 'Failed to remove trial override.',
-      details: []
+      details: [],
     });
   };
 
   const onSetShowSelfCheckin = async (enabled: boolean) => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onSetShowSelfCheckin(enabled)))) return;
+    if (
+      !requireAdminName(() => openAdminNameDialog(adminName, () => onSetShowSelfCheckin(enabled)))
+    )
+      return;
     const result = await handleSetShowSelfCheckin(enabled, licenseKey);
     setSuccessDialog({
       isOpen: true,
@@ -156,12 +181,17 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `Self check-in is now ${enabled ? 'ENABLED' : 'DISABLED'} by default for all trials/classes.`
         : result.error || 'Failed to update show self check-in.',
-      details: []
+      details: [],
     });
   };
 
   const onSetTrialSelfCheckin = async (trialId: number, enabled: boolean) => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onSetTrialSelfCheckin(trialId, enabled)))) return;
+    if (
+      !requireAdminName(() =>
+        openAdminNameDialog(adminName, () => onSetTrialSelfCheckin(trialId, enabled))
+      )
+    )
+      return;
     const result = await handleSetTrialSelfCheckin(trialId, enabled, getTrialLabel(trialId));
     setSuccessDialog({
       isOpen: true,
@@ -169,12 +199,17 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `${getTrialLabel(trialId)} self check-in is now ${enabled ? 'ENABLED' : 'DISABLED'}.`
         : result.error || 'Failed to update trial self check-in.',
-      details: []
+      details: [],
     });
   };
 
   const onRemoveTrialSelfCheckin = async (trialId: number) => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onRemoveTrialSelfCheckin(trialId)))) return;
+    if (
+      !requireAdminName(() =>
+        openAdminNameDialog(adminName, () => onRemoveTrialSelfCheckin(trialId))
+      )
+    )
+      return;
     const result = await handleRemoveTrialSelfCheckin(trialId, getTrialLabel(trialId));
     setSuccessDialog({
       isOpen: true,
@@ -182,15 +217,21 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `${getTrialLabel(trialId)} will now inherit the show default self check-in setting.`
         : result.error || 'Failed to remove trial override.',
-      details: []
+      details: [],
     });
   };
 
   const onBulkSetVisibility = async (preset: VisibilityPreset) => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onBulkSetVisibility(preset)))) return;
+    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onBulkSetVisibility(preset))))
+      return;
     const result = await handleBulkSetClassVisibility(preset, classes, adminName);
     if (!result.success && result.error?.includes('select at least one')) {
-      setSuccessDialog({ isOpen: true, title: 'No Classes Selected', message: result.error, details: [] });
+      setSuccessDialog({
+        isOpen: true,
+        title: 'No Classes Selected',
+        message: result.error,
+        details: [],
+      });
       return;
     }
     await refetch();
@@ -200,15 +241,21 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `Result visibility set to "${preset.toUpperCase()}" for ${result.affectedClasses?.length} class(es).`
         : result.error || 'Failed to update class visibility.',
-      details: result.affectedClasses || []
+      details: result.affectedClasses || [],
     });
   };
 
   const onBulkEnableCheckin = async () => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onBulkEnableCheckin()))) return;
+    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onBulkEnableCheckin())))
+      return;
     const result = await handleBulkSetClassSelfCheckin(true, classes, adminName);
     if (!result.success && result.error?.includes('select at least one')) {
-      setSuccessDialog({ isOpen: true, title: 'No Classes Selected', message: result.error, details: [] });
+      setSuccessDialog({
+        isOpen: true,
+        title: 'No Classes Selected',
+        message: result.error,
+        details: [],
+      });
       return;
     }
     await refetch();
@@ -218,15 +265,21 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `Self check-in ENABLED for ${result.affectedClasses?.length} class(es).`
         : result.error || 'Failed to update class self check-in.',
-      details: result.affectedClasses || []
+      details: result.affectedClasses || [],
     });
   };
 
   const onBulkDisableCheckin = async () => {
-    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onBulkDisableCheckin()))) return;
+    if (!requireAdminName(() => openAdminNameDialog(adminName, () => onBulkDisableCheckin())))
+      return;
     const result = await handleBulkSetClassSelfCheckin(false, classes, adminName);
     if (!result.success && result.error?.includes('select at least one')) {
-      setSuccessDialog({ isOpen: true, title: 'No Classes Selected', message: result.error, details: [] });
+      setSuccessDialog({
+        isOpen: true,
+        title: 'No Classes Selected',
+        message: result.error,
+        details: [],
+      });
       return;
     }
     await refetch();
@@ -236,7 +289,7 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       message: result.success
         ? `Self check-in DISABLED for ${result.affectedClasses?.length} class(es).`
         : result.error || 'Failed to update class self check-in.',
-      details: result.affectedClasses || []
+      details: result.affectedClasses || [],
     });
   };
 
@@ -247,7 +300,10 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
         <div className="offline-message">
           <span className="offline-icon">📡</span>
           <h3>Connection Required</h3>
-          <p>Results control features require an internet connection. Please reconnect to manage classes and settings.</p>
+          <p>
+            Results control features require an internet connection. Please reconnect to manage
+            classes and settings.
+          </p>
         </div>
       </div>
     );
@@ -269,7 +325,9 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
       <div className="results-control-tab results-control-tab--error">
         <div className="error-icon">⚠️</div>
         <div>Error: {(queryError as Error).message || 'Failed to load data'}</div>
-        <button onClick={() => refetch()} className="retry-button">Retry</button>
+        <button onClick={() => refetch()} className="retry-button">
+          Retry
+        </button>
       </div>
     );
   }
@@ -300,7 +358,7 @@ export const ResultsControlTab: React.FC<ResultsControlTabProps> = ({
             id="adminName"
             type="text"
             value={adminName}
-            onChange={(e) => setAdminName(e.target.value)}
+            onChange={e => setAdminName(e.target.value)}
             placeholder="Enter your name (optional - will prompt if needed)"
             className="admin-input"
           />

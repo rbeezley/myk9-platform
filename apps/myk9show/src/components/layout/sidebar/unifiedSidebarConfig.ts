@@ -32,6 +32,7 @@ import {
   FileSearch,
   Compass,
   UserPlus,
+  Settings,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -151,6 +152,12 @@ export function buildUnifiedSidebarConfig(
           href: '/secretary/run-order',
           icon: List,
           description: 'Class scheduling and ordering',
+        },
+        {
+          title: 'Settings',
+          href: '/secretary/settings',
+          icon: Settings,
+          description: 'Results visibility and check-in settings',
         },
       ],
     });

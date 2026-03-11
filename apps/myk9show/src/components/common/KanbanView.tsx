@@ -2,11 +2,17 @@
  * KanbanView — Generic Kanban board for browse pages.
  *
  * Renders items grouped by a status/stage field into draggable columns.
- * Reuses @dnd-kit for drag-and-drop between columns.
+ * Uses @dnd-kit for drag-and-drop between columns with visual feedback.
  */
 
-import React, { useCallback, useMemo } from 'react';
-import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  pointerWithin,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
@@ -66,8 +72,8 @@ function DraggableCard<T extends KanbanItem>({
       {...attributes}
       {...listeners}
       className={cn(
-        'cursor-grab active:cursor-grabbing',
-        isDragging && 'shadow-lg scale-105 opacity-90 ring-2 ring-primary/30 z-50'
+        'cursor-grab active:cursor-grabbing transition-all duration-200',
+        isDragging && 'opacity-30 scale-95'
       )}
     >
       {renderCard(item)}
@@ -81,14 +87,16 @@ function KanbanColumnComponent<T extends KanbanItem>({
   column,
   items,
   renderCard,
+  isDragActive,
 }: {
   column: KanbanColumn;
   items: T[];
   renderCard: (item: T) => React.ReactNode;
+  isDragActive: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `kanban-col-${column.key}`,
-    data: { status: column.key },
+    data: { type: 'kanban-column', status: column.key },
   });
   const itemIds = items.map(i => i.id);
 
@@ -96,8 +104,9 @@ function KanbanColumnComponent<T extends KanbanItem>({
     <div
       ref={setNodeRef}
       className={cn(
-        'min-w-[280px] max-w-[320px] flex-shrink-0 rounded-xl bg-muted/30 border border-border/30',
-        isOver && 'ring-2 ring-primary/20 ring-inset bg-primary/5'
+        'min-w-[280px] max-w-[320px] flex-shrink-0 rounded-xl bg-muted/30 border border-border/30 transition-all duration-200',
+        isOver && 'ring-2 ring-primary/40 ring-inset bg-primary/5 border-primary/30',
+        isDragActive && !isOver && 'border-dashed border-border/60'
       )}
     >
       <div className="px-4 py-3 border-b border-border/30 flex items-center justify-between">
@@ -109,7 +118,15 @@ function KanbanColumnComponent<T extends KanbanItem>({
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div className="p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-16rem)]">
           {items.length === 0 && (
-            <div className="py-8 text-center text-xs text-muted-foreground">No items</div>
+            <div
+              className={cn(
+                'py-8 text-center text-xs text-muted-foreground rounded-lg transition-all duration-200',
+                isOver && 'bg-primary/10 text-primary border border-dashed border-primary/30 py-12',
+                isDragActive && !isOver && 'border border-dashed border-border/40 py-10'
+              )}
+            >
+              {isOver ? 'Drop here' : 'No items'}
+            </div>
           )}
           {items.map(item => (
             <DraggableCard key={item.id} item={item} renderCard={renderCard} />
@@ -130,6 +147,17 @@ export function KanbanView<T extends KanbanItem, TStatus extends string = string
   onStatusChange,
   className,
 }: KanbanViewProps<T, TStatus>) {
+  const [activeItem, setActiveItem] = useState<T | null>(null);
+
+  // Build a lookup from item ID to its column status for resolving drops on cards
+  const itemStatusMap = useMemo(() => {
+    const map = new Map<string, TStatus>();
+    for (const item of items) {
+      map.set(item.id, getItemStatus(item));
+    }
+    return map;
+  }, [items, getItemStatus]);
+
   // Group items by status
   const itemsByStatus = useMemo(() => {
     const map = new Map<TStatus, T[]>();
@@ -142,29 +170,66 @@ export function KanbanView<T extends KanbanItem, TStatus extends string = string
     return map;
   }, [items, columns, getItemStatus]);
 
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const activeData = event.active.data.current as { item?: T } | undefined;
+      setActiveItem(activeData?.item ?? null);
+    },
+    [setActiveItem]
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      setActiveItem(null);
+
       const { active, over } = event;
       if (!over || !onStatusChange) return;
-
-      const overData = over.data.current as { status?: TStatus } | undefined;
-      const targetStatus = overData?.status;
-      if (!targetStatus) return;
 
       const activeData = active.data.current as { item?: T } | undefined;
       const draggedItem = activeData?.item;
       if (!draggedItem) return;
 
       const currentStatus = getItemStatus(draggedItem);
-      if (currentStatus === targetStatus) return;
+
+      // Resolve target status: could be a column droppable or a card sortable
+      const overData = over.data.current as
+        | { type?: string; status?: TStatus; item?: T }
+        | undefined;
+
+      let targetStatus: TStatus | undefined;
+
+      if (overData?.type === 'kanban-column') {
+        // Dropped directly on a column
+        targetStatus = overData.status;
+      } else if (overData?.type === 'kanban-card') {
+        // Dropped on a card — find which column that card belongs to
+        targetStatus = itemStatusMap.get(String(over.id));
+      } else {
+        // Fallback: check if the over ID matches a column prefix
+        const overId = String(over.id);
+        if (overId.startsWith('kanban-col-')) {
+          targetStatus = overId.replace('kanban-col-', '') as TStatus;
+        }
+      }
+
+      if (!targetStatus || currentStatus === targetStatus) return;
 
       onStatusChange(String(active.id), targetStatus);
     },
-    [onStatusChange, getItemStatus]
+    [onStatusChange, getItemStatus, itemStatusMap]
   );
 
+  const handleDragCancel = useCallback(() => {
+    setActiveItem(null);
+  }, []);
+
   return (
-    <DndContext collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+    <DndContext
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
       <div className={cn('flex gap-4 overflow-x-auto pb-4 -mx-2 px-2', className)}>
         {columns.map(col => (
           <KanbanColumnComponent
@@ -172,10 +237,17 @@ export function KanbanView<T extends KanbanItem, TStatus extends string = string
             column={col}
             items={itemsByStatus.get(col.key) ?? []}
             renderCard={renderCard}
+            isDragActive={activeItem !== null}
           />
         ))}
       </div>
-      <DragOverlay dropAnimation={null} />
+      <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
+        {activeItem ? (
+          <div className="shadow-2xl ring-2 ring-primary/30 rounded-2xl scale-105 opacity-95 rotate-1 pointer-events-none">
+            {renderCard(activeItem)}
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

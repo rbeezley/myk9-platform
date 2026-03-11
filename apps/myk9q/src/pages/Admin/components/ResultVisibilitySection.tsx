@@ -8,9 +8,20 @@
  */
 
 import React from 'react';
-import { Eye, Zap, Lock, Clock, Calendar, Target, ArrowDown, RotateCcw, UserCheck, ClipboardList } from 'lucide-react';
-import { PRESET_CONFIGS } from '../../../types/visibility';
-import type { VisibilityPreset } from '../../../types/visibility';
+import {
+  Eye,
+  Zap,
+  Lock,
+  Clock,
+  Calendar,
+  Target,
+  ArrowDown,
+  RotateCcw,
+  UserCheck,
+  ClipboardList,
+} from 'lucide-react';
+import { PRESET_INFO } from '@myk9/secretary';
+import type { VisibilityPreset } from '@myk9/secretary';
 import type { TrialInfo } from '../hooks/useCompetitionAdminData';
 import { formatTrialDate } from '../../../utils/dateUtils';
 
@@ -49,7 +60,7 @@ export function ResultVisibilitySection({
   trials,
   onSetShowVisibility,
   onSetTrialVisibility,
-  onRemoveTrialVisibility
+  onRemoveTrialVisibility,
 }: ResultVisibilitySectionProps): React.ReactElement {
   return (
     <div className="visibility-control-section">
@@ -66,14 +77,14 @@ export function ResultVisibilitySection({
           {/* Show-level default */}
           <div className="show-default-card">
             <div className="show-default-header">
-              <span className="show-badge"><ClipboardList size={16} /> Show Default</span>
-              <span className="inheritance-note">
-                All classes inherit this unless overridden
+              <span className="show-badge">
+                <ClipboardList size={16} /> Show Default
               </span>
+              <span className="inheritance-note">All classes inherit this unless overridden</span>
             </div>
             <div className="preset-selector">
-              {(Object.keys(PRESET_CONFIGS) as VisibilityPreset[]).map((preset) => {
-                const config = PRESET_CONFIGS[preset];
+              {(Object.keys(PRESET_INFO) as VisibilityPreset[]).map(preset => {
+                const info = PRESET_INFO[preset];
                 const PresetIcon = preset === 'open' ? Zap : preset === 'review' ? Lock : Clock;
                 return (
                   <button
@@ -81,12 +92,16 @@ export function ResultVisibilitySection({
                     className={`preset-card ${showVisibilityPreset === preset ? 'selected' : ''}`}
                     onClick={() => onSetShowVisibility(preset)}
                   >
-                    <div className="preset-icon"><PresetIcon size={24} /></div>
-                    <div className="preset-title">{config.title}</div>
-                    <div className="preset-description">{config.description}</div>
-                    <div className="preset-details">{config.details}</div>
+                    <div className="preset-icon">
+                      <PresetIcon size={24} />
+                    </div>
+                    <div className="preset-title">{info.title}</div>
+                    <div className="preset-description">{info.description}</div>
+                    <div className="preset-details">{info.details}</div>
                     {showVisibilityPreset === preset && (
-                      <div className="selected-indicator"><UserCheck size={14} /> Selected</div>
+                      <div className="selected-indicator">
+                        <UserCheck size={14} /> Selected
+                      </div>
                     )}
                   </button>
                 );
@@ -97,12 +112,16 @@ export function ResultVisibilitySection({
           {/* Trial-level overrides */}
           {trials.length > 0 && (
             <div className="trial-overrides-section">
-              <h4><Calendar size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} />Trial Overrides (Optional)</h4>
+              <h4>
+                <Calendar size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} />
+                Trial Overrides (Optional)
+              </h4>
               <p className="section-description">
-                Override the show default for specific trials. Classes in these trials will inherit the trial setting unless individually overridden.
+                Override the show default for specific trials. Classes in these trials will inherit
+                the trial setting unless individually overridden.
               </p>
               <div className="trial-rows-grid">
-                {trials.map((trial) => {
+                {trials.map(trial => {
                   const currentSetting = trialVisibilitySettings.get(trial.trial_id);
                   const isCustom = currentSetting !== undefined;
                   const effectiveSetting = currentSetting || showVisibilityPreset;
@@ -123,12 +142,20 @@ export function ResultVisibilitySection({
                       <div className="trial-override-controls">
                         <div className="trial-visibility-selector">
                           <label className="trial-override-label-text">
-                            {isCustom ? <><Target size={14} /> Custom:</> : <><ArrowDown size={14} /> Inherited:</>}
+                            {isCustom ? (
+                              <>
+                                <Target size={14} /> Custom:
+                              </>
+                            ) : (
+                              <>
+                                <ArrowDown size={14} /> Inherited:
+                              </>
+                            )}
                           </label>
                           <select
                             className={`trial-preset-dropdown ${isCustom ? 'custom' : 'inherited'}`}
                             value={effectiveSetting}
-                            onChange={(e) => {
+                            onChange={e => {
                               const newPreset = e.target.value as VisibilityPreset;
                               if (newPreset === showVisibilityPreset) {
                                 onRemoveTrialVisibility(trial.trial_id);
@@ -137,9 +164,9 @@ export function ResultVisibilitySection({
                               }
                             }}
                           >
-                            <option value="open">{PRESET_CONFIGS.open.title}</option>
-                            <option value="standard">{PRESET_CONFIGS.standard.title}</option>
-                            <option value="review">{PRESET_CONFIGS.review.title}</option>
+                            <option value="open">{PRESET_INFO.open.title}</option>
+                            <option value="standard">{PRESET_INFO.standard.title}</option>
+                            <option value="review">{PRESET_INFO.review.title}</option>
                           </select>
                           {isCustom && (
                             <button
@@ -163,13 +190,31 @@ export function ResultVisibilitySection({
           <div className="visibility-explanation">
             <h5>How It Works:</h5>
             <ul>
-              <li><strong>Judges and Admins</strong> always see all results regardless of these settings</li>
-              <li><strong>Stewards and Exhibitors</strong> see results based on these settings</li>
-              <li><strong>Cascading Hierarchy:</strong> Show Default → Trial Override → Class Override</li>
-              <li><strong>Show Default</strong> applies to all trials and classes (set once)</li>
-              <li><strong>Trial Override</strong> applies to all classes in that trial (e.g., Trial 2 judge wants different rules)</li>
-              <li><strong>Class Override</strong> applies to specific classes (use bulk operations for multiple classes)</li>
-              <li><strong>Lowest level wins:</strong> Class override &gt; Trial override &gt; Show default</li>
+              <li>
+                <strong>Judges and Admins</strong> always see all results regardless of these
+                settings
+              </li>
+              <li>
+                <strong>Stewards and Exhibitors</strong> see results based on these settings
+              </li>
+              <li>
+                <strong>Cascading Hierarchy:</strong> Show Default → Trial Override → Class Override
+              </li>
+              <li>
+                <strong>Show Default</strong> applies to all trials and classes (set once)
+              </li>
+              <li>
+                <strong>Trial Override</strong> applies to all classes in that trial (e.g., Trial 2
+                judge wants different rules)
+              </li>
+              <li>
+                <strong>Class Override</strong> applies to specific classes (use bulk operations for
+                multiple classes)
+              </li>
+              <li>
+                <strong>Lowest level wins:</strong> Class override &gt; Trial override &gt; Show
+                default
+              </li>
             </ul>
           </div>
         </>

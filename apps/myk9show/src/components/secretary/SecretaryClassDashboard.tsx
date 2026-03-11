@@ -44,6 +44,10 @@ import { Separator } from '@/components/ui/separator/separator';
 // Custom components
 import { BulkResultEntry } from './BulkResultEntry';
 import { PlacementCalculator } from './PlacementCalculator';
+import { SettingsOverrideCard } from './SettingsOverrideCard';
+
+// Settings hooks
+import { useClassEffectiveSettings } from '@/hooks/queries/useShowSettingsDatabase';
 
 // Premium styling
 import '@/styles/myk9-show-details.css';
@@ -105,6 +109,13 @@ export function SecretaryClassDashboard({
   const currentClass = activeClassId ? classes.find(cls => cls.id === activeClassId) : null;
   const currentTrial = trialId ? trials.find(trial => trial.id === trialId) : null;
   const currentShow = showId ? shows.find(show => show.id === showId) : null;
+
+  // Effective visibility + check-in settings for this class (full cascade)
+  const { data: classSettings, isLoading: classSettingsLoading } = useClassEffectiveSettings(
+    activeClassId ?? null,
+    trialId ?? null,
+    showId ?? null
+  );
 
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
@@ -617,6 +628,21 @@ export function SecretaryClassDashboard({
 
           <TabsContent value="overview" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Visibility Settings Override */}
+              {classSettings && activeClassId && trialId && showId && (
+                <div className="lg:col-span-2">
+                  <SettingsOverrideCard
+                    level="class"
+                    entityId={activeClassId}
+                    showId={showId}
+                    trialId={trialId}
+                    currentSettings={classSettings.visibility}
+                    selfCheckinEnabled={classSettings.selfCheckinEnabled}
+                    isLoading={classSettingsLoading}
+                  />
+                </div>
+              )}
+
               {/* Class Information */}
               <div className="myk9-show-info-card">
                 <div className="myk9-show-info-header">

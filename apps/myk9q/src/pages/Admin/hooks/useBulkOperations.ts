@@ -13,7 +13,7 @@ import {
   bulkSetClassVisibility,
   bulkSetClassSelfCheckin,
 } from '@/services/resultVisibilityService';
-import type { VisibilityPreset } from '@/types/visibility';
+import type { VisibilityPreset } from '@myk9/secretary';
 import type { ClassInfo } from './useCompetitionAdminData';
 import { logger } from '@/utils/logger';
 
@@ -141,129 +141,131 @@ export function useBulkOperations(): UseBulkOperationsReturn {
   /**
    * Bulk apply visibility preset to selected classes
    */
-  const handleBulkSetClassVisibility = useCallback(async (
-    preset: VisibilityPreset,
-    classes: ClassInfo[],
-    adminName: string
-  ): Promise<BulkOperationResult> => {
-    if (selectedClasses.size === 0) {
-      return {
-        success: false,
-        error: 'Please select at least one class to apply visibility settings.'
-      };
-    }
+  const handleBulkSetClassVisibility = useCallback(
+    async (
+      preset: VisibilityPreset,
+      classes: ClassInfo[],
+      adminName: string
+    ): Promise<BulkOperationResult> => {
+      if (selectedClasses.size === 0) {
+        return {
+          success: false,
+          error: 'Please select at least one class to apply visibility settings.',
+        };
+      }
 
-    try {
-      const selectedClassDetails = classes
-        .filter(cls => selectedClasses.has(cls.id))
-        .map(cls => `${cls.element} (${cls.level} • ${cls.section})`);
+      try {
+        const selectedClassDetails = classes
+          .filter(cls => selectedClasses.has(cls.id))
+          .map(cls => `${cls.element} (${cls.level} • ${cls.section})`);
 
-      await bulkSetClassVisibility(
-        Array.from(selectedClasses),
-        preset,
-        adminName
-      );
+        await bulkSetClassVisibility(Array.from(selectedClasses), preset, adminName);
 
-      setSelectedClasses(new Set());
+        setSelectedClasses(new Set());
 
-      return {
-        success: true,
-        affectedClasses: selectedClassDetails
-      };
-    } catch (err) {
-      logger.error('Error bulk setting class visibility:', err);
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : 'Failed to update class visibility'
-      };
-    }
-  }, [selectedClasses]);
+        return {
+          success: true,
+          affectedClasses: selectedClassDetails,
+        };
+      } catch (err) {
+        logger.error('Error bulk setting class visibility:', err);
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to update class visibility',
+        };
+      }
+    },
+    [selectedClasses]
+  );
 
   /**
    * Bulk set self check-in for selected classes
    */
-  const handleBulkSetClassSelfCheckin = useCallback(async (
-    enabled: boolean,
-    classes: ClassInfo[],
-    _adminName: string
-  ): Promise<BulkOperationResult> => {
-    if (selectedClasses.size === 0) {
-      return {
-        success: false,
-        error: 'Please select at least one class to apply self check-in settings.'
-      };
-    }
+  const handleBulkSetClassSelfCheckin = useCallback(
+    async (
+      enabled: boolean,
+      classes: ClassInfo[],
+      _adminName: string
+    ): Promise<BulkOperationResult> => {
+      if (selectedClasses.size === 0) {
+        return {
+          success: false,
+          error: 'Please select at least one class to apply self check-in settings.',
+        };
+      }
 
-    try {
-      const selectedClassDetails = classes
-        .filter(cls => selectedClasses.has(cls.id))
-        .map(cls => `${cls.element} (${cls.level} • ${cls.section})`);
+      try {
+        const selectedClassDetails = classes
+          .filter(cls => selectedClasses.has(cls.id))
+          .map(cls => `${cls.element} (${cls.level} • ${cls.section})`);
 
-      await bulkSetClassSelfCheckin(
-        Array.from(selectedClasses),
-        enabled
-      );
+        await bulkSetClassSelfCheckin(Array.from(selectedClasses), enabled);
 
-      setSelectedClasses(new Set());
+        setSelectedClasses(new Set());
 
-      return {
-        success: true,
-        affectedClasses: selectedClassDetails
-      };
-    } catch (err) {
-      logger.error('Error bulk setting class self check-in:', err);
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : 'Failed to update class self check-in'
-      };
-    }
-  }, [selectedClasses]);
+        return {
+          success: true,
+          affectedClasses: selectedClassDetails,
+        };
+      } catch (err) {
+        logger.error('Error bulk setting class self check-in:', err);
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to update class self check-in',
+        };
+      }
+    },
+    [selectedClasses]
+  );
 
   /**
    * Bulk release results for selected classes
    */
-  const handleBulkReleaseResults = useCallback(async (
-    classes: ClassInfo[],
-    adminName: string,
-    supabaseClient: SupabaseClient
-  ): Promise<BulkOperationResult> => {
-    if (selectedClasses.size === 0) {
-      return {
-        success: false,
-        error: 'Please select at least one class to release results for.'
-      };
-    }
+  const handleBulkReleaseResults = useCallback(
+    async (
+      classes: ClassInfo[],
+      adminName: string,
+      supabaseClient: SupabaseClient
+    ): Promise<BulkOperationResult> => {
+      if (selectedClasses.size === 0) {
+        return {
+          success: false,
+          error: 'Please select at least one class to release results for.',
+        };
+      }
 
-    try {
-      const selectedClassDetails = classes
-        .filter(cls => selectedClasses.has(cls.id))
-        .map(cls => `${cls.element} (${cls.level} • ${cls.section})`);
+      try {
+        const selectedClassDetails = classes
+          .filter(cls => selectedClasses.has(cls.id))
+          .map(cls => `${cls.element} (${cls.level} • ${cls.section})`);
 
-      const updates = Array.from(selectedClasses).map(classId =>
-        supabaseClient
-          .from('classes')
-          .update({
-            results_released_by: adminName
-          })
-          .eq('id', classId)
-      );
+        const updates = Array.from(selectedClasses).map(classId =>
+          supabaseClient
+            .from('classes')
+            .update({
+              results_released_by: adminName,
+            })
+            .eq('id', classId)
+        );
 
-      await Promise.all(updates);
+        await Promise.all(updates);
 
-      setSelectedClasses(new Set());
+        setSelectedClasses(new Set());
 
-      return {
-        success: true,
-        affectedClasses: selectedClassDetails
-      };
-    } catch (err) {
-      logger.error('Error releasing results:', err);
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : 'Failed to release results'
-      };
-    }
-  }, [selectedClasses]);
+        return {
+          success: true,
+          affectedClasses: selectedClassDetails,
+        };
+      } catch (err) {
+        logger.error('Error releasing results:', err);
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to release results',
+        };
+      }
+    },
+    [selectedClasses]
+  );
 
   return {
     // State

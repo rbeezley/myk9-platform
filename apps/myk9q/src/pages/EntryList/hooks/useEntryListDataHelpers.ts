@@ -14,7 +14,7 @@ import type { Entry as ReplicatedEntry } from '@/services/replication/tables/Rep
 import type { Trial } from '@/services/replication/tables/ReplicatedTrialsTable';
 import { logger } from '@/utils/logger';
 import { getVisibleResultFields } from '@/services/resultVisibilityService';
-import type { VisibleResultFields } from '@/types/visibility';
+import type { VisibleResultFields } from '@myk9/secretary';
 import type { UserRole } from '@/utils/auth';
 import { getAreaCountForClass } from '@/utils/classUtils';
 
@@ -26,7 +26,11 @@ import { getAreaCountForClass } from '@/utils/classUtils';
  * Calculate area count with fallback logic.
  * Uses stored value if available, otherwise derives from element/level.
  */
-function calcAreaCount(storedValue: number | undefined | null, element?: string, level?: string): number {
+function calcAreaCount(
+  storedValue: number | undefined | null,
+  element?: string,
+  level?: string
+): number {
   if (storedValue) return storedValue;
   if (element && level) return getAreaCountForClass(element, level);
   return 1;
@@ -84,7 +88,7 @@ const DEFAULT_VISIBILITY_FLAGS: VisibleResultFields = {
   showPlacement: true,
   showQualification: true,
   showTime: true,
-  showFaults: true
+  showFaults: true,
 };
 
 /**
@@ -96,7 +100,7 @@ export function applyVisibilityFlags(entry: Entry, visibilityFlags: VisibleResul
     showPlacement: visibilityFlags.showPlacement,
     showQualification: visibilityFlags.showQualification,
     showTime: visibilityFlags.showTime,
-    showFaults: visibilityFlags.showFaults
+    showFaults: visibilityFlags.showFaults,
   };
 }
 
@@ -114,7 +118,7 @@ export async function fetchVisibilityFlagsWithFallback(
       licenseKey: ctx.licenseKey,
       userRole: ctx.role,
       isClassComplete: ctx.isClassComplete,
-      resultsReleasedAt: ctx.resultsReleasedAt
+      resultsReleasedAt: ctx.resultsReleasedAt,
     });
   } catch (error) {
     logger.error('❌ Error fetching visibility settings, defaulting to show all:', error);
@@ -131,14 +135,15 @@ export async function applyVisibilityToEntries(
   licenseKey: string,
   role: UserRole
 ): Promise<Entry[]> {
-  const isClassComplete = classData.class_status === 'completed' || classData.is_scoring_finalized === true;
+  const isClassComplete =
+    classData.class_status === 'completed' || classData.is_scoring_finalized === true;
   const visibilityFlags = await fetchVisibilityFlagsWithFallback({
     classId: parseInt(String(classData.id)),
     trialId: classData.trial_id,
     licenseKey,
     role,
     isClassComplete,
-    resultsReleasedAt: classData.results_released_at || null
+    resultsReleasedAt: classData.results_released_at || null,
   });
   return entries.map(entry => applyVisibilityFlags(entry, visibilityFlags));
 }
@@ -193,7 +198,11 @@ export function buildSingleClassInfo(
     section: classData.section || '',
     trialId: classData.trial_id,
     trialDate: trialData?.trial_date || entries[0]?.trialDate || '',
-    trialNumber: trialData?.trial_number ? String(trialData.trial_number) : (entries[0]?.trialNumber ? String(entries[0].trialNumber) : ''),
+    trialNumber: trialData?.trial_number
+      ? String(trialData.trial_number)
+      : entries[0]?.trialNumber
+        ? String(entries[0].trialNumber)
+        : '',
     judgeName,
     actualClassId: parseInt(classId),
     selfCheckin: classData.self_checkin_enabled ?? true,
@@ -201,10 +210,14 @@ export function buildSingleClassInfo(
     totalEntries: entries.length,
     completedEntries,
     timeLimit: classData.time_limit_seconds ? `${classData.time_limit_seconds}s` : undefined,
-    timeLimit2: classData.time_limit_area2_seconds ? `${classData.time_limit_area2_seconds}s` : undefined,
-    timeLimit3: classData.time_limit_area3_seconds ? `${classData.time_limit_area3_seconds}s` : undefined,
+    timeLimit2: classData.time_limit_area2_seconds
+      ? `${classData.time_limit_area2_seconds}s`
+      : undefined,
+    timeLimit3: classData.time_limit_area3_seconds
+      ? `${classData.time_limit_area3_seconds}s`
+      : undefined,
     areas: areaCount,
-    visibilityPreset: visibilityPreset || 'standard'
+    visibilityPreset: visibilityPreset || 'standard',
   };
 }
 
@@ -228,7 +241,11 @@ export function buildCombinedClassInfo(
     level: classDataA.level || '',
     trialId: classDataA.trial_id,
     trialDate: trialData?.trial_date || entries[0]?.trialDate || '',
-    trialNumber: trialData?.trial_number ? String(trialData.trial_number) : (entries[0]?.trialNumber ? String(entries[0].trialNumber) : ''),
+    trialNumber: trialData?.trial_number
+      ? String(trialData.trial_number)
+      : entries[0]?.trialNumber
+        ? String(entries[0].trialNumber)
+        : '',
     judgeName: classDataA.judge_name || 'No Judge Assigned',
     judgeNameB: classDataB.judge_name || 'No Judge Assigned',
     actualClassIdA: parseInt(classIdA),
@@ -236,10 +253,14 @@ export function buildCombinedClassInfo(
     selfCheckin: classDataA.self_checkin_enabled ?? true,
     classStatus: classDataA.class_status || classDataB.class_status || 'pending',
     timeLimit: classDataA.time_limit_seconds ? `${classDataA.time_limit_seconds}s` : undefined,
-    timeLimit2: classDataA.time_limit_area2_seconds ? `${classDataA.time_limit_area2_seconds}s` : undefined,
-    timeLimit3: classDataA.time_limit_area3_seconds ? `${classDataA.time_limit_area3_seconds}s` : undefined,
+    timeLimit2: classDataA.time_limit_area2_seconds
+      ? `${classDataA.time_limit_area2_seconds}s`
+      : undefined,
+    timeLimit3: classDataA.time_limit_area3_seconds
+      ? `${classDataA.time_limit_area3_seconds}s`
+      : undefined,
     areas: areaCount,
-    visibilityPreset: visibilityPreset || 'standard'
+    visibilityPreset: visibilityPreset || 'standard',
   };
 }
 
@@ -252,7 +273,8 @@ export function buildCombinedClassInfo(
  */
 export function transformReplicatedEntry(entry: ReplicatedEntry, classData?: Class): Entry {
   const status = entry.entry_status || 'pending';
-  const sectionPart = classData?.section && classData.section !== '-' ? ` ${classData.section}` : '';
+  const sectionPart =
+    classData?.section && classData.section !== '-' ? ` ${classData.section}` : '';
 
   return {
     id: parseInt(entry.id, 10),
@@ -264,15 +286,20 @@ export function transformReplicatedEntry(entry: ReplicatedEntry, classData?: Cla
     status: status as Entry['status'],
     inRing: entry.entry_status === 'in-ring',
     classId: parseInt(entry.class_id, 10),
-    className: classData?.element && classData?.level
-      ? `${classData.element} ${classData.level}${sectionPart}`.trim()
-      : '',
+    className:
+      classData?.element && classData?.level
+        ? `${classData.element} ${classData.level}${sectionPart}`.trim()
+        : '',
     element: classData?.element || '',
     level: classData?.level || '',
     section: classData?.section || '',
     timeLimit: classData?.time_limit_seconds ? `${classData.time_limit_seconds}s` : undefined,
-    timeLimit2: classData?.time_limit_area2_seconds ? `${classData.time_limit_area2_seconds}s` : undefined,
-    timeLimit3: classData?.time_limit_area3_seconds ? `${classData.time_limit_area3_seconds}s` : undefined,
+    timeLimit2: classData?.time_limit_area2_seconds
+      ? `${classData.time_limit_area2_seconds}s`
+      : undefined,
+    timeLimit3: classData?.time_limit_area3_seconds
+      ? `${classData.time_limit_area3_seconds}s`
+      : undefined,
     resultText: entry.result_status,
     placement: entry.final_placement,
     searchTime: entry.search_time_seconds?.toString(),
@@ -307,13 +334,13 @@ export async function fetchFromReplicationCache(
     // Fetch trial data for date/number display
     let trialData: Trial | null = null;
     if (trialsTable && classData.trial_id) {
-      trialData = await trialsTable.get(String(classData.trial_id)) || null;
+      trialData = (await trialsTable.get(String(classData.trial_id))) || null;
     }
 
     const cachedEntries = await entriesTable.getAll();
-    const relevantEntries = cachedEntries.filter((entry) => String(entry.class_id) === classId);
+    const relevantEntries = cachedEntries.filter(entry => String(entry.class_id) === classId);
 
-    let classEntries = relevantEntries.map((entry) => transformReplicatedEntry(entry, classData));
+    let classEntries = relevantEntries.map(entry => transformReplicatedEntry(entry, classData));
 
     // Fetch visibility preset for class settings display
     const visibilityPreset = await fetchVisibilityPreset(classId);
@@ -355,7 +382,9 @@ export async function fetchFromSupabase(
 
   const { data: classData } = await supabase
     .from('classes')
-    .select('element, level, section, judge_name, self_checkin_enabled, class_status, trial_id, is_scoring_finalized, results_released_at, time_limit_seconds, time_limit_area2_seconds, time_limit_area3_seconds, area_count')
+    .select(
+      'element, level, section, judge_name, self_checkin_enabled, class_status, trial_id, is_scoring_finalized, results_released_at, time_limit_seconds, time_limit_area2_seconds, time_limit_area3_seconds, area_count'
+    )
     .eq('id', parseInt(classId))
     .single();
 
@@ -403,10 +432,14 @@ export async function fetchFromSupabase(
     totalEntries: classEntries.length,
     completedEntries,
     timeLimit: classData.time_limit_seconds ? `${classData.time_limit_seconds}s` : undefined,
-    timeLimit2: classData.time_limit_area2_seconds ? `${classData.time_limit_area2_seconds}s` : undefined,
-    timeLimit3: classData.time_limit_area3_seconds ? `${classData.time_limit_area3_seconds}s` : undefined,
+    timeLimit2: classData.time_limit_area2_seconds
+      ? `${classData.time_limit_area2_seconds}s`
+      : undefined,
+    timeLimit3: classData.time_limit_area3_seconds
+      ? `${classData.time_limit_area3_seconds}s`
+      : undefined,
     areas: areaCount,
-    visibilityPreset
+    visibilityPreset,
   };
 
   if (classEntries.length === 0) {
@@ -418,8 +451,9 @@ export async function fetchFromSupabase(
     trialId: classData.trial_id,
     licenseKey,
     role: userRole,
-    isClassComplete: classData.class_status === 'completed' || classData.is_scoring_finalized === true,
-    resultsReleasedAt: classData.results_released_at || null
+    isClassComplete:
+      classData.class_status === 'completed' || classData.is_scoring_finalized === true,
+    resultsReleasedAt: classData.results_released_at || null,
   });
   classEntries = classEntries.map(entry => applyVisibilityFlags(entry, visibilityFlags));
 
@@ -455,16 +489,16 @@ export async function fetchCombinedFromReplicationCache(
     // Fetch trial data for date/number display (use class A's trial)
     let trialData: Trial | null = null;
     if (trialsTable && classDataA.trial_id) {
-      trialData = await trialsTable.get(String(classDataA.trial_id)) || null;
+      trialData = (await trialsTable.get(String(classDataA.trial_id))) || null;
     }
 
     const cachedEntries = await entriesTable.getAll();
 
-    const rawEntriesA = cachedEntries.filter((entry) => String(entry.class_id) === classIdA);
-    const rawEntriesB = cachedEntries.filter((entry) => String(entry.class_id) === classIdB);
+    const rawEntriesA = cachedEntries.filter(entry => String(entry.class_id) === classIdA);
+    const rawEntriesB = cachedEntries.filter(entry => String(entry.class_id) === classIdB);
 
-    let entriesA = rawEntriesA.map((entry) => transformReplicatedEntry(entry, classDataA));
-    let entriesB = rawEntriesB.map((entry) => transformReplicatedEntry(entry, classDataB));
+    let entriesA = rawEntriesA.map(entry => transformReplicatedEntry(entry, classDataA));
+    let entriesB = rawEntriesB.map(entry => transformReplicatedEntry(entry, classDataB));
 
     if (entriesA.length === 0 && entriesB.length === 0) {
       logger.log('📭 Cache is empty, falling back to Supabase');
@@ -478,7 +512,15 @@ export async function fetchCombinedFromReplicationCache(
     const visibilityPreset = await fetchVisibilityPreset(classIdA);
 
     const combinedEntries = [...entriesA, ...entriesB];
-    const classInfo = buildCombinedClassInfo(classDataA, classDataB, classIdA, classIdB, combinedEntries, trialData, visibilityPreset);
+    const classInfo = buildCombinedClassInfo(
+      classDataA,
+      classDataB,
+      classIdA,
+      classIdB,
+      combinedEntries,
+      trialData,
+      visibilityPreset
+    );
 
     return { entries: combinedEntries, classInfo };
   } catch (error) {
@@ -506,14 +548,18 @@ export async function fetchCombinedFromSupabase(
   const firstEntry = combinedEntries[0];
 
   const [{ data: classDataA }, { data: classDataB }] = await Promise.all([
-    supabase.from('classes')
-      .select('judge_name, self_checkin_enabled, class_status, trial_id, is_scoring_finalized, results_released_at')
+    supabase
+      .from('classes')
+      .select(
+        'judge_name, self_checkin_enabled, class_status, trial_id, is_scoring_finalized, results_released_at'
+      )
       .eq('id', parseInt(classIdA))
       .single(),
-    supabase.from('classes')
+    supabase
+      .from('classes')
       .select('judge_name, class_status, trial_id, is_scoring_finalized, results_released_at')
       .eq('id', parseInt(classIdB))
-      .single()
+      .single(),
   ]);
 
   // Fetch trial data for date/number display
@@ -543,17 +589,19 @@ export async function fetchCombinedFromSupabase(
         trialId: classDataA.trial_id,
         licenseKey,
         role: userRole,
-        isClassComplete: classDataA.class_status === 'completed' || classDataA.is_scoring_finalized === true,
-        resultsReleasedAt: classDataA.results_released_at || null
+        isClassComplete:
+          classDataA.class_status === 'completed' || classDataA.is_scoring_finalized === true,
+        resultsReleasedAt: classDataA.results_released_at || null,
       }),
       fetchVisibilityFlagsWithFallback({
         classId: parseInt(classIdB),
         trialId: classDataB.trial_id,
         licenseKey,
         role: userRole,
-        isClassComplete: classDataB.class_status === 'completed' || classDataB.is_scoring_finalized === true,
-        resultsReleasedAt: classDataB.results_released_at || null
-      })
+        isClassComplete:
+          classDataB.class_status === 'completed' || classDataB.is_scoring_finalized === true,
+        resultsReleasedAt: classDataB.results_released_at || null,
+      }),
     ]);
 
     const processedA = entriesA.map(entry => applyVisibilityFlags(entry, visibilityFlagsA));
@@ -583,7 +631,7 @@ export async function fetchCombinedFromSupabase(
     timeLimit2: firstEntry.timeLimit2,
     timeLimit3: firstEntry.timeLimit3,
     areas: areaCount,
-    visibilityPreset
+    visibilityPreset,
   };
 
   return { entries: combinedEntries, classInfo };

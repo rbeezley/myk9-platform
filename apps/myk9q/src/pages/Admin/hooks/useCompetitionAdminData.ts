@@ -13,7 +13,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import type { VisibilityPreset } from '../../../types/visibility';
+import type { VisibilityPreset } from '@myk9/secretary';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -105,7 +105,7 @@ async function fetchShowInfo(licenseKey: string): Promise<ShowInfo | null> {
 
   return {
     showName: data.show_name || 'Competition',
-    organization: data.organization || ''
+    organization: data.organization || '',
   };
 }
 
@@ -124,7 +124,7 @@ async function fetchClasses(licenseKey: string): Promise<ClassInfo[]> {
 
   // Fetch visibility overrides for all classes
   const rawData = (data || []) as RawClassSummaryData[];
-  const classIds = rawData.map((classData) => classData.class_id);
+  const classIds = rawData.map(classData => classData.class_id);
   const { data: visibilityData } = await supabase
     .from('class_result_visibility_overrides')
     .select('class_id, preset_name')
@@ -133,12 +133,12 @@ async function fetchClasses(licenseKey: string): Promise<ClassInfo[]> {
   // Create map of class_id to preset_name
   // CRITICAL: Use string keys for consistency (prevents number/string type mismatch bugs)
   const visibilityMap = new Map<string, VisibilityPreset>();
-  ((visibilityData || []) as RawVisibilityOverride[]).forEach((override) => {
+  ((visibilityData || []) as RawVisibilityOverride[]).forEach(override => {
     visibilityMap.set(String(override.class_id), override.preset_name);
   });
 
   // Map view columns to ClassInfo interface
-  const classes = rawData.map((classData) => ({
+  const classes = rawData.map(classData => ({
     id: classData.class_id,
     trial_id: classData.trial_id,
     element: classData.element,
@@ -154,7 +154,7 @@ async function fetchClasses(licenseKey: string): Promise<ClassInfo[]> {
     self_checkin: classData.self_checkin_enabled || false,
     total_entries: classData.total_entries || 0,
     scored_entries: classData.scored_entries || 0,
-    visibility_preset: visibilityMap.get(String(classData.class_id)) || 'standard'
+    visibility_preset: visibilityMap.get(String(classData.class_id)) || 'standard',
   }));
 
   return classes;
@@ -164,13 +164,16 @@ async function fetchClasses(licenseKey: string): Promise<ClassInfo[]> {
  * Derive trial information from classes
  */
 function deriveTrialsFromClasses(classes: ClassInfo[]): TrialInfo[] {
-  const trialsMap = new Map<number, {
-    trial_id: number;
-    trial_date: string;
-    trial_number: number;
-    judges: Set<string>;
-    class_count: number;
-  }>();
+  const trialsMap = new Map<
+    number,
+    {
+      trial_id: number;
+      trial_date: string;
+      trial_number: number;
+      judges: Set<string>;
+      class_count: number;
+    }
+  >();
 
   classes.forEach((classData: ClassInfo) => {
     if (!trialsMap.has(classData.trial_id)) {
@@ -179,7 +182,7 @@ function deriveTrialsFromClasses(classes: ClassInfo[]): TrialInfo[] {
         trial_date: classData.trial_date,
         trial_number: parseInt(classData.trial_number) || 0,
         judges: new Set([classData.judge_name]),
-        class_count: 1
+        class_count: 1,
       });
     } else {
       const trial = trialsMap.get(classData.trial_id)!;
@@ -191,7 +194,7 @@ function deriveTrialsFromClasses(classes: ClassInfo[]): TrialInfo[] {
   return Array.from(trialsMap.values())
     .map(trial => ({
       ...trial,
-      judges: Array.from(trial.judges).sort()
+      judges: Array.from(trial.judges).sort(),
     }))
     .sort((a, b) => {
       if (a.trial_date !== b.trial_date) {
@@ -226,7 +229,7 @@ export function useClasses(licenseKey: string | undefined) {
     queryFn: () => fetchClasses(licenseKey || 'myK9Q1-d8609f3b-d3fd43aa-6323a604'),
     enabled: !!licenseKey,
     staleTime: 2 * 60 * 1000, // 2 minutes (classes change more frequently)
-    select: (data) => {
+    select: data => {
       // Sort classes by trial date, trial number, element, level, section
       return data.sort((a, b) => {
         if (a.trial_date !== b.trial_date) {
@@ -268,10 +271,7 @@ export function useBulkSelfCheckinMutation() {
   return useMutation({
     mutationFn: async ({ classIds, enabled }: { classIds: number[]; enabled: boolean }) => {
       const updates = classIds.map(classId =>
-        supabase
-          .from('classes')
-          .update({ self_checkin_enabled: enabled })
-          .eq('id', classId)
+        supabase.from('classes').update({ self_checkin_enabled: enabled }).eq('id', classId)
       );
 
       await Promise.all(updates);

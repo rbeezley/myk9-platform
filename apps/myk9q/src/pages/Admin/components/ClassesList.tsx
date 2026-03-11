@@ -9,8 +9,10 @@
 
 import React from 'react';
 import { Eye, UserCheck, UserX } from 'lucide-react';
-import { PRESET_CONFIGS } from '../../../types/visibility';
-import type { VisibilityPreset } from '../../../types/visibility';
+import { PRESET_INFO } from '@myk9/secretary';
+import type { VisibilityPreset } from '@myk9/secretary';
+
+import { PRESET_ICONS } from '../../../utils/visibilityIcons';
 import type { ClassInfo } from '../hooks/useCompetitionAdminData';
 import { formatTrialDate } from '../../../utils/dateUtils';
 
@@ -49,7 +51,7 @@ export function ClassesList({
   onClearSelection,
   onBulkSetVisibility,
   onBulkEnableCheckin,
-  onBulkDisableCheckin
+  onBulkDisableCheckin,
 }: ClassesListProps): React.ReactElement {
   return (
     <div className="classes-list">
@@ -58,9 +60,7 @@ export function ClassesList({
         <div className="selection-actions">
           {selectedClasses.size > 0 ? (
             <>
-              <span className="selection-count-badge">
-                {selectedClasses.size} selected
-              </span>
+              <span className="selection-count-badge">{selectedClasses.size} selected</span>
               <button onClick={onClearSelection} className="clear-selection-btn">
                 Clear
               </button>
@@ -81,17 +81,17 @@ export function ClassesList({
             <div className="toolbar-section">
               <h4>Result Visibility</h4>
               <div className="toolbar-buttons">
-                {(Object.keys(PRESET_CONFIGS) as VisibilityPreset[]).map((preset) => {
-                  const config = PRESET_CONFIGS[preset];
+                {(Object.keys(PRESET_INFO) as VisibilityPreset[]).map(preset => {
+                  const info = PRESET_INFO[preset];
                   return (
                     <button
                       key={preset}
                       className="toolbar-btn visibility-btn"
                       onClick={() => onBulkSetVisibility(preset)}
-                      title={config.description}
+                      title={info.description}
                     >
-                      <span className="btn-icon">{config.icon}</span>
-                      <span className="btn-text">{config.title}</span>
+                      <span className="btn-icon">{PRESET_ICONS[preset]}</span>
+                      <span className="btn-text">{info.title}</span>
                     </button>
                   );
                 })}
@@ -104,17 +104,11 @@ export function ClassesList({
             <div className="toolbar-section">
               <h4>Self Check-In</h4>
               <div className="toolbar-buttons">
-                <button
-                  className="toolbar-btn checkin-enable-btn"
-                  onClick={onBulkEnableCheckin}
-                >
+                <button className="toolbar-btn checkin-enable-btn" onClick={onBulkEnableCheckin}>
                   <UserCheck className="btn-icon" />
                   <span className="btn-text">Enable</span>
                 </button>
-                <button
-                  className="toolbar-btn checkin-disable-btn"
-                  onClick={onBulkDisableCheckin}
-                >
+                <button className="toolbar-btn checkin-disable-btn" onClick={onBulkDisableCheckin}>
                   <UserX className="btn-icon" />
                   <span className="btn-text">Disable</span>
                 </button>
@@ -125,9 +119,9 @@ export function ClassesList({
       )}
 
       <div className="classes-grid">
-        {classes.map((classInfo) => {
+        {classes.map(classInfo => {
           const visibilityPreset = classInfo.visibility_preset || 'standard';
-          const visibilityTitle = PRESET_CONFIGS[visibilityPreset]?.title || 'After Class';
+          const visibilityTitle = PRESET_INFO[visibilityPreset]?.title || 'After Class';
 
           return (
             <div
@@ -140,7 +134,7 @@ export function ClassesList({
                   type="checkbox"
                   checked={selectedClasses.has(classInfo.id)}
                   onChange={() => onToggleClassSelection(classInfo.id)}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={e => e.stopPropagation()}
                   className="card-checkbox"
                 />
                 <div className="card-info">
@@ -156,15 +150,16 @@ export function ClassesList({
                     </span>
                   </div>
                   {/* Row 3: Judge */}
-                  <div className="info-row-3">
-                    Judge: {classInfo.judge_name || 'TBD'}
-                  </div>
+                  <div className="info-row-3">Judge: {classInfo.judge_name || 'TBD'}</div>
                 </div>
               </div>
               <div className="card-right">
                 <div className="badge-stack">
                   {/* Visibility Badge */}
-                  <span className="visibility-badge" title={`Result visibility: ${visibilityTitle}`}>
+                  <span
+                    className="visibility-badge"
+                    title={`Result visibility: ${visibilityTitle}`}
+                  >
                     <Eye className="badge-icon" />
                     {visibilityTitle}
                   </span>

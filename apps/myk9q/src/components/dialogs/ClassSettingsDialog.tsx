@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Settings, CheckCircle, AlertCircle, Info, LayoutGrid, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { setClassVisibility } from '../../services/resultVisibilityService';
-import { PRESET_CONFIGS } from '../../types/visibility';
-import type { VisibilityPreset } from '../../types/visibility';
+import { PRESET_INFO } from '@myk9/secretary';
+import type { VisibilityPreset } from '@myk9/secretary';
+
+import { PRESET_ICONS } from '../../utils/visibilityIcons';
 import { DialogContainer } from './DialogContainer';
 import { useAuth } from '../../contexts/AuthContext';
 import { parseOrganizationData } from '../../utils/organizationUtils';
@@ -74,7 +76,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
   isOpen,
   onClose,
   classData,
-  onSettingsUpdate
+  onSettingsUpdate,
 }) => {
   const { showContext } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -122,7 +124,9 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
       // Load self check-in setting, planned start time, area count, and time limits
       const { data, error } = await supabase
         .from('classes')
-        .select('self_checkin_enabled, planned_start_time, area_count, time_limit_seconds, time_limit_area2_seconds')
+        .select(
+          'self_checkin_enabled, planned_start_time, area_count, time_limit_seconds, time_limit_area2_seconds'
+        )
         .eq('id', classData.id)
         .single();
 
@@ -166,7 +170,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
           min,
           max,
           isFlexible: min !== max,
-          maxTotalSeconds: requirementsData.time_limit_seconds ?? undefined
+          maxTotalSeconds: requirementsData.time_limit_seconds ?? undefined,
         });
         // If class doesn't have area_count set, use the default from requirements
         if (!data?.area_count && requirementsData.area_count) {
@@ -230,7 +234,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
         time_limit_area2_seconds?: number | null;
       } = {
         self_checkin_enabled: selfCheckinEnabled,
-        planned_start_time: plannedTimestamp
+        planned_start_time: plannedTimestamp,
       };
 
       // Include area_count and time limits if there's flexibility
@@ -242,7 +246,9 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
           // Validate total doesn't exceed max
           const total = area1Seconds + area2Seconds;
           if (total > areaCountOptions.maxTotalSeconds) {
-            setErrorMessage(`Total time (${formatTime(total)}) exceeds maximum allowed (${formatTime(areaCountOptions.maxTotalSeconds)})`);
+            setErrorMessage(
+              `Total time (${formatTime(total)}) exceeds maximum allowed (${formatTime(areaCountOptions.maxTotalSeconds)})`
+            );
             return;
           }
           if (area1Seconds <= 0 || area2Seconds <= 0) {
@@ -325,7 +331,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
               type="time"
               className="settings-time-input"
               value={plannedStartTime}
-              onChange={(e) => setPlannedStartTime(e.target.value)}
+              onChange={e => setPlannedStartTime(e.target.value)}
             />
           </div>
 
@@ -339,14 +345,15 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                     Number of Areas
                   </label>
                   <p className="settings-description">
-                    Choose between {areaCountOptions.min} or {areaCountOptions.max} search areas for this class
+                    Choose between {areaCountOptions.min} or {areaCountOptions.max} search areas for
+                    this class
                   </p>
                 </div>
                 <div className="settings-area-count-options">
                   {Array.from(
                     { length: areaCountOptions.max - areaCountOptions.min + 1 },
                     (_, i) => areaCountOptions.min + i
-                  ).map((count) => (
+                  ).map(count => (
                     <button
                       key={count}
                       type="button"
@@ -373,7 +380,8 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                     Time Allocation
                   </label>
                   <p className="settings-description">
-                    Allocate {formatTime(areaCountOptions.maxTotalSeconds)} total between areas (max combined)
+                    Allocate {formatTime(areaCountOptions.maxTotalSeconds)} total between areas (max
+                    combined)
                   </p>
                 </div>
 
@@ -394,7 +402,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                           type="text"
                           className="settings-time-edit-input"
                           value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
+                          onChange={e => setEditValue(e.target.value)}
                           onBlur={() => {
                             const seconds = parseTimeInput(editValue);
                             if (seconds !== null && seconds >= 30) {
@@ -402,7 +410,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                             }
                             setEditingArea(null);
                           }}
-                          onKeyDown={(e) => {
+                          onKeyDown={e => {
                             if (e.key === 'Enter') {
                               const seconds = parseTimeInput(editValue);
                               if (seconds !== null && seconds >= 30) {
@@ -456,7 +464,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                           type="text"
                           className="settings-time-edit-input"
                           value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
+                          onChange={e => setEditValue(e.target.value)}
                           onBlur={() => {
                             const seconds = parseTimeInput(editValue);
                             if (seconds !== null && seconds >= 30) {
@@ -464,7 +472,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                             }
                             setEditingArea(null);
                           }}
-                          onKeyDown={(e) => {
+                          onKeyDown={e => {
                             if (e.key === 'Enter') {
                               const seconds = parseTimeInput(editValue);
                               if (seconds !== null && seconds >= 30) {
@@ -504,12 +512,17 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                 </div>
 
                 {/* Total time display */}
-                <div className={`settings-time-total ${
-                  area1Seconds + area2Seconds > areaCountOptions.maxTotalSeconds ? 'settings-time-total--error' : ''
-                }`}>
+                <div
+                  className={`settings-time-total ${
+                    area1Seconds + area2Seconds > areaCountOptions.maxTotalSeconds
+                      ? 'settings-time-total--error'
+                      : ''
+                  }`}
+                >
                   <span>Total:</span>
                   <span className="settings-time-total-value">
-                    {formatTime(area1Seconds + area2Seconds)} / {formatTime(areaCountOptions.maxTotalSeconds)}
+                    {formatTime(area1Seconds + area2Seconds)} /{' '}
+                    {formatTime(areaCountOptions.maxTotalSeconds)}
                   </span>
                 </div>
               </div>
@@ -521,15 +534,11 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
             <div className="settings-item">
               <div className="settings-item-header">
                 <label className="settings-label">Check-in Mode</label>
-                <p className="settings-description">
-                  How exhibitors check in for this class
-                </p>
+                <p className="settings-description">How exhibitors check in for this class</p>
               </div>
               <div className="settings-toggle-container">
                 <button
-                  className={`settings-toggle ${
-                    selfCheckinEnabled ? 'settings-toggle--on' : ''
-                  }`}
+                  className={`settings-toggle ${selfCheckinEnabled ? 'settings-toggle--on' : ''}`}
                   onClick={() => setSelfCheckinEnabled(!selfCheckinEnabled)}
                   aria-label="Toggle check-in mode"
                 >
@@ -552,8 +561,8 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
             </div>
 
             <div className="settings-visibility-options">
-              {(['open', 'standard', 'review'] as const).map((preset) => {
-                const config = PRESET_CONFIGS[preset];
+              {(['open', 'standard', 'review'] as const).map(preset => {
+                const info = PRESET_INFO[preset];
                 return (
                   <label key={preset} className="settings-visibility-option">
                     <input
@@ -566,15 +575,11 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
                     />
                     <div className="settings-visibility-content">
                       <div className="settings-visibility-title">
-                        <span className="settings-visibility-icon">{config.icon}</span>
-                        <span>{config.title}</span>
+                        <span className="settings-visibility-icon">{PRESET_ICONS[preset]}</span>
+                        <span>{info.title}</span>
                       </div>
-                      <p className="settings-visibility-description">
-                        {config.description}
-                      </p>
-                      <p className="settings-visibility-details">
-                        {config.details}
-                      </p>
+                      <p className="settings-visibility-description">{info.description}</p>
+                      <p className="settings-visibility-details">{info.details}</p>
                     </div>
                   </label>
                 );
@@ -585,8 +590,8 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
             <div className="settings-info-box">
               <Info size={18} className="settings-info-icon" />
               <p className="settings-info-text">
-                This overrides the show/trial default. To set defaults for all classes,
-                go to <strong>Secretary Tools → Results/Check-In Settings</strong>.
+                This overrides the show/trial default. To set defaults for all classes, go to{' '}
+                <strong>Secretary Tools → Results/Check-In Settings</strong>.
               </p>
             </div>
           </div>

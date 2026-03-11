@@ -28,6 +28,7 @@ export { useStopwatch } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
+export { useScoresheetScoring } from './hooks/useScoresheetScoring';
 
 // Phase 1: Quick Win Hooks (Sprint 25)
 export {
@@ -107,6 +108,12 @@ export type {
   ResolvedClassRules,
   ClassRuleFields,
 } from './types';
+
+export type {
+  ScoresheetScoringConfig,
+  ScoresheetScoringReturn,
+  ValidationResult,
+} from './hooks/useScoresheetScoring';
 
 export type {
   QualifyingResult,

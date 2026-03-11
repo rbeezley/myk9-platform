@@ -1115,7 +1115,12 @@ COMMENT ON COLUMN shows.results_visible_to_all IS
   'DEPRECATED: Use show_visibility_settings table instead. Retained for backward compatibility.';
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Apply migration locally** [ADDED]
+
+Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && supabase db push`
+Expected: Migration applied successfully. Verify with `supabase migration list`.
+
+- [ ] **Step 3: Commit**
 
 ```bash
 git add supabase/migrations/060_show_settings.sql
@@ -1371,7 +1376,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
-import { settingsQueryKeys } from '../queries/useShowSettingsDatabase';
+import { settingsQueryKeys, type ShowSettings } from '../queries/useShowSettingsDatabase';
 
 interface ShowVisibilityUpdate {
   showId: string;
@@ -1423,7 +1428,38 @@ export function useUpdateShowVisibility() {
       });
       if (error) throw error;
     },
-    onSuccess: (_, variables) => {
+    onMutate: async variables => {
+      // [EXPANDED] Optimistic update: cancel outgoing refetches and snapshot cache
+      await queryClient.cancelQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
+      const previous = queryClient.getQueryData(settingsQueryKeys.show(variables.showId));
+      // Optimistically update the cache with new values
+      queryClient.setQueryData(
+        settingsQueryKeys.show(variables.showId),
+        (old: ShowSettings | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            visibility: {
+              placement: variables.placementTiming,
+              qualification: variables.qualificationTiming,
+              time: variables.timeTiming,
+              faults: variables.faultsTiming,
+              preset: variables.preset,
+              inheritedFrom: 'show' as const,
+            },
+            hasExplicitSettings: true,
+          };
+        }
+      );
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      // Rollback on error
+      if (context?.previous) {
+        queryClient.setQueryData(settingsQueryKeys.show(variables.showId), context.previous);
+      }
+    },
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
     },
@@ -1956,16 +1992,33 @@ Create `apps/myk9show/src/hooks/queries/__tests__/useSelfCheckinEnabled.test.ts`
 - Class overrides trial
 - Null at class/trial falls through to show
 
-- [ ] **Step 3: Run tests**
+- [ ] **Step 3: Write component tests for ShowSettingsPage** [ADDED]
+
+Create `apps/myk9show/src/pages/secretary/__tests__/ShowSettingsPage.test.tsx`:
+
+Spec requirement: "Component tests for preset card selection, toggle interactions, override dropdowns, placement dropdown excluding 'Immediate.'"
+
+Test cases:
+
+- Clicking a preset card calls `useUpdateShowVisibility` with correct preset + field values
+- Advanced section: changing a per-field dropdown triggers mutation with updated field
+- Placement dropdown renders only `class_complete` and `manual_release` options (no `immediate`)
+- Self check-in toggle calls `useUpdateShowCheckin` with toggled value
+- Trial override reset button calls `useResetOverride` with correct table/idColumn
+- Loading state shows skeleton/spinner while queries load
+
+Mock `useShowSettings`, `useTrialOverrides`, and all mutation hooks. Use `@testing-library/react` + `@testing-library/user-event`.
+
+- [ ] **Step 4: Run tests**
 
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform/apps/myk9show" && pnpm test`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/myk9show/src/hooks/queries/__tests__/
-git commit -m "test(show): add settings hook tests and update useSelfCheckinEnabled test"
+git add apps/myk9show/src/hooks/queries/__tests__/ apps/myk9show/src/pages/secretary/__tests__/
+git commit -m "test(show): add settings hook and component tests"
 ```
 
 ---

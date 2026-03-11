@@ -90,6 +90,7 @@ export {
   formatTimeInputToMMSS,
 } from './utils/timeUtils';
 export { buildResolvedClassRules } from './utils/buildResolvedClassRules';
+export { parseSmartTime } from './utils/parseSmartTime';
 
 // Types
 export type {

@@ -34,7 +34,14 @@ export type ExtendedResult = QualifyingResult | NationalsResult;
  */
 export interface ScoresheetCoreConfig {
   /** Sport type identifier (for analytics/logging) */
-  sportType?: 'AKC_SCENT_WORK' | 'AKC_SCENT_WORK_NATIONAL' | 'AKC_FASTCAT' | 'UKC_NOSEWORK' | 'ASCA_SCENT_DETECTION';
+  sportType?:
+    | 'AKC_SCENT_WORK'
+    | 'AKC_SCENT_WORK_NATIONAL'
+    | 'AKC_FASTCAT'
+    | 'UKC_NOSEWORK'
+    | 'UKC_OBEDIENCE'
+    | 'UKC_RALLY'
+    | 'ASCA_SCENT_DETECTION';
   /** Whether this is a Nationals-style scoresheet with extended results */
   isNationals?: boolean;
 }
@@ -100,10 +107,17 @@ export interface ScoresheetCoreReturn {
 
   // Helper functions
   calculateTotalTime: () => string;
-  handleAreaUpdate: (index: number, field: keyof AreaScore, value: AreaScore[keyof AreaScore]) => void;
+  handleAreaUpdate: (
+    index: number,
+    field: keyof AreaScore,
+    value: AreaScore[keyof AreaScore]
+  ) => void;
 
   // Actions
-  submitScore: (currentEntry: Entry, extraData?: Partial<ScoreSubmitData['scoreData']>) => Promise<void>;
+  submitScore: (
+    currentEntry: Entry,
+    extraData?: Partial<ScoreSubmitData['scoreData']>
+  ) => Promise<void>;
   navigateBack: () => void;
   navigateBackWithRingCleanup: (currentEntry: Entry | null) => void;
 
@@ -188,23 +202,28 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
   /**
    * Wrapper for setQualifying that auto-clears faults when "EX" is selected
    */
-  const handleSetQualifying = useCallback((value: ExtendedResult | '' | ((prev: ExtendedResult | '') => ExtendedResult | '')) => {
-    // Handle both direct values and updater functions
-    const newValue = typeof value === 'function' ? value(qualifying) : value;
+  const handleSetQualifying = useCallback(
+    (value: ExtendedResult | '' | ((prev: ExtendedResult | '') => ExtendedResult | '')) => {
+      // Handle both direct values and updater functions
+      const newValue = typeof value === 'function' ? value(qualifying) : value;
 
-    setQualifying(newValue);
+      setQualifying(newValue);
 
-    // Auto-clear when Excused is selected
-    if (newValue === 'EX') {
-      setFaultCount(0);
-      setAreas(prev => prev.map(area => ({
-        ...area,
-        found: false,
-        correct: false
-        // Keep time intact for recovery
-      })));
-    }
-  }, [qualifying]);
+      // Auto-clear when Excused is selected
+      if (newValue === 'EX') {
+        setFaultCount(0);
+        setAreas(prev =>
+          prev.map(area => ({
+            ...area,
+            found: false,
+            correct: false,
+            // Keep time intact for recovery
+          }))
+        );
+      }
+    },
+    [qualifying]
+  );
 
   // ==========================================================================
   // HELPER FUNCTIONS
@@ -214,9 +233,7 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
    * Calculate total time from all areas
    */
   const calculateTotalTime = useCallback((): string => {
-    const validTimes = areas
-      .filter(area => area.time && area.time !== '')
-      .map(area => area.time);
+    const validTimes = areas.filter(area => area.time && area.time !== '').map(area => area.time);
 
     if (validTimes.length === 0) return '0.00';
 
@@ -244,15 +261,12 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
   /**
    * Update a single area's field
    */
-  const handleAreaUpdate = useCallback((
-    index: number,
-    field: keyof AreaScore,
-    value: AreaScore[keyof AreaScore]
-  ) => {
-    setAreas(prev => prev.map((area, i) =>
-      i === index ? { ...area, [field]: value } : area
-    ));
-  }, []);
+  const handleAreaUpdate = useCallback(
+    (index: number, field: keyof AreaScore, value: AreaScore[keyof AreaScore]) => {
+      setAreas(prev => prev.map((area, i) => (i === index ? { ...area, [field]: value } : area)));
+    },
+    []
+  );
 
   // ==========================================================================
   // NAVIGATION
@@ -266,33 +280,37 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
    * Remove dog from ring and navigate back
    * Uses fire-and-forget pattern for instant navigation
    */
-  const navigateBackWithRingCleanup = useCallback((currentEntry: Entry | null) => {
-     
-    logger.log('🚪 [useScoresheetCore] navigateBackWithRingCleanup called:', {
-      hasEntry: !!currentEntry,
-      entryId: currentEntry?.id,
-      armband: currentEntry?.armband
-    });
+  const navigateBackWithRingCleanup = useCallback(
+    (currentEntry: Entry | null) => {
+      logger.log('🚪 [useScoresheetCore] navigateBackWithRingCleanup called:', {
+        hasEntry: !!currentEntry,
+        entryId: currentEntry?.id,
+        armband: currentEntry?.armband,
+      });
 
-    // Fire-and-forget: update status in background, navigate immediately
-    if (currentEntry?.id) {
-       
-      logger.log('🚪 [useScoresheetCore] Firing markInRing(', currentEntry.id, ', false) in background');
-      markInRing(currentEntry.id, false)
-        .then(() => {
-           
-          logger.log('✅ [useScoresheetCore] markInRing completed successfully');
-        })
-        .catch((error) => {
-          logger.error('❌ Failed to remove dog from ring:', error);
-        });
-    } else {
-      logger.warn('⚠️ [useScoresheetCore] No currentEntry - skipping markInRing');
-    }
+      // Fire-and-forget: update status in background, navigate immediately
+      if (currentEntry?.id) {
+        logger.log(
+          '🚪 [useScoresheetCore] Firing markInRing(',
+          currentEntry.id,
+          ', false) in background'
+        );
+        markInRing(currentEntry.id, false)
+          .then(() => {
+            logger.log('✅ [useScoresheetCore] markInRing completed successfully');
+          })
+          .catch(error => {
+            logger.error('❌ Failed to remove dog from ring:', error);
+          });
+      } else {
+        logger.warn('⚠️ [useScoresheetCore] No currentEntry - skipping markInRing');
+      }
 
-    // Navigate immediately - don't wait for DB
-    navigate(-1);
-  }, [navigate]);
+      // Navigate immediately - don't wait for DB
+      navigate(-1);
+    },
+    [navigate]
+  );
 
   // ==========================================================================
   // SCORE SUBMISSION
@@ -301,104 +319,103 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
   /**
    * Submit score with optimistic updates
    */
-  const submitScore = useCallback(async (
-    currentEntry: Entry,
-    extraData: Partial<ScoreSubmitData['scoreData']> = {}
-  ) => {
-     
-    logger.log('📝 [useScoresheetCore] submitScore called:', {
-      entryId: currentEntry?.id,
-      armband: currentEntry?.armband,
-      qualifying,
-      hasCurrentEntry: !!currentEntry
-    });
-
-if (!currentEntry) {
-      logger.warn('⚠️ [useScoresheetCore] No currentEntry - aborting');
-      return;
-    }
-
-    setShowConfirmation(false);
-    setIsSubmitting(true);
-
-    // Prepare score data
-    const finalQualifying = qualifying || 'NQ';
-    const finalTotalTime = calculateTotalTime() || '0.00';
-
-    // Get the appropriate reason based on the result type
-    const getFinalReason = () => {
-      if (finalQualifying === 'Q') return undefined;
-      return nonQualifyingReason || undefined;
-    };
-
-    // Prepare area results
-    const areaResults: Record<string, string> = {};
-    areas.forEach(area => {
-      areaResults[area.areaName.toLowerCase()] =
-        `${area.time}${area.found ? ' FOUND' : ' NOT FOUND'}${area.correct ? ' CORRECT' : ' INCORRECT'}`;
-    });
-
-    try {
-      await submitScoreOptimistically({
-        entryId: currentEntry.id,
-        classId: parseInt(classId!),
-        armband: currentEntry.armband,
-        className: currentEntry.className,
-        pairedClassId, // For combined Novice A & B - enables completion check on both classes
-        scoreData: {
-          resultText: finalQualifying,
-          searchTime: finalTotalTime,
-          nonQualifyingReason: getFinalReason(),
-          areas: areaResults,
-          correctCount: extraData.correctCount ?? 0,
-          incorrectCount: extraData.incorrectCount ?? 0,
-          faultCount: faultCount,
-          finishCallErrors: extraData.finishCallErrors ?? 0,
-          points: extraData.points ?? 0,
-          areaTimes: areas.map(area => area.time).filter(time => time && time !== ''),
-          element: currentEntry.element,
-          level: currentEntry.level,
-          ...extraData
-        },
-        onSuccess: async () => {
-// Check if class is completed and show celebration
-          await checkCompletion();
-
-          // Remove from ring before navigating back
-          if (currentEntry?.id) {
-            try {
-              await markInRing(currentEntry.id, false);
-} catch (error) {
-              logger.error('❌ Failed to remove dog from ring:', error);
-            }
-          }
-
-          // Navigate back to entry list
-          navigate(-1);
-        },
-        onError: (error) => {
-          logger.error('❌ Score submission failed:', error);
-          alert(`Failed to submit score: ${error.message}`);
-          setIsSubmitting(false);
-        }
+  const submitScore = useCallback(
+    async (currentEntry: Entry, extraData: Partial<ScoreSubmitData['scoreData']> = {}) => {
+      logger.log('📝 [useScoresheetCore] submitScore called:', {
+        entryId: currentEntry?.id,
+        armband: currentEntry?.armband,
+        qualifying,
+        hasCurrentEntry: !!currentEntry,
       });
-    } catch (error) {
-      logger.error('❌ Unexpected error during submission:', error);
-      setIsSubmitting(false);
-    }
-  }, [
-    sportType,
-    classId,
-    pairedClassId,
-    qualifying,
-    nonQualifyingReason,
-    faultCount,
-    areas,
-    calculateTotalTime,
-    submitScoreOptimistically,
-    checkCompletion,
-    navigate
-  ]);
+
+      if (!currentEntry) {
+        logger.warn('⚠️ [useScoresheetCore] No currentEntry - aborting');
+        return;
+      }
+
+      setShowConfirmation(false);
+      setIsSubmitting(true);
+
+      // Prepare score data
+      const finalQualifying = qualifying || 'NQ';
+      const finalTotalTime = calculateTotalTime() || '0.00';
+
+      // Get the appropriate reason based on the result type
+      const getFinalReason = () => {
+        if (finalQualifying === 'Q') return undefined;
+        return nonQualifyingReason || undefined;
+      };
+
+      // Prepare area results
+      const areaResults: Record<string, string> = {};
+      areas.forEach(area => {
+        areaResults[area.areaName.toLowerCase()] =
+          `${area.time}${area.found ? ' FOUND' : ' NOT FOUND'}${area.correct ? ' CORRECT' : ' INCORRECT'}`;
+      });
+
+      try {
+        await submitScoreOptimistically({
+          entryId: currentEntry.id,
+          classId: parseInt(classId!),
+          armband: currentEntry.armband,
+          className: currentEntry.className,
+          pairedClassId, // For combined Novice A & B - enables completion check on both classes
+          scoreData: {
+            resultText: finalQualifying,
+            searchTime: finalTotalTime,
+            nonQualifyingReason: getFinalReason(),
+            areas: areaResults,
+            correctCount: extraData.correctCount ?? 0,
+            incorrectCount: extraData.incorrectCount ?? 0,
+            faultCount: faultCount,
+            finishCallErrors: extraData.finishCallErrors ?? 0,
+            points: extraData.points ?? 0,
+            areaTimes: areas.map(area => area.time).filter(time => time && time !== ''),
+            element: currentEntry.element,
+            level: currentEntry.level,
+            ...extraData,
+          },
+          onSuccess: async () => {
+            // Check if class is completed and show celebration
+            await checkCompletion();
+
+            // Remove from ring before navigating back
+            if (currentEntry?.id) {
+              try {
+                await markInRing(currentEntry.id, false);
+              } catch (error) {
+                logger.error('❌ Failed to remove dog from ring:', error);
+              }
+            }
+
+            // Navigate back to entry list
+            navigate(-1);
+          },
+          onError: error => {
+            logger.error('❌ Score submission failed:', error);
+            alert(`Failed to submit score: ${error.message}`);
+            setIsSubmitting(false);
+          },
+        });
+      } catch (error) {
+        logger.error('❌ Unexpected error during submission:', error);
+        setIsSubmitting(false);
+      }
+    },
+    [
+      sportType,
+      classId,
+      pairedClassId,
+      qualifying,
+      nonQualifyingReason,
+      faultCount,
+      areas,
+      calculateTotalTime,
+      submitScoreOptimistically,
+      checkCompletion,
+      navigate,
+    ]
+  );
 
   // ==========================================================================
   // RETURN
@@ -446,6 +463,6 @@ if (!currentEntry) {
     navigateBackWithRingCleanup,
 
     // Components
-    CelebrationModal
+    CelebrationModal,
   };
 }

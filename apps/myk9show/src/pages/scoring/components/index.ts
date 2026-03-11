@@ -1,17 +1,8 @@
 /**
  * Scoring Components
  *
- * Reusable components for scoresheets, ported from myK9Q for visual consistency.
+ * Entry card for the scoring entry list.
+ * Scoresheet UI components now live in @myk9/scoring-ui.
  */
 
-export { TimerDisplay } from './TimerDisplay';
-export type { TimerDisplayProps, TimerWarningState } from './TimerDisplay';
-
-export { AreaInputs } from './AreaInputs';
-export type { AreaInputsProps, Area } from './AreaInputs';
-
-export { NationalsPointsDisplay } from './NationalsPointsDisplay';
-export type { NationalsPointsDisplayProps } from './NationalsPointsDisplay';
-
-export { ScoreConfirmationDialog } from './ScoreConfirmationDialog';
-export type { ScoreConfirmationDialogProps } from './ScoreConfirmationDialog';
+export { ScoringEntryCard, SortableScoringEntryCard } from './ScoringEntryCard';

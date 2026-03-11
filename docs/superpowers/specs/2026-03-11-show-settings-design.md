@@ -97,9 +97,9 @@ Migration `060_show_settings.sql` with three tables.
 | show_id              | UUID PK, FK shows                      | One row per show                           |
 | preset               | TEXT NOT NULL DEFAULT 'standard'       | 'open', 'standard', 'review'               |
 | placement_timing     | TEXT NOT NULL DEFAULT 'class_complete' | Placement only meaningful after completion |
-| qualification_timing | TEXT NOT NULL DEFAULT 'class_complete' |                                            |
-| time_timing          | TEXT NOT NULL DEFAULT 'immediate'      |                                            |
-| faults_timing        | TEXT NOT NULL DEFAULT 'immediate'      |                                            |
+| qualification_timing | TEXT NOT NULL DEFAULT 'immediate'      | Matches 'standard' preset                  |
+| time_timing          | TEXT NOT NULL DEFAULT 'class_complete' | Matches 'standard' preset                  |
+| faults_timing        | TEXT NOT NULL DEFAULT 'class_complete' | Matches 'standard' preset                  |
 | self_checkin_enabled | BOOLEAN NOT NULL DEFAULT true          |                                            |
 | updated_by           | UUID FK auth.users                     |                                            |
 | updated_at           | TIMESTAMPTZ DEFAULT now()              |                                            |

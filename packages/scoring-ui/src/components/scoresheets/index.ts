@@ -7,6 +7,8 @@
 
 // AKC Scoresheets
 export { AKCScentWorkScoresheet } from './AKC/AKCScentWorkScoresheet';
+export { AKCScentWorkLiveScoresheet } from './AKC/AKCScentWorkLiveScoresheet';
+export { AKCScentWorkEntryScoresheet } from './AKC/AKCScentWorkEntryScoresheet';
 export { AKCNationalsScoresheet } from './AKC/AKCNationalsScoresheet';
 export { AKCFastCatScoresheet } from './AKC/AKCFastCatScoresheet';
 

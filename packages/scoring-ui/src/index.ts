@@ -133,6 +133,8 @@ export type {
 
 // Scoresheets - AKC
 export { AKCScentWorkScoresheet } from './components/scoresheets/AKC/AKCScentWorkScoresheet';
+export { AKCScentWorkLiveScoresheet } from './components/scoresheets/AKC/AKCScentWorkLiveScoresheet';
+export { AKCScentWorkEntryScoresheet } from './components/scoresheets/AKC/AKCScentWorkEntryScoresheet';
 export { AKCNationalsScoresheet } from './components/scoresheets/AKC/AKCNationalsScoresheet';
 export { AKCFastCatScoresheet } from './components/scoresheets/AKC/AKCFastCatScoresheet';
 

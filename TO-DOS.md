@@ -422,7 +422,7 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Fix Bulk Actions on Shows List Page - 2026-03-10 12:37
 
-- **Fix bulk actions button on shows list page** - Bulk actions do not work on the Browse Shows page at `/shows`. **Problem:** The bulk actions feature is non-functional — likely missing selection checkboxes, bulk action bar, or handler wiring. The admin UserManagementPage has a working BulkActionsBar pattern to reference. **Files:** `apps/myk9show/src/pages/BrowseShowsPage.tsx`, `apps/myk9show/src/components/shows/browse/ShowsListView.tsx`, `apps/myk9show/src/components/shows/browse/ShowsGridView.tsx`, `apps/myk9show/src/components/shows/browse/ShowsTableView.tsx`. **Solution:** Add show selection (checkboxes on cards/rows), a BulkActionsBar component (delete, export, status change), and wire handlers. Reference `apps/myk9show/src/components/admin/users/BulkActionsBar.tsx` for the pattern.
+- [x] **Fix bulk actions button on shows list page** — Implemented: ShowBulkActionsBar with status change, CSV export, delete dialogs. Added checkbox selection to grid/list/table views. Select-all in table view. Uses existing useBulkSelection hook.
 
 ## Fix Analytics Button on Shows Page - 2026-03-10 12:39
 
@@ -430,4 +430,4 @@ Pre-existing issues found during confirmation number implementation review. Addr
 
 ## Add Drag and Drop to Kanban View on Shows Page - 2026-03-10 12:41
 
-- **Add drag-and-drop functionality to shows kanban view** - The kanban view on the Browse Shows page at `/shows?view=kanban` needs drag-and-drop to move shows between status columns. **Problem:** The `KanbanView` component already imports and sets up `@dnd-kit` (`DndContext`, `SortableContext`, `useSortable`, `DragOverlay`) but drag-and-drop between columns may not be fully wired — cards need to update the show's status when dropped into a new column. **Files:** `apps/myk9show/src/components/common/KanbanView.tsx`, `apps/myk9show/src/pages/BrowseShowsPage.tsx:58-80` (kanban columns and `getShowKanbanStatus`), `apps/myk9show/src/pages/BrowseShowsPage.tsx:367-432` (kanban card renderer and view rendering). **Solution:** Verify `onDragEnd` handler in `KanbanView` properly updates show status via mutation when a card is moved between columns. Wire a `BrowseShowsPage`-level callback that calls the show update mutation to persist the status change.
+- [x] **Add drag-and-drop functionality to shows kanban view** — Implemented: DragOverlay with card preview, drop zone highlighting (ring + dashed borders), empty column "Drop here" state. Wired onStatusChange to update show status via showStore. Maps kanban columns to actual show status values.

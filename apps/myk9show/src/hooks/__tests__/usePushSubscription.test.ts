@@ -5,7 +5,7 @@ import { renderHook, act } from '@testing-library/react';
 vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'test-vapid-key');
 
 // Hoist mock variables so they are available in vi.mock factory closures
-const { mockEq, mockUpsert, mockDelete, mockFrom, mockUpdatePreferences, mockRequestPermission } =
+const { mockUpsert, mockDelete, mockFrom, mockUpdatePreferences, mockRequestPermission } =
   vi.hoisted(() => {
     const mockEq = vi.fn();
     mockEq.mockImplementation(() => ({

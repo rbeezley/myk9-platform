@@ -43,7 +43,6 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
     !isAllDone &&
     data.stats.total > 0 &&
     data.stats.completed === 0 &&
-    !data.nextUp &&
     data.myClasses.every(c => c.scoredEntries === 0 && !c.currentDogInRing);
 
   // User toggle state: null = no manual toggle yet (use default based on isAllDone)
@@ -147,7 +146,6 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
               key={show.showId}
               role="tab"
               aria-selected={show.showId === activeShowId}
-              aria-current={show.showId === activeShowId ? 'true' : undefined}
               onClick={() => handleShowSelect(show.showId)}
               className={cn(
                 'px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors min-h-[48px]',

@@ -233,7 +233,8 @@ export function useShowDayData(): ShowDayData {
   const { userWithRoles } = useAuthContext();
   const userId = userWithRoles?.databaseUserId ?? '';
 
-  const today = useMemo(() => getTodayLocal(), []);
+  // No useMemo — must recompute on each render so an overnight tab picks up the new date
+  const today = getTodayLocal();
 
   // Tier 1: Lightweight check (60s interval, always active)
   const checkQuery = useQuery({

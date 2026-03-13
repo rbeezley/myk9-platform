@@ -93,7 +93,7 @@ const ExhibitorDashboard: React.FC = () => {
     (entryId: string, newStatus: CheckInStatus) => {
       checkInMutation.mutate({ entryId, newStatus });
     },
-    [checkInMutation]
+    [checkInMutation.mutate]
   );
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';

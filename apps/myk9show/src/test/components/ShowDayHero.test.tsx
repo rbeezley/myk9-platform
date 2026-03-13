@@ -362,14 +362,14 @@ describe('ShowDayHero', () => {
 
   // --- Phase 4: Multi-show accessibility ---
 
-  it('sets aria-current on the active show tab', () => {
+  it('sets aria-selected on the active show tab', () => {
     const show1 = makeShow({ showId: 'show-1', showName: 'Show A' });
     const show2 = makeShow({ showId: 'show-2', showName: 'Show B' });
     render(<ShowDayHero data={makeData({ activeShows: [show1, show2], activeShow: show1 })} />);
     const activeTab = screen.getByRole('tab', { name: 'Show A' });
-    expect(activeTab).toHaveAttribute('aria-current', 'true');
+    expect(activeTab).toHaveAttribute('aria-selected', 'true');
     const inactiveTab = screen.getByRole('tab', { name: 'Show B' });
-    expect(inactiveTab).not.toHaveAttribute('aria-current');
+    expect(inactiveTab).toHaveAttribute('aria-selected', 'false');
   });
 
   // --- Phase 4: Stats row aria-live ---

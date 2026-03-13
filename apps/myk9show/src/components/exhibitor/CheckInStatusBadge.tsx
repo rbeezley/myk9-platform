@@ -117,7 +117,7 @@ export function CheckInStatusBadge({
         'cursor-pointer transition-all duration-150',
         'hover:shadow-sm hover:brightness-95 active:scale-95',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-        'min-h-[32px]',
+        'min-h-[44px]',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
       aria-label={`Status: ${label}. Click to change.`}

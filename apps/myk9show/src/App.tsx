@@ -53,6 +53,9 @@ import { PanelProvider } from './components/panels/PanelContext';
 // Alert System
 import { AlertInitializer } from './components/alerts';
 
+// Notification System
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+
 // Exhibitor Onboarding
 import { ExhibitorOnboardingChecker } from './components/exhibitor';
 
@@ -234,6 +237,7 @@ function App() {
                         >
                           <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                             <AppHeader />
+                            <NotificationCenter />
                             <Routes>
                               {/* Public routes */}
                               <Route

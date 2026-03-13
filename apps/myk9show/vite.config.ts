@@ -146,24 +146,18 @@ export default defineConfig({
         entryFileNames: 'assets/scripts/[name]-[hash].js',
       },
     },
-    // Enable source maps for better debugging
     sourcemap: process.env.NODE_ENV !== 'production',
-    // Enhanced bundle optimization for Core Web Vitals - FIXED VERSION
     minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: process.env.NODE_ENV === 'production',
         drop_debugger: process.env.NODE_ENV === 'production',
         pure_funcs: ['console.log', 'console.info', 'console.debug'],
-        // Enhanced tree shaking and dead code elimination
         unused: true,
         dead_code: true,
-        // FIXED: Remove side_effects: false to prevent infinite analysis loops
-        // Advanced compression options for better LCP
-        passes: 1, // FIXED: Reduced from 2 to prevent exponential processing time
+        passes: 1,
         pure_getters: true,
-        unsafe: false, // Keep safe for React apps
-        // Reduce bundle size further
+        unsafe: false,
         hoist_funs: true,
         hoist_vars: true,
         reduce_vars: true,
@@ -171,16 +165,12 @@ export default defineConfig({
       },
       format: {
         comments: false,
-        // Reduce output size
-        quote_style: 1, // Use single quotes
+        quote_style: 1,
         shorthand: true,
       },
       mangle: {
-        // FIXED: Simplified mangling to prevent conflicts
-        // Remove property mangling regex that could cause issues
-        // Mangle top-level names for better compression
-        toplevel: false, // FIXED: Disabled to prevent conflicts with manual chunking
-        safari10: true, // Fix Safari 10 compatibility
+        toplevel: false,
+        safari10: true,
       },
     },
     // Code splitting settings - optimized for Core Web Vitals

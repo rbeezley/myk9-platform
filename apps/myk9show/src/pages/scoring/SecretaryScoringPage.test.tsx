@@ -181,6 +181,7 @@ describe('SecretaryScoringPage', () => {
   it('passes entry, classInfo, rules as props', async () => {
     let capturedProps: EntryScoresheetProps | null = null;
     const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
+      // eslint-disable-next-line react-hooks/globals -- test prop capture pattern
       capturedProps = props;
       return <div data-testid="entry-scoresheet" />;
     };
@@ -203,6 +204,7 @@ describe('SecretaryScoringPage', () => {
   it('calls submitScoreOptimistically on submit', async () => {
     let capturedOnSubmit: ((data: ScoreData) => void) | null = null;
     const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
+      // eslint-disable-next-line react-hooks/globals -- test prop capture pattern
       capturedOnSubmit = props.onSubmit as (data: ScoreData) => void;
       return <div data-testid="entry-scoresheet" />;
     };
@@ -245,6 +247,7 @@ describe('SecretaryScoringPage', () => {
   it('navigates to next entry on onNext', async () => {
     let capturedOnNext: (() => void) | undefined;
     const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
+      // eslint-disable-next-line react-hooks/globals -- test prop capture pattern
       capturedOnNext = props.onNext;
       return <div data-testid="entry-scoresheet" />;
     };
@@ -265,6 +268,7 @@ describe('SecretaryScoringPage', () => {
   it('calls onBack to navigate to entry list', async () => {
     let capturedOnBack: (() => void) | undefined;
     const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
+      // eslint-disable-next-line react-hooks/globals -- test prop capture pattern
       capturedOnBack = props.onBack;
       return <div data-testid="entry-scoresheet" />;
     };
@@ -316,6 +320,7 @@ describe('SecretaryScoringPage', () => {
   it('does not provide onNext when on last entry', async () => {
     let capturedOnNext: (() => void) | undefined;
     const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
+      // eslint-disable-next-line react-hooks/globals -- test prop capture pattern
       capturedOnNext = props.onNext;
       return <div data-testid="entry-scoresheet" />;
     };

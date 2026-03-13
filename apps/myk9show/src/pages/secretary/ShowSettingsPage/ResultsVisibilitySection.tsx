@@ -125,6 +125,7 @@ export function ResultsVisibilitySection({
   // Sync with server data when it changes (e.g., after mutation settles)
   useEffect(() => {
     setCustomTimings(fieldTimingsFromSettings(settings.visibility));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- individual fields used to avoid object identity issues
   }, [
     settings.visibility.placement,
     settings.visibility.qualification,

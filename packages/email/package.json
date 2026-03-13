@@ -1,0 +1,32 @@
+{
+  "name": "@myk9/email",
+  "version": "0.0.1",
+  "description": "Email templates for myK9Show — React Email components",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@react-email/components": "^0.0.36",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@react-email/render": "^1.0.5",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

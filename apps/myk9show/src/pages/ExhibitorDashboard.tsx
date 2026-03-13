@@ -103,7 +103,7 @@ const ExhibitorDashboard: React.FC = () => {
         { onError: () => toast.error('Could not update check-in status. Please try again.') }
       );
     },
-    [checkInMutation.mutate]
+    [checkInMutation]
   );
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';

@@ -27,8 +27,10 @@ export function useShowDayAlerts(showDayData: ShowDayData): void {
 
   // Stable refs to avoid effect re-runs when deliver/leadDogs change
   const deliverRef = useRef(deliver);
+  // eslint-disable-next-line react-hooks/refs -- intentional: stable ref update pattern
   deliverRef.current = deliver;
   const leadDogsRef = useRef(leadDogs);
+  // eslint-disable-next-line react-hooks/refs -- intentional: stable ref update pattern
   leadDogsRef.current = leadDogs;
 
   // Track which notifications have already fired (prevents duplicates)
@@ -137,6 +139,5 @@ export function useShowDayAlerts(showDayData: ShowDayData): void {
       );
     }
     // Only re-run when showDayData changes (refs handle deliver/leadDogs)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDayData]);
 }

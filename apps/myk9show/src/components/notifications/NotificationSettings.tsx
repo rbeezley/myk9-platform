@@ -1,6 +1,7 @@
 import { useNotificationStore } from '@/store/notificationStore';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { notifications } from '@/lib/notifications';
+import { useState } from 'react';
 import { testSound } from '@myk9/notifications';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -19,22 +20,28 @@ export function NotificationSettings() {
   const permissionStatus = useNotificationStore(s => s.permissionStatus);
   const updatePreferences = useNotificationStore(s => s.updatePreferences);
   const { subscribe, unsubscribe, isSupported } = usePushSubscription();
+  const [isPushLoading, setIsPushLoading] = useState(false);
 
   async function handlePushToggle(checked: boolean) {
-    if (checked) {
-      const result = await subscribe();
-      if (!result.ok) {
-        if (result.reason === 'permission-denied') {
-          notifications.warning('Push notifications blocked. Check browser settings.');
-        } else {
-          notifications.error('Failed to enable push notifications.');
+    setIsPushLoading(true);
+    try {
+      if (checked) {
+        const result = await subscribe();
+        if (!result.ok) {
+          if (result.reason === 'permission-denied') {
+            notifications.warning('Push notifications blocked. Check browser settings.');
+          } else {
+            notifications.error('Failed to enable push notifications.');
+          }
+        }
+      } else {
+        const result = await unsubscribe();
+        if (!result.ok) {
+          notifications.error('Failed to disable push notifications.');
         }
       }
-    } else {
-      const result = await unsubscribe();
-      if (!result.ok) {
-        notifications.error('Failed to disable push notifications.');
-      }
+    } finally {
+      setIsPushLoading(false);
     }
   }
 
@@ -129,7 +136,7 @@ export function NotificationSettings() {
             <Switch
               id="push-enabled"
               checked={preferences.pushEnabled}
-              disabled={!isSupported}
+              disabled={!isSupported || isPushLoading}
               onCheckedChange={handlePushToggle}
             />
           </div>

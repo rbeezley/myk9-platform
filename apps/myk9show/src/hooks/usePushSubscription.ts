@@ -73,11 +73,17 @@ export function usePushSubscription() {
       await unsubscribeFromPush();
 
       if (existing) {
-        await supabase
+        const { error } = await supabase
           .from('push_subscriptions')
           .delete()
           .eq('user_id', user.id)
           .eq('endpoint', existing.endpoint);
+
+        if (error) {
+          console.error('Failed to delete push subscription:', error.message);
+          updatePreferences({ pushEnabled: false });
+          return { ok: false };
+        }
       }
 
       updatePreferences({ pushEnabled: false });

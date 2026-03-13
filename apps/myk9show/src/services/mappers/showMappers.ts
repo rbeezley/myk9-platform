@@ -34,6 +34,7 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     // database schema. These are app-only fields derived from the club relation or
     // computed locally. Sending them to Supabase would cause insert errors.
     // assignedJudges are stored in the separate judge_assignments table, not on shows.
+    // TODO: Remove `as DbShowInsert` cast after regenerating Supabase types (run `supabase gen types`)
   } as DbShowInsert;
 };
 
@@ -213,6 +214,7 @@ export const mapDatabaseToShow = (
     maxEntriesPerDog: dbShow.max_entries_per_dog || undefined,
     maxTotalEntries: dbShow.max_total_entries || undefined,
     allowNonOwnerHandlers: dbShow.allow_non_owner_handlers || true,
+    // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
 

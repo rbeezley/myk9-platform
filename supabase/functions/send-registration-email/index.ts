@@ -6,10 +6,20 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'myK9Show <noreply@myk9show.com>';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const ALLOWED_ORIGINS = [
+  'https://myk9-platform-myk9show.vercel.app',
+  'https://myk9show.com',
+  'http://localhost:5173',
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
 
 function formatCurrency(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -124,6 +134,8 @@ function buildRegistrationEmailHtml(data: {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -171,11 +183,11 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch registration with related data
+    // Fetch registration with related data (include auth_user_id for ownership check)
     const { data: registration, error: regError } = await supabase
       .from('registrations')
       .select(
-        '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message), person:people(first_name, last_name, email)'
+        '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message, club_id), person:people(first_name, last_name, email, auth_user_id)'
       )
       .eq('id', registrationId)
       .single();
@@ -187,18 +199,27 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verify the caller owns this registration or is a secretary for the show
-    const isOwner = registration.person?.id === user.id;
+    // Verify the caller owns this registration or is a secretary for the show's club
+    const isOwner = registration.person?.auth_user_id === user.id;
     let isSecretary = false;
-    if (!isOwner && registration.show_id) {
-      const { data: showRole } = await supabase
-        .from('show_roles')
-        .select('role')
-        .eq('show_id', registration.show_id)
-        .eq('user_id', user.id)
-        .eq('role', 'secretary')
+    if (!isOwner && registration.show?.club_id) {
+      // Check if caller has trial_secretary role for this club via user_roles + roles tables
+      const { data: callerPerson } = await supabase
+        .from('people')
+        .select('id')
+        .eq('auth_user_id', user.id)
         .maybeSingle();
-      isSecretary = !!showRole;
+
+      if (callerPerson) {
+        const { data: secretaryRole } = await supabase
+          .from('user_roles')
+          .select('id, role:roles!inner(name)')
+          .eq('user_id', callerPerson.id)
+          .eq('club_id', registration.show.club_id)
+          .eq('roles.name', 'trial_secretary')
+          .maybeSingle();
+        isSecretary = !!secretaryRole;
+      }
     }
     // Also allow platform admins
     const isAdmin = user.app_metadata?.role === 'admin';

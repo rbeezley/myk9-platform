@@ -156,6 +156,7 @@ const EntryManagementPage: React.FC = () => {
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
 
   const handleResendEmail = async (registrationId: string) => {
+    // Set cooldown immediately to prevent double-clicks during the request
     setResendCooldowns(prev => ({ ...prev, [registrationId]: Date.now() + 60_000 }));
     try {
       const { error } = await supabase.functions.invoke('send-registration-email', {
@@ -164,6 +165,12 @@ const EntryManagementPage: React.FC = () => {
       if (error) throw error;
       toast.success('Confirmation email resent');
     } catch {
+      // Clear cooldown on failure so user can retry immediately
+      setResendCooldowns(prev => {
+        const next = { ...prev };
+        delete next[registrationId];
+        return next;
+      });
       toast.error('Failed to resend email');
     }
   };

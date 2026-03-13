@@ -19,8 +19,8 @@ export function useEmailStatus(registrationIds: string[]) {
     queryFn: async () => {
       if (registrationIds.length === 0) return {};
 
+      // TODO: Remove `as any` cast after regenerating Supabase types (run `supabase gen types`)
       // email_log table exists in DB but not yet in generated Supabase types.
-      // Use rpc-style raw query via the REST endpoint.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const client = supabase as any;
       const { data, error } = await client

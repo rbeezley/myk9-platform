@@ -98,6 +98,18 @@ async function handleEvent(event: {
       ? `${event.data.bounce_type || 'unknown'}: ${event.data.error?.message || ''}`
       : undefined;
 
+  // Only update if the status would actually change (idempotent)
+  const { data: existing } = await supabase
+    .from('email_log')
+    .select('status')
+    .eq('resend_message_id', event.data.email_id)
+    .maybeSingle();
+
+  if (existing && existing.status === newStatus) {
+    // Already at this status — skip redundant write
+    return new Response('OK', { status: 200 });
+  }
+
   const { error } = await supabase
     .from('email_log')
     .update({

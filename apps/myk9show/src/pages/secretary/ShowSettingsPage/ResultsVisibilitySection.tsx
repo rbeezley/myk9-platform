@@ -5,7 +5,7 @@
  * for per-field timing overrides and per-trial override controls.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -118,19 +118,30 @@ export function ResultsVisibilitySection({
   trials,
 }: ResultsVisibilitySectionProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Derive a stable key from server visibility settings so local state resets
+  // when server data changes (e.g., after mutation settles)
+  const serverTimingsKey = useMemo(
+    () =>
+      `${settings.visibility.placement}|${settings.visibility.qualification}|${settings.visibility.time}|${settings.visibility.faults}`,
+    [
+      settings.visibility.placement,
+      settings.visibility.qualification,
+      settings.visibility.time,
+      settings.visibility.faults,
+    ]
+  );
+
   const [customTimings, setCustomTimings] = useState<FieldTimings>(() =>
     fieldTimingsFromSettings(settings.visibility)
   );
 
-  // Sync with server data when it changes (e.g., after mutation settles)
-  useEffect(() => {
+  // Reset local custom timings when server data changes
+  const [prevKey, setPrevKey] = useState(serverTimingsKey);
+  if (serverTimingsKey !== prevKey) {
+    setPrevKey(serverTimingsKey);
     setCustomTimings(fieldTimingsFromSettings(settings.visibility));
-  }, [
-    settings.visibility.placement,
-    settings.visibility.qualification,
-    settings.visibility.time,
-    settings.visibility.faults,
-  ]);
+  }
 
   const updateVisibility = useUpdateShowVisibility();
   const updateTrialOverride = useUpdateTrialOverride();

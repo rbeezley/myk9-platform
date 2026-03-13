@@ -75,45 +75,42 @@ export function CheckInStatusMenu({
   }, [isOpen, focusedIndex]);
 
   // Keyboard handler for the menu
-  const handleMenuKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          setFocusedIndex(i => (i + 1) % MENU_ORDER.length);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setFocusedIndex(i => (i - 1 + MENU_ORDER.length) % MENU_ORDER.length);
-          break;
-        case 'Home':
-          e.preventDefault();
-          setFocusedIndex(0);
-          break;
-        case 'End':
-          e.preventDefault();
-          setFocusedIndex(MENU_ORDER.length - 1);
-          break;
-        case 'Escape':
-          e.preventDefault();
-          closeAndRestoreFocus();
-          break;
-        case 'Tab':
-          // Trap focus — close menu instead of tabbing out
-          e.preventDefault();
-          closeAndRestoreFocus();
-          break;
-        case 'Enter':
-        case ' ':
-          e.preventDefault();
-          if (focusedIndex >= 0) {
-            handleSelect(MENU_ORDER[focusedIndex]);
-          }
-          break;
-      }
-    },
-    [focusedIndex, closeAndRestoreFocus]
-  );
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedIndex(i => (i + 1) % MENU_ORDER.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedIndex(i => (i - 1 + MENU_ORDER.length) % MENU_ORDER.length);
+        break;
+      case 'Home':
+        e.preventDefault();
+        setFocusedIndex(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        setFocusedIndex(MENU_ORDER.length - 1);
+        break;
+      case 'Escape':
+        e.preventDefault();
+        closeAndRestoreFocus();
+        break;
+      case 'Tab':
+        // Trap focus — close menu instead of tabbing out
+        e.preventDefault();
+        closeAndRestoreFocus();
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (focusedIndex >= 0) {
+          handleSelect(MENU_ORDER[focusedIndex]);
+        }
+        break;
+    }
+  };
 
   return (
     <div className="relative" ref={triggerRef}>
@@ -135,7 +132,7 @@ export function CheckInStatusMenu({
           <div className="fixed inset-0 z-40" onClick={closeAndRestoreFocus} aria-hidden="true" />
 
           {/* Menu */}
-          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- onKeyDown handles ARIA menu keyboard pattern */}
+          {/* onKeyDown handles ARIA menu keyboard pattern */}
           <div
             ref={menuRef}
             role="menu"

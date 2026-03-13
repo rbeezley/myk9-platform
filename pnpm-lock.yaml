@@ -45,7 +45,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/scoring-ui
       '@myk9/secretary':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../packages/secretary
       '@myk9/supabase':
         specifier: workspace:*
@@ -253,7 +253,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/scoring-ui
       '@myk9/secretary':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../packages/secretary
       '@myk9/supabase':
         specifier: workspace:*

@@ -6,7 +6,7 @@ import {
   getEntriesForShow,
   SecretaryEntry,
 } from '@/services/database/queries/secretaryEntryQueries';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 import type {
   EntryManagementEntry,
   EntryManagementShow,
@@ -125,7 +125,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
                   fee: entry.entry_fee || 0,
                   ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
                   status: mapClassEntryStatus(entry.entry_status),
-                  checkInStatus: (entry.is_in_ring ? 'checked-in' : 'none') as CheckInStatus,
+                  checkInStatus: (entry.is_in_ring ? 'checked-in' : 'no-status') as CheckInStatus,
                 },
               ]
             : [],

@@ -1,6 +1,6 @@
 /**
  * Armband Manager
- * 
+ *
  * Handles armband assignment, conflict detection and resolution,
  * and ensures unique armband assignments across classes.
  */
@@ -16,7 +16,7 @@ import type {
   ArmbandManagerConfig,
   CheckInEntry,
   CheckInEvent,
-  CheckInEventType
+  CheckInEventType,
 } from '@/types/offline-checkin-types';
 import { generateId } from '@/utils/idUtils';
 
@@ -24,10 +24,8 @@ const DEFAULT_CONFIG: ArmbandManagerConfig = {
   autoAssignArmbands: true,
   allowDuplicates: false,
   conflictResolutionStrategy: 'reassign',
-  armbandRanges: [
-    { start: 1, end: 999 }
-  ],
-  reservedArmbands: []
+  armbandRanges: [{ start: 1, end: 999 }],
+  reservedArmbands: [],
 };
 
 export class ArmbandManager extends EventEmitter {
@@ -99,8 +97,8 @@ export class ArmbandManager extends EventEmitter {
           _version: 1,
           _lastModified: new Date().toISOString(),
           _lastModifiedBy: assignedBy || 'system',
-          _syncStatus: 'pending'
-        }
+          _syncStatus: 'pending',
+        },
       };
 
       // Check for conflicts
@@ -119,7 +117,7 @@ export class ArmbandManager extends EventEmitter {
         entryId,
         armband,
         classId,
-        assignedBy: assignedBy || 'system'
+        assignedBy: assignedBy || 'system',
       });
 
       return assignment;
@@ -128,7 +126,7 @@ export class ArmbandManager extends EventEmitter {
         entryId,
         classId,
         preferredArmband,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -155,14 +153,14 @@ export class ArmbandManager extends EventEmitter {
     assignment.assignedAt = new Date();
     assignment.assignedBy = reassignedBy;
     assignment.updatedAt = new Date();
-    
+
     // Update sync metadata
     if (!assignment._sync) {
       assignment._sync = {
         _version: 1,
         _lastModified: new Date().toISOString(),
         _lastModifiedBy: reassignedBy,
-        _syncStatus: 'pending'
+        _syncStatus: 'pending',
       };
     } else {
       assignment._sync._version++;
@@ -180,7 +178,7 @@ export class ArmbandManager extends EventEmitter {
       originalArmband,
       newArmband,
       classId: assignment.classId,
-      reassignedBy
+      reassignedBy,
     });
 
     return assignment;
@@ -195,14 +193,14 @@ export class ArmbandManager extends EventEmitter {
     assignment.status = 'available';
     assignment.entryId = undefined;
     assignment.updatedAt = new Date();
-    
+
     // Update sync metadata
     if (!assignment._sync) {
       assignment._sync = {
         _version: 1,
         _lastModified: new Date().toISOString(),
         _lastModifiedBy: releasedBy,
-        _syncStatus: 'pending'
+        _syncStatus: 'pending',
       };
     } else {
       assignment._sync._version++;
@@ -218,7 +216,7 @@ export class ArmbandManager extends EventEmitter {
       assignmentId,
       armband: assignment.armband,
       classId: assignment.classId,
-      releasedBy
+      releasedBy,
     });
   }
 
@@ -228,8 +226,9 @@ export class ArmbandManager extends EventEmitter {
     const armbandMap = new Map<string, ArmbandAssignment[]>();
 
     // Group assignments by armband within each class
-    const relevantAssignments = Array.from(this.assignments.values())
-      .filter(a => a.status === 'assigned' && (!classId || a.classId === classId));
+    const relevantAssignments = Array.from(this.assignments.values()).filter(
+      a => a.status === 'assigned' && (!classId || a.classId === classId)
+    );
 
     for (const assignment of relevantAssignments) {
       const key = `${assignment.classId}-${assignment.armband}`;
@@ -243,7 +242,7 @@ export class ArmbandManager extends EventEmitter {
     for (const [key, assignments] of armbandMap.entries()) {
       if (assignments.length > 1) {
         const [classId, armband] = key.split('-');
-        
+
         // Create mock entries for conflict resolution
         const conflictingEntries: CheckInEntry[] = assignments.map(a => ({
           id: a.entryId!,
@@ -264,15 +263,15 @@ export class ArmbandManager extends EventEmitter {
           classNumber: '',
           ringNumber: 0,
           judgeName: '',
-          checkInStatus: 'none',
+          checkInStatus: 'no-status',
           createdAt: new Date(),
           updatedAt: new Date(),
           _sync: {
             _version: 1,
             _lastModified: new Date().toISOString(),
             _lastModifiedBy: 'system',
-            _syncStatus: 'pending'
-          }
+            _syncStatus: 'pending',
+          },
         }));
 
         conflicts.push({
@@ -281,7 +280,7 @@ export class ArmbandManager extends EventEmitter {
           classId,
           conflictingEntries,
           conflictType: 'duplicate_assignment',
-          detectedAt: new Date()
+          detectedAt: new Date(),
         });
       }
     }
@@ -327,10 +326,12 @@ export class ArmbandManager extends EventEmitter {
       this.emitEvent('armband_conflict_resolved', {
         conflictId,
         strategy: resolution.strategy,
-        resolvedBy
+        resolvedBy,
       });
     } catch (error) {
-      throw new Error(`Failed to resolve conflict: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to resolve conflict: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -347,7 +348,10 @@ export class ArmbandManager extends EventEmitter {
     return Array.from(this.assignments.values()).find(a => a.entryId === entryId) || null;
   }
 
-  async getAvailableArmbands(classId: string, range?: { start: number; end: number }): Promise<string[]> {
+  async getAvailableArmbands(
+    classId: string,
+    range?: { start: number; end: number }
+  ): Promise<string[]> {
     const assignments = await this.getAssignmentsForClass(classId);
     const usedArmbands = new Set(assignments.map(a => a.armband));
     const effectiveRange = range || this.config.armbandRanges[0];
@@ -355,8 +359,7 @@ export class ArmbandManager extends EventEmitter {
 
     for (let i = effectiveRange.start; i <= effectiveRange.end; i++) {
       const armband = i.toString();
-      if (!usedArmbands.has(armband) && 
-          !this.config.reservedArmbands.includes(armband)) {
+      if (!usedArmbands.has(armband) && !this.config.reservedArmbands.includes(armband)) {
         available.push(armband);
       }
     }
@@ -385,7 +388,7 @@ export class ArmbandManager extends EventEmitter {
       } catch (error) {
         failed.push({
           entryId: entry.entryId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -413,7 +416,7 @@ export class ArmbandManager extends EventEmitter {
     for (let i = 1; i < armbandNumbers.length; i++) {
       const current = armbandNumbers[i];
       const previous = armbandNumbers[i - 1];
-      
+
       if (current - previous > 1) {
         for (let gap = previous + 1; gap < current; gap++) {
           gaps.push(gap);
@@ -445,7 +448,7 @@ export class ArmbandManager extends EventEmitter {
       isValid: issues.length === 0,
       issues,
       gaps,
-      duplicates
+      duplicates,
     };
   }
 
@@ -455,34 +458,40 @@ export class ArmbandManager extends EventEmitter {
     return !existingAssignment || existingAssignment.status === 'available';
   }
 
-  private async findAssignmentByArmband(armband: string, classId: string): Promise<ArmbandAssignment | null> {
-    return Array.from(this.assignments.values()).find(
-      a => a.armband === armband && a.classId === classId && a.status === 'assigned'
-    ) || null;
+  private async findAssignmentByArmband(
+    armband: string,
+    classId: string
+  ): Promise<ArmbandAssignment | null> {
+    return (
+      Array.from(this.assignments.values()).find(
+        a => a.armband === armband && a.classId === classId && a.status === 'assigned'
+      ) || null
+    );
   }
 
   private async getNextAvailableArmband(classId: string): Promise<string> {
     const availableArmbands = await this.getAvailableArmbands(classId);
-    
+
     if (availableArmbands.length === 0) {
       throw new Error(`No available armbands for class ${classId}`);
     }
 
     // Return the lowest available number
-    const numbers = availableArmbands.map(a => parseInt(a)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    const numbers = availableArmbands
+      .map(a => parseInt(a))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
     return numbers[0].toString();
   }
 
-  private async handleArmbandConflict(
-    newAssignment: ArmbandAssignment
-  ): Promise<void> {
+  private async handleArmbandConflict(newAssignment: ArmbandAssignment): Promise<void> {
     const conflict: ArmbandConflict = {
       id: generateId(),
       armband: newAssignment.armband,
       classId: newAssignment.classId,
       conflictingEntries: [], // Will be populated with actual entries
       conflictType: 'duplicate_assignment',
-      detectedAt: new Date()
+      detectedAt: new Date(),
     };
 
     this.conflicts.set(conflict.id, conflict);
@@ -490,9 +499,13 @@ export class ArmbandManager extends EventEmitter {
     // Auto-resolve conflicts if strategy is not manual
     if (this.config.conflictResolutionStrategy !== 'manual') {
       const resolution: ArmbandConflictResolution = {
-        strategy: this.config.conflictResolutionStrategy === 'reassign' ? 'reassign_duplicates' :
-                 this.config.conflictResolutionStrategy === 'first_wins' ? 'keep_first' : 'manual_assignment',
-        newAssignments: []
+        strategy:
+          this.config.conflictResolutionStrategy === 'reassign'
+            ? 'reassign_duplicates'
+            : this.config.conflictResolutionStrategy === 'first_wins'
+              ? 'keep_first'
+              : 'manual_assignment',
+        newAssignments: [],
       };
 
       await this.resolveConflict(conflict.id, resolution, 'system');
@@ -501,7 +514,7 @@ export class ArmbandManager extends EventEmitter {
     this.emitEvent('armband_conflict', {
       conflictId: conflict.id,
       armband: newAssignment.armband,
-      classId: newAssignment.classId
+      classId: newAssignment.classId,
     });
   }
 
@@ -522,7 +535,10 @@ export class ArmbandManager extends EventEmitter {
     }
   }
 
-  private async resolveByKeepingFirst(conflict: ArmbandConflict, resolvedBy: string): Promise<void> {
+  private async resolveByKeepingFirst(
+    conflict: ArmbandConflict,
+    resolvedBy: string
+  ): Promise<void> {
     const assignments = Array.from(this.assignments.values()).filter(
       a => a.armband === conflict.armband && a.classId === conflict.classId
     );
@@ -569,9 +585,9 @@ export class ArmbandManager extends EventEmitter {
       timestamp: new Date(),
       data,
       source: 'service',
-      priority: 'medium'
+      priority: 'medium',
     };
-    
+
     this.emit('armband-event', event);
   }
 
@@ -581,9 +597,9 @@ export class ArmbandManager extends EventEmitter {
       const data = {
         assignments: Array.from(this.assignments.entries()),
         conflicts: Array.from(this.conflicts.entries()),
-        config: this.config
+        config: this.config,
       };
-      
+
       await this.storage.setItem('armband-manager-data', JSON.stringify(data));
     } catch (error) {
       logger.error('Failed to persist armband data:', 'services', {}, error as Error);
@@ -596,15 +612,15 @@ export class ArmbandManager extends EventEmitter {
       if (!dataStr) return;
 
       const data = JSON.parse(dataStr);
-      
+
       if (data.assignments) {
         this.assignments = new Map(data.assignments);
       }
-      
+
       if (data.conflicts) {
         this.conflicts = new Map(data.conflicts);
       }
-      
+
       if (data.config) {
         this.config = { ...this.config, ...data.config };
       }

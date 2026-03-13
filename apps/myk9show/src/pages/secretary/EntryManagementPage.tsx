@@ -486,7 +486,7 @@ const EntryManagementPage: React.FC = () => {
                   setCheckInDialog({ open: false, entry: null, classEntry: null });
                 }
               }}
-              currentStatus={checkInDialog.classEntry.checkInStatus || 'none'}
+              currentStatus={checkInDialog.classEntry.checkInStatus || 'no-status'}
               entryInfo={{
                 armband: checkInDialog.entry.armbandNumber || checkInDialog.entry.entryNumber,
                 dogName: checkInDialog.entry.dogName,

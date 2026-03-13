@@ -209,7 +209,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
           entityType: 'class_entry',
           entityId: classId,
           changes: {
-            checkInStatus: { from: previousStatus || 'none', to: status },
+            checkInStatus: { from: previousStatus || 'no-status', to: status },
           },
           metadata: {
             action: 'exhibitor_check_in',

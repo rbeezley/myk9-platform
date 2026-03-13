@@ -2,7 +2,7 @@
  * Types for GateStewardInterface and related components.
  */
 
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 
 export interface GateEntry {
   id: string;

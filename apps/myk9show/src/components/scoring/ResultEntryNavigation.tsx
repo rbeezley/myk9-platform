@@ -19,7 +19,7 @@ import { useUpdateEntryMutation } from '@/hooks/queries/useEntriesDatabase';
 
 // Types
 import type { ScentWorkEntry, ScentWorkResult } from '@/types/scent-work-types';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { CheckInManagementOverlay } from '@/components/common/CheckInManagementOverlay';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -359,7 +359,7 @@ export function ResultEntryNavigation({
                     <div className="flex items-center justify-between w-full">
                       <div className="myk9-entry-status-text pending">Not Started</div>
                       {(() => {
-                        const status = entry.checkInStatus || 'none';
+                        const status = entry.checkInStatus || 'no-status';
                         switch (status) {
                           case 'checked-in':
                             return (
@@ -385,10 +385,10 @@ export function ResultEntryNavigation({
                                 Pulled
                               </div>
                             );
-                          case 'go-to-gate':
+                          case 'come-to-gate':
                             return (
                               <div className="px-2 py-1 text-xs font-medium bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200 rounded-md border border-violet-200 dark:border-violet-700">
-                                Go to Gate
+                                Come to Gate
                               </div>
                             );
                           default:
@@ -418,7 +418,7 @@ export function ResultEntryNavigation({
         <CheckInStatusDialog
           open={checkInDialogOpen}
           onOpenChange={setCheckInDialogOpen}
-          currentStatus={selectedEntryForCheckIn.checkInStatus || 'none'}
+          currentStatus={selectedEntryForCheckIn.checkInStatus || 'no-status'}
           onUpdateStatus={handleCheckInStatusUpdate}
           entryInfo={{
             armband: selectedEntryForCheckIn.displayInfo.armband,

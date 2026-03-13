@@ -5,9 +5,14 @@
  * (ScentWorkEntry, ScentWorkResult, UnifiedEntryData).
  */
 
-import type { ScentWorkEntry, ScentWorkClassConfig, ScentWorkResult, QualificationStatus } from '@/types/scent-work-types';
+import type {
+  ScentWorkEntry,
+  ScentWorkClassConfig,
+  ScentWorkResult,
+  QualificationStatus,
+} from '@/types/scent-work-types';
 import type { EntryStatus } from '@/types/entry-lifecycle';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 import type { UnifiedEntryData } from '@/types/unified-entry-types';
 import { getTimeLimit, isMultiAreaClass, getAreaTimeLimits } from '@/types/scent-work-types';
 
@@ -99,12 +104,10 @@ export function mapDbClassToScentWorkConfig(dbClass: DbClassForScoring): ScentWo
 
 export function mapDbEntryToScentWorkEntry(
   dbEntry: DbEntryWithDog,
-  classConfig: ScentWorkClassConfig,
+  classConfig: ScentWorkClassConfig
 ): ScentWorkEntry {
   const dog = dbEntry.dog;
-  const ownerName = dog?.owner
-    ? `${dog.owner.first_name} ${dog.owner.last_name}`.trim()
-    : '';
+  const ownerName = dog?.owner ? `${dog.owner.first_name} ${dog.owner.last_name}`.trim() : '';
 
   return {
     id: dbEntry.id,
@@ -132,9 +135,10 @@ export function mapDbEntryToScentWorkEntry(
       dogId: dbEntry.dog_id || '',
       handlerId: dbEntry.handler_id || '',
     },
-    judgingState: dbEntry.scoring_started_at && !dbEntry.scoring_completed_at
-      ? { timerStarted: new Date(dbEntry.scoring_started_at), isInProgress: true }
-      : undefined,
+    judgingState:
+      dbEntry.scoring_started_at && !dbEntry.scoring_completed_at
+        ? { timerStarted: new Date(dbEntry.scoring_started_at), isInProgress: true }
+        : undefined,
     checkInStatus: mapCheckInStatus(dbEntry.result_status, dbEntry.is_scored),
   };
 }
@@ -145,7 +149,7 @@ export function mapDbEntryToScentWorkEntry(
 
 export function extractScentWorkResult(
   dbEntry: DbEntryWithDog,
-  maxTimeAllowed: number,
+  maxTimeAllowed: number
 ): ScentWorkResult | undefined {
   if (!dbEntry.is_scored && dbEntry.search_time_seconds == null) return undefined;
 
@@ -159,9 +163,7 @@ export function extractScentWorkResult(
     qualificationReason: dbEntry.disqualification_reason || undefined,
     judgeNotes: dbEntry.judge_notes || undefined,
     recordedBy: '',
-    recordedAt: dbEntry.scoring_completed_at
-      ? new Date(dbEntry.scoring_completed_at)
-      : new Date(),
+    recordedAt: dbEntry.scoring_completed_at ? new Date(dbEntry.scoring_completed_at) : new Date(),
     isProvisional: !dbEntry.scoring_completed_at,
     placementCalculated: dbEntry.final_placement || undefined,
   };
@@ -195,9 +197,7 @@ export function mapScentWorkResultToDbUpdate(result: ScentWorkResult): Record<st
 
 export function mapDbEntryToUnifiedEntry(dbEntry: DbEntryWithDog): UnifiedEntryData {
   const dog = dbEntry.dog;
-  const ownerName = dog?.owner
-    ? `${dog.owner.first_name} ${dog.owner.last_name}`.trim()
-    : '';
+  const ownerName = dog?.owner ? `${dog.owner.first_name} ${dog.owner.last_name}`.trim() : '';
 
   return {
     id: dbEntry.id,
@@ -219,12 +219,17 @@ export function mapDbEntryToUnifiedEntry(dbEntry: DbEntryWithDog): UnifiedEntryD
 
 function mapEntryStatus(dbStatus: string | null): EntryStatus {
   const valid: EntryStatus[] = [
-    'draft', 'submitted', 'paid', 'confirmed',
-    'scheduled', 'competing', 'completed', 'withdrawn', 'scratched',
+    'draft',
+    'submitted',
+    'paid',
+    'confirmed',
+    'scheduled',
+    'competing',
+    'completed',
+    'withdrawn',
+    'scratched',
   ];
-  return valid.includes(dbStatus as EntryStatus)
-    ? (dbStatus as EntryStatus)
-    : 'confirmed';
+  return valid.includes(dbStatus as EntryStatus) ? (dbStatus as EntryStatus) : 'confirmed';
 }
 
 /**
@@ -232,37 +237,57 @@ function mapEntryStatus(dbStatus: string | null): EntryStatus {
  * After scoring, it stores the qualification result.
  */
 function mapCheckInStatus(resultStatus: string | null, isScored: boolean | null): CheckInStatus {
-  if (isScored) return 'none';
+  if (isScored) return 'no-status';
   switch (resultStatus) {
-    case 'checked-in': return 'checked-in';
-    case 'conflict': return 'conflict';
-    case 'pulled': return 'pulled';
-    case 'at-gate': return 'at-gate';
-    case 'go-to-gate': return 'go-to-gate';
-    default: return 'none';
+    case 'checked-in':
+      return 'checked-in';
+    case 'conflict':
+      return 'conflict';
+    case 'pulled':
+      return 'pulled';
+    case 'at-gate':
+      return 'at-gate';
+    case 'come-to-gate':
+      return 'come-to-gate';
+    default:
+      return 'no-status';
   }
 }
 
 function mapQualification(resultStatus: string | null): QualificationStatus {
   switch (resultStatus) {
-    case 'Qualified': return 'Qualified';
-    case 'Not Qualified': return 'Not Qualified';
-    case 'Absent': return 'Absent';
-    case 'Excused': return 'Excused';
-    case 'Withdrawn': return 'Withdrawn';
-    case 'Eliminated': return 'Eliminated';
-    default: return 'Not Qualified';
+    case 'Qualified':
+      return 'Qualified';
+    case 'Not Qualified':
+      return 'Not Qualified';
+    case 'Absent':
+      return 'Absent';
+    case 'Excused':
+      return 'Excused';
+    case 'Withdrawn':
+      return 'Withdrawn';
+    case 'Eliminated':
+      return 'Eliminated';
+    default:
+      return 'Not Qualified';
   }
 }
 
 function mapUnifiedStatus(resultStatus: string | null): UnifiedEntryData['status'] {
   switch (resultStatus) {
-    case 'Qualified': return 'Qualified';
-    case 'Not Qualified': return 'Not Qualified';
-    case 'Absent': return 'Absent';
-    case 'Withdrawn': return 'Withdrawn';
-    case 'Excused': return 'Excused';
-    case 'Eliminated': return 'Eliminated';
-    default: return 'Pending';
+    case 'Qualified':
+      return 'Qualified';
+    case 'Not Qualified':
+      return 'Not Qualified';
+    case 'Absent':
+      return 'Absent';
+    case 'Withdrawn':
+      return 'Withdrawn';
+    case 'Excused':
+      return 'Excused';
+    case 'Eliminated':
+      return 'Eliminated';
+    default:
+      return 'Pending';
   }
 }

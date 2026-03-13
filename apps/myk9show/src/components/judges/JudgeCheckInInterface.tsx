@@ -1,6 +1,6 @@
 /**
  * Judge Check-In Interface
- * 
+ *
  * Allows judges and gate stewards to manage check-in status for all entries
  * in their assigned ring. Optimized for quick status updates during competition.
  */
@@ -10,31 +10,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { logger } from '@/services/LoggingService';
+import { CheckInStatus, requiresAction, canProceedToGate } from '@/types/check-in-types';
 import {
-  CheckInStatus, 
-  requiresAction,
-  canProceedToGate
-} from '@/types/check-in-types';
-import { 
-  CheckInStatusIndicator, 
-  CheckInQuickActions 
+  CheckInStatusIndicator,
+  CheckInQuickActions,
 } from '@/components/common/CheckInStatusIndicator';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
-import { 
-  Search, 
-  Filter,
-  CheckCircle2,
-  AlertTriangle,
-  RefreshCw,
-  Eye,
-  Users
-} from 'lucide-react';
+import { Search, Filter, CheckCircle2, AlertTriangle, RefreshCw, Eye, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import '@/styles/myk9-show-details.css';
 
@@ -64,7 +58,7 @@ interface JudgeCheckInInterfaceProps {
 export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
   ringNumber,
   judgeName,
-  className
+  className,
 }) => {
   const { user } = useAuthContext();
   const [entries, setEntries] = useState<RingEntry[]>([]);
@@ -97,7 +91,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           checkInTime: new Date(2024, 6, 15, 8, 30),
           runOrder: 1,
           ring: ringNumber,
-          estimatedRunTime: new Date(2024, 6, 15, 9, 0)
+          estimatedRunTime: new Date(2024, 6, 15, 9, 0),
         },
         {
           id: 'entry_2',
@@ -108,10 +102,10 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           ownerName: 'Mike Wilson',
           className: 'Open Standard',
           classNumber: '15',
-          checkInStatus: 'go-to-gate',
+          checkInStatus: 'come-to-gate',
           runOrder: 2,
           ring: ringNumber,
-          estimatedRunTime: new Date(2024, 6, 15, 9, 2)
+          estimatedRunTime: new Date(2024, 6, 15, 9, 2),
         },
         {
           id: 'entry_3',
@@ -122,10 +116,10 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           ownerName: 'Emma Davis',
           className: 'Open Standard',
           classNumber: '15',
-          checkInStatus: 'none',
+          checkInStatus: 'no-status',
           runOrder: 3,
           ring: ringNumber,
-          estimatedRunTime: new Date(2024, 6, 15, 9, 4)
+          estimatedRunTime: new Date(2024, 6, 15, 9, 4),
         },
         {
           id: 'entry_4',
@@ -140,7 +134,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           runOrder: 4,
           ring: ringNumber,
           estimatedRunTime: new Date(2024, 6, 15, 9, 6),
-          notes: 'Handler conflict with Ring 3'
+          notes: 'Handler conflict with Ring 3',
         },
         {
           id: 'entry_5',
@@ -155,8 +149,8 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           checkInTime: new Date(2024, 6, 15, 8, 45),
           runOrder: 5,
           ring: ringNumber,
-          estimatedRunTime: new Date(2024, 6, 15, 9, 8)
-        }
+          estimatedRunTime: new Date(2024, 6, 15, 9, 8),
+        },
       ];
 
       setEntries(mockEntries);
@@ -173,11 +167,12 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(entry =>
-        entry.dogName.toLowerCase().includes(searchLower) ||
-        entry.handlerName.toLowerCase().includes(searchLower) ||
-        entry.armband.includes(searchLower) ||
-        entry.entryNumber.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        entry =>
+          entry.dogName.toLowerCase().includes(searchLower) ||
+          entry.handlerName.toLowerCase().includes(searchLower) ||
+          entry.armband.includes(searchLower) ||
+          entry.entryNumber.toLowerCase().includes(searchLower)
       );
     }
 
@@ -189,21 +184,18 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
     // Tab filter
     switch (selectedTab) {
       case 'needs-attention':
-        filtered = filtered.filter(entry => 
-          requiresAction(entry.checkInStatus) || 
-          entry.checkInStatus === 'none'
+        filtered = filtered.filter(
+          entry => requiresAction(entry.checkInStatus) || entry.checkInStatus === 'no-status'
         );
         break;
       case 'ready':
-        filtered = filtered.filter(entry => 
-          canProceedToGate(entry.checkInStatus) ||
-          entry.checkInStatus === 'at-gate'
+        filtered = filtered.filter(
+          entry => canProceedToGate(entry.checkInStatus) || entry.checkInStatus === 'at-gate'
         );
         break;
       case 'issues':
-        filtered = filtered.filter(entry => 
-          entry.checkInStatus === 'conflict' || 
-          entry.checkInStatus === 'pulled'
+        filtered = filtered.filter(
+          entry => entry.checkInStatus === 'conflict' || entry.checkInStatus === 'pulled'
         );
         break;
       default:
@@ -229,14 +221,21 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
     if (!checkInDialog.entry) return;
 
     const entry = checkInDialog.entry;
-    
+
     try {
       // Optimistic update
-      setEntries(prev => prev.map(e =>
-        e.id === entry.id
-          ? { ...e, checkInStatus: status, checkInTime: new Date(), ...(notes !== undefined && { notes }) }
-          : e
-      ));
+      setEntries(prev =>
+        prev.map(e =>
+          e.id === entry.id
+            ? {
+                ...e,
+                checkInStatus: status,
+                checkInTime: new Date(),
+                ...(notes !== undefined && { notes }),
+              }
+            : e
+        )
+      );
 
       // Log the check-in status change
       await auditService.log({
@@ -244,7 +243,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
         entityType: 'ring_entry',
         entityId: entry.id,
         changes: {
-          checkInStatus: { from: entry.checkInStatus, to: status }
+          checkInStatus: { from: entry.checkInStatus, to: status },
         },
         metadata: {
           action: 'judge_check_in_update',
@@ -254,8 +253,8 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           armband: entry.armband,
           dogName: entry.dogName,
           handlerName: entry.handlerName,
-          ...(notes !== undefined && { notes })
-        }
+          ...(notes !== undefined && { notes }),
+        },
       });
 
       // Close dialog
@@ -263,20 +262,18 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
     } catch (error) {
       logger.error('Failed to update check-in status:', 'components', {}, error as Error);
       // Revert optimistic update
-      setEntries(prev => prev.map(e => 
-        e.id === entry.id ? entry : e
-      ));
+      setEntries(prev => prev.map(e => (e.id === entry.id ? entry : e)));
     }
   };
 
   const handleQuickStatusUpdate = async (entry: RingEntry, status: CheckInStatus) => {
     try {
       // Optimistic update
-      setEntries(prev => prev.map(e => 
-        e.id === entry.id 
-          ? { ...e, checkInStatus: status, checkInTime: new Date() }
-          : e
-      ));
+      setEntries(prev =>
+        prev.map(e =>
+          e.id === entry.id ? { ...e, checkInStatus: status, checkInTime: new Date() } : e
+        )
+      );
 
       // Log the quick action
       await auditService.log({
@@ -284,7 +281,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
         entityType: 'ring_entry',
         entityId: entry.id,
         changes: {
-          checkInStatus: { from: entry.checkInStatus, to: status }
+          checkInStatus: { from: entry.checkInStatus, to: status },
         },
         metadata: {
           action: 'judge_quick_check_in',
@@ -292,8 +289,8 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           judgeName,
           ringNumber,
           armband: entry.armband,
-          dogName: entry.dogName
-        }
+          dogName: entry.dogName,
+        },
       });
     } catch (error) {
       logger.error('Failed to update check-in status:', 'components', {}, error as Error);
@@ -311,12 +308,11 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
     total: entries.length,
     checkedIn: entries.filter(e => e.checkInStatus === 'checked-in').length,
     atGate: entries.filter(e => e.checkInStatus === 'at-gate').length,
-    needsAttention: entries.filter(e => 
-      requiresAction(e.checkInStatus) || e.checkInStatus === 'none'
+    needsAttention: entries.filter(
+      e => requiresAction(e.checkInStatus) || e.checkInStatus === 'no-status'
     ).length,
-    issues: entries.filter(e => 
-      e.checkInStatus === 'conflict' || e.checkInStatus === 'pulled'
-    ).length
+    issues: entries.filter(e => e.checkInStatus === 'conflict' || e.checkInStatus === 'pulled')
+      .length,
   };
 
   if (isLoading) {
@@ -338,9 +334,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Ring {ringNumber} Check-In
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight">Ring {ringNumber} Check-In</h2>
           <p className="text-muted-foreground">
             Judge: {judgeName} • {entries.length} entries
           </p>
@@ -418,20 +412,23 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
               <Input
                 placeholder="Search entries..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CheckInStatus | 'all')}>
+            <Select
+              value={statusFilter}
+              onValueChange={value => setStatusFilter(value as CheckInStatus | 'all')}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Check-In Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="none">Not Checked In</SelectItem>
+                <SelectItem value="no-status">Not Checked In</SelectItem>
                 <SelectItem value="checked-in">Checked In</SelectItem>
-                <SelectItem value="go-to-gate">Go to Gate</SelectItem>
+                <SelectItem value="come-to-gate">Come to Gate</SelectItem>
                 <SelectItem value="at-gate">At Gate</SelectItem>
                 <SelectItem value="conflict">Conflict</SelectItem>
                 <SelectItem value="pulled">Pulled</SelectItem>
@@ -454,27 +451,21 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
       {/* Entries List */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
         <TabsList className="bg-muted/50 backdrop-blur-sm border-b border-border/50 p-1 h-auto grid grid-cols-4 gap-1">
-          <TabsTrigger value="all">
-            All ({entries.length})
-          </TabsTrigger>
+          <TabsTrigger value="all">All ({entries.length})</TabsTrigger>
           <TabsTrigger value="needs-attention">
             Needs Attention ({stats.needsAttention})
           </TabsTrigger>
-          <TabsTrigger value="ready">
-            Ready ({stats.checkedIn + stats.atGate})
-          </TabsTrigger>
-          <TabsTrigger value="issues">
-            Issues ({stats.issues})
-          </TabsTrigger>
+          <TabsTrigger value="ready">Ready ({stats.checkedIn + stats.atGate})</TabsTrigger>
+          <TabsTrigger value="issues">Issues ({stats.issues})</TabsTrigger>
         </TabsList>
 
         <TabsContent value={selectedTab} className="space-y-4">
           <Card>
             <CardContent className="p-0">
               <div className="space-y-1">
-                {filteredEntries.map((entry) => (
-                  <div 
-                    key={entry.id} 
+                {filteredEntries.map(entry => (
+                  <div
+                    key={entry.id}
                     className={cn(
                       'border-b last:border-b-0 p-4 hover:bg-muted/50 transition-colors',
                       requiresAction(entry.checkInStatus) && 'bg-orange-50 dark:bg-orange-950/20',
@@ -493,7 +484,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
                             </span>
                           )}
                         </div>
-                        
+
                         <div>
                           <div className="font-medium">{entry.dogName}</div>
                           <div className="text-sm text-muted-foreground">
@@ -512,17 +503,17 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
                           onClick={() => setCheckInDialog({ open: true, entry })}
                           className="hover:scale-105 transition-transform"
                         >
-                          <CheckInStatusIndicator 
-                            status={entry.checkInStatus} 
+                          <CheckInStatusIndicator
+                            status={entry.checkInStatus}
                             size="md"
                             showLabel={true}
                             showTooltip={true}
                           />
                         </button>
-                        
+
                         <CheckInQuickActions
                           currentStatus={entry.checkInStatus}
-                          onUpdateStatus={(status) => handleQuickStatusUpdate(entry, status)}
+                          onUpdateStatus={status => handleQuickStatusUpdate(entry, status)}
                         />
                       </div>
                     </div>
@@ -551,7 +542,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
       {checkInDialog.entry && (
         <CheckInStatusDialog
           open={checkInDialog.open}
-          onOpenChange={(open) => {
+          onOpenChange={open => {
             if (!open) {
               setCheckInDialog({ open: false, entry: null });
             }
@@ -562,7 +553,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
             dogName: checkInDialog.entry.dogName,
             handlerName: checkInDialog.entry.handlerName,
             className: checkInDialog.entry.className,
-            classNumber: checkInDialog.entry.classNumber
+            classNumber: checkInDialog.entry.classNumber,
           }}
           onUpdateStatus={handleCheckInStatusUpdate}
           readOnly={false}

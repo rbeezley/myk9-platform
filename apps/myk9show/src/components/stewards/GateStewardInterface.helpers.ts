@@ -46,12 +46,14 @@ export function filterAndSortEntries(
     case 'needs-attention':
       filtered = filtered.filter(
         entry =>
-          requiresAction(entry.checkInStatus) || entry.checkInStatus === 'none' || entry.isUrgent
+          requiresAction(entry.checkInStatus) ||
+          entry.checkInStatus === 'no-status' ||
+          entry.isUrgent
       );
       break;
     case 'at-gate':
       filtered = filtered.filter(
-        entry => entry.checkInStatus === 'at-gate' || entry.checkInStatus === 'go-to-gate'
+        entry => entry.checkInStatus === 'at-gate' || entry.checkInStatus === 'come-to-gate'
       );
       break;
     case 'conflicts':
@@ -83,9 +85,9 @@ export function calculateGateStats(entries: GateEntry[]): GateStats {
   return {
     total: entries.length,
     needsAttention: entries.filter(
-      e => requiresAction(e.checkInStatus) || e.checkInStatus === 'none' || e.isUrgent
+      e => requiresAction(e.checkInStatus) || e.checkInStatus === 'no-status' || e.isUrgent
     ).length,
-    atGate: entries.filter(e => e.checkInStatus === 'at-gate' || e.checkInStatus === 'go-to-gate')
+    atGate: entries.filter(e => e.checkInStatus === 'at-gate' || e.checkInStatus === 'come-to-gate')
       .length,
     conflicts: entries.filter(e => e.checkInStatus === 'conflict').length,
     ready: entries.filter(e => e.checkInStatus === 'checked-in').length,
@@ -107,7 +109,7 @@ export function createMockEntries(): GateEntry[] {
       className: 'Open Standard',
       classNumber: '15',
       ring: '1',
-      checkInStatus: 'go-to-gate',
+      checkInStatus: 'come-to-gate',
       runOrder: 1,
       estimatedRunTime: new Date(2024, 6, 15, 9, 0),
       judgeAssigned: 'Judge Smith',

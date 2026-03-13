@@ -9,7 +9,7 @@ import type {
   OfflineCheckInQueue,
   OfflineCheckInServiceConfig,
 } from '@/types/offline-checkin-types';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 import { generateId } from '@/utils/idUtils';
 
 /**

@@ -184,7 +184,7 @@ describe('CheckInStatusMenu', () => {
       fireEvent.click(screen.getByText('Checked-in'));
       expect(screen.getByRole('menu')).toBeInTheDocument();
 
-      fireEvent.keyDown(document, { key: 'Escape' });
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
   });

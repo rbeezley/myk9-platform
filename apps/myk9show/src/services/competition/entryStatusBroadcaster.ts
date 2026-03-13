@@ -1,7 +1,7 @@
 /**
  * Entry Status Broadcaster Service
  * Phase 6.2: Live Competition Features
- * 
+ *
  * Real-time broadcasting service for entry status updates during competitions.
  * Handles ring status, armband calls, sequence changes, and check-in status.
  */
@@ -34,19 +34,27 @@ export interface EntryStatusUpdate {
 }
 
 export interface RingStatusEvent {
-  type: 'entry-called' | 'entry-on-deck' | 'entry-in-ring' | 'entry-completed' | 'entry-absent' | 'entry-excused';
+  type:
+    | 'entry-called'
+    | 'entry-on-deck'
+    | 'entry-in-ring'
+    | 'entry-completed'
+    | 'entry-absent'
+    | 'entry-excused';
   entryId: string;
   armband: string;
   dogName: string;
   ringAssignment: string;
   timestamp: Date;
   sequence: number;
-  metadata?: {
-    estimatedTime?: Date | undefined;
-    judgeId?: string | undefined;
-    ringNumber?: string | undefined;
-    priority?: 'medium' | 'critical' | undefined;
-  } | undefined;
+  metadata?:
+    | {
+        estimatedTime?: Date | undefined;
+        judgeId?: string | undefined;
+        ringNumber?: string | undefined;
+        priority?: 'medium' | 'critical' | undefined;
+      }
+    | undefined;
 }
 
 export interface SequenceUpdate {
@@ -131,10 +139,9 @@ export class EntryStatusBroadcaster {
 
       this.isActive = true;
       logger.info('Entry status broadcaster started successfully', 'competition');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.showId }
+        additionalData: { showId: this.showId },
       });
       throw error;
     }
@@ -169,10 +176,9 @@ export class EntryStatusBroadcaster {
 
       this.isActive = false;
       logger.info('Entry status broadcaster stopped', 'competition');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.showId }
+        additionalData: { showId: this.showId },
       });
     }
   }
@@ -200,11 +206,15 @@ export class EntryStatusBroadcaster {
         armband: (data.armband as string) || '',
         classId: data.class_id as string,
         className: (data.class_name as string) || 'Unknown Class',
-        checkInStatus: (data.check_in_status as CheckInStatus) || 'none',
+        checkInStatus: (data.check_in_status as CheckInStatus) || 'no-status',
         ringStatus: (data.ring_status as EntryStatusUpdate['ringStatus']) || 'waiting',
         sequence: (data.sequence as number) || 0,
-        estimatedCallTime: data.estimated_call_time ? new Date(data.estimated_call_time as string) : undefined,
-        actualCallTime: data.actual_call_time ? new Date(data.actual_call_time as string) : undefined,
+        estimatedCallTime: data.estimated_call_time
+          ? new Date(data.estimated_call_time as string)
+          : undefined,
+        actualCallTime: data.actual_call_time
+          ? new Date(data.actual_call_time as string)
+          : undefined,
         completedTime: data.completed_time ? new Date(data.completed_time as string) : undefined,
         ringAssignment: data.ring_assignment as string,
         judgeId: data.judge_id as string,
@@ -219,10 +229,9 @@ export class EntryStatusBroadcaster {
         this.queueUpdate(update);
         this.generateRingEvents(update);
       }
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.showId }
+        additionalData: { event, showId: this.showId },
       });
     }
   }
@@ -232,7 +241,7 @@ export class EntryStatusBroadcaster {
    */
   private isSignificantChange(update: EntryStatusUpdate): boolean {
     const lastUpdate = this.lastUpdates.get(update.entryId);
-    
+
     if (!lastUpdate) return true;
 
     // Check for significant field changes
@@ -294,7 +303,7 @@ export class EntryStatusBroadcaster {
    */
   private generateRingEvents(update: EntryStatusUpdate): void {
     const lastUpdate = this.lastUpdates.get(update.entryId);
-    
+
     // Detect ring status transitions
     if (lastUpdate && lastUpdate.ringStatus !== update.ringStatus) {
       const event: RingStatusEvent = {
@@ -332,15 +341,24 @@ export class EntryStatusBroadcaster {
   /**
    * Map ring status to event type
    */
-  private mapRingStatusToEventType(ringStatus: EntryStatusUpdate['ringStatus']): RingStatusEvent['type'] {
+  private mapRingStatusToEventType(
+    ringStatus: EntryStatusUpdate['ringStatus']
+  ): RingStatusEvent['type'] {
     switch (ringStatus) {
-      case 'called': return 'entry-called';
-      case 'on-deck': return 'entry-on-deck';
-      case 'in-ring': return 'entry-in-ring';
-      case 'completed': return 'entry-completed';
-      case 'absent': return 'entry-absent';
-      case 'excused': return 'entry-excused';
-      default: return 'entry-called';
+      case 'called':
+        return 'entry-called';
+      case 'on-deck':
+        return 'entry-on-deck';
+      case 'in-ring':
+        return 'entry-in-ring';
+      case 'completed':
+        return 'entry-completed';
+      case 'absent':
+        return 'entry-absent';
+      case 'excused':
+        return 'entry-excused';
+      default:
+        return 'entry-called';
     }
   }
 
@@ -348,7 +366,7 @@ export class EntryStatusBroadcaster {
    * Determine priority level for ring events
    */
   private determinePriority(ringStatus: EntryStatusUpdate['ringStatus']): 'medium' | 'critical' {
-    return (ringStatus === 'called' || ringStatus === 'in-ring') ? 'critical' : 'medium';
+    return ringStatus === 'called' || ringStatus === 'in-ring' ? 'critical' : 'medium';
   }
 
   /**
@@ -396,10 +414,9 @@ export class EntryStatusBroadcaster {
           timestamp: Date.now(),
         },
       });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { updatesCount: updates.length, showId: this.showId }
+        additionalData: { updatesCount: updates.length, showId: this.showId },
       });
     }
   }
@@ -434,10 +451,9 @@ export class EntryStatusBroadcaster {
       });
 
       logger.info('Manual entry update', 'competition', { entryId, ringStatus });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { entryId, ringStatus, metadata, showId: this.showId }
+        additionalData: { entryId, ringStatus, metadata, showId: this.showId },
       });
       throw error;
     }
@@ -466,11 +482,13 @@ export class EntryStatusBroadcaster {
         }
       });
 
-      logger.info('Sequence updated', 'competition', { classId: sequenceUpdate.classId, entryCount: sequenceUpdate.entries.length });
-
+      logger.info('Sequence updated', 'competition', {
+        classId: sequenceUpdate.classId,
+        entryCount: sequenceUpdate.entries.length,
+      });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { sequenceUpdate, showId: this.showId }
+        additionalData: { sequenceUpdate, showId: this.showId },
       });
       throw error;
     }

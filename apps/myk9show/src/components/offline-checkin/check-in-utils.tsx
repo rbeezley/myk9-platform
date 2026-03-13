@@ -1,5 +1,5 @@
 import { CheckCircle2, XCircle, AlertTriangle, Clock } from 'lucide-react';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 
 export function getStatusColor(status: CheckInStatus) {
   switch (status) {
@@ -7,7 +7,7 @@ export function getStatusColor(status: CheckInStatus) {
       return 'bg-teal-100 text-teal-800 border-teal-200';
     case 'at-gate':
       return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'go-to-gate':
+    case 'come-to-gate':
       return 'bg-orange-100 text-orange-800 border-orange-200';
     case 'conflict':
       return 'bg-red-100 text-red-800 border-red-200';

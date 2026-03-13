@@ -14,7 +14,7 @@ import {
   CheckInStatusIndicator,
   CheckInQuickActions,
 } from '@/components/common/CheckInStatusIndicator';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import type { GateEntry, GateStats } from './GateStewardInterface.types';
 

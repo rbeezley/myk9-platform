@@ -7,7 +7,7 @@
  * Note: these tables are added by migration 007 and are not yet in the
  * generated Supabase types, so we use `untypedSupabase` to bypass codegen.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveCheckinCascade } from '@myk9/secretary';
 
@@ -69,6 +69,27 @@ async function fetchSelfCheckinEnabled(classId: string): Promise<boolean> {
     null;
 
   return resolveCheckinCascade(showCheckin, trialCheckin, classCheckin);
+}
+
+/**
+ * Batch version: resolves self-check-in cascade for multiple classes.
+ * Uses useQueries so each class gets its own cached query (shared with useSelfCheckinEnabled).
+ */
+export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
+  const results = useQueries({
+    queries: classIds.map(classId => ({
+      queryKey: ['classes', classId, 'selfCheckin'],
+      queryFn: () => fetchSelfCheckinEnabled(classId),
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+    })),
+  });
+
+  const map: Record<string, boolean> = {};
+  classIds.forEach((id, i) => {
+    map[id] = results[i].data ?? true;
+  });
+  return map;
 }
 
 export function useSelfCheckinEnabled(classId: string | null): SelfCheckinResult {

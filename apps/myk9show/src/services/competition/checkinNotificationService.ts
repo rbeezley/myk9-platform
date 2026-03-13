@@ -1,7 +1,7 @@
 /**
  * Check-in Notification Service
  * Phase 6.2: Live Competition Features
- * 
+ *
  * Real-time notification service for competitor check-ins, providing immediate
  * alerts to stewards, secretaries, and ring personnel about exhibitor arrivals.
  */
@@ -145,10 +145,9 @@ export class CheckInNotificationService {
 
       this.isActive = true;
       logger.info('Check-in notification service started successfully', 'check-in');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.showId }
+        additionalData: { showId: this.showId },
       });
       throw error;
     }
@@ -175,10 +174,9 @@ export class CheckInNotificationService {
 
       this.isActive = false;
       logger.info('Check-in notification service stopped', 'check-in');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.showId }
+        additionalData: { showId: this.showId },
       });
     }
   }
@@ -198,7 +196,9 @@ export class CheckInNotificationService {
       if (!checkInData) return;
 
       const previousData = event.payload?.old;
-      const previousStatus: CheckInStatus = ((previousData as Record<string, unknown>)?.check_in_status as CheckInStatus) || 'none';
+      const previousStatus: CheckInStatus =
+        ((previousData as Record<string, unknown>)?.check_in_status as CheckInStatus) ||
+        'no-status';
 
       const data = checkInData as Record<string, unknown>;
       const checkInEvent: CheckInEvent = {
@@ -218,7 +218,9 @@ export class CheckInNotificationService {
         checkedInBy: (data.checked_in_by as string) || 'system',
         ringAssignment: data.ring_assignment as string,
         sequence: (data.sequence as number) || 0,
-        estimatedRingTime: data.estimated_ring_time ? new Date(data.estimated_ring_time as string) : undefined,
+        estimatedRingTime: data.estimated_ring_time
+          ? new Date(data.estimated_ring_time as string)
+          : undefined,
         notes: data.notes as string,
       };
 
@@ -231,11 +233,14 @@ export class CheckInNotificationService {
       // Update metrics
       this.updateMetrics(checkInEvent);
 
-      logger.debug('Check-in event', 'check-in', { armband: checkInEvent.armband, dogName: checkInEvent.dogName, status: checkInEvent.checkInStatus });
-
+      logger.debug('Check-in event', 'check-in', {
+        armband: checkInEvent.armband,
+        dogName: checkInEvent.dogName,
+        status: checkInEvent.checkInStatus,
+      });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.showId }
+        additionalData: { event, showId: this.showId },
       });
     }
   }
@@ -247,12 +252,12 @@ export class CheckInNotificationService {
     try {
       // Generate notifications based on status change
       const notifications = this.generateNotifications(event);
-      
+
       // Store and broadcast notifications
       notifications.forEach(notification => {
         this.activeNotifications.set(notification.id, notification);
         this.broadcastNotification(notification);
-        
+
         // Trigger listeners
         this.notificationListeners.forEach(listener => {
           try {
@@ -279,10 +284,9 @@ export class CheckInNotificationService {
       if (this.config.conflictDetectionEnabled) {
         this.detectConflicts(event);
       }
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.showId }
+        additionalData: { event, showId: this.showId },
       });
     }
   }
@@ -295,7 +299,7 @@ export class CheckInNotificationService {
     const baseId = `notification-${event.entryId}-${Date.now()}`;
 
     // Standard check-in notification
-    if (event.checkInStatus === 'checked-in' && event.previousStatus === 'none') {
+    if (event.checkInStatus === 'checked-in' && event.previousStatus === 'no-status') {
       notifications.push({
         id: `${baseId}-checkin`,
         type: 'check-in',
@@ -351,7 +355,7 @@ export class CheckInNotificationService {
     }
 
     // Status change notification
-    if (event.previousStatus !== 'none' && event.previousStatus !== event.checkInStatus) {
+    if (event.previousStatus !== 'no-status' && event.previousStatus !== event.checkInStatus) {
       notifications.push({
         id: `${baseId}-status-change`,
         type: 'status-change',
@@ -376,7 +380,7 @@ export class CheckInNotificationService {
    */
   private isLateArrival(event: CheckInEvent): boolean {
     if (!event.estimatedRingTime) return false;
-    
+
     const timeDiff = event.timestamp.getTime() - event.estimatedRingTime.getTime();
     return timeDiff > -this.config.lateArrivalThresholdMs; // Less than 15 min before ring time
   }
@@ -386,11 +390,16 @@ export class CheckInNotificationService {
    */
   private getPriorityForStatusChange(status: CheckInStatus): CheckInNotification['priority'] {
     switch (status) {
-      case 'conflict': return 'critical';
-      case 'at-gate': return 'high';
-      case 'go-to-gate': return 'high';
-      case 'pulled': return 'medium';
-      default: return 'medium';
+      case 'conflict':
+        return 'critical';
+      case 'at-gate':
+        return 'high';
+      case 'come-to-gate':
+        return 'high';
+      case 'pulled':
+        return 'medium';
+      default:
+        return 'medium';
     }
   }
 
@@ -399,13 +408,14 @@ export class CheckInNotificationService {
    */
   private updateQueueStatus(classId: string): void {
     try {
-      const classCheckIns = Array.from(this.recentCheckIns.values())
-        .filter(event => event.classId === classId);
+      const classCheckIns = Array.from(this.recentCheckIns.values()).filter(
+        event => event.classId === classId
+      );
 
       if (classCheckIns.length === 0) return;
 
       const sampleEvent = classCheckIns[0];
-      const checkedInCount = classCheckIns.filter(e => e.checkInStatus !== 'none').length;
+      const checkedInCount = classCheckIns.filter(e => e.checkInStatus !== 'no-status').length;
       const conflictCount = classCheckIns.filter(e => e.checkInStatus === 'conflict').length;
       const lateArrivals = classCheckIns.filter(e => this.isLateArrival(e)).length;
 
@@ -435,10 +445,9 @@ export class CheckInNotificationService {
 
       // Broadcast queue update
       this.broadcastQueueUpdate(queueStatus);
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { classId, showId: this.showId }
+        additionalData: { classId, showId: this.showId },
       });
     }
   }
@@ -447,7 +456,7 @@ export class CheckInNotificationService {
    * Calculate average check-in processing time
    */
   private calculateAverageCheckInTime(checkIns: CheckInEvent[]): number {
-    const validCheckIns = checkIns.filter(e => e.checkInStatus !== 'none');
+    const validCheckIns = checkIns.filter(e => e.checkInStatus !== 'no-status');
     if (validCheckIns.length === 0) return 0;
 
     // Simple average for now - could be more sophisticated
@@ -460,24 +469,26 @@ export class CheckInNotificationService {
   private detectConflicts(event: CheckInEvent): void {
     try {
       // Look for overlapping ring times in same exhibitor's entries
-      const exhibitorEntries = Array.from(this.recentCheckIns.values())
-        .filter(e => e.exhibitorName === event.exhibitorName && e.entryId !== event.entryId);
+      const exhibitorEntries = Array.from(this.recentCheckIns.values()).filter(
+        e => e.exhibitorName === event.exhibitorName && e.entryId !== event.entryId
+      );
 
       const conflicts = exhibitorEntries.filter(entry => {
         if (!entry.estimatedRingTime || !event.estimatedRingTime) return false;
-        
+
         // Check for overlapping times (within 30 minutes)
-        const timeDiff = Math.abs(entry.estimatedRingTime.getTime() - event.estimatedRingTime.getTime());
+        const timeDiff = Math.abs(
+          entry.estimatedRingTime.getTime() - event.estimatedRingTime.getTime()
+        );
         return timeDiff < 30 * 60 * 1000; // 30 minutes
       });
 
       if (conflicts.length > 0) {
         this.generateConflictNotification(event, conflicts);
       }
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.showId }
+        additionalData: { event, showId: this.showId },
       });
     }
   }
@@ -522,10 +533,9 @@ export class CheckInNotificationService {
       });
 
       this.metrics.totalNotificationsSent++;
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { notification, showId: this.showId }
+        additionalData: { notification, showId: this.showId },
       });
     }
   }
@@ -543,10 +553,9 @@ export class CheckInNotificationService {
           timestamp: Date.now(),
         },
       });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { queueStatus, showId: this.showId }
+        additionalData: { queueStatus, showId: this.showId },
       });
     }
   }
@@ -570,7 +579,8 @@ export class CheckInNotificationService {
         type: 'check-in',
         priority: 'high',
         title: 'Manual Check-in Alert',
-        message: customMessage || `${checkInEvent.armband} - ${checkInEvent.dogName} needs attention`,
+        message:
+          customMessage || `${checkInEvent.armband} - ${checkInEvent.dogName} needs attention`,
         checkInEvent,
         targetRoles: targetRoles || ['steward', 'secretary'],
         expiresAt: new Date(Date.now() + 20 * 60 * 1000), // 20 minutes
@@ -583,10 +593,9 @@ export class CheckInNotificationService {
       await this.broadcastNotification(notification);
 
       logger.info('Manual check-in notification sent', 'check-in', { entryId });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { entryId, customMessage, showId: this.showId }
+        additionalData: { entryId, customMessage, showId: this.showId },
       });
       throw error;
     }
@@ -618,10 +627,9 @@ export class CheckInNotificationService {
       if (!notification.persistent) {
         this.activeNotifications.delete(notificationId);
       }
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { notificationId, userId, showId: this.showId }
+        additionalData: { notificationId, userId, showId: this.showId },
       });
     }
   }
@@ -652,8 +660,9 @@ export class CheckInNotificationService {
   }
 
   getActiveNotifications(): CheckInNotification[] {
-    return Array.from(this.activeNotifications.values())
-      .filter(n => !this.config.autoExpireNotifications || n.expiresAt > new Date());
+    return Array.from(this.activeNotifications.values()).filter(
+      n => !this.config.autoExpireNotifications || n.expiresAt > new Date()
+    );
   }
 
   getQueueStatuses(): CheckInQueueStatus[] {
@@ -674,7 +683,7 @@ export class CheckInNotificationService {
   private updateMetrics(event: CheckInEvent): void {
     this.metrics.checkInsProcessed++;
     this.metrics.lastActivity = new Date();
-    
+
     if (this.isLateArrival(event)) {
       this.metrics.lateArrivals++;
     }

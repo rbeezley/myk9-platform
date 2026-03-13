@@ -12,10 +12,7 @@ import {
   autoAssignArmbands,
   getEntriesForExport,
 } from '@/services/database/queries/secretaryEntryQueries';
-import {
-  compEntry,
-  uncompEntry,
-} from '@/services/database/queries/entry-query-mutations';
+import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import type {
   EntryManagementEntry,
@@ -100,46 +97,50 @@ export function useEntryManagementActions({
   });
 
   // Handle status change
-  const handleStatusChange = useCallback(async (entryId: string, newStatus: EntryStatus) => {
-    const entry = entries.find(e => e.id === entryId);
-    if (!entry) return;
+  const handleStatusChange = useCallback(
+    async (entryId: string, newStatus: EntryStatus) => {
+      const entry = entries.find(e => e.id === entryId);
+      if (!entry) return;
 
-    const oldStatus = entry.entryStatus;
+      const oldStatus = entry.entryStatus;
 
-    // Optimistic update
-    setEntries(prev => prev.map(e =>
-      e.id === entryId ? { ...e, entryStatus: newStatus, lastUpdated: new Date() } : e
-    ));
+      // Optimistic update
+      setEntries(prev =>
+        prev.map(e =>
+          e.id === entryId ? { ...e, entryStatus: newStatus, lastUpdated: new Date() } : e
+        )
+      );
 
-    try {
-      const { error: dbError } = await updateEntryStatus(entryId, mapStatusToDb(newStatus));
+      try {
+        const { error: dbError } = await updateEntryStatus(entryId, mapStatusToDb(newStatus));
 
-      if (dbError) {
-        throw dbError;
-      }
-
-      await auditService.log({
-        action: AuditAction.UPDATE,
-        entityType: 'entry',
-        entityId: entryId,
-        changes: {
-          entryStatus: { from: oldStatus, to: newStatus }
-        },
-        metadata: {
-          action: 'status_change',
-          secretaryId: user?.id,
-          entryNumber: entry.entryNumber
+        if (dbError) {
+          throw dbError;
         }
-      });
 
-    } catch (error) {
-      logger.error('Failed to update entry status:', 'pages', {}, error as Error);
-      // Revert optimistic update
-      setEntries(prev => prev.map(e =>
-        e.id === entryId ? { ...e, entryStatus: oldStatus } : e
-      ));
-    }
-  }, [entries, setEntries, user]);
+        await auditService.log({
+          action: AuditAction.UPDATE,
+          entityType: 'entry',
+          entityId: entryId,
+          changes: {
+            entryStatus: { from: oldStatus, to: newStatus },
+          },
+          metadata: {
+            action: 'status_change',
+            secretaryId: user?.id,
+            entryNumber: entry.entryNumber,
+          },
+        });
+      } catch (error) {
+        logger.error('Failed to update entry status:', 'pages', {}, error as Error);
+        // Revert optimistic update
+        setEntries(prev =>
+          prev.map(e => (e.id === entryId ? { ...e, entryStatus: oldStatus } : e))
+        );
+      }
+    },
+    [entries, setEntries, user]
+  );
 
   // Handle armband assignment
   const handleAssignArmband = useCallback(async () => {
@@ -147,18 +148,27 @@ export function useEntryManagementActions({
 
     setIsProcessing(true);
     try {
-      const { error: dbError } = await assignArmband(armbandDialog.entry.id, armbandDialog.value.trim());
+      const { error: dbError } = await assignArmband(
+        armbandDialog.entry.id,
+        armbandDialog.value.trim()
+      );
 
       if (dbError) {
         setError('Failed to assign armband');
         return;
       }
 
-      setEntries(prev => prev.map(e =>
-        e.id === armbandDialog.entry?.id
-          ? { ...e, armbandNumber: armbandDialog.value.trim(), entryNumber: armbandDialog.value.trim() }
-          : e
-      ));
+      setEntries(prev =>
+        prev.map(e =>
+          e.id === armbandDialog.entry?.id
+            ? {
+                ...e,
+                armbandNumber: armbandDialog.value.trim(),
+                entryNumber: armbandDialog.value.trim(),
+              }
+            : e
+        )
+      );
 
       setArmbandDialog({ open: false, entry: null, value: '' });
     } catch (err) {
@@ -186,7 +196,10 @@ export function useEntryManagementActions({
       await loadEntries(selectedShowId);
       setAutoArmbandDialog({ open: false, startNumber: '1' });
 
-      logger.info(`Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}`, 'secretary');
+      logger.info(
+        `Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}`,
+        'secretary'
+      );
     } catch (err) {
       setError('Failed to auto-assign armbands');
       logger.error('Error auto-assigning armbands:', 'secretary', {}, err as Error);
@@ -217,19 +230,21 @@ export function useEntryManagementActions({
         return;
       }
 
-      setEntries(prev => prev.map(e => {
-        if (selectedEntryIds.includes(e.id)) {
-          return {
-            ...e,
-            classes: e.classes.map(c => ({
-              ...c,
-              checkInStatus: 'checked_in' as CheckInStatus,
-              checkInTime: new Date(),
-            })),
-          };
-        }
-        return e;
-      }));
+      setEntries(prev =>
+        prev.map(e => {
+          if (selectedEntryIds.includes(e.id)) {
+            return {
+              ...e,
+              classes: e.classes.map(c => ({
+                ...c,
+                checkInStatus: 'checked_in' as CheckInStatus,
+                checkInTime: new Date(),
+              })),
+            };
+          }
+          return e;
+        })
+      );
 
       setSelectedEntries(new Set());
       setBulkActionDialog({ open: false, action: null });
@@ -242,120 +257,134 @@ export function useEntryManagementActions({
   }, [selectedEntries, entries, setEntries, setSelectedEntries, setError]);
 
   // Handle check-in status update
-  const handleCheckInStatusUpdate = useCallback(async (status: CheckInStatus, notes?: string) => {
-    if (!checkInDialog.entry || !checkInDialog.classEntry) return;
+  const handleCheckInStatusUpdate = useCallback(
+    async (status: CheckInStatus, notes?: string) => {
+      if (!checkInDialog.entry || !checkInDialog.classEntry) return;
 
-    const { entry, classEntry } = checkInDialog;
+      const { entry, classEntry } = checkInDialog;
 
-    try {
-      const { error: dbError } = await updateCheckInStatus(classEntry.id, status, notes);
+      try {
+        const { error: dbError } = await updateCheckInStatus(classEntry.id, status, notes);
 
-      if (dbError) {
-        throw dbError;
+        if (dbError) {
+          throw dbError;
+        }
+
+        setEntries(prev =>
+          prev.map(e => {
+            if (e.id === entry.id) {
+              return {
+                ...e,
+                classes: e.classes.map(c =>
+                  c.id === classEntry.id
+                    ? { ...c, checkInStatus: status, checkInTime: new Date() }
+                    : c
+                ),
+              };
+            }
+            return e;
+          })
+        );
+
+        await auditService.log({
+          action: AuditAction.UPDATE,
+          entityType: 'class_entry',
+          entityId: classEntry.id,
+          changes: {
+            checkInStatus: { from: classEntry.checkInStatus || 'no-status', to: status },
+          },
+          metadata: {
+            action: 'check_in_status_change',
+            secretaryId: user?.id,
+            entryNumber: entry.entryNumber,
+            dogName: entry.dogName,
+            className: classEntry.name,
+            notes,
+          },
+        });
+
+        setCheckInDialog({ open: false, entry: null, classEntry: null });
+      } catch (error) {
+        logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
+        // Revert optimistic update
+        setEntries(prev =>
+          prev.map(e => {
+            if (e.id === entry.id) {
+              return {
+                ...e,
+                classes: e.classes.map(c =>
+                  c.id === classEntry.id
+                    ? {
+                        ...c,
+                        ...(classEntry.checkInStatus != null
+                          ? { checkInStatus: classEntry.checkInStatus }
+                          : {}),
+                        ...(classEntry.checkInTime != null
+                          ? { checkInTime: classEntry.checkInTime }
+                          : {}),
+                      }
+                    : c
+                ),
+              };
+            }
+            return e;
+          })
+        );
       }
-
-      setEntries(prev => prev.map(e => {
-        if (e.id === entry.id) {
-          return {
-            ...e,
-            classes: e.classes.map(c =>
-              c.id === classEntry.id
-                ? { ...c, checkInStatus: status, checkInTime: new Date() }
-                : c
-            )
-          };
-        }
-        return e;
-      }));
-
-      await auditService.log({
-        action: AuditAction.UPDATE,
-        entityType: 'class_entry',
-        entityId: classEntry.id,
-        changes: {
-          checkInStatus: { from: classEntry.checkInStatus || 'none', to: status }
-        },
-        metadata: {
-          action: 'check_in_status_change',
-          secretaryId: user?.id,
-          entryNumber: entry.entryNumber,
-          dogName: entry.dogName,
-          className: classEntry.name,
-          notes
-        }
-      });
-
-      setCheckInDialog({ open: false, entry: null, classEntry: null });
-    } catch (error) {
-      logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
-      // Revert optimistic update
-      setEntries(prev => prev.map(e => {
-        if (e.id === entry.id) {
-          return {
-            ...e,
-            classes: e.classes.map(c =>
-              c.id === classEntry.id
-                ? {
-                    ...c,
-                    ...(classEntry.checkInStatus != null ? { checkInStatus: classEntry.checkInStatus } : {}),
-                    ...(classEntry.checkInTime != null ? { checkInTime: classEntry.checkInTime } : {}),
-                  }
-                : c
-            )
-          };
-        }
-        return e;
-      }));
-    }
-  }, [checkInDialog, setEntries, user]);
+    },
+    [checkInDialog, setEntries, user]
+  );
 
   // Handle bulk action
-  const handleBulkAction = useCallback(async (action: BulkAction) => {
-    const selectedEntryIds = Array.from(selectedEntries);
+  const handleBulkAction = useCallback(
+    async (action: BulkAction) => {
+      const selectedEntryIds = Array.from(selectedEntries);
 
-    try {
-      switch (action.type) {
-        case 'status_change':
-          for (const entryId of selectedEntryIds) {
-            await handleStatusChange(entryId, action.data.status as EntryStatus);
-          }
-          break;
-
-        case 'send_notification':
-          await auditService.log({
-            action: AuditAction.SYSTEM_ACTION,
-            entityType: 'bulk_notification',
-            entityId: 'bulk_' + Date.now(),
-            metadata: {
-              action: 'send_notification',
-              entryCount: selectedEntryIds.length,
-              message: action.data.message,
-              secretaryId: user?.id
+      try {
+        switch (action.type) {
+          case 'status_change':
+            for (const entryId of selectedEntryIds) {
+              await handleStatusChange(entryId, action.data.status as EntryStatus);
             }
-          });
-          break;
+            break;
 
-        case 'export':
-          await auditService.log({
-            action: AuditAction.EXPORT,
-            entityType: 'entries_export',
-            entityId: 'export_' + Date.now(),
-            metadata: {
-              action: 'export_entries',
-              entryCount: selectedEntryIds.length,
-              format: action.data.format,
-              secretaryId: user?.id
-            }
-          });
-          break;
+          case 'send_notification':
+            await auditService.log({
+              action: AuditAction.SYSTEM_ACTION,
+              entityType: 'bulk_notification',
+              entityId: 'bulk_' + Date.now(),
+              metadata: {
+                action: 'send_notification',
+                entryCount: selectedEntryIds.length,
+                message: action.data.message,
+                secretaryId: user?.id,
+              },
+            });
+            break;
+
+          case 'export':
+            await auditService.log({
+              action: AuditAction.EXPORT,
+              entityType: 'entries_export',
+              entityId: 'export_' + Date.now(),
+              metadata: {
+                action: 'export_entries',
+                entryCount: selectedEntryIds.length,
+                format: action.data.format,
+                secretaryId: user?.id,
+              },
+            });
+            break;
+        }
+
+        setSelectedEntries(new Set());
+        setBulkActionDialog({ open: false, action: null });
+      } catch (error) {
+        logger.error('Failed to execute bulk action:', 'pages', {}, error as Error);
       }
-
-      setSelectedEntries(new Set());
-      setBulkActionDialog({ open: false, action: null });
-    } catch (error) {
-      logger.error('Failed to execute bulk action:', 'pages', {}, error as Error);
-    }
-  }, [selectedEntries, handleStatusChange, setSelectedEntries, user]);
+    },
+    [selectedEntries, handleStatusChange, setSelectedEntries, user]
+  );
 
   // Handle CSV export
   const handleExportCSV = useCallback(async () => {
@@ -388,8 +417,13 @@ export function useEntryManagementActions({
         'Special Requests',
       ];
 
-      const rows = data.map((entry) => {
-        const dog = entry.dog as { id?: string; name?: string; call_name?: string; breed?: string } | null;
+      const rows = data.map(entry => {
+        const dog = entry.dog as {
+          id?: string;
+          name?: string;
+          call_name?: string;
+          breed?: string;
+        } | null;
         const cls = entry.class as { name?: string; class_number?: string } | null;
         const jumpHeight = (entry as Record<string, unknown>).jump_height as string | null;
         const className = cls?.name ? `${cls.name}${jumpHeight ? ` (${jumpHeight})` : ''}` : '';
@@ -447,68 +481,83 @@ export function useEntryManagementActions({
   }, [selectedShowId, setError, user]);
 
   // Handle comp entry
-  const handleCompEntry = useCallback(async (entryId: string, reason: string) => {
-    setIsProcessing(true);
-    try {
-      const { error: dbError } = await compEntry({ entryId, reason });
+  const handleCompEntry = useCallback(
+    async (entryId: string, reason: string) => {
+      setIsProcessing(true);
+      try {
+        const { error: dbError } = await compEntry({ entryId, reason });
 
-      if (dbError) {
+        if (dbError) {
+          setError('Failed to comp entry');
+          return;
+        }
+
+        setEntries(prev =>
+          prev.map(e =>
+            e.id === entryId
+              ? {
+                  ...e,
+                  comped: true,
+                  compedReason: reason,
+                  paymentStatus: 'waived' as unknown as PaymentStatus,
+                }
+              : e
+          )
+        );
+
+        await auditService.log({
+          action: AuditAction.UPDATE,
+          entityType: 'entry',
+          entityId: entryId,
+          changes: { comped: { from: false, to: true } },
+          metadata: { action: 'comp_entry', reason, secretaryId: user?.id },
+        });
+      } catch (err) {
         setError('Failed to comp entry');
-        return;
+        logger.error('Error comping entry:', 'secretary', {}, err as Error);
+      } finally {
+        setIsProcessing(false);
       }
-
-      setEntries(prev => prev.map(e =>
-        e.id === entryId
-          ? { ...e, comped: true, compedReason: reason, paymentStatus: 'waived' as unknown as PaymentStatus }
-          : e
-      ));
-
-      await auditService.log({
-        action: AuditAction.UPDATE,
-        entityType: 'entry',
-        entityId: entryId,
-        changes: { comped: { from: false, to: true } },
-        metadata: { action: 'comp_entry', reason, secretaryId: user?.id },
-      });
-    } catch (err) {
-      setError('Failed to comp entry');
-      logger.error('Error comping entry:', 'secretary', {}, err as Error);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [setEntries, setError, user]);
+    },
+    [setEntries, setError, user]
+  );
 
   // Handle uncomp entry
-  const handleUncompEntry = useCallback(async (entryId: string) => {
-    setIsProcessing(true);
-    try {
-      const { error: dbError } = await uncompEntry(entryId);
+  const handleUncompEntry = useCallback(
+    async (entryId: string) => {
+      setIsProcessing(true);
+      try {
+        const { error: dbError } = await uncompEntry(entryId);
 
-      if (dbError) {
+        if (dbError) {
+          setError('Failed to remove comp');
+          return;
+        }
+
+        setEntries(prev =>
+          prev.map((e): EntryManagementEntry => {
+            if (e.id !== entryId) return e;
+            const { compedReason: _, ...rest } = e;
+            return { ...rest, comped: false, paymentStatus: PaymentStatus.PENDING };
+          })
+        );
+
+        await auditService.log({
+          action: AuditAction.UPDATE,
+          entityType: 'entry',
+          entityId: entryId,
+          changes: { comped: { from: true, to: false } },
+          metadata: { action: 'uncomp_entry', secretaryId: user?.id },
+        });
+      } catch (err) {
         setError('Failed to remove comp');
-        return;
+        logger.error('Error uncomping entry:', 'secretary', {}, err as Error);
+      } finally {
+        setIsProcessing(false);
       }
-
-      setEntries(prev => prev.map((e): EntryManagementEntry => {
-        if (e.id !== entryId) return e;
-        const { compedReason: _, ...rest } = e;
-        return { ...rest, comped: false, paymentStatus: PaymentStatus.PENDING };
-      }));
-
-      await auditService.log({
-        action: AuditAction.UPDATE,
-        entityType: 'entry',
-        entityId: entryId,
-        changes: { comped: { from: true, to: false } },
-        metadata: { action: 'uncomp_entry', secretaryId: user?.id },
-      });
-    } catch (err) {
-      setError('Failed to remove comp');
-      logger.error('Error uncomping entry:', 'secretary', {}, err as Error);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [setEntries, setError, user]);
+    },
+    [setEntries, setError, user]
+  );
 
   return {
     isProcessing,

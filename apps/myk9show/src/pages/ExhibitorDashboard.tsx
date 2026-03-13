@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import type { CheckInStatus } from '@myk9/core';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
+import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -89,6 +90,11 @@ const ExhibitorDashboard: React.FC = () => {
   const { data: dogs = [] } = useDogsQuery();
   const { data: recentResults = [] } = useExhibitorResults();
   const checkInMutation = useCheckInMutation();
+  const classIds = useMemo(
+    () => showDayData.myClasses.map(c => c.classId),
+    [showDayData.myClasses]
+  );
+  const selfCheckinEnabledMap = useSelfCheckinMap(classIds);
 
   const handleCheckInChange = useCallback(
     (entryId: string, newStatus: CheckInStatus) => {
@@ -205,7 +211,12 @@ const ExhibitorDashboard: React.FC = () => {
       {/* ---- SHOW DAY LAYOUT ---- */}
       {showDayData.isShowDay && (
         <>
-          <ShowDayHero ref={heroRef} data={showDayData} onCheckInChange={handleCheckInChange} />
+          <ShowDayHero
+            ref={heroRef}
+            data={showDayData}
+            onCheckInChange={handleCheckInChange}
+            selfCheckinEnabledMap={selfCheckinEnabledMap}
+          />
 
           {/* Collapsed sections below the hero */}
           {upcomingEntries.length > 0 && (

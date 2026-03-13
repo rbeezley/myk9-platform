@@ -21,7 +21,7 @@ import type {
   ConflictResolution,
   OfflineCheckInServiceConfig,
 } from '@/types/offline-checkin-types';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 import { generateId } from '@/utils/idUtils';
 import { DEFAULT_CONFIG, STORAGE_KEY } from './OfflineCheckInService.constants';
 import {
@@ -213,7 +213,7 @@ export class OfflineCheckInService extends EventEmitter {
       result.entryId = parsedData.entryId;
       result.armband = parsedData.armband;
 
-      if (entry.checkInStatus === 'none') {
+      if (entry.checkInStatus === 'no-status') {
         await this.checkInEntry(parsedData.entryId, 'checked-in', performedBy, {
           method: 'qr_scan',
           ...(gateId !== undefined && { gateId }),

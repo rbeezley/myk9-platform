@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { OfflineCheckInInterface } from '@/components/offline-checkin/OfflineCheckInInterface';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -352,9 +352,9 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="none">Not Checked In</SelectItem>
+                <SelectItem value="no-status">Not Checked In</SelectItem>
                 <SelectItem value="checked-in">Checked In</SelectItem>
-                <SelectItem value="go-to-gate">Go to Gate</SelectItem>
+                <SelectItem value="come-to-gate">Come to Gate</SelectItem>
                 <SelectItem value="at-gate">At Gate</SelectItem>
                 <SelectItem value="conflict">Conflict</SelectItem>
                 <SelectItem value="pulled">Pulled</SelectItem>

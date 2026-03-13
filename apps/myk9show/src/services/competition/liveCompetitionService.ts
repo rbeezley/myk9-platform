@@ -1,7 +1,7 @@
 /**
  * Live Competition Service
  * Phase 6.2: Live Competition Features
- * 
+ *
  * Central service for coordinating all live competition features including
  * entry status updates, check-ins, results broadcasting, and presence tracking.
  */
@@ -10,10 +10,10 @@ import { subscriptionManager } from '../realtime/subscriptionManager';
 import { realtimeClient } from '../realtime/realtimeClient';
 import { errorMonitor } from '../../lib/errorMonitoring';
 import { logger } from '@/services/LoggingService';
-import type { 
+import type {
   PresenceTrackingData,
   RealtimeEventCallback,
-  Priority
+  Priority,
 } from '../../types/realtime-types';
 import type { CheckInStatus } from '../../types/check-in-types';
 
@@ -107,7 +107,7 @@ export class LiveCompetitionService {
 
     try {
       logger.info('Starting live competition', 'competition', { showId: this.config.showId });
-      
+
       // Initialize real-time connection
       await realtimeClient.connect();
 
@@ -137,10 +137,9 @@ export class LiveCompetitionService {
 
       this.isActive = true;
       logger.info('Live competition service started successfully', 'competition');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.config.showId, config: this.config }
+        additionalData: { showId: this.config.showId, config: this.config },
       });
       throw error;
     }
@@ -174,10 +173,9 @@ export class LiveCompetitionService {
 
       this.isActive = false;
       logger.info('Live competition service stopped', 'competition');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.config.showId }
+        additionalData: { showId: this.config.showId },
       });
     }
   }
@@ -246,7 +244,7 @@ export class LiveCompetitionService {
    */
   private async setupPresenceTracking(): Promise<void> {
     const channelName = `competition-${this.config.showId}`;
-    
+
     const subscriptionId = await subscriptionManager.subscribeToPresence(
       channelName,
       this.handlePresenceChange.bind(this)
@@ -278,16 +276,18 @@ export class LiveCompetitionService {
   /**
    * Handle entry status updates
    */
-  private handleEntryStatusUpdate: RealtimeEventCallback = (event) => {
+  private handleEntryStatusUpdate: RealtimeEventCallback = event => {
     try {
-      const entryData = (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }).payload?.new || event.data;
+      const entryData =
+        (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> })
+          .payload?.new || event.data;
       if (!entryData) return;
 
       const data = entryData as Record<string, unknown>;
       const entryStatus: EntryStatus = {
         entryId: data.id as string,
         dogId: data.dog_id as string,
-        checkInStatus: (data.check_in_status as CheckInStatus) || 'none',
+        checkInStatus: (data.check_in_status as CheckInStatus) || 'no-status',
         ringStatus: (data.ring_status as EntryStatus['ringStatus']) || 'waiting',
         armband: (data.armband as string) || '',
         classId: data.class_id as string,
@@ -310,11 +310,13 @@ export class LiveCompetitionService {
       // Update metrics
       this.updateMetrics();
 
-      logger.debug('Entry status updated', 'competition', { entryId: entryStatus.entryId, ringStatus: entryStatus.ringStatus });
-
+      logger.debug('Entry status updated', 'competition', {
+        entryId: entryStatus.entryId,
+        ringStatus: entryStatus.ringStatus,
+      });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.config.showId }
+        additionalData: { event, showId: this.config.showId },
       });
     }
   };
@@ -322,9 +324,11 @@ export class LiveCompetitionService {
   /**
    * Handle check-in updates
    */
-  private handleCheckInUpdate: RealtimeEventCallback = (event) => {
+  private handleCheckInUpdate: RealtimeEventCallback = event => {
     try {
-      const checkInData = (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }).payload?.new || event.data;
+      const checkInData =
+        (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> })
+          .payload?.new || event.data;
       if (!checkInData) return;
 
       // Create notification for check-in
@@ -351,10 +355,9 @@ export class LiveCompetitionService {
       }
 
       logger.debug('Check-in notification', 'competition', { message: notification.message });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.config.showId }
+        additionalData: { event, showId: this.config.showId },
       });
     }
   };
@@ -362,9 +365,11 @@ export class LiveCompetitionService {
   /**
    * Handle results updates
    */
-  private handleResultsUpdate: RealtimeEventCallback = (event) => {
+  private handleResultsUpdate: RealtimeEventCallback = event => {
     try {
-      const resultsData = (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }).payload?.new || event.data;
+      const resultsData =
+        (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> })
+          .payload?.new || event.data;
       if (!resultsData) return;
 
       // Trigger callback if registered
@@ -372,11 +377,12 @@ export class LiveCompetitionService {
         this.onResultsUpdate(resultsData as Record<string, unknown>);
       }
 
-      logger.debug('Results updated for entry', 'competition', { entryId: (resultsData as { entry_id: string }).entry_id });
-
+      logger.debug('Results updated for entry', 'competition', {
+        entryId: (resultsData as { entry_id: string }).entry_id,
+      });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.config.showId }
+        additionalData: { event, showId: this.config.showId },
       });
     }
   };
@@ -399,13 +405,14 @@ export class LiveCompetitionService {
 
       // Update metrics
       this.metrics.activeUsers = presences.filter(p => p.status === 'active').length;
-      this.metrics.activeJudges = presences.filter(p => p.role === 'judge' && p.status === 'active').length;
+      this.metrics.activeJudges = presences.filter(
+        p => p.role === 'judge' && p.status === 'active'
+      ).length;
 
       logger.debug('Presence updated', 'competition', { usersOnline: presences.length });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { presenceCount: presences.length, showId: this.config.showId }
+        additionalData: { presenceCount: presences.length, showId: this.config.showId },
       });
     }
   }
@@ -413,16 +420,19 @@ export class LiveCompetitionService {
   /**
    * Handle collaborative judging updates
    */
-  private handleJudgingUpdate: RealtimeEventCallback = (event) => {
+  private handleJudgingUpdate: RealtimeEventCallback = event => {
     try {
-      const judgingData = (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }).payload?.new || event.data;
+      const judgingData =
+        (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> })
+          .payload?.new || event.data;
       if (!judgingData) return;
 
-      logger.debug('Judging session updated', 'competition', { sessionId: (judgingData as { session_id: string }).session_id });
-
+      logger.debug('Judging session updated', 'competition', {
+        sessionId: (judgingData as { session_id: string }).session_id,
+      });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { event, showId: this.config.showId }
+        additionalData: { event, showId: this.config.showId },
       });
     }
   };
@@ -433,7 +443,7 @@ export class LiveCompetitionService {
   async broadcastNotification(notification: CompetitionNotification): Promise<void> {
     try {
       const channelName = `competition-${this.config.showId}`;
-      
+
       await subscriptionManager.broadcast(channelName, {
         type: 'notification',
         payload: notification,
@@ -445,15 +455,14 @@ export class LiveCompetitionService {
 
       // Store notification
       this.activeNotifications.set(notification.id, notification);
-      
+
       // Update metrics
       this.metrics.notificationsSent++;
 
       logger.info('Notification broadcasted', 'competition', { title: notification.title });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { notification, showId: this.config.showId }
+        additionalData: { notification, showId: this.config.showId },
       });
       throw error;
     }
@@ -463,13 +472,13 @@ export class LiveCompetitionService {
    * Update entry ring status
    */
   async updateEntryRingStatus(
-    entryId: string, 
+    entryId: string,
     ringStatus: EntryStatus['ringStatus'],
     metadata?: Partial<EntryStatus>
   ): Promise<void> {
     try {
       const channelName = `competition-${this.config.showId}`;
-      
+
       const updateData = {
         entryId,
         ringStatus,
@@ -487,10 +496,9 @@ export class LiveCompetitionService {
       });
 
       logger.info('Entry ring status updated', 'competition', { entryId, ringStatus });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { entryId, ringStatus, showId: this.config.showId }
+        additionalData: { entryId, ringStatus, showId: this.config.showId },
       });
       throw error;
     }
@@ -503,12 +511,11 @@ export class LiveCompetitionService {
     try {
       const channelName = `competition-${this.config.showId}`;
       await subscriptionManager.trackPresence(channelName, userData);
-      
-      logger.debug('Tracking presence for user', 'competition', { userId: userData.user_id });
 
+      logger.debug('Tracking presence for user', 'competition', { userId: userData.user_id });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { userData, showId: this.config.showId }
+        additionalData: { userData, showId: this.config.showId },
       });
       throw error;
     }
@@ -521,12 +528,11 @@ export class LiveCompetitionService {
     try {
       const channelName = `competition-${this.config.showId}`;
       await subscriptionManager.untrackPresence(channelName);
-      
-      logger.debug('Stopped tracking presence', 'competition');
 
+      logger.debug('Stopped tracking presence', 'competition');
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.config.showId }
+        additionalData: { showId: this.config.showId },
       });
     }
   }
@@ -561,8 +567,9 @@ export class LiveCompetitionService {
    * Get active notifications
    */
   getActiveNotifications(): CompetitionNotification[] {
-    return Array.from(this.activeNotifications.values())
-      .filter(n => !n.expiresAt || n.expiresAt > new Date());
+    return Array.from(this.activeNotifications.values()).filter(
+      n => !n.expiresAt || n.expiresAt > new Date()
+    );
   }
 
   /**
@@ -610,10 +617,12 @@ export class LiveCompetitionService {
    */
   private updateMetrics(): void {
     this.metrics.totalEntries = this.entryStatuses.size;
-    this.metrics.checkedInEntries = Array.from(this.entryStatuses.values())
-      .filter(e => e.checkInStatus !== 'none').length;
-    this.metrics.completedEntries = Array.from(this.entryStatuses.values())
-      .filter(e => e.ringStatus === 'completed').length;
+    this.metrics.checkedInEntries = Array.from(this.entryStatuses.values()).filter(
+      e => e.checkInStatus !== 'no-status'
+    ).length;
+    this.metrics.completedEntries = Array.from(this.entryStatuses.values()).filter(
+      e => e.ringStatus === 'completed'
+    ).length;
     this.metrics.lastUpdate = new Date();
   }
 

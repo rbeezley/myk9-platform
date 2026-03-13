@@ -3,6 +3,8 @@
  *
  * Shows exhibitor-allowed statuses (checked-in, conflict, pulled, at-gate, no-status).
  * Secretary-only statuses (come-to-gate, in-ring, completed) are never shown.
+ *
+ * Full ARIA menu pattern: arrow keys, Home/End, focus trapping, type-ahead disabled.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -36,11 +38,13 @@ export function CheckInStatusMenu({
   className,
 }: CheckInStatusMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const closeAndRestoreFocus = useCallback(() => {
     setIsOpen(false);
-    // Return focus to trigger so keyboard users don't lose their place
+    setFocusedIndex(-1);
     requestAnimationFrame(() => {
       const btn = triggerRef.current?.querySelector(
         'button, [role="button"]'
@@ -56,28 +60,67 @@ export function CheckInStatusMenu({
     closeAndRestoreFocus();
   };
 
-  // Close on Escape key — listener only attached while open
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeAndRestoreFocus();
+  const openMenu = useCallback(() => {
+    setIsOpen(true);
+    // Focus first item (or current status) on open
+    const currentIndex = MENU_ORDER.indexOf(status);
+    setFocusedIndex(currentIndex >= 0 ? currentIndex : 0);
+  }, [status]);
+
+  // Focus the menu item when focusedIndex changes
+  useEffect(() => {
+    if (!isOpen || focusedIndex < 0) return;
+    const items = menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]');
+    items?.[focusedIndex]?.focus();
+  }, [isOpen, focusedIndex]);
+
+  // Keyboard handler for the menu
+  const handleMenuKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedIndex(i => (i + 1) % MENU_ORDER.length);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedIndex(i => (i - 1 + MENU_ORDER.length) % MENU_ORDER.length);
+          break;
+        case 'Home':
+          e.preventDefault();
+          setFocusedIndex(0);
+          break;
+        case 'End':
+          e.preventDefault();
+          setFocusedIndex(MENU_ORDER.length - 1);
+          break;
+        case 'Escape':
+          e.preventDefault();
+          closeAndRestoreFocus();
+          break;
+        case 'Tab':
+          // Trap focus — close menu instead of tabbing out
+          e.preventDefault();
+          closeAndRestoreFocus();
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (focusedIndex >= 0) {
+            handleSelect(MENU_ORDER[focusedIndex]);
+          }
+          break;
       }
     },
-    [closeAndRestoreFocus]
+    [focusedIndex, closeAndRestoreFocus]
   );
-
-  useEffect(() => {
-    if (!isOpen) return;
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, handleKeyDown]);
 
   return (
     <div className="relative" ref={triggerRef}>
       {/* Trigger */}
       <CheckInStatusBadge
         status={status}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => !disabled && (isOpen ? closeAndRestoreFocus() : openMenu())}
         disabled={disabled}
         className={className}
       />
@@ -92,17 +135,19 @@ export function CheckInStatusMenu({
           <div className="fixed inset-0 z-40" onClick={closeAndRestoreFocus} aria-hidden="true" />
 
           {/* Menu */}
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- onKeyDown handles ARIA menu keyboard pattern */}
           <div
+            ref={menuRef}
             role="menu"
             aria-label="Check-in status options"
+            onKeyDown={handleMenuKeyDown}
             className={cn(
               'absolute z-50 mt-1 w-56 rounded-xl border bg-popover p-1.5 shadow-lg',
               'animate-in fade-in-0 zoom-in-95 slide-in-from-top-2',
-              // Position: prefer below, but flip up if near bottom
               'left-0 top-full'
             )}
           >
-            {MENU_ORDER.map(optionStatus => {
+            {MENU_ORDER.map((optionStatus, index) => {
               const config = getCheckinStatusConfig(optionStatus);
               if (!config) return null;
               const Icon = CHECKIN_ICON_MAP[config.icon] ?? Circle;
@@ -113,6 +158,7 @@ export function CheckInStatusMenu({
                   key={optionStatus}
                   type="button"
                   role="menuitem"
+                  tabIndex={index === focusedIndex ? 0 : -1}
                   onClick={() => handleSelect(optionStatus)}
                   className={cn(
                     'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors',

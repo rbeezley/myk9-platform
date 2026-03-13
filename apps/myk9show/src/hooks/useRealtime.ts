@@ -1,7 +1,7 @@
 /**
  * Real-time React Hook
  * Phase 6.1: Real-time Infrastructure
- * 
+ *
  * React hook for managing real-time subscriptions, presence tracking,
  * and live data updates with automatic cleanup and error handling.
  */
@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { subscriptionManager } from '../services/realtime/subscriptionManager';
 import { connectionManager } from '../services/realtime/connectionManager';
-import type { 
+import type {
   RealtimeEventCallback,
   SubscriptionConfig,
   SubscriptionMetrics,
@@ -17,7 +17,7 @@ import type {
   ConnectionHealth,
   PresenceTrackingData,
   LiveScoringSession,
-  BroadcastEvent
+  BroadcastEvent,
 } from '../types/realtime-types';
 import type { CheckInInfo, CheckInStatus } from '../types/check-in-types';
 
@@ -44,7 +44,7 @@ export interface UseRealtimeReturn {
   // Connection state
   state: RealtimeState;
   connectionState: ConnectionState;
-  
+
   // Subscription management
   subscribe: <T = unknown>(
     subscriptionId: string,
@@ -52,7 +52,7 @@ export interface UseRealtimeReturn {
     callback: RealtimeEventCallback<T>
   ) => Promise<string>;
   unsubscribe: (subscriptionId: string) => Promise<void>;
-  
+
   // Presence tracking
   trackPresence: (channelName: string, userData: PresenceTrackingData) => Promise<void>;
   untrackPresence: (channelName: string) => Promise<void>;
@@ -60,10 +60,10 @@ export interface UseRealtimeReturn {
     channelName: string,
     callback: (presences: PresenceTrackingData[]) => void
   ) => Promise<string>;
-  
+
   // Broadcasting
   broadcast: (channelName: string, event: BroadcastEvent) => Promise<void>;
-  
+
   // Specialized subscriptions
   subscribeToScoringSession: (
     sessionId: string,
@@ -73,16 +73,16 @@ export interface UseRealtimeReturn {
     showId: string,
     callback: (checkIn: CheckInInfo) => void
   ) => Promise<string>;
-  
+
   // Connection control
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   forceReconnect: () => Promise<void>;
-  
+
   // Metrics and debugging
   getMetrics: () => SubscriptionMetrics[];
   getConnectionHealth: () => ConnectionHealth;
-  
+
   // Error handling
   lastError: Error | null;
   clearError: () => void;
@@ -138,7 +138,7 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     const connState = connectionManager.getConnectionState();
     const health = connectionManager.getConnectionHealth();
     const rawMetrics = subscriptionManager.getMetrics();
-    
+
     // Convert subscription manager metrics to expected format
     const metricsArray = Array.isArray(rawMetrics) ? rawMetrics : [rawMetrics];
     const convertedMetrics: SubscriptionMetrics[] = metricsArray.map(m => ({
@@ -146,7 +146,7 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       activeChannels: m.isActive ? 1 : 0,
       messagesReceived: m.messagesReceived || 0,
       messagesLost: 0,
-      averageLatency: m.averageProcessingTime || 0
+      averageLatency: m.averageProcessingTime || 0,
     }));
 
     setConnectionState(connState);
@@ -156,81 +156,81 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       isConnecting: connState.status === 'connecting',
       connectionHealth: health,
       subscriptions: convertedMetrics,
-      lastActivity: metricsArray.length > 0 
-        ? metricsArray[0]?.lastActivity || null 
-        : null,
+      lastActivity: metricsArray.length > 0 ? metricsArray[0]?.lastActivity || null : null,
     }));
   }, []);
 
   /**
    * Subscribe to real-time updates
    */
-  const subscribe = useCallback(async <T = unknown>(
-    subscriptionId: string,
-    config: SubscriptionConfig,
-    callback: RealtimeEventCallback<T>
-  ): Promise<string> => {
-    try {
-      // Convert to subscription manager config format
-      const resolvedEnablePresence = enablePresence || config.enablePresence;
-      const resolvedEnableBroadcast = enableBroadcast || config.enableBroadcast;
-      const managerConfig = {
-        table: config.table,
-        ...(config.filter !== undefined && { filter: config.filter }),
-        events: config.events as Array<'INSERT' | 'UPDATE' | 'DELETE' | '*'>,
-        ...(resolvedEnablePresence === true && { enablePresence: true }),
-        ...(resolvedEnableBroadcast === true && { enableBroadcast: true }),
-        batchUpdates: batchUpdates,
-        bufferTime: bufferTime,
-      };
+  const subscribe = useCallback(
+    async <T = unknown>(
+      subscriptionId: string,
+      config: SubscriptionConfig,
+      callback: RealtimeEventCallback<T>
+    ): Promise<string> => {
+      try {
+        // Convert to subscription manager config format
+        const resolvedEnablePresence = enablePresence || config.enablePresence;
+        const resolvedEnableBroadcast = enableBroadcast || config.enableBroadcast;
+        const managerConfig = {
+          table: config.table,
+          ...(config.filter !== undefined && { filter: config.filter }),
+          events: config.events as Array<'INSERT' | 'UPDATE' | 'DELETE' | '*'>,
+          ...(resolvedEnablePresence === true && { enablePresence: true }),
+          ...(resolvedEnableBroadcast === true && { enableBroadcast: true }),
+          batchUpdates: batchUpdates,
+          bufferTime: bufferTime,
+        };
 
-      const id = await subscriptionManager.subscribe(
-        subscriptionId,
-        managerConfig,
-        callback
-      );
+        const id = await subscriptionManager.subscribe(subscriptionId, managerConfig, callback);
 
-      subscriptionsRef.current.add(id);
-      updateConnectionState();
+        subscriptionsRef.current.add(id);
+        updateConnectionState();
 
-      return id;
-    } catch (error) {
-      setLastError(error as Error);
-      setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
-      throw error;
-    }
-  }, [enablePresence, enableBroadcast, batchUpdates, bufferTime, updateConnectionState]);
+        return id;
+      } catch (error) {
+        setLastError(error as Error);
+        setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
+        throw error;
+      }
+    },
+    [enablePresence, enableBroadcast, batchUpdates, bufferTime, updateConnectionState]
+  );
 
   /**
    * Unsubscribe from real-time updates
    */
-  const unsubscribe = useCallback(async (subscriptionId: string): Promise<void> => {
-    try {
-      await subscriptionManager.unsubscribe(subscriptionId);
-      subscriptionsRef.current.delete(subscriptionId);
-      updateConnectionState();
-    } catch (error) {
-      setLastError(error as Error);
-      setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
-      throw error;
-    }
-  }, [updateConnectionState]);
+  const unsubscribe = useCallback(
+    async (subscriptionId: string): Promise<void> => {
+      try {
+        await subscriptionManager.unsubscribe(subscriptionId);
+        subscriptionsRef.current.delete(subscriptionId);
+        updateConnectionState();
+      } catch (error) {
+        setLastError(error as Error);
+        setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
+        throw error;
+      }
+    },
+    [updateConnectionState]
+  );
 
   /**
    * Track user presence in a channel
    */
-  const trackPresence = useCallback(async (
-    channelName: string,
-    userData: PresenceTrackingData
-  ): Promise<void> => {
-    try {
-      await subscriptionManager.trackPresence(channelName, userData);
-      presenceChannelsRef.current.add(channelName);
-    } catch (error) {
-      setLastError(error as Error);
-      throw error;
-    }
-  }, []);
+  const trackPresence = useCallback(
+    async (channelName: string, userData: PresenceTrackingData): Promise<void> => {
+      try {
+        await subscriptionManager.trackPresence(channelName, userData);
+        presenceChannelsRef.current.add(channelName);
+      } catch (error) {
+        setLastError(error as Error);
+        throw error;
+      }
+    },
+    []
+  );
 
   /**
    * Stop tracking user presence
@@ -248,97 +248,114 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
   /**
    * Subscribe to presence updates
    */
-  const subscribeToPresence = useCallback(async (
-    channelName: string,
-    callback: (presences: PresenceTrackingData[]) => void
-  ): Promise<string> => {
-    try {
-      const id = await subscriptionManager.subscribeToPresence(channelName, callback);
-      subscriptionsRef.current.add(id);
-      
-      // Update presence count when presence changes
-      setState(prev => ({ ...prev, presenceCount: 0 }));
+  const subscribeToPresence = useCallback(
+    async (
+      channelName: string,
+      callback: (presences: PresenceTrackingData[]) => void
+    ): Promise<string> => {
+      try {
+        const id = await subscriptionManager.subscribeToPresence(channelName, callback);
+        subscriptionsRef.current.add(id);
 
-      return id;
-    } catch (error) {
-      setLastError(error as Error);
-      throw error;
-    }
-  }, []);
+        // Update presence count when presence changes
+        setState(prev => ({ ...prev, presenceCount: 0 }));
+
+        return id;
+      } catch (error) {
+        setLastError(error as Error);
+        throw error;
+      }
+    },
+    []
+  );
 
   /**
    * Broadcast message to channel
    */
-  const broadcast = useCallback(async (
-    channelName: string,
-    event: BroadcastEvent
-  ): Promise<void> => {
-    try {
-      // Convert payload to Record<string, unknown> format expected by subscription manager
-      const managerEvent = {
-        ...event,
-        payload: event.payload as Record<string, unknown>
-      };
-      await subscriptionManager.broadcast(channelName, managerEvent);
-      
-      setState(prev => ({
-        ...prev,
-        lastActivity: new Date(),
-      }));
-    } catch (error) {
-      setLastError(error as Error);
-      throw error;
-    }
-  }, []);
+  const broadcast = useCallback(
+    async (channelName: string, event: BroadcastEvent): Promise<void> => {
+      try {
+        // Convert payload to Record<string, unknown> format expected by subscription manager
+        const managerEvent = {
+          ...event,
+          payload: event.payload as Record<string, unknown>,
+        };
+        await subscriptionManager.broadcast(channelName, managerEvent);
+
+        setState(prev => ({
+          ...prev,
+          lastActivity: new Date(),
+        }));
+      } catch (error) {
+        setLastError(error as Error);
+        throw error;
+      }
+    },
+    []
+  );
 
   /**
    * Subscribe to live scoring session
    */
-  const subscribeToScoringSession = useCallback(async (
-    sessionId: string,
-    callback: (session: LiveScoringSession) => void
-  ): Promise<string> => {
-    try {
-      const id = await subscriptionManager.subscribeToScoringSession(sessionId, callback);
-      subscriptionsRef.current.add(id);
+  const subscribeToScoringSession = useCallback(
+    async (sessionId: string, callback: (session: LiveScoringSession) => void): Promise<string> => {
+      try {
+        const id = await subscriptionManager.subscribeToScoringSession(sessionId, callback);
+        subscriptionsRef.current.add(id);
 
-      return id;
-    } catch (error) {
-      setLastError(error as Error);
-      throw error;
-    }
-  }, []);
+        return id;
+      } catch (error) {
+        setLastError(error as Error);
+        throw error;
+      }
+    },
+    []
+  );
 
   /**
    * Subscribe to entry check-ins
    */
-  const subscribeToCheckIns = useCallback(async (
-    showId: string,
-    callback: (checkIn: CheckInInfo) => void
-  ): Promise<string> => {
-    try {
-      const id = await subscriptionManager.subscribeToCheckIns(showId, (data) => {
-        // Convert Record<string, unknown> to CheckInInfo
-        if (data && typeof data === 'object' && 'entryId' in data) {
-          const statusValue = String(data.status || 'none');
-          const validStatuses = ['none', 'checked-in', 'conflict', 'pulled', 'at-gate', 'go-to-gate', 'late'];
-          const checkIn: CheckInInfo = {
-            entryId: String(data.entryId || ''),
-            status: validStatuses.includes(statusValue) ? statusValue as CheckInStatus : 'none',
-            timestamp: data.timestamp instanceof Date ? data.timestamp : new Date(String(data.timestamp || Date.now())),
-            updatedBy: String(data.updatedBy || 'system')
-          };
-          callback(checkIn);
-        }
-      });
-      subscriptionsRef.current.add(id);
+  const subscribeToCheckIns = useCallback(
+    async (showId: string, callback: (checkIn: CheckInInfo) => void): Promise<string> => {
+      try {
+        const id = await subscriptionManager.subscribeToCheckIns(showId, data => {
+          // Convert Record<string, unknown> to CheckInInfo
+          if (data && typeof data === 'object' && 'entryId' in data) {
+            const statusValue = String(data.status || 'no-status');
+            const validStatuses = [
+              'no-status',
+              'checked-in',
+              'conflict',
+              'pulled',
+              'at-gate',
+              'come-to-gate',
+              'in-ring',
+              'completed',
+            ];
+            const checkIn: CheckInInfo = {
+              entryId: String(data.entryId || ''),
+              status: validStatuses.includes(statusValue)
+                ? (statusValue as CheckInStatus)
+                : 'no-status',
+              timestamp:
+                data.timestamp instanceof Date
+                  ? data.timestamp
+                  : new Date(String(data.timestamp || Date.now())),
+              updatedBy: String(data.updatedBy || 'system'),
+            };
+            callback(checkIn);
+          }
+        });
+        subscriptionsRef.current.add(id);
 
-      return id;
-    } catch (error) {
-      setLastError(error as Error);
-      throw error;
-    }
-  }, []);
+        return id;
+      } catch (error) {
+        setLastError(error as Error);
+        throw error;
+      }
+    },
+    []
+  );
 
   /**
    * Connect to real-time services
@@ -402,13 +419,13 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
   const getMetrics = useCallback((): SubscriptionMetrics[] => {
     const rawMetrics = subscriptionManager.getMetrics();
     const metricsArray = Array.isArray(rawMetrics) ? rawMetrics : [rawMetrics];
-    
+
     return metricsArray.map(m => ({
       subscriptions: 1,
       activeChannels: m.isActive ? 1 : 0,
       messagesReceived: m.messagesReceived || 0,
       messagesLost: 0,
-      averageLatency: m.averageProcessingTime || 0
+      averageLatency: m.averageProcessingTime || 0,
     }));
   }, []);
 
@@ -435,27 +452,18 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       updateConnectionState
     );
 
-    const unsubscribeConnected = connectionManager.addEventListener(
-      'connected',
-      () => {
-        updateConnectionState();
-      }
-    );
+    const unsubscribeConnected = connectionManager.addEventListener('connected', () => {
+      updateConnectionState();
+    });
 
-    const unsubscribeDisconnected = connectionManager.addEventListener(
-      'disconnected',
-      () => {
-        updateConnectionState();
-      }
-    );
+    const unsubscribeDisconnected = connectionManager.addEventListener('disconnected', () => {
+      updateConnectionState();
+    });
 
-    const unsubscribeError = connectionManager.addEventListener(
-      'error',
-      (event) => {
-        setLastError(event.details?.error || new Error('Connection error'));
-        setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
-      }
-    );
+    const unsubscribeError = connectionManager.addEventListener('error', event => {
+      setLastError(event.details?.error || new Error('Connection error'));
+      setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
+    });
 
     cleanupFunctionsRef.current.push(
       unsubscribeStateChange,
@@ -504,7 +512,7 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       // Run all cleanup functions
       currentCleanupFunctions.forEach(cleanup => cleanup());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoConnect]); // Only run on mount - cleanup functions are intentionally omitted to prevent re-running
 
   /**
@@ -519,32 +527,32 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     // State
     state,
     connectionState,
-    
+
     // Subscription management
     subscribe,
     unsubscribe,
-    
+
     // Presence tracking
     trackPresence,
     untrackPresence,
     subscribeToPresence,
-    
+
     // Broadcasting
     broadcast,
-    
+
     // Specialized subscriptions
     subscribeToScoringSession,
     subscribeToCheckIns,
-    
+
     // Connection control
     connect,
     disconnect,
     forceReconnect,
-    
+
     // Metrics and debugging
     getMetrics,
     getConnectionHealth,
-    
+
     // Error handling
     lastError,
     clearError,

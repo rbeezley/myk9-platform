@@ -1,12 +1,24 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { RefreshCw } from 'lucide-react';
 import type { CheckInEntry } from '@/types/offline-checkin-types';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 
 interface CheckInFormState {
   checkInStatus: CheckInStatus;
@@ -48,9 +60,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
           {/* Entry Details */}
           <div className="p-3 bg-muted rounded-lg">
             <div className="font-medium">{entry.dogName}</div>
-            <div className="text-sm text-muted-foreground">
-              Handler: {entry.handlerName}
-            </div>
+            <div className="text-sm text-muted-foreground">Handler: {entry.handlerName}</div>
             <div className="text-sm text-muted-foreground">
               Armband: #{entry.armband} • Class: {entry.className}
             </div>
@@ -59,14 +69,17 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
           {/* Status Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Status</label>
-            <Select value={formState.checkInStatus} onValueChange={(value) => onFormStateChange({ checkInStatus: value as CheckInStatus })}>
+            <Select
+              value={formState.checkInStatus}
+              onValueChange={value => onFormStateChange({ checkInStatus: value as CheckInStatus })}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="checked-in">Checked In</SelectItem>
                 <SelectItem value="at-gate">At Gate</SelectItem>
-                <SelectItem value="go-to-gate">Go to Gate</SelectItem>
+                <SelectItem value="come-to-gate">Come to Gate</SelectItem>
                 <SelectItem value="pulled">Scratch</SelectItem>
               </SelectContent>
             </Select>
@@ -78,7 +91,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
               <label className="text-sm font-medium">Scratch Reason</label>
               <Textarea
                 value={formState.scratchReason}
-                onChange={(e) => onFormStateChange({ scratchReason: e.target.value })}
+                onChange={e => onFormStateChange({ scratchReason: e.target.value })}
                 placeholder="Reason for scratching..."
               />
             </div>
@@ -88,7 +101,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
             <label className="text-sm font-medium">Handler Change (Optional)</label>
             <Input
               value={formState.handlerChange}
-              onChange={(e) => onFormStateChange({ handlerChange: e.target.value })}
+              onChange={e => onFormStateChange({ handlerChange: e.target.value })}
               placeholder="New handler name..."
             />
           </div>
@@ -97,7 +110,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
             <label className="text-sm font-medium">Special Requests (Optional)</label>
             <Textarea
               value={formState.specialRequests}
-              onChange={(e) => onFormStateChange({ specialRequests: e.target.value })}
+              onChange={e => onFormStateChange({ specialRequests: e.target.value })}
               placeholder="Any special requests..."
             />
           </div>
@@ -106,7 +119,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
             <label className="text-sm font-medium">Notes (Optional)</label>
             <Textarea
               value={formState.notes}
-              onChange={(e) => onFormStateChange({ notes: e.target.value })}
+              onChange={e => onFormStateChange({ notes: e.target.value })}
               placeholder="Additional notes..."
             />
           </div>

@@ -1,9 +1,15 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Search } from 'lucide-react';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 
 interface CheckInSearchBarProps {
   searchTerm: string;
@@ -27,21 +33,24 @@ export const CheckInSearchBar: React.FC<CheckInSearchBarProps> = ({
             <Input
               placeholder="Search by dog name, handler, or armband..."
               value={searchTerm}
-              onChange={(e) => onSearchTermChange(e.target.value)}
+              onChange={e => onSearchTermChange(e.target.value)}
               className="pl-9"
             />
           </div>
 
-          <Select value={statusFilter} onValueChange={(value) => onStatusFilterChange(value as CheckInStatus | 'all')}>
+          <Select
+            value={statusFilter}
+            onValueChange={value => onStatusFilterChange(value as CheckInStatus | 'all')}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="none">Not Checked In</SelectItem>
+              <SelectItem value="no-status">Not Checked In</SelectItem>
               <SelectItem value="checked-in">Checked In</SelectItem>
               <SelectItem value="at-gate">At Gate</SelectItem>
-              <SelectItem value="go-to-gate">Go to Gate</SelectItem>
+              <SelectItem value="come-to-gate">Come to Gate</SelectItem>
               <SelectItem value="conflict">Conflict</SelectItem>
               <SelectItem value="pulled">Pulled</SelectItem>
             </SelectContent>

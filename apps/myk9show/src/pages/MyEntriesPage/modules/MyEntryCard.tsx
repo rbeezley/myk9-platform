@@ -124,7 +124,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                     className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
                   >
                     <CheckInStatusIndicator
-                      status={cls.checkInStatus || 'none'}
+                      status={cls.checkInStatus || 'no-status'}
                       size="sm"
                       showLabel={true}
                       showTooltip={true}

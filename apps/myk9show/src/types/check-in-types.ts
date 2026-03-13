@@ -1,16 +1,13 @@
 /**
  * Check-in Status Types and Utilities
  *
- * Manages the check-in workflow for exhibitors at dog shows
+ * Manages the check-in workflow for exhibitors at dog shows.
+ * The canonical CheckInStatus type comes from @myk9/core.
  */
 
-export type CheckInStatus =
-  | 'none'
-  | 'checked-in'
-  | 'conflict'
-  | 'pulled'
-  | 'at-gate'
-  | 'go-to-gate';
+// Re-export the canonical type from @myk9/core
+export type { CheckInStatus } from '@myk9/core';
+import type { CheckInStatus } from '@myk9/core';
 
 export interface CheckInStatusConfig {
   status: CheckInStatus;
@@ -24,8 +21,8 @@ export interface CheckInStatusConfig {
 }
 
 export const CHECK_IN_STATUS_CONFIG: Record<CheckInStatus, CheckInStatusConfig> = {
-  none: {
-    status: 'none',
+  'no-status': {
+    status: 'no-status',
     label: 'Not Checked In',
     color: 'text-gray-500',
     backgroundColor: 'bg-gray-100',
@@ -73,15 +70,35 @@ export const CHECK_IN_STATUS_CONFIG: Record<CheckInStatus, CheckInStatusConfig> 
     description: 'Exhibitor is at the gate and ready',
     priority: 3,
   },
-  'go-to-gate': {
-    status: 'go-to-gate',
-    label: 'Go to Gate',
+  'come-to-gate': {
+    status: 'come-to-gate',
+    label: 'Come to Gate',
     color: 'text-blue-600',
     backgroundColor: 'bg-blue-100',
     borderColor: 'border-blue-200',
     icon: '→',
     description: 'Exhibitor should proceed to gate',
     priority: 2,
+  },
+  'in-ring': {
+    status: 'in-ring',
+    label: 'In Ring',
+    color: 'text-indigo-600',
+    backgroundColor: 'bg-indigo-100',
+    borderColor: 'border-indigo-200',
+    icon: '◉',
+    description: 'Exhibitor is currently competing in the ring',
+    priority: 4,
+  },
+  completed: {
+    status: 'completed',
+    label: 'Completed',
+    color: 'text-green-600',
+    backgroundColor: 'bg-green-100',
+    borderColor: 'border-green-200',
+    icon: '✓✓',
+    description: 'Entry has finished competing',
+    priority: 7,
   },
 };
 
@@ -99,13 +116,13 @@ export function getCheckInStatusConfig(status: CheckInStatus): CheckInStatusConf
 }
 
 export function isActiveStatus(status: CheckInStatus): boolean {
-  return status !== 'none' && status !== 'pulled';
+  return status !== 'no-status' && status !== 'pulled';
 }
 
 export function requiresAction(status: CheckInStatus): boolean {
-  return status === 'go-to-gate' || status === 'conflict';
+  return status === 'come-to-gate' || status === 'conflict';
 }
 
 export function canProceedToGate(status: CheckInStatus): boolean {
-  return status === 'checked-in' || status === 'go-to-gate';
+  return status === 'checked-in' || status === 'come-to-gate';
 }

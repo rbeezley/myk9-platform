@@ -2,13 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  AlertTriangle,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  Activity
-} from 'lucide-react';
+import { AlertTriangle, Wifi, WifiOff, RefreshCw, Activity } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 
 import { offlineCheckInService } from '@/services/offline-checkin/OfflineCheckInService';
@@ -21,9 +15,9 @@ import type {
   CheckInStatistics,
   QRScanResult,
   CheckInValidationResult,
-  GateSession
+  GateSession,
 } from '@/types/offline-checkin-types';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 
 import { CheckInSearchBar } from './CheckInSearchBar';
 import { CheckInEntryList } from './CheckInEntryList';
@@ -44,7 +38,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
   gateId,
   stewardId,
   showId,
-  onSessionEnd
+  onSessionEnd,
 }) => {
   void onSessionEnd; // Suppress unused variable warning
   // State management
@@ -106,7 +100,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
         offlineCheckInService.initialize(),
         armbandManager.initialize(),
         gateCoordinator.initialize(),
-        qrScannerService.initialize()
+        qrScannerService.initialize(),
       ]);
 
       await loadEntries();
@@ -119,9 +113,13 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       } else {
         setCurrentSession(activeSession);
       }
-
     } catch (error) {
-      logger.error('Failed to initialize services', 'offline-checkin', { gateId, stewardId }, error as Error);
+      logger.error(
+        'Failed to initialize services',
+        'offline-checkin',
+        { gateId, stewardId },
+        error as Error
+      );
       setError(error instanceof Error ? error.message : 'Initialization failed');
     } finally {
       setLoading(false);
@@ -149,30 +147,33 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
     }
   }, []);
 
-  const handleScanSuccess = useCallback(async (result: QRScanResult) => {
-    setScanResult(result);
-    await stopScanning();
+  const handleScanSuccess = useCallback(
+    async (result: QRScanResult) => {
+      setScanResult(result);
+      await stopScanning();
 
-    if (result.entryId) {
-      const entry = await offlineCheckInService.loadEntry(result.entryId);
-      if (entry) {
-        setSelectedEntry(entry);
-        setShowCheckInDialog(true);
-      } else {
-        setError(`Entry ${result.entryId} not found`);
+      if (result.entryId) {
+        const entry = await offlineCheckInService.loadEntry(result.entryId);
+        if (entry) {
+          setSelectedEntry(entry);
+          setShowCheckInDialog(true);
+        } else {
+          setError(`Entry ${result.entryId} not found`);
+        }
+      } else if (result.armband) {
+        const entry = entries.find(e => e.armband === result.armband);
+        if (entry) {
+          setSelectedEntry(entry);
+          setShowCheckInDialog(true);
+        } else {
+          setError(`Entry with armband ${result.armband} not found`);
+        }
       }
-    } else if (result.armband) {
-      const entry = entries.find(e => e.armband === result.armband);
-      if (entry) {
-        setSelectedEntry(entry);
-        setShowCheckInDialog(true);
-      } else {
-        setError(`Entry with armband ${result.armband} not found`);
-      }
-    }
 
-    setManualEntry('');
-  }, [entries, stopScanning]);
+      setManualEntry('');
+    },
+    [entries, stopScanning]
+  );
 
   const handleScanFailed = useCallback((data: unknown) => {
     logger.warn('Scan failed', 'offline-checkin', { data });
@@ -181,20 +182,32 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
 
   const handleScanError = useCallback((data: unknown) => {
     logger.error('Scan error', 'offline-checkin', { data });
-    const errorMessage = (data && typeof data === 'object' && 'error' in data && typeof (data as Record<string, unknown>).error === 'string')
-      ? (data as Record<string, unknown>).error as string
-      : 'Unknown error';
+    const errorMessage =
+      data &&
+      typeof data === 'object' &&
+      'error' in data &&
+      typeof (data as Record<string, unknown>).error === 'string'
+        ? ((data as Record<string, unknown>).error as string)
+        : 'Unknown error';
     setError(`Scan error: ${errorMessage}`);
   }, []);
 
-  const handleCheckInEvent = useCallback((event: unknown) => {
-    logger.debug('Check-in event', 'offline-checkin', { event });
+  const handleCheckInEvent = useCallback(
+    (event: unknown) => {
+      logger.debug('Check-in event', 'offline-checkin', { event });
 
-    if (event && typeof event === 'object' && 'type' in event && (event as Record<string, unknown>).type === 'check_in_completed') {
-      loadEntries();
-      loadStatistics();
-    }
-  }, [loadEntries]);
+      if (
+        event &&
+        typeof event === 'object' &&
+        'type' in event &&
+        (event as Record<string, unknown>).type === 'check_in_completed'
+      ) {
+        loadEntries();
+        loadStatistics();
+      }
+    },
+    [loadEntries]
+  );
 
   const handleGateEvent = useCallback((event: unknown) => {
     logger.debug('Gate event', 'offline-checkin', { event });
@@ -233,7 +246,12 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
         await gateCoordinator.endSession(currentSession.id, stewardId);
       }
     } catch (error) {
-      logger.error('Cleanup failed', 'offline-checkin', { sessionId: currentSession?.id }, error as Error);
+      logger.error(
+        'Cleanup failed',
+        'offline-checkin',
+        { sessionId: currentSession?.id },
+        error as Error
+      );
     }
   }, [currentSession, stewardId]);
 
@@ -264,11 +282,12 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
 
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(entry =>
-        entry.dogName.toLowerCase().includes(searchLower) ||
-        entry.handlerName.toLowerCase().includes(searchLower) ||
-        entry.armband.includes(searchLower) ||
-        entry.entryNumber.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        entry =>
+          entry.dogName.toLowerCase().includes(searchLower) ||
+          entry.handlerName.toLowerCase().includes(searchLower) ||
+          entry.armband.includes(searchLower) ||
+          entry.entryNumber.toLowerCase().includes(searchLower)
       );
     }
 
@@ -350,7 +369,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
           ...(handlerChange && { handlerChange }),
           ...(specialRequests && { specialRequests }),
           ...(scratchReason && { scratchReason }),
-          ...(notes && { notes })
+          ...(notes && { notes }),
         }
       );
 
@@ -372,7 +391,6 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       resetForm();
       await loadEntries();
       await loadStatistics();
-
     } catch (error) {
       setError(`Check-in failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -468,10 +486,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
           />
-          <CheckInEntryList
-            entries={filteredEntries}
-            onEntrySelect={handleEntrySelect}
-          />
+          <CheckInEntryList entries={filteredEntries} onEntrySelect={handleEntrySelect} />
         </TabsContent>
 
         {/* QR Scanner Tab */}

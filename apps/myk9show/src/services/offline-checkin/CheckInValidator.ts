@@ -1,6 +1,6 @@
 /**
  * Check-In Validator
- * 
+ *
  * Provides comprehensive validation for check-in operations,
  * ensuring data integrity and business rule compliance.
  */
@@ -9,9 +9,9 @@ import type {
   CheckInEntry,
   CheckInValidationResult,
   CheckInTimeWindow,
-  ArmbandAssignment
+  ArmbandAssignment,
 } from '@/types/offline-checkin-types';
-import type { CheckInStatus } from '@/types/check-in-types';
+import type { CheckInStatus } from '@myk9/core';
 
 export interface ValidationContext {
   currentTime: Date;
@@ -24,17 +24,30 @@ export interface ValidationContext {
 
 export interface ValidationRule {
   name: string;
-  check: 'entry_exists' | 'armband_unique' | 'time_window' | 'handler_eligible' | 
-         'dog_eligible' | 'class_open' | 'duplicate_checkin' | 'status_transition' |
-         'special_requirements' | 'data_integrity';
+  check:
+    | 'entry_exists'
+    | 'armband_unique'
+    | 'time_window'
+    | 'handler_eligible'
+    | 'dog_eligible'
+    | 'class_open'
+    | 'duplicate_checkin'
+    | 'status_transition'
+    | 'special_requirements'
+    | 'data_integrity';
   severity: 'error' | 'warning' | 'info';
-  validator: (entry: CheckInEntry, newStatus: CheckInStatus, context: ValidationContext, data?: {
-    allEntries?: CheckInEntry[];
-    armbandAssignments?: ArmbandAssignment[];
-    timeWindows?: CheckInTimeWindow[];
-    handlerChange?: string;
-    specialRequests?: string;
-  }) => Promise<CheckInValidationResult | null>;
+  validator: (
+    entry: CheckInEntry,
+    newStatus: CheckInStatus,
+    context: ValidationContext,
+    data?: {
+      allEntries?: CheckInEntry[];
+      armbandAssignments?: ArmbandAssignment[];
+      timeWindows?: CheckInTimeWindow[];
+      handlerChange?: string;
+      specialRequests?: string;
+    }
+  ) => Promise<CheckInValidationResult | null>;
 }
 
 const DEFAULT_CONTEXT: ValidationContext = {
@@ -43,7 +56,7 @@ const DEFAULT_CONTEXT: ValidationContext = {
   allowEarlyCheckIn: true,
   strictValidation: true,
   timeWindowMinutes: 30,
-  maxAdvanceCheckInHours: 2
+  maxAdvanceCheckInHours: 2,
 };
 
 export class CheckInValidator {
@@ -79,7 +92,7 @@ export class CheckInValidator {
           check: rule.check,
           status: 'error',
           message: `Validation rule ${rule.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          details: { rule: rule.name, error }
+          details: { rule: rule.name, error },
         });
       }
     }
@@ -95,16 +108,17 @@ export class CheckInValidator {
     const results = new Map<string, CheckInValidationResult[]>();
 
     for (const entry of entries) {
-      const additionalDataTyped = additionalData as {
-        allEntries?: CheckInEntry[];
-        armbandAssignments?: ArmbandAssignment[];
-        timeWindows?: CheckInTimeWindow[];
-        handlerChange?: string;
-        specialRequests?: string;
-      } || {};
+      const additionalDataTyped =
+        (additionalData as {
+          allEntries?: CheckInEntry[];
+          armbandAssignments?: ArmbandAssignment[];
+          timeWindows?: CheckInTimeWindow[];
+          handlerChange?: string;
+          specialRequests?: string;
+        }) || {};
       const entryResults = await this.validateCheckIn(entry, newStatus, {
         ...additionalDataTyped,
-        allEntries: entries
+        allEntries: entries,
       });
       results.set(entry.id, entryResults);
     }
@@ -144,7 +158,7 @@ export class CheckInValidator {
       warningCount: warnings.length,
       infoCount: info.length,
       errors: errors.map(e => e.message),
-      warnings: warnings.map(w => w.message)
+      warnings: warnings.map(w => w.message),
     };
   }
 
@@ -154,21 +168,21 @@ export class CheckInValidator {
       name: 'entry_exists',
       check: 'entry_exists',
       severity: 'error',
-      validator: async (entry) => {
+      validator: async entry => {
         if (!entry || !entry.id) {
           return {
             check: 'entry_exists',
             status: 'error',
             message: 'Entry does not exist or has invalid ID',
-            details: { entryId: entry?.id }
+            details: { entryId: entry?.id },
           };
         }
         return {
           check: 'entry_exists',
           status: 'pass',
-          message: 'Entry exists and is valid'
+          message: 'Entry exists and is valid',
         };
-      }
+      },
     });
 
     // Armband uniqueness validation
@@ -181,19 +195,21 @@ export class CheckInValidator {
           return null; // Only validate for check-in operations
         }
 
-        const additionalData = data as {
-          allEntries?: CheckInEntry[];
-          armbandAssignments?: ArmbandAssignment[];
-          timeWindows?: CheckInTimeWindow[];
-          handlerChange?: string;
-          specialRequests?: string;
-        } || {};
+        const additionalData =
+          (data as {
+            allEntries?: CheckInEntry[];
+            armbandAssignments?: ArmbandAssignment[];
+            timeWindows?: CheckInTimeWindow[];
+            handlerChange?: string;
+            specialRequests?: string;
+          }) || {};
         const allEntries = additionalData.allEntries || [];
         const conflictingEntry = allEntries.find(
-          e => e.id !== entry.id &&
-               e.classId === entry.classId &&
-               e.armband === entry.armband &&
-               e.checkInStatus === 'checked-in'
+          e =>
+            e.id !== entry.id &&
+            e.classId === entry.classId &&
+            e.armband === entry.armband &&
+            e.checkInStatus === 'checked-in'
         );
 
         if (conflictingEntry) {
@@ -201,21 +217,21 @@ export class CheckInValidator {
             check: 'armband_unique',
             status: 'error',
             message: `Armband ${entry.armband} is already checked in for another entry in this class`,
-            details: { 
+            details: {
               conflictingEntryId: conflictingEntry.id,
               conflictingDogName: conflictingEntry.dogName,
               armband: entry.armband,
-              classId: entry.classId
-            }
+              classId: entry.classId,
+            },
           };
         }
 
         return {
           check: 'armband_unique',
           status: 'pass',
-          message: 'Armband is unique within class'
+          message: 'Armband is unique within class',
         };
-      }
+      },
     });
 
     // Time window validation
@@ -240,11 +256,11 @@ export class CheckInValidator {
             check: 'time_window',
             status: severity,
             message: `Check-in is ${Math.round(hoursUntilStart * 10) / 10} hours before class start (max ${context.maxAdvanceCheckInHours} hours)`,
-            details: { 
+            details: {
               hoursUntilStart,
               estimatedStartTime: entry.estimatedStartTime,
-              maxAdvanceHours: context.maxAdvanceCheckInHours
-            }
+              maxAdvanceHours: context.maxAdvanceCheckInHours,
+            },
           };
         }
 
@@ -255,34 +271,34 @@ export class CheckInValidator {
               check: 'time_window',
               status: 'error',
               message: 'Class has already started and late check-in is not allowed',
-              details: { hoursUntilStart, estimatedStartTime: entry.estimatedStartTime }
+              details: { hoursUntilStart, estimatedStartTime: entry.estimatedStartTime },
             };
           } else {
             return {
               check: 'time_window',
               status: 'warning',
               message: `Late check-in: class started ${Math.abs(Math.round(hoursUntilStart * 60))} minutes ago`,
-              details: { hoursUntilStart, estimatedStartTime: entry.estimatedStartTime }
+              details: { hoursUntilStart, estimatedStartTime: entry.estimatedStartTime },
             };
           }
         }
 
         // Check if within warning window (last 30 minutes)
-        if (hoursUntilStart < (context.timeWindowMinutes / 60) && hoursUntilStart > 0) {
+        if (hoursUntilStart < context.timeWindowMinutes / 60 && hoursUntilStart > 0) {
           return {
             check: 'time_window',
             status: 'warning',
             message: `Check-in close to class start time (${Math.round(hoursUntilStart * 60)} minutes remaining)`,
-            details: { hoursUntilStart, estimatedStartTime: entry.estimatedStartTime }
+            details: { hoursUntilStart, estimatedStartTime: entry.estimatedStartTime },
           };
         }
 
         return {
           check: 'time_window',
           status: 'pass',
-          message: 'Check-in timing is appropriate'
+          message: 'Check-in timing is appropriate',
         };
-      }
+      },
     });
 
     // Duplicate check-in validation
@@ -296,15 +312,15 @@ export class CheckInValidator {
             check: 'duplicate_checkin',
             status: 'warning',
             message: 'Entry is already checked in',
-            details: { 
+            details: {
               currentStatus: entry.checkInStatus,
               checkInTime: entry.checkInTime,
-              checkInGate: entry.checkInGate
-            }
+              checkInGate: entry.checkInGate,
+            },
           };
         }
         return null;
-      }
+      },
     });
 
     // Status transition validation
@@ -314,26 +330,26 @@ export class CheckInValidator {
       severity: 'error',
       validator: async (entry, newStatus) => {
         const validTransitions = this.getValidStatusTransitions(entry.checkInStatus);
-        
+
         if (!validTransitions.includes(newStatus)) {
           return {
             check: 'status_transition',
             status: 'error',
             message: `Invalid status transition from '${entry.checkInStatus}' to '${newStatus}'`,
-            details: { 
+            details: {
               currentStatus: entry.checkInStatus,
               requestedStatus: newStatus,
-              validTransitions
-            }
+              validTransitions,
+            },
           };
         }
 
         return {
           check: 'status_transition',
           status: 'pass',
-          message: 'Status transition is valid'
+          message: 'Status transition is valid',
         };
-      }
+      },
     });
 
     // Handler eligibility validation
@@ -346,13 +362,14 @@ export class CheckInValidator {
           return null;
         }
 
-        const additionalData = data as {
-          allEntries?: CheckInEntry[];
-          armbandAssignments?: ArmbandAssignment[];
-          timeWindows?: CheckInTimeWindow[];
-          handlerChange?: string;
-          specialRequests?: string;
-        } || {};
+        const additionalData =
+          (data as {
+            allEntries?: CheckInEntry[];
+            armbandAssignments?: ArmbandAssignment[];
+            timeWindows?: CheckInTimeWindow[];
+            handlerChange?: string;
+            specialRequests?: string;
+          }) || {};
 
         // Check for handler changes
         if (additionalData.handlerChange) {
@@ -360,10 +377,10 @@ export class CheckInValidator {
             check: 'handler_eligible',
             status: 'warning',
             message: 'Handler change requested - verify eligibility',
-            details: { 
+            details: {
               originalHandler: entry.handlerName,
-              newHandler: additionalData.handlerChange
-            }
+              newHandler: additionalData.handlerChange,
+            },
           };
         }
 
@@ -373,16 +390,16 @@ export class CheckInValidator {
             check: 'handler_eligible',
             status: 'error',
             message: 'Handler name is required',
-            details: { handlerId: entry.handlerId }
+            details: { handlerId: entry.handlerId },
           };
         }
 
         return {
           check: 'handler_eligible',
           status: 'pass',
-          message: 'Handler is eligible'
+          message: 'Handler is eligible',
         };
-      }
+      },
     });
 
     // Dog eligibility validation
@@ -401,7 +418,7 @@ export class CheckInValidator {
             check: 'dog_eligible',
             status: 'error',
             message: 'Dog name is required',
-            details: { dogId: entry.dogId }
+            details: { dogId: entry.dogId },
           };
         }
 
@@ -410,16 +427,16 @@ export class CheckInValidator {
             check: 'dog_eligible',
             status: 'warning',
             message: 'Dog breed is not specified',
-            details: { dogId: entry.dogId, dogName: entry.dogName }
+            details: { dogId: entry.dogId, dogName: entry.dogName },
           };
         }
 
         return {
           check: 'dog_eligible',
           status: 'pass',
-          message: 'Dog is eligible'
+          message: 'Dog is eligible',
         };
-      }
+      },
     });
 
     // Special requirements validation
@@ -428,28 +445,29 @@ export class CheckInValidator {
       check: 'special_requirements',
       severity: 'info',
       validator: async (entry, _newStatus, _context, data) => {
-        const additionalData = data as {
-          allEntries?: CheckInEntry[];
-          armbandAssignments?: ArmbandAssignment[];
-          timeWindows?: CheckInTimeWindow[];
-          handlerChange?: string;
-          specialRequests?: string;
-        } || {};
+        const additionalData =
+          (data as {
+            allEntries?: CheckInEntry[];
+            armbandAssignments?: ArmbandAssignment[];
+            timeWindows?: CheckInTimeWindow[];
+            handlerChange?: string;
+            specialRequests?: string;
+          }) || {};
         const hasSpecialRequests = entry.specialRequests || additionalData.specialRequests;
-        
+
         if (hasSpecialRequests) {
           return {
             check: 'special_requirements',
             status: 'warning',
             message: 'Entry has special requirements - please review',
-            details: { 
-              specialRequests: entry.specialRequests || additionalData.specialRequests
-            }
+            details: {
+              specialRequests: entry.specialRequests || additionalData.specialRequests,
+            },
           };
         }
 
         return null;
-      }
+      },
     });
 
     // Data integrity validation
@@ -457,7 +475,7 @@ export class CheckInValidator {
       name: 'data_integrity',
       check: 'data_integrity',
       severity: 'error',
-      validator: async (entry) => {
+      validator: async entry => {
         const issues: string[] = [];
 
         if (!entry.showId) issues.push('Missing show ID');
@@ -472,27 +490,29 @@ export class CheckInValidator {
             check: 'data_integrity',
             status: 'error',
             message: `Data integrity issues: ${issues.join(', ')}`,
-            details: { issues, entryId: entry.id }
+            details: { issues, entryId: entry.id },
           };
         }
 
         return {
           check: 'data_integrity',
           status: 'pass',
-          message: 'Data integrity is valid'
+          message: 'Data integrity is valid',
         };
-      }
+      },
     });
   }
 
   private getValidStatusTransitions(currentStatus: CheckInStatus): CheckInStatus[] {
     const transitions: Record<CheckInStatus, CheckInStatus[]> = {
-      'none': ['checked-in', 'pulled'],
-      'checked-in': ['at-gate', 'go-to-gate', 'pulled'],
-      'conflict': ['checked-in', 'pulled'],
-      'pulled': [], // Cannot transition from pulled
-      'at-gate': ['go-to-gate'],
-      'go-to-gate': ['at-gate', 'checked-in']
+      'no-status': ['checked-in', 'pulled'],
+      'checked-in': ['at-gate', 'come-to-gate', 'pulled'],
+      conflict: ['checked-in', 'pulled'],
+      pulled: [], // Cannot transition from pulled
+      'at-gate': ['come-to-gate'],
+      'come-to-gate': ['at-gate', 'checked-in'],
+      'in-ring': ['completed'],
+      completed: ['no-status'],
     };
 
     return transitions[currentStatus] || [];

@@ -20,6 +20,7 @@ import {
   createShowRegistration,
   getRegistrationByShowAndHandler,
 } from '../services/database/queries/showRegistrationQueries';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@myk9/core';
 
 interface ShowRegistrationStore {
@@ -424,6 +425,17 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
               : r
           ),
         }));
+
+        // Fire-and-forget: send confirmation email
+        if (dbRegistrationId) {
+          supabase.functions
+            .invoke('send-registration-email', {
+              body: { registrationId: dbRegistrationId },
+            })
+            .catch(err => {
+              logger.error('[confirmRegistration] Failed to send confirmation email:', err);
+            });
+        }
 
         return { confirmationNumber, dbRegistrationId };
       },

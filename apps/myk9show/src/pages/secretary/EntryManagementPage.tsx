@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,9 @@ import {
 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
+import { toast } from 'sonner';
+import { useEmailStatus } from '@/hooks/useEmailStatus';
+import { supabase } from '@/lib/supabase';
 
 // Extracted hooks
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
@@ -141,6 +144,39 @@ const EntryManagementPage: React.FC = () => {
 
   // View mode state
   const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
+
+  // Email status tracking
+  const registrationIds = useMemo(
+    () => [...new Set(entries.map(e => e.registrationId).filter(Boolean))],
+    [entries]
+  );
+  const { data: emailStatusMap } = useEmailStatus(registrationIds);
+
+  // Resend cooldown state (registrationId -> cooldown expiry timestamp)
+  const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
+
+  const handleResendEmail = async (registrationId: string) => {
+    // Set cooldown immediately to prevent double-clicks during the request
+    setResendCooldowns(prev => ({ ...prev, [registrationId]: Date.now() + 60_000 }));
+    try {
+      const { error } = await supabase.functions.invoke('send-registration-email', {
+        body: { registrationId },
+      });
+      if (error) throw error;
+      toast.success('Confirmation email resent');
+    } catch {
+      // Clear cooldown on failure so user can retry immediately
+      setResendCooldowns(prev => {
+        const next = { ...prev };
+        delete next[registrationId];
+        return next;
+      });
+      toast.error('Failed to resend email');
+    }
+  };
+
+  const isResendDisabled = (registrationId: string) =>
+    (resendCooldowns[registrationId] || 0) > Date.now();
 
   // Comp dialog state
   const [compDialog, setCompDialog] = useState<{
@@ -422,7 +458,12 @@ const EntryManagementPage: React.FC = () => {
 
             <TabsContent value={selectedTab} className="mt-6">
               {entryViewMode === 'table' ? (
-                <EntriesTableView entries={filteredEntries} />
+                <EntriesTableView
+                  entries={filteredEntries}
+                  emailStatusMap={emailStatusMap}
+                  onResendEmail={handleResendEmail}
+                  isResendDisabled={isResendDisabled}
+                />
               ) : (
                 <EntryListCard
                   entries={filteredEntries}
@@ -448,6 +489,9 @@ const EntryManagementPage: React.FC = () => {
                     }
                   }}
                   onUncompEntry={handleUncompEntry}
+                  emailStatusMap={emailStatusMap}
+                  onResendEmail={handleResendEmail}
+                  isResendDisabled={isResendDisabled}
                 />
               )}
             </TabsContent>

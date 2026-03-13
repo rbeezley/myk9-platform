@@ -20,14 +20,16 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
 
     // Listen for auth changes
     const {
@@ -49,49 +51,50 @@ export function useAuth() {
    * @param {Object} metadata - Additional user metadata
    * @throws {AuthError} If registration fails
    */
-  const signUp = useCallback(async (
-    email: string, 
-    password: string, 
-    metadata?: { firstName?: string; lastName?: string }
-  ) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: metadata?.firstName || 'First',
-          last_name: metadata?.lastName || 'Name',
-        }
+  const signUp = useCallback(
+    async (
+      email: string,
+      password: string,
+      metadata?: { firstName?: string; lastName?: string }
+    ) => {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: metadata?.firstName || 'First',
+            last_name: metadata?.lastName || 'Name',
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
       }
-    });
 
-    if (error) {
-      throw error;
-    }
-
-    // If user is created successfully, create corresponding public.user record
-    if (data.user) {
-      try {
-        const { error: insertError } = await supabase
-          .from('people')
-          .insert([
+      // If user is created successfully, create corresponding public.user record
+      if (data.user) {
+        try {
+          const { error: insertError } = await supabase.from('people').insert([
             {
               first_name: metadata?.firstName || 'First',
               last_name: metadata?.lastName || 'Name',
               email: email,
               roles: ['exhibitor'],
               user_id: data.user.id,
-            }
+            },
           ]);
 
-        if (insertError) {
+          if (insertError) {
+            // Profile creation failed - auth user is created, profile creation can be retried
+          }
+        } catch {
           // Profile creation failed - auth user is created, profile creation can be retried
         }
-      } catch {
-        // Profile creation failed - auth user is created, profile creation can be retried
       }
-    }
-  }, []);
+    },
+    []
+  );
 
   /**
    * Signs in a user with email and password
@@ -102,7 +105,7 @@ export function useAuth() {
   const signIn = useCallback(async (email: string, password: string) => {
     try {
       setLoading(true);
-      
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -136,7 +139,9 @@ export function useAuth() {
    * @throws {AuthError} If the operation fails
    */
   const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    });
     if (error) {
       throw error;
     }
@@ -164,16 +169,15 @@ export function useAuth() {
    * @param {Object} [updates.data] - Additional user metadata
    * @throws {AuthError} If the operation fails
    */
-  const updateProfile = useCallback(async (updates: {
-    email?: string;
-    password?: string;
-    data?: Record<string, unknown>;
-  }) => {
-    const { error } = await supabase.auth.updateUser(updates);
-    if (error) {
-      throw error;
-    }
-  }, []);
+  const updateProfile = useCallback(
+    async (updates: { email?: string; password?: string; data?: Record<string, unknown> }) => {
+      const { error } = await supabase.auth.updateUser(updates);
+      if (error) {
+        throw error;
+      }
+    },
+    []
+  );
 
   return {
     user,

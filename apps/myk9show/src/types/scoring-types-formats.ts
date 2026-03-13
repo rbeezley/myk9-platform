@@ -241,7 +241,6 @@ export function isScentWorkScore(score: unknown): score is ScentWorkResult {
 // Default Configurations
 // ============================================================================
 
-/* eslint-disable @typescript-eslint/naming-convention */
 const BASE_CONFIG = {
   allowMultipleJudges: false,
   requireJudgeSignoff: true,

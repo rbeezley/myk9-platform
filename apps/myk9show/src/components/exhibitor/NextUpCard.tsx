@@ -36,6 +36,7 @@ export function NextUpCard({
   selfCheckinDisabledReason,
   className,
 }: NextUpCardProps) {
+  const hasScoring = classData.scoredEntries > 0 || classData.currentDogInRing != null;
   const progressPercent =
     classData.totalEntries > 0
       ? Math.round((classData.scoredEntries / classData.totalEntries) * 100)
@@ -105,11 +106,22 @@ export function NextUpCard({
 
         {/* Ring + progress */}
         <p className="mt-1 text-sm text-muted-foreground">
-          Dog {classData.scoredEntries + 1} of {classData.totalEntries}
-          {classData.currentDogInRing && (
-            <span className="ml-2 text-primary font-medium">
-              &bull; {classData.currentDogInRing} in ring
-            </span>
+          {hasScoring ? (
+            <>
+              Dog {classData.scoredEntries + 1} of {classData.totalEntries}
+              {classData.currentDogInRing && (
+                <span className="ml-2 text-primary font-medium">
+                  &bull; {classData.currentDogInRing} in ring
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              {classData.totalEntries} entr{classData.totalEntries !== 1 ? 'ies' : 'y'}
+              {classData.ringNumber != null && (
+                <span className="ml-2">&bull; Ring {classData.ringNumber}</span>
+              )}
+            </>
           )}
         </p>
 
@@ -133,26 +145,28 @@ export function NextUpCard({
           </div>
         )}
 
-        {/* Progress bar */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span>Class progress</span>
-            <span>{progressPercent}%</span>
-          </div>
-          <div
-            className="h-2 w-full rounded-full bg-muted overflow-hidden"
-            role="progressbar"
-            aria-valuenow={progressPercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`Class progress: ${progressPercent}%`}
-          >
+        {/* Progress bar — only shown when scoring data is available */}
+        {hasScoring && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>Class progress</span>
+              <span>{progressPercent}%</span>
+            </div>
             <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
-            />
+              className="h-2 w-full rounded-full bg-muted overflow-hidden"
+              role="progressbar"
+              aria-valuenow={progressPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Class progress: ${progressPercent}%`}
+            >
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </button>
 
       {/* Large Check In button — shown only when not checked in */}
@@ -161,6 +175,7 @@ export function NextUpCard({
           type="button"
           onClick={handleCheckInClick}
           disabled={!selfCheckinEnabled}
+          aria-disabled={!selfCheckinEnabled || undefined}
           className={cn(
             'mt-4 w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-base font-semibold transition-all duration-200',
             'min-h-[48px]',

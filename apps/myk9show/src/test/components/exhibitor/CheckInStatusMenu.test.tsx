@@ -178,5 +178,14 @@ describe('CheckInStatusMenu', () => {
         expect(item).toHaveClass('min-h-[44px]');
       }
     });
+
+    it('should close dropdown on Escape key', () => {
+      render(<CheckInStatusMenu {...defaultProps} />);
+      fireEvent.click(screen.getByText('Checked-in'));
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
   });
 });

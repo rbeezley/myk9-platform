@@ -26,6 +26,7 @@ function makeClass(overrides: Partial<ShowDayClass> = {}): ShowDayClass {
     showId: 'show-1',
     showName: 'AKC Scent Work',
     trialDate: '2026-03-09',
+    ringNumber: null,
     ...overrides,
   };
 }
@@ -303,5 +304,79 @@ describe('ShowDayHero', () => {
     const buttons = screen.getAllByRole('button');
     await user.click(buttons[0]); // First button is NextUpCard
     expect(onClassNavigate).toHaveBeenCalledWith('class-1');
+  });
+
+  // --- Phase 4: Preview mode (show today but not in_progress) ---
+
+  it('shows preview mode when show status is not in_progress', () => {
+    const show = makeShow({ showStatus: 'scheduled' });
+    render(
+      <ShowDayHero
+        data={makeData({
+          activeShows: [show],
+          activeShow: show,
+        })}
+      />
+    );
+    expect(screen.getByText('Today')).toBeInTheDocument();
+    expect(screen.getByText(/Your show is today!/)).toBeInTheDocument();
+    expect(screen.getByText(/Live progress will appear/)).toBeInTheDocument();
+    expect(screen.queryByText('Live')).not.toBeInTheDocument();
+  });
+
+  it('shows class count in preview mode', () => {
+    const show = makeShow({ showStatus: 'scheduled' });
+    render(
+      <ShowDayHero
+        data={makeData({
+          activeShows: [show],
+          activeShow: show,
+          stats: { total: 4, completed: 0, qualified: 0 },
+        })}
+      />
+    );
+    expect(screen.getByText(/4 classes scheduled/)).toBeInTheDocument();
+  });
+
+  // --- Phase 4: Show started but no classes in progress ---
+
+  it('shows "Show is starting" when no classes have scoring data', () => {
+    const pendingClass = makeClass({
+      scoredEntries: 0,
+      currentDogInRing: null,
+      entryStatus: 'checked-in',
+    });
+    render(
+      <ShowDayHero
+        data={makeData({
+          nextUp: null,
+          myClasses: [pendingClass],
+          completedToday: [],
+          stats: { total: 1, completed: 0, qualified: 0 },
+        })}
+      />
+    );
+    expect(screen.getByText('Show is starting')).toBeInTheDocument();
+    expect(screen.getByText(/No classes in progress yet/)).toBeInTheDocument();
+  });
+
+  // --- Phase 4: Multi-show accessibility ---
+
+  it('sets aria-current on the active show tab', () => {
+    const show1 = makeShow({ showId: 'show-1', showName: 'Show A' });
+    const show2 = makeShow({ showId: 'show-2', showName: 'Show B' });
+    render(<ShowDayHero data={makeData({ activeShows: [show1, show2], activeShow: show1 })} />);
+    const activeTab = screen.getByRole('tab', { name: 'Show A' });
+    expect(activeTab).toHaveAttribute('aria-current', 'true');
+    const inactiveTab = screen.getByRole('tab', { name: 'Show B' });
+    expect(inactiveTab).not.toHaveAttribute('aria-current');
+  });
+
+  // --- Phase 4: Stats row aria-live ---
+
+  it('stats row has aria-live for screen reader updates', () => {
+    render(<ShowDayHero data={makeData()} />);
+    const statsRow = screen.getByText('1 of 3 classes done').closest('[role="status"]');
+    expect(statsRow).toHaveAttribute('aria-live', 'polite');
   });
 });

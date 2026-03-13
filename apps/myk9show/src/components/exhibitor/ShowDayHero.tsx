@@ -11,7 +11,7 @@ import type { CheckInStatus } from '@myk9/core';
 import type { ShowDayData } from '@/types/show-day-types';
 import { NextUpCard } from './NextUpCard';
 import { ClassTimelineCard } from './ClassTimelineCard';
-import { Activity, ChevronDown, ChevronUp, Clock, PartyPopper } from 'lucide-react';
+import { Activity, ChevronDown, ChevronUp, Clock, PartyPopper, CalendarCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface ShowDayHeroProps {
@@ -32,6 +32,19 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
 ) {
   const isAllDone =
     data.stats.total > 0 && data.stats.completed === data.stats.total && !data.nextUp;
+
+  // Edge case: show date is today but show hasn't started yet (status != 'in_progress')
+  const isPreview =
+    data.isShowDay && data.activeShow != null && data.activeShow.showStatus !== 'in_progress';
+
+  // Edge case: show is in_progress but no classes have started (all pending, no scoring data)
+  const isWaitingForClasses =
+    !isPreview &&
+    !isAllDone &&
+    data.stats.total > 0 &&
+    data.stats.completed === 0 &&
+    !data.nextUp &&
+    data.myClasses.every(c => c.scoredEntries === 0 && !c.currentDogInRing);
 
   // User toggle state: null = no manual toggle yet (use default based on isAllDone)
   const [completedToggled, setCompletedToggled] = useState<boolean | null>(null);
@@ -94,6 +107,11 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
               <PartyPopper className="h-3.5 w-3.5" />
               <span className="text-xs font-bold uppercase tracking-wider">Done</span>
             </div>
+          ) : isPreview ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full">
+              <CalendarCheck className="h-3.5 w-3.5" />
+              <span className="text-xs font-bold uppercase tracking-wider">Today</span>
+            </div>
           ) : (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success-green/10 text-success-green rounded-full">
               <Activity className="h-3.5 w-3.5" />
@@ -129,6 +147,7 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
               key={show.showId}
               role="tab"
               aria-selected={show.showId === activeShowId}
+              aria-current={show.showId === activeShowId ? 'true' : undefined}
               onClick={() => handleShowSelect(show.showId)}
               className={cn(
                 'px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors min-h-[48px]',
@@ -140,6 +159,27 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
               {show.showName}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Preview mode: show is today but hasn't started yet */}
+      {isPreview && (
+        <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-500/5 p-5 text-center">
+          <h3 className="text-xl font-bold text-foreground">Your show is today!</h3>
+          <p className="mt-2 text-muted-foreground">
+            {data.stats.total} class{data.stats.total !== 1 ? 'es' : ''} scheduled. Live progress
+            will appear once the show starts.
+          </p>
+        </div>
+      )}
+
+      {/* Show started but no classes in progress yet */}
+      {isWaitingForClasses && (
+        <div className="rounded-2xl border border-border bg-muted/30 p-5 text-center">
+          <h3 className="text-lg font-semibold text-foreground">Show is starting</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            No classes in progress yet. Make sure you&apos;re checked in!
+          </p>
         </div>
       )}
 
@@ -215,7 +255,11 @@ export const ShowDayHero = forwardRef<HTMLDivElement, ShowDayHeroProps>(function
       )}
 
       {/* Mini stats row */}
-      <div className="flex items-center gap-3 text-sm text-muted-foreground pt-1" role="status">
+      <div
+        className="flex items-center gap-3 text-sm text-muted-foreground pt-1"
+        role="status"
+        aria-live="polite"
+      >
         <span>
           {data.stats.completed} of {data.stats.total} classes done
         </span>

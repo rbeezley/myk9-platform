@@ -26,6 +26,7 @@ function makeClass(overrides: Partial<ShowDayClass> = {}): ShowDayClass {
     showId: 'show-1',
     showName: 'AKC Scent Work',
     trialDate: '2026-03-09',
+    ringNumber: null,
     ...overrides,
   };
 }
@@ -98,5 +99,74 @@ describe('NextUpCard', () => {
   it('renders dog position in class', () => {
     render(<NextUpCard classData={makeClass({ scoredEntries: 5, totalEntries: 12 })} />);
     expect(screen.getByText(/Dog 6 of 12/)).toBeInTheDocument();
+  });
+
+  // --- Phase 4: No scoring data graceful degradation ---
+
+  it('shows entry count and ring when no scoring data', () => {
+    render(
+      <NextUpCard
+        classData={makeClass({
+          scoredEntries: 0,
+          currentDogInRing: null,
+          totalEntries: 8,
+          ringNumber: 3,
+        })}
+      />
+    );
+    expect(screen.getByText(/8 entries/)).toBeInTheDocument();
+    expect(screen.getByText(/Ring 3/)).toBeInTheDocument();
+    expect(screen.queryByText(/Dog \d+ of/)).not.toBeInTheDocument();
+  });
+
+  it('hides progress bar when no scoring data', () => {
+    render(
+      <NextUpCard
+        classData={makeClass({
+          scoredEntries: 0,
+          currentDogInRing: null,
+        })}
+      />
+    );
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('shows progress bar when scoring data exists', () => {
+    render(
+      <NextUpCard
+        classData={makeClass({
+          scoredEntries: 3,
+          totalEntries: 12,
+        })}
+      />
+    );
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('shows singular "entry" for 1 entry with no scoring', () => {
+    render(
+      <NextUpCard
+        classData={makeClass({
+          scoredEntries: 0,
+          currentDogInRing: null,
+          totalEntries: 1,
+        })}
+      />
+    );
+    expect(screen.getByText(/1 entry/)).toBeInTheDocument();
+  });
+
+  // --- Phase 4: Accessibility ---
+
+  it('has aria-disabled on check-in button when self-check-in is off', () => {
+    render(
+      <NextUpCard
+        classData={makeClass({ entryStatus: 'no-status' })}
+        onCheckInChange={vi.fn()}
+        selfCheckinEnabled={false}
+      />
+    );
+    const button = screen.getByLabelText(/check-in disabled/i);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
   });
 });

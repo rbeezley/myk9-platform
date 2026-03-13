@@ -4,7 +4,7 @@
  * Shows exhibitor-allowed statuses (checked-in, conflict, pulled, at-gate, no-status).
  * Secretary-only statuses (come-to-gate, in-ring, completed) are never shown.
  */
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
 import { getCheckinStatusConfig } from '@myk9/core';
@@ -43,6 +43,19 @@ export function CheckInStatusMenu({
     }
     setIsOpen(false);
   };
+
+  // Close on Escape key — listener only attached while open
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleKeyDown]);
 
   return (
     <div className="relative">

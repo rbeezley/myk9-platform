@@ -111,6 +111,7 @@ export function CheckInStatusBadge({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-disabled={disabled || undefined}
       className={cn(
         sharedClasses,
         'cursor-pointer transition-all duration-150',

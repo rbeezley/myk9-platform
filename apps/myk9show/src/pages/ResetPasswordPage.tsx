@@ -94,7 +94,7 @@ const ResetPasswordPage = () => {
     <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4">
       <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex justify-center mb-4">
-          <Link to="/" className="text-3xl font-bold text-primary hover:underline">
+          <Link to="/" className="text-3xl font-bold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded transition">
             myK9Show
           </Link>
         </div>
@@ -142,7 +142,7 @@ const ResetPasswordPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? 'Updating...' : 'Update Password'}
           </button>

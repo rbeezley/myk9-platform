@@ -154,19 +154,18 @@ Deno.serve(async (req: Request) => {
     }
 
     // Write email_log row
-    await supabase
-      .from('email_log')
-      .insert({
-        recipient_email: user.email,
-        email_type:
-          email_data.email_action_type === 'recovery' ? 'password_reset' : 'auth_confirmation',
-        resend_message_id: resendMessageId,
-        status: sendStatus,
-        error_message: errorMessage,
-      })
-      .catch(err => {
-        console.error('Failed to write email_log:', err);
-      });
+    const { error: logError } = await supabase.from('email_log').insert({
+      recipient_email: user.email,
+      email_type:
+        email_data.email_action_type === 'recovery' ? 'password_reset' : 'auth_confirmation',
+      resend_message_id: resendMessageId,
+      status: sendStatus,
+      error_message: errorMessage,
+    });
+
+    if (logError) {
+      console.error('Failed to write email_log:', logError);
+    }
 
     // Always return success so auth flow completes
     return new Response(JSON.stringify({ success: true }), {

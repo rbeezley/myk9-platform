@@ -26,6 +26,7 @@ function makeClass(overrides: Partial<ShowDayClass> = {}): ShowDayClass {
     showId: 'show-1',
     showName: 'AKC Scent Work',
     trialDate: '2026-03-09',
+    ringNumber: null,
     ...overrides,
   };
 }

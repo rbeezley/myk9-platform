@@ -8,6 +8,7 @@
 
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import type { CheckInStatus } from '@myk9/core';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
@@ -91,7 +92,10 @@ const ExhibitorDashboard: React.FC = () => {
 
   const handleCheckInChange = useCallback(
     (entryId: string, newStatus: CheckInStatus) => {
-      checkInMutation.mutate({ entryId, newStatus });
+      checkInMutation.mutate(
+        { entryId, newStatus },
+        { onError: () => toast.error('Could not update check-in status. Please try again.') }
+      );
     },
     [checkInMutation.mutate]
   );

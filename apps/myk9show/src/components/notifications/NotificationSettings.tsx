@@ -1,11 +1,14 @@
 import { useNotificationStore } from '@/store/notificationStore';
+import { usePushSubscription } from '@/hooks/usePushSubscription';
+import { notifications } from '@/lib/notifications';
 import { testSound } from '@myk9/notifications';
 
 export function NotificationSettings() {
   const preferences = useNotificationStore(s => s.preferences);
   const permissionStatus = useNotificationStore(s => s.permissionStatus);
   const updatePreferences = useNotificationStore(s => s.updatePreferences);
-  const requestPermission = useNotificationStore(s => s.requestPermission);
+
+  const { subscribe, unsubscribe, isSupported } = usePushSubscription();
 
   return (
     <div className="space-y-6">
@@ -72,14 +75,28 @@ export function NotificationSettings() {
           {permissionStatus === 'denied' && (
             <p className="text-xs text-destructive">Blocked in browser settings</p>
           )}
+          {!isSupported && (
+            <p className="text-xs text-muted-foreground">Not supported on this browser</p>
+          )}
         </div>
         <input
           id="push-enabled"
           type="checkbox"
           checked={preferences.pushEnabled}
+          disabled={!isSupported}
           onChange={async e => {
-            if (e.target.checked) await requestPermission();
-            updatePreferences({ pushEnabled: e.target.checked });
+            if (e.target.checked) {
+              const result = await subscribe();
+              if (!result.ok) {
+                if (result.reason === 'permission-denied') {
+                  notifications.warning('Push notifications blocked. Check browser settings.');
+                } else {
+                  notifications.error('Failed to enable push notifications.');
+                }
+              }
+            } else {
+              await unsubscribe();
+            }
           }}
           className="h-5 w-5"
         />

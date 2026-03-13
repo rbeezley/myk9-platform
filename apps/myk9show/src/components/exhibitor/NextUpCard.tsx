@@ -108,7 +108,8 @@ export function NextUpCard({
         <p className="mt-1 text-sm text-muted-foreground">
           {hasScoring ? (
             <>
-              Dog {classData.scoredEntries + 1} of {classData.totalEntries}
+              Dog {Math.min(classData.scoredEntries + 1, classData.totalEntries)} of{' '}
+              {classData.totalEntries}
               {classData.currentDogInRing && (
                 <span className="ml-2 text-primary font-medium">
                   &bull; {classData.currentDogInRing} in ring

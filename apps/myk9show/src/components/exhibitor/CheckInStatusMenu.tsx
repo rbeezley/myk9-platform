@@ -4,7 +4,7 @@
  * Shows exhibitor-allowed statuses (checked-in, conflict, pulled, at-gate, no-status).
  * Secretary-only statuses (come-to-gate, in-ring, completed) are never shown.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
 import { getCheckinStatusConfig } from '@myk9/core';
@@ -36,20 +36,35 @@ export function CheckInStatusMenu({
   className,
 }: CheckInStatusMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+
+  const closeAndRestoreFocus = useCallback(() => {
+    setIsOpen(false);
+    // Return focus to trigger so keyboard users don't lose their place
+    requestAnimationFrame(() => {
+      const btn = triggerRef.current?.querySelector(
+        'button, [role="button"]'
+      ) as HTMLElement | null;
+      btn?.focus();
+    });
+  }, []);
 
   const handleSelect = (newStatus: CheckInStatus) => {
     if (newStatus !== status) {
       onStatusChange(newStatus);
     }
-    setIsOpen(false);
+    closeAndRestoreFocus();
   };
 
   // Close on Escape key — listener only attached while open
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setIsOpen(false);
-    }
-  }, []);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeAndRestoreFocus();
+      }
+    },
+    [closeAndRestoreFocus]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -58,7 +73,7 @@ export function CheckInStatusMenu({
   }, [isOpen, handleKeyDown]);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={triggerRef}>
       {/* Trigger */}
       <CheckInStatusBadge
         status={status}
@@ -74,7 +89,7 @@ export function CheckInStatusMenu({
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} aria-hidden="true" />
+          <div className="fixed inset-0 z-40" onClick={closeAndRestoreFocus} aria-hidden="true" />
 
           {/* Menu */}
           <div

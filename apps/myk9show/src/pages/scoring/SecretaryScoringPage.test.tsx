@@ -179,12 +179,10 @@ describe('SecretaryScoringPage', () => {
   });
 
   it('passes entry, classInfo, rules as props', async () => {
-    let capturedProps: EntryScoresheetProps | null = null;
-    const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
-      capturedProps = props;
-      return <div data-testid="entry-scoresheet" />;
-    };
-    mockEntryComponent = FakeEntryScoresheet;
+    const mockScoresheet = vi.fn((_props: EntryScoresheetProps) => (
+      <div data-testid="entry-scoresheet" />
+    ));
+    mockEntryComponent = mockScoresheet;
 
     renderPage();
 
@@ -192,21 +190,19 @@ describe('SecretaryScoringPage', () => {
       expect(screen.getByTestId('entry-scoresheet')).toBeInTheDocument();
     });
 
-    expect(capturedProps).not.toBeNull();
-    expect(capturedProps!.entry.armband).toBe(101);
-    expect(capturedProps!.entry.handlerName).toBe('Jane Handler');
-    expect(capturedProps!.classInfo.level).toContain('Novice');
-    expect(capturedProps!.rules.areaCount).toBe(1);
-    expect(capturedProps!.rules.maxTimeSeconds).toBe(180);
+    const props = mockScoresheet.mock.calls[mockScoresheet.mock.calls.length - 1][0];
+    expect(props.entry.armband).toBe(101);
+    expect(props.entry.handlerName).toBe('Jane Handler');
+    expect(props.classInfo.level).toContain('Novice');
+    expect(props.rules.areaCount).toBe(1);
+    expect(props.rules.maxTimeSeconds).toBe(180);
   });
 
   it('calls submitScoreOptimistically on submit', async () => {
-    let capturedOnSubmit: ((data: ScoreData) => void) | null = null;
-    const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
-      capturedOnSubmit = props.onSubmit as (data: ScoreData) => void;
-      return <div data-testid="entry-scoresheet" />;
-    };
-    mockEntryComponent = FakeEntryScoresheet;
+    const mockScoresheet = vi.fn((_props: EntryScoresheetProps) => (
+      <div data-testid="entry-scoresheet" />
+    ));
+    mockEntryComponent = mockScoresheet;
 
     renderPage();
 
@@ -226,7 +222,8 @@ describe('SecretaryScoringPage', () => {
       points: 0,
     };
 
-    capturedOnSubmit!(scoreData);
+    const props = mockScoresheet.mock.calls[mockScoresheet.mock.calls.length - 1][0];
+    props.onSubmit(scoreData);
 
     await waitFor(() => {
       expect(mockSubmitScore).toHaveBeenCalledWith(
@@ -243,12 +240,10 @@ describe('SecretaryScoringPage', () => {
   });
 
   it('navigates to next entry on onNext', async () => {
-    let capturedOnNext: (() => void) | undefined;
-    const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
-      capturedOnNext = props.onNext;
-      return <div data-testid="entry-scoresheet" />;
-    };
-    mockEntryComponent = FakeEntryScoresheet;
+    const mockScoresheet = vi.fn((_props: EntryScoresheetProps) => (
+      <div data-testid="entry-scoresheet" />
+    ));
+    mockEntryComponent = mockScoresheet;
 
     renderPage('1');
 
@@ -256,19 +251,18 @@ describe('SecretaryScoringPage', () => {
       expect(screen.getByTestId('entry-scoresheet')).toBeInTheDocument();
     });
 
-    expect(capturedOnNext).toBeDefined();
-    capturedOnNext!();
+    const props = mockScoresheet.mock.calls[mockScoresheet.mock.calls.length - 1][0];
+    expect(props.onNext).toBeDefined();
+    props.onNext!();
 
     expect(mockNavigate).toHaveBeenCalledWith('/scoring/secretary/classes/class-1/entries/2');
   });
 
   it('calls onBack to navigate to entry list', async () => {
-    let capturedOnBack: (() => void) | undefined;
-    const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
-      capturedOnBack = props.onBack;
-      return <div data-testid="entry-scoresheet" />;
-    };
-    mockEntryComponent = FakeEntryScoresheet;
+    const mockScoresheet = vi.fn((_props: EntryScoresheetProps) => (
+      <div data-testid="entry-scoresheet" />
+    ));
+    mockEntryComponent = mockScoresheet;
 
     renderPage();
 
@@ -276,7 +270,8 @@ describe('SecretaryScoringPage', () => {
       expect(screen.getByTestId('entry-scoresheet')).toBeInTheDocument();
     });
 
-    capturedOnBack!();
+    const props = mockScoresheet.mock.calls[mockScoresheet.mock.calls.length - 1][0];
+    props.onBack();
 
     expect(mockNavigate).toHaveBeenCalledWith('/scoring/secretary/classes/class-1/entries');
   });
@@ -314,12 +309,10 @@ describe('SecretaryScoringPage', () => {
   });
 
   it('does not provide onNext when on last entry', async () => {
-    let capturedOnNext: (() => void) | undefined;
-    const FakeEntryScoresheet = (props: EntryScoresheetProps) => {
-      capturedOnNext = props.onNext;
-      return <div data-testid="entry-scoresheet" />;
-    };
-    mockEntryComponent = FakeEntryScoresheet;
+    const mockScoresheet = vi.fn((_props: EntryScoresheetProps) => (
+      <div data-testid="entry-scoresheet" />
+    ));
+    mockEntryComponent = mockScoresheet;
 
     // Render the last entry
     renderPage('2');
@@ -328,6 +321,7 @@ describe('SecretaryScoringPage', () => {
       expect(screen.getByTestId('entry-scoresheet')).toBeInTheDocument();
     });
 
-    expect(capturedOnNext).toBeUndefined();
+    const props = mockScoresheet.mock.calls[mockScoresheet.mock.calls.length - 1][0];
+    expect(props.onNext).toBeUndefined();
   });
 });

@@ -17,6 +17,8 @@ const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const SignInPage = React.lazy(() => import('./pages/SignInPage'));
 const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
 const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
+const AuthCallbackPage = React.lazy(() => import('./pages/AuthCallbackPage'));
+const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
 const TestPanelPage = React.lazy(() => import('./pages/TestPanelPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
@@ -280,6 +282,23 @@ function App() {
                                       <ForgotPasswordPage />
                                     </Suspense>
                                   </PageTransition>
+                                }
+                              />
+
+                              <Route
+                                path="/auth/callback"
+                                element={
+                                  <Suspense fallback={<PageLoadingFallback />}>
+                                    <AuthCallbackPage />
+                                  </Suspense>
+                                }
+                              />
+                              <Route
+                                path="/reset-password"
+                                element={
+                                  <Suspense fallback={<PageLoadingFallback />}>
+                                    <ResetPasswordPage />
+                                  </Suspense>
                                 }
                               />
 

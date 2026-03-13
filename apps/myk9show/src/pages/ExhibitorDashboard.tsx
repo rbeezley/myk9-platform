@@ -6,7 +6,7 @@
  * - Non-show day: CompactStatsRow, upcoming entries, collapsible results, action buttons
  */
 
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { CheckInStatus } from '@myk9/core';
@@ -96,15 +96,12 @@ const ExhibitorDashboard: React.FC = () => {
   );
   const selfCheckinEnabledMap = useSelfCheckinMap(classIds);
 
-  const handleCheckInChange = useCallback(
-    (entryId: string, newStatus: CheckInStatus) => {
-      checkInMutation.mutate(
-        { entryId, newStatus },
-        { onError: () => toast.error('Could not update check-in status. Please try again.') }
-      );
-    },
-    [checkInMutation]
-  );
+  const handleCheckInChange = (entryId: string, newStatus: CheckInStatus) => {
+    checkInMutation.mutate(
+      { entryId, newStatus },
+      { onError: () => toast.error('Could not update check-in status. Please try again.') }
+    );
+  };
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';
 

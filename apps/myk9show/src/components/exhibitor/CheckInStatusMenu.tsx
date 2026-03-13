@@ -75,7 +75,7 @@ export function CheckInStatusMenu({
   }, [isOpen, focusedIndex]);
 
   // Keyboard handler for the menu
-  function handleMenuKeyDown(e: React.KeyboardEvent) {
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -110,7 +110,7 @@ export function CheckInStatusMenu({
         }
         break;
     }
-  }
+  };
 
   return (
     <div className="relative" ref={triggerRef}>
@@ -132,7 +132,7 @@ export function CheckInStatusMenu({
           <div className="fixed inset-0 z-40" onClick={closeAndRestoreFocus} aria-hidden="true" />
 
           {/* Menu */}
-          {/* div has role="menu" + onKeyDown for ARIA menu keyboard pattern */}
+          {/* onKeyDown handles ARIA menu keyboard pattern */}
           <div
             ref={menuRef}
             role="menu"

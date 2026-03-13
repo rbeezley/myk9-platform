@@ -2,9 +2,9 @@ import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 
 interface EmailStatusIconProps {
   status: string | undefined;
-  errorMessage?: string;
-  onResend?: () => void;
-  resendDisabled?: boolean;
+  errorMessage?: string | undefined;
+  onResend?: (() => void) | undefined;
+  resendDisabled?: boolean | undefined;
 }
 
 export function EmailStatusIcon({

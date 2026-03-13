@@ -16,6 +16,8 @@ import { Users, CheckCircle2, Hash, MessageSquare, Gift } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
+import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
+import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 
 interface EntryListCardProps {
   entries: EntryManagementEntry[];
@@ -27,6 +29,9 @@ interface EntryListCardProps {
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onCompEntry?: (entryId: string) => void;
   onUncompEntry?: (entryId: string) => void;
+  emailStatusMap?: Record<string, EmailLogEntry> | undefined;
+  onResendEmail?: ((registrationId: string) => void) | undefined;
+  isResendDisabled?: ((registrationId: string) => boolean) | undefined;
 }
 
 /**
@@ -43,6 +48,9 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onOpenArmbandDialog,
   onCompEntry,
   onUncompEntry,
+  emailStatusMap,
+  onResendEmail,
+  isResendDisabled,
 }) => {
   return (
     <TooltipProvider>
@@ -98,6 +106,16 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       <div className="flex items-center gap-2">
                         {getEntryStatusBadge(entry.entryStatus)}
                         {getPaymentStatusBadge(entry.paymentStatus)}
+                        {emailStatusMap && (
+                          <EmailStatusIcon
+                            status={emailStatusMap[entry.registrationId]?.status}
+                            errorMessage={emailStatusMap[entry.registrationId]?.error_message}
+                            onResend={
+                              onResendEmail ? () => onResendEmail(entry.registrationId) : undefined
+                            }
+                            resendDisabled={isResendDisabled?.(entry.registrationId)}
+                          />
+                        )}
                         {entry.comped && (
                           <Tooltip>
                             <TooltipTrigger>

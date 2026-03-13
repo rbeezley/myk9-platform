@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
+import { toast } from 'sonner';
 import { useEmailStatus } from '@/hooks/useEmailStatus';
 import { supabase } from '@/lib/supabase';
 
@@ -154,9 +155,17 @@ const EntryManagementPage: React.FC = () => {
   // Resend cooldown state (registrationId -> cooldown expiry timestamp)
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
 
-  const handleResendEmail = (registrationId: string) => {
+  const handleResendEmail = async (registrationId: string) => {
     setResendCooldowns(prev => ({ ...prev, [registrationId]: Date.now() + 60_000 }));
-    supabase.functions.invoke('send-registration-email', { body: { registrationId } });
+    try {
+      const { error } = await supabase.functions.invoke('send-registration-email', {
+        body: { registrationId },
+      });
+      if (error) throw error;
+      toast.success('Confirmation email resent');
+    } catch {
+      toast.error('Failed to resend email');
+    }
   };
 
   const isResendDisabled = (registrationId: string) =>

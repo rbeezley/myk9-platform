@@ -63,10 +63,10 @@ function buildRegistrationEmailHtml(data: {
   const discountRow =
     data.discount && data.discount > 0
       ? `
-    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-      <span style="color: #6b7280; font-size: 14px;">Discount</span>
-      <span style="color: #059669; font-size: 14px;">-${formatCurrency(data.discount)}</span>
-    </div>`
+    <table style="width: 100%; margin-bottom: 4px;"><tr>
+      <td style="color: #6b7280; font-size: 14px;">Discount</td>
+      <td style="color: #059669; font-size: 14px; text-align: right;">-${formatCurrency(data.discount)}</td>
+    </tr></table>`
       : '';
 
   return `
@@ -101,15 +101,15 @@ function buildRegistrationEmailHtml(data: {
 
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px;">
 
-      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-        <span style="color: #6b7280; font-size: 14px;">Subtotal</span>
-        <span style="font-size: 14px;">${formatCurrency(data.subtotal)}</span>
-      </div>
+      <table style="width: 100%; margin-bottom: 4px;"><tr>
+        <td style="color: #6b7280; font-size: 14px;">Subtotal</td>
+        <td style="font-size: 14px; text-align: right;">${formatCurrency(data.subtotal)}</td>
+      </tr></table>
       ${discountRow}
-      <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 18px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-        <span>Total</span>
-        <span>${formatCurrency(data.total)}</span>
-      </div>
+      <table style="width: 100%; padding-top: 8px; border-top: 1px solid #e5e7eb;"><tr>
+        <td style="font-weight: 600; font-size: 18px;">Total</td>
+        <td style="font-weight: 600; font-size: 18px; text-align: right;">${formatCurrency(data.total)}</td>
+      </tr></table>
       <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">${escapeHtml(data.paymentMethod)}</p>
 
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0 16px;">
@@ -129,6 +129,30 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Verify the caller's JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Create a user-scoped client to verify identity
+    const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Invalid authorization' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { registrationId } = await req.json();
 
     if (!registrationId) {
@@ -159,6 +183,28 @@ Deno.serve(async (req: Request) => {
     if (regError || !registration) {
       return new Response(JSON.stringify({ error: 'Registration not found' }), {
         status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify the caller owns this registration or is a secretary for the show
+    const isOwner = registration.person?.id === user.id;
+    let isSecretary = false;
+    if (!isOwner && registration.show_id) {
+      const { data: showRole } = await supabase
+        .from('show_roles')
+        .select('role')
+        .eq('show_id', registration.show_id)
+        .eq('user_id', user.id)
+        .eq('role', 'secretary')
+        .maybeSingle();
+      isSecretary = !!showRole;
+    }
+    // Also allow platform admins
+    const isAdmin = user.app_metadata?.role === 'admin';
+    if (!isOwner && !isSecretary && !isAdmin) {
+      return new Response(JSON.stringify({ error: 'Not authorized' }), {
+        status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

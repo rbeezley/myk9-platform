@@ -14,6 +14,11 @@ const STATUS_MAP: Record<string, string> = {
 };
 
 Deno.serve(async (req: Request) => {
+  // Resend validates webhook endpoints with GET/HEAD before saving
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return new Response('OK', { status: 200 });
+  }
+
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }

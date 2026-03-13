@@ -13,7 +13,7 @@ vi.mock('@myk9/notifications', async () => {
 import { testSound } from '@myk9/notifications';
 
 const mockSubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
-const mockUnsubscribe = vi.fn(() => Promise.resolve());
+const mockUnsubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
 
 vi.mock('@/hooks/usePushSubscription', () => ({
   usePushSubscription: vi.fn(() => ({
@@ -45,6 +45,7 @@ beforeEach(() => {
     isSupported: true,
   }));
   mockSubscribe.mockResolvedValue({ ok: true });
+  mockUnsubscribe.mockResolvedValue({ ok: true });
   useNotificationStore.setState({
     preferences: { ...DEFAULT_PREFERENCES },
     isInRing: false,
@@ -163,6 +164,21 @@ describe('NotificationSettings', () => {
 
     render(<NotificationSettings />);
     expect(screen.getByText(/not supported on this browser/i)).toBeInTheDocument();
+  });
+
+  it('shows error toast when unsubscribe fails', async () => {
+    mockUnsubscribe.mockResolvedValueOnce({ ok: false });
+    useNotificationStore.setState({
+      preferences: { ...DEFAULT_PREFERENCES, pushEnabled: true },
+    });
+
+    render(<NotificationSettings />);
+    const pushCheckbox = screen.getByLabelText(/push notifications/i);
+    fireEvent.click(pushCheckbox);
+
+    await waitFor(() => {
+      expect(notifications.error).toHaveBeenCalledWith('Failed to disable push notifications.');
+    });
   });
 
   it('does not show "Not supported" text when isSupported is true', () => {

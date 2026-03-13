@@ -95,7 +95,10 @@ export function NotificationSettings() {
                 }
               }
             } else {
-              await unsubscribe();
+              const result = await unsubscribe();
+              if (!result.ok) {
+                notifications.error('Failed to disable push notifications.');
+              }
             }
           }}
           className="h-5 w-5"

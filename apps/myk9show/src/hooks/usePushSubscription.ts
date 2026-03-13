@@ -65,18 +65,13 @@ export function usePushSubscription() {
     }
   }, [user?.id, vapidKey, requestPermission, updatePreferences]);
 
-  // unsubscribe wraps all async calls in try/catch
-  const unsubscribe = useCallback(async () => {
-    if (!user?.id) return;
+  const unsubscribe = useCallback(async (): Promise<{ ok: boolean }> => {
+    if (!user?.id) return { ok: true };
 
     try {
-      // Get current subscription before unsubscribing
       const existing = await getExistingSubscription();
-
-      // Unsubscribe from browser
       await unsubscribeFromPush();
 
-      // Delete from Supabase
       if (existing) {
         await supabase
           .from('push_subscriptions')
@@ -84,12 +79,14 @@ export function usePushSubscription() {
           .eq('user_id', user.id)
           .eq('endpoint', existing.endpoint);
       }
+
+      updatePreferences({ pushEnabled: false });
+      return { ok: true };
     } catch (err) {
       console.error('Push unsubscribe failed:', err);
+      updatePreferences({ pushEnabled: false });
+      return { ok: false };
     }
-
-    // Always update preferences even if cleanup partially fails
-    updatePreferences({ pushEnabled: false });
   }, [user?.id, updatePreferences]);
 
   return { subscribe, unsubscribe, isSupported };

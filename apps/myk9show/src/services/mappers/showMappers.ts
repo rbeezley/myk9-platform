@@ -28,12 +28,13 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     logo_url: input.logoUrl || null,
     cover_image_url: input.coverImageUrl || null,
     accent_color: input.accentColor || null,
+    confirmation_message: input.confirmationMessage || null,
 
     // Note: events, source, club_name, club_address, club_email do NOT exist in the
     // database schema. These are app-only fields derived from the club relation or
     // computed locally. Sending them to Supabase would cause insert errors.
     // assignedJudges are stored in the separate judge_assignments table, not on shows.
-  };
+  } as DbShowInsert;
 };
 
 /**
@@ -60,6 +61,8 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.logoUrl !== undefined) update.logo_url = input.logoUrl || null;
   if (input.coverImageUrl !== undefined) update.cover_image_url = input.coverImageUrl || null;
   if (input.accentColor !== undefined) update.accent_color = input.accentColor || null;
+  if (input.confirmationMessage !== undefined)
+    update.confirmation_message = input.confirmationMessage || null;
 
   // Note: events, source, club_name, club_address, club_email do NOT exist in the
   // database schema. These are app-only fields derived from the club relation or
@@ -210,6 +213,8 @@ export const mapDatabaseToShow = (
     maxEntriesPerDog: dbShow.max_entries_per_dog || undefined,
     maxTotalEntries: dbShow.max_total_entries || undefined,
     allowNonOwnerHandlers: dbShow.allow_non_owner_handlers || true,
+    confirmationMessage:
+      ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version
@@ -261,6 +266,7 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
     chiefSteward: show.chiefSteward,
     assignedJudges: show.assignedJudges,
     trials: show.trials,
+    confirmationMessage: show.confirmationMessage,
   };
 };
 

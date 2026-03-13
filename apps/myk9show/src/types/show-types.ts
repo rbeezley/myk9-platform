@@ -93,6 +93,8 @@ export interface Show {
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   allowNonOwnerHandlers?: boolean | undefined;
+  // Optional message included in registration confirmation emails
+  confirmationMessage?: string | undefined;
 
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
@@ -131,6 +133,8 @@ export interface ShowInput {
   chiefSteward: string;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?: ShowTrial[] | undefined;
+  // Optional message included in registration confirmation emails
+  confirmationMessage?: string | undefined;
   // Index signature for compatibility with Record<string, unknown>
   [key: string]: unknown;
 }

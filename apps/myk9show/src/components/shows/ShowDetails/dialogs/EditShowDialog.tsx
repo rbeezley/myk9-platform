@@ -32,6 +32,7 @@ export interface ShowFormData {
   entryCloseDate: string;
   preEntryFee: string;
   dayOfShowFee: string; // Fee for registrations made on the day of the show (typically higher)
+  confirmationMessage?: string; // Optional message included in registration confirmation emails
   assignedJudges: ShowJudgeAssignment[];
 }
 
@@ -580,6 +581,28 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
               These fees will be used as defaults for each class and can be adjusted per class as
               needed.
             </p>
+          </div>
+
+          {/* Confirmation Message Section */}
+          <div className="mt-6">
+            <h3 className="form-section-title">Email Settings</h3>
+            <div className="space-y-2">
+              <label htmlFor="confirmationMessage" className="text-sm font-medium">
+                Confirmation Message
+              </label>
+              <textarea
+                id="confirmationMessage"
+                value={formData.confirmationMessage || ''}
+                onChange={e => handleInputChange('confirmationMessage', e.target.value)}
+                placeholder="Optional message included in registration confirmation emails (e.g., parking info, what to bring)"
+                className="w-full min-h-[80px] p-2 border border-input rounded-md bg-background text-foreground text-sm"
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                This message will be included in registration confirmation emails sent to
+                exhibitors.
+              </p>
+            </div>
           </div>
         </SheetBody>
 

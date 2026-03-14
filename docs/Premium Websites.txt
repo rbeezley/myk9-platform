@@ -1,0 +1,590 @@
+Premium Websites
+
+Video 1
+
+We've all felt it. You land on a website
+and within seconds you just know it's
+premium. It's not just one specific
+thing you can point to. It's a feeling.
+That sense of quality, trust, and
+authority. But what if I told you that
+feeling [music] isn't an accident and
+instead is a deliberate result of
+applied psychology. Recently, I made a
+video explaining the what. But today,
+we're going deeper. I'm going to reveal
+the three core psychological principles
+that separate cheap feeling websites
+from premium ones. show you how the
+world's top brands use them and give you
+a framework to apply them to your own
+site. The first and most important
+Principle #1 The Halo Effect (First Impressions)
+principle is all about first
+impressions. Studies have shown that it
+takes a fraction of a second, about 50
+milliseconds, for a user to form an
+opinion about your website. And that
+opinion determines whether someone will
+stay or whether they'll leave. This is
+driven by a cognitive bias called the
+halo effect. Now, the halo effect is our
+brain's tendency to let our initial
+impression of something color our
+judgment of everything that follows. If
+the first thing a visitor sees on your
+site looks professional, clean, and high
+quality, then their brain automatically
+assumes that your products, your
+services, and your company as a whole
+are equally high quality. And that is
+why the top part of your homepage, the
+hero section, that part you see without
+scrolling, is the most important real
+estate on your entire website. a cheap-l
+looking header, a cluttered layout, or
+quality imagery in that first view. It
+creates a negative halo. Even if the
+rest of your site's brilliant, the
+visitor is now looking at it through a
+lens of skepticism. Premium brands are
+masters of the positive halo. They don't
+just design a homepage. They engineer
+that first impression. Principle number
+Principle #2 Cognitive Load & Cognitive Fluency
+two is about making things easy. The
+truth is that our brains are inherently
+lazy. They're designed to conserve
+energy. And when they're faced with
+something that's confusing or hard to
+understand, the brain has to work
+harder. This is called cognitive load. A
+website that creates a high cognitive
+load feels stressful and unprofessional.
+A website that is simple, clear, and
+intuitive creates what psychologists
+call cognitive fluency. It's easy to
+process. Our brains interpret things
+that are easy to process as being
+better, more trustworthy, and of a
+higher quality. Think about it. A
+cheap-looking website is often a chaotic
+mess of competing elements. Your brain
+doesn't know where to look and it feels
+overwhelmed. A premium website on the
+other hand is a masterclass in clarity.
+It uses whites space generously to give
+content room to breathe. It has clear
+visual hierarchy guiding your eye
+exactly where it needs to go. The
+navigation is simple and predictable.
+But there's a very important distinction
+that you need to understand. And this
+isn't just about aesthetics. It's about
+psychology. And by reducing the mental
+effort required to use a site, premium
+brands make you feel calm. They make you
+feel in control. And they make you feel
+confident in their professionalism. The
+Principle #3 Micro Interactions & The Peak-End Rule
+third principle is where the real magic
+happens. And it's about those tiny
+details. I'm talking about micro
+interactions. These are the small, often
+quite subtle animations and feedback
+loops that happen when you interact with
+a site. A button that subtly changes
+color when you hover over it. a form
+field that gives you a gentle
+confirmation when you fill it out
+correctly, a smooth transition as you
+scroll down the page. These might seem
+insignificant, but they have a huge
+psychological impact because of
+something called the peak end rule. This
+rule states that people don't remember
+an experience as an average of every
+single moment. They remember its most
+intense points, the peaks, and how it
+ended. Micro interactions are designed
+to create small peaks of positive
+emotion that satisfying click, a smooth
+animation, a helpful piece of feedback.
+These are the moments that spark joy for
+the user. Cheap websites are static and
+lifeless. They do the absolute bare
+minimum, sometimes even less, to be
+honest. Premium websites feel alive
+because they're full of these thoughtful
+little details. They signal that the
+creator cared. They cared about the
+users's experience enough to obsess over
+the smallest moments. And when these
+moments are sprinkled throughout your
+website, they add up to create a
+powerful overall feeling of quality and
+craftsmanship. All right, so let's look
+How Top Brands Apply This Psychology
+at how the best brands in the world
+apply these principles. First, Apple.
+Apple Example (Premium Simplicity)
+They are the masters of the halo effect.
+You land on their site and you're
+greeted with a stunning fullcreen
+product shot and a single bold headline.
+It's minimalist, it's confident, and it
+immediately signals premium. Their
+cognitive load is near zero. It's
+impossible to be confused on Apple's
+website. And their micro interactions,
+from the way the pages scroll to the way
+the menus open, are famously smooth and
+satisfying. Now, let's look at a luxury
+Luxury Brands & White Space Strategy
+fashion brand like Hermes or Beta
+Venita. They use extreme white space to
+create a feeling of exclusivity and
+calm. This isn't empty space. It's a
+psychological cue that says, "We are so
+confident, we don't need to shout." They
+reduce the cognitive load to an absolute
+minimum, focusing your attention only on
+their beautiful products. Finally, look
+Stripe & Figma (Clarity for Complex Products)
+at a top tier software company like
+Stripe or like Figma. Their sites create
+a powerful halo effect of innovation and
+trustworthiness. They use clear, logical
+layouts to reduce cognitive load and
+make their complex products feel simple
+and approachable. All of these brands
+understand that their website isn't just
+a brochure. In reality, it's more of a a
+psychological experience. So, how do you
+3-Step Framework to Make Your Site Premium
+actually apply all of this? Here's a
+simple three-step framework that you can
+use to make your website feel more
+premium as soon as today. Step one,
+Step 1 Engineer the First Impression
+engineer your first impression. Don't
+just design your homepage. Obsess over
+the top half of it. Ask yourself, what
+is the single feeling that I want a
+visitor to have in the first 50
+milliseconds? Is it calm? Is it
+confidence? Is it excitement? Build your
+entire hero section around creating a
+powerful positive halo effect. Then step
+Step 2 Reduce Cognitive Load
+two, declare war on cognitive load. Go
+through every single page of your site
+and ask, "What can I remove? How can I
+simplify my navigation?" Increase your
+white space. Create a visual hierarchy
+with one primary goal for each section.
+Make clarity your number one priority.
+Remember, what feels simple to you might
+still be confusing to a first-time
+visitor. Step three, hunt for micro
+Step 3 Add Micro Interactions
+interaction opportunities. Look for
+every single place that you can add a
+small moment of delight on your website.
+How do your buttons feel when a user
+hovers over them? What happens when a
+page loads? How does your site respond
+as you scroll? These details aren't
+extras. They are the very essence of a
+premium experience, and they show that
+you care. The psychology of a premium
+Final Takeaway & Next Steps
+website isn't based on using tricks or
+manipulation or any of that. It's based
+on respect. It's all about respecting
+the visitors time by being clear and
+simple. It's about respecting their
+intelligence by providing a thoughtful,
+well-crafted experience. And it's about
+respecting their emotional response by
+creating moments of delight. If you want
+to learn more about how you can do this
+yourself, click here to watch the next
+video where I walk you through exactly
+how to build a website so premium that
+people will be begging you to buy no
+matter what you sell
+
+
+Video 2
+
+Most websites look cheap. And I don't
+mean they're poorly built or anything
+like that. What I mean is they feel
+cheap. And when someone lands on a cheap
+site, within 2 seconds, they've already
+made a judgment about that business.
+That judgment is usually not a good one.
+Which is why today I'm going to break
+down exactly what makes a website feel
+premium versus what makes it look like
+you just built it yourself on a Friday
+night. After working with multiple
+Fortune 500 companies and generate a
+north of $10 million in incremental
+revenue, I've noticed there are specific
+things that separate the websites people
+want to buy from and the ones they want
+to leave immediately. By the end of this
+video, you'll understand what actually
+makes a site feel expensive. You'll be
+able to spot it when you see it, and
+you'll also know exactly what to look
+for when building your own site. Okay,
+Two types of broken website setups
+so let's start with the reality of where
+most websites are right now. I see two
+main situations. First, you've got
+people who hired a developer years ago
+and now they're completely locked in.
+Let's say they want to change a single
+line of text on their homepage because
+they changed what, you know, whatever
+their service offerings are. More often
+than not, that'll take a support ticket,
+maybe two weeks of waiting, and in some
+cases extra money on top of an existing
+retainer. They have zero autonomy, and
+that lack of control becomes this
+constant frustration within the
+business. Then you've got the other
+group, people who did it themselves or
+hired someone cheap. And look, I do get
+it. Budget constraints are real. But
+here's the issue. In that case, there's
+no actual strategy behind the site. The
+site map itself doesn't even make sense.
+The site itself isn't structured for SEO
+or AIO. It's not guiding people towards
+any real call to action. And honestly,
+it's not doing even a fraction of what a
+website could do for the business. If I
+had to rate it on a scale of 0 to 10,
+most sites I see are probably sitting
+around a two. And the reason why is
+because when someone lands on it, their
+immediate thought is these people don't
+look professional. And that perception,
+it sticks. So that is the exact problem
+Defining the premium website goal
+that we're going to solve today in this
+video. So here's the number one thing
+Graphics & custom assets
+that makes a website feel premium. It's
+bespoke assets. And I know that sounds
+kind of vague. So let me explain what I
+mean. Most cheap websites are just text.
+You've got text that sits on a plain
+background and then maybe you've got
+some stock photos thrown in. But when
+you add custom graphics, and I mean
+actually custom, like not generic icons
+from some free library, something
+shifts. Suddenly, you've got depth,
+you've got visual interest, and the site
+starts to feel intentional. What we'll
+do for clients is we'll create these
+custom graphics specifically for the
+client. They're not just decorative.
+What they do is they serve a purpose.
+They break up content and they guide the
+eye. And what it does is it makes
+information easier to digest for the
+visitor. But here's the thing that
+separates something that's premium from
+something that looks quite amateur. The
+graphics themselves have to feel like
+they belong. So what they have to do is
+match the brand, the tone of the
+business, and then the overall aesthetic
+of the site. Because if you've got a
+graphic that looks out of place, it's
+much worse than having no graphic at
+all. When it's done right, though, it
+completely changes how a site feels.
+It's the difference between someone just
+clicking around your site and leaving
+and someone actually stopping to read
+what you have to say. Okay, so this next
+Brand guidelines (logo, colors, fonts)
+one's huge and I think a lot of people
+underestimate how much it matters and
+that's brand guidelines. Specifically,
+your logo, your color palette, and your
+fonts. So, let's start with the logo. A
+professional logo doesn't have to be
+complicated, but it does have to be
+intentional. It has to look like someone
+who knows what they're doing created it.
+If your logo looks like it was made in
+Canva in 15 minutes, then people are
+going to viscerally feel it. Next is
+your color palette. And this is where I
+see so many people mess up. What they'll
+do is they'll pick like five colors that
+they think work individually, but they
+don't work together. There's no cohesion
+whatsoever. And a premium color palette
+is cohesive. The colors complement each
+other and they work together to create a
+mood and a feeling and a brand identity
+throughout the site. So when someone's
+scrolling through your site, the colors
+should feel intentional and not random.
+But the biggest one is fonts. Fonts can
+completely change how a site looks. If
+you think about like a a childish font,
+an outdated font, or a font that's hard
+to read, even any of those will
+instantly make your site feel cheap. But
+the right fonts will make your site feel
+sophisticated and often times more
+sophisticated than your brand even is.
+So when you pay attention to all these
+things, what it does is it makes people
+feel like you care about the details.
+And that's what premium is. It's all in
+the details. You combine a professional
+logo, a cohesive color palette, and then
+thoughtfully chosen fonts. You'll have
+the foundation for a premium site.
+Everything else builds on top of that
+foundation. So, here's something that
+Subtle animation & interaction design
+separates good sites from great sites.
+I'm talking about subtle animation, not
+the kind where you've got everything
+kind of bouncing around and spinning and
+distracting a visitor from what they're
+actually reading. That's the opposite of
+premium. It's cool for a moment, but in
+reality, people see all these wacky
+animations and they're just overwhelmed.
+So, what I mean by subtle animation is
+when someone scrolls down your page,
+you've got nice elements that fade in.
+When a visitor hovers over a button, it
+responds in kind. When they land on a
+new section, things move in a way that
+feels natural and it guides their
+attention to where you want them to go.
+It's like the difference between a
+website that feels sort of dead and
+static versus one that feels alive. The
+animations that we use are designed to
+reduce what we call rage clicks. You
+know, when someone's so confused or
+overwhelmed on your site that they just
+start sort of clicking everywhere trying
+to see what is responsive. We want to
+prevent that. We want to guide people
+through the site smoothly. Obviously,
+keep them engaged and make sure they're
+not overwhelmed because when you do it
+right, animation is a great way to do
+that. It's subtle enough that people
+don't consciously notice it, but they do
+feel it. And that feeling is what
+separates a site that people want to
+spend time on versus one that they want
+to leave. All right, so we've covered
+Free premium website checklist offer
+the visual stuff, the graphics, the
+branding, the animations, but here's
+what I'm realizing. A lot of people know
+what makes a site look premium, but they
+don't know how to actually build it or
+they know what they want, but they don't
+know how to communicate it to a
+designer. So, what I've done is I've put
+together a free guide called the premium
+website checklist. It's literally a
+checklist of every element we've talked
+about today, plus about 15 or so other
+things that separate premium from cheap.
+So, what you can do is you can use it to
+audit your own site or if you're hiring
+someone, you can use it to make sure
+they're actually building something
+premium for your business. What I'll do
+is I'll drop the link in the
+description. It's completely free. Just
+grab it and start using it. Anyway,
+let's keep going. So, we've talked about
+Website structure & site map logic
+the visual stuff, but here's where a lot
+of otherwise very premium sites actually
+fall apart, and that's the structure.
+And I'm talking about the actual
+architecture of the site, the site map
+itself, the way pages flow into each
+other, how information is organized. A
+cheap site has pages that might make
+sense individually, but together they
+don't make any sense. So someone lands
+on your homepage and the next logical
+step isn't clear. Do they go to your
+services page? If you've got multiple
+services, which page do they go to? Do
+they go to your about page, your contact
+page? They're confused. And this
+confusion will always lead to an action.
+A premium site on the other hand guides
+people. Every page has a purpose. Every
+page leads somewhere. And there's a
+clear journey from landing on the site
+to taking action. And that action, which
+is your call to action, has to be
+crystal clear. You don't want it just
+buried in the footer. It's got to be
+obvious. It's got to be easy to find.
+And most importantly, it's got to be
+easy to take. But not only is this
+important from a purely conversion
+perspective, this is where SEO comes
+into. A premium site isn't just visually
+impressive or congruent or properly
+copywritten. It's structured in a way
+that search engines understand. And it's
+also organized in a way that makes sense
+for both people and algorithms. So your
+site map, your page hierarchy, your
+internal linking, all of that matters.
+These are the parts I know that they're
+just not flashy. They're not sexy and
+they're typically not something that
+people will consciously notice. But
+things like the site map, UX, and your
+CTAs are the difference between a site
+that actually sees insane return on
+investment and brings in so much
+business versus one that just sits there
+and looks nice. Now, I want to take a
+moment to speak directly about what we
+do to make premium websites, which I
+want you to know whether you end up
+working with us or not. Because here's
+what really separates what we do from
+what a lot of other designers and
+developers may do. After we build a
+Client autonomy & editable sites
+site, the client actually owns it. And
+more than that, they can actually update
+it. They can make changes. They can add
+new content without waiting for us,
+without paying extra, without feeling
+like they're locked into a one-way
+contract. And listen, I know that sounds
+like it should be standard, but it's
+it's not. A lot of developers will build
+sites that are basically, you know,
+black box. You can't touch them. You
+need a developer to do everything and
+anything on the site. That's not
+premium. That's a trap. And quite
+frankly, it's a business model that
+gives the web design industry quite a
+bad name. Then on the other hand, a
+premium site would actually empower the
+client. This is what we do. It's built
+in a way that's intuitive. It's easy to
+update. The client feels like they own
+it because they do. And here's why this
+matters for the overall feel of the
+site. Because when a client can easily
+update their site, they do. They keep
+content fresh. They add new case
+studies. They update their services. And
+the site stays alive. It stays relevant.
+And that freshness, that aliveness,
+that's something people feel when they
+land on a site. It's the difference
+between a site that feels current and
+professional versus one that just feels
+abandoned. So, when we're building a
+premium site, we're not just trying to
+make it look good. We're making it
+something that the client can actually
+use and maintain. And that's the
+transformation that we offer. And on
+Proper handover & post-launch support
+that note, I want to mention what proper
+handover and post-launch care looks
+like. So, as an example, we've built
+this premium site. It looks amazing, and
+it's structured perfectly. The client
+sat there ready to launch. But here's
+where a lot of people mess up. They just
+kind of hand it over and disappear.
+Again, that's not a premium service.
+What that is is it's cutting and
+running. Not only is it bad for the
+client results, obviously, but it's just
+bad business on behalf of the agency or
+the freelancer building the site. So,
+here's what we do instead. We'll sit
+there and we will record a full handover
+training session for the client. If they
+want a live training session, we will do
+that, too. We'll walk the client through
+the site, show them exactly how to
+update it, how to add new content, how
+to use all the features that we've built
+for them. Then what we'll do is we set
+clear expectations about what they can
+do dayto-day and what they might need a
+little bit of help with in the future.
+And then for the first 30 days post
+launch, we're available for free email
+support. So any questions, any issues,
+anything they're not sure about, the
+team are there. Or our goal is with this
+is to make sure nothing goes wrong. And
+if they do want ongoing support after
+that, we have like a a hosting and
+maintenance plan that we offer. So,
+we're on hand with 2 hours of team time
+per month to make changes, plus 24/7
+access to our concierge team for any
+questions. It's not really that
+expensive, but what it means is clients
+who don't always want to be on the site
+all the time have that flexibility of
+having a team on hand whenever they need
+it. And that is what premium service
+looks like. It's not just about the
+product. It's about the entire
+experience from that first call to
+months after launch. We're showing that
+we care and clients can feel that. Now,
+Portfolio & next steps
+if you want to see what Premium looks
+like in action, I've got a whole
+portfolio of sites that we've built and
+I'll link to that in the description. If
+while you're checking out our work,
+something catches your eye and you
+decide you want your own custom website
+to look just like that, you can book in
+a call and speak to the team. That said,
+if you only want to just keep watching,
+that's okay, too. If you click here, you
+can check out the next video where I'll
+walk you through an entire before and
+after of a website that we designed for
+an energy company. So you can see
+exactly what our work looks like in real
+time and get an idea for how we could
+transform your site.
+
+

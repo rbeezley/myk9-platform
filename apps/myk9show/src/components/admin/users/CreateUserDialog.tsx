@@ -1,15 +1,16 @@
 /**
  * CreateUserDialog Component - Dialog for creating new users
- * 
+ *
  * Features:
  * - Complete user creation form
- * - Role assignment during creation
+ * - Role assignment during creation (fetched dynamically from DB)
  * - Form validation
  * - Password generation options
  * - Email invitation sending
  */
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import {
   User as UserIcon,
@@ -22,16 +23,9 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-  Key
+  Key,
 } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetBody,
-  SheetFooter,
-  SheetTitle,
-} from '@myk9/ui';
+import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,9 +34,9 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/services/database/supabaseClient';
 
 import { User } from '@/types/user-types';
-import type { UserRole as UserRoleType } from '@/types/user-types';
 import { useCreateUserMutation } from '@/hooks/queries/useUsersQuery';
 
 interface CreateUserDialogProps {
@@ -50,16 +44,6 @@ interface CreateUserDialogProps {
   onOpenChange: (open: boolean) => void;
   onUserCreated: (user: User) => void;
 }
-
-// Available roles for assignment
-const AVAILABLE_ROLES = [
-  { value: 'exhibitor' as UserRoleType, label: 'Exhibitor', description: 'Can register dogs and enter shows' },
-  { value: 'handler' as UserRoleType, label: 'Handler', description: 'Can handle dogs for other owners' },
-  { value: 'judge' as UserRoleType, label: 'Judge', description: 'Can judge shows and enter results' },
-  { value: 'secretary' as UserRoleType, label: 'Secretary', description: 'Can manage shows and registrations' },
-  { value: 'steward' as UserRoleType, label: 'Steward', description: 'Can assist with show operations' },
-  { value: 'admin' as UserRoleType, label: 'Admin', description: 'Full system administration access' },
-] as const;
 
 // Form data interface
 interface CreateUserFormData {
@@ -74,7 +58,7 @@ interface CreateUserFormData {
   country: string;
   membershipId: string;
   clubAffiliations: string[];
-  roles: UserRoleType[];
+  roles: string[];
   sendInviteEmail: boolean;
   generatePassword: boolean;
   customPassword: string;
@@ -83,7 +67,7 @@ interface CreateUserFormData {
 export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   open,
   onOpenChange,
-  onUserCreated
+  onUserCreated,
 }) => {
   const [formData, setFormData] = useState<CreateUserFormData>({
     firstName: '',
@@ -100,13 +84,25 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     roles: ['exhibitor'], // Default role
     sendInviteEmail: true,
     generatePassword: true,
-    customPassword: ''
+    customPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [newClub, setNewClub] = useState('');
 
   const createUserMutation = useCreateUserMutation();
+
+  const { data: availableRoles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('id, name, description')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Reset form when dialog opens/closes
   React.useEffect(() => {
@@ -126,7 +122,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         roles: ['exhibitor'],
         sendInviteEmail: true,
         generatePassword: true,
-        customPassword: ''
+        customPassword: '',
       });
       setErrors({});
       setNewClub('');
@@ -168,33 +164,43 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-
   // Handle form submission
   const handleCreate = async () => {
     if (!validateForm()) return;
 
     try {
-      // const password = formData.generatePassword ? generateRandomPassword() : formData.customPassword;
-      
-      // In a real implementation, this would create the user in Supabase Auth
-      // and then create the profile record
+      // Create the person (without roles — roles go to user_roles table)
       const newUser = await createUserMutation.mutateAsync({
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
         phone: formData.phone || null,
-        // address: formData.address || null, // Not in DB schema
         city: formData.city || null,
         state: formData.state || null,
         zip_code: formData.zipCode || null,
-        // country: formData.country || null, // Not in DB schema
-        // membershipId: formData.membershipId || null, // Not in DB schema
-        // clubAffiliations: formData.clubAffiliations.length > 0 ? formData.clubAffiliations : null, // Not in DB schema
-        roles: formData.roles,
-        // In real implementation, password would be handled by Supabase Auth
-        // password,
-        // sendInviteEmail: formData.sendInviteEmail
       });
+
+      // Assign selected roles via user_roles
+      if (newUser?.id && formData.roles.length > 0) {
+        const roleInserts: { user_id: string; role_id: string; granted_at: string }[] = [];
+        for (const roleName of formData.roles) {
+          const role = availableRoles.find(r => r.name === roleName);
+          if (role) {
+            roleInserts.push({
+              user_id: newUser.id,
+              role_id: role.id,
+              granted_at: new Date().toISOString(),
+            });
+          }
+        }
+
+        if (roleInserts.length > 0) {
+          const { error: roleError } = await supabase.from('user_roles').insert(roleInserts);
+          if (roleError) {
+            logger.error('Failed to assign roles:', 'admin', {}, roleError as unknown as Error);
+          }
+        }
+      }
 
       onUserCreated(newUser);
       onOpenChange(false);
@@ -205,16 +211,16 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   };
 
   // Handle role changes
-  const handleRoleChange = (role: UserRoleType, checked: boolean) => {
+  const handleRoleChange = (role: string, checked: boolean) => {
     if (checked) {
       setFormData(prev => ({
         ...prev,
-        roles: [...prev.roles, role]
+        roles: [...prev.roles, role],
       }));
     } else {
       setFormData(prev => ({
         ...prev,
-        roles: prev.roles.filter(r => r !== role)
+        roles: prev.roles.filter(r => r !== role),
       }));
     }
   };
@@ -224,7 +230,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     if (newClub.trim() && !formData.clubAffiliations.includes(newClub.trim())) {
       setFormData(prev => ({
         ...prev,
-        clubAffiliations: [...prev.clubAffiliations, newClub.trim()]
+        clubAffiliations: [...prev.clubAffiliations, newClub.trim()],
       }));
       setNewClub('');
     }
@@ -233,7 +239,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   const removeClub = (club: string) => {
     setFormData(prev => ({
       ...prev,
-      clubAffiliations: prev.clubAffiliations.filter(c => c !== club)
+      clubAffiliations: prev.clubAffiliations.filter(c => c !== club),
     }));
   };
 
@@ -272,7 +278,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <Input
                       id="firstName"
                       value={formData.firstName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                      onChange={e => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
                       className={errors.firstName ? 'border-destructive' : ''}
                       placeholder="Enter first name"
                     />
@@ -285,7 +291,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <Input
                       id="lastName"
                       value={formData.lastName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                      onChange={e => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
                       className={errors.lastName ? 'border-destructive' : ''}
                       placeholder="Enter last name"
                     />
@@ -300,7 +306,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   <Input
                     id="membershipId"
                     value={formData.membershipId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, membershipId: e.target.value }))}
+                    onChange={e => setFormData(prev => ({ ...prev, membershipId: e.target.value }))}
                     placeholder="Optional membership identifier"
                   />
                 </div>
@@ -322,13 +328,11 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className={errors.email ? 'border-destructive' : ''}
                     placeholder="Enter email address"
                   />
-                  {errors.email && (
-                    <p className="text-xs text-destructive mt-1">{errors.email}</p>
-                  )}
+                  {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
                 </div>
 
                 <div>
@@ -337,7 +341,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     id="phone"
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="Optional phone number"
                   />
                 </div>
@@ -358,7 +362,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   <Input
                     id="address"
                     value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
                     placeholder="Street address"
                   />
                 </div>
@@ -369,7 +373,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <Input
                       id="city"
                       value={formData.city}
-                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                      onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
                       placeholder="City"
                     />
                   </div>
@@ -378,7 +382,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <Input
                       id="state"
                       value={formData.state}
-                      onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                      onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
                       placeholder="State or province"
                     />
                   </div>
@@ -387,7 +391,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <Input
                       id="zipCode"
                       value={formData.zipCode}
-                      onChange={(e) => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                      onChange={e => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
                       placeholder="ZIP or postal code"
                     />
                   </div>
@@ -398,7 +402,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   <Input
                     id="country"
                     value={formData.country}
-                    onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                    onChange={e => setFormData(prev => ({ ...prev, country: e.target.value }))}
                     placeholder="Country"
                   />
                 </div>
@@ -415,25 +419,24 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  {formData.clubAffiliations.map((club) => (
-                    <div key={club} className="flex items-center justify-between p-2 border rounded">
+                  {formData.clubAffiliations.map(club => (
+                    <div
+                      key={club}
+                      className="flex items-center justify-between p-2 border rounded"
+                    >
                       <span>{club}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeClub(club)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => removeClub(club)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  
+
                   <div className="flex gap-2">
                     <Input
                       placeholder="Add club affiliation"
                       value={newClub}
-                      onChange={(e) => setNewClub(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && addClub()}
+                      onChange={e => setNewClub(e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && addClub()}
                     />
                     <Button onClick={addClub} disabled={!newClub.trim()}>
                       Add
@@ -460,20 +463,20 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 )}
 
                 <div className="space-y-3">
-                  {AVAILABLE_ROLES.map((role) => (
-                    <div key={role.value} className="flex items-start space-x-3 p-3 border rounded">
+                  {availableRoles.map(role => (
+                    <div key={role.name} className="flex items-start space-x-3 p-3 border rounded">
                       <Checkbox
-                        id={role.value}
-                        checked={formData.roles.includes(role.value)}
-                        onCheckedChange={(checked) => handleRoleChange(role.value, !!checked)}
+                        id={role.name}
+                        checked={formData.roles.includes(role.name)}
+                        onCheckedChange={checked => handleRoleChange(role.name, !!checked)}
                       />
                       <div className="flex-1 min-w-0">
-                        <Label htmlFor={role.value} className="font-medium">
-                          {role.label}
+                        <Label htmlFor={role.name} className="font-medium capitalize">
+                          {role.name}
                         </Label>
-                        <p className="text-sm text-muted-foreground">
-                          {role.description}
-                        </p>
+                        {role.description && (
+                          <p className="text-sm text-muted-foreground">{role.description}</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -483,9 +486,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 <div className="pt-4 border-t">
                   <h4 className="font-medium mb-2">Selected Roles:</h4>
                   <div className="flex flex-wrap gap-2">
-                    {formData.roles.map((role) => (
-                      <Badge key={role} variant="default">
-                        {AVAILABLE_ROLES.find(r => r.value === role)?.label || role}
+                    {formData.roles.map(role => (
+                      <Badge key={role} variant="default" className="capitalize">
+                        {role}
                       </Badge>
                     ))}
                     {formData.roles.length === 0 && (
@@ -514,11 +517,13 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   </div>
                   <Switch
                     checked={formData.generatePassword}
-                    onCheckedChange={(checked) => setFormData(prev => ({ 
-                      ...prev, 
-                      generatePassword: checked,
-                      customPassword: checked ? '' : prev.customPassword
-                    }))}
+                    onCheckedChange={checked =>
+                      setFormData(prev => ({
+                        ...prev,
+                        generatePassword: checked,
+                        customPassword: checked ? '' : prev.customPassword,
+                      }))
+                    }
                   />
                 </div>
 
@@ -530,7 +535,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                         id="customPassword"
                         type={showPassword ? 'text' : 'password'}
                         value={formData.customPassword}
-                        onChange={(e) => setFormData(prev => ({ ...prev, customPassword: e.target.value }))}
+                        onChange={e =>
+                          setFormData(prev => ({ ...prev, customPassword: e.target.value }))
+                        }
                         className={errors.customPassword ? 'border-destructive pr-10' : 'pr-10'}
                         placeholder="Enter secure password"
                       />
@@ -541,7 +548,11 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                         className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                         onClick={() => setShowPassword(!showPassword)}
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                     {errors.customPassword && (
@@ -559,7 +570,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   </div>
                   <Switch
                     checked={formData.sendInviteEmail}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, sendInviteEmail: checked }))}
+                    onCheckedChange={checked =>
+                      setFormData(prev => ({ ...prev, sendInviteEmail: checked }))
+                    }
                   />
                 </div>
               </CardContent>

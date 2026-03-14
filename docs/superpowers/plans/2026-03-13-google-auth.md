@@ -267,6 +267,56 @@ describe('OAuth people record creation', () => {
     // Should NOT query people table for email users
     expect(mockSupabase.from).not.toHaveBeenCalledWith('people');
   });
+
+  // [ADDED] Test insert failure doesn't break sign-in
+  it('should log error but not throw when people record insert fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const oauthUser: User = {
+      ...mockUser,
+      app_metadata: { provider: 'google' },
+      user_metadata: { given_name: 'Jane', family_name: 'Doe' },
+    };
+
+    const selectChain = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    const insertChain = {
+      insert: vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS blocked' } }),
+    };
+
+    let authChangeCallback: (event: string, session: { user: User } | null) => void;
+    mockSupabase.auth.onAuthStateChange.mockImplementation(
+      (cb: (event: string, session: { user: User } | null) => void) => {
+        authChangeCallback = cb;
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }
+    );
+
+    let fromCallCount = 0;
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'people') {
+        fromCallCount++;
+        if (fromCallCount === 1) return selectChain;
+        if (fromCallCount === 2) return insertChain;
+      }
+      return createChainableQuery();
+    });
+
+    renderHook(() => useAuth());
+
+    // Should not throw
+    await act(async () => {
+      authChangeCallback!('SIGNED_IN', { user: oauthUser });
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to create people record for OAuth user:',
+      expect.objectContaining({ message: 'RLS blocked' })
+    );
+    consoleSpy.mockRestore();
+  });
 });
 ```
 
@@ -464,7 +514,27 @@ describe('SignInPage', () => {
     );
     expect(screen.getByText('or')).toBeInTheDocument();
   });
+
+  // [ADDED] Test error display when Google sign-in fails
+  it('displays error when signInWithGoogle fails', async () => {
+    mockSignInWithGoogle.mockRejectedValue(new Error('Popup closed'));
+    render(
+      <MemoryRouter>
+        <SignInPage />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Popup closed')).toBeInTheDocument();
+    });
+  });
 });
+```
+
+Update the imports to include `waitFor`:
+
+```typescript
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 ```
 
 - [ ] **Step 4: Run test to verify it fails**
@@ -865,6 +935,23 @@ describe('AuthCallbackPage', () => {
       );
       renderWithRouter('');
       await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
+    });
+
+    // [ADDED] Test timeout shows error when no auth event arrives
+    it('shows timeout error when no auth event arrives within 10 seconds', async () => {
+      vi.useFakeTimers();
+      renderWithRouter('');
+
+      // Initially shows loading
+      expect(screen.getByText(/verifying/i)).toBeInTheDocument();
+
+      // Fast-forward past timeout
+      await act(async () => {
+        vi.advanceTimersByTime(10000);
+      });
+
+      expect(screen.getByText(/timed out/i)).toBeInTheDocument();
+      vi.useRealTimers();
     });
   });
 });

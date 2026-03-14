@@ -1,37 +1,28 @@
-import { Search, MousePointer, User, CreditCard, Calendar as LucideCalendar, BarChart } from "lucide-react";
-import type { Feature } from "../types";
+import { Dog, Calendar, Building2 } from 'lucide-react';
+import type { Feature } from '../types';
 
 const features: Feature[] = [
   {
-    icon: <Search className="w-8 h-8 text-primary" width={32} height={32} />,
-    title: "Browse Shows by Category",
-    description: "Discover upcoming dog shows with powerful filtering by breed, location, date, and organization. Browse detailed show information and find competitions that match your dogs' categories."
+    icon: <Dog className="w-8 h-8 text-primary" width={32} height={32} />,
+    label: 'For Exhibitors',
+    title: 'Enter shows, track titles, manage your dogs',
+    description:
+      'Pre-filled entries, competition history, health records, and title tracking — everything you need before and after show day.',
   },
   {
-    icon: <MousePointer className="w-8 h-8 text-primary" width={32} height={32} />,
-    title: "Streamlined Entry Management",
-    description: "Manage show entries efficiently with organized entry tracking, deadline monitoring, and status updates. Keep all your entry information accessible in one professional dashboard."
+    icon: <Calendar className="w-8 h-8 text-primary" width={32} height={32} />,
+    label: 'For Secretaries',
+    title: 'Set up shows, manage entries, publish results',
+    description:
+      'Smart defaults, class templates, judge assignments. The software handles the logistics so you can handle the show.',
   },
   {
-    icon: <User className="w-8 h-8 text-primary" width={32} height={32} />,
-    title: "Complete Dog Management",
-    description: "Maintain comprehensive profiles for all your dogs including pedigree information, health records, vaccination tracking, competition results, and performance history. Everything organized in one secure platform."
+    icon: <Building2 className="w-8 h-8 text-primary" width={32} height={32} />,
+    label: 'For Clubs',
+    title: 'One platform for your entire trial program',
+    description:
+      "Registration, payments, scheduling, and reporting. Get your club running on myK9 in a day — we'll help you set up.",
   },
-  {
-    icon: <LucideCalendar className="w-8 h-8 text-primary" width={32} height={32} />,
-    title: "Show Organization Tools",
-    description: "Create and manage professional dog shows with comprehensive tools for scheduling, class templates, judge assignments, and entry processing. Streamline event administration from start to finish."
-  },
-  {
-    icon: <CreditCard className="w-8 h-8 text-primary" width={32} height={32} />,
-    title: "Professional Payment Processing",
-    description: "Handle entry fees, transactions, and financial records with secure payment processing integration. Track expenses and maintain organized financial records for tax purposes."
-  },
-  {
-    icon: <BarChart className="w-8 h-8 text-primary" width={32} height={32} />,
-    title: "Performance Analytics Dashboard",
-    description: "View detailed analytics and insights about your dogs' competition performance, success rates, and progress trends. Access comprehensive reporting tools for informed decision-making."
-  }
 ];
 
 export default features;

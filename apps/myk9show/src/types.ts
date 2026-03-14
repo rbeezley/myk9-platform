@@ -2,6 +2,7 @@ export type { LandingShow } from './types/index';
 
 export interface Feature {
   icon: React.ReactNode;
+  label: string;
   title: string;
   description: string;
 }

@@ -9,10 +9,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({ features }) => {
   return (
     <section className="py-16 bg-background text-foreground transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold mb-8 text-center">Comprehensive Show Management</h2>
-        <p className="mb-12 text-center text-muted-foreground">
-          Everything you need to run successful dog shows, from registration to results.
-        </p>
+        <h2 className="text-3xl font-bold mb-12 text-center">Built for every role at the show</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
             <div
@@ -23,6 +20,7 @@ const FeaturesSection: React.FC<FeaturesSectionProps> = ({ features }) => {
                 <div className="text-primary">{feature.icon}</div>
               </div>
 
+              <p className="text-sm font-semibold text-primary mb-2">{feature.label}</p>
               <h3 className="text-xl font-semibold mb-3 text-card-foreground">{feature.title}</h3>
 
               <p className="text-muted-foreground">{feature.description}</p>

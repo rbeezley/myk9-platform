@@ -42,7 +42,7 @@ function useClubContext(
 const EMPTY_SCOPES: RoleScope[] = [];
 
 export const UnifiedAppLayout: React.FC = () => {
-  const { getUserRoles, userWithRoles } = useAuthContext();
+  const { user, getUserRoles, userWithRoles } = useAuthContext();
   const roles = getUserRoles();
   const clubs = useClubStore(s => s.clubs);
   const scopes = userWithRoles?.scopes ?? EMPTY_SCOPES;
@@ -53,6 +53,11 @@ export const UnifiedAppLayout: React.FC = () => {
     [roles, clubContext]
   );
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
+
+  // Guest users see content without sidebar
+  if (!user) {
+    return <Outlet />;
+  }
 
   return (
     <SidebarLayout

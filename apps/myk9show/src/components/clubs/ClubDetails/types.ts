@@ -5,7 +5,7 @@ export interface ClubDetailsProps {
   breadcrumbItems: Array<{ label: string; href?: string }>;
 }
 
-export type ClubTab = 'upcoming' | 'past' | 'about' | 'members';
+export type ClubTab = 'upcoming' | 'past' | 'about' | 'members' | 'branding';
 
 export interface ShowStatus {
   status: 'completed' | 'registration' | 'upcoming';

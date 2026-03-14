@@ -368,7 +368,12 @@ const AppHeader: React.FC = () => {
                       About
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={signOut} className="text-red-600 dark:text-red-400">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        signOut();
+                      }}
+                      className="text-red-600 dark:text-red-400"
+                    >
                       <LogOut className="h-4 w-4 mr-2" />
                       Sign Out
                     </DropdownMenuItem>

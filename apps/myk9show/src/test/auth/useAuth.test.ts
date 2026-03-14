@@ -345,7 +345,15 @@ describe('useAuth', () => {
         maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       };
       const insertChain = {
-        insert: vi.fn().mockResolvedValue({ data: [{}], error: null }),
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { id: 'new-person-id' }, error: null }),
+          }),
+        }),
+      };
+      // exhibitor_profiles insert chain
+      const profileInsertChain = {
+        insert: vi.fn().mockResolvedValue({ data: {}, error: null }),
       };
 
       let authChangeCallback: (event: string, session: { user: User } | null) => void;
@@ -363,6 +371,7 @@ describe('useAuth', () => {
           if (fromCallCount === 1) return selectChain;
           if (fromCallCount === 2) return insertChain;
         }
+        if (table === 'exhibitor_profiles') return profileInsertChain;
         return createChainableQuery();
       });
 
@@ -382,6 +391,10 @@ describe('useAuth', () => {
           auth_user_id: 'test-user-id',
         }),
       ]);
+      expect(profileInsertChain.insert).toHaveBeenCalledWith({
+        person_id: 'new-person-id',
+        auth_user_id: 'test-user-id',
+      });
     });
 
     it('should not create people record if one already exists', async () => {
@@ -457,7 +470,11 @@ describe('useAuth', () => {
         maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       };
       const insertChain = {
-        insert: vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS blocked' } }),
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS blocked' } }),
+          }),
+        }),
       };
 
       let authChangeCallback: (event: string, session: { user: User } | null) => void;

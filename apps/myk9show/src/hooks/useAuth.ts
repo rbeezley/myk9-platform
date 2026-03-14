@@ -15,6 +15,60 @@ import type { User } from '@supabase/supabase-js';
  * @property {Function} updateProfile - Method to update user's profile information
  */
 
+/**
+ * Creates people + exhibitor_profiles records for first-time OAuth users.
+ * Extracted from onAuthStateChange so it runs in the background without blocking signOut.
+ */
+async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
+  const { data: existing } = await supabase
+    .from('people')
+    .select('id')
+    .eq('auth_user_id', userId)
+    .maybeSingle();
+
+  if (existing) return;
+
+  // Re-fetch user to ensure metadata is fully hydrated
+  const {
+    data: { user: freshUser },
+  } = await supabase.auth.getUser();
+  const meta = freshUser?.user_metadata ?? sessionUser.user_metadata ?? {};
+
+  const fullName: string = meta.full_name || meta.name || '';
+  const firstName: string = meta.given_name || fullName.split(' ')[0] || 'First';
+  const lastName: string = meta.family_name || fullName.split(' ').slice(1).join(' ') || 'Name';
+
+  const { data: newPerson, error: insertError } = await supabase
+    .from('people')
+    .insert([
+      {
+        first_name: firstName,
+        last_name: lastName,
+        email: freshUser?.email ?? sessionUser.email ?? null,
+        roles: ['exhibitor'],
+        auth_user_id: userId,
+      },
+    ])
+    .select('id')
+    .single();
+
+  if (insertError) {
+    console.error('Failed to create people record for OAuth user:', insertError);
+    return;
+  }
+
+  if (newPerson) {
+    const { error: profileError } = await supabase.from('exhibitor_profiles').insert({
+      person_id: newPerson.id,
+      auth_user_id: userId,
+    });
+
+    if (profileError) {
+      console.error('Failed to create exhibitor profile for OAuth user:', profileError);
+    }
+  }
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,48 +88,18 @@ export function useAuth() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Create people record for first-time OAuth users
-      if (event === 'SIGNED_IN' && session?.user) {
-        const signedInUser = session.user;
-        const isOAuth = signedInUser.app_metadata?.provider !== 'email';
+      // Create people + exhibitor_profiles for first-time OAuth users
+      // Run in background (not awaited) so signOut doesn't hang
+      if (_event === 'SIGNED_IN' && session?.user) {
+        const isOAuth = session.user.app_metadata?.provider !== 'email';
         if (isOAuth) {
-          try {
-            const { data: existing } = await supabase
-              .from('people')
-              .select('id')
-              .eq('auth_user_id', signedInUser.id)
-              .maybeSingle();
-
-            if (!existing) {
-              const firstName: string =
-                signedInUser.user_metadata?.given_name ||
-                signedInUser.user_metadata?.full_name?.split(' ')[0] ||
-                'First';
-              const lastName: string =
-                signedInUser.user_metadata?.family_name ||
-                signedInUser.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
-                'Name';
-              const { error: insertError } = await supabase.from('people').insert([
-                {
-                  first_name: firstName,
-                  last_name: lastName,
-                  email: signedInUser.email ?? null,
-                  roles: ['exhibitor'],
-                  auth_user_id: signedInUser.id,
-                },
-              ]);
-
-              if (insertError) {
-                console.error('Failed to create people record for OAuth user:', insertError);
-              }
-            }
-          } catch (err) {
-            console.error('Error checking/creating people record for OAuth user:', err);
-          }
+          createOAuthPeopleRecord(session.user.id, session.user).catch(err => {
+            console.error('Error creating people record for OAuth user:', err);
+          });
         }
       }
     });
@@ -184,7 +208,6 @@ export function useAuth() {
     if (error) {
       throw error;
     }
-    // Navigate to landing page after sign out
     window.location.href = '/';
   }, []);
 

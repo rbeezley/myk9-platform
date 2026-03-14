@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-14-unify-role-systems-design.md`
 
+**Rollback:** Pre-production with no real users. If migration causes issues, `supabase db reset` restores the database. App code changes can be reverted via git.
+
 ---
 
 ## Chunk 1: Database Migration & Types
@@ -162,6 +164,21 @@ END;
 $$;
 
 COMMIT;
+```
+
+- [ ] **Step 1.5: [ADDED] Verify `handle_new_user()` trigger compatibility**
+
+The `handle_new_user()` trigger (migration 015) inserts into `people` without a `roles` field and writes to `user_roles` directly. Confirm this is the latest version — it's already compatible with the column drop. No changes needed.
+
+- [ ] **Step 1.6: [ADDED] Add migration acceptance verification query**
+
+After the data migration step (before DROP COLUMN), add a verification query as a SQL comment that can be run manually:
+
+```sql
+-- Verification (run before DROP to confirm migration):
+-- SELECT COUNT(*) AS people_with_roles FROM people WHERE roles IS NOT NULL AND array_length(roles, 1) > 0;
+-- SELECT COUNT(DISTINCT user_id) AS migrated_users FROM user_roles WHERE granted_at >= NOW() - INTERVAL '1 minute';
+-- These counts should be approximately equal (may differ if users already had user_roles rows).
 ```
 
 - [ ] **Step 2: Verify migration syntax locally**
@@ -550,7 +567,7 @@ export const getUsersByRole = async (role: string) => {
 };
 ```
 
-Note: The exact Supabase join syntax may vary — test and adjust. An alternative approach is an RPC function or a raw `.rpc()` call if the nested filter doesn't work.
+Note: The exact Supabase join syntax may vary — test and adjust. An alternative approach is an RPC function or a raw `.rpc()` call if the nested filter doesn't work. [EXPANDED] The `!inner` join may return nested `user_roles` data in each row — strip it when mapping to the return type. Also verify no duplicate people rows are returned (the `!inner` join should deduplicate, but test to confirm).
 
 - [ ] **Step 2: Update userQueries.ts — remove roles from createUser/updateUser**
 
@@ -762,14 +779,65 @@ git commit -m "feat(admin): CreateUserDialog fetches roles dynamically and write
 
 - [ ] **Step 1: Read the full file**
 
-- [ ] **Step 2: Apply the same pattern as CreateUserDialog**
+- [ ] **Step 2: [EXPANDED] Apply the same dynamic roles pattern as CreateUserDialog**
 
-Replace hardcoded roles with dynamic fetch from `roles` table. Update the form submit to write role changes to `user_roles` instead of `people.roles`. Use the same `useQuery` pattern for fetching available roles.
+Replace hardcoded roles with dynamic fetch from `roles` table (same `useQuery` pattern as Task 9 Step 2).
 
-When saving, compare current `user_roles` with selected roles:
+Fetch the user's current active roles from `user_roles` to populate the form:
 
-- New roles: insert into `user_roles`
-- Removed roles: soft-deactivate (`is_active = false`) in `user_roles`
+```typescript
+const { data: currentUserRoles = [] } = useQuery({
+  queryKey: ['user-roles', user?.id],
+  queryFn: async () => {
+    if (!user?.id) return [];
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role:roles(name)')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+    return data?.map(r => r.role?.name).filter(Boolean) ?? [];
+  },
+  enabled: !!user?.id,
+});
+```
+
+When saving, diff current roles against selected roles:
+
+```typescript
+const currentRoleNames = new Set(currentUserRoles);
+const selectedRoleNames = new Set(formData.roles);
+
+// Roles to add (selected but not current)
+const toAdd = formData.roles.filter(r => !currentRoleNames.has(r));
+
+// Roles to soft-deactivate (current but not selected)
+const toDeactivate = currentUserRoles.filter(r => !selectedRoleNames.has(r));
+
+// Batch insert new roles
+if (toAdd.length > 0) {
+  const inserts = toAdd
+    .map(roleName => {
+      const role = availableRoles.find(r => r.name === roleName);
+      return role
+        ? { user_id: user.id, role_id: role.id, granted_at: new Date().toISOString() }
+        : null;
+    })
+    .filter(Boolean);
+  await supabase.from('user_roles').insert(inserts);
+}
+
+// Soft-deactivate removed roles
+for (const roleName of toDeactivate) {
+  const role = availableRoles.find(r => r.name === roleName);
+  if (role) {
+    await supabase
+      .from('user_roles')
+      .update({ is_active: false })
+      .eq('user_id', user.id)
+      .eq('role_id', role.id);
+  }
+}
+```
 
 - [ ] **Step 3: Run typecheck**
 

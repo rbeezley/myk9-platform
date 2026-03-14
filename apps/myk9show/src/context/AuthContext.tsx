@@ -41,7 +41,7 @@ interface UserRoleWithDetails {
   scope_type?: string | null;
   scope_id?: string | null;
   assigned_at?: string;
-  is_active?: boolean;
+  is_active: boolean;
 }
 
 /**
@@ -237,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         ...auth.user,
         roles: rbacData.userRoles
-          .filter(ur => ur.is_active ?? true)
+          .filter(ur => ur.is_active)
           .map(ur => ur.role?.name as UserRole)
           .filter(Boolean),
         permissions: rbacData.effectivePermissions as Permission[],
@@ -321,7 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Database-driven role check
     if (rbacData.userRoles.length > 0) {
-      return rbacData.userRoles.some(ur => ur.role?.name === role && (ur.is_active ?? true));
+      return rbacData.userRoles.some(ur => ur.role?.name === role && ur.is_active);
     }
 
     // Fallback to legacy role checking
@@ -349,7 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ur =>
             ur.scope_type === (scope as { type: string }).type &&
             ur.scope_id === (scope as { id: string }).id &&
-            (ur.is_active ?? true)
+            ur.is_active
         );
       }
 
@@ -388,7 +388,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getUserRoles = (): UserRole[] => {
     if (rbacData.userRoles.length > 0) {
       return rbacData.userRoles
-        .filter(ur => ur.is_active ?? true)
+        .filter(ur => ur.is_active)
         .map(ur => ur.role?.name as UserRole)
         .filter(Boolean);
     }

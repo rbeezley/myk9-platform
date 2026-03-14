@@ -96,7 +96,8 @@ Deno.serve(async req => {
       const { data: rbacRoles } = await supabase
         .from('user_roles')
         .select('role:roles(name)')
-        .eq('user_id', callerPerson.id);
+        .eq('user_id', callerPerson.id)
+        .eq('is_active', true);
 
       isSiteAdmin =
         rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??

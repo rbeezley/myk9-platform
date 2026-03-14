@@ -17,7 +17,6 @@ import { UserRole } from '@/types/auth-types';
 //   };
 // }
 
-
 /**
  * Hook to fetch user roles from the proper RBAC system
  * This replaces the simple array-based roles with proper database relationships
@@ -47,7 +46,8 @@ export function useUserRoles(userId?: string) {
       const { data: userRoleData, error: userRoleError } = await supabase
         .from('user_roles')
         .select('id, user_id, role_id, granted_at')
-        .eq('user_id', peopleId);
+        .eq('user_id', peopleId)
+        .eq('is_active', true);
 
       if (userRoleError) {
         throw userRoleError;
@@ -68,15 +68,17 @@ export function useUserRoles(userId?: string) {
         throw roleError;
       }
 
-      const data = userRoleData.map(userRole => {
-        const role = roleData?.find(r => r.id === userRole.role_id);
-        return {
-          ...userRole,
-          user_id: userRole.user_id || '', // Transform null to empty string
-          granted_at: userRole.granted_at || '', // Transform null to empty string
-          role
-        };
-      }).filter(item => item.role); // Only include items where we found the role
+      const data = userRoleData
+        .map(userRole => {
+          const role = roleData?.find(r => r.id === userRole.role_id);
+          return {
+            ...userRole,
+            user_id: userRole.user_id || '', // Transform null to empty string
+            granted_at: userRole.granted_at || '', // Transform null to empty string
+            role,
+          };
+        })
+        .filter(item => item.role); // Only include items where we found the role
 
       // Process the data
       if (!data || !Array.isArray(data)) {
@@ -89,7 +91,7 @@ export function useUserRoles(userId?: string) {
           id: item.id,
           user_id: item.user_id,
           granted_at: item.granted_at,
-          role: item.role
+          role: item.role,
         }));
     },
     enabled: !!userId,
@@ -108,9 +110,9 @@ export function useUserRoleNames(userId?: string): UserRole[] {
     return [];
   }
 
-  return (userRoles as Array<{role: {name: string}}>)
-    .filter((ur) => ur.role)
-    .map((ur) => ur.role.name as UserRole);
+  return (userRoles as Array<{ role: { name: string } }>)
+    .filter(ur => ur.role)
+    .map(ur => ur.role.name as UserRole);
 }
 
 /**
@@ -122,7 +124,8 @@ export function useHasRole(userId?: string, role?: UserRole): boolean {
 }
 
 /**
- * Hook to get all users with their roles (for admin use)
+ * Hook to get all users with their roles (for admin use).
+ * Intentionally does NOT filter by is_active — admins need to see deactivated roles.
  */
 export function useAllUsersWithRoles() {
   return useQuery({
@@ -130,11 +133,13 @@ export function useAllUsersWithRoles() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
-        .select(`
+        .select(
+          `
           *,
           user:people!user_roles_user_id_fkey(id, first_name, last_name, email),
           role:roles!user_roles_role_id_fkey(id, name, description)
-        `)
+        `
+        )
         .order('granted_at', { ascending: false });
 
       if (error) {

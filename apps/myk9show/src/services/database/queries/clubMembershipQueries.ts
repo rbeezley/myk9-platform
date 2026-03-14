@@ -132,6 +132,7 @@ export async function getClubShowManagerIds(clubId: string): Promise<Set<string>
     .from('user_roles')
     .select('user_id, roles!inner(name)')
     .eq('roles.name', 'secretary')
+    .eq('is_active', true)
     .eq('club_id', clubId);
 
   if (error) throw error;

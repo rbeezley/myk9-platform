@@ -10,7 +10,7 @@ export interface Role {
   name: string;
   description: string | null;
   is_system: boolean | null;
-  permissions: string[] | null;  // DB column: string array
+  permissions: string[] | null; // DB column: string array
   created_at: string | null;
   // Virtual fields (not in DB, computed by app)
   display_name?: string;
@@ -21,8 +21,8 @@ export interface Role {
 
 export interface Permission {
   id: string;
-  code: string;         // DB column: unique permission code (e.g. "show:manage")
-  name: string;         // DB column: human-readable name
+  code: string; // DB column: unique permission code (e.g. "show:manage")
+  name: string; // DB column: human-readable name
   description: string | null;
   category: string | null;
   created_at: string | null;
@@ -49,10 +49,10 @@ export interface UserRole {
   granted_by: string | null;
   granted_at: string | null;
   expires_at: string | null;
+  is_active: boolean;
   // Virtual fields (computed by app or RPC)
   scope_type?: string;
   scope_id?: string | null;
-  is_active?: boolean;
   user_email?: string;
   role?: Role;
   assigned_by_email?: string;
@@ -225,13 +225,13 @@ export enum ActionType {
   PERMISSION_DELETED = 'permission_deleted',
   PERMISSION_OVERRIDE_CREATED = 'permission_override_created',
   PERMISSION_OVERRIDE_REMOVED = 'permission_override_removed',
-  SEED_DATA_CREATED = 'seed_data_created'
+  SEED_DATA_CREATED = 'seed_data_created',
 }
 
 export enum ScopeType {
   GLOBAL = 'global',
   CLUB = 'club',
-  SHOW = 'show'
+  SHOW = 'show',
 }
 
 export enum ResourceType {
@@ -247,7 +247,7 @@ export enum ResourceType {
   CLUB = 'club',
   JUDGE = 'judge',
   REPORT = 'report',
-  TEMPLATE = 'template'
+  TEMPLATE = 'template',
 }
 
 export enum ActionName {
@@ -259,7 +259,7 @@ export enum ActionName {
   ASSIGN = 'assign',
   VIEW = 'view',
   GENERATE = 'generate',
-  EXPORT = 'export'
+  EXPORT = 'export',
 }
 
 // Error types
@@ -307,23 +307,23 @@ export interface RBACContextValue {
   // Permission checking
   hasPermission: (permission: string, scope?: { type: string; id: string }) => boolean;
   checkPermission: (permission: string, scope?: { type: string; id: string }) => Promise<boolean>;
-  
+
   // User roles
   userRoles: UserRoleWithDetails[];
   userPermissions: PermissionWithRole[];
   effectivePermissions: string[];
-  
+
   // Admin functions (only for admin users)
   assignRole?: (request: AssignRoleRequest) => Promise<void>;
   revokeRole?: (request: RevokeRoleRequest) => Promise<void>;
   createRole?: (request: CreateRoleRequest) => Promise<Role>;
   updateRole?: (roleId: string, request: UpdateRoleRequest) => Promise<Role>;
-  
+
   // State
   isLoading: boolean;
   error: string | null;
   lastRefreshed: string | null;
-  
+
   // Actions
   refresh: () => Promise<void>;
   clearCache: () => void;
@@ -334,7 +334,7 @@ export const SYSTEM_ROLES = {
   SITE_ADMIN: 'site_admin',
   SECRETARY: 'secretary',
   EXHIBITOR: 'exhibitor',
-  JUDGE: 'judge'
+  JUDGE: 'judge',
 } as const;
 
 export const PERMISSION_TEMPLATES: Record<string, PermissionTemplate> = {
@@ -345,14 +345,35 @@ export const PERMISSION_TEMPLATES: Record<string, PermissionTemplate> = {
     description: 'Standard secretary permissions for show management',
     category: 'system',
     permissions: [
-      'show:create', 'show:read', 'show:update', 'show:delete', 'show:manage',
-      'trial:create', 'trial:read', 'trial:update', 'trial:delete', 'trial:manage',
-      'class:create', 'class:read', 'class:update', 'class:delete', 'class:manage',
-      'entry:read', 'entry:update', 'entry:manage',
-      'judge:assign', 'judge:view', 'judge:manage',
-      'report:generate', 'report:export',
-      'template:create', 'template:read', 'template:update', 'template:delete', 'template:manage'
-    ]
+      'show:create',
+      'show:read',
+      'show:update',
+      'show:delete',
+      'show:manage',
+      'trial:create',
+      'trial:read',
+      'trial:update',
+      'trial:delete',
+      'trial:manage',
+      'class:create',
+      'class:read',
+      'class:update',
+      'class:delete',
+      'class:manage',
+      'entry:read',
+      'entry:update',
+      'entry:manage',
+      'judge:assign',
+      'judge:view',
+      'judge:manage',
+      'report:generate',
+      'report:export',
+      'template:create',
+      'template:read',
+      'template:update',
+      'template:delete',
+      'template:manage',
+    ],
   },
   'show-manager': {
     id: 'show-manager',
@@ -361,9 +382,13 @@ export const PERMISSION_TEMPLATES: Record<string, PermissionTemplate> = {
     description: 'Full show management capabilities',
     category: 'system',
     permissions: [
-      'show:manage', 'trial:manage', 'class:manage',
-      'entry:manage', 'judge:manage', 'report:manage'
-    ]
+      'show:manage',
+      'trial:manage',
+      'class:manage',
+      'entry:manage',
+      'judge:manage',
+      'report:manage',
+    ],
   },
   'read-only-admin': {
     id: 'read-only-admin',
@@ -372,9 +397,16 @@ export const PERMISSION_TEMPLATES: Record<string, PermissionTemplate> = {
     description: 'Can view but not modify data',
     category: 'system',
     permissions: [
-      'admin:view', 'show:read', 'trial:read', 'class:read',
-      'entry:read', 'dog:read', 'people:read', 'club:read',
-      'report:generate', 'template:read'
-    ]
-  }
+      'admin:view',
+      'show:read',
+      'trial:read',
+      'class:read',
+      'entry:read',
+      'dog:read',
+      'people:read',
+      'club:read',
+      'report:generate',
+      'template:read',
+    ],
+  },
 };

@@ -29,6 +29,7 @@ interface DbUserRole {
   show_id: string | null;
   granted_at: string;
   expires_at: string | null;
+  is_active: boolean;
 }
 
 interface DbUserPermission {
@@ -56,10 +57,7 @@ interface DbEffectivePermission {
  * included in the auto-generated Database type.
  */
 interface UntypedRpcClient {
-  rpc(
-    fn: string,
-    args: Record<string, unknown>
-  ): PromiseLike<PostgrestSingleResponse<unknown>>;
+  rpc(fn: string, args: Record<string, unknown>): PromiseLike<PostgrestSingleResponse<unknown>>;
 }
 
 /**
@@ -138,9 +136,12 @@ export class PermissionChecker {
   ): Promise<UserPermissionsResponse> {
     try {
       // Get detailed permissions via RPC (migration 017)
-      const { data: permissions, error: permError } = await rpc<DbUserPermission[]>('get_user_permissions', {
-        user_id: userId,
-      });
+      const { data: permissions, error: permError } = await rpc<DbUserPermission[]>(
+        'get_user_permissions',
+        {
+          user_id: userId,
+        }
+      );
 
       if (permError) {
         throw new Error(`Failed to get user permissions: ${permError.message}`);
@@ -156,7 +157,9 @@ export class PermissionChecker {
       }
 
       // Get effective permissions via RPC (migration 017)
-      const { data: effectivePermissions, error: effectiveError } = await rpc<DbEffectivePermission[]>('get_effective_permissions', {
+      const { data: effectivePermissions, error: effectiveError } = await rpc<
+        DbEffectivePermission[]
+      >('get_effective_permissions', {
         user_id: userId,
       });
 
@@ -166,7 +169,7 @@ export class PermissionChecker {
 
       // Map RPC role results to UserRoleWithDetails
       const typedRoles = roles ?? [];
-      const rolesWithDetails: UserRoleWithDetails[] = typedRoles.map((userRole) => {
+      const rolesWithDetails: UserRoleWithDetails[] = typedRoles.map(userRole => {
         const scopeType = userRole.club_id ? 'club' : userRole.show_id ? 'show' : 'global';
         const scopeId = userRole.club_id || userRole.show_id || null;
 
@@ -181,7 +184,7 @@ export class PermissionChecker {
           expires_at: userRole.expires_at,
           scope_type: scopeType,
           scope_id: scopeId,
-          is_active: true,
+          is_active: userRole.is_active,
           user_email: '',
           assigned_by_email: '',
           role: {
@@ -202,7 +205,7 @@ export class PermissionChecker {
 
       // Map user permissions to PermissionWithRole format
       const typedPermissions = permissions ?? [];
-      const mappedPermissions = typedPermissions.map((p) => {
+      const mappedPermissions = typedPermissions.map(p => {
         const scopeType = p.club_id ? 'club' : p.show_id ? 'show' : 'global';
         const scopeId = p.club_id || p.show_id || null;
         return {
@@ -221,7 +224,7 @@ export class PermissionChecker {
       return {
         permissions: mappedPermissions,
         roles: rolesWithDetails,
-        effectivePermissions: typedEffective.map((ep) => ep.permission_code || ep.permission_name),
+        effectivePermissions: typedEffective.map(ep => ep.permission_code || ep.permission_name),
       };
     } catch (error) {
       logger.error('Failed to get user permissions:', 'rbac', {}, error as Error);
@@ -281,7 +284,9 @@ export class PermissionChecker {
    */
   async getPermissionInheritanceTree(
     roleId: string,
-    getRolePermissions: (roleId: string) => Promise<{ permission_id: string; permission: Permission }[]>,
+    getRolePermissions: (
+      roleId: string
+    ) => Promise<{ permission_id: string; permission: Permission }[]>,
     getAllPermissions: () => Promise<Permission[]>
   ): Promise<{
     direct: Permission[];

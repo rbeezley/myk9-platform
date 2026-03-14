@@ -8,7 +8,7 @@ Items to address in future sessions.
 
 - [ ] **Unify role systems — deprecate `people.roles` in favor of `user_roles` table** — Two disconnected role systems exist: `people.roles` (legacy text array, used by UI badges) and `user_roles` table (RBAC, used by AuthContext for access control). They're not synced — users can have RBAC roles but show no badges, or vice versa. Fix: (1) Update user table/badges to read from `user_roles` joined with `roles` table. (2) Update user creation flows (OAuth, admin create) to write to `user_roles` instead of `people.roles`. (3) Migrate existing `people.roles` data into `user_roles`. (4) Deprecate and eventually drop `people.roles` column.
 - [x] **Add `status` column to `people` table** — Done: added `status` column (active/suspended), auth hook to block suspended logins, admin RPC with last_sign_in_at, real status badges/filters, UserEditPanel status dropdown, suspension enforcement in AuthContext.
-- [ ] **Add `is_active` column to `user_roles` table** — AuthContext already checks `ur.is_active ?? true` but the column doesn't exist. Add a migration with `ALTER TABLE user_roles ADD COLUMN is_active BOOLEAN DEFAULT true NOT NULL`. Update the admin-delete-user Edge Function to filter by `is_active` once the column exists.
+- [x] **Add `is_active` column to `user_roles` table** — Done: migration 064 adds column with `DEFAULT true NOT NULL` + composite index. Updated all `user_roles` queries (AuthContext, RoleManager, admin-delete-user, send-registration-email, clubMembershipQueries, useUserRoles) to filter by `is_active`. RoleManager now soft-deactivates instead of hard-deleting, with reactivation on re-grant. All 3 generated type files updated.
 
 ---
 

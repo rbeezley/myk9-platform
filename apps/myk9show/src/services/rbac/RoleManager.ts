@@ -159,10 +159,10 @@ export class RoleManager {
       return false;
     }
 
-    // Check if the assignment already exists
+    // Check if the assignment already exists (active or inactive)
     let query = supabase
       .from('user_roles')
-      .select('id')
+      .select('id, is_active')
       .eq('user_id', userId)
       .eq('role_id', role.id);
 
@@ -175,7 +175,20 @@ export class RoleManager {
     const { data: existing } = await query.limit(1);
 
     if (existing && existing.length > 0) {
-      return false; // Already has this role
+      if (!existing[0].is_active) {
+        // Reactivate the deactivated role
+        const { error: reactivateError } = await supabase
+          .from('user_roles')
+          .update({ is_active: true })
+          .eq('id', existing[0].id);
+        if (reactivateError) {
+          throw new Error(`Failed to reactivate role: ${reactivateError.message}`);
+        }
+        this.clearUserCache(userId);
+        logger.info('Reactivated role', 'rbac', { userId, roleName, clubId });
+        return true;
+      }
+      return false; // Already has this active role
     }
 
     // Grant the role (catch unique constraint violations from concurrent calls)
@@ -220,7 +233,7 @@ export class RoleManager {
 
       let query = supabase
         .from('user_roles')
-        .delete()
+        .update({ is_active: false })
         .eq('user_id', request.userId)
         .eq('role_id', role.id);
 
@@ -569,6 +582,7 @@ export class RoleManager {
         granted_by: item.granted_by,
         granted_at: item.granted_at,
         expires_at: item.expires_at,
+        is_active: item.is_active,
         role: toRole(item.role),
         user_email: 'Unknown User',
         assigned_by_email: 'System',
@@ -588,8 +602,11 @@ export class RoleManager {
         .eq('id', userRoleId)
         .single();
 
-      // DB user_roles has no is_active column — delete the row
-      const { error } = await supabase.from('user_roles').delete().eq('id', userRoleId);
+      // Soft-deactivate the role assignment
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ is_active: false })
+        .eq('id', userRoleId);
 
       if (error) {
         throw new Error(`Failed to revoke user role: ${error.message}`);

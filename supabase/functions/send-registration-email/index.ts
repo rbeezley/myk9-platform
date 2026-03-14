@@ -215,6 +215,7 @@ Deno.serve(async (req: Request) => {
           .from('user_roles')
           .select('id, role:roles!inner(name)')
           .eq('user_id', callerPerson.id)
+          .eq('is_active', true)
           .eq('club_id', registration.show.club_id)
           .eq('roles.name', 'trial_secretary')
           .maybeSingle();

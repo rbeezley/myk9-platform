@@ -219,7 +219,7 @@ describe('RBACService', () => {
         }
         if (table === 'user_roles') {
           return {
-            delete: vi.fn().mockReturnValue({
+            update: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 eq: vi.fn().mockResolvedValue({ data: null, error: null }),
               }),

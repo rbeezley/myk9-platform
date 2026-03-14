@@ -189,6 +189,16 @@ Expected: `status | text | 'active'::text`
 Manual step: Go to Supabase Dashboard > Authentication > Hooks > Custom Access Token.
 Point it to `public.custom_access_token_hook`. Save.
 
+**[ADDED] Rollback note:** If the auth hook causes login failures, disable it immediately in the Supabase Dashboard (Authentication > Hooks > toggle off Custom Access Token). The hook is independent of the status column — disabling it restores normal login while keeping the column and RPC intact. To fully revert the migration if needed:
+
+```sql
+DROP FUNCTION IF EXISTS public.get_admin_user_list;
+DROP FUNCTION IF EXISTS public.custom_access_token_hook;
+ALTER TABLE people DROP CONSTRAINT IF EXISTS people_status_check;
+DROP INDEX IF EXISTS idx_people_status;
+ALTER TABLE people DROP COLUMN IF EXISTS status;
+```
+
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -607,6 +617,11 @@ For the row element, add conditional styling:
 
 - If `user.deletedAt`: dim the row (`opacity-50`), strikethrough the name
 - If `user.status === 'suspended'`: red tint background (`bg-red-500/5`)
+
+**[ADDED]** For the name cell, handle blank names (missing first/last name):
+
+- If both `firstName` and `lastName` are empty, show `— —` in italic muted text
+- This makes incomplete profiles visually obvious without a separate status badge
 
 For the status cell:
 

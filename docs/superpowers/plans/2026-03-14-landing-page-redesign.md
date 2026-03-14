@@ -47,7 +47,11 @@ In `Pricing.tsx`, change the button `onClick` to handle null `priceId`:
 >
 ```
 
-- [ ] **Step 2: Add error toast on checkout failure**
+- [ ] **Step 2: Clean up dead code in handleSubscribe** `[ADDED]`
+
+The `if (!priceId) return;` guard at the top of `handleSubscribe` is now dead code (the onClick handler already branches on `tier.priceId`). Remove lines 60-62.
+
+- [ ] **Step 3: Add error toast on checkout failure**
 
 Add `import { toast } from 'sonner';` at the top of the file.
 
@@ -60,7 +64,7 @@ In the `handleSubscribe` catch block, add a toast:
 }
 ```
 
-- [ ] **Step 3: Differentiate pricing card borders**
+- [ ] **Step 4: Differentiate pricing card borders**
 
 Replace the card container className. Currently both cards use:
 
@@ -78,7 +82,7 @@ className={`relative bg-card rounded-2xl shadow-lg ${
 }`}
 ```
 
-- [ ] **Step 4: Update pricing section copy**
+- [ ] **Step 5: Update pricing section copy**
 
 Replace the heading and subtitle in the section header:
 
@@ -103,12 +107,12 @@ New:
 
 Remove the `<p>` subtitle entirely. Remove `mb-4` from h2 since there's no subtitle below it. Keep the `mb-16` on the parent `div`.
 
-- [ ] **Step 5: Run typecheck and lint**
+- [ ] **Step 6: Run typecheck and lint**
 
 Run: `cd apps/myk9show && pnpm typecheck && pnpm lint`
 Expected: No errors
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add apps/myk9show/src/components/landing/Pricing.tsx
@@ -780,7 +784,8 @@ Check at http://localhost:5173 (logged out):
 6. Pricing: "Free to start. Premium when you're ready." heading, different card borders
 7. Free tier "Get Started" navigates to `/sign-up`
 8. FAQ: 6 questions, all expand/collapse
-9. Toggle dark mode — verify all sections look correct
+9. Toggle dark mode — verify all sections look correct (especially pricing card `border-border` token and HowItWorks `bg-muted/30`) `[EXPANDED]`
+10. Verify "Find a Show" CTA meets 44px minimum touch target (Button `size="lg"` = h-12 = 48px) `[ADDED]`
 
 - [ ] **Step 3: Final typecheck and lint**
 

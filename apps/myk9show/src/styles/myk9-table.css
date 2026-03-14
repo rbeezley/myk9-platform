@@ -17,7 +17,9 @@
   border-radius: 20px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
   pointer-events: none;
@@ -112,14 +114,18 @@
 
 /* Checkbox styling - myK9 inspired */
 .myk9-table-checkbox {
-  width: 16px !important;
-  height: 16px !important;
-  border: 0.5px solid var(--border) !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  border: 1.5px solid var(--border) !important;
   border-radius: 4px !important;
   background: var(--background) !important;
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
   box-shadow: none !important;
   cursor: pointer !important;
+  padding: 0 !important;
+  appearance: none !important;
 }
 
 .myk9-table-checkbox:hover {
@@ -127,13 +133,16 @@
   background: rgba(0, 122, 255, 0.05) !important;
 }
 
-.myk9-table-checkbox[data-state="checked"] {
-  background: #007AFF !important;
-  border-color: #007AFF !important;
+/* Base UI uses data-checked, not data-state="checked" */
+.myk9-table-checkbox[data-checked],
+.myk9-table-checkbox[data-state='checked'] {
+  background: #007aff !important;
+  border-color: #007aff !important;
   color: white !important;
 }
 
-.myk9-table-checkbox[data-state="indeterminate"] {
+.myk9-table-checkbox[data-indeterminate],
+.myk9-table-checkbox[data-state='indeterminate'] {
   background: rgba(0, 122, 255, 0.1) !important;
   border-color: rgba(0, 122, 255, 0.5) !important;
 }
@@ -204,13 +213,13 @@
 
 .myk9-table-badge.active {
   background: rgba(52, 199, 89, 0.1) !important;
-  color: #34C759 !important;
+  color: #34c759 !important;
   border-color: rgba(52, 199, 89, 0.2) !important;
 }
 
 .myk9-table-badge.inactive {
   background: rgba(142, 142, 147, 0.1) !important;
-  color: #8E8E93 !important;
+  color: #8e8e93 !important;
   border-color: rgba(142, 142, 147, 0.2) !important;
 }
 
@@ -264,16 +273,16 @@
 
 .myk9-table-dropdown-item:hover {
   background: rgba(0, 122, 255, 0.1) !important;
-  color: #007AFF !important;
+  color: #007aff !important;
 }
 
 .myk9-table-dropdown-item.destructive {
-  color: #FF3B30 !important;
+  color: #ff3b30 !important;
 }
 
 .myk9-table-dropdown-item.destructive:hover {
   background: rgba(255, 59, 48, 0.1) !important;
-  color: #FF3B30 !important;
+  color: #ff3b30 !important;
 }
 
 /* Dark mode adjustments */
@@ -301,12 +310,12 @@
     padding-right: 16px !important;
     font-size: 14px !important;
   }
-  
+
   .myk9-table-cell:first-child,
   .myk9-table-header-cell:first-child {
     padding-left: 20px !important;
   }
-  
+
   .myk9-table-cell:last-child,
   .myk9-table-header-cell:last-child {
     padding-right: 20px !important;

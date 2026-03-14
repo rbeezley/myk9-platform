@@ -6,7 +6,7 @@ import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import type { SortField, SortDirection } from './types';
 
 interface UserTableHeaderProps {
@@ -29,9 +29,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
   const renderSortIcon = (field: SortField) => {
     const isActive = sortField === field;
     const iconClass = `h-4 w-4 transition-all duration-300 ${
-      isActive
-        ? 'text-primary opacity-100'
-        : 'text-muted-foreground opacity-40'
+      isActive ? 'text-primary opacity-100' : 'text-muted-foreground opacity-40'
     }`;
 
     if (!isActive) {
@@ -53,27 +51,20 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
       <TableRow className="myk9-table-header-row">
         {/* Select All Checkbox */}
         <TableHead className="myk9-table-header-cell w-16">
-          <Checkbox
+          <input
+            type="checkbox"
             checked={allSelected}
-            onCheckedChange={(checked) => onSelectAll(!!checked)}
-            className="myk9-table-checkbox"
-            data-state={
-              someSelected
-                ? 'indeterminate'
-                : allSelected
-                  ? 'checked'
-                  : 'unchecked'
-            }
+            ref={el => {
+              if (el) el.indeterminate = someSelected && !allSelected;
+            }}
+            onChange={e => onSelectAll(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-400 accent-blue-500 cursor-pointer"
           />
         </TableHead>
 
         {/* User Column */}
         <TableHead className="myk9-table-header-cell">
-          <Button
-            variant="ghost"
-            className={sortButtonClass}
-            onClick={() => onSort('name')}
-          >
+          <Button variant="ghost" className={sortButtonClass} onClick={() => onSort('name')}>
             User
             {renderSortIcon('name')}
           </Button>
@@ -81,11 +72,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
 
         {/* Contact Column */}
         <TableHead className="myk9-table-header-cell">
-          <Button
-            variant="ghost"
-            className={sortButtonClass}
-            onClick={() => onSort('email')}
-          >
+          <Button variant="ghost" className={sortButtonClass} onClick={() => onSort('email')}>
             Contact
             {renderSortIcon('email')}
           </Button>
@@ -93,11 +80,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
 
         {/* Roles Column */}
         <TableHead className="myk9-table-header-cell">
-          <Button
-            variant="ghost"
-            className={sortButtonClass}
-            onClick={() => onSort('role')}
-          >
+          <Button variant="ghost" className={sortButtonClass} onClick={() => onSort('role')}>
             Roles
             {renderSortIcon('role')}
           </Button>
@@ -105,11 +88,7 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
 
         {/* Last Activity Column */}
         <TableHead className="myk9-table-header-cell">
-          <Button
-            variant="ghost"
-            className={sortButtonClass}
-            onClick={() => onSort('lastLogin')}
-          >
+          <Button variant="ghost" className={sortButtonClass} onClick={() => onSort('lastLogin')}>
             Last Activity
             {renderSortIcon('lastLogin')}
           </Button>

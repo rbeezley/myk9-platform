@@ -3,15 +3,9 @@
  */
 
 import React from 'react';
-import {
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Building2,
-} from 'lucide-react';
+import { Mail, Phone, MapPin, Calendar, Building2 } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
@@ -64,14 +58,12 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       onClick={() => onUserClick(user)}
     >
       {/* Selection Checkbox */}
-      <TableCell
-        onClick={(e) => e.stopPropagation()}
-        className="myk9-table-cell"
-      >
-        <Checkbox
+      <TableCell onClick={e => e.stopPropagation()} className="myk9-table-cell">
+        <input
+          type="checkbox"
           checked={isSelected}
-          onCheckedChange={(checked) => onSelectUser(user, !!checked)}
-          className="myk9-table-checkbox"
+          onChange={e => onSelectUser(user, e.target.checked)}
+          className="h-4 w-4 rounded border-gray-400 accent-blue-500 cursor-pointer"
         />
       </TableCell>
 
@@ -93,10 +85,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
                 className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-background bg-gradient-to-br flex items-center justify-center"
                 style={{ backgroundColor: statusConfig.background }}
               >
-                <statusConfig.icon
-                  className="h-2.5 w-2.5"
-                  style={{ color: statusConfig.color }}
-                />
+                <statusConfig.icon className="h-2.5 w-2.5" style={{ color: statusConfig.color }} />
               </div>
             )}
           </div>
@@ -120,9 +109,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       <TableCell className="myk9-table-cell">
         <div className="space-y-2">
           {user.email && (
-            <div
-              className={`flex items-center ${density.spacing} text-sm`}
-            >
+            <div className={`flex items-center ${density.spacing} text-sm`}>
               <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center border border-blue-500/20">
                 <Mail className="h-3 w-3 text-blue-600" />
               </div>
@@ -132,21 +119,15 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
             </div>
           )}
           {user.phone && (
-            <div
-              className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}
-            >
+            <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
               <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-green-500/10 to-green-500/5 flex items-center justify-center border border-green-500/20">
                 <Phone className="h-3 w-3 text-green-600" />
               </div>
-              <span className="font-[500]">
-                {highlightSearchTerm(user.phone, searchTerm)}
-              </span>
+              <span className="font-[500]">{highlightSearchTerm(user.phone, searchTerm)}</span>
             </div>
           )}
           {(user.city || user.state) && (
-            <div
-              className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}
-            >
+            <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
               <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500/10 to-orange-500/5 flex items-center justify-center border border-orange-500/20">
                 <MapPin className="h-3 w-3 text-orange-600" />
               </div>
@@ -165,24 +146,19 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       <TableCell className="myk9-table-cell">
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            {user.roles?.map((role) => {
-              const roleConfig =
-                ROLE_CONFIG[role as keyof typeof ROLE_CONFIG];
+            {user.roles?.map(role => {
+              const roleConfig = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG];
               return (
                 <Badge
                   key={role}
                   variant="outline"
                   className="text-xs font-[590] px-3 py-1 rounded-full border-0 transition-all duration-200"
                   style={{
-                    backgroundColor:
-                      roleConfig?.background ||
-                      'rgba(142, 142, 147, 0.1)',
+                    backgroundColor: roleConfig?.background || 'rgba(142, 142, 147, 0.1)',
                     color: roleConfig?.color || '#8E8E93',
                   }}
                 >
-                  {roleConfig?.icon && (
-                    <roleConfig.icon className="h-3 w-3 mr-1" />
-                  )}
+                  {roleConfig?.icon && <roleConfig.icon className="h-3 w-3 mr-1" />}
                   {roleConfig?.label || role}
                 </Badge>
               );
@@ -197,18 +173,13 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
           </div>
 
           {user.clubAffiliations && user.clubAffiliations.length > 0 && (
-            <div
-              className={`flex items-center ${density.spacing} text-xs text-muted-foreground`}
-            >
+            <div className={`flex items-center ${density.spacing} text-xs text-muted-foreground`}>
               <div className="h-5 w-5 rounded-md bg-gradient-to-br from-purple-500/10 to-purple-500/5 flex items-center justify-center border border-purple-500/20">
                 <Building2 className="h-3 w-3 text-purple-600" />
               </div>
               <span className="truncate font-[500]">
                 {user.clubAffiliations.length === 1
-                  ? highlightSearchTerm(
-                      user.clubAffiliations[0],
-                      searchTerm
-                    )
+                  ? highlightSearchTerm(user.clubAffiliations[0], searchTerm)
                   : `${user.clubAffiliations.length} clubs`}
               </span>
             </div>
@@ -218,9 +189,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
 
       {/* Last Activity */}
       <TableCell className="myk9-table-cell">
-        <div
-          className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}
-        >
+        <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
           <div className="h-5 w-5 rounded-md bg-gradient-to-br from-gray-500/10 to-gray-500/5 flex items-center justify-center border border-gray-500/20">
             <Calendar className="h-3 w-3 text-gray-600" />
           </div>
@@ -254,16 +223,8 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
       </TableCell>
 
       {/* Actions Menu */}
-      <TableCell
-        onClick={(e) => e.stopPropagation()}
-        className="myk9-table-cell text-center"
-      >
-        <RowActions
-          user={user}
-          onView={onViewUser}
-          onEdit={onEditUser}
-          onDelete={onDeleteUser}
-        />
+      <TableCell onClick={e => e.stopPropagation()} className="myk9-table-cell text-center">
+        <RowActions user={user} onView={onViewUser} onEdit={onEditUser} onDelete={onDeleteUser} />
       </TableCell>
     </TableRow>
   );

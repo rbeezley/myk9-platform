@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SignInPage from '@/pages/SignInPage';
@@ -15,6 +15,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 describe('SignInPage', () => {
+  beforeEach(() => {
+    mockSignInWithGoogle.mockReset();
+  });
+
   it('has a forgot password link pointing to /forgot-password', () => {
     render(
       <MemoryRouter>

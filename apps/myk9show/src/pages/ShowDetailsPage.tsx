@@ -73,9 +73,10 @@ const ShowDetailsPage: React.FC = () => {
   const canManageShow = isSecretary || isAdmin;
 
   // Get associated trials for secretary view
+  const showId_ = actualCurrentShow?.id;
   const associatedTrials = useMemo(
-    () => (actualCurrentShow?.id ? getTrialsByShow(actualCurrentShow.id) : []),
-    [actualCurrentShow?.id, getTrialsByShow]
+    () => (showId_ ? getTrialsByShow(showId_) : []),
+    [showId_, getTrialsByShow]
   );
 
   // Override hasData to be true if we found the show in database

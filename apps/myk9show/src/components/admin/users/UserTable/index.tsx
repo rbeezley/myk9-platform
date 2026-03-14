@@ -22,6 +22,9 @@ import { toast } from 'sonner';
 import { Table, TableBody } from '@/components/ui/table';
 import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
 import { useUserStore } from '@/store/userStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { usePermanentDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
+import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
 import '@/styles/myk9-table.css';
 
 import { User } from '@/types/user-types';
@@ -52,6 +55,8 @@ export const UserTable: React.FC<UserTableProps> = ({
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { deleteUser } = useUserStore();
+  const { isAdmin } = useAuthContext();
+  const permanentDeleteMutation = usePermanentDeleteUserMutation();
 
   // Sort users
   const sortedUsers = useMemo(() => {
@@ -61,12 +66,8 @@ export const UserTable: React.FC<UserTableProps> = ({
 
       switch (sortField) {
         case 'name':
-          aValue = `${a.firstName || ''} ${a.lastName || ''}`
-            .trim()
-            .toLowerCase();
-          bValue = `${b.firstName || ''} ${b.lastName || ''}`
-            .trim()
-            .toLowerCase();
+          aValue = `${a.firstName || ''} ${a.lastName || ''}`.trim().toLowerCase();
+          bValue = `${b.firstName || ''} ${b.lastName || ''}`.trim().toLowerCase();
           break;
         case 'email':
           aValue = a.email?.toLowerCase() || '';
@@ -110,12 +111,11 @@ export const UserTable: React.FC<UserTableProps> = ({
 
   // Check if user is selected
   const isUserSelected = (userId: string) => {
-    return selectedUsers.some((item) => item.id === userId);
+    return selectedUsers.some(item => item.id === userId);
   };
 
   // Check if all visible users are selected
-  const allSelected =
-    users.length > 0 && users.every((user) => isUserSelected(user.id));
+  const allSelected = users.length > 0 && users.every(user => isUserSelected(user.id));
   const someSelected = selectedUsers.length > 0 && !allSelected;
 
   // Handle row actions
@@ -142,6 +142,22 @@ export const UserTable: React.FC<UserTableProps> = ({
       setDeleteTarget(null);
     } catch {
       toast.error('Failed to delete user');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await permanentDeleteMutation.mutateAsync({ id: deleteTarget.id });
+      toast.success(
+        `${deleteTarget.firstName} ${deleteTarget.lastName} has been permanently deleted`
+      );
+      setDeleteTarget(null);
+    } catch {
+      toast.error('Failed to permanently delete user');
     } finally {
       setIsDeleting(false);
     }
@@ -175,7 +191,7 @@ export const UserTable: React.FC<UserTableProps> = ({
               onSelectAll={onSelectAll}
             />
             <TableBody className="myk9-table-body">
-              {sortedUsers.map((user) => (
+              {sortedUsers.map(user => (
                 <UserTableRowComponent
                   key={user.id}
                   user={user}
@@ -204,14 +220,29 @@ export const UserTable: React.FC<UserTableProps> = ({
         onPageChange={onPageChange}
       />
 
-      <DeleteConfirmationDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        onConfirm={confirmDelete}
-        entityName={deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}` : ''}
-        entityType="User"
-        isDeleting={isDeleting}
-      />
+      {isAdmin ? (
+        <AdminDeleteUserDialog
+          open={!!deleteTarget}
+          onOpenChange={open => {
+            if (!open) setDeleteTarget(null);
+          }}
+          onSoftDelete={confirmDelete}
+          onPermanentDelete={confirmPermanentDelete}
+          entityName={deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}` : ''}
+          isDeleting={isDeleting}
+        />
+      ) : (
+        <DeleteConfirmationDialog
+          open={!!deleteTarget}
+          onOpenChange={open => {
+            if (!open) setDeleteTarget(null);
+          }}
+          onConfirm={confirmDelete}
+          entityName={deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}` : ''}
+          entityType="User"
+          isDeleting={isDeleting}
+        />
+      )}
     </div>
   );
 };

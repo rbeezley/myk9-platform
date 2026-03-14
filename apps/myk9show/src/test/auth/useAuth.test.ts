@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth } from '@/hooks/useAuth';
-import { mockSupabase } from '@/test/mocks/supabase';
+import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import type { User } from '@supabase/supabase-js';
 
 describe('useAuth', () => {
@@ -50,6 +50,11 @@ describe('useAuth', () => {
 
     mockSupabase.auth.updateUser.mockResolvedValue({
       data: { user: mockUser },
+      error: null,
+    });
+
+    mockSupabase.auth.signInWithOAuth.mockResolvedValue({
+      data: { url: '', provider: '' },
       error: null,
     });
   });
@@ -290,6 +295,200 @@ describe('useAuth', () => {
           });
         });
       }).rejects.toThrow('Profile update failed');
+    });
+  });
+
+  describe('signInWithGoogle', () => {
+    it('should call signInWithOAuth with google provider', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signInWithGoogle();
+      });
+
+      expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+    });
+
+    it('should throw on OAuth error', async () => {
+      const mockError = new Error('OAuth failed');
+      mockSupabase.auth.signInWithOAuth.mockResolvedValue({
+        data: { url: null, provider: '' },
+        error: mockError,
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await expect(async () => {
+        await act(async () => {
+          await result.current.signInWithGoogle();
+        });
+      }).rejects.toThrow('OAuth failed');
+    });
+  });
+
+  describe('OAuth people record creation', () => {
+    it('should create people record for first-time OAuth user', async () => {
+      const oauthUser: User = {
+        ...mockUser,
+        app_metadata: { provider: 'google' },
+        user_metadata: { given_name: 'Jane', family_name: 'Doe' },
+      };
+
+      const selectChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      };
+      const insertChain = {
+        insert: vi.fn().mockResolvedValue({ data: [{}], error: null }),
+      };
+
+      let authChangeCallback: (event: string, session: { user: User } | null) => void;
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (cb: (event: string, session: { user: User } | null) => void) => {
+          authChangeCallback = cb;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+
+      let fromCallCount = 0;
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          fromCallCount++;
+          if (fromCallCount === 1) return selectChain;
+          if (fromCallCount === 2) return insertChain;
+        }
+        return createChainableQuery();
+      });
+
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback!('SIGNED_IN', { user: oauthUser });
+      });
+
+      expect(selectChain.eq).toHaveBeenCalledWith('auth_user_id', 'test-user-id');
+      expect(insertChain.insert).toHaveBeenCalledWith([
+        expect.objectContaining({
+          first_name: 'Jane',
+          last_name: 'Doe',
+          email: 'test@example.com',
+          roles: ['exhibitor'],
+          auth_user_id: 'test-user-id',
+        }),
+      ]);
+    });
+
+    it('should not create people record if one already exists', async () => {
+      const oauthUser: User = {
+        ...mockUser,
+        app_metadata: { provider: 'google' },
+        user_metadata: { given_name: 'Jane', family_name: 'Doe' },
+      };
+
+      const selectChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'existing-id' }, error: null }),
+      };
+
+      let authChangeCallback: (event: string, session: { user: User } | null) => void;
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (cb: (event: string, session: { user: User } | null) => void) => {
+          authChangeCallback = cb;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') return selectChain;
+        return createChainableQuery();
+      });
+
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback!('SIGNED_IN', { user: oauthUser });
+      });
+
+      expect(selectChain.eq).toHaveBeenCalledWith('auth_user_id', 'test-user-id');
+      expect(mockSupabase.from).toHaveBeenCalledWith('people');
+    });
+
+    it('should not create people record for email provider', async () => {
+      const emailUser: User = {
+        ...mockUser,
+        app_metadata: { provider: 'email' },
+      };
+
+      let authChangeCallback: (event: string, session: { user: User } | null) => void;
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (cb: (event: string, session: { user: User } | null) => void) => {
+          authChangeCallback = cb;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback!('SIGNED_IN', { user: emailUser });
+      });
+
+      expect(mockSupabase.from).not.toHaveBeenCalledWith('people');
+    });
+
+    it('should log error but not throw when people record insert fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const oauthUser: User = {
+        ...mockUser,
+        app_metadata: { provider: 'google' },
+        user_metadata: { given_name: 'Jane', family_name: 'Doe' },
+      };
+
+      const selectChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      };
+      const insertChain = {
+        insert: vi.fn().mockResolvedValue({ data: null, error: { message: 'RLS blocked' } }),
+      };
+
+      let authChangeCallback: (event: string, session: { user: User } | null) => void;
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (cb: (event: string, session: { user: User } | null) => void) => {
+          authChangeCallback = cb;
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+
+      let fromCallCount = 0;
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          fromCallCount++;
+          if (fromCallCount === 1) return selectChain;
+          if (fromCallCount === 2) return insertChain;
+        }
+        return createChainableQuery();
+      });
+
+      renderHook(() => useAuth());
+
+      await act(async () => {
+        authChangeCallback!('SIGNED_IN', { user: oauthUser });
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to create people record for OAuth user:',
+        expect.objectContaining({ message: 'RLS blocked' })
+      );
+      consoleSpy.mockRestore();
     });
   });
 

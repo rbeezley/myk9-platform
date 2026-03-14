@@ -34,9 +34,50 @@ export function useAuth() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Create people record for first-time OAuth users
+      if (_event === 'SIGNED_IN' && session?.user) {
+        const user = session.user;
+        const isOAuth = user.app_metadata?.provider !== 'email';
+        if (isOAuth) {
+          try {
+            const { data: existing } = await supabase
+              .from('people')
+              .select('id')
+              .eq('auth_user_id', user.id)
+              .maybeSingle();
+
+            if (!existing) {
+              const firstName: string =
+                user.user_metadata?.given_name ||
+                user.user_metadata?.full_name?.split(' ')[0] ||
+                'First';
+              const lastName: string =
+                user.user_metadata?.family_name ||
+                user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
+                'Name';
+              const { error: insertError } = await supabase.from('people').insert([
+                {
+                  first_name: firstName,
+                  last_name: lastName,
+                  email: user.email ?? null,
+                  roles: ['exhibitor'],
+                  auth_user_id: user.id,
+                },
+              ]);
+
+              if (insertError) {
+                console.error('Failed to create people record for OAuth user:', insertError);
+              }
+            }
+          } catch (err) {
+            console.error('Error checking/creating people record for OAuth user:', err);
+          }
+        }
+      }
     });
 
     return () => {
@@ -81,7 +122,7 @@ export function useAuth() {
               last_name: metadata?.lastName || 'Name',
               email: email,
               roles: ['exhibitor'],
-              user_id: data.user.id,
+              auth_user_id: data.user.id,
             },
           ]);
 
@@ -118,6 +159,20 @@ export function useAuth() {
       setLoading(false);
       throw error;
     }
+  }, []);
+
+  /**
+   * Signs in a user with Google OAuth
+   * @throws {AuthError} If OAuth initiation fails
+   */
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
   }, []);
 
   /**
@@ -184,6 +239,7 @@ export function useAuth() {
     loading,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     resetPassword,
     updatePassword,

@@ -14,7 +14,10 @@ export const getAllShows = async () => {
         *,
         club:clubs(
           id,
-          name
+          name,
+          logo_url,
+          cover_image_url,
+          accent_color
         ),
         trials(
           id,
@@ -63,7 +66,10 @@ export const getShowById = async (id: string) => {
           address,
           phone,
           email,
-          website
+          website,
+          logo_url,
+          cover_image_url,
+          accent_color
         ),
         trials(
           id,
@@ -128,7 +134,10 @@ export const getUpcomingShows = async (limit = 10) => {
         *,
         club:clubs(
           id,
-          name
+          name,
+          logo_url,
+          cover_image_url,
+          accent_color
         ),
         trials(
           id,
@@ -172,7 +181,10 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
         *,
         club:clubs(
           id,
-          name
+          name,
+          logo_url,
+          cover_image_url,
+          accent_color
         ),
         trials(
           id,
@@ -216,7 +228,10 @@ export const getShowsByClub = async (clubId: string) => {
         *,
         club:clubs(
           id,
-          name
+          name,
+          logo_url,
+          cover_image_url,
+          accent_color
         ),
         trials(
           id,
@@ -261,7 +276,10 @@ export const createShow = async (showData: DbShowInsert) => {
         club:clubs(
           id,
           name,
-          address
+          address,
+          logo_url,
+          cover_image_url,
+          accent_color
         )
       `
       )
@@ -301,7 +319,10 @@ export const updateShow = async (id: string, updates: DbShowUpdate) => {
         club:clubs(
           id,
           name,
-          address
+          address,
+          logo_url,
+          cover_image_url,
+          accent_color
         )
       `
       )
@@ -548,7 +569,10 @@ export const getShowsWithEntryCounts = async () => {
         *,
         club:clubs(
           id,
-          name
+          name,
+          logo_url,
+          cover_image_url,
+          accent_color
         )
       `
       )

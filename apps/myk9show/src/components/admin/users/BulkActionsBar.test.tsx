@@ -6,15 +6,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BulkActionsBar } from './BulkActionsBar';
-import { useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
+import {
+  useDeleteUserMutation,
+  usePermanentDeleteUserMutation,
+} from '@/hooks/queries/useUsersQuery';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 
-// Mock the mutation hook
+// Mock the mutation hooks
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useDeleteUserMutation: vi.fn(),
+  usePermanentDeleteUserMutation: vi.fn(),
+}));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: vi.fn(),
 }));
 
 const mockUseDeleteUserMutation = vi.mocked(useDeleteUserMutation);
+const mockUsePermanentDeleteUserMutation = vi.mocked(usePermanentDeleteUserMutation);
+const mockUseAuthContext = vi.mocked(useAuthContext);
 
 // Mock data
 const mockSelectedUsers: SelectedUser[] = [
@@ -60,6 +71,54 @@ describe('BulkActionsBar', () => {
     // Setup the mutation hook mock
     mockUseDeleteUserMutation.mockReturnValue({
       mutateAsync: mockMutateAsync,
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      data: undefined,
+      reset: vi.fn(),
+      isIdle: true,
+      isSuccess: false,
+      failureCount: 0,
+      failureReason: null,
+      isPaused: false,
+      status: 'idle' as const,
+      submittedAt: 0,
+      variables: undefined,
+      context: undefined,
+    });
+
+    // Default to non-admin (existing tests stay the same)
+    mockUseAuthContext.mockReturnValue({
+      user: null,
+      userWithRoles: null,
+      loading: false,
+      signIn: vi.fn(),
+      signUp: vi.fn(),
+      signOut: vi.fn(),
+      signInWithGoogle: vi.fn(),
+      resetPassword: vi.fn(),
+      updatePassword: vi.fn(),
+      updateProfile: vi.fn(),
+      hasRole: vi.fn().mockReturnValue(false),
+      hasPermission: vi.fn().mockReturnValue(false),
+      getUserRoles: vi.fn().mockReturnValue([]),
+      switchUserRole: vi.fn(),
+      checkPermissionAsync: vi.fn().mockResolvedValue(false),
+      isAdmin: false,
+      isSecretary: false,
+      isExhibitor: false,
+      isJudge: false,
+      dbPermissions: [],
+      dbRoles: [],
+      rbacLoading: false,
+      rbacError: null,
+      refreshPermissions: vi.fn().mockResolvedValue(undefined),
+    });
+
+    // Setup permanent delete mutation mock
+    mockUsePermanentDeleteUserMutation.mockReturnValue({
+      mutateAsync: vi.fn(),
       mutate: vi.fn(),
       isPending: false,
       isError: false,
@@ -323,6 +382,103 @@ describe('BulkActionsBar', () => {
       const deleteButton = screen.getByRole('button', { name: /delete/i });
       deleteButton.focus();
       expect(deleteButton).toHaveFocus();
+    });
+  });
+
+  describe('Site Admin Delete', () => {
+    beforeEach(() => {
+      mockUseAuthContext.mockReturnValue({
+        user: null,
+        userWithRoles: null,
+        loading: false,
+        signIn: vi.fn(),
+        signUp: vi.fn(),
+        signOut: vi.fn(),
+        signInWithGoogle: vi.fn(),
+        resetPassword: vi.fn(),
+        updatePassword: vi.fn(),
+        updateProfile: vi.fn(),
+        hasRole: vi.fn().mockReturnValue(true),
+        hasPermission: vi.fn().mockReturnValue(true),
+        getUserRoles: vi.fn().mockReturnValue(['site_admin']),
+        switchUserRole: vi.fn(),
+        checkPermissionAsync: vi.fn().mockResolvedValue(true),
+        isAdmin: true,
+        isSecretary: false,
+        isExhibitor: false,
+        isJudge: false,
+        dbPermissions: [],
+        dbRoles: [],
+        rbacLoading: false,
+        rbacError: null,
+        refreshPermissions: vi.fn().mockResolvedValue(undefined),
+      });
+    });
+
+    it('shows AdminDeleteUserDialog with soft/permanent options for admins', () => {
+      render(<BulkActionsBar {...defaultProps} />);
+
+      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      fireEvent.click(deleteButton);
+
+      // Should show the admin dialog with radio options
+      expect(screen.getByLabelText(/Deactivate/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Permanently delete/)).toBeInTheDocument();
+    });
+
+    it('calls soft delete when deactivate is chosen', async () => {
+      mockMutateAsync.mockResolvedValue(undefined);
+
+      render(<BulkActionsBar {...defaultProps} />);
+
+      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      fireEvent.click(deleteButton);
+
+      // Deactivate is default
+      const confirmButton = screen.getByRole('button', { name: /deactivate/i });
+      fireEvent.click(confirmButton);
+
+      await waitFor(() => {
+        expect(mockMutateAsync).toHaveBeenCalled();
+      });
+    });
+
+    it('calls permanent delete when permanently delete is chosen', async () => {
+      const mockPermanentMutateAsync = vi.fn().mockResolvedValue(undefined);
+      mockUsePermanentDeleteUserMutation.mockReturnValue({
+        mutateAsync: mockPermanentMutateAsync,
+        mutate: vi.fn(),
+        isPending: false,
+        isError: false,
+        error: null,
+        data: undefined,
+        reset: vi.fn(),
+        isIdle: true,
+        isSuccess: false,
+        failureCount: 0,
+        failureReason: null,
+        isPaused: false,
+        status: 'idle' as const,
+        submittedAt: 0,
+        variables: undefined,
+        context: undefined,
+      });
+
+      render(<BulkActionsBar {...defaultProps} />);
+
+      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      fireEvent.click(deleteButton);
+
+      const permanentRadio = screen.getByLabelText(/Permanently delete/);
+      fireEvent.click(permanentRadio);
+
+      const confirmButton = screen.getByRole('button', { name: /permanently delete/i });
+      fireEvent.click(confirmButton);
+
+      await waitFor(() => {
+        expect(mockPermanentMutateAsync).toHaveBeenCalledWith({ id: 'user-1' });
+        expect(mockPermanentMutateAsync).toHaveBeenCalledWith({ id: 'user-2' });
+      });
     });
   });
 });

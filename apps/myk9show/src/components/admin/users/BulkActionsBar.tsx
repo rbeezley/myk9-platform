@@ -51,7 +51,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import type { UserRole as UserRoleType } from '@/types/user-types';
 import { SelectedUser } from '@/pages/admin/UserManagementPage';
-import { useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
+import {
+  useDeleteUserMutation,
+  usePermanentDeleteUserMutation,
+} from '@/hooks/queries/useUsersQuery';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 
 interface BulkActionsBarProps {
   selectedUsers: SelectedUser[];
@@ -100,6 +105,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   onUsersDeleted,
 }) => {
   const deleteUserMutation = useDeleteUserMutation();
+  const { isAdmin } = useAuthContext();
+  const permanentDeleteMutation = usePermanentDeleteUserMutation();
   const [currentDialog, setCurrentDialog] = useState<DialogType>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -288,6 +295,52 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to delete users. Please try again.';
       setError(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle bulk permanent delete
+  const handleBulkPermanentDelete = async () => {
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const userIds = selectedUsers.map(u => u.id);
+      logger.debug('Bulk permanent delete', 'admin', { userIds });
+
+      const results = await Promise.allSettled(
+        userIds.map(async userId => {
+          await permanentDeleteMutation.mutateAsync({ id: userId });
+          return userId;
+        })
+      );
+
+      const succeeded = results
+        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+        .map(r => r.value);
+      const failed = results.filter(r => r.status === 'rejected');
+
+      if (succeeded.length > 0) {
+        logger.info('Successfully permanently deleted users', 'admin', {
+          count: succeeded.length,
+          userIds: succeeded,
+        });
+        onUsersDeleted?.(succeeded);
+      }
+
+      if (failed.length > 0) {
+        const errorMessage = `${failed.length} of ${userIds.length} users failed to delete.`;
+        logger.error('Partial failure in bulk permanent delete', 'admin', {
+          succeeded: succeeded.length,
+          failed: failed.length,
+        });
+        setError(errorMessage);
+      } else {
+        closeDialog();
+      }
+
+      onBulkComplete();
     } finally {
       setIsProcessing(false);
     }
@@ -566,56 +619,74 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={currentDialog === 'delete'} onOpenChange={() => closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Users</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedUsers.length} selected user
-              {selectedUsers.length !== 1 ? 's' : ''}? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
+      {/* Delete Dialog — Admin sees soft/permanent options, others see standard confirmation */}
+      {isAdmin ? (
+        <AdminDeleteUserDialog
+          open={currentDialog === 'delete'}
+          onOpenChange={() => closeDialog()}
+          onSoftDelete={handleBulkDelete}
+          onPermanentDelete={handleBulkPermanentDelete}
+          entityName={
+            selectedUsers
+              .slice(0, 3)
+              .map(u => `${u.user.firstName} ${u.user.lastName}`)
+              .join(', ') +
+            (selectedUsers.length > 3 ? ` and ${selectedUsers.length - 3} more` : '')
+          }
+          isDeleting={isProcessing}
+          bulkCount={selectedUsers.length}
+        />
+      ) : (
+        <Dialog open={currentDialog === 'delete'} onOpenChange={() => closeDialog()}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Users</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete {selectedUsers.length} selected user
+                {selectedUsers.length !== 1 ? 's' : ''}? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="space-y-4">
-            {error && (
+            <div className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>
+                  This will permanently delete all user data including profiles, registrations, and
+                  history.
+                </AlertDescription>
               </Alert>
-            )}
 
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                This will permanently delete all user data including profiles, registrations, and
-                history.
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-2">
-              <Label>Users to be deleted:</Label>
-              <div className="max-h-32 overflow-y-auto space-y-1">
-                {selectedUsers.map(item => (
-                  <div key={item.id} className="text-sm p-2 bg-muted rounded">
-                    {item.user.firstName} {item.user.lastName} ({item.user.email})
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <Label>Users to be deleted:</Label>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {selectedUsers.map(item => (
+                    <div key={item.id} className="text-sm p-2 bg-muted rounded">
+                      {item.user.firstName} {item.user.lastName} ({item.user.email})
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleBulkDelete} disabled={isProcessing}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              {isProcessing ? 'Deleting...' : 'Delete Users'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={closeDialog}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleBulkDelete} disabled={isProcessing}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isProcessing ? 'Deleting...' : 'Delete Users'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Cascade Delete Confirmation Dialog */}
       <Dialog open={currentDialog === 'cascadeConfirm'} onOpenChange={() => closeDialog()}>

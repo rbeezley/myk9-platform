@@ -241,10 +241,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Priority 1: Database RBAC (from rbacService)
     if (rbacData.userRoles.length > 0) {
+      const validRoleNames = new Set(Object.values(UserRole));
       const activeRoles = rbacData.userRoles
         .filter(ur => ur.is_active)
-        .map(ur => ur.role?.name as UserRole)
-        .filter(Boolean);
+        .map(ur => ur.role?.name)
+        .filter((name): name is UserRole => !!name && validRoleNames.has(name as UserRole));
 
       return {
         ...auth.user,

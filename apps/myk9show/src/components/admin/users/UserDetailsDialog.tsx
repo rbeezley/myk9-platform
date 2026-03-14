@@ -10,6 +10,7 @@
  */
 
 import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import {
   User as UserIcon,
@@ -37,9 +38,10 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/services/database/supabaseClient';
+import { rbacService } from '@/services/rbac/RBACService';
 
 import { User } from '@/types/user-types';
-import type { UserRole as UserRoleType } from '@/types/user-types';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { format } from 'date-fns';
 
@@ -49,40 +51,6 @@ interface UserDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   onUserUpdated: (user: User) => void;
 }
-
-// Role configuration for management
-const AVAILABLE_ROLES = [
-  {
-    value: 'exhibitor' as UserRoleType,
-    label: 'Exhibitor',
-    description: 'Can register dogs and enter shows',
-  },
-  {
-    value: 'handler' as UserRoleType,
-    label: 'Handler',
-    description: 'Can handle dogs for other owners',
-  },
-  {
-    value: 'judge' as UserRoleType,
-    label: 'Judge',
-    description: 'Can judge shows and enter results',
-  },
-  {
-    value: 'secretary' as UserRoleType,
-    label: 'Secretary',
-    description: 'Can manage shows and registrations',
-  },
-  {
-    value: 'steward' as UserRoleType,
-    label: 'Steward',
-    description: 'Can assist with show operations',
-  },
-  {
-    value: 'admin' as UserRoleType,
-    label: 'Admin',
-    description: 'Full system administration access',
-  },
-] as const;
 
 // Form validation schema (basic)
 interface UserFormData {
@@ -97,7 +65,7 @@ interface UserFormData {
   country: string;
   membershipId: string;
   clubAffiliations: string[];
-  roles: UserRoleType[];
+  roles: string[];
   isActive: boolean;
 }
 
@@ -127,6 +95,39 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   const [newClub, setNewClub] = useState('');
 
   const updateUserMutation = useUpdateUserMutation();
+  const queryClient = useQueryClient();
+
+  // Fetch available roles from DB
+  const { data: availableRoles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('id, name, description')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch user's current active roles from user_roles
+  const { data: currentUserRoles = [] } = useQuery({
+    queryKey: ['user-roles', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role:roles(name)')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+      return (
+        data
+          ?.map((r: { role: { name: string } | null }) => r.role?.name)
+          .filter((n): n is string => !!n) ?? []
+      );
+    },
+    enabled: !!user?.id,
+  });
 
   // Derive initial form data from user prop
   const getInitialFormData = (): UserFormData => ({
@@ -141,7 +142,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     country: user?.country || '',
     membershipId: user?.membershipId || '',
     clubAffiliations: user?.clubAffiliations || [],
-    roles: user?.roles || [],
+    roles: currentUserRoles,
     isActive: true, // Mock - would come from actual user status
   });
 
@@ -183,6 +184,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     if (!validateForm()) return;
 
     try {
+      // Update person fields (no roles — those go to user_roles)
       const updatedUser = await updateUserMutation.mutateAsync({
         id: user.id,
         updates: {
@@ -194,9 +196,37 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
           city: formData.city || undefined,
           state: formData.state || undefined,
           zipCode: formData.zipCode || undefined,
-          roles: formData.roles.length > 0 ? formData.roles : undefined,
         },
       });
+
+      // Diff roles: add new, soft-deactivate removed
+      const currentSet = new Set(currentUserRoles);
+      const selectedSet = new Set(formData.roles);
+
+      const toAdd = formData.roles.filter(r => !currentSet.has(r));
+      const toDeactivate = currentUserRoles.filter(r => !selectedSet.has(r));
+
+      for (const roleName of toAdd) {
+        try {
+          await rbacService.ensureUserHasRole(user.id, roleName);
+        } catch (err) {
+          logger.error('Failed to assign role:', 'admin', { roleName }, err as Error);
+        }
+      }
+
+      for (const roleName of toDeactivate) {
+        const role = availableRoles.find(r => r.name === roleName);
+        if (role) {
+          await supabase
+            .from('user_roles')
+            .update({ is_active: false })
+            .eq('user_id', user.id)
+            .eq('role_id', role.id);
+        }
+      }
+
+      // Invalidate role cache
+      await queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
 
       onUserUpdated(updatedUser);
       setIsEditing(false);
@@ -207,7 +237,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   };
 
   // Handle role changes
-  const handleRoleChange = (role: UserRoleType, checked: boolean) => {
+  const handleRoleChange = (role: string, checked: boolean) => {
     if (checked) {
       setFormData(prev => ({
         ...prev,
@@ -529,22 +559,24 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   )}
 
                   <div className="space-y-3">
-                    {AVAILABLE_ROLES.map(role => (
+                    {availableRoles.map(role => (
                       <div
-                        key={role.value}
+                        key={role.name}
                         className="flex items-start space-x-3 p-3 border rounded"
                       >
                         <Checkbox
-                          id={role.value}
-                          checked={formData.roles.includes(role.value)}
-                          onCheckedChange={checked => handleRoleChange(role.value, !!checked)}
+                          id={role.name}
+                          checked={formData.roles.includes(role.name)}
+                          onCheckedChange={checked => handleRoleChange(role.name, !!checked)}
                           disabled={!isEditing}
                         />
                         <div className="flex-1 min-w-0">
-                          <Label htmlFor={role.value} className="font-medium">
-                            {role.label}
+                          <Label htmlFor={role.name} className="font-medium capitalize">
+                            {role.name}
                           </Label>
-                          <p className="text-sm text-muted-foreground">{role.description}</p>
+                          {role.description && (
+                            <p className="text-sm text-muted-foreground">{role.description}</p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -555,8 +587,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <h4 className="font-medium mb-2">Current Roles:</h4>
                     <div className="flex flex-wrap gap-2">
                       {formData.roles.map(role => (
-                        <Badge key={role} variant="default">
-                          {AVAILABLE_ROLES.find(r => r.value === role)?.label || role}
+                        <Badge key={role} variant="default" className="capitalize">
+                          {role}
                         </Badge>
                       ))}
                       {formData.roles.length === 0 && (

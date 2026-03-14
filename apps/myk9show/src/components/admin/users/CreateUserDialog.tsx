@@ -35,6 +35,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/services/database/supabaseClient';
+import { rbacService } from '@/services/rbac/RBACService';
 
 import { User } from '@/types/user-types';
 import { useCreateUserMutation } from '@/hooks/queries/useUsersQuery';
@@ -180,24 +181,13 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         zip_code: formData.zipCode || null,
       });
 
-      // Assign selected roles via user_roles
+      // Assign selected roles via RBAC service (handles dedup + reactivation)
       if (newUser?.id && formData.roles.length > 0) {
-        const roleInserts: { user_id: string; role_id: string; granted_at: string }[] = [];
         for (const roleName of formData.roles) {
-          const role = availableRoles.find(r => r.name === roleName);
-          if (role) {
-            roleInserts.push({
-              user_id: newUser.id,
-              role_id: role.id,
-              granted_at: new Date().toISOString(),
-            });
-          }
-        }
-
-        if (roleInserts.length > 0) {
-          const { error: roleError } = await supabase.from('user_roles').insert(roleInserts);
-          if (roleError) {
-            logger.error('Failed to assign roles:', 'admin', {}, roleError as unknown as Error);
+          try {
+            await rbacService.ensureUserHasRole(newUser.id, roleName);
+          } catch (err) {
+            logger.error('Failed to assign role:', 'admin', { roleName }, err as Error);
           }
         }
       }
@@ -464,10 +454,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 
                 <div className="space-y-3">
                   {availableRoles.map(role => (
-                    <div
-                      key={role.name}
-                      className="flex items-start space-x-3 p-3 border rounded"
-                    >
+                    <div key={role.name} className="flex items-start space-x-3 p-3 border rounded">
                       <Checkbox
                         id={role.name}
                         checked={formData.roles.includes(role.name)}

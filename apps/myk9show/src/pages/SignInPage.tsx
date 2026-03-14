@@ -46,7 +46,7 @@ const SignIn: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-2">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-2 pt-20">
       <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex justify-center mb-4">
           <Link

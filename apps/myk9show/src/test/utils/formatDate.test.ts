@@ -130,8 +130,9 @@ describe('formatDate utilities', () => {
     });
 
     it('should handle date rollover for out-of-range days', () => {
-      // JS Date rolls '2024-02-30' to Feb 29 (leap year), which is valid
-      expect(formatDayAbbreviation('2024-02-30')).toBe('Thu');
+      // JS Date rolls '2024-02-30' to Mar 1 (leap year has 29 days).
+      // The local day name depends on timezone, so use the helper.
+      expect(formatDayAbbreviation('2024-02-30')).toBe(expectedDayAbbrev('2024-02-30'));
     });
 
     it('should return empty string for undefined or null input', () => {
@@ -213,14 +214,8 @@ describe('formatDate utilities', () => {
 
   describe('Performance considerations', () => {
     it('should handle multiple calls efficiently', () => {
-      const testDates = [
-        '2024-01-01',
-        '2024-06-15',
-        '2024-12-31',
-        '2023-02-28',
-        '2024-02-29',
-      ];
-      
+      const testDates = ['2024-01-01', '2024-06-15', '2024-12-31', '2023-02-28', '2024-02-29'];
+
       // Multiple calls should not throw errors or have performance issues
       testDates.forEach(date => {
         expect(formatDateMMDDYYYY(date)).toBeDefined();
@@ -235,10 +230,10 @@ describe('formatDate utilities', () => {
         getFullYear: Date.prototype.getFullYear,
         toLocaleDateString: Date.prototype.toLocaleDateString,
       };
-      
+
       formatDateMMDDYYYY('2024-01-15');
       formatDayAbbreviation('2024-01-15');
-      
+
       expect(Date.prototype.getMonth).toBe(originalDateMethods.getMonth);
       expect(Date.prototype.getDate).toBe(originalDateMethods.getDate);
       expect(Date.prototype.getFullYear).toBe(originalDateMethods.getFullYear);

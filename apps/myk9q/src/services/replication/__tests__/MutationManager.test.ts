@@ -13,10 +13,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  MutationManager,
-  type MutationManagerOptions,
-} from '../MutationManager';
+import { MutationManager, type MutationManagerOptions } from '../MutationManager';
 import type { PendingMutation, Logger } from '@myk9/replication';
 import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
 import { openDB, type IDBPDatabase } from 'idb';
@@ -26,13 +23,15 @@ const TEST_DB_NAME = 'test-mutation-manager-db';
 
 /**
  * Create a mock Supabase client for constructor injection.
- * The MutationManager uses `this.supabase.from(tableName).upsert(data)` and
+ * The MutationManager uses `this.supabase.from(tableName).upsert(data).select('id')` and
  * `this.supabase.from(tableName).delete().eq('id', id)` for mutations.
  */
 function createMockSupabaseClient() {
   const mockClient = {
     from: vi.fn(() => ({
-      upsert: vi.fn(() => Promise.resolve({ data: null, error: null })),
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => Promise.resolve({ data: [{ id: 'mock-id' }], error: null })),
+      })),
       delete: vi.fn(() => ({
         eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
       })),
@@ -240,7 +239,7 @@ describe('MutationManager', () => {
       await manager.uploadPendingMutations();
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Mutation queue is getting large'),
+        expect.stringContaining('Mutation queue is getting large')
       );
     });
 
@@ -299,7 +298,9 @@ describe('MutationManager', () => {
       // Mock network error (retryable - contains 'network' and 'timeout')
       const mockError = new Error('Network timeout');
       vi.mocked(mockSupabase.from).mockReturnValueOnce({
-        upsert: vi.fn(() => Promise.reject(mockError)),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => Promise.reject(mockError)),
+        })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
       const results = await manager.uploadPendingMutations();
@@ -331,16 +332,16 @@ describe('MutationManager', () => {
       // Mock network error (retryable)
       const mockError = new Error('Network timeout');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => Promise.reject(mockError)),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => Promise.reject(mockError)),
+        })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
       await manager.uploadPendingMutations();
 
-      // Verify mutation was marked as failed
+      // Mutation is deleted from queue after permanent failure (retries >= maxRetries)
       const updated = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-max-retry');
-      expect(updated?.retries).toBe(3);
-      expect(updated?.status).toBe('failed');
-      expect(updated?.error).toContain('Max retries exceeded');
+      expect(updated).toBeUndefined();
     });
 
     it('should fail immediately for non-retryable errors', async () => {
@@ -360,16 +361,16 @@ describe('MutationManager', () => {
       // Mock validation error (non-retryable - doesn't contain network/timeout/connection)
       const mockError = new Error('Validation failed');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => Promise.reject(mockError)),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => Promise.reject(mockError)),
+        })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
       await manager.uploadPendingMutations();
 
-      // Verify mutation was marked as failed immediately
+      // Mutation is deleted from queue after permanent failure (non-retryable)
       const updated = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-non-retry');
-      expect(updated?.retries).toBe(1);
-      expect(updated?.status).toBe('failed');
-      expect(updated?.error).toContain('Non-retryable error');
+      expect(updated).toBeUndefined();
     });
 
     it('should notify user when mutations fail permanently', async () => {
@@ -388,7 +389,9 @@ describe('MutationManager', () => {
 
       const mockError = new Error('Permanent failure');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => Promise.reject(mockError)),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => Promise.reject(mockError)),
+        })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
       await manager.uploadPendingMutations();
@@ -448,9 +451,11 @@ describe('MutationManager', () => {
       vi.mocked(mockSupabase.from).mockImplementation(
         () =>
           ({
-            upsert: vi.fn(async (data: Record<string, unknown>) => {
+            upsert: vi.fn((data: Record<string, unknown>) => {
               executionOrder.push(data.id as string);
-              return { data: null, error: null };
+              return {
+                select: vi.fn(() => Promise.resolve({ data: [{ id: data.id }], error: null })),
+              };
             }),
           }) as unknown as ReturnType<typeof mockSupabase.from>
       );
@@ -539,70 +544,85 @@ describe('MutationManager', () => {
 
       // Should log warning about circular dependency
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Circular dependency detected'),
+        expect.stringContaining('Circular dependency detected')
       );
     });
 
-    it('should use sequence numbers when available', { timeout: 5000 }, async () => {
-      const mutations: PendingMutation[] = [
-        {
-          id: 'mut-3',
-          tableName: 'entries',
-          operation: 'UPDATE',
-          rowId: 'entry-3',
-          data: { id: 'entry-3' },
-          timestamp: Date.now(),
-          retries: 0,
-          status: 'pending',
-          sequenceNumber: 3,
-          dependsOn: ['mut-missing'], // Dependency not in batch
-        },
-        {
-          id: 'mut-1',
-          tableName: 'entries',
-          operation: 'UPDATE',
-          rowId: 'entry-1',
-          data: { id: 'entry-1' },
-          timestamp: Date.now() + 1,
-          retries: 0,
-          status: 'pending',
-          sequenceNumber: 1,
-          dependsOn: ['mut-missing'], // Dependency not in batch
-        },
-        {
-          id: 'mut-2',
-          tableName: 'entries',
-          operation: 'UPDATE',
-          rowId: 'entry-2',
-          data: { id: 'entry-2' },
-          timestamp: Date.now() + 2,
-          retries: 0,
-          status: 'pending',
-          sequenceNumber: 2,
-          dependsOn: ['mut-missing'], // Dependency not in batch
-        },
-      ];
+    it(
+      'should use sequence numbers for circular dependency fallback',
+      { timeout: 5000 },
+      async () => {
+        // When circular dependencies are detected, remaining mutations are sorted
+        // by sequenceNumber (if available) rather than timestamp
+        const now = Date.now();
+        const mutations: PendingMutation[] = [
+          {
+            id: 'mut-3',
+            tableName: 'entries',
+            operation: 'UPDATE',
+            rowId: 'entry-3',
+            data: { id: 'entry-3' },
+            timestamp: now,
+            retries: 0,
+            status: 'pending',
+            sequenceNumber: 3,
+            dependsOn: ['mut-1'], // Circular: mut-3 -> mut-1 -> mut-3
+          },
+          {
+            id: 'mut-1',
+            tableName: 'entries',
+            operation: 'UPDATE',
+            rowId: 'entry-1',
+            data: { id: 'entry-1' },
+            timestamp: now + 1,
+            retries: 0,
+            status: 'pending',
+            sequenceNumber: 1,
+            dependsOn: ['mut-3'], // Circular: mut-1 -> mut-3 -> mut-1
+          },
+          {
+            id: 'mut-2',
+            tableName: 'entries',
+            operation: 'UPDATE',
+            rowId: 'entry-2',
+            data: { id: 'entry-2' },
+            timestamp: now + 2,
+            retries: 0,
+            status: 'pending',
+            sequenceNumber: 2,
+            dependsOn: ['mut-3'], // Depends on mut-3 which is in a cycle
+          },
+        ];
 
-      for (const mutation of mutations) {
-        await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+        for (const mutation of mutations) {
+          await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+        }
+
+        const executionOrder: string[] = [];
+        vi.mocked(mockSupabase.from).mockImplementation(
+          () =>
+            ({
+              upsert: vi.fn((data: Record<string, unknown>) => {
+                executionOrder.push(data.id as string);
+                return {
+                  select: vi.fn(() => Promise.resolve({ data: [{ id: data.id }], error: null })),
+                };
+              }),
+            }) as unknown as ReturnType<typeof mockSupabase.from>
+        );
+
+        await manager.uploadPendingMutations();
+
+        // All mutations are in or blocked by a cycle, so they go through the
+        // fallback path and are sorted by sequenceNumber
+        expect(executionOrder).toEqual(['entry-1', 'entry-2', 'entry-3']);
+
+        // Should log warning about circular dependency
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          expect.stringContaining('Circular dependency detected')
+        );
       }
-
-      const executionOrder: string[] = [];
-      vi.mocked(mockSupabase.from).mockImplementation(
-        () =>
-          ({
-            upsert: vi.fn(async (data: Record<string, unknown>) => {
-              executionOrder.push(data.id as string);
-              return { data: null, error: null };
-            }),
-          }) as unknown as ReturnType<typeof mockSupabase.from>
-      );
-
-      await manager.uploadPendingMutations();
-
-      // Should execute in sequence number order
-      expect(executionOrder).toEqual(['entry-1', 'entry-2', 'entry-3']);
-    });
+    );
   });
 
   describe('Backup and Restore', () => {
@@ -930,7 +950,9 @@ describe('MutationManager', () => {
 
       const supabaseError = { message: 'Database error', code: '500' };
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => Promise.resolve({ data: null, error: supabaseError })),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => Promise.resolve({ data: null, error: supabaseError })),
+        })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
       const results = await manager.uploadPendingMutations();
@@ -963,15 +985,16 @@ describe('MutationManager', () => {
 
       const mockError = new Error('Network error');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => Promise.reject(mockError)),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => Promise.reject(mockError)),
+        })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
       await customManager.uploadPendingMutations();
 
-      // Should be failed because retries (5) >= maxRetries (5)
+      // Mutation is deleted from queue after permanent failure (retries >= maxRetries)
       const updated = await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-custom');
-      expect(updated?.retries).toBe(5);
-      expect(updated?.status).toBe('failed');
+      expect(updated).toBeUndefined();
     });
 
     it('should use default config values', () => {

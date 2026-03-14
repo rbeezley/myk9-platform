@@ -7,7 +7,7 @@ Items to address in future sessions.
 ## Shareable Show Pages Follow-up (2026-03-13)
 
 - [x] **Refresh authenticated show detail page** — Fixed: ShowDetailsPage now renders ShowDetailsMain (with edit/delete/manage controls) for secretaries and admins, PublicShowView for guests/exhibitors. Uses `useAuthContext` for role detection and `useTrialStore` for associated trials.
-- **Set VITE_PUBLIC_URL in Vercel** — Problem: OG tags use VERCEL_URL fallback which produces preview-domain URLs. Solution: Set `VITE_PUBLIC_URL` env var in Vercel project settings for production.
+- [x] **Set VITE_PUBLIC_URL in Vercel** — Done: Set `VITE_PUBLIC_URL=https://myk9show.com` in Vercel project settings (All Environments).
 - [x] **Pre-existing test failures** — Fixed: Added missing `ShowBulkActionsBar` and `ShowsTableView` mocks to BrowseShowsPage test. Updated `useAuth` test to match `resetPasswordForEmail` call with `redirectTo` option.
 
 ---

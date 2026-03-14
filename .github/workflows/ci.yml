@@ -59,7 +59,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared packages
-        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui
+        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/secretary --filter=@myk9/supabase --filter=@myk9/ui
 
       - name: Run tests with coverage
         run: pnpm --filter=@myk9/q test -- --reporter=default --coverage
@@ -86,7 +86,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared packages
-        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui
+        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/secretary --filter=@myk9/supabase --filter=@myk9/ui
 
       - name: Run tests with coverage
         run: pnpm --filter=@myk9/show test -- --reporter=default --coverage --exclude '**/integration/**' --exclude '**/debug-*.test.*'
@@ -113,7 +113,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared packages
-        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui
+        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/secretary --filter=@myk9/supabase --filter=@myk9/ui
 
       - name: Run package tests with coverage
         run: pnpm test:packages -- --coverage

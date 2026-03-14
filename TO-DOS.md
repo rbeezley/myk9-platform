@@ -7,7 +7,7 @@ Items to address in future sessions.
 ## User Management Improvements (2026-03-14)
 
 - [ ] **Unify role systems — deprecate `people.roles` in favor of `user_roles` table** — Two disconnected role systems exist: `people.roles` (legacy text array, used by UI badges) and `user_roles` table (RBAC, used by AuthContext for access control). They're not synced — users can have RBAC roles but show no badges, or vice versa. Fix: (1) Update user table/badges to read from `user_roles` joined with `roles` table. (2) Update user creation flows (OAuth, admin create) to write to `user_roles` instead of `people.roles`. (3) Migrate existing `people.roles` data into `user_roles`. (4) Deprecate and eventually drop `people.roles` column.
-- [ ] **Add `status` column to `people` table** — The user table shows Active/Inactive/Suspended badges and the filter dropdown has these options, but there's no actual `status` field on the `people` table. Needs: migration to add `status TEXT DEFAULT 'active'` column, user edit panel status dropdown, filter query by status, badge to reflect real value.
+- [x] **Add `status` column to `people` table** — Done: added `status` column (active/suspended), auth hook to block suspended logins, admin RPC with last_sign_in_at, real status badges/filters, UserEditPanel status dropdown, suspension enforcement in AuthContext.
 - [ ] **Add `is_active` column to `user_roles` table** — AuthContext already checks `ur.is_active ?? true` but the column doesn't exist. Add a migration with `ALTER TABLE user_roles ADD COLUMN is_active BOOLEAN DEFAULT true NOT NULL`. Update the admin-delete-user Edge Function to filter by `is_active` once the column exists.
 
 ---
@@ -53,7 +53,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
-## Troubleshoot CI/CD Pipeline — 2026-03-14 11:50
+## Production Readiness (when real users are on production URL)
 
-- **Diagnose GitHub Actions CI failures** — Investigate and fix errors in the GitHub Actions CI pipeline. **Problem:** CI runs are producing errors in GitHub. **Files:** `.github/workflows/ci.yml`.
-- **Diagnose Vercel deployment errors** — Investigate and fix Vercel deployment failures for both apps. **Problem:** Deployments to Vercel staging are failing with errors. **Files:** `apps/myk9show/`, `apps/myk9q/`.
+- [ ] **CI-gated Vercel deploys** — Disable Vercel auto-deploy for production branch. Add a deploy step at the end of the GitHub Actions CI workflow that only runs after all tests pass (`vercel deploy --prod`). Keep auto-deploy for PR preview URLs. Requires `VERCEL_TOKEN` secret and Vercel CLI in CI.
+- [ ] **Require PRs to merge into main** — Enable branch protection on `main` with CI as a required status check. No direct pushes to main in production.

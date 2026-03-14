@@ -54,7 +54,7 @@ const ExhibitorDashboard: React.FC = () => {
   const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
   const { data: recentResults = [] } = useExhibitorResults();
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
+  const displayName = user?.user_metadata?.full_name || '';
 
   // Map DB entries to dashboard display shape
   const entries: DashboardEntry[] = useMemo(
@@ -130,7 +130,8 @@ const ExhibitorDashboard: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              {getGreeting()}, {displayName}
+              {getGreeting()}
+              {displayName && `, ${displayName}`}
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base mt-1">
               Here&apos;s what&apos;s happening with your shows

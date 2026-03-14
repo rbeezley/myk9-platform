@@ -189,7 +189,7 @@ describe('ExhibitorDashboard (Home)', () => {
   describe('Home layout', () => {
     it('shows time-of-day greeting with user name', () => {
       renderDashboard();
-      expect(screen.getByText(/Good (morning|afternoon|evening), Sarah Jones/)).toBeInTheDocument();
+      expect(screen.getByText(/Good (morning|afternoon|evening).*Sarah Jones/)).toBeInTheDocument();
     });
 
     it('shows contextual subtitle', () => {

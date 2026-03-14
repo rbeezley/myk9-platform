@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
 
   const params = useMemo(() => {
     const tokenHash = searchParams.get('token_hash');
@@ -13,10 +14,7 @@ const AuthCallbackPage = () => {
     return tokenHash && type ? { tokenHash, type } : null;
   }, [searchParams]);
 
-  const [error, setError] = useState<string | null>(
-    params ? null : 'Invalid or missing verification link.'
-  );
-
+  // Handle OTP verification (email confirm, password reset)
   useEffect(() => {
     if (!params) return;
 
@@ -33,6 +31,37 @@ const AuthCallbackPage = () => {
           navigate('/', { replace: true });
         }
       });
+  }, [params, navigate]);
+
+  // Handle OAuth redirect (no OTP params — session is picked up by onAuthStateChange)
+  useEffect(() => {
+    if (params) return; // OTP flow handles its own navigation
+
+    // Check if user is already authenticated (OAuth session was picked up)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/', { replace: true });
+      }
+    });
+
+    // Listen for auth state changes (OAuth callback may still be processing)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        navigate('/', { replace: true });
+      }
+    });
+
+    // Timeout: if no auth event after 10 seconds, show error
+    const timeout = setTimeout(() => {
+      setError('Authentication timed out. Please try again.');
+    }, 10000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, [params, navigate]);
 
   if (error) {

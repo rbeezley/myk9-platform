@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, MapPin, Eye, ExternalLink, Plus, MoreVertical } from 'lucide-react';
+import { accentBorderStyle } from '@/lib/branding';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -49,7 +50,7 @@ export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
           <div
             key={show.id}
             className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30"
-            style={show.accentColor ? { borderLeft: `4px solid ${show.accentColor}` } : undefined}
+            style={accentBorderStyle(show.accentColor)}
           >
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 flex-1">

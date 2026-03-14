@@ -93,7 +93,7 @@ export function PublicShowView({ show, onRegister }: PublicShowViewProps) {
         accentColor={show.accentColor || null}
       />
       {/* Share + org badges (moved outside hero) */}
-      <div className="max-w-3xl mx-auto px-6 pt-4 flex justify-between items-center">
+      <div className="px-6 pt-4 flex justify-between items-center">
         <div className="flex items-center gap-2.5">
           {show.organization && (
             <span className="text-xs font-semibold tracking-wider px-3 py-1 rounded-full bg-primary/10 text-primary">

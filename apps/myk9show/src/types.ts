@@ -1,11 +1,4 @@
-export interface LandingShow {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  imageUrl: string;
-  accentColor?: string | null;
-}
+export type { LandingShow } from './types/index';
 
 export interface Feature {
   icon: React.ReactNode;

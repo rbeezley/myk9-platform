@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { Calendar, MapPin, Building2 } from 'lucide-react';
 import { getShowPlaceholder } from './show-card-placeholders';
 import { generatePalette } from '../../lib/branding';
+import { getInitials } from '@/lib/utils';
+import { formatDateRange } from '@/utils/date-format';
 
 interface ShowBrandedHeroProps {
   showName: string;
@@ -14,25 +16,6 @@ interface ShowBrandedHeroProps {
   logo?: string | null;
   coverImage?: string | null;
   accentColor?: string | null;
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(w => w.length > 0 && w[0] === w[0].toUpperCase() && w[0] !== w[0].toLowerCase())
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('');
-}
-
-function formatDateRange(start: string, end: string): string {
-  const startDate = new Date(start + 'T00:00:00');
-  const endDate = new Date(end + 'T00:00:00');
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  const startStr = startDate.toLocaleDateString('en-US', opts);
-  if (start === end) return `${startStr}, ${startDate.getFullYear()}`;
-  const endStr = endDate.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
-  return `${startStr}–${endStr}`;
 }
 
 function statusLabel(status?: string): string {

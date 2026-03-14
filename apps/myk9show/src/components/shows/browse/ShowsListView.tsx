@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { accentBorderStyle } from '@/lib/branding';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -102,7 +103,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
               entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50',
               checked && 'ring-2 ring-primary/50'
             )}
-            style={show.accentColor ? { borderLeft: `4px solid ${show.accentColor}` } : undefined}
+            style={accentBorderStyle(show.accentColor)}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardContent className="relative p-6">

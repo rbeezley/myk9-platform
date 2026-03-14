@@ -3,13 +3,7 @@
  */
 
 import React from 'react';
-import {
-  UserIcon,
-  Shield,
-  CheckCircle2,
-  Edit,
-  Settings,
-} from 'lucide-react';
+import { UserIcon, Shield, CheckCircle2, Edit, Settings } from 'lucide-react';
 import { UserRole as UserRoleType } from '@/types/auth-types';
 
 // Sort & display types
@@ -32,6 +26,7 @@ export interface UserTableProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   pageSize: number;
+  onPageSizeChange?: (size: number) => void;
   searchTerm?: string;
   densityMode?: DensityMode;
 }
@@ -147,5 +142,6 @@ export const DENSITY_CONFIG: Record<DensityMode, DensityConfig> = {
 
 // System font style (shared across components)
 export const APPLE_FONT_STYLE = {
-  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
 } as const;

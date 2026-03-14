@@ -47,6 +47,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   totalPages,
   onPageChange,
   pageSize,
+  onPageSizeChange,
   searchTerm = '',
   densityMode = 'comfortable',
 }) => {
@@ -218,6 +219,7 @@ export const UserTable: React.FC<UserTableProps> = ({
         totalUsers={users.length}
         searchTerm={searchTerm}
         onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
       />
 
       {isAdmin ? (

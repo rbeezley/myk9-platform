@@ -51,7 +51,7 @@ const UserManagementPage: React.FC = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showUserEditPanel, setShowUserEditPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(25);
 
   // Data fetching with error handling
   const { data: users = [], isLoading, error } = useUsersQuery();
@@ -337,6 +337,10 @@ const UserManagementPage: React.FC = () => {
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
                 pageSize={pageSize}
+                onPageSizeChange={size => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
               />
             </CardContent>
           </Card>

@@ -3,14 +3,10 @@
  */
 
 import React from 'react';
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Search,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface PaginationProps {
   currentPage: number;
@@ -19,6 +15,7 @@ interface PaginationProps {
   totalUsers: number;
   searchTerm: string;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
@@ -28,28 +25,41 @@ export const Pagination: React.FC<PaginationProps> = ({
   totalUsers,
   searchTerm,
   onPageChange,
+  onPageSizeChange,
 }) => {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 1 && !onPageSizeChange) return null;
 
   const paginationButtonClass =
     'h-9 w-9 p-0 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 ease-apple';
 
   return (
     <div className="flex items-center justify-between pt-6 pb-2">
-      {/* Results Summary */}
+      {/* Results Summary & Page Size */}
       <div className="flex items-center gap-3">
+        {onPageSizeChange && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground font-[500]">
+            <span>Rows</span>
+            <select
+              value={pageSize}
+              onChange={e => onPageSizeChange(Number(e.target.value))}
+              className="h-8 px-2 rounded-lg border border-border/50 bg-background/50 text-foreground
+                         text-sm font-[590] cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {PAGE_SIZE_OPTIONS.map(size => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="text-sm text-muted-foreground font-[500]">
           Showing{' '}
-          <span className="font-[590] text-foreground">
-            {(currentPage - 1) * pageSize + 1}
-          </span>{' '}
-          to{' '}
+          <span className="font-[590] text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{' '}
           <span className="font-[590] text-foreground">
             {Math.min(currentPage * pageSize, totalUsers)}
           </span>{' '}
-          of{' '}
-          <span className="font-[590] text-foreground">{totalUsers}</span>{' '}
-          users
+          of <span className="font-[590] text-foreground">{totalUsers}</span> users
         </div>
         {searchTerm && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -88,40 +98,37 @@ export const Pagination: React.FC<PaginationProps> = ({
 
         {/* Page Numbers */}
         <div className="flex items-center gap-1 mx-2">
-          {Array.from(
-            { length: Math.min(5, totalPages) },
-            (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-
-              const isActive = currentPage === pageNum;
-
-              return (
-                <Button
-                  key={pageNum}
-                  variant={isActive ? 'default' : 'outline'}
-                  size="sm"
-                  className={`w-9 h-9 p-0 rounded-xl font-[590] transition-all duration-300 ease-apple ${
-                    isActive
-                      ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md border-0 scale-105'
-                      : 'border border-border/50 bg-background/50 backdrop-blur-sm'
-                  }`}
-                  onClick={() => onPageChange(pageNum)}
-                  title={`Page ${pageNum}`}
-                >
-                  {pageNum}
-                </Button>
-              );
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
             }
-          )}
+
+            const isActive = currentPage === pageNum;
+
+            return (
+              <Button
+                key={pageNum}
+                variant={isActive ? 'default' : 'outline'}
+                size="sm"
+                className={`w-9 h-9 p-0 rounded-xl font-[590] transition-all duration-300 ease-apple ${
+                  isActive
+                    ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md border-0 scale-105'
+                    : 'border border-border/50 bg-background/50 backdrop-blur-sm'
+                }`}
+                onClick={() => onPageChange(pageNum)}
+                title={`Page ${pageNum}`}
+              >
+                {pageNum}
+              </Button>
+            );
+          })}
         </div>
 
         {/* Next Page */}

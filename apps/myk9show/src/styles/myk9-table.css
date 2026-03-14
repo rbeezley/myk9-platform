@@ -112,6 +112,41 @@
   padding-right: 32px !important;
 }
 
+/* Sticky actions column (last column) */
+.myk9-table-cell:last-child,
+.myk9-table-header-cell:last-child {
+  position: sticky !important;
+  right: 0 !important;
+  z-index: 1 !important;
+  background: var(--card) !important;
+  box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.myk9-table-row:hover .myk9-table-cell:last-child {
+  background: var(--card) !important;
+}
+
+.myk9-table-row.selected .myk9-table-cell:last-child {
+  background: color-mix(in srgb, var(--card) 92%, #007aff) !important;
+}
+
+/* Sticky checkbox column (first column) */
+.myk9-table-cell:first-child,
+.myk9-table-header-cell:first-child {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  background: var(--card) !important;
+}
+
+.myk9-table-row:hover .myk9-table-cell:first-child {
+  background: var(--card) !important;
+}
+
+.myk9-table-row.selected .myk9-table-cell:first-child {
+  background: color-mix(in srgb, var(--card) 92%, #007aff) !important;
+}
+
 /* Checkbox styling - myK9 inspired */
 .myk9-table-checkbox {
   width: 18px !important;

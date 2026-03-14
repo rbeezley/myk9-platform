@@ -58,16 +58,26 @@ Instead, we use **Vercel Edge Functions** via the `api/` directory, combined wit
 ```json
 {
   "rewrites": [
-    { "source": "/shows/:id", "destination": "/api/og-show?id=:id" },
+    {
+      "source": "/shows/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Twitterbot|LinkedInBot|...).*"
+        }
+      ],
+      "destination": "/api/og-show?id=:id"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
 ```
 
-The `/shows/:id` rewrite must come **before** the catch-all SPA rewrite. The Edge Function handles both crawlers and browsers:
+The `/shows/:id` rewrite uses a `has` condition on User-Agent so only crawler requests reach the function. Regular browsers fall through to the SPA catch-all naturally — no redirect needed, no URL change. The function only handles crawlers:
 
-- **Crawler:** Returns OG HTML response
-- **Browser:** Returns the SPA `index.html` content (read from the static build output) so the React app boots and renders the show page client-side. The URL does not change — the user sees `/shows/:id`.
+- **Crawler (matched by `has` condition):** Returns OG HTML response
+- **Browser (not matched):** Falls through to SPA catch-all → `index.html`
 
 ### Crawler List
 

@@ -725,9 +725,35 @@ git commit -m "refactor(share): migrate LiveResults to shared shareOrCopy utilit
 
 Run: `cd apps/myk9show && pnpm add @vercel/og`
 
-- [ ] **Step 2: Update `vercel.json` rewrites**
+- [ ] **Step 2: Install `@vercel/node` as a dev dependency for API type definitions**
 
-In `apps/myk9show/vercel.json`, add the `/shows/:id` rewrite **before** the existing catch-all. The existing rewrite block:
+Run: `cd apps/myk9show && pnpm add -D @vercel/node`
+
+- [ ] **Step 3: Create `apps/myk9show/tsconfig.api.json` for the API directory**
+
+The `api/` directory is outside `src/` and needs its own tsconfig. Create `apps/myk9show/tsconfig.api.json`:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "moduleResolution": "bundler"
+  },
+  "include": ["api"]
+}
+```
+
+Also add it to the root `pnpm typecheck` if needed (verify — Vercel deploys API functions independently, so typecheck is optional but good for CI).
+
+- [ ] **Step 4: Update `vercel.json` rewrites**
+
+In `apps/myk9show/vercel.json`, add the `/shows/:id` rewrite **before** the existing catch-all. Use a `has` condition on User-Agent so only crawler requests get routed to the API function — regular browsers fall through to the SPA catch-all naturally. This avoids a redirect loop.
+
+The existing rewrite block:
 
 ```json
 "rewrites": [
@@ -739,57 +765,46 @@ becomes:
 
 ```json
 "rewrites": [
-  { "source": "/shows/:id", "destination": "/api/og-show?id=:id" },
+  {
+    "source": "/shows/:id",
+    "has": [
+      {
+        "type": "header",
+        "key": "user-agent",
+        "value": "(?i).*(facebookexternalhit|Twitterbot|LinkedInBot|Slackbot-LinkExpanding|Discordbot|WhatsApp|Applebot|Googlebot|bingbot|Pinterestbot|TelegramBot|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+      }
+    ],
+    "destination": "/api/og-show?id=:id"
+  },
   { "source": "/(.*)", "destination": "/index.html" }
 ]
 ```
 
-Also update the CSP `connect-src` to ensure the Edge Functions can reach Supabase (they run server-side so CSP doesn't apply to them, but verify the `img-src` allows the OG image URL if the page links to it).
+This means `og-show.ts` only ever receives crawler requests — no browser pass-through code needed.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/myk9show/package.json apps/myk9show/vercel.json pnpm-lock.yaml
-git commit -m "chore: add @vercel/og dependency and show page rewrite"
+git add apps/myk9show/package.json apps/myk9show/vercel.json apps/myk9show/tsconfig.api.json pnpm-lock.yaml
+git commit -m "chore: add @vercel/og dependency, API tsconfig, and crawler-only show page rewrite"
 ```
 
 ---
 
-### Task 6: Create the OG show Edge Function (crawler detection + OG HTML)
+### Task 6: Create the OG show Serverless Function (OG HTML for crawlers)
+
+This is a **Node.js Serverless Function** (not an Edge Function). It only receives crawler requests — the `vercel.json` `has` condition ensures regular browsers never reach this function.
 
 **Files:**
 
 - Create: `apps/myk9show/api/og-show.ts`
 
-- [ ] **Step 1: Create the Edge Function**
+- [ ] **Step 1: Create the Serverless Function**
 
 Create `apps/myk9show/api/og-show.ts`:
 
 ```typescript
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-const CRAWLER_USER_AGENTS = [
-  'facebookexternalhit',
-  'Twitterbot',
-  'LinkedInBot',
-  'Slackbot-LinkExpanding',
-  'Discordbot',
-  'WhatsApp',
-  'Applebot',
-  'Googlebot',
-  'bingbot',
-  'Pinterestbot',
-  'TelegramBot',
-  'redditbot',
-  'Embedly',
-  'Quora Link Preview',
-  'Showyoubot',
-];
-
-function isCrawler(userAgent: string | null): boolean {
-  if (!userAgent) return false;
-  return CRAWLER_USER_AGENTS.some(bot => userAgent.includes(bot));
-}
 
 interface ShowData {
   id: string;
@@ -907,16 +922,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).send('Missing show ID');
   }
 
-  const userAgent = req.headers['user-agent'] ?? null;
+  // This function only receives crawler requests (vercel.json `has` condition filters by UA).
+  // No browser pass-through needed.
 
-  // Non-crawlers get the SPA
-  if (!isCrawler(userAgent)) {
-    // Rewrite to index.html for SPA routing
-    // Vercel handles this via the catch-all rewrite fallback
-    return res.redirect(307, `/index.html`);
-  }
-
-  // Crawler path: fetch show data and return OG HTML
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
@@ -1016,7 +1024,6 @@ Create `apps/myk9show/api/og-show-image.tsx`:
 
 ```tsx
 import { ImageResponse } from '@vercel/og';
-import type { VercelRequest } from '@vercel/node';
 
 export const config = {
   runtime: 'edge',
@@ -1087,6 +1094,7 @@ export default async function handler(req: Request) {
     const show = showData[0];
     const clubName: string = show.clubs?.name ?? '';
     const logoUrl: string | null = show.logo_url ?? show.clubs?.logo_url ?? null;
+    const org: string | null = show.organization;
     // Accent color fallback: show setting → org default → myK9 brand teal
     const ORG_COLORS: Record<string, string> = {
       AKC: '#14b8a6',
@@ -1095,7 +1103,6 @@ export default async function handler(req: Request) {
     };
     const accentColor: string =
       show.accent_color ?? (org ? ORG_COLORS[org] : undefined) ?? '#14b8a6';
-    const org: string | null = show.organization;
 
     // Fetch discipline list
     const discQuery = `trial_type,classes(competition_type)`;
@@ -1150,18 +1157,25 @@ export default async function handler(req: Request) {
           }}
         />
 
-        {/* Paw print watermark */}
-        <div
+        {/* Paw print watermark — uses SVG path because Satori cannot render emoji */}
+        <svg
+          viewBox="0 0 100 100"
           style={{
             position: 'absolute',
             right: '-20px',
             bottom: '-20px',
-            fontSize: '180px',
+            width: '200px',
+            height: '200px',
             opacity: 0.06,
           }}
         >
-          🐾
-        </div>
+          <ellipse cx="30" cy="25" rx="10" ry="13" fill="#111827" />
+          <ellipse cx="50" cy="18" rx="9" ry="12" fill="#111827" />
+          <ellipse cx="70" cy="25" rx="10" ry="13" fill="#111827" />
+          <ellipse cx="50" cy="55" rx="20" ry="22" fill="#111827" />
+          <ellipse cx="22" cy="48" rx="9" ry="11" fill="#111827" />
+          <ellipse cx="78" cy="48" rx="9" ry="11" fill="#111827" />
+        </svg>
 
         {/* Top row: club logo + myK9 */}
         <div
@@ -1402,7 +1416,7 @@ Create `apps/myk9show/src/hooks/queries/useScheduleSummary.ts`:
 
 ```typescript
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/services/database/supabaseClient';
 import {
   summarizeSchedule,
   type DaySummary,
@@ -1479,91 +1493,277 @@ git commit -m "feat(schedule): add useScheduleSummary hook for day-by-day class 
 
 ---
 
-### Task 10: Redesign ShowDetailsPage as a public landing page
+### Task 10: Create PublicShowView component
 
-This is the largest UI task. The existing `ShowDetailsPage.tsx` needs a new layout that works as a landing page. Reference the mockup at `.superpowers/brainstorm/72047-1773450861/public-show-page.html` for visual design.
+Extract the public landing page into a new component instead of modifying `ShowDetailsPage.tsx` directly. This keeps `ShowDetailsPage` as the controller (loading, routing, edit panel) and adds the public view as a replacement for `ShowDetailsMain` when viewed without auth.
 
 **Files:**
 
+- Create: `apps/myk9show/src/components/shows/PublicShowView.tsx`
 - Modify: `apps/myk9show/src/pages/ShowDetailsPage.tsx`
 
-**Important context for the implementer:**
+- [ ] **Step 1: Read the current ShowDetailsPage.tsx and ShowDetailsMain**
 
-- The current page uses `useFastShowDetails(id)` for show data — keep this
-- The current page has a `ShowEditPanel` for secretaries — keep this (it's behind auth)
-- Add the schedule summary using `useScheduleSummary(showId)`
-- Add the ShareButton in the hero section
-- The page must work both for authenticated users (who see edit controls) and unauthenticated visitors (who see the public landing page)
+Read `apps/myk9show/src/pages/ShowDetailsPage.tsx` and `apps/myk9show/src/components/shows/ShowDetailsMain.tsx` to understand all current functionality. Do not lose any existing features.
 
-- [ ] **Step 1: Read the current ShowDetailsPage.tsx**
+- [ ] **Step 2: Create `PublicShowView.tsx`**
 
-Read `apps/myk9show/src/pages/ShowDetailsPage.tsx` to understand all current functionality. Do not lose any existing features.
+Create `apps/myk9show/src/components/shows/PublicShowView.tsx`. This is the public landing page layout — what visitors see after clicking a shared link. Reference the mockup at `.superpowers/brainstorm/72047-1773450861/public-show-page.html` for visual design.
 
-- [ ] **Step 2: Add the hero section**
+```tsx
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Calendar, MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ShareButton } from '@/components/shows/ShareButton';
+import { useScheduleSummary } from '@/hooks/queries/useScheduleSummary';
+import type { Show } from '@/types/show-types';
 
-Redesign the top of the page with:
+interface PublicShowViewProps {
+  show: Show;
+  onRegister: () => void;
+}
 
-- Club logo (or initials circle) + club name
-- Organization badge + ShareButton (grouped, top-right area)
-- Show name as large heading
-- Date range + location with calendar/pin icons
-- Status badge
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .slice(0, 3)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase();
+}
 
-Reference the mockup design for Tailwind classes and layout.
+function formatDateRange(startDate: string, endDate: string): string {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' };
 
-- [ ] **Step 3: Add the entry CTA bar**
+  if (startDate === endDate) {
+    return start.toLocaleDateString('en-US', opts);
+  }
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}–${end.getDate()}, ${end.getFullYear()}`;
+  }
+  return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`;
+}
 
-Below the hero, add a bar showing:
+function formatDayDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
 
-- Pre-entry fee and entry close date
-- "Register Now" button (links to `/shows/${id}/register`) when status is `accepting_entries`
-- "Entries Closed" text when status is `closed`
-- Hidden when status is `draft`
+function formatLevelRange(levels: string[]): string {
+  if (levels.length <= 2) return levels.join(', ');
+  return `${levels[0]}–${levels[levels.length - 1]}`;
+}
 
-- [ ] **Step 4: Add the schedule summary section**
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  accepting_entries: { label: 'Accepting Entries', className: 'bg-green-500/10 text-green-400' },
+  published: { label: 'Coming Soon', className: 'bg-blue-500/10 text-blue-400' },
+  closed: { label: 'Entries Closed', className: 'bg-yellow-500/10 text-yellow-400' },
+  in_progress: { label: 'In Progress', className: 'bg-purple-500/10 text-purple-400' },
+  completed: { label: 'Completed', className: 'bg-muted text-muted-foreground' },
+  cancelled: { label: 'Cancelled', className: 'bg-red-500/10 text-red-400' },
+};
 
-Use `useScheduleSummary(showId)` to fetch and display the day-by-day schedule:
+export function PublicShowView({ show, onRegister }: PublicShowViewProps) {
+  const { data: schedule } = useScheduleSummary(show.id);
+  const dateRange = formatDateRange(show.startDate, show.endDate);
+  const statusInfo = STATUS_LABELS[show.status] ?? STATUS_LABELS.published;
+  const baseUrl = import.meta.env.VITE_PUBLIC_URL ?? window.location.origin;
 
-- Group by date (show day name + date)
-- For each discipline: name, elements (if any), levels
-- Hide the section if there are no trials/classes
+  const shareData = useMemo(
+    () => ({
+      title: `${show.name} — ${dateRange}`,
+      text: `${show.organization ? `${show.organization} Dog Show` : 'Dog Show'} in ${show.location} · ${show.clubName}`,
+      url: `${baseUrl}/shows/${show.id}`,
+    }),
+    [show.id, show.name, show.organization, show.location, show.clubName, dateRange, baseUrl]
+  );
 
-Format each `DaySummary` into the UI:
+  const entryCloseFormatted = show.entryCloseDate
+    ? new Date(show.entryCloseDate + 'T00:00:00').toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
 
+  const detailItems = [
+    show.chairman && { label: 'Chairman', value: show.chairman },
+    show.secretary && { label: 'Secretary', value: show.secretary },
+    show.chiefSteward && { label: 'Chief Steward', value: show.chiefSteward },
+    show.dayOfShowFee && { label: 'Day-of-Show Fee', value: show.dayOfShowFee },
+    show.maxEntriesPerDog && { label: 'Max Entries per Dog', value: String(show.maxEntriesPerDog) },
+    show.maxTotalEntries && { label: 'Max Total Entries', value: String(show.maxTotalEntries) },
+    show.allowNonOwnerHandlers != null && {
+      label: 'Non-Owner Handlers',
+      value: show.allowNonOwnerHandlers ? 'Allowed' : 'Not Allowed',
+    },
+  ].filter(Boolean) as { label: string; value: string }[];
+
+  return (
+    <div className="max-w-3xl mx-auto min-h-screen">
+      {/* Hero */}
+      <div
+        className="relative border-b border-border p-6 pb-5 overflow-hidden"
+        style={{ borderLeft: `5px solid ${show.accentColor || '#14b8a6'}` }}
+      >
+        <div className="flex justify-between items-center mb-5">
+          <div className="flex items-center gap-2.5">
+            {show.logoUrl ? (
+              <img src={show.logoUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
+                {getInitials(show.clubName)}
+              </div>
+            )}
+            <span className="text-sm text-muted-foreground">{show.clubName}</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {show.organization && (
+              <span className="text-xs font-semibold tracking-wider px-3 py-1 rounded-full bg-primary/10 text-primary">
+                {show.organization}
+              </span>
+            )}
+            <ShareButton shareData={shareData} />
+          </div>
+        </div>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-foreground mb-3 leading-tight">
+          {show.name}
+        </h1>
+        <div className="flex flex-wrap gap-5 text-muted-foreground text-sm">
+          <span className="flex items-center gap-1.5">
+            <Calendar className="h-4 w-4" />
+            {dateRange}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <MapPin className="h-4 w-4" />
+            {show.location}
+          </span>
+        </div>
+        <span
+          className={`inline-block mt-3 text-xs font-semibold px-3 py-1 rounded-full ${statusInfo.className}`}
+        >
+          {statusInfo.label}
+        </span>
+      </div>
+
+      {/* Entry CTA */}
+      {show.status !== 'draft' && show.status !== 'cancelled' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-border">
+          <div className="text-sm text-muted-foreground">
+            Pre-entry fee: <strong className="text-foreground">{show.preEntryFee}</strong>
+            {entryCloseFormatted && (
+              <>
+                {' '}
+                · Entries close <strong className="text-foreground">{entryCloseFormatted}</strong>
+              </>
+            )}
+          </div>
+          {show.status === 'accepting_entries' && (
+            <Button onClick={onRegister} size="lg">
+              Register Now
+            </Button>
+          )}
+          {show.status === 'closed' && (
+            <span className="text-sm font-medium text-muted-foreground">Entries Closed</span>
+          )}
+        </div>
+      )}
+
+      {/* Schedule Summary */}
+      {schedule && schedule.length > 0 && (
+        <div className="p-6 border-b border-border">
+          <h2 className="text-lg font-bold text-foreground mb-4">Schedule</h2>
+          {schedule.map(day => (
+            <div key={day.date} className="mb-5 last:mb-0">
+              <div className="text-sm font-semibold text-primary mb-2 pb-1.5 border-b border-border">
+                {formatDayDate(day.date)}
+              </div>
+              {day.disciplines.map(disc => (
+                <div key={disc.name} className="flex justify-between items-baseline py-1.5 text-sm">
+                  <span className="font-medium text-foreground">{disc.name}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {disc.name === 'Other'
+                      ? disc.classNames.join(', ')
+                      : [
+                          disc.elements.length > 0 ? disc.elements.join(', ') : null,
+                          disc.levels.length > 0 ? formatLevelRange(disc.levels) : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Show Details */}
+      {detailItems.length > 0 && (
+        <div className="p-6 border-b border-border">
+          <h2 className="text-lg font-bold text-foreground mb-4">Show Details</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {detailItems.map(item => (
+              <div key={item.label}>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                  {item.label}
+                </div>
+                <div className="text-sm text-foreground">{item.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="p-6 text-center text-xs text-muted-foreground">
+        Powered by{' '}
+        <Link to="/shows" className="text-primary hover:underline">
+          myK9
+        </Link>
+        {' · '}
+        <Link to="/shows" className="text-primary hover:underline">
+          Browse more shows
+        </Link>
+      </div>
+    </div>
+  );
+}
 ```
-Friday, June 13
-  Scent Work — Buried, Container · Novice–Master
+
+- [ ] **Step 3: Integrate PublicShowView into ShowDetailsPage**
+
+In `apps/myk9show/src/pages/ShowDetailsPage.tsx`, add an import for `PublicShowView` and use it in the `renderContent` function. The page should show `PublicShowView` for all visitors (auth or not). The existing `ShowDetailsMain` is used by authenticated secretaries who manage the show — keep it accessible via the edit panel.
+
+Add this import at the top:
+
+```typescript
+import { PublicShowView } from '@/components/shows/PublicShowView';
 ```
 
-Use `date-fns` or `Intl.DateTimeFormat` to format the date string into "Friday, June 13" format.
+Replace the `<ShowDetailsMain ... />` usage inside the `Suspense` block (around line 175) with:
 
-- [ ] **Step 5: Add the show details grid**
+```tsx
+<PublicShowView show={actualCurrentShow} onRegister={handleRegisterForShow} />
+```
 
-Below the schedule, show a grid with:
+Keep all existing logic (loading states, edit panel, delete dialog) unchanged.
 
-- Chairman, Secretary, Chief Steward
-- Pre-entry fee, Day-of-show fee
-- Max entries per dog, Max total entries
-- Non-owner handler policy
-
-Only show fields that have values.
-
-- [ ] **Step 6: Add the footer**
-
-At the bottom: "Powered by myK9 · Browse more shows" with a link to `/shows`.
-
-- [ ] **Step 7: Run typecheck and verify locally**
+- [ ] **Step 4: Run typecheck and verify locally**
 
 Run: `cd apps/myk9show && pnpm typecheck`
 Then: `cd apps/myk9show && pnpm dev` and verify the page at `http://localhost:5173/shows/<any-show-id>`
 
 Expected: Page renders with the new layout. Schedule summary shows if the show has trials/classes.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/myk9show/src/pages/ShowDetailsPage.tsx
-git commit -m "feat(shows): redesign show detail page as public landing page with schedule summary"
+git add apps/myk9show/src/components/shows/PublicShowView.tsx apps/myk9show/src/pages/ShowDetailsPage.tsx
+git commit -m "feat(shows): add public show landing page with schedule summary and share button"
 ```
 
 ---
@@ -1636,7 +1836,8 @@ Add a follow-up todo to TO-DOS.md for refreshing the authenticated show detail p
 
 - [ ] **Step 5: Commit any remaining fixes**
 
+Stage only the specific files that were changed during testing fixes, then commit:
+
 ```bash
-git add -A
 git commit -m "fix: address issues found during manual testing"
 ```

@@ -34,38 +34,38 @@ export function useAuth() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
 
       // Create people record for first-time OAuth users
-      if (_event === 'SIGNED_IN' && session?.user) {
-        const user = session.user;
-        const isOAuth = user.app_metadata?.provider !== 'email';
+      if (event === 'SIGNED_IN' && session?.user) {
+        const signedInUser = session.user;
+        const isOAuth = signedInUser.app_metadata?.provider !== 'email';
         if (isOAuth) {
           try {
             const { data: existing } = await supabase
               .from('people')
               .select('id')
-              .eq('auth_user_id', user.id)
+              .eq('auth_user_id', signedInUser.id)
               .maybeSingle();
 
             if (!existing) {
               const firstName: string =
-                user.user_metadata?.given_name ||
-                user.user_metadata?.full_name?.split(' ')[0] ||
+                signedInUser.user_metadata?.given_name ||
+                signedInUser.user_metadata?.full_name?.split(' ')[0] ||
                 'First';
               const lastName: string =
-                user.user_metadata?.family_name ||
-                user.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
+                signedInUser.user_metadata?.family_name ||
+                signedInUser.user_metadata?.full_name?.split(' ').slice(1).join(' ') ||
                 'Name';
               const { error: insertError } = await supabase.from('people').insert([
                 {
                   first_name: firstName,
                   last_name: lastName,
-                  email: user.email ?? null,
+                  email: signedInUser.email ?? null,
                   roles: ['exhibitor'],
-                  auth_user_id: user.id,
+                  auth_user_id: signedInUser.id,
                 },
               ]);
 

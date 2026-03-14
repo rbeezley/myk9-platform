@@ -187,97 +187,6 @@ const UserManagementPage: React.FC = () => {
           selectedUsers={selectedUsers}
         />
 
-        {/* Search & Filters */}
-        <div className="mb-16">
-          <div className="flex items-center gap-4 mb-8" style={{ fontFamily: SF_FONT_FAMILY }}>
-            <div className="p-3 bg-gradient-to-br from-slate-500/20 to-slate-500/10 rounded-xl shadow-sm">
-              <Search className="h-6 w-6 text-slate-600" />
-            </div>
-            <div>
-              <h2 className="text-2xl" style={{ fontWeight: 590, lineHeight: '1.25' }}>
-                User Search & Filters
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1" style={{ fontWeight: 500 }}>
-                Advanced filtering and search capabilities for user management
-              </p>
-            </div>
-          </div>
-
-          <Card
-            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
-                           border border-border rounded-2xl shadow-sm backdrop-blur-xl
-                           transition-all duration-300 hover:shadow-xl hover:scale-[1.01] hover:-translate-y-1"
-            style={{ fontFamily: SF_FONT_FAMILY, transitionTimingFunction: EASE_TIMING }}
-          >
-            <div
-              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
-                             opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            />
-            <CardHeader className="relative pb-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users by name, email, or membership ID..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    autoComplete="off"
-                    name="user-search"
-                    className="pl-12 h-12 bg-background/50 border-border/50 rounded-xl text-base
-                               focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20
-                               transition-all duration-300"
-                    style={{ fontWeight: 500 }}
-                  />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant={showFilters ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`h-10 px-4 rounded-xl transition-all duration-300 ${
-                      showFilters
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'bg-background/50 border-border/50 hover:bg-muted/50'
-                    }`}
-                    style={{ fontWeight: 590 }}
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    Filters
-                    {(filters.role !== 'all' ||
-                      filters.status !== 'all' ||
-                      filters.clubAffiliation) && (
-                      <Badge
-                        variant="secondary"
-                        className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
-                      >
-                        !
-                      </Badge>
-                    )}
-                  </Button>
-                  {selectedUsers.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearSelection}
-                      className="h-10 px-4 rounded-xl bg-background/50 border-border/50
-                                 hover:bg-muted/50 transition-all duration-300"
-                      style={{ fontWeight: 590 }}
-                    >
-                      Clear Selection ({selectedUsers.length})
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-
-            {showFilters && (
-              <CardContent className="relative pt-6 border-t border-border/30">
-                <UserFilters filters={filters} onFiltersChange={setFilters} roleStats={roleStats} />
-              </CardContent>
-            )}
-          </Card>
-        </div>
-
         {/* Bulk Actions Bar */}
         {selectedUsers.length > 0 && (
           <div className="mb-8">
@@ -319,23 +228,102 @@ const UserManagementPage: React.FC = () => {
               className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
                              opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
-            <CardHeader className="relative pb-6">
-              <CardTitle className="flex items-center justify-between group-hover:text-primary transition-colors duration-300 text-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg shadow-sm">
-                    <Users className="h-5 w-5 text-primary" />
+            <CardHeader className="relative pb-4">
+              <div className="flex flex-col gap-4">
+                <CardTitle className="flex items-center justify-between group-hover:text-primary transition-colors duration-300 text-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg shadow-sm">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    Users ({filteredUsers.length})
                   </div>
-                  Users ({filteredUsers.length})
+                  <div
+                    className="flex items-center gap-3 text-sm text-muted-foreground"
+                    style={{ fontWeight: 500 }}
+                  >
+                    <span>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                </CardTitle>
+
+                {/* Search & Filters */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, email, or ID..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      autoComplete="off"
+                      name="user-search"
+                      className="pl-10 pr-9 h-10 bg-background/50 border-border/50 rounded-xl text-sm
+                                 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20
+                                 transition-all duration-300"
+                      style={{ fontWeight: 500 }}
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full
+                                   bg-muted hover:bg-muted-foreground/20 flex items-center justify-center
+                                   transition-colors duration-200"
+                        aria-label="Clear search"
+                      >
+                        <X className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={showFilters ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`h-10 px-4 rounded-xl transition-all duration-300 ${
+                        showFilters
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-background/50 border-border/50 hover:bg-muted/50'
+                      }`}
+                      style={{ fontWeight: 590 }}
+                    >
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filters
+                      {(filters.role !== 'all' ||
+                        filters.status !== 'all' ||
+                        filters.clubAffiliation) && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
+                        >
+                          !
+                        </Badge>
+                      )}
+                    </Button>
+                    {selectedUsers.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearSelection}
+                        className="h-10 px-4 rounded-xl bg-background/50 border-border/50
+                                   hover:bg-muted/50 transition-all duration-300"
+                        style={{ fontWeight: 590 }}
+                      >
+                        Clear Selection ({selectedUsers.length})
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div
-                  className="flex items-center gap-3 text-sm text-muted-foreground"
-                  style={{ fontWeight: 500 }}
-                >
-                  <span>
-                    Page {currentPage} of {totalPages}
-                  </span>
-                </div>
-              </CardTitle>
+
+                {showFilters && (
+                  <div className="pt-3 border-t border-border/30">
+                    <UserFilters
+                      filters={filters}
+                      onFiltersChange={setFilters}
+                      roleStats={roleStats}
+                    />
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="relative">
               <UserTable

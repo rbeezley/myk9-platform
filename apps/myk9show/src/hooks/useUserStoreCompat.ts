@@ -83,7 +83,7 @@ export const useUserStoreCompat = () => {
   };
 
   const getUsersByRole = (role: string): User[] => {
-    return users.filter(user => user.roles?.includes(role as 'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin'));
+    return users.filter(user => user.roles?.includes(role as (typeof user.roles)[number]));
   };
 
   const searchUsers = (searchTerm: string): User[] => {

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { UserRole } from '@/types/auth-types';
 import { User } from '@/types/dog-types';
 import { enhancedSearch, highlightMatches, SearchResult } from '@/lib/searchUtils';
 
@@ -54,7 +55,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
 
     if (judgeFilter) {
       result = result.filter(p =>
-        p.roles?.includes('judge') ||
+        p.roles?.includes(UserRole.JUDGE) ||
         (p.judgeQualifications && p.judgeQualifications.length > 0)
       );
     }

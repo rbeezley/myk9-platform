@@ -81,9 +81,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
 
     // Map roles from the RBAC system if available
     roles: Array.isArray(dbUser.roles)
-      ? (dbUser.roles as Array<
-          'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin'
-        >)
+      ? (dbUser.roles as string[] as import('@/types/user-types').UserRole[])
       : [],
 
     // Judge qualifications - handle if present (from nested select)

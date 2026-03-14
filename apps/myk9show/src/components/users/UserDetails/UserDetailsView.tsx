@@ -11,6 +11,7 @@ import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { UserRole } from '@/types/auth-types';
 import { User as UserType } from '@/types/user-types';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -295,7 +296,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   // Center content: judge cards + tabs
   const centerContent = (
     <div className="space-y-6">
-      {(person.roles?.includes('judge') ||
+      {(person.roles?.includes(UserRole.JUDGE) ||
         (person.judgeQualifications && person.judgeQualifications.length > 0)) && (
         <JudgeQualificationsCard
           qualifications={(formData.judgeQualifications as JudgeQualification[]) || []}
@@ -304,7 +305,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         />
       )}
 
-      {person.roles?.includes('judge') && <JudgeAvailabilityCard personId={person.id} />}
+      {person.roles?.includes(UserRole.JUDGE) && <JudgeAvailabilityCard personId={person.id} />}
 
       <UserDetailsTabs selectedUser={person} />
     </div>

@@ -11,7 +11,7 @@ import { ShowWithRelationship } from '@/types/unified-shows-types';
  * Check if user has permission to view a specific show
  */
 export function canViewShow(user: UserWithRoles | null, show: Show): boolean {
-  // Guest users can view non-draft, non-cancelled shows
+  // Guest users can see non-draft, non-cancelled shows
   if (!user) {
     return show.status !== 'draft' && show.status !== 'cancelled';
   }

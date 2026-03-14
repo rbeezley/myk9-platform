@@ -7,6 +7,7 @@
 
 import { faker } from '@faker-js/faker';
 import type { Dog } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import type { Show } from '@/types/show-types';
 import type { PerformanceExtended } from '@/types/browser-apis';
@@ -150,7 +151,7 @@ export class LoadTestService {
         state: faker.location.state(),
         zipCode: faker.location.zipCode(),
         membershipId: faker.string.alphanumeric(8),
-        roles: ['exhibitor'],
+        roles: [UserRole.EXHIBITOR],
         createdAt: faker.date.past(),
         updatedAt: faker.date.recent(),
       });

@@ -416,7 +416,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           setShowSearch={setShowJudgeSearch}
           searchTerm={judgeSearchTerm}
           setSearchTerm={setJudgeSearchTerm}
-          hasAnyJudges={people.some(p => p.roles?.includes('judge'))}
+          hasAnyJudges={people.some(p => p.roles?.includes(UserRole.JUDGE))}
           onAddJudge={handleAddJudge}
           onRemoveJudge={removeJudgeFromShow}
           onCreateJudge={handleCreateJudge}

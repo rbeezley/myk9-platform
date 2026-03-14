@@ -153,7 +153,7 @@ Uses `@vercel/og` (Satori + Resvg) to render a JSX component as a 1200×630 PNG.
 ```
 
 - **Background:** Light gradient with subtle paw print watermark
-- **Accent bar:** Left edge, colored with the show's `accentColor` (default: #2563eb)
+- **Accent bar:** Left edge, colored with the show's `accentColor` → organization default → myK9 brand teal (#14b8a6). Organization defaults: AKC=#14b8a6, UKC=#f97316, ASCA=#3b82f6
 - **Club logo:** Show-level `logo_url` if set, else club-level `logo_url`, else initials circle
 - **Organization:** Uppercase label (e.g., "AKC") above the discipline list
 - **Disciplines:** Summarized from `trials.trial_type` (e.g., "Scent Work · Obedience · Rally")
@@ -294,15 +294,18 @@ interface ShareOptions {
   title: string;
   text: string;
   url: string;
+  clipboardText?: string; // If set, copy this instead of url on clipboard fallback
 }
 
-async function shareOrCopy(options: ShareOptions): Promise<'shared' | 'copied'>;
+async function shareOrCopy(options: ShareOptions): Promise<'shared' | 'copied' | 'cancelled'>;
 ```
 
 **Behavior:**
 
 1. If `navigator.share` is available → open native share sheet
-2. Otherwise → copy URL to clipboard
+2. Otherwise → copy `clipboardText` (if provided) or `url` to clipboard
+
+The `clipboardText` option exists because LiveResults needs to copy results text (not a URL) to clipboard. The show page copies the URL.
 
 **Share data for a show:**
 
@@ -342,7 +345,7 @@ Replace the inline share logic in `LiveResults.tsx` with a call to the shared ut
 - **In-progress shows:** Display with "In Progress" badge. OG description: "Show in progress."
 - **No trials/classes yet:** Schedule section hidden. Show details still visible.
 - **No club logo:** Fall back to initials circle (first letters of club name).
-- **No accent color:** Default to myK9 brand blue (#2563eb).
+- **No accent color:** Fall back to organization default (AKC=#14b8a6, UKC=#f97316, ASCA=#3b82f6), then myK9 brand teal (#14b8a6).
 - **Null structured columns:** Classes with null `trial_type`, `competition_type`, `element`, and `level` display verbatim under "Other."
 - **Supabase query failure:** Fall back to generic OG tags (myK9 branding, no show-specific data) rather than blocking the request.
 - **Show with no organization field:** Omit "AKC" / "UKC" badge and OG prefix.

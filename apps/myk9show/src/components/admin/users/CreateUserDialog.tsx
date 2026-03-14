@@ -169,7 +169,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     if (!validateForm()) return;
 
     try {
-      // Create the person (without roles — roles go to user_roles table)
+      // Create the person (without roles -- roles go to user_roles table)
       const newUser = await createUserMutation.mutateAsync({
         first_name: formData.firstName,
         last_name: formData.lastName,
@@ -464,7 +464,10 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 
                 <div className="space-y-3">
                   {availableRoles.map(role => (
-                    <div key={role.name} className="flex items-start space-x-3 p-3 border rounded">
+                    <div
+                      key={role.name}
+                      className="flex items-start space-x-3 p-3 border rounded"
+                    >
                       <Checkbox
                         id={role.name}
                         checked={formData.roles.includes(role.name)}

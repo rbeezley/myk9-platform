@@ -4,8 +4,9 @@ Items to address in future sessions.
 
 ---
 
-## User Roles Schema (2026-03-14)
+## User Management Improvements (2026-03-14)
 
+- [ ] **Add `status` column to `people` table** — The user table shows Active/Inactive/Suspended badges and the filter dropdown has these options, but there's no actual `status` field on the `people` table. Needs: migration to add `status TEXT DEFAULT 'active'` column, user edit panel status dropdown, filter query by status, badge to reflect real value.
 - [ ] **Add `is_active` column to `user_roles` table** — AuthContext already checks `ur.is_active ?? true` but the column doesn't exist. Add a migration with `ALTER TABLE user_roles ADD COLUMN is_active BOOLEAN DEFAULT true NOT NULL`. Update the admin-delete-user Edge Function to filter by `is_active` once the column exists.
 
 ---

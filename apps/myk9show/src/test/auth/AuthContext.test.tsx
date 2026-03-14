@@ -15,12 +15,6 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-// Mock useUserRoles to avoid React Query loading state issues
-vi.mock('@/hooks/queries/useUserRoles', () => ({
-  useUserRoles: () => ({ data: [], isLoading: false, error: null }),
-  useUserRoleNames: () => ({ data: [], isLoading: false, error: null }),
-}));
-
 // Mock RBACService to avoid async loading
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {

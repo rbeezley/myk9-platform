@@ -46,6 +46,12 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
+## Landing Page & Public UX (2026-03-14)
+
+- [ ] **Remove Kanban view from shows browse page** — Kanban is a management view, not useful for public show browsing. Hide it for unauthenticated users (or remove from the view switcher entirely on the browse page).
+
+---
+
 ## Outstanding from Code Quality Sprint (2026-02-15)
 
 - [ ] **~28 files in 700-750 line range** — address when naturally touched

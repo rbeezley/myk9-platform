@@ -57,7 +57,7 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
 }));
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useDogsQuery: () => ({ data: [{ id: 'dog-1' }, { id: 'dog-2' }] }),
+  useDogsByOwnerQuery: () => ({ data: [{ id: 'dog-1' }, { id: 'dog-2' }] }),
 }));
 
 const mockResults = vi.fn();
@@ -187,14 +187,14 @@ describe('ExhibitorDashboard (Home)', () => {
   });
 
   describe('Home layout', () => {
-    it('shows "Home" heading', () => {
+    it('shows time-of-day greeting with user name', () => {
       renderDashboard();
-      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText(/Good (morning|afternoon|evening), Sarah Jones/)).toBeInTheDocument();
     });
 
-    it('shows welcome message with user name', () => {
+    it('shows contextual subtitle', () => {
       renderDashboard();
-      expect(screen.getByText(/Welcome back, Sarah Jones/)).toBeInTheDocument();
+      expect(screen.getByText(/what's happening with your shows/i)).toBeInTheDocument();
     });
 
     it('renders CompactStatsRow with correct counts', () => {
@@ -222,8 +222,7 @@ describe('ExhibitorDashboard (Home)', () => {
 
     it('shows empty state when no upcoming entries', () => {
       renderDashboard();
-      expect(screen.getByText('No Upcoming Entries')).toBeInTheDocument();
-      expect(screen.getByText('Browse Shows')).toBeInTheDocument();
+      expect(screen.getByText('Ready for your next show?')).toBeInTheDocument();
     });
 
     it('renders results section collapsed by default', () => {
@@ -240,16 +239,19 @@ describe('ExhibitorDashboard (Home)', () => {
       expect(screen.getByText('Winter Classic')).toBeInTheDocument();
     });
 
-    it('renders quick action buttons', () => {
+    it('renders quick action cards', () => {
       renderDashboard();
-      expect(screen.getByText('Find Shows')).toBeInTheDocument();
+      // Quick Actions section has cards with titles and descriptions
+      expect(screen.getByText('Quick Actions')).toBeInTheDocument();
+      expect(screen.getAllByText('Find Shows').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('My Dogs').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText('My Entries')).toBeInTheDocument();
+      expect(screen.getAllByText('My Entries').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('navigates to shows when Find Shows is clicked', async () => {
+    it('navigates to shows when Find Shows card is clicked', async () => {
       renderDashboard();
-      await userEvent.click(screen.getByText('Find Shows'));
+      // Click the first "Find Shows" (in empty state or quick actions)
+      await userEvent.click(screen.getAllByText('Find Shows')[0]);
       expect(mockNavigate).toHaveBeenCalledWith('/shows');
     });
   });

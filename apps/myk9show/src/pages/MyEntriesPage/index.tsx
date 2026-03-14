@@ -105,7 +105,7 @@ const MyEntriesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-20 max-w-7xl">
+      <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-8">
           <h1 className="sr-only">My Entries</h1>
           {/* Breadcrumb + Actions */}

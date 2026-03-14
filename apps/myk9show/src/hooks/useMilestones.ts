@@ -3,11 +3,13 @@
  *
  * Milestones are checked in order; the first un-dismissed tip wins.
  * Tips show once and stay dismissed forever via the user_milestones table.
+ *
+ * These tips are exhibitor-focused. Secretary/admin tips should live
+ * in their respective dashboards if needed.
  */
 
 import { useMemo, useEffect, useCallback } from 'react';
-import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import {
   useMilestonesQuery,
   useAchieveMilestoneMutation,
@@ -34,11 +36,11 @@ interface MilestoneDefinition {
 const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
   {
     key: 'first_login',
-    condition: () => true, // Always true — shown on first visit if no dogs
+    condition: () => true, // Always true — shown on first visit until dismissed
     tip: {
       title: 'Welcome to myK9Show!',
       message: 'Start by adding your dogs to your profile.',
-      cta: { label: 'Add a Dog', href: '/dogs/new' },
+      cta: { label: 'Add a Dog', href: '/dogs' },
     },
   },
   {
@@ -46,41 +48,14 @@ const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
     condition: ctx => ctx.dogCount >= 1,
     tip: {
       title: 'Your dog is registered!',
-      message: 'Browse upcoming shows to find your first event.',
-      cta: { label: 'Browse Shows', href: '/shows' },
-    },
-  },
-  {
-    key: 'first_show_created',
-    condition: ctx => ctx.showCount >= 1,
-    tip: {
-      title: 'Your first show is set up!',
-      message: 'You can import entries from a CSV file to save time.',
-      cta: { label: 'Manage Shows', href: '/secretary/shows' },
-    },
-  },
-  {
-    key: 'first_show_completed',
-    condition: ctx => ctx.completedShowCount >= 1,
-    tip: {
-      title: 'Show complete!',
-      message: 'Did you know you can print run orders and score sheets?',
-    },
-  },
-  {
-    key: 'five_shows_completed',
-    condition: ctx => ctx.completedShowCount >= 5,
-    tip: {
-      title: 'You are a pro!',
-      message: 'Consider setting up automated results notifications for your exhibitors.',
+      message: 'Browse upcoming shows to find your next event.',
+      cta: { label: 'Find Shows', href: '/shows' },
     },
   },
 ];
 
 interface MilestoneContext {
   dogCount: number;
-  showCount: number;
-  completedShowCount: number;
 }
 
 interface MilestoneResult {
@@ -112,22 +87,18 @@ function findActiveMilestone(
 }
 
 export function useMilestones() {
-  const { user } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
+  const ownerId = userWithRoles?.databaseUserId ?? '';
   const { data: milestones, isLoading: milestonesLoading } = useMilestonesQuery(!!user);
-  const { data: dogs } = useDogsQuery();
-  const { data: shows } = useShowsQuery();
+  const { data: dogs } = useDogsByOwnerQuery(ownerId, !!ownerId);
   const achieveMilestone = useAchieveMilestoneMutation();
   const dismissMilestone = useDismissMilestoneMutation();
 
   const ctx = useMemo(
     (): MilestoneContext => ({
       dogCount: dogs?.length ?? 0,
-      showCount: shows?.length ?? 0,
-      completedShowCount:
-        shows?.filter(s => s.status === 'completed' || s.status === 'results_published').length ??
-        0,
     }),
-    [dogs, shows]
+    [dogs]
   );
 
   const { activeTip, needsAchieve } = useMemo(() => {

@@ -11,54 +11,54 @@ describe('CompactStatsRow', () => {
     onNavigate: vi.fn(),
   };
 
-  it('renders all three stat badges', () => {
+  it('renders all three stat cards with values', () => {
     render(<CompactStatsRow {...defaultProps} />);
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('active entries')).toBeInTheDocument();
+    expect(screen.getByText('Active Entries')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('upcoming shows')).toBeInTheDocument();
+    expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('dog registered')).toBeInTheDocument(); // singular
+    expect(screen.getByText('Dog Registered')).toBeInTheDocument(); // singular
   });
 
   it('uses singular label when count is 1', () => {
     render(<CompactStatsRow {...defaultProps} activeEntries={1} upcomingShows={1} totalDogs={1} />);
-    expect(screen.getByText('active entry')).toBeInTheDocument();
-    expect(screen.getByText('upcoming show')).toBeInTheDocument();
-    expect(screen.getByText('dog registered')).toBeInTheDocument();
+    expect(screen.getByText('Active Entry')).toBeInTheDocument();
+    expect(screen.getByText('Upcoming Show')).toBeInTheDocument();
+    expect(screen.getByText('Dog Registered')).toBeInTheDocument();
   });
 
   it('uses plural label when count is not 1', () => {
     render(<CompactStatsRow {...defaultProps} activeEntries={0} upcomingShows={5} totalDogs={3} />);
-    expect(screen.getByText('active entries')).toBeInTheDocument();
-    expect(screen.getByText('upcoming shows')).toBeInTheDocument();
-    expect(screen.getByText('dogs registered')).toBeInTheDocument();
+    expect(screen.getByText('Active Entries')).toBeInTheDocument();
+    expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
+    expect(screen.getByText('Dogs Registered')).toBeInTheDocument();
   });
 
-  it('navigates to entries page when entries badge is clicked', async () => {
+  it('navigates to entries page when entries card is clicked', async () => {
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
-    const entriesBadge = screen.getByLabelText(/active entries.*View details/i);
-    await userEvent.click(entriesBadge);
+    const entriesCard = screen.getByLabelText(/Active Entries.*View details/i);
+    await userEvent.click(entriesCard);
     expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries');
   });
 
-  it('navigates to shows page when shows badge is clicked', async () => {
+  it('navigates to shows page when shows card is clicked', async () => {
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
-    const showsBadge = screen.getByLabelText(/upcoming shows.*View details/i);
-    await userEvent.click(showsBadge);
+    const showsCard = screen.getByLabelText(/Upcoming Shows.*View details/i);
+    await userEvent.click(showsCard);
     expect(onNavigate).toHaveBeenCalledWith('/shows');
   });
 
-  it('navigates to dogs page when dogs badge is clicked', async () => {
+  it('navigates to dogs page when dogs card is clicked', async () => {
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
-    const dogsBadge = screen.getByLabelText(/dog.*View details/i);
-    await userEvent.click(dogsBadge);
+    const dogsCard = screen.getByLabelText(/Dog.*View details/i);
+    await userEvent.click(dogsCard);
     expect(onNavigate).toHaveBeenCalledWith('/dogs');
   });
 

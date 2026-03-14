@@ -122,7 +122,7 @@ const ShowDayPage: React.FC = () => {
   // Empty state — no active show today
   if (!showDayData.isShowDay) {
     return (
-      <div className="space-y-6 sm:space-y-8">
+      <div className="container mx-auto px-6 py-6 max-w-7xl space-y-6 sm:space-y-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             Show Day
@@ -154,7 +154,7 @@ const ShowDayPage: React.FC = () => {
 
   // Active show day
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="container mx-auto px-6 py-6 max-w-7xl space-y-6 sm:space-y-8">
       {/* Sticky bar for mobile */}
       <StickyShowBar nextUp={showDayData.nextUp} heroRef={heroRef} />
 

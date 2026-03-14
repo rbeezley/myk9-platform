@@ -1,9 +1,9 @@
 /**
  * Exhibitor Home Page
  *
- * Planning-focused dashboard: stats, upcoming entries, recent results,
- * and quick action buttons. When the exhibitor has a show today, a
- * prominent alert card links them to the Show Day page.
+ * Planning-focused dashboard: greeting, stats, upcoming entries, recent results,
+ * and quick action cards. When the exhibitor has a show today, a prominent
+ * alert card links them to the Show Day page.
  */
 
 import React, { useMemo } from 'react';
@@ -11,15 +11,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Heart,
-  Calendar,
-  Search,
-  FolderOpen,
-  FileText,
-  Activity,
-  ChevronRight,
-} from 'lucide-react';
+import { Heart, Calendar, Search, PawPrint, FileText, Activity, ChevronRight } from 'lucide-react';
 import { TipBanner } from '@/components/common/TipBanner';
 import { CollapsibleSection } from '@/components/common/CollapsibleSection';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
@@ -27,11 +19,18 @@ import { EntryRow, type DashboardEntry } from '@/components/exhibitor/EntryRow';
 import { ResultRow } from '@/components/exhibitor/ResultRow';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
-import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
+import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { FadeIn } from '@/components/layout/FadeIn';
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 const ExhibitorDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -42,8 +41,9 @@ const ExhibitorDashboard: React.FC = () => {
     redirectOnRoleChange: true,
   });
 
-  const { user } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
   const showDayData = useShowDayData();
+  const ownerId = userWithRoles?.databaseUserId ?? '';
 
   const {
     data: rawEntries = [],
@@ -51,10 +51,10 @@ const ExhibitorDashboard: React.FC = () => {
     error: entriesError,
   } = useEntriesQuery();
   const { data: stats } = useEntryStatisticsQuery();
-  const { data: dogs = [] } = useDogsQuery();
+  const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
   const { data: recentResults = [] } = useExhibitorResults();
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
 
   // Map DB entries to dashboard display shape
   const entries: DashboardEntry[] = useMemo(
@@ -124,25 +124,29 @@ const ExhibitorDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Home</h1>
-          <p className="text-muted-foreground text-sm sm:text-base mt-1">
-            Welcome back, {displayName}
-          </p>
-        </div>
+    <div className="container mx-auto px-6 py-6 max-w-7xl space-y-6 sm:space-y-8">
+      {/* Header — warm, personal greeting */}
+      <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              {getGreeting()}, {displayName}
+            </h1>
+            <p className="text-muted-foreground text-sm sm:text-base mt-1">
+              Here&apos;s what&apos;s happening with your shows
+            </p>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => navigate('/shows')} size="sm">
-            <Calendar className="h-4 w-4 mr-2" />
-            Enter a Show
-          </Button>
-          <Button onClick={() => navigate('/dogs')} variant="outline" size="sm">
-            <Heart className="h-4 w-4 mr-2" />
-            My Dogs
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => navigate('/shows')} size="sm">
+              <Calendar className="h-4 w-4 mr-2" />
+              Enter a Show
+            </Button>
+            <Button onClick={() => navigate('/dogs')} variant="outline" size="sm">
+              <Heart className="h-4 w-4 mr-2" />
+              My Dogs
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -168,7 +172,7 @@ const ExhibitorDashboard: React.FC = () => {
       {/* Progressive Tip Banner */}
       {activeTip && <TipBanner tip={activeTip} onDismiss={dismissTip} />}
 
-      {/* Compact stats row */}
+      {/* Stats cards */}
       <CompactStatsRow
         activeEntries={statistics.activeEntries}
         upcomingShows={statistics.upcomingShows}
@@ -191,18 +195,17 @@ const ExhibitorDashboard: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="bg-muted/50 rounded-full p-6 mb-4">
-                <FolderOpen className="h-12 w-12 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center py-14 rounded-2xl border border-dashed border-border bg-muted/20">
+              <div className="bg-primary/10 rounded-full p-5 mb-5">
+                <PawPrint className="h-10 w-10 text-primary/60" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
-              <p className="text-muted-foreground mb-6 max-w-sm text-center">
-                You don't have any upcoming show entries. Browse shows to find your next
-                competition.
+              <h3 className="text-lg font-semibold mb-2">Ready for your next show?</h3>
+              <p className="text-muted-foreground mb-6 max-w-sm text-center text-sm">
+                Browse upcoming shows near you and get your entries in early.
               </p>
-              <Button onClick={() => navigate('/shows')}>
+              <Button onClick={() => navigate('/shows')} size="lg" className="min-h-[48px]">
                 <Search className="h-4 w-4 mr-2" />
-                Browse Shows
+                Find Shows
               </Button>
             </div>
           )}
@@ -228,21 +231,51 @@ const ExhibitorDashboard: React.FC = () => {
         </CollapsibleSection>
       )}
 
-      {/* Quick actions — compact button row */}
-      <div className="flex flex-wrap gap-3 pt-2">
-        <Button variant="outline" onClick={() => navigate('/shows')} className="gap-2">
-          <Search className="h-4 w-4" />
-          Find Shows
-        </Button>
-        <Button variant="outline" onClick={() => navigate('/dogs')} className="gap-2">
-          <Heart className="h-4 w-4" />
-          My Dogs
-        </Button>
-        <Button variant="outline" onClick={() => navigate('/exhibitor/entries')} className="gap-2">
-          <FileText className="h-4 w-4" />
-          My Entries
-        </Button>
-      </div>
+      {/* Quick action cards */}
+      <section>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/shows')}
+            className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-card/80 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 text-left min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+              <Search className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">Find Shows</p>
+              <p className="text-xs text-muted-foreground">Browse and enter</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/dogs')}
+            className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-card/80 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 text-left min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-500/10 flex-shrink-0">
+              <Heart className="h-5 w-5 text-rose-400" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">My Dogs</p>
+              <p className="text-xs text-muted-foreground">Profiles and history</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/exhibitor/entries')}
+            className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-card/80 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300 text-left min-h-[48px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 flex-shrink-0">
+              <FileText className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="font-medium text-foreground">My Entries</p>
+              <p className="text-xs text-muted-foreground">Current and past</p>
+            </div>
+          </button>
+        </div>
+      </section>
     </div>
   );
 };

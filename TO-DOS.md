@@ -60,6 +60,8 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 - [ ] **Build missing Exhibitor pages** — Several proposed sidebar destinations don't have pages yet. **Problem:** My Dogs, Clubs, Calendar, and Activity (History) pages don't exist. Settings is minimal (PreferencesPage only). **Files:** `apps/myk9show/src/pages/` (page directory), `apps/myk9show/src/routes/publicRoutes.tsx` (routes). **Solution:** Build My Dogs page (list/manage dogs, premium features later), Clubs page (club memberships), Calendar page (upcoming shows/entries), Activity page (entry/result history timeline), expand Settings.
 
+- [ ] **Exhibitor missing "Add Dog" button on BrowseDogsPage** — The "Add Dog" button is gated by `hasPermission('dog:create')` via `useRBAC`. The exhibitor role has `dog:create` in the RBAC seed migration (`002_rbac_seed_data.sql:144`), but the permission check returns false at runtime. **Problem:** Exhibitors see the dogs page with no way to add a dog. The permission is seeded in the migration but not resolving for this user. **Files:** `apps/myk9show/src/pages/BrowseDogsPage.tsx:56` (permission check), `apps/myk9show/src/hooks/useRBAC.ts` (RBAC hook), `apps/myk9show/supabase/migrations/002_rbac_seed_data.sql:144` (seed data). **Solution:** Investigate whether role_permissions rows exist for the exhibitor role in the DB, whether the user has the exhibitor role in user_roles, and whether useRBAC is resolving permissions correctly.
+
 ---
 
 ## Outstanding from Code Quality Sprint (2026-02-15)

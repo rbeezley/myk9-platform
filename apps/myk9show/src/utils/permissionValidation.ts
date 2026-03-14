@@ -182,7 +182,7 @@ export function getAccessibleTabs(user: UserWithRoles | null): string[] {
   const roles = user.roles || [];
 
   // My Entries tab only for exhibitor/handler roles
-  if (roles.includes(UserRole.EXHIBITOR) || roles.includes(UserRole.HANDLER)) {
+  if (roles.includes(UserRole.EXHIBITOR)) {
     tabs.push('entries');
   }
 

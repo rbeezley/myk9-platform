@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { UserIcon, Shield, CheckCircle2, Edit, Settings } from 'lucide-react';
+import { UserIcon, Crown, CheckCircle2, Edit, Settings } from 'lucide-react';
 import { UserRole as UserRoleType } from '@/types/auth-types';
 
 // Sort & display types
@@ -49,13 +49,6 @@ export const ROLE_CONFIG: Record<UserRoleType, RoleConfigEntry> = {
     background: 'rgba(0, 122, 255, 0.1)',
     icon: UserIcon,
   },
-  handler: {
-    label: 'Handler',
-    variant: 'secondary',
-    color: '#34C759',
-    background: 'rgba(52, 199, 89, 0.1)',
-    icon: Shield,
-  },
   judge: {
     label: 'Judge',
     variant: 'outline',
@@ -77,12 +70,12 @@ export const ROLE_CONFIG: Record<UserRoleType, RoleConfigEntry> = {
     background: 'rgba(142, 142, 147, 0.1)',
     icon: Settings,
   },
-  gate_steward: {
-    label: 'Gate Steward',
+  chairman: {
+    label: 'Chairman',
     variant: 'outline',
-    color: '#8E8E93',
-    background: 'rgba(142, 142, 147, 0.1)',
-    icon: UserIcon,
+    color: '#AF52DE',
+    background: 'rgba(175, 82, 222, 0.1)',
+    icon: Crown,
   },
   club_admin: {
     label: 'Club Admin',
@@ -97,13 +90,6 @@ export const ROLE_CONFIG: Record<UserRoleType, RoleConfigEntry> = {
     color: '#FF3B30',
     background: 'rgba(255, 59, 48, 0.1)',
     icon: Settings,
-  },
-  admin: {
-    label: 'Admin',
-    variant: 'destructive',
-    color: '#FF3B30',
-    background: 'rgba(255, 59, 48, 0.1)',
-    icon: Shield,
   },
 };
 

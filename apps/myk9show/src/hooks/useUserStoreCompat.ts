@@ -3,6 +3,7 @@
 
 import { useMemo } from 'react';
 import type { User } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import type { UserInput } from '@/store/userStore';
 import {
   useUsersQuery,
@@ -43,9 +44,10 @@ export const useUserStoreCompat = () => {
   const people = users;
 
   // Aggregate loading states
-  const isLoading = usersQuery.isLoading || 
-    createMutation.isPending || 
-    updateMutation.isPending || 
+  const isLoading =
+    usersQuery.isLoading ||
+    createMutation.isPending ||
+    updateMutation.isPending ||
     deleteMutation.isPending;
 
   // Aggregate error states (prioritize by recency)
@@ -56,7 +58,7 @@ export const useUserStoreCompat = () => {
       updateMutation.error,
       deleteMutation.error,
     ].filter(Boolean);
-    
+
     if (errors.length === 0) return null;
     return errors[0]?.message || 'An error occurred';
   }, [usersQuery.error, createMutation.error, updateMutation.error, deleteMutation.error]);
@@ -83,17 +85,18 @@ export const useUserStoreCompat = () => {
   };
 
   const getUsersByRole = (role: string): User[] => {
-    return users.filter(user => user.roles?.includes(role as 'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin'));
+    return users.filter(user => user.roles?.includes(role as UserRole));
   };
 
   const searchUsers = (searchTerm: string): User[] => {
     if (!searchTerm) return users;
     const term = searchTerm.toLowerCase();
-    return users.filter(user => 
-      user.firstName?.toLowerCase().includes(term) ||
-      user.lastName?.toLowerCase().includes(term) ||
-      user.email?.toLowerCase().includes(term) ||
-      user.name?.toLowerCase().includes(term)
+    return users.filter(
+      user =>
+        user.firstName?.toLowerCase().includes(term) ||
+        user.lastName?.toLowerCase().includes(term) ||
+        user.email?.toLowerCase().includes(term) ||
+        user.name?.toLowerCase().includes(term)
     );
   };
 
@@ -165,7 +168,7 @@ export const useUserStoreCompat = () => {
     people, // Backward compatibility alias
     isLoading,
     error,
-    
+
     // Operations (compatible with userStore API)
     addUser,
     updateUser,
@@ -174,28 +177,28 @@ export const useUserStoreCompat = () => {
     getUsersByRole,
     searchUsers,
     getSyncStatus,
-    
+
     // Legacy methods for backward compatibility
     addUserLegacy,
     updateUserLegacy,
     removeUser,
     setUsers,
     loadUsers,
-    
+
     // Additional React Query benefits
     refetch,
     isStale: usersQuery.isStale,
     isFetching: usersQuery.isFetching,
-    
+
     // Statistics
     statistics: statisticsQuery.data,
     isLoadingStatistics: statisticsQuery.isLoading,
-    
+
     // Individual mutation states for fine-grained control
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    
+
     // Legacy compatibility flags
     _usingDatabase: true,
     _reactQueryIntegrated: true,
@@ -207,7 +210,7 @@ export const useUserStoreCompat = () => {
  */
 export const useUserWithQuery = (id: string, enabled = true) => {
   const userQuery = useUserQuery(id, enabled);
-  
+
   const user = useMemo(() => {
     if (!userQuery.data) return null;
     return mapDatabaseToUser(userQuery.data);
@@ -227,7 +230,7 @@ export const useUserWithQuery = (id: string, enabled = true) => {
  */
 export const useUserSearchWithQuery = (searchTerm: string, enabled = true) => {
   const searchQuery = useUsersSearchQuery(searchTerm, enabled);
-  
+
   const users = useMemo(() => {
     if (!searchQuery.data) return [];
     return mapDatabaseUsersArray(searchQuery.data);
@@ -248,7 +251,7 @@ export const useUserSearchWithQuery = (searchTerm: string, enabled = true) => {
  */
 export const useUsersWithDogCountsCompat = () => {
   const dogCountsQuery = useUsersWithDogCountsQuery();
-  
+
   const users = useMemo(() => {
     if (!dogCountsQuery.data) return [];
     return mapDatabaseUsersArray(dogCountsQuery.data);
@@ -269,7 +272,7 @@ export const useUsersWithDogCountsCompat = () => {
  */
 export const useUsersByRoleWithQuery = (role: string, enabled = true) => {
   const roleQuery = useUsersByRoleQuery(role, enabled);
-  
+
   const users = useMemo(() => {
     if (!roleQuery.data) return [];
     return mapDatabaseUsersArray(roleQuery.data);

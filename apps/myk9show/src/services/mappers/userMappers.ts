@@ -2,6 +2,7 @@
 // Phase 2.2: User Store Integration
 
 import type { User, JudgeInfo } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import type { DbUserInsert, DbUserUpdate, DbJudgeAvailability } from '@/types/database-mappings';
 import type { UserInput } from '@/store/userStore';
 import { toYYYYMMDD } from '@/utils/dateFormat';
@@ -80,11 +81,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
       : [],
 
     // Map roles from the RBAC system if available
-    roles: Array.isArray(dbUser.roles)
-      ? (dbUser.roles as Array<
-          'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin'
-        >)
-      : [],
+    roles: Array.isArray(dbUser.roles) ? (dbUser.roles as UserRole[]) : [],
 
     // Judge qualifications - handle if present (from nested select)
     judgeQualifications: Array.isArray(dbUser.judge_qualifications)

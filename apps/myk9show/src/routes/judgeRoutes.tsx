@@ -62,7 +62,7 @@ export const JudgeSidebarRoutes = () => (
     <Route
       path="/judge/check-in"
       element={
-        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.GATE_STEWARD, UserRole.SITE_ADMIN]}>
+        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.STEWARD, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
               <JudgeCheckInDashboard />

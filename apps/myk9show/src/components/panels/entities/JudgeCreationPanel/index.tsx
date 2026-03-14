@@ -5,6 +5,7 @@ import { Loader2, GraduationCap } from 'lucide-react';
 import { useUserStore, PersonInput } from '@/store/userStore';
 import { BasePanelProps } from '../../types';
 import type { JudgeInfo } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import type { JudgeFormData, ExpandedSections } from './types';
@@ -101,7 +102,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
     const judgeNumberLower = formData.judgeNumber.trim().toLowerCase();
 
     const existingJudge = people.find(person => {
-      if (!person.roles?.includes('judge')) return false;
+      if (!person.roles?.includes(UserRole.JUDGE)) return false;
 
       const existingName = `${person.firstName} ${person.lastName}`.toLowerCase();
       const existingEmail = person.email?.toLowerCase();

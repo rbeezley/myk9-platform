@@ -2,6 +2,7 @@ import { isAfter } from 'date-fns';
 import { getAllPeopleSorted } from '@/lib/people-utils';
 import type { Club } from '@/types/club-types';
 import type { User } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
 
 // Re-export shared people utilities for backward compatibility
@@ -32,7 +33,7 @@ export function getAvailableJudges(
 ): User[] {
   const sorted = getAllPeopleSorted(people);
   return sorted
-    .filter(person => person.roles?.includes('judge') && !selectedIds.includes(person.id))
+    .filter(person => person.roles?.includes(UserRole.JUDGE) && !selectedIds.includes(person.id))
     .filter(judge => {
       if (!searchTerm.trim()) return true;
       const term = searchTerm.toLowerCase();

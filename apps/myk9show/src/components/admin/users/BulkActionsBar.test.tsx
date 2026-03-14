@@ -11,6 +11,7 @@ import {
   usePermanentDeleteUserMutation,
 } from '@/hooks/queries/useUsersQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import type { SelectedUser } from '@/pages/admin/UserManagementPage';
 
 // Mock the mutation hooks
@@ -36,7 +37,7 @@ const mockSelectedUsers: SelectedUser[] = [
       firstName: 'John',
       lastName: 'Doe',
       email: 'john.doe@example.com',
-      roles: ['exhibitor'],
+      roles: [UserRole.EXHIBITOR],
       createdAt: new Date('2023-01-01'),
       updatedAt: new Date('2023-01-01'),
     },
@@ -48,7 +49,7 @@ const mockSelectedUsers: SelectedUser[] = [
       firstName: 'Jane',
       lastName: 'Smith',
       email: 'jane.smith@example.com',
-      roles: ['secretary'],
+      roles: [UserRole.SECRETARY],
       createdAt: new Date('2023-01-02'),
       updatedAt: new Date('2023-01-02'),
     },
@@ -167,7 +168,7 @@ describe('BulkActionsBar', () => {
           firstName: 'Bob',
           lastName: 'Johnson',
           email: 'bob@example.com',
-          roles: ['judge'],
+          roles: [UserRole.JUDGE],
           createdAt: new Date('2023-01-03'),
           updatedAt: new Date('2023-01-03'),
         },
@@ -179,7 +180,7 @@ describe('BulkActionsBar', () => {
           firstName: 'Alice',
           lastName: 'Wilson',
           email: 'alice@example.com',
-          roles: ['exhibitor'],
+          roles: [UserRole.EXHIBITOR],
           createdAt: new Date('2023-01-04'),
           updatedAt: new Date('2023-01-04'),
         },

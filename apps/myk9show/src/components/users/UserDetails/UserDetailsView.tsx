@@ -12,6 +12,7 @@ import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/us
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { User as UserType } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
@@ -295,7 +296,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   // Center content: judge cards + tabs
   const centerContent = (
     <div className="space-y-6">
-      {(person.roles?.includes('judge') ||
+      {(person.roles?.includes(UserRole.JUDGE) ||
         (person.judgeQualifications && person.judgeQualifications.length > 0)) && (
         <JudgeQualificationsCard
           qualifications={(formData.judgeQualifications as JudgeQualification[]) || []}
@@ -304,7 +305,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         />
       )}
 
-      {person.roles?.includes('judge') && <JudgeAvailabilityCard personId={person.id} />}
+      {person.roles?.includes(UserRole.JUDGE) && <JudgeAvailabilityCard personId={person.id} />}
 
       <UserDetailsTabs selectedUser={person} />
     </div>

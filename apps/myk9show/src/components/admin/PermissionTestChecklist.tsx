@@ -195,7 +195,8 @@ export function PermissionTestChecklist() {
                       [UserRole.EXHIBITOR]: 'exhibitor@example.com',
                       [UserRole.SECRETARY]: 'secretary@example.com',
                       [UserRole.JUDGE]: 'judge@example.com',
-                      [UserRole.GATE_STEWARD]: 'gatesteward@example.com',
+                      [UserRole.STEWARD]: 'steward@example.com',
+                      [UserRole.CHAIRMAN]: 'chairman@example.com',
                       [UserRole.CLUB_ADMIN]: 'clubadmin@example.com',
                       [UserRole.SITE_ADMIN]: 'admin@example.com',
                     };

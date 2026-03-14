@@ -4,6 +4,12 @@ Items to address in future sessions.
 
 ---
 
+## User Roles Schema (2026-03-14)
+
+- [ ] **Add `is_active` column to `user_roles` table** — AuthContext already checks `ur.is_active ?? true` but the column doesn't exist. Add a migration with `ALTER TABLE user_roles ADD COLUMN is_active BOOLEAN DEFAULT true NOT NULL`. Update the admin-delete-user Edge Function to filter by `is_active` once the column exists.
+
+---
+
 ## Shareable Show Pages Follow-up (2026-03-13)
 
 - [x] **Refresh authenticated show detail page** — Fixed: ShowDetailsPage now renders ShowDetailsMain (with edit/delete/manage controls) for secretaries and admins, PublicShowView for guests/exhibitors. Uses `useAuthContext` for role detection and `useTrialStore` for associated trials.

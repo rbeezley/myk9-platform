@@ -87,8 +87,23 @@ Deno.serve(async req => {
       return corsResponse({ error: 'Caller not found' }, 403);
     }
 
-    const callerRoles: string[] = callerPerson.roles || [];
-    if (!callerRoles.includes('site_admin')) {
+    // Check site_admin in people.roles (legacy) OR user_roles table (RBAC)
+    const legacyRoles: string[] = callerPerson.roles || [];
+    let isSiteAdmin = legacyRoles.includes('site_admin');
+
+    if (!isSiteAdmin) {
+      // Check database-driven RBAC roles
+      const { data: rbacRoles } = await supabase
+        .from('user_roles')
+        .select('role:roles(name)')
+        .eq('user_id', callerPerson.id);
+
+      isSiteAdmin =
+        rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??
+        false;
+    }
+
+    if (!isSiteAdmin) {
       return corsResponse({ error: 'Insufficient permissions: site_admin required' }, 403);
     }
 

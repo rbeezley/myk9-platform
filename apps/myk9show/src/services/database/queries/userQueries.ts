@@ -422,16 +422,35 @@ export const searchUsers = async (searchTerm: string) => {
   }
 };
 
-// Get users by role (if roles are implemented, excluding soft-deleted)
+// Get users by role via user_roles table (excluding soft-deleted)
 export const getUsersByRole = async (role: string) => {
   const startTime = Date.now();
 
   try {
+    // Step 1: Get user IDs with the specified role
+    const { data: roleUsers, error: roleError } = await supabase
+      .from('user_roles')
+      .select('user_id, role:roles!inner(name)')
+      .eq('roles.name', role)
+      .eq('is_active', true);
+
+    if (roleError) {
+      throw createDatabaseError(roleError, 'user', 'select_by_role');
+    }
+
+    const userIds = roleUsers?.map(r => r.user_id) ?? [];
+    if (userIds.length === 0) {
+      const duration = Date.now() - startTime;
+      logQuery('user', 'select_by_role', duration);
+      return { data: [], error: null };
+    }
+
+    // Step 2: Get people by those IDs
     const { data, error } = await supabase
       .from('people')
       .select('*')
+      .in('id', userIds)
       .is('deleted_at', null)
-      .contains('roles', [role])
       .order('last_name', { ascending: true });
 
     const duration = Date.now() - startTime;

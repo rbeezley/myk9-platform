@@ -3,7 +3,7 @@
  *
  * Features:
  * - View and edit user profile information
- * - Role assignment and management (dynamic from roles table)
+ * - Role assignment and management
  * - Account status controls
  * - Audit trail integration
  * - Form validation and error handling
@@ -12,7 +12,6 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
-import { supabase } from '@/services/database/supabaseClient';
 import {
   User as UserIcon,
   Mail,
@@ -39,6 +38,8 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/services/database/supabaseClient';
+import { rbacService } from '@/services/rbac/RBACService';
 
 import { User } from '@/types/user-types';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
@@ -96,6 +97,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   const updateUserMutation = useUpdateUserMutation();
   const queryClient = useQueryClient();
 
+  // Fetch available roles from DB
   const { data: availableRoles = [] } = useQuery({
     queryKey: ['roles'],
     queryFn: async () => {
@@ -108,6 +110,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     },
   });
 
+  // Fetch user's current active roles from user_roles
   const { data: currentUserRoles = [] } = useQuery({
     queryKey: ['user-roles', user?.id],
     queryFn: async () => {
@@ -117,7 +120,11 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
         .select('role:roles(name)')
         .eq('user_id', user.id)
         .eq('is_active', true);
-      return data?.map(r => (r.role as unknown as { name: string })?.name).filter(Boolean) ?? [];
+      return (
+        data
+          ?.map((r: { role: { name: string } | null }) => r.role?.name)
+          .filter((n): n is string => !!n) ?? []
+      );
     },
     enabled: !!user?.id,
   });
@@ -177,7 +184,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     if (!validateForm()) return;
 
     try {
-      // Update person record (without roles -- roles go to user_roles table)
+      // Update person fields (no roles — those go to user_roles)
       const updatedUser = await updateUserMutation.mutateAsync({
         id: user.id,
         updates: {
@@ -192,56 +199,34 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
         },
       });
 
-      // Diff current roles against selected roles
-      const currentRoleNames = new Set(currentUserRoles);
-      const selectedRoleNames = new Set(formData.roles);
+      // Diff roles: add new, soft-deactivate removed
+      const currentSet = new Set(currentUserRoles);
+      const selectedSet = new Set(formData.roles);
 
-      const toAdd = formData.roles.filter(r => !currentRoleNames.has(r));
-      const toDeactivate = currentUserRoles.filter(r => !selectedRoleNames.has(r));
+      const toAdd = formData.roles.filter(r => !currentSet.has(r));
+      const toDeactivate = currentUserRoles.filter(r => !selectedSet.has(r));
 
-      // Batch insert new roles
-      if (toAdd.length > 0) {
-        const inserts: { user_id: string; role_id: string; granted_at: string }[] = [];
-        for (const roleName of toAdd) {
-          const role = availableRoles.find(r => r.name === roleName);
-          if (role) {
-            inserts.push({
-              user_id: user.id,
-              role_id: role.id,
-              granted_at: new Date().toISOString(),
-            });
-          }
-        }
-        if (inserts.length > 0) {
-          const { error: insertError } = await supabase.from('user_roles').insert(inserts);
-          if (insertError) {
-            logger.error('Failed to add roles:', 'admin', {}, insertError as unknown as Error);
-          }
+      for (const roleName of toAdd) {
+        try {
+          await rbacService.ensureUserHasRole(user.id, roleName);
+        } catch (err) {
+          logger.error('Failed to assign role:', 'admin', { roleName }, err as Error);
         }
       }
 
-      // Soft-deactivate removed roles
       for (const roleName of toDeactivate) {
         const role = availableRoles.find(r => r.name === roleName);
         if (role) {
-          const { error: deactivateError } = await supabase
+          await supabase
             .from('user_roles')
             .update({ is_active: false })
             .eq('user_id', user.id)
             .eq('role_id', role.id);
-          if (deactivateError) {
-            logger.error(
-              'Failed to deactivate role:',
-              'admin',
-              {},
-              deactivateError as unknown as Error
-            );
-          }
         }
       }
 
-      // Invalidate user-roles cache so the query refetches
-      queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
+      // Invalidate role cache
+      await queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
 
       onUserUpdated(updatedUser);
       setIsEditing(false);
@@ -575,7 +560,10 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
 
                   <div className="space-y-3">
                     {availableRoles.map(role => (
-                      <div key={role.id} className="flex items-start space-x-3 p-3 border rounded">
+                      <div
+                        key={role.name}
+                        className="flex items-start space-x-3 p-3 border rounded"
+                      >
                         <Checkbox
                           id={role.name}
                           checked={formData.roles.includes(role.name)}

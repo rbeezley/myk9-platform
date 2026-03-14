@@ -422,16 +422,17 @@ export const searchUsers = async (searchTerm: string) => {
   }
 };
 
-// Get users by role (if roles are implemented, excluding soft-deleted)
+// Get users by role via user_roles table (excluding soft-deleted)
 export const getUsersByRole = async (role: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('*')
+      .select('*, user_roles!inner(role:roles!inner(name))')
+      .eq('user_roles.is_active', true)
+      .eq('user_roles.roles.name', role)
       .is('deleted_at', null)
-      .contains('roles', [role])
       .order('last_name', { ascending: true });
 
     const duration = Date.now() - startTime;

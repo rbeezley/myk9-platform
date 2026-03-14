@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { rbacService } from '@/services/rbac/RBACService';
 import type { User } from '@supabase/supabase-js';
 
 /**
@@ -57,23 +58,11 @@ async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
   }
 
   if (newPerson) {
-    // Assign default exhibitor role via user_roles
-    const { data: exhibitorRole } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('name', 'exhibitor')
-      .single();
-
-    if (exhibitorRole) {
-      const { error: roleError } = await supabase.from('user_roles').insert({
-        user_id: newPerson.id,
-        role_id: exhibitorRole.id,
-        granted_at: new Date().toISOString(),
-      });
-
-      if (roleError) {
-        console.error('Failed to assign exhibitor role for OAuth user (non-blocking):', roleError);
-      }
+    // Assign default exhibitor role via RBAC service (handles dedup + reactivation)
+    try {
+      await rbacService.ensureUserHasRole(newPerson.id, 'exhibitor');
+    } catch (err) {
+      console.error('Failed to assign exhibitor role for OAuth user (non-blocking):', err);
     }
 
     const { error: profileError } = await supabase.from('exhibitor_profiles').insert({
@@ -172,28 +161,26 @@ export function useAuth() {
             .single();
 
           if (insertError) {
-            // Profile creation failed - auth user is created, profile creation can be retried
+            console.error(
+              'People record creation failed during signup (non-blocking):',
+              insertError
+            );
           } else if (newPerson) {
-            // Assign default exhibitor role via user_roles
-            const { data: exhibitorRole } = await supabase
-              .from('roles')
-              .select('id')
-              .eq('name', 'exhibitor')
-              .single();
+            // Assign default exhibitor role via RBAC service (handles dedup + reactivation)
+            try {
+              await rbacService.ensureUserHasRole(newPerson.id, 'exhibitor');
+            } catch (err) {
+              console.error('Failed to assign exhibitor role during signup (non-blocking):', err);
+            }
 
-            if (exhibitorRole) {
-              const { error: roleError } = await supabase.from('user_roles').insert({
-                user_id: newPerson.id,
-                role_id: exhibitorRole.id,
-                granted_at: new Date().toISOString(),
-              });
+            // Create exhibitor profile
+            const { error: profileError } = await supabase.from('exhibitor_profiles').insert({
+              person_id: newPerson.id,
+              auth_user_id: data.user.id,
+            });
 
-              if (roleError) {
-                console.error(
-                  'Failed to assign exhibitor role during signup (non-blocking):',
-                  roleError
-                );
-              }
+            if (profileError) {
+              console.error('Failed to create exhibitor profile during signup:', profileError);
             }
           }
         } catch {

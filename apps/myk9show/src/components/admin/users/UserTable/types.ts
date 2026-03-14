@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { UserIcon, CheckCircle2, Edit, Settings, Crown } from 'lucide-react';
+import { UserIcon, Crown, CheckCircle2, Edit, Settings } from 'lucide-react';
 import { UserRole as UserRoleType } from '@/types/auth-types';
 
 // Sort & display types

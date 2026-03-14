@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
-import { UserRole } from '@/types/auth-types';
 import { User } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 import { enhancedSearch, highlightMatches, SearchResult } from '@/lib/searchUtils';
 
 export interface PeopleEnhancedSidebarProps {
@@ -24,10 +24,10 @@ const FilterChip: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      "px-3 py-1 text-xs font-medium rounded-full transition-all duration-200",
+      'px-3 py-1 text-xs font-medium rounded-full transition-all duration-200',
       active
-        ? "bg-primary text-primary-foreground"
-        : "bg-muted text-muted-foreground hover:bg-muted/80"
+        ? 'bg-primary text-primary-foreground'
+        : 'bg-muted text-muted-foreground hover:bg-muted/80'
     )}
   >
     {label}
@@ -54,9 +54,10 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
     let result = people;
 
     if (judgeFilter) {
-      result = result.filter(p =>
-        p.roles?.includes(UserRole.JUDGE) ||
-        (p.judgeQualifications && p.judgeQualifications.length > 0)
+      result = result.filter(
+        p =>
+          p.roles?.includes(UserRole.JUDGE) ||
+          (p.judgeQualifications && p.judgeQualifications.length > 0)
       );
     }
 
@@ -72,7 +73,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
     return enhancedSearch(
       filteredPeople,
       search,
-      (person) => ({
+      person => ({
         name: `${person.firstName} ${person.lastName}`,
         firstName: person.firstName,
         lastName: person.lastName,
@@ -81,12 +82,12 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
         address: [person.streetAddress, person.city, person.state, person.zipCode]
           .filter(Boolean)
           .join(' '),
-        role: person.judgeQualifications?.length ? 'Judge' : 'Member'
+        role: person.judgeQualifications?.length ? 'Judge' : 'Member',
       }),
       {
         threshold: 0.2,
         maxResults: 100,
-        fuzzyEnabled: true
+        fuzzyEnabled: true,
       }
     );
   }, [filteredPeople, search]);
@@ -108,57 +109,46 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
     const role = person.judgeQualifications?.length ? 'Judge' : 'Member';
 
     // Find matches for highlighting
-    const nameMatches = matches.find(m => m.field === 'name' || m.field === 'firstName' || m.field === 'lastName');
+    const nameMatches = matches.find(
+      m => m.field === 'name' || m.field === 'firstName' || m.field === 'lastName'
+    );
     const emailMatches = matches.find(m => m.field === 'email');
 
     return (
       <div
         key={person.id}
-        className={cn(
-          "myk9-people-sidebar-item",
-          isSelected && "selected"
-        )}
+        className={cn('myk9-people-sidebar-item', isSelected && 'selected')}
         onClick={() => onSelect(person.id)}
       >
         <div className="myk9-people-sidebar-name">
-          {nameMatches ? (
-            highlightMatches(
-              `${person.firstName} ${person.lastName}`,
-              nameMatches.indices
-            ).map((segment, index) => (
-              segment.isHighlighted ? (
-                <span key={index} className="bg-blue-200 dark:bg-blue-800 px-1 rounded">
-                  {segment.text}
-                </span>
-              ) : (
-                segment.text
+          {nameMatches
+            ? highlightMatches(`${person.firstName} ${person.lastName}`, nameMatches.indices).map(
+                (segment, index) =>
+                  segment.isHighlighted ? (
+                    <span key={index} className="bg-blue-200 dark:bg-blue-800 px-1 rounded">
+                      {segment.text}
+                    </span>
+                  ) : (
+                    segment.text
+                  )
               )
-            ))
-          ) : (
-            `${person.firstName} ${person.lastName}`
-          )}
+            : `${person.firstName} ${person.lastName}`}
         </div>
         <div className="myk9-people-sidebar-email">
-          {emailMatches ? (
-            highlightMatches(
-              person.email || 'No email',
-              emailMatches.indices
-            ).map((segment, index) => (
-              segment.isHighlighted ? (
-                <span key={index} className="bg-blue-200 dark:bg-blue-800 px-1 rounded">
-                  {segment.text}
-                </span>
-              ) : (
-                segment.text
+          {emailMatches
+            ? highlightMatches(person.email || 'No email', emailMatches.indices).map(
+                (segment, index) =>
+                  segment.isHighlighted ? (
+                    <span key={index} className="bg-blue-200 dark:bg-blue-800 px-1 rounded">
+                      {segment.text}
+                    </span>
+                  ) : (
+                    segment.text
+                  )
               )
-            ))
-          ) : (
-            person.email || 'No email'
-          )}
+            : person.email || 'No email'}
         </div>
-        <div className="myk9-people-sidebar-role">
-          {role}
-        </div>
+        <div className="myk9-people-sidebar-role">{role}</div>
       </div>
     );
   };
@@ -175,11 +165,14 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
       style={{
         height: 'calc(100vh - 4rem)',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border" style={{ flexShrink: 0, height: '56px' }}>
+      <div
+        className="flex items-center justify-between p-3 border-b border-border"
+        style={{ flexShrink: 0, height: '56px' }}
+      >
         {!collapsed ? (
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold truncate mr-2">People</h3>
@@ -224,7 +217,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
               className="w-full pl-8 pr-8 py-2 rounded-lg bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
               placeholder="Search by name, email, role..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
             />
             {search && (
               <button
@@ -264,10 +257,8 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
       {/* Results */}
       <div className="flex-1 overflow-y-auto">
         {searchResults.length > 0 ? (
-          <div className="p-2">
-            {searchResults.map(renderPersonItem)}
-          </div>
-        ) : (search.length > 0 || hasActiveFilters) ? (
+          <div className="p-2">{searchResults.map(renderPersonItem)}</div>
+        ) : search.length > 0 || hasActiveFilters ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <Search className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
             <p className="text-sm text-muted-foreground mb-2">No people found</p>

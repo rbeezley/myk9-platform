@@ -75,6 +75,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
 
   // Exhibitor dashboard
   '/exhibitor/dashboard': () => import('@/pages/ExhibitorDashboard'),
+  '/exhibitor/show-day': () => import('@/pages/ShowDayPage'),
   '/exhibitor/account': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/entries': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
@@ -133,7 +134,13 @@ export const fullRouteRegistry: Record<string, ImportFunction> = {
 
 // Route categories for prioritized preloading
 export const routeCategories = {
-  critical: ['/admin/dashboard', '/admin/permissions', '/exhibitor/dashboard', '/shows'],
+  critical: [
+    '/admin/dashboard',
+    '/admin/permissions',
+    '/exhibitor/dashboard',
+    '/exhibitor/show-day',
+    '/shows',
+  ],
 
   high: ['/admin/templates', '/admin/sync', '/shows', '/people', '/dogs', '/calendar'],
 
@@ -150,7 +157,8 @@ export const navigationPatterns = {
   permissionManagement: ['/admin/permissions/roles', '/admin/permissions/users'],
 
   // Exhibitor workflow patterns
-  exhibitorDashboard: ['/shows', '/exhibitor/entries', '/dogs'],
+  exhibitorDashboard: ['/shows', '/exhibitor/entries', '/dogs', '/exhibitor/show-day'],
+  exhibitorShowDay: ['/exhibitor/dashboard', '/exhibitor/entries', '/shows'],
   browseShows: ['/shows/:id', '/exhibitor/dashboard', '/calendar'],
   showDetails: ['/shows/:showId/trials/:trialId', '/shows'],
 

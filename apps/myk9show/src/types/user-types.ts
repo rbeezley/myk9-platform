@@ -1,3 +1,5 @@
+import { UserRole } from '@/types/auth-types';
+
 export interface User {
   id: string;
   firstName: string;
@@ -99,11 +101,5 @@ export interface Exhibitor extends User {
   preferredClasses?: string[];
 }
 
-export type UserRole =
-  | 'exhibitor'
-  | 'handler'
-  | 'judge'
-  | 'secretary'
-  | 'steward'
-  | 'admin'
-  | 'chairman';
+// Re-export UserRole from auth-types for backward compatibility of imports
+export { UserRole } from '@/types/auth-types';

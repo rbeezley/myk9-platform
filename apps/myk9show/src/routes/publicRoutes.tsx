@@ -30,6 +30,7 @@ const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
+const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
 const ProfileRedirect = lazy(() => import('@/pages/ProfileRedirect'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
@@ -164,6 +165,18 @@ export const PublicRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <ExhibitorDashboard />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/exhibitor/show-day"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ShowDayPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

@@ -66,7 +66,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
         <nav className={cn(isCollapsed ? 'space-y-4' : 'space-y-8')}>
           {groups.map((group, groupIndex) => (
             <div key={groupIndex}>
-              {!isCollapsed && (
+              {!isCollapsed && group.title && (
                 <h3 className="mb-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {group.title}
                 </h3>

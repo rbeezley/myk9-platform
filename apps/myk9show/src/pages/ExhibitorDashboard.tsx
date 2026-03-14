@@ -1,67 +1,40 @@
 /**
- * Exhibitor Dashboard Page
+ * Exhibitor Home Page
  *
- * Context-aware dashboard with progressive disclosure:
- * - Show day: ShowDayHero with live ring progress, entries/results collapsed below
- * - Non-show day: CompactStatsRow, upcoming entries, collapsible results, action buttons
+ * Planning-focused dashboard: stats, upcoming entries, recent results,
+ * and quick action buttons. When the exhibitor has a show today, a
+ * prominent alert card links them to the Show Day page.
  */
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import type { CheckInStatus } from '@myk9/core';
+import React, { useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useRoleRedirect } from '@/hooks/useRoleRedirect';
-import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
-import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Heart,
   Calendar,
   Search,
-  MapPin,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
   FolderOpen,
-  Clock,
-  AlertTriangle,
   FileText,
+  Activity,
+  ChevronRight,
 } from 'lucide-react';
-import { ResultBadge } from '@/components/common/ResultBadge';
 import { TipBanner } from '@/components/common/TipBanner';
+import { CollapsibleSection } from '@/components/common/CollapsibleSection';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
-import { ShowDayHero } from '@/components/exhibitor/ShowDayHero';
-import { StickyShowBar } from '@/components/exhibitor/StickyShowBar';
+import { EntryRow, type DashboardEntry } from '@/components/exhibitor/EntryRow';
+import { ResultRow } from '@/components/exhibitor/ResultRow';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
-import { useShowDayAlerts } from '@/hooks/useShowDayAlerts';
-import { useNotificationStore } from '@/store/notificationStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { format } from 'date-fns';
 import { FadeIn } from '@/components/layout/FadeIn';
-
-interface DashboardEntry {
-  id: string;
-  showId: string;
-  showName: string;
-  dogId: string;
-  dogName: string;
-  className: string;
-  entryFee: number;
-  status: string;
-  showDate: Date | null;
-  location: string;
-  classId: string;
-}
 
 const ExhibitorDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const heroRef = useRef<HTMLDivElement>(null);
   const { activeTip, dismiss: dismissTip } = useMilestones();
 
   useRoleRedirect({
@@ -69,17 +42,8 @@ const ExhibitorDashboard: React.FC = () => {
     redirectOnRoleChange: true,
   });
 
-  // Data hooks
   const { user } = useAuthContext();
   const showDayData = useShowDayData();
-  useShowDayAlerts(showDayData);
-
-  // Sync isInRing status to notification store for push suppression
-  const setInRing = useNotificationStore(s => s.setInRing);
-  useEffect(() => {
-    const anyInRing = showDayData.myClasses.some(cls => cls.entryStatus === 'in-ring');
-    setInRing(anyInRing);
-  }, [showDayData.myClasses, setInRing]);
 
   const {
     data: rawEntries = [],
@@ -89,19 +53,6 @@ const ExhibitorDashboard: React.FC = () => {
   const { data: stats } = useEntryStatisticsQuery();
   const { data: dogs = [] } = useDogsQuery();
   const { data: recentResults = [] } = useExhibitorResults();
-  const checkInMutation = useCheckInMutation();
-  const classIds = useMemo(
-    () => showDayData.myClasses.map(c => c.classId),
-    [showDayData.myClasses]
-  );
-  const selfCheckinEnabledMap = useSelfCheckinMap(classIds);
-
-  const handleCheckInChange = (entryId: string, newStatus: CheckInStatus) => {
-    checkInMutation.mutate(
-      { entryId, newStatus },
-      { onError: () => toast.error('Could not update check-in status. Please try again.') }
-    );
-  };
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';
 
@@ -148,7 +99,7 @@ const ExhibitorDashboard: React.FC = () => {
   );
 
   // Loading state
-  if (entriesLoading && !showDayData.isShowDay) {
+  if (entriesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
@@ -157,7 +108,7 @@ const ExhibitorDashboard: React.FC = () => {
   }
 
   // Error state
-  if (entriesError && !showDayData.isShowDay) {
+  if (entriesError) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card>
@@ -174,331 +125,126 @@ const ExhibitorDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Sticky bar for show day (mobile only) */}
-      {showDayData.isShowDay && <StickyShowBar nextUp={showDayData.nextUp} heroRef={heroRef} />}
-
-      {/* Header — compact on show day, full on planning day */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            {showDayData.isShowDay ? 'Show Day' : 'Exhibitor Dashboard'}
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Home</h1>
           <p className="text-muted-foreground text-sm sm:text-base mt-1">
             Welcome back, {displayName}
           </p>
         </div>
 
-        {!showDayData.isShowDay && (
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => navigate('/shows')} size="sm">
-              <Calendar className="h-4 w-4 mr-2" />
-              Enter a Show
-            </Button>
-            <Button onClick={() => navigate('/dogs')} variant="outline" size="sm">
-              <Heart className="h-4 w-4 mr-2" />
-              My Dogs
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => navigate('/shows')} size="sm">
+            <Calendar className="h-4 w-4 mr-2" />
+            Enter a Show
+          </Button>
+          <Button onClick={() => navigate('/dogs')} variant="outline" size="sm">
+            <Heart className="h-4 w-4 mr-2" />
+            My Dogs
+          </Button>
+        </div>
       </div>
+
+      {/* Show Day alert — when the exhibitor has entries for a show happening today */}
+      {showDayData.isShowDay && (
+        <Link
+          to="/exhibitor/show-day"
+          className="flex items-center gap-3 rounded-xl border border-success-green/30 bg-gradient-to-r from-success-green/10 to-success-green/5 p-4 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success-green/20 flex-shrink-0">
+            <Activity className="h-5 w-5 text-success-green" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground">You have a show today!</p>
+            <p className="text-sm text-muted-foreground">
+              Check in, view run order, and see live results
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+        </Link>
+      )}
 
       {/* Progressive Tip Banner */}
       {activeTip && <TipBanner tip={activeTip} onDismiss={dismissTip} />}
 
-      {/* ---- SHOW DAY LAYOUT ---- */}
-      {showDayData.isShowDay && (
-        <>
-          <ShowDayHero
-            ref={heroRef}
-            data={showDayData}
-            onCheckInChange={handleCheckInChange}
-            selfCheckinEnabledMap={selfCheckinEnabledMap}
-          />
+      {/* Compact stats row */}
+      <CompactStatsRow
+        activeEntries={statistics.activeEntries}
+        upcomingShows={statistics.upcomingShows}
+        totalDogs={statistics.totalDogs}
+        onNavigate={navigate}
+      />
 
-          {/* Collapsed sections below the hero */}
-          {upcomingEntries.length > 0 && (
-            <CollapsibleSection
-              title="My Entries"
-              count={upcomingEntries.length}
-              defaultOpen={false}
-            >
-              <div className="space-y-3">
-                {upcomingEntries.map(entry => (
-                  <EntryRow
-                    key={entry.id}
-                    entry={entry}
-                    onView={() => navigate(`/shows/${entry.showId}`)}
-                  />
-                ))}
+      {/* Upcoming Entries — always visible */}
+      <FadeIn>
+        <section>
+          <h2 className="text-lg font-semibold text-foreground mb-4">Upcoming Entries</h2>
+          {upcomingEntries.length > 0 ? (
+            <div className="space-y-3">
+              {upcomingEntries.map(entry => (
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  onView={() => navigate(`/shows/${entry.showId}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="bg-muted/50 rounded-full p-6 mb-4">
+                <FolderOpen className="h-12 w-12 text-muted-foreground" />
               </div>
-            </CollapsibleSection>
+              <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
+              <p className="text-muted-foreground mb-6 max-w-sm text-center">
+                You don't have any upcoming show entries. Browse shows to find your next
+                competition.
+              </p>
+              <Button onClick={() => navigate('/shows')}>
+                <Search className="h-4 w-4 mr-2" />
+                Browse Shows
+              </Button>
+            </div>
           )}
+        </section>
+      </FadeIn>
 
-          {recentResults.length > 0 && (
-            <CollapsibleSection
-              title="Recent Results"
-              count={recentResults.length}
-              defaultOpen={false}
-            >
-              <div className="space-y-3">
-                {recentResults.map(result => (
-                  <ResultRow
-                    key={result.id}
-                    result={result}
-                    onView={() =>
-                      navigate(
-                        result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            </CollapsibleSection>
-          )}
-        </>
-      )}
-
-      {/* ---- NON-SHOW DAY LAYOUT ---- */}
-      {!showDayData.isShowDay && (
-        <>
-          {/* Compact stats row */}
-          <CompactStatsRow
-            activeEntries={statistics.activeEntries}
-            upcomingShows={statistics.upcomingShows}
-            totalDogs={statistics.totalDogs}
-            onNavigate={navigate}
-          />
-
-          {/* Upcoming Entries — always visible */}
-          <FadeIn>
-            <section>
-              <h2 className="text-lg font-semibold text-foreground mb-4">Upcoming Entries</h2>
-              {upcomingEntries.length > 0 ? (
-                <div className="space-y-3">
-                  {upcomingEntries.map(entry => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      onView={() => navigate(`/shows/${entry.showId}`)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="bg-muted/50 rounded-full p-6 mb-4">
-                    <FolderOpen className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
-                  <p className="text-muted-foreground mb-6 max-w-sm text-center">
-                    You don't have any upcoming show entries. Browse shows to find your next
-                    competition.
-                  </p>
-                  <Button onClick={() => navigate('/shows')}>
-                    <Search className="h-4 w-4 mr-2" />
-                    Browse Shows
-                  </Button>
-                </div>
-              )}
-            </section>
-          </FadeIn>
-
-          {/* Recent Results — collapsible */}
-          {recentResults.length > 0 && (
-            <CollapsibleSection
-              title="Recent Results"
-              count={recentResults.length}
-              defaultOpen={false}
-            >
-              <div className="space-y-3">
-                {recentResults.map(result => (
-                  <ResultRow
-                    key={result.id}
-                    result={result}
-                    onView={() =>
-                      navigate(
-                        result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            </CollapsibleSection>
-          )}
-
-          {/* Quick actions — compact button row */}
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button variant="outline" onClick={() => navigate('/shows')} className="gap-2">
-              <Search className="h-4 w-4" />
-              Find Shows
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/dogs')} className="gap-2">
-              <Heart className="h-4 w-4" />
-              My Dogs
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/exhibitor/entries')}
-              className="gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              My Entries
-            </Button>
+      {/* Recent Results — collapsible */}
+      {recentResults.length > 0 && (
+        <CollapsibleSection title="Recent Results" count={recentResults.length} defaultOpen={false}>
+          <div className="space-y-3">
+            {recentResults.map(result => (
+              <ResultRow
+                key={result.id}
+                result={result}
+                onView={() =>
+                  navigate(
+                    result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
+                  )
+                }
+              />
+            ))}
           </div>
-        </>
+        </CollapsibleSection>
       )}
+
+      {/* Quick actions — compact button row */}
+      <div className="flex flex-wrap gap-3 pt-2">
+        <Button variant="outline" onClick={() => navigate('/shows')} className="gap-2">
+          <Search className="h-4 w-4" />
+          Find Shows
+        </Button>
+        <Button variant="outline" onClick={() => navigate('/dogs')} className="gap-2">
+          <Heart className="h-4 w-4" />
+          My Dogs
+        </Button>
+        <Button variant="outline" onClick={() => navigate('/exhibitor/entries')} className="gap-2">
+          <FileText className="h-4 w-4" />
+          My Entries
+        </Button>
+      </div>
     </div>
   );
 };
 
 export default ExhibitorDashboard;
-
-// ---------------------------------------------------------------------------
-// Sub-components (internal to this file)
-// ---------------------------------------------------------------------------
-
-const ROW_BUTTON_CLASS =
-  'w-full text-left flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-card/90 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 min-h-[48px]';
-
-const STATUS_BADGE_STYLES: Record<string, string> = {
-  confirmed: 'bg-success-green/10 text-success-green border-success-green/20',
-  pending: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',
-  cancelled: 'bg-error-red/10 text-error-red border-error-red/20',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  confirmed: 'Confirmed',
-  pending: 'Pending',
-  cancelled: 'Cancelled',
-};
-
-/** Collapsible section with title and item count */
-function CollapsibleSection({
-  title,
-  count,
-  defaultOpen,
-  children,
-}: {
-  title: string;
-  count: number;
-  defaultOpen: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <section>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors min-h-[48px] w-full text-left"
-        aria-expanded={open}
-      >
-        {title} ({count})
-        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      {open && <div className="mt-2">{children}</div>}
-    </section>
-  );
-}
-
-/** Compact entry row for upcoming entries */
-function EntryRow({ entry, onView }: { entry: DashboardEntry; onView: () => void }) {
-  const badgeStyle =
-    STATUS_BADGE_STYLES[entry.status] ?? 'bg-muted text-muted-foreground border-border';
-  const badgeLabel = STATUS_LABELS[entry.status] ?? 'Unknown';
-
-  return (
-    <button
-      type="button"
-      onClick={onView}
-      className={ROW_BUTTON_CLASS}
-      aria-label={`${entry.showName}, ${entry.dogName}, ${entry.className}`}
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-          <span className="font-semibold text-foreground truncate">{entry.showName}</span>
-          <Badge className={badgeStyle}>{badgeLabel}</Badge>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm text-muted-foreground">
-          <span>{entry.dogName}</span>
-          <span>&bull; {entry.className}</span>
-          {entry.showDate && (
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {format(entry.showDate, 'MMM d')}
-            </span>
-          )}
-          {entry.location !== 'TBD' && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {entry.location}
-            </span>
-          )}
-        </div>
-      </div>
-      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-    </button>
-  );
-}
-
-/** Compact result row */
-function ResultRow({
-  result,
-  onView,
-}: {
-  result: {
-    id: string;
-    resultStatus: string;
-    showName: string;
-    dogCallName: string;
-    className: string;
-    classElement: string | null;
-    classLevel: string | null;
-    showDate: string;
-    searchTimeSeconds: number | null;
-    totalFaults: number | null;
-    finalPlacement: number | null;
-  };
-  onView: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onView}
-      className={ROW_BUTTON_CLASS}
-      aria-label={`${result.showName}, ${result.dogCallName}, ${result.className}, ${result.resultStatus}`}
-    >
-      <ResultBadge resultStatus={result.resultStatus} variant="large" />
-      <div className="flex-1 min-w-0">
-        <span className="font-semibold text-foreground truncate block">{result.showName}</span>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{result.dogCallName}</span>
-          <span>
-            {result.className}
-            {result.classElement ? ` — ${result.classElement}` : ''}
-            {result.classLevel ? ` ${result.classLevel}` : ''}
-          </span>
-          {result.showDate && <span>{format(new Date(result.showDate), 'MMM d, yyyy')}</span>}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-sm">
-          {result.searchTimeSeconds != null && (
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" />
-              {result.searchTimeSeconds.toFixed(1)}s
-            </span>
-          )}
-          {result.totalFaults != null && result.totalFaults > 0 && (
-            <span className="flex items-center gap-1 text-warning-orange">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {result.totalFaults} fault{result.totalFaults !== 1 ? 's' : ''}
-            </span>
-          )}
-          {result.finalPlacement != null && result.finalPlacement > 0 && (
-            <span className="text-muted-foreground">Placement: {result.finalPlacement}</span>
-          )}
-        </div>
-      </div>
-      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-    </button>
-  );
-}

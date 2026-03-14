@@ -178,65 +178,58 @@ This document is referenced in `CLAUDE.md` so that AI tools building on this cod
 
 ## 6. App Boundary: myK9Show vs myK9Q
 
-**Decision (2026-03-06): Soft boundary — complementary apps with minor overlap accepted.**
+**Decision (2026-03-14): myK9Show is the complete platform. myK9Q is the ringside scoring tool.**
 
-myK9Show and myK9Q serve the same users at different moments. Rather than duplicating features or forcing convergence, each app owns a clear territory:
+myK9Show is the end-to-end system for every role and every moment — before, during, and after the show. Everything a user needs should be available in myK9Show. myK9Q exists specifically for ringside use: judges scoring dogs and gate stewards managing ring flow, where offline capability and tablet-optimized touch targets are critical.
 
-### myK9Show — "Before and after the show"
+### myK9Show — "The complete platform"
 
-The full platform for planning, registration, and career tracking.
+The full end-to-end system for all users across all phases of a show.
 
-- Discover and browse shows
-- Register entries (wizard)
-- Manage dog profiles and career history
-- View historical results and title progress
-- Secretary show management, judge assignments
-- Admin oversight
+- Discover, browse, and enter shows
+- Manage dog profiles, career history, and title progress
+- Show-day experience: check-in, run order, notifications, live results
+- Secretary show management and day-of operations
+- Judge assignments and scheduling
+- Club management
+- Spectator features: TV display, announcements, public results
+- Admin oversight and analytics
 
-### myK9Q — "At the show" (ringside)
+### myK9Q — "Ringside scoring"
 
-The lightweight, mobile-first, offline-capable show-day companion.
+The lightweight, offline-capable tool purpose-built for in-ring use on tablets.
 
-- Live run order and "you're up next" notifications
-- Self check-in
-- Real-time results ("The Podium")
-- Announcements feed
-- Judge scoring interface
-- TV display mode
-- Full offline support via IndexedDB replication
+- Judge scoring interface (large touch targets, muscle-memory fast)
+- Gate steward run management
+- Full offline support via IndexedDB replication (critical for venues with poor connectivity)
+- Optimized for tablet in landscape orientation at ringside
 
-### Overlap Policy
+### Relationship
 
-Some features exist in both apps (e.g., results viewing, show/class browsing). This is acceptable:
+myK9Q may eventually be retired if myK9Show's offline and tablet capabilities mature enough to handle ringside scoring. Until then, the two apps coexist:
 
-- **myK9Show** shows results as a convenience on the exhibitor dashboard — historical, career-oriented
-- **myK9Q** shows results in real-time with push notifications — show-day, live-oriented
-- Both read from the same Supabase tables; no data duplication
+- Both read from the same Supabase tables and share Supabase auth — no re-login required
+- myK9Show is the primary app for all users; myK9Q is only needed by judges and stewards at ringside
+- Exhibitors, secretaries, spectators, and admins should never need to open myK9Q
 
 **Guidelines for new features:**
 
-- If it requires offline support or real-time push, build it in myK9Q
-- If it's about registration, profiles, or career data, build it in myK9Show
-- If it's show-day operational (run order, scoring, check-in), build it in myK9Q
-- Minor convenience overlap (e.g., results on both dashboards) is fine — don't fight it
-- Do NOT duplicate complex features across apps to "be complete"
+- Build it in myK9Show by default — myK9Show is the complete platform
+- Only build in myK9Q if it's ringside scoring/gate steward functionality that requires offline support and tablet-optimized touch targets
+- Do NOT send non-ringside users to myK9Q — if an exhibitor needs show-day info, build it in myK9Show
 
 ### Cross-App Navigation
-
-The two apps should feel like one platform. Add contextual cross-links where a user's natural next step lives in the other app.
 
 **From myK9Q → myK9Show:**
 
 - Show details → "Enter this show" (registration wizard)
 - Settings/profile → "My Dashboard" (exhibitor dashboard)
-- The Podium → "Full results history" (career results)
+- Results → "Full results history" (career results)
 - Dog view → "Manage my dogs" (dog profiles)
 
 **From myK9Show → myK9Q:**
 
-- Confirmed entry card → "Show Day View" (run order for that show)
-- Show detail page → "Live Results" / "Run Order"
-- Show-day contextual prompt: "At the show? Open myK9Q" (when show date is today)
+- Judge assignment → "Open Ringside Scoring" (only for judges with active assignments)
 
 **Implementation rules:**
 

@@ -11,9 +11,9 @@ import { ShowWithRelationship } from '@/types/unified-shows-types';
  * Check if user has permission to view a specific show
  */
 export function canViewShow(user: UserWithRoles | null, show: Show): boolean {
-  // Guest users can see non-draft, non-cancelled shows
+  // Guest users can view public shows
   if (!user) {
-    return show.status !== 'draft' && show.status !== 'cancelled';
+    return show.status === 'Upcoming' || show.status === 'Completed';
   }
 
   // Authenticated users can view all shows
@@ -182,7 +182,7 @@ export function getAccessibleTabs(user: UserWithRoles | null): string[] {
   const roles = user.roles || [];
 
   // My Entries tab only for exhibitor/handler roles
-  if (roles.includes(UserRole.EXHIBITOR) || roles.includes(UserRole.EXHIBITOR)) {
+  if (roles.includes(UserRole.EXHIBITOR)) {
     tabs.push('entries');
   }
 
@@ -274,8 +274,8 @@ export function checkRoleWithAudit(
  */
 export function filterShowsByPermissions(shows: Show[], user: UserWithRoles | null): Show[] {
   if (!user) {
-    // Guests can see non-draft, non-cancelled shows
-    return shows.filter(show => show.status !== 'draft' && show.status !== 'cancelled');
+    // Guests can only see public upcoming and completed shows
+    return shows.filter(show => show.status === 'Upcoming' || show.status === 'Completed');
   }
 
   const roles = user.roles || [];

@@ -387,7 +387,6 @@ describe('useAuth', () => {
           first_name: 'Jane',
           last_name: 'Doe',
           email: 'test@example.com',
-          roles: ['exhibitor'],
           auth_user_id: 'test-user-id',
         }),
       ]);

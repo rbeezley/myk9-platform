@@ -4,10 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 
-// Mock IntersectionObserver (used by StickyShowBar + framer-motion)
+// Mock IntersectionObserver (used by framer-motion's FadeIn)
 class MockIntersectionObserver {
   constructor(callback: IntersectionObserverCallback) {
-    // Immediately call with not-intersecting so StickyShowBar renders in show-day tests
     setTimeout(() => {
       callback(
         [{ isIntersecting: true } as IntersectionObserverEntry],
@@ -23,6 +22,7 @@ class MockIntersectionObserver {
 beforeAll(() => {
   vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
 });
+
 import ExhibitorDashboard from '@/pages/ExhibitorDashboard';
 import type { ShowDayData } from '@/types/show-day-types';
 
@@ -88,29 +88,6 @@ function makeNonShowDay(): ShowDayData {
 }
 
 function makeShowDay(): ShowDayData {
-  const nextUp = {
-    classId: 'class-1',
-    className: 'Container Novice A',
-    element: 'Container',
-    level: 'Novice',
-    dogCallName: 'Storm',
-    dogId: 'dog-1',
-    armband: '160',
-    entryId: 'entry-1',
-    totalEntries: 12,
-    scoredEntries: 5,
-    currentDogInRing: 'Katie',
-    myRunningOrder: 8,
-    estimatedTimeMinutes: 9,
-    entryStatus: 'checked-in',
-    isScored: false,
-    resultStatus: null,
-    classStatus: 'in-progress',
-    showId: 'show-1',
-    showName: 'AKC Scent Work',
-    trialDate: '2026-03-09',
-  };
-
   return {
     isShowDay: true,
     activeShows: [
@@ -131,10 +108,10 @@ function makeShowDay(): ShowDayData {
       trialDate: '2026-03-09',
       showStatus: 'in_progress',
     },
-    myClasses: [nextUp],
-    nextUp,
+    myClasses: [],
+    nextUp: null,
     completedToday: [],
-    stats: { total: 1, completed: 0, qualified: 0 },
+    stats: { total: 0, completed: 0, qualified: 0 },
     isLoading: false,
     error: null,
     isStale: false,
@@ -201,21 +178,18 @@ function renderDashboard() {
 
 // ---------- Tests ----------
 
-describe('ExhibitorDashboard', () => {
+describe('ExhibitorDashboard (Home)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockEntriesQuery.mockReturnValue({ data: [], isLoading: false, error: null });
     mockResults.mockReturnValue({ data: [] });
+    mockShowDayData.mockReturnValue(makeNonShowDay());
   });
 
-  describe('Non-show day layout', () => {
-    beforeEach(() => {
-      mockShowDayData.mockReturnValue(makeNonShowDay());
-    });
-
-    it('shows "Exhibitor Dashboard" heading', () => {
+  describe('Home layout', () => {
+    it('shows "Home" heading', () => {
       renderDashboard();
-      expect(screen.getByText('Exhibitor Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Home')).toBeInTheDocument();
     });
 
     it('shows welcome message with user name', () => {
@@ -230,7 +204,6 @@ describe('ExhibitorDashboard', () => {
         error: null,
       });
       renderDashboard();
-      // 1 confirmed entry, 1 upcoming show, 2 dogs (from mock)
       expect(screen.getByLabelText(/1 active entry/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/1 upcoming show/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/2 dogs registered/i)).toBeInTheDocument();
@@ -256,17 +229,13 @@ describe('ExhibitorDashboard', () => {
     it('renders results section collapsed by default', () => {
       mockResults.mockReturnValue({ data: [makeResult()] });
       renderDashboard();
-
-      // Title with count is visible
       expect(screen.getByText(/Recent Results \(1\)/)).toBeInTheDocument();
-      // Content is NOT visible until expanded
       expect(screen.queryByText('Winter Classic')).not.toBeInTheDocument();
     });
 
     it('expands results section on click', async () => {
       mockResults.mockReturnValue({ data: [makeResult()] });
       renderDashboard();
-
       await userEvent.click(screen.getByText(/Recent Results \(1\)/));
       expect(screen.getByText('Winter Classic')).toBeInTheDocument();
     });
@@ -283,80 +252,39 @@ describe('ExhibitorDashboard', () => {
       await userEvent.click(screen.getByText('Find Shows'));
       expect(mockNavigate).toHaveBeenCalledWith('/shows');
     });
-
-    it('does NOT show ShowDayHero', () => {
-      renderDashboard();
-      expect(screen.queryByText('Live')).not.toBeInTheDocument();
-    });
   });
 
-  describe('Show day layout', () => {
-    beforeEach(() => {
+  describe('Show day alert card', () => {
+    it('shows alert card when show day is active', () => {
       mockShowDayData.mockReturnValue(makeShowDay());
+      renderDashboard();
+      expect(screen.getByText('You have a show today!')).toBeInTheDocument();
+      expect(
+        screen.getByText('Check in, view run order, and see live results')
+      ).toBeInTheDocument();
     });
 
-    it('shows "Show Day" heading', () => {
+    it('links to show day page', () => {
+      mockShowDayData.mockReturnValue(makeShowDay());
       renderDashboard();
-      expect(screen.getByText('Show Day')).toBeInTheDocument();
+      const link = screen.getByText('You have a show today!').closest('a');
+      expect(link).toHaveAttribute('href', '/exhibitor/show-day');
     });
 
-    it('renders ShowDayHero with live indicator', () => {
+    it('does not show alert card when no show day', () => {
       renderDashboard();
-      expect(screen.getByText('Live')).toBeInTheDocument();
-    });
-
-    it('renders NextUpCard within ShowDayHero', () => {
-      renderDashboard();
-      expect(screen.getByText('Next Up')).toBeInTheDocument();
-      expect(screen.getByText('Container Novice')).toBeInTheDocument();
-    });
-
-    it('does NOT show CompactStatsRow', () => {
-      renderDashboard();
-      expect(screen.queryByLabelText(/active entries/i)).not.toBeInTheDocument();
-    });
-
-    it('does NOT show quick action buttons', () => {
-      renderDashboard();
-      expect(screen.queryByText('Find Shows')).not.toBeInTheDocument();
-    });
-
-    it('shows entries as collapsible section', () => {
-      mockEntriesQuery.mockReturnValue({
-        data: [makeFutureEntry()],
-        isLoading: false,
-        error: null,
-      });
-      renderDashboard();
-
-      // Collapsed by default
-      expect(screen.getByText(/My Entries \(1\)/)).toBeInTheDocument();
-      expect(screen.queryByText('Rocky Mountain Classic')).not.toBeInTheDocument();
-    });
-
-    it('expands entries section on click during show day', async () => {
-      mockEntriesQuery.mockReturnValue({
-        data: [makeFutureEntry()],
-        isLoading: false,
-        error: null,
-      });
-      renderDashboard();
-
-      await userEvent.click(screen.getByText(/My Entries \(1\)/));
-      expect(screen.getByText('Rocky Mountain Classic')).toBeInTheDocument();
+      expect(screen.queryByText('You have a show today!')).not.toBeInTheDocument();
     });
   });
 
   describe('Loading and error states', () => {
-    it('shows spinner when entries are loading (non-show day)', () => {
-      mockShowDayData.mockReturnValue(makeNonShowDay());
+    it('shows spinner when entries are loading', () => {
       mockEntriesQuery.mockReturnValue({ data: [], isLoading: true, error: null });
       const { container } = renderDashboard();
       expect(container.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
-    it('shows error message on entries error (non-show day)', () => {
-      mockShowDayData.mockReturnValue(makeNonShowDay());
+    it('shows error message on entries error', () => {
       mockEntriesQuery.mockReturnValue({
         data: [],
         isLoading: false,
@@ -364,19 +292,6 @@ describe('ExhibitorDashboard', () => {
       });
       renderDashboard();
       expect(screen.getByText(/Unable to load entries/)).toBeInTheDocument();
-    });
-
-    it('still renders show day layout even if entries fail to load', () => {
-      mockShowDayData.mockReturnValue(makeShowDay());
-      mockEntriesQuery.mockReturnValue({
-        data: [],
-        isLoading: false,
-        error: new Error('fetch failed'),
-      });
-      renderDashboard();
-      // Should still show the show day hero, not the error state
-      expect(screen.getByText('Show Day')).toBeInTheDocument();
-      expect(screen.getByText('Live')).toBeInTheDocument();
     });
   });
 });

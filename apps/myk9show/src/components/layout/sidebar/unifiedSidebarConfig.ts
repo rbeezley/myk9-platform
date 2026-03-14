@@ -8,6 +8,8 @@
 
 import {
   LayoutDashboard,
+  Home,
+  Activity,
   Calendar,
   CalendarDays,
   Heart,
@@ -33,6 +35,7 @@ import {
   Compass,
   UserPlus,
   Settings,
+  Search,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -52,49 +55,115 @@ export function buildUnifiedSidebarConfig(
 ): SidebarConfig {
   const groups: NavGroup[] = [];
 
-  // Browse — always visible
-  groups.push({
-    title: 'Browse',
-    items: [
-      { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
-      { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
-      { title: 'People', href: '/people', icon: Users, description: 'Browse people' },
-      { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
-      { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
-    ],
-  });
+  // Exhibitor-only users get a unified, plain-English sidebar
+  const isExhibitorOnly =
+    hasAnyRole(userRoles, [UserRole.EXHIBITOR]) &&
+    !hasAnyRole(userRoles, [
+      UserRole.JUDGE,
+      UserRole.SECRETARY,
+      UserRole.CLUB_ADMIN,
+      UserRole.SITE_ADMIN,
+    ]);
 
-  // My Shows (exhibitor)
-  if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
+  if (isExhibitorOnly) {
     groups.push({
-      title: 'My Shows',
+      title: '',
       items: [
         {
-          title: 'Dashboard',
+          title: 'Home',
           href: '/exhibitor/dashboard',
-          icon: LayoutDashboard,
-          description: 'Overview and quick actions',
+          icon: Home,
+          description: "What's coming up",
         },
         {
-          title: 'My Account',
-          href: '/exhibitor/account',
-          icon: User,
-          description: 'Profile and preferences',
-        },
-        {
-          title: 'Current Entries',
-          href: '/exhibitor/entries',
-          icon: FileText,
-          description: 'Active show entries',
-        },
-        {
-          title: 'Entry History',
-          href: '/exhibitor/entries/history',
-          icon: History,
-          description: 'Past entries and records',
+          title: 'Show Day',
+          href: '/exhibitor/show-day',
+          icon: Activity,
+          description: 'Check-in, run order, results',
         },
       ],
     });
+    groups.push({
+      title: '',
+      items: [
+        { title: 'My Dogs', href: '/dogs', icon: Heart, description: 'Dog profiles and history' },
+        {
+          title: 'My Entries',
+          href: '/exhibitor/entries',
+          icon: FileText,
+          description: 'Current and past entries',
+        },
+      ],
+    });
+    groups.push({
+      title: '',
+      items: [
+        {
+          title: 'Find Shows',
+          href: '/shows',
+          icon: Search,
+          description: 'Browse and enter shows',
+        },
+        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
+        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
+      ],
+    });
+    groups.push({
+      title: '',
+      items: [
+        {
+          title: 'Settings',
+          href: '/preferences',
+          icon: Settings,
+          description: 'Profile and preferences',
+        },
+      ],
+    });
+  } else {
+    // Browse — visible for non-exhibitor-only users
+    groups.push({
+      title: 'Browse',
+      items: [
+        { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
+        { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
+        { title: 'People', href: '/people', icon: Users, description: 'Browse people' },
+        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
+        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
+      ],
+    });
+
+    // My Shows (exhibitor with other roles)
+    if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
+      groups.push({
+        title: 'My Shows',
+        items: [
+          {
+            title: 'Dashboard',
+            href: '/exhibitor/dashboard',
+            icon: LayoutDashboard,
+            description: 'Overview and quick actions',
+          },
+          {
+            title: 'My Account',
+            href: '/exhibitor/account',
+            icon: User,
+            description: 'Profile and preferences',
+          },
+          {
+            title: 'Current Entries',
+            href: '/exhibitor/entries',
+            icon: FileText,
+            description: 'Active show entries',
+          },
+          {
+            title: 'Entry History',
+            href: '/exhibitor/entries/history',
+            icon: History,
+            description: 'Past entries and records',
+          },
+        ],
+      });
+    }
   }
 
   // Judging

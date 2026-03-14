@@ -4,15 +4,13 @@ import { User } from '@supabase/supabase-js';
  * User role definitions matching the RBAC implementation plan
  */
 export enum UserRole {
-  EXHIBITOR = 'exhibitor',
-  HANDLER = 'handler',
-  JUDGE = 'judge',
-  SECRETARY = 'secretary',
-  STEWARD = 'steward',
-  GATE_STEWARD = 'gate_steward',
-  CLUB_ADMIN = 'club_admin',
   SITE_ADMIN = 'site_admin',
-  ADMIN = 'admin',
+  SECRETARY = 'secretary',
+  JUDGE = 'judge',
+  CLUB_ADMIN = 'club_admin',
+  CHAIRMAN = 'chairman',
+  STEWARD = 'steward',
+  EXHIBITOR = 'exhibitor',
 }
 
 /**
@@ -21,8 +19,11 @@ export enum UserRole {
  */
 export const USER_ROLE_HIERARCHY: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
-  UserRole.CLUB_ADMIN,
   UserRole.SECRETARY,
+  UserRole.JUDGE,
+  UserRole.CLUB_ADMIN,
+  UserRole.CHAIRMAN,
+  UserRole.STEWARD,
   UserRole.EXHIBITOR,
 ];
 
@@ -171,12 +172,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.SHOW_READ,
     PERMISSIONS.CLUB_READ,
   ],
-  [UserRole.HANDLER]: [
-    PERMISSIONS.DOG_READ,
-    PERMISSIONS.SHOW_READ,
-    PERMISSIONS.CLUB_READ,
-    PERMISSIONS.CHECK_IN_MANAGE_OWN,
-  ],
   [UserRole.SECRETARY]: [
     PERMISSIONS.DOG_READ,
     PERMISSIONS.DOG_READ_ALL,
@@ -214,9 +209,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.SHOW_READ,
     PERMISSIONS.CLUB_READ,
   ],
-  [UserRole.GATE_STEWARD]: [
-    PERMISSIONS.CHECK_IN_MANAGE_ALL,
-    PERMISSIONS.CHECK_IN_VIEW_ALL,
+  [UserRole.CHAIRMAN]: [
+    PERMISSIONS.DOG_CREATE,
+    PERMISSIONS.DOG_READ,
+    PERMISSIONS.DOG_UPDATE,
+    PERMISSIONS.DOG_DELETE,
     PERMISSIONS.SHOW_READ,
     PERMISSIONS.CLUB_READ,
   ],
@@ -244,7 +241,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.CLUB_MANAGE_MEMBERS,
     PERMISSIONS.USER_READ,
   ],
-  [UserRole.ADMIN]: [...Object.values(PERMISSIONS)],
   [UserRole.SITE_ADMIN]: [...Object.values(PERMISSIONS)],
 };
 

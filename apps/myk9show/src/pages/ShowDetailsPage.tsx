@@ -1,12 +1,10 @@
 import React, { useState, useEffect, Suspense, startTransition } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
+import { PublicShowView } from '@/components/shows/PublicShowView';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
-import { useTrialStore } from '@/store/trialStore';
 import type { ShowInput } from '@/store/showStore';
-import { useCompleteShowData } from '@/hooks/useShowScopedData';
 import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
@@ -34,19 +32,11 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
 
-  // Get trials from complete show data (only if needed)
-  const { trials: showTrials, isLoading: trialsLoading } = useCompleteShowData(id, {
-    needsEntries: false,
-    needsClasses: false,
-  });
-
   // Get cached shows data from React Query cache (already loaded in BrowseShows)
   const queryClient = useQueryClient();
   const cachedShows = queryClient.getQueryData<Show[]>(['shows', 'list']) || [];
   const { data: shows = cachedShows } = useShowsQuery();
 
-  // Get trials from the store
-  const { trials } = useTrialStore();
   const updateShowMutation = useUpdateShowMutation();
 
   // Auto-open edit panel when redirected from /secretary/shows/:id/edit
@@ -86,34 +76,6 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [id, navigate]);
 
-  // Enhanced trials data combining store and scoped data
-  const combinedTrials = React.useMemo(() => {
-    const storeTrials = trials.filter(trial => trial.showId === showId);
-    const scopedTrialsFromShow = showTrials.map(trial => ({
-      ...trial,
-      showId: showId || '',
-      showName: actualCurrentShow?.name || '',
-      trialDate: trial.date,
-      type: trial.name || 'Standard',
-      status: trial.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
-      eventNumber: trial.trialNumber,
-      plannedStartTime: '09:00 AM',
-      order: trial.trialNumber,
-    }));
-
-    return storeTrials.length > 0 ? storeTrials : scopedTrialsFromShow;
-  }, [trials, showId, showTrials, actualCurrentShow]);
-
-  // Handler to open Edit panel
-  const handleEditShow = () => {
-    setShowEditPanel(true);
-  };
-
-  // Handler to open Delete dialog
-  const handleDeleteShow = () => {
-    setShowDeleteDialog(true);
-  };
-
   // Handler for confirming show delete
   const handleConfirmDelete = () => {
     setShowDeleteDialog(false);
@@ -133,7 +95,7 @@ const ShowDetailsPage: React.FC = () => {
 
   // Render main content based on loading/data state
   const renderContent = () => {
-    if (fastLoading || trialsLoading) {
+    if (fastLoading) {
       return (
         <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
           <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />
@@ -172,13 +134,7 @@ const ShowDetailsPage: React.FC = () => {
             </div>
           }
         >
-          <ShowDetailsMain
-            showData={actualCurrentShow}
-            associatedTrials={combinedTrials}
-            onEditShow={handleEditShow}
-            onDeleteShow={handleDeleteShow}
-            onRegisterForShow={handleRegisterForShow}
-          />
+          <PublicShowView show={actualCurrentShow} onRegister={handleRegisterForShow} />
         </Suspense>
       );
     }

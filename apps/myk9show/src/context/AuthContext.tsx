@@ -13,7 +13,6 @@ import React, { createContext, ReactNode, useMemo, useState, useEffect } from 'r
 import { User } from '@supabase/supabase-js';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
-import { useUserRoles, useUserRoleNames } from '@/hooks/queries/useUserRoles';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
@@ -25,6 +24,7 @@ import {
   ScopeType,
   MOCK_USERS,
   DEFAULT_ROLE_PERMISSIONS,
+  USER_ROLE_HIERARCHY,
 } from '../types/auth-types';
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
 import { rbacService } from '@/services/rbac/RBACService';
@@ -42,6 +42,17 @@ interface UserRoleWithDetails {
   scope_id?: string | null;
   assigned_at?: string;
   is_active: boolean;
+}
+
+/**
+ * Determine the primary (highest-privilege) role from a set of roles.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function getPrimaryRole(roles: UserRole[]): UserRole {
+  for (const role of USER_ROLE_HIERARCHY) {
+    if (roles.includes(role)) return role;
+  }
+  return UserRole.EXHIBITOR;
 }
 
 /**
@@ -136,11 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error: null as string | null,
   });
 
-  // Get user roles from RBAC system (user_role table)
-  const legacyUserRoles = useUserRoleNames(auth.user?.id);
-  const { isLoading: legacyRolesLoading } = useUserRoles(auth.user?.id);
-
-  // Get user profile data including roles from public.people table
+  // Get user profile data from public.people table
   const { data: userProfile } = useQuery({
     queryKey: ['userProfile', auth.user?.id],
     queryFn: async () => {
@@ -148,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data, error } = await supabase
         .from('people')
-        .select('id, roles, first_name, last_name, email, status')
+        .select('id, first_name, last_name, email, status')
         .eq('auth_user_id', auth.user.id)
         .single();
 
@@ -215,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadRbacData();
   }, [auth.user?.id, auth.user]);
 
-  // Build userWithRoles - priority: mock user > database RBAC > legacy RBAC > profile roles > fallback
+  // Build userWithRoles - priority: mock user > database RBAC > default exhibitor
   const userWithRoles = useMemo((): UserWithRoles | null => {
     if (!auth.user) return null;
 
@@ -234,12 +241,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Priority 1: Database RBAC (from rbacService)
     if (rbacData.userRoles.length > 0) {
+      const activeRoles = rbacData.userRoles
+        .filter(ur => ur.is_active)
+        .map(ur => ur.role?.name as UserRole)
+        .filter(Boolean);
+
       return {
         ...auth.user,
-        roles: rbacData.userRoles
-          .filter(ur => ur.is_active)
-          .map(ur => ur.role?.name as UserRole)
-          .filter(Boolean),
+        roles: activeRoles,
         permissions: rbacData.effectivePermissions as Permission[],
         scopes: rbacData.userRoles
           .filter(ur => ur.scope_type && ur.scope_id)
@@ -254,56 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } as UserWithRoles;
     }
 
-    // Priority 2: Legacy RBAC from user_role table
-    if (legacyUserRoles.length > 0) {
-      const allPermissions = legacyUserRoles.reduce((permissions, role) => {
-        const rolePermissions = DEFAULT_ROLE_PERMISSIONS[role] || [];
-        return [...permissions, ...rolePermissions];
-      }, [] as Permission[]);
-
-      return {
-        ...auth.user,
-        roles: legacyUserRoles,
-        permissions: [...new Set(allPermissions)],
-        scopes: [],
-        databaseUserId: userProfile?.id,
-      } as UserWithRoles;
-    }
-
-    // Priority 3: Roles from public.people.roles field
-    if (userProfile?.roles && Array.isArray(userProfile.roles) && userProfile.roles.length > 0) {
-      const roles = userProfile.roles.map((role: string) => {
-        switch (role.toLowerCase()) {
-          case 'site_admin':
-            return UserRole.SITE_ADMIN;
-          case 'secretary':
-            return UserRole.SECRETARY;
-          case 'judge':
-            return UserRole.JUDGE;
-          case 'club_admin':
-            return UserRole.CLUB_ADMIN;
-          case 'exhibitor':
-            return UserRole.EXHIBITOR;
-          default:
-            return UserRole.EXHIBITOR;
-        }
-      });
-
-      const allPermissions = roles.reduce((permissions, role) => {
-        const rolePermissions = DEFAULT_ROLE_PERMISSIONS[role] || [];
-        return [...permissions, ...rolePermissions];
-      }, [] as Permission[]);
-
-      return {
-        ...auth.user,
-        roles,
-        permissions: [...new Set(allPermissions)],
-        scopes: [],
-        databaseUserId: userProfile?.id,
-      } as UserWithRoles;
-    }
-
-    // Final fallback: Default to exhibitor role
+    // Default fallback: exhibitor role
     return {
       ...auth.user,
       roles: [UserRole.EXHIBITOR],
@@ -311,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       scopes: [],
       databaseUserId: userProfile?.id,
     } as UserWithRoles;
-  }, [auth.user, currentMockUser, rbacData, legacyUserRoles, userProfile]);
+  }, [auth.user, currentMockUser, rbacData, userProfile]);
 
   /**
    * Check if user has a specific role
@@ -319,12 +279,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = (role: UserRole | string): boolean => {
     if (!userWithRoles) return false;
 
-    // Database-driven role check
+    // Check database RBAC roles (active only)
     if (rbacData.userRoles.length > 0) {
       return rbacData.userRoles.some(ur => ur.role?.name === role && ur.is_active);
     }
 
-    // Fallback to legacy role checking
+    // Fallback for mock users and default exhibitor
     return userWithRoles.roles.includes(role as UserRole);
   };
 
@@ -356,12 +316,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true;
     }
 
-    // Fallback to legacy permission checking
+    // Fallback to permission checking from userWithRoles (mock users / default)
     if (!userWithRoles.permissions.includes(permission as Permission)) {
       return false;
     }
 
-    // Legacy scope checking
     if (scope && userWithRoles.scopes.length > 0) {
       return userWithRoles.scopes.some(
         s => s.scopeType === (scope as Scope).type && s.scopeId === (scope as Scope).id
@@ -478,7 +437,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     ...auth,
     userWithRoles,
-    loading: auth.loading || legacyRolesLoading || rbacData.isLoading,
+    loading: auth.loading || rbacData.isLoading,
 
     // RBAC methods
     hasRole,

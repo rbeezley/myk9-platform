@@ -7,6 +7,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  permanentDeleteUser,
   searchUsers,
   getUsersByRole,
   getUsersWithDogCounts,
@@ -61,7 +62,7 @@ const UserService = {
     }
     return result.data.map(mapDbUserToUser);
   },
-  
+
   getById: async (id: string): Promise<User | null> => {
     const result = await getUserById(id);
     if (result.error) {
@@ -69,7 +70,7 @@ const UserService = {
     }
     return result.data ? mapDbUserToUser(result.data) : null;
   },
-  
+
   getByRole: async (role: string): Promise<User[]> => {
     const result = await getUsersByRole(role);
     if (result.error) {
@@ -77,7 +78,7 @@ const UserService = {
     }
     return result.data.map(mapDbUserToUser);
   },
-  
+
   search: async (searchTerm: string): Promise<User[]> => {
     const result = await searchUsers(searchTerm);
     if (result.error) {
@@ -85,7 +86,7 @@ const UserService = {
     }
     return result.data.map(mapDbUserToUser);
   },
-  
+
   create: async (userData: DbUserInsert): Promise<User> => {
     const result = await createUser(userData);
     if (result.error) {
@@ -93,7 +94,7 @@ const UserService = {
     }
     return mapDbUserToUser(result.data);
   },
-  
+
   update: async (id: string, updates: Partial<User>): Promise<User> => {
     const dbUpdates = mapUserToDbUpdate(updates);
     const result = await updateUser(id, dbUpdates);
@@ -102,7 +103,7 @@ const UserService = {
     }
     return mapDbUserToUser(result.data);
   },
-  
+
   delete: async (id: string, deletedBy?: string): Promise<void> => {
     const result = await deleteUser(id, deletedBy);
     if (result.error) {
@@ -125,7 +126,14 @@ const UserService = {
       throw error;
     }
   },
-  
+
+  permanentDelete: async (id: string): Promise<void> => {
+    const result = await permanentDeleteUser(id);
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+  },
+
   getWithDogCounts: async () => {
     const result = await getUsersWithDogCounts();
     if (result.error) {
@@ -133,7 +141,7 @@ const UserService = {
     }
     return result.data;
   },
-  
+
   getStatistics: async () => {
     const result = await getUsersStatistics();
     if (result.error) {
@@ -195,9 +203,9 @@ export function useCreateUserMutation() {
 
   return useMutation({
     mutationFn: UserService.create,
-    onSuccess: (newUser) => {
+    onSuccess: newUser => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      
+
       queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
         if (!oldData) return [newUser];
         return [...oldData, newUser];
@@ -214,10 +222,10 @@ export function useUpdateUserMutation() {
       UserService.update(id, updates),
     onSuccess: (updatedUser: User) => {
       queryClient.setQueryData(queryKeys.users.detail(updatedUser.id), updatedUser);
-      
+
       queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
         if (!oldData) return [updatedUser];
-        return oldData.map(user => user.id === updatedUser.id ? updatedUser : user);
+        return oldData.map(user => (user.id === updatedUser.id ? updatedUser : user));
       });
     },
   });
@@ -227,12 +235,29 @@ export function useDeleteUserMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, deletedBy }: { id: string; deletedBy?: string }) => 
+    mutationFn: ({ id, deletedBy }: { id: string; deletedBy?: string }) =>
       UserService.delete(id, deletedBy),
     onSuccess: (_, variables) => {
       const deletedId = variables.id;
       queryClient.removeQueries({ queryKey: queryKeys.users.detail(deletedId) });
-      
+
+      queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
+        if (!oldData) return [];
+        return oldData.filter(user => user.id !== deletedId);
+      });
+    },
+  });
+}
+
+export function usePermanentDeleteUserMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => UserService.permanentDelete(id),
+    onSuccess: (_, variables) => {
+      const deletedId = variables.id;
+      queryClient.removeQueries({ queryKey: queryKeys.users.detail(deletedId) });
+
       queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
         if (!oldData) return [];
         return oldData.filter(user => user.id !== deletedId);
@@ -256,12 +281,12 @@ export function useOptimisticUpdateUser() {
       const previousUsers = queryClient.getQueryData(queryKeys.users.all);
 
       if (previousUser) {
-        const optimisticUser = { ...previousUser as User, ...updates };
+        const optimisticUser = { ...(previousUser as User), ...updates };
         queryClient.setQueryData(queryKeys.users.detail(id), optimisticUser);
-        
+
         queryClient.setQueryData(queryKeys.users.all, (oldData: User[] | undefined) => {
           if (!oldData) return [optimisticUser];
-          return oldData.map(user => user.id === id ? optimisticUser : user);
+          return oldData.map(user => (user.id === id ? optimisticUser : user));
         });
       }
 

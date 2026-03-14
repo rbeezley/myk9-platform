@@ -206,6 +206,41 @@ export const hardDeleteUser = async (id: string) => {
   }
 };
 
+// Permanent delete user via Edge Function (deletes people row + auth.users entry)
+// Requires site_admin role — enforced server-side
+export const permanentDeleteUser = async (personId: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+      body: { personId },
+    });
+
+    const duration = Date.now() - startTime;
+    logQuery('user', 'permanent_delete', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'user', 'permanent_delete');
+    }
+
+    // Edge Function returns { error: string } on failure
+    if (data?.error) {
+      throw createDatabaseError(
+        { message: data.error, code: data.code || 'EDGE_FUNCTION_ERROR' },
+        'user',
+        'permanent_delete'
+      );
+    }
+
+    return { data: data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'user', 'permanent_delete');
+    logQuery('user', 'permanent_delete', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
 // Restore soft-deleted user
 export const restoreUser = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();

@@ -45,7 +45,6 @@ async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
         first_name: firstName,
         last_name: lastName,
         email: freshUser?.email ?? sessionUser.email ?? null,
-        roles: ['exhibitor'],
         auth_user_id: userId,
       },
     ])
@@ -58,6 +57,25 @@ async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
   }
 
   if (newPerson) {
+    // Assign default exhibitor role via user_roles
+    const { data: exhibitorRole } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('name', 'exhibitor')
+      .single();
+
+    if (exhibitorRole) {
+      const { error: roleError } = await supabase.from('user_roles').insert({
+        user_id: newPerson.id,
+        role_id: exhibitorRole.id,
+        granted_at: new Date().toISOString(),
+      });
+
+      if (roleError) {
+        console.error('Failed to assign exhibitor role for OAuth user (non-blocking):', roleError);
+      }
+    }
+
     const { error: profileError } = await supabase.from('exhibitor_profiles').insert({
       person_id: newPerson.id,
       auth_user_id: userId,
@@ -140,18 +158,43 @@ export function useAuth() {
       // If user is created successfully, create corresponding public.user record
       if (data.user) {
         try {
-          const { error: insertError } = await supabase.from('people').insert([
-            {
-              first_name: metadata?.firstName || 'First',
-              last_name: metadata?.lastName || 'Name',
-              email: email,
-              roles: ['exhibitor'],
-              auth_user_id: data.user.id,
-            },
-          ]);
+          const { data: newPerson, error: insertError } = await supabase
+            .from('people')
+            .insert([
+              {
+                first_name: metadata?.firstName || 'First',
+                last_name: metadata?.lastName || 'Name',
+                email: email,
+                auth_user_id: data.user.id,
+              },
+            ])
+            .select('id')
+            .single();
 
           if (insertError) {
             // Profile creation failed - auth user is created, profile creation can be retried
+          } else if (newPerson) {
+            // Assign default exhibitor role via user_roles
+            const { data: exhibitorRole } = await supabase
+              .from('roles')
+              .select('id')
+              .eq('name', 'exhibitor')
+              .single();
+
+            if (exhibitorRole) {
+              const { error: roleError } = await supabase.from('user_roles').insert({
+                user_id: newPerson.id,
+                role_id: exhibitorRole.id,
+                granted_at: new Date().toISOString(),
+              });
+
+              if (roleError) {
+                console.error(
+                  'Failed to assign exhibitor role during signup (non-blocking):',
+                  roleError
+                );
+              }
+            }
           }
         } catch {
           // Profile creation failed - auth user is created, profile creation can be retried

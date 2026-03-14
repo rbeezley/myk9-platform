@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { products } from '@/stripe-config';
 import { createCheckoutSession } from '@/lib/stripe';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -56,11 +57,7 @@ export default function Pricing() {
   const navigate = useNavigate();
 
   const handleSubscribe = useCallback(
-    async (priceId: string | null) => {
-      if (!priceId) {
-        return;
-      }
-
+    async (priceId: string) => {
       if (!user) {
         navigate('/sign-in');
         return;
@@ -69,6 +66,7 @@ export default function Pricing() {
       try {
         await createCheckoutSession(priceId, 'subscription');
       } catch (error) {
+        toast.error('Something went wrong. Please try again.');
         logger.error('Failed to create checkout session:', 'landing', {}, error as Error);
       }
     },
@@ -79,19 +77,18 @@ export default function Pricing() {
     <section id="pricing" className="py-16 md:py-24 bg-muted/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Simple, Transparent Pricing
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+            Free to start. Premium when you're ready.
           </h2>
-          <p className="text-xl text-muted-foreground">
-            Choose the perfect plan for your dog show management needs
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {tiers.map(tier => (
             <div
               key={tier.name}
-              className="relative bg-card rounded-2xl shadow-lg border border-primary"
+              className={`relative bg-card rounded-2xl shadow-lg ${
+                tier.popular ? 'border-2 border-primary' : 'border border-border'
+              }`}
             >
               <div className="absolute -top-4 left-0 right-0 flex justify-center">
                 <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
@@ -108,7 +105,9 @@ export default function Pricing() {
                 <p className="text-muted-foreground mb-6">{tier.description}</p>
 
                 <button
-                  onClick={() => handleSubscribe(tier.priceId)}
+                  onClick={() =>
+                    tier.priceId ? handleSubscribe(tier.priceId) : navigate('/sign-up')
+                  }
                   className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
                     tier.buttonVariant === 'solid'
                       ? 'bg-primary hover:bg-primary/90 text-primary-foreground'

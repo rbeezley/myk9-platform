@@ -123,7 +123,7 @@ SELECT s.id, s.name, s.organization, s.start_date, s.end_date,
        c.name AS club_name
 FROM shows s
 JOIN clubs c ON s.club_id = c.id
-WHERE s.id = $1 AND s.status != 'draft'
+WHERE s.id = $1 AND s.status != 'draft' AND s.deleted_at IS NULL
 ```
 
 No auth required — all tables have RLS policies allowing anonymous SELECT (`USING (true)` on shows, clubs, trials, and classes — defined in migration 006).
@@ -350,12 +350,14 @@ Replace the inline share logic in `LiveResults.tsx` with a call to the shared ut
 
 ## RLS and Security
 
-All tables touched by the Edge Function queries allow anonymous SELECT via RLS policies (migration 006):
+All tables touched by the Edge Function queries allow anonymous SELECT via RLS policies (migration 016 superseded the original policies from migration 006):
 
-- `shows` — `USING (true)`
-- `clubs` — `USING (true)`
-- `trials` — `USING (true)`
-- `classes` — `USING (true)`
+- `shows` — anonymous SELECT allowed when `status IN ('published', 'accepting_entries', 'closed', 'in_progress', 'completed') AND deleted_at IS NULL`. Draft and soft-deleted shows are hidden by RLS.
+- `clubs` — anonymous SELECT allowed unconditionally
+- `trials` — anonymous SELECT allowed when parent show satisfies the above condition
+- `classes` — anonymous SELECT allowed when `deleted_at IS NULL` and parent trial/show satisfies the above condition
+
+The Edge Function queries include `WHERE s.status != 'draft' AND s.deleted_at IS NULL` as defense-in-depth, though RLS enforces the same restrictions at the database level.
 
 The Edge Functions use the Supabase anon key. No secrets are exposed to the client. The anon key is already public (embedded in the SPA), so using it in Edge Functions does not expand the attack surface.
 

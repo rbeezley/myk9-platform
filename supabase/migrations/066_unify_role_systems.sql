@@ -47,7 +47,29 @@ WHERE p.roles IS NOT NULL
       AND ur.show_id IS NULL
   );
 
--- 4. Drop the column
+-- 4a. Drop RLS policies on judge_availability that reference people.roles
+--     (must be done before dropping the column)
+DROP POLICY IF EXISTS "Secretaries can view all availability" ON judge_availability;
+DROP POLICY IF EXISTS "Admins can manage all availability" ON judge_availability;
+
+-- 4b. Recreate those policies using user_roles instead of people.roles
+CREATE POLICY "Secretaries can view all availability"
+  ON judge_availability FOR SELECT
+  USING (EXISTS (
+    SELECT 1
+    FROM people p
+    JOIN user_roles ur ON ur.user_id = p.id
+    JOIN roles r ON r.id = ur.role_id
+    WHERE p.auth_user_id = auth.uid()
+      AND r.name IN ('secretary', 'site_admin')
+      AND ur.is_active = TRUE
+  ));
+
+CREATE POLICY "Admins can manage all availability"
+  ON judge_availability FOR ALL
+  USING (is_platform_admin());
+
+-- 4c. Drop the column
 ALTER TABLE people DROP COLUMN roles;
 
 -- 5. Replace get_admin_user_list() RPC to use user_roles instead of people.roles

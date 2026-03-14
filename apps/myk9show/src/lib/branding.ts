@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 export interface ShowBranding {
   logo: string | null;
   coverImage: string | null;
@@ -122,6 +124,6 @@ export function generatePalette(hex: string): BrandPalette {
 }
 
 /** Returns a `borderLeft` style object for accent color, or undefined if no color. */
-export function accentBorderStyle(accentColor?: string | null): React.CSSProperties | undefined {
+export function accentBorderStyle(accentColor?: string | null): CSSProperties | undefined {
   return accentColor ? { borderLeft: `4px solid ${accentColor}` } : undefined;
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Camera, Palette, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
@@ -25,13 +25,20 @@ export function BrandingTab({
   isUploadingCover,
 }: BrandingTabProps) {
   const [draftColor, setDraftColor] = useState<string | null>(club.accentColor || null);
-  const isDirty = draftColor !== (club.accentColor || null);
+
+  // Sync draft when club prop updates (e.g. after save or external change)
+  const savedColor = club.accentColor || null;
+  useEffect(() => {
+    setDraftColor(savedColor);
+  }, [savedColor]);
+
+  const isDirty = draftColor !== savedColor;
 
   const handleSave = () => {
     onSaveAccentColor(draftColor);
   };
   const handleDiscard = () => {
-    setDraftColor(club.accentColor || null);
+    setDraftColor(savedColor);
   };
 
   const previewPalette = useMemo(
@@ -140,7 +147,7 @@ export function BrandingTab({
             imageUrl=""
             coverImageUrl={club.coverImage || undefined}
             accentColor={draftColor}
-            organization="AKC"
+            organization=""
           />
         </div>
       </section>

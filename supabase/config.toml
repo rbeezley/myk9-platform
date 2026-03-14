@@ -28,7 +28,7 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5174"]
+additional_redirect_urls = ["http://localhost:5174", "http://localhost:5173/auth/callback"]
 jwt_expiry = 3600
 enable_signup = true
 

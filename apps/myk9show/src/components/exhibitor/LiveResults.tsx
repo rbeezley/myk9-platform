@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { toast } from 'sonner';
 import {
@@ -12,10 +12,11 @@ import {
   Share2,
   RefreshCw,
   Filter,
-  PartyPopper
+  PartyPopper,
 } from 'lucide-react';
 import { ExhibitorEntry } from '@/types/exhibitor-types';
 import { cn } from '@/lib/utils';
+import { shareOrCopy } from '../../utils/share';
 
 interface LiveResultsProps {
   entries: ExhibitorEntry[];
@@ -43,48 +44,54 @@ const LiveResults: React.FC<LiveResultsProps> = ({
   entries,
   userEntries,
   onRefresh,
-  isLive = true
+  isLive = true,
 }) => {
   const [sortBy, setSortBy] = useState<'placement' | 'armband'>('placement');
   const [filterQualified, setFilterQualified] = useState(false);
   const [highlightUser] = useState(true);
 
   // Sort entries based on results
-  const sortedEntries = [...entries].sort((a, b) => {
-    if (sortBy === 'armband') {
-      return parseInt(a.armband) - parseInt(b.armband);
-    }
-    
-    // Sort by placement
-    if (!a.result && !b.result) return 0;
-    if (!a.result) return 1;
-    if (!b.result) return -1;
-    
-    if (a.result.placement && b.result.placement) {
-      return parseInt(a.result.placement) - parseInt(b.result.placement);
-    }
-    
-    // If no placement, sort by qualification then time
-    const aQualified = a.result.qualified ?? false;
-    const bQualified = b.result.qualified ?? false;
-    if (aQualified !== bQualified) {
-      return aQualified ? -1 : 1;
-    }
-    
-    const aTime = a.result.searchTime || 0;
-    const bTime = b.result.searchTime || 0;
-    return aTime - bTime;
-  });
+  const sortedEntries = useMemo(
+    () =>
+      [...entries].sort((a, b) => {
+        if (sortBy === 'armband') {
+          return parseInt(a.armband) - parseInt(b.armband);
+        }
+
+        // Sort by placement
+        if (!a.result && !b.result) return 0;
+        if (!a.result) return 1;
+        if (!b.result) return -1;
+
+        if (a.result.placement && b.result.placement) {
+          return parseInt(a.result.placement) - parseInt(b.result.placement);
+        }
+
+        // If no placement, sort by qualification then time
+        const aQualified = a.result.qualified ?? false;
+        const bQualified = b.result.qualified ?? false;
+        if (aQualified !== bQualified) {
+          return aQualified ? -1 : 1;
+        }
+
+        const aTime = a.result.searchTime || 0;
+        const bTime = b.result.searchTime || 0;
+        return aTime - bTime;
+      }),
+    [entries, sortBy]
+  );
 
   // Filter if needed
-  const displayEntries = filterQualified 
-    ? sortedEntries.filter(e => e.result?.qualified !== false)
-    : sortedEntries;
+  const displayEntries = useMemo(
+    () =>
+      filterQualified ? sortedEntries.filter(e => e.result?.qualified !== false) : sortedEntries,
+    [sortedEntries, filterQualified]
+  );
 
   // Get placement info
   const getPlacementInfo = (place: string | undefined): PlacementInfo | null => {
     if (!place) return null;
-    
+
     const placeNum = parseInt(place);
     switch (placeNum) {
       case 1:
@@ -92,28 +99,28 @@ const LiveResults: React.FC<LiveResultsProps> = ({
           place: 1,
           color: 'text-purple-600 dark:text-purple-400',
           bgColor: 'bg-purple-100 dark:bg-purple-900/30',
-          icon: <Trophy className="w-5 h-5" />
+          icon: <Trophy className="w-5 h-5" />,
         };
       case 2:
         return {
           place: 2,
           color: 'text-red-600 dark:text-red-400',
           bgColor: 'bg-red-100 dark:bg-red-900/30',
-          icon: <Medal className="w-5 h-5" />
+          icon: <Medal className="w-5 h-5" />,
         };
       case 3:
         return {
           place: 3,
           color: 'text-yellow-600 dark:text-yellow-400',
           bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
-          icon: <Medal className="w-5 h-5" />
+          icon: <Medal className="w-5 h-5" />,
         };
       case 4:
         return {
           place: 4,
           color: 'text-gray-600 dark:text-gray-400',
           bgColor: 'bg-gray-100 dark:bg-gray-900/30',
-          icon: <span className="text-lg font-bold">4</span>
+          icon: <span className="text-lg font-bold">4</span>,
         };
       default:
         return null;
@@ -126,7 +133,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
     return {
       qualified: qualifiedEntries.length,
       total: userEntries.length,
-      needsMore: 3 - qualifiedEntries.length // Assuming 3 legs needed
+      needsMore: 3 - qualifiedEntries.length, // Assuming 3 legs needed
     };
   };
 
@@ -144,7 +151,9 @@ const LiveResults: React.FC<LiveResultsProps> = ({
       const time = entry.result.searchTime ? ` ${formatSearchTime(entry.result.searchTime)}` : '';
       const isUser = userEntries.some(ue => ue.id === entry.id);
       const marker = isUser ? ' *' : '';
-      lines.push(`${placement}${entry.armband} ${entry.dog?.callName || entry.dogCallName} (${qualified}${time})${marker}`);
+      lines.push(
+        `${placement}${entry.armband} ${entry.dog?.callName || entry.dogCallName} (${qualified}${time})${marker}`
+      );
     }
 
     return lines.join('\n');
@@ -161,22 +170,16 @@ const LiveResults: React.FC<LiveResultsProps> = ({
 
   const handleShareResults = useCallback(async () => {
     const text = buildResultsSummary();
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: entries[0]?.className || 'Results',
-          text,
-        });
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-      }
-    }
-
     try {
-      await navigator.clipboard.writeText(text);
-      toast.success('Results copied to clipboard');
+      const result = await shareOrCopy({
+        title: entries[0]?.className || 'Results',
+        text,
+        url: window.location.href,
+        clipboardText: text,
+      });
+      if (result === 'copied') {
+        toast.success('Results copied to clipboard');
+      }
     } catch {
       toast.error('Unable to share results');
     }
@@ -218,10 +221,10 @@ const LiveResults: React.FC<LiveResultsProps> = ({
             <button
               onClick={() => setSortBy('placement')}
               className={cn(
-                "px-3 py-1 rounded text-sm font-medium transition-colors",
-                sortBy === 'placement' 
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" 
-                  : "text-gray-600 dark:text-gray-400"
+                'px-3 py-1 rounded text-sm font-medium transition-colors',
+                sortBy === 'placement'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400'
               )}
             >
               Placement
@@ -229,10 +232,10 @@ const LiveResults: React.FC<LiveResultsProps> = ({
             <button
               onClick={() => setSortBy('armband')}
               className={cn(
-                "px-3 py-1 rounded text-sm font-medium transition-colors",
-                sortBy === 'armband' 
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" 
-                  : "text-gray-600 dark:text-gray-400"
+                'px-3 py-1 rounded text-sm font-medium transition-colors',
+                sortBy === 'armband'
+                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400'
               )}
             >
               Armband
@@ -241,14 +244,13 @@ const LiveResults: React.FC<LiveResultsProps> = ({
           <button
             onClick={() => setFilterQualified(!filterQualified)}
             className={cn(
-              "flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+              'flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
               filterQualified
-                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
             )}
           >
-            <Filter className="w-4 h-4" />
-            Q Only
+            <Filter className="w-4 h-4" />Q Only
           </button>
         </div>
       </div>
@@ -260,14 +262,16 @@ const LiveResults: React.FC<LiveResultsProps> = ({
             <div className="flex items-center gap-3">
               <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <div>
-                <div className="font-medium text-blue-800 dark:text-blue-200">
-                  Title Progress
-                </div>
+                <div className="font-medium text-blue-800 dark:text-blue-200">Title Progress</div>
                 <div className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                  {titleProgress.needsMore > 0
-                    ? `${titleProgress.needsMore} more leg${titleProgress.needsMore === 1 ? '' : 's'} needed`
-                    : <><span>Title completed!</span> <PartyPopper className="h-4 w-4 text-yellow-500" /></>
-                  }
+                  {titleProgress.needsMore > 0 ? (
+                    `${titleProgress.needsMore} more leg${titleProgress.needsMore === 1 ? '' : 's'} needed`
+                  ) : (
+                    <>
+                      <span>Title completed!</span>{' '}
+                      <PartyPopper className="h-4 w-4 text-yellow-500" />
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -281,33 +285,33 @@ const LiveResults: React.FC<LiveResultsProps> = ({
       {/* Results List */}
       {hasResults ? (
         <div className="space-y-2">
-          {displayEntries.map((entry) => {
+          {displayEntries.map(entry => {
             const isUser = userEntries.some(ue => ue.id === entry.id);
             const placement = getPlacementInfo(entry.result?.placement);
             const result = entry.result;
-            
+
             return (
               <div
                 key={entry.id}
                 className={cn(
-                  "bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 transition-all",
-                  isUser && highlightUser && "ring-2 ring-blue-500 dark:ring-blue-400"
+                  'bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 transition-all',
+                  isUser && highlightUser && 'ring-2 ring-blue-500 dark:ring-blue-400'
                 )}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     {/* Placement Badge */}
                     {placement && (
-                      <div className={cn(
-                        "flex items-center justify-center w-10 h-10 rounded-full",
-                        placement.bgColor
-                      )}>
-                        <div className={placement.color}>
-                          {placement.icon}
-                        </div>
+                      <div
+                        className={cn(
+                          'flex items-center justify-center w-10 h-10 rounded-full',
+                          placement.bgColor
+                        )}
+                      >
+                        <div className={placement.color}>{placement.icon}</div>
                       </div>
                     )}
-                    
+
                     {/* Entry Info */}
                     <div>
                       <div className="flex items-center gap-2">
@@ -346,9 +350,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                       {result.searchTime && (
                         <div className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
                           <Clock className="w-4 h-4" />
-                          <span className="font-mono">
-                            {formatSearchTime(result.searchTime)}
-                          </span>
+                          <span className="font-mono">{formatSearchTime(result.searchTime)}</span>
                         </div>
                       )}
                       {result.faults && result.faults > 0 && (
@@ -377,9 +379,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
       ) : (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-8 text-center">
           <Trophy className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
-          <div className="text-gray-600 dark:text-gray-400 mb-2">
-            No results posted yet
-          </div>
+          <div className="text-gray-600 dark:text-gray-400 mb-2">No results posted yet</div>
           <div className="text-sm text-gray-500 dark:text-gray-500">
             Results will appear here as soon as they're available
           </div>

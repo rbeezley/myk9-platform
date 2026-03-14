@@ -25,6 +25,7 @@ export interface ShowTrial {
   date: string;
   trialNumber: string;
   status: string;
+  trialType?: string | undefined;
   classes?: Class[] | undefined;
   // Entry limits
   maxEntriesPerDog?: number | undefined;
@@ -44,6 +45,8 @@ export interface Class {
   maxDogsPerHandler?: number | undefined;
   // Class restrictions
   level?: string | undefined;
+  element?: string | undefined;
+  competitionType?: string | undefined;
   breedRestrictions?: string[] | undefined;
   ageRestrictions?: { min?: number | undefined; max?: number | undefined } | undefined;
   heightRestrictions?: { min?: number | undefined; max?: number | undefined } | undefined;

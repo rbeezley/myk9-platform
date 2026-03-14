@@ -41,6 +41,8 @@ const Home: React.FC = () => {
         imageUrl: '',
         organization: show.organization,
         status: show.status,
+        coverImageUrl: show.coverImageUrl || undefined,
+        accentColor: show.accentColor || null,
       })),
     [dbShows]
   );

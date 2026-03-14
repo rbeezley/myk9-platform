@@ -259,7 +259,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - [x] **Add pricing to main page** — Moved pricing section into Home.tsx landing page. Updated `components/landing/Pricing.tsx` to use correct 2-tier pricing (Free + Premium $4.99/mo) with Stripe integration matching PricingPage.tsx. Section appears between Upcoming Shows and FAQ.
 
-- **Add Google Auth** — Implement Google authentication as a sign-in option. **Problem:** Users currently lack social login options, increasing signup friction. **Files:** `apps/myk9show/src/contexts/AuthContext.tsx`, `apps/myk9show/src/components/auth/`.
+- [x] **Add Google Auth** — Implemented Google OAuth sign-in/sign-up via Supabase. Added `signInWithGoogle` to `useAuth` hook, "Continue with Google" button + "or" divider on both SignInPage and SignUpPage, auto-creation of `people` record for first-time OAuth users in `onAuthStateChange`, AuthCallbackPage updated for OAuth redirects with 10s timeout. Fixed pre-existing `user_id` → `auth_user_id` bug in signup. GoogleIcon SVG component with aria-hidden. 40 new/updated tests (2,974 total). **Requires manual setup:** Google Cloud Console OAuth credentials + Supabase Dashboard provider config (see `docs/superpowers/specs/2026-03-13-google-auth-design.md`).
 
 - [x] **Redesign upcoming show cards** — Added deterministic gradient placeholders by organization (AKC=blue, UKC=green, CKC=red, etc.) with paw print SVG patterns and org icon. ShowCard now renders gradient placeholder when no `imageUrl` is provided. Organization flows from DB → Home.tsx → UpcomingShows → ShowCard. Image upload for custom cover images deferred to per-show branding todo.
 

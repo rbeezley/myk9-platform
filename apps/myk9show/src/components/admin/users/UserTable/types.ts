@@ -16,7 +16,7 @@ export type { UserRoleType };
 
 // Props for the top-level UserTable component
 export interface UserTableProps {
-  users: import('@/types/user-types').User[];
+  users: import('@/hooks/queries/useUsersQuery').AdminUser[];
   isLoading: boolean;
   selectedUsers: import('@/pages/admin/UserManagementPage').SelectedUser[];
   onSelectUser: (user: import('@/types/user-types').User, selected: boolean) => void;

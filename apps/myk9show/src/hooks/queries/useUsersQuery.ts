@@ -14,6 +14,13 @@ import {
   getUsersStatistics,
 } from '@/services/database/queries/userQueries';
 import type { DbUser, DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
+import { supabase } from '@/services/database/supabaseClient';
+import { logger } from '@/services/LoggingService';
+import { ensureError } from '@myk9/core';
+
+export interface AdminUser extends User {
+  lastSignInAt: string | null;
+}
 
 // Database to UI mapper for User data
 const mapDbUserToUser = (dbUser: DbUser): User => ({
@@ -31,6 +38,9 @@ const mapDbUserToUser = (dbUser: DbUser): User => ({
   roles: (dbUser.roles as UserRole[]) || [],
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,
   updatedAt: dbUser.updated_at ? new Date(dbUser.updated_at) : undefined,
+  status: (dbUser.status as 'active' | 'suspended') || 'active',
+  deletedAt: dbUser.deleted_at || undefined,
+  deletedBy: dbUser.deleted_by || undefined,
 });
 
 // UI to Database mapper for User updates
@@ -49,6 +59,7 @@ const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;
   if (user.country !== undefined) dbUpdate.country = user.country;
   if (user.roles !== undefined) dbUpdate.roles = user.roles;
+  if (user.status !== undefined) dbUpdate.status = user.status;
 
   return dbUpdate;
 };
@@ -159,6 +170,34 @@ export function useUsersQuery() {
   });
 }
 
+export function useAdminUsersQuery(showDeleted: boolean) {
+  return useQuery({
+    queryKey: [...queryKeys.users.all, 'admin', { showDeleted }],
+    queryFn: async (): Promise<AdminUser[]> => {
+      try {
+        const { data, error } = await supabase.rpc('get_admin_user_list', {
+          show_deleted: showDeleted,
+        });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        return (data ?? []).map(
+          (row: Record<string, unknown>): AdminUser => ({
+            ...mapDbUserToUser(row as unknown as DbUser),
+            lastSignInAt: (row.last_sign_in_at as string) || null,
+          }),
+        );
+      } catch (err) {
+        const error = ensureError(err);
+        logger.error('Failed to fetch admin user list', 'query', {}, error);
+        throw error;
+      }
+    },
+  });
+}
+
 export function useUserQuery(id: string) {
   return useQuery({
     queryKey: queryKeys.users.detail(id),
@@ -227,6 +266,8 @@ export function useUpdateUserMutation() {
         if (!oldData) return [updatedUser];
         return oldData.map(user => (user.id === updatedUser.id ? updatedUser : user));
       });
+
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.users.all, 'admin'] });
     },
   });
 }

@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 // Hooks and services
-import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
+import { useAdminUsersQuery, useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { User } from '@/types/user-types';
 // Components
 import { UserTable } from '@/components/admin/users/UserTable';
@@ -26,7 +26,6 @@ import { UserFilters } from '@/components/admin/users/UserFilters';
 import { CreateUserDialog } from '@/components/admin/users/CreateUserDialog';
 import { BulkActionsBar } from '@/components/admin/users/BulkActionsBar';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
-import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 // Extracted modules
 import type { UserFilter, SelectedUser } from './UserManagementPage.types';
 import { DEFAULT_USER_FILTER } from './UserManagementPage.types';
@@ -54,7 +53,7 @@ const UserManagementPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(25);
 
   // Data fetching with error handling
-  const { data: users = [], isLoading, error } = useUsersQuery();
+  const { data: users = [], isLoading, error } = useAdminUsersQuery(filters.showDeleted);
   const updateUserMutation = useUpdateUserMutation();
 
   // Debug logging

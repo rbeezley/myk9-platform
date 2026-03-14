@@ -29,6 +29,7 @@ import {
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
 import { rbacService } from '@/services/rbac/RBACService';
 import { ensureError } from '@myk9/core';
+import { notifications } from '@/lib/notifications';
 
 // Type for user role with details from RBAC service
 interface UserRoleWithDetails {
@@ -147,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data, error } = await supabase
         .from('people')
-        .select('id, roles, first_name, last_name, email')
+        .select('id, roles, first_name, last_name, email, status')
         .eq('auth_user_id', auth.user.id)
         .single();
 
@@ -161,6 +162,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enabled: !!auth.user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Enforce account suspension — sign out if status is 'suspended'
+  useEffect(() => {
+    if (userProfile?.status === 'suspended') {
+      logger.warn('Account suspended, signing out user', 'auth');
+      notifications.error(
+        'Your account has been suspended. Contact the administrator for assistance.'
+      );
+      supabase.auth.signOut();
+    }
+  }, [userProfile?.status]);
 
   // Load database RBAC data when user changes
   useEffect(() => {

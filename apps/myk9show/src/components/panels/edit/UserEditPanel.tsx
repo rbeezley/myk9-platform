@@ -10,6 +10,14 @@ import { User, Phone, Award, CalendarDays } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { JudgeQualification, JudgeInfo } from '@/types/user-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
@@ -253,6 +261,36 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
             canEditAdvancedFields={canEditAdvancedFields}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
           />
+
+          {hasPermission('manage_users') && (
+            <div className="space-y-2">
+              <Label className="text-sm font-[590]">Account Status</Label>
+              <Select
+                value={data.status}
+                onValueChange={(value) => {
+                  if (value === 'suspended' && data.status !== 'suspended') {
+                    const confirmed = window.confirm(
+                      'This will immediately block this user from logging in. Continue?'
+                    );
+                    if (!confirmed) return;
+                  }
+                  updateData({ status: value as 'active' | 'suspended' });
+                }}
+                disabled={userId === currentUser?.id}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+              {userId === currentUser?.id && (
+                <p className="text-xs text-muted-foreground">You cannot suspend your own account</p>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         {/* Contact Information Tab */}

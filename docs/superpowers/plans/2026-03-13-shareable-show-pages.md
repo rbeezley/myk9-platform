@@ -23,6 +23,7 @@ apps/myk9show/
 │   ├── types/
 │   │   └── show-types.ts                   # Modified: add trialType, element, competitionType fields
 │   ├── utils/
+│   │   ├── date-format.ts                  # New: shared formatDateRange utility [ADDED]
 │   │   ├── share.ts                        # New: shareOrCopy utility
 │   │   ├── share.test.ts                   # New: tests for share utility
 │   │   ├── schedule-summary.ts             # New: class summarization logic
@@ -73,6 +74,50 @@ Expected: PASS (new optional fields don't break existing code)
 git add apps/myk9show/src/types/show-types.ts
 git commit -m "feat(types): add trialType, element, competitionType to show types"
 ```
+
+---
+
+### Task 1.5: Extract `formatDateRange` to shared utility [ADDED]
+
+**Files:**
+
+- Create: `apps/myk9show/src/utils/date-format.ts`
+
+- [ ] **Step 1: Create `date-format.ts`**
+
+Create `apps/myk9show/src/utils/date-format.ts`:
+
+```typescript
+/**
+ * Formats a date range for display. Used by PublicShowView and other SPA components.
+ * Note: API functions (api/og-show.ts, api/og-show-image.tsx) duplicate this function
+ * because Vercel serverless functions cannot import from src/.
+ */
+export function formatDateRange(startDate: string, endDate: string): string {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' };
+
+  if (startDate === endDate) {
+    return start.toLocaleDateString('en-US', opts);
+  }
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}–${end.getDate()}, ${end.getFullYear()}`;
+  }
+  return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`;
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add apps/myk9show/src/utils/date-format.ts
+git commit -m "feat(utils): extract formatDateRange to shared utility"
+```
+
+> **Note for Tasks 6, 7 (API functions):** Add `// Duplicated from src/utils/date-format.ts — API functions can't import from src/` comment above the `formatDateRange` function in both `og-show.ts` and `og-show-image.tsx`.
+
+> **Note for Task 10 (PublicShowView):** Import from `@/utils/date-format` instead of defining `formatDateRange` inline.
 
 ---
 
@@ -826,6 +871,7 @@ function getBaseUrl(): string {
   return 'http://localhost:5173';
 }
 
+// Duplicated from src/utils/date-format.ts — API functions can't import from src/ [ADDED]
 function formatDateRange(startDate: string, endDate: string): string {
   const start = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T00:00:00');
@@ -914,12 +960,15 @@ function escapeAttr(str: string): string {
     .replace(/>/g, '&gt;');
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // [ADDED]
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { id } = req.query;
   const showId = Array.isArray(id) ? id[0] : id;
 
-  if (!showId) {
-    return res.status(400).send('Missing show ID');
+  if (!showId || !UUID_RE.test(showId)) {
+    // [EXPANDED] validate UUID format
+    return res.status(400).send('Invalid show ID');
   }
 
   // This function only receives crawler requests (vercel.json `has` condition filters by UA).
@@ -1029,6 +1078,7 @@ export const config = {
   runtime: 'edge',
 };
 
+// Duplicated from src/utils/date-format.ts — API functions can't import from src/ [ADDED]
 function formatDateRange(startDate: string, endDate: string): string {
   const start = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T00:00:00');
@@ -1059,12 +1109,15 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // [ADDED]
+
 export default async function handler(req: Request) {
   const url = new URL(req.url);
   const showId = url.searchParams.get('id');
 
-  if (!showId) {
-    return new Response('Missing show ID', { status: 400 });
+  if (!showId || !UUID_RE.test(showId)) {
+    // [EXPANDED] validate UUID format
+    return new Response('Invalid show ID', { status: 400 });
   }
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -1084,11 +1137,27 @@ export default async function handler(req: Request) {
 
     const showData = await showResp.json();
     if (!showData || showData.length === 0) {
-      // Return fallback image for invalid/draft shows
-      return new Response('Show not found', {
-        status: 404,
-        headers: { 'Cache-Control': 'public, s-maxage=3600' },
-      });
+      // [EXPANDED] Return fallback branded image instead of text 404
+      return new ImageResponse(
+        <div
+          style={{
+            width: '1200px',
+            height: '630px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+            fontFamily: 'Inter, sans-serif',
+          }}
+        >
+          <div style={{ fontSize: '28px', fontWeight: 700, color: '#9ca3af' }}>myK9</div>
+          <div style={{ fontSize: '16px', color: '#9ca3af', marginTop: '8px' }}>
+            Dog Show Management
+          </div>
+        </div>,
+        { width: 1200, height: 630, headers: { 'Cache-Control': 'public, s-maxage=3600' } }
+      );
     }
 
     const show = showData[0];
@@ -1317,11 +1386,27 @@ export default async function handler(req: Request) {
       }
     );
   } catch {
-    // Fallback: return an error with cache to prevent hammering
-    return new Response('Error generating image', {
-      status: 500,
-      headers: { 'Cache-Control': 'public, s-maxage=3600' },
-    });
+    // [EXPANDED] Return fallback branded image on error instead of text response
+    return new ImageResponse(
+      <div
+        style={{
+          width: '1200px',
+          height: '630px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+          fontFamily: 'Inter, sans-serif',
+        }}
+      >
+        <div style={{ fontSize: '28px', fontWeight: 700, color: '#9ca3af' }}>myK9</div>
+        <div style={{ fontSize: '16px', color: '#9ca3af', marginTop: '8px' }}>
+          Dog Show Management
+        </div>
+      </div>,
+      { width: 1200, height: 630, headers: { 'Cache-Control': 'public, s-maxage=3600' } }
+    );
   }
 }
 ```
@@ -1517,6 +1602,7 @@ import { Calendar, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ShareButton } from '@/components/shows/ShareButton';
 import { useScheduleSummary } from '@/hooks/queries/useScheduleSummary';
+import { formatDateRange } from '@/utils/date-format'; // [EXPANDED] import from shared utility
 import type { Show } from '@/types/show-types';
 
 interface PublicShowViewProps {
@@ -1531,20 +1617,6 @@ function getInitials(name: string): string {
     .map(w => w[0])
     .join('')
     .toUpperCase();
-}
-
-function formatDateRange(startDate: string, endDate: string): string {
-  const start = new Date(startDate + 'T00:00:00');
-  const end = new Date(endDate + 'T00:00:00');
-  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', year: 'numeric' };
-
-  if (startDate === endDate) {
-    return start.toLocaleDateString('en-US', opts);
-  }
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    return `${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}–${end.getDate()}, ${end.getFullYear()}`;
-  }
-  return `${start.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`;
 }
 
 function formatDayDate(dateStr: string): string {
@@ -1811,6 +1883,10 @@ Verify:
 - Schedule summary renders if the show has trials/classes
 - "Register Now" button links correctly
 - Page works without authentication
+
+- [ ] **Step 1.5: Verify `VITE_PUBLIC_URL` is set in Vercel project settings** [ADDED]
+
+Check that `VITE_PUBLIC_URL` is configured in the Vercel project settings for production and preview environments. This env var controls the canonical URL in OG tags. If not set, preview deployments fall back to `VERCEL_URL` (which works but produces preview-domain URLs in OG tags).
 
 - [ ] **Step 2: Test OG tags after deployment**
 

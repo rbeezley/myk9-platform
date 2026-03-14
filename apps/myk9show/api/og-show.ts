@@ -172,6 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send(html);
   } catch {
     const baseUrl = getBaseUrl();
+    const canonicalUrl = escapeAttr(`${baseUrl}/shows/${showId}`);
     const fallbackHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,9 +180,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   <title>myK9 Dog Show</title>
   <meta property="og:title" content="myK9 Dog Show">
   <meta property="og:description" content="View show details on myK9">
-  <meta property="og:url" content="${baseUrl}/shows/${showId}">
+  <meta property="og:url" content="${canonicalUrl}">
   <meta property="og:type" content="website">
-  <meta http-equiv="refresh" content="0;url=${baseUrl}/shows/${showId}">
+  <meta http-equiv="refresh" content="0;url=${canonicalUrl}">
 </head>
 <body><p>Redirecting...</p></body>
 </html>`;

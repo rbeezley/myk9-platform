@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { toast } from 'sonner';
 import {
@@ -51,36 +51,42 @@ const LiveResults: React.FC<LiveResultsProps> = ({
   const [highlightUser] = useState(true);
 
   // Sort entries based on results
-  const sortedEntries = [...entries].sort((a, b) => {
-    if (sortBy === 'armband') {
-      return parseInt(a.armband) - parseInt(b.armband);
-    }
+  const sortedEntries = useMemo(
+    () =>
+      [...entries].sort((a, b) => {
+        if (sortBy === 'armband') {
+          return parseInt(a.armband) - parseInt(b.armband);
+        }
 
-    // Sort by placement
-    if (!a.result && !b.result) return 0;
-    if (!a.result) return 1;
-    if (!b.result) return -1;
+        // Sort by placement
+        if (!a.result && !b.result) return 0;
+        if (!a.result) return 1;
+        if (!b.result) return -1;
 
-    if (a.result.placement && b.result.placement) {
-      return parseInt(a.result.placement) - parseInt(b.result.placement);
-    }
+        if (a.result.placement && b.result.placement) {
+          return parseInt(a.result.placement) - parseInt(b.result.placement);
+        }
 
-    // If no placement, sort by qualification then time
-    const aQualified = a.result.qualified ?? false;
-    const bQualified = b.result.qualified ?? false;
-    if (aQualified !== bQualified) {
-      return aQualified ? -1 : 1;
-    }
+        // If no placement, sort by qualification then time
+        const aQualified = a.result.qualified ?? false;
+        const bQualified = b.result.qualified ?? false;
+        if (aQualified !== bQualified) {
+          return aQualified ? -1 : 1;
+        }
 
-    const aTime = a.result.searchTime || 0;
-    const bTime = b.result.searchTime || 0;
-    return aTime - bTime;
-  });
+        const aTime = a.result.searchTime || 0;
+        const bTime = b.result.searchTime || 0;
+        return aTime - bTime;
+      }),
+    [entries, sortBy]
+  );
 
   // Filter if needed
-  const displayEntries = filterQualified
-    ? sortedEntries.filter(e => e.result?.qualified !== false)
-    : sortedEntries;
+  const displayEntries = useMemo(
+    () =>
+      filterQualified ? sortedEntries.filter(e => e.result?.qualified !== false) : sortedEntries,
+    [sortedEntries, filterQualified]
+  );
 
   // Get placement info
   const getPlacementInfo = (place: string | undefined): PlacementInfo | null => {

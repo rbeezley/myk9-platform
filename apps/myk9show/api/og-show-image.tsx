@@ -37,6 +37,35 @@ function getInitials(name: string): string {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const ORG_COLORS: Record<string, string> = {
+  AKC: '#14b8a6',
+  UKC: '#f97316',
+  ASCA: '#3b82f6',
+};
+
+function fallbackImageResponse(cacheTtl: number = 3600) {
+  return new ImageResponse(
+    <div
+      style={{
+        width: '1200px',
+        height: '630px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
+      <div style={{ fontSize: '28px', fontWeight: 700, color: '#9ca3af' }}>myK9</div>
+      <div style={{ fontSize: '16px', color: '#9ca3af', marginTop: '8px' }}>
+        Dog Show Management
+      </div>
+    </div>,
+    { width: 1200, height: 630, headers: { 'Cache-Control': `public, s-maxage=${cacheTtl}` } }
+  );
+}
+
 export default async function handler(req: Request) {
   const url = new URL(req.url);
   const showId = url.searchParams.get('id');
@@ -54,33 +83,24 @@ export default async function handler(req: Request) {
 
   try {
     const showQuery = `id,name,organization,start_date,end_date,location,status,entry_close_date,accent_color,logo_url,clubs(name,logo_url)`;
-    const showResp = await fetch(
-      `${supabaseUrl}/rest/v1/shows?id=eq.${showId}&status=neq.draft&deleted_at=is.null&select=${encodeURIComponent(showQuery)}`,
-      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
-    );
+
+    // Fetch show data and trials in parallel — they're independent queries
+    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
+    const discQuery = `trial_type,classes(competition_type)`;
+    const [showResp, discResp] = await Promise.all([
+      fetch(
+        `${supabaseUrl}/rest/v1/shows?id=eq.${showId}&status=neq.draft&deleted_at=is.null&select=${encodeURIComponent(showQuery)}`,
+        { headers }
+      ),
+      fetch(
+        `${supabaseUrl}/rest/v1/trials?show_id=eq.${showId}&select=${encodeURIComponent(discQuery)}`,
+        { headers }
+      ),
+    ]);
 
     const showData = (await showResp.json()) as Record<string, unknown>[];
     if (!showData || showData.length === 0) {
-      return new ImageResponse(
-        <div
-          style={{
-            width: '1200px',
-            height: '630px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-            fontFamily: 'Inter, sans-serif',
-          }}
-        >
-          <div style={{ fontSize: '28px', fontWeight: 700, color: '#9ca3af' }}>myK9</div>
-          <div style={{ fontSize: '16px', color: '#9ca3af', marginTop: '8px' }}>
-            Dog Show Management
-          </div>
-        </div>,
-        { width: 1200, height: 630, headers: { 'Cache-Control': 'public, s-maxage=3600' } }
-      );
+      return fallbackImageResponse();
     }
 
     const show = showData[0] as Record<string, unknown>;
@@ -89,19 +109,9 @@ export default async function handler(req: Request) {
     const logoUrl: string | null =
       (show.logo_url as string | null) ?? (clubs?.logo_url as string | null) ?? null;
     const org: string | null = show.organization as string | null;
-    const ORG_COLORS: Record<string, string> = {
-      AKC: '#14b8a6',
-      UKC: '#f97316',
-      ASCA: '#3b82f6',
-    };
     const accentColor: string =
       (show.accent_color as string | null) ?? (org ? ORG_COLORS[org] : undefined) ?? '#14b8a6';
 
-    const discQuery = `trial_type,classes(competition_type)`;
-    const discResp = await fetch(
-      `${supabaseUrl}/rest/v1/trials?show_id=eq.${showId}&select=${encodeURIComponent(discQuery)}`,
-      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
-    );
     const trials = (await discResp.json()) as Record<string, unknown>[];
 
     const disciplines = new Set<string>();
@@ -309,25 +319,6 @@ export default async function handler(req: Request) {
       }
     );
   } catch {
-    return new ImageResponse(
-      <div
-        style={{
-          width: '1200px',
-          height: '630px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-          fontFamily: 'Inter, sans-serif',
-        }}
-      >
-        <div style={{ fontSize: '28px', fontWeight: 700, color: '#9ca3af' }}>myK9</div>
-        <div style={{ fontSize: '16px', color: '#9ca3af', marginTop: '8px' }}>
-          Dog Show Management
-        </div>
-      </div>,
-      { width: 1200, height: 630, headers: { 'Cache-Control': 'public, s-maxage=3600' } }
-    );
+    return fallbackImageResponse();
   }
 }

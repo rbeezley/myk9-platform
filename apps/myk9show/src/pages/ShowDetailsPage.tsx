@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, startTransition } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PublicShowView } from '@/components/shows/PublicShowView';
@@ -123,20 +123,7 @@ const ShowDetailsPage: React.FC = () => {
     }
 
     if (actualHasData && actualCurrentShow) {
-      return (
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center min-h-screen">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <h1 className="text-xl font-medium text-foreground">Loading show details...</h1>
-              </div>
-            </div>
-          }
-        >
-          <PublicShowView show={actualCurrentShow} onRegister={handleRegisterForShow} />
-        </Suspense>
-      );
+      return <PublicShowView show={actualCurrentShow} onRegister={handleRegisterForShow} />;
     }
 
     if (shows.length === 0) {

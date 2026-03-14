@@ -1,7 +1,12 @@
 import React from 'react';
 import { Calendar, MapPin, Eye, ExternalLink, Plus, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { ClubShow } from './types';
 import { getShowStatus } from './utils';
 
@@ -24,7 +29,8 @@ export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
         <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-60" />
         <div className="text-lg font-medium mb-2 text-foreground">No Upcoming Shows</div>
         <div className="text-sm text-muted-foreground leading-relaxed mb-5">
-          This club doesn't have any shows scheduled yet. Add your first show to get started organizing events.
+          This club doesn't have any shows scheduled yet. Add your first show to get started
+          organizing events.
         </div>
         <Button onClick={onAddShow} className="inline-flex items-center gap-2">
           <Plus className="w-4 h-4" />
@@ -36,19 +42,27 @@ export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {shows.map((show) => {
+      {shows.map(show => {
         const showStatus = getShowStatus(show.date, true);
 
         return (
-          <div key={show.id} className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30">
+          <div
+            key={show.id}
+            className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30"
+            style={show.accentColor ? { borderLeft: `4px solid ${show.accentColor}` } : undefined}
+          >
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 flex-1">
                 <div className="text-lg font-semibold text-foreground">{show.name}</div>
-                <div className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${
-                  showStatus.status === 'upcoming' ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
-                  showStatus.status === 'registration' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
-                  'bg-purple-500/10 text-purple-500 border border-purple-500/20'
-                }`}>
+                <div
+                  className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${
+                    showStatus.status === 'upcoming'
+                      ? 'bg-green-500/10 text-green-500 border border-green-500/20'
+                      : showStatus.status === 'registration'
+                        ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                        : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'
+                  }`}
+                >
                   {showStatus.label}
                 </div>
               </div>

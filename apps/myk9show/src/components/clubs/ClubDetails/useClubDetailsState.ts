@@ -95,6 +95,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
         date: show.startDate,
         location: show.location,
         description: show.events?.join(', ') || '',
+        accentColor: show.accentColor || null,
       };
       if (new Date(show.endDate) < now) {
         past.push(clubShow);

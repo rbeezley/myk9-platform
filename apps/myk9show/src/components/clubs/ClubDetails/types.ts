@@ -12,8 +12,10 @@ export interface ShowStatus {
   label: string;
 }
 
-/** Shape of an individual show from the Club model */
-export type ClubShow = Club['upcomingShows'][number];
+/** Shape of an individual show from the Club model, extended with branding */
+export type ClubShow = Club['upcomingShows'][number] & {
+  accentColor?: string | null;
+};
 
 export interface StatCard {
   title: string;

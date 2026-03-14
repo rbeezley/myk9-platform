@@ -1,7 +1,12 @@
 import React from 'react';
 import { Calendar, MapPin, Eye, CheckCircle, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { ClubShow } from './types';
 import { getShowStatus } from './utils';
 
@@ -10,17 +15,15 @@ interface PastShowsTabProps {
   onViewShowDetails: (showId: string) => void;
 }
 
-export const PastShowsTab: React.FC<PastShowsTabProps> = ({
-  shows,
-  onViewShowDetails,
-}) => {
+export const PastShowsTab: React.FC<PastShowsTabProps> = ({ shows, onViewShowDetails }) => {
   if (shows.length === 0) {
     return (
       <div className="text-center py-16 px-8 bg-muted/50 rounded-2xl border border-dashed border-border">
         <CheckCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-60" />
         <div className="text-lg font-medium mb-2 text-foreground">No Past Shows</div>
         <div className="text-sm text-muted-foreground leading-relaxed">
-          This club hasn't hosted any shows yet. Once they organize their first event, the results will appear here.
+          This club hasn't hosted any shows yet. Once they organize their first event, the results
+          will appear here.
         </div>
       </div>
     );
@@ -28,11 +31,15 @@ export const PastShowsTab: React.FC<PastShowsTabProps> = ({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {shows.map((show) => {
+      {shows.map(show => {
         const showStatus = getShowStatus(show.date, false);
 
         return (
-          <div key={show.id} className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30">
+          <div
+            key={show.id}
+            className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30"
+            style={show.accentColor ? { borderLeft: `4px solid ${show.accentColor}` } : undefined}
+          >
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3 flex-1">
                 <div className="text-lg font-semibold text-foreground">{show.name}</div>

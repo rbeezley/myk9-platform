@@ -9,8 +9,9 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-import { User } from '@/types/user-types';
+import type { User } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
+import { formatRelativeTime } from '@/lib/timeUtils';
 import { ROLE_CONFIG } from './types';
 import type { DensityConfig } from './types';
 import {
@@ -24,22 +25,9 @@ import {
 } from './utils';
 import { RowActions } from './RowActions';
 
-function formatRelativeTime(dateString: string | null | undefined): string {
+function formatLastLogin(dateString: string | null | undefined): string {
   if (!dateString) return 'Never';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  const diffMonths = Math.floor(diffDays / 30);
-  const diffYears = Math.floor(diffDays / 365);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 30) return `${diffDays}d ago`;
-  if (diffMonths < 12) return `${diffMonths}mo ago`;
-  return `${diffYears}y ago`;
+  return formatRelativeTime(new Date(dateString));
 }
 
 function isStaleLogin(dateString: string | null | undefined, thresholdDays: number = 180): boolean {
@@ -49,7 +37,7 @@ function isStaleLogin(dateString: string | null | undefined, thresholdDays: numb
 }
 
 interface UserTableRowProps {
-  user: User;
+  user: AdminUser;
   isSelected: boolean;
   density: DensityConfig;
   searchTerm: string;
@@ -71,8 +59,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
   onEditUser,
   onDeleteUser,
 }) => {
-  const adminUser = user as AdminUser;
-  const lastSignInAt = adminUser.lastSignInAt;
+  const lastSignInAt = user.lastSignInAt;
   const status = getUserStatus(user);
   const statusConfig = user.deletedAt ? getDeletedStatusConfig() : getStatusConfig(status);
   const initials = getUserInitials(user);
@@ -231,7 +218,7 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
             className="font-[500]"
             style={isStaleLogin(lastSignInAt) ? { color: '#EF4444' } : undefined}
           >
-            {formatRelativeTime(lastSignInAt)}
+            {formatLastLogin(lastSignInAt)}
           </span>
         </div>
       </TableCell>

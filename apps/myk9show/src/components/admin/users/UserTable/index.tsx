@@ -28,7 +28,6 @@ import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
 import '@/styles/myk9-table.css';
 
 import { User } from '@/types/user-types';
-import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { DENSITY_CONFIG, APPLE_FONT_STYLE } from './types';
 import type { UserTableProps, SortField, SortDirection } from './types';
 import { UserTableSkeleton } from './UserTableSkeleton';
@@ -84,8 +83,8 @@ export const UserTable: React.FC<UserTableProps> = ({
           bValue = b.createdAt || new Date(0);
           break;
         case 'lastLogin':
-          aValue = (a as AdminUser).lastSignInAt || '';
-          bValue = (b as AdminUser).lastSignInAt || '';
+          aValue = a.lastSignInAt || '';
+          bValue = b.lastSignInAt || '';
           break;
         default:
           aValue = '';

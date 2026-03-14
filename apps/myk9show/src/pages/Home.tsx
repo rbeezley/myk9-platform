@@ -1,6 +1,7 @@
 import React, { useMemo, Suspense } from 'react';
 import Hero from '@/components/landing/Hero';
 import FeaturesSection from '@/components/landing/FeaturesSection';
+import HowItWorks from '@/components/landing/HowItWorks';
 import Pricing from '@/components/landing/Pricing';
 import ClubOnboardingForm from '@/components/landing/ClubOnboardingForm';
 import FAQSection from '@/components/landing/FAQSection';
@@ -52,13 +53,8 @@ const Home: React.FC = () => {
     <div className="min-h-screen bg-background">
       <Hero />
 
-      {/* Features Section */}
+      {/* Upcoming Shows - moved up to prove value immediately */}
       <FadeIn>
-        <FeaturesSection features={memoizedFeatures} />
-      </FadeIn>
-
-      {/* Upcoming Shows - Lazy loaded with delightful loading */}
-      <FadeIn delay={0.1}>
         <div className="py-16 bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Suspense fallback={<DelightfulLoading variant="carousel" />}>
@@ -72,6 +68,16 @@ const Home: React.FC = () => {
             </Suspense>
           </div>
         </div>
+      </FadeIn>
+
+      {/* How It Works */}
+      <FadeIn>
+        <HowItWorks />
+      </FadeIn>
+
+      {/* Features Section */}
+      <FadeIn>
+        <FeaturesSection features={memoizedFeatures} />
       </FadeIn>
 
       {/* Pricing Section */}

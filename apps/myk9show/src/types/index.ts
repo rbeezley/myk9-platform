@@ -222,6 +222,7 @@ export interface LandingShow {
 
 export interface Feature {
   icon: React.ReactNode;
+  label: string;
   title: string;
   description: string;
 }

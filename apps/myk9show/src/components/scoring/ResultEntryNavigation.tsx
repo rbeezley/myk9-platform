@@ -84,7 +84,7 @@ export function ResultEntryNavigation({
   const canManageCheckIn =
     hasRole(UserRole.JUDGE) ||
     hasRole(UserRole.SECRETARY) ||
-    hasRole(UserRole.GATE_STEWARD) ||
+    hasRole(UserRole.STEWARD) ||
     hasRole(UserRole.SITE_ADMIN);
 
   // Calculate progress statistics

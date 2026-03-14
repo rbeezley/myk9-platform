@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, User, AlertTriangle } from 'lucide-react';
 import { useUserStore, PersonInput } from '@/store/userStore';
 import { BasePanelProps } from '../types';
-import type { UserRole } from '@/types/user-types';
+import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 
@@ -31,13 +31,13 @@ interface PersonFormData {
 }
 
 const PERSON_ROLES: { value: UserRole; label: string }[] = [
-  { value: 'exhibitor', label: 'Exhibitor' },
-  { value: 'handler', label: 'Handler' },
-  { value: 'judge', label: 'Judge' },
-  { value: 'chairman', label: 'Chairman' },
-  { value: 'secretary', label: 'Secretary' },
-  { value: 'steward', label: 'Steward' },
-  { value: 'admin', label: 'Administrator' },
+  { value: UserRole.EXHIBITOR, label: 'Exhibitor' },
+  { value: UserRole.JUDGE, label: 'Judge' },
+  { value: UserRole.CHAIRMAN, label: 'Chairman' },
+  { value: UserRole.SECRETARY, label: 'Secretary' },
+  { value: UserRole.STEWARD, label: 'Steward' },
+  { value: UserRole.CLUB_ADMIN, label: 'Club Admin' },
+  { value: UserRole.SITE_ADMIN, label: 'Site Admin' },
 ];
 
 const US_STATES = [

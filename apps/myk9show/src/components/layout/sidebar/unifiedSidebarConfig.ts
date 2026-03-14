@@ -65,7 +65,7 @@ export function buildUnifiedSidebarConfig(
   });
 
   // My Shows (exhibitor)
-  if (hasAnyRole(userRoles, [UserRole.EXHIBITOR, UserRole.HANDLER])) {
+  if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
     groups.push({
       title: 'My Shows',
       items: [
@@ -296,7 +296,7 @@ export function buildUnifiedSidebarConfig(
     footerIcon = Scale;
     footerLabel = 'Judge Access';
     footerDescription = 'Scoring and evaluation';
-  } else if (hasAnyRole(userRoles, [UserRole.EXHIBITOR, UserRole.HANDLER])) {
+  } else if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
     headerIcon = Heart;
     headerTitle = 'myK9 Exhibitor';
     footerIcon = Heart;
@@ -311,7 +311,7 @@ export function buildUnifiedSidebarConfig(
       ? '/secretary/dashboard'
       : isJudge
         ? '/judge/dashboard'
-        : hasAnyRole(userRoles, [UserRole.EXHIBITOR, UserRole.HANDLER])
+        : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
           ? '/exhibitor/dashboard'
           : '/shows';
 

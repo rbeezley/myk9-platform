@@ -366,6 +366,27 @@ export function useClubDetailsState(selectedClub: Club | null) {
     }
   }, [selectedClub, updateClub]);
 
+  const handleSaveAccentColor = useCallback(
+    async (accentColor: string | null) => {
+      if (!selectedClub) return;
+      try {
+        await updateClub({ ...selectedClub, accentColor: accentColor ?? '' });
+        notifications.success('Brand color updated');
+      } catch (error) {
+        logger.error(
+          'Accent color save failed',
+          'clubs',
+          { clubId: selectedClub.id },
+          error as Error
+        );
+        notifications.error('Failed to update brand color', {
+          description: getErrorMessage(error),
+        });
+      }
+    },
+    [selectedClub, updateClub]
+  );
+
   return {
     // Tab
     activeTab,
@@ -413,6 +434,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
     isUploadingCover,
     handleCoverUpload,
     handleCoverRemove,
+    // Branding
+    handleSaveAccentColor,
     // Navigation
     handleViewShowDetails,
   };

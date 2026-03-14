@@ -8,9 +8,10 @@ import { TableCell, TableRow } from '@/components/ui/table';
 
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { formatDistanceToNow } from 'date-fns';
 
-import { User } from '@/types/user-types';
+import type { User } from '@/types/user-types';
+import type { AdminUser } from '@/hooks/queries/useUsersQuery';
+import { formatRelativeTime } from '@/lib/timeUtils';
 import { ROLE_CONFIG } from './types';
 import type { DensityConfig } from './types';
 import {
@@ -18,13 +19,25 @@ import {
   getUserFullName,
   getUserStatus,
   getStatusConfig,
+  getDeletedStatusConfig,
   getAvatarGradient,
   highlightSearchTerm,
 } from './utils';
 import { RowActions } from './RowActions';
 
+function formatLastLogin(dateString: string | null | undefined): string {
+  if (!dateString) return 'Never';
+  return formatRelativeTime(new Date(dateString));
+}
+
+function isStaleLogin(dateString: string | null | undefined, thresholdDays: number = 180): boolean {
+  if (!dateString) return false;
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  return diffMs > thresholdDays * 86400000;
+}
+
 interface UserTableRowProps {
-  user: User;
+  user: AdminUser;
   isSelected: boolean;
   density: DensityConfig;
   searchTerm: string;
@@ -46,15 +59,19 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
   onEditUser,
   onDeleteUser,
 }) => {
+  const lastSignInAt = user.lastSignInAt;
   const status = getUserStatus(user);
-  const statusConfig = getStatusConfig(status);
+  const statusConfig = user.deletedAt ? getDeletedStatusConfig() : getStatusConfig(status);
   const initials = getUserInitials(user);
   const avatarGradient = getAvatarGradient(initials);
   const fullName = getUserFullName(user);
+  const isDeleted = !!user.deletedAt;
+  const isSuspended = user.status === 'suspended';
 
   return (
     <TableRow
-      className={`myk9-table-row ${density.rowHeight} group relative ${isSelected ? 'selected' : ''}`}
+      className={`myk9-table-row ${density.rowHeight} group relative ${isSelected ? 'selected' : ''} ${isDeleted ? 'opacity-50' : ''}`}
+      style={isSuspended && !isDeleted ? { backgroundColor: 'rgba(239, 68, 68, 0.03)' } : undefined}
       onClick={() => onUserClick(user)}
     >
       {/* Selection Checkbox */}
@@ -94,7 +111,11 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
             <div
               className={`font-[590] text-foreground truncate ${density.fontSize} leading-tight`}
             >
-              {highlightSearchTerm(fullName, searchTerm)}
+              {!user.firstName && !user.lastName ? (
+                <span className="italic text-muted-foreground">&mdash; &mdash;</span>
+              ) : (
+                highlightSearchTerm(fullName, searchTerm)
+              )}
             </div>
             {user.membershipId && (
               <div className="text-xs text-muted-foreground font-[500] mt-1 tracking-wide">
@@ -187,22 +208,17 @@ export const UserTableRowComponent: React.FC<UserTableRowProps> = ({
         </div>
       </TableCell>
 
-      {/* Last Activity */}
+      {/* Last Login */}
       <TableCell className="myk9-table-cell">
         <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
           <div className="h-5 w-5 rounded-md bg-gradient-to-br from-gray-500/10 to-gray-500/5 flex items-center justify-center border border-gray-500/20">
             <Calendar className="h-3 w-3 text-gray-600" />
           </div>
-          <span className="font-[500]">
-            {user.updatedAt
-              ? formatDistanceToNow(new Date(user.updatedAt), {
-                  addSuffix: true,
-                })
-              : user.createdAt
-                ? formatDistanceToNow(new Date(user.createdAt), {
-                    addSuffix: true,
-                  })
-                : 'Unknown'}
+          <span
+            className="font-[500]"
+            style={isStaleLogin(lastSignInAt) ? { color: '#EF4444' } : undefined}
+          >
+            {formatLastLogin(lastSignInAt)}
           </span>
         </div>
       </TableCell>

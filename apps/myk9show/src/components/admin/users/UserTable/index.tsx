@@ -83,9 +83,8 @@ export const UserTable: React.FC<UserTableProps> = ({
           bValue = b.createdAt || new Date(0);
           break;
         case 'lastLogin':
-          // Mock last login - in real app would come from database
-          aValue = a.updatedAt || a.createdAt || new Date(0);
-          bValue = b.updatedAt || b.createdAt || new Date(0);
+          aValue = a.lastSignInAt || '';
+          bValue = b.lastSignInAt || '';
           break;
         default:
           aValue = '';

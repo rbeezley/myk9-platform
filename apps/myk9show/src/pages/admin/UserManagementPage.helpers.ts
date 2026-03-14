@@ -9,7 +9,7 @@ import type { UserFilter } from './UserManagementPage.types';
 /**
  * Filter users based on search term and filter settings.
  */
-export function filterUsers(users: User[], searchTerm: string, filters: UserFilter): User[] {
+export function filterUsers<T extends User>(users: T[], searchTerm: string, filters: UserFilter): T[] {
   let filtered = users;
 
   // Apply search filter
@@ -28,20 +28,9 @@ export function filterUsers(users: User[], searchTerm: string, filters: UserFilt
     filtered = filtered.filter(user => user.roles?.includes(filters.role as UserRoleType));
   }
 
-  // Apply status filter (mock implementation - would need real status field)
+  // Apply status filter
   if (filters.status !== 'all') {
-    filtered = filtered.filter(user => {
-      switch (filters.status) {
-        case 'active':
-          return user.email && user.firstName && user.lastName;
-        case 'inactive':
-          return !user.email;
-        case 'suspended':
-          return false; // Mock - no suspended users for now
-        default:
-          return true;
-      }
-    });
+    filtered = filtered.filter(user => user.status === filters.status);
   }
 
   // Apply club affiliation filter

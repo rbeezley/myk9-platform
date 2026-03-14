@@ -8,7 +8,8 @@ import type { User } from '@/types/user-types';
 export interface UserFilter {
   search: string;
   role: UserRoleType | 'all';
-  status: 'active' | 'inactive' | 'suspended' | 'all';
+  status: 'active' | 'suspended' | 'all';
+  showDeleted: boolean;
   clubAffiliation: string;
   dateRange: {
     start: Date | null;
@@ -25,6 +26,7 @@ export const DEFAULT_USER_FILTER: UserFilter = {
   search: '',
   role: 'all',
   status: 'all',
+  showDeleted: false,
   clubAffiliation: '',
   dateRange: { start: null, end: null },
 };

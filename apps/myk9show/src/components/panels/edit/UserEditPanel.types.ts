@@ -24,6 +24,7 @@ export interface UserFormData extends Record<string, unknown> {
   profileImage?: string;
   judgeQualifications: JudgeQualification[];
   roles: string[];
+  status: 'active' | 'suspended';
   // Optional advanced fields
   bio?: string;
   website?: string;

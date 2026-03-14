@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 import { UserFilter } from '@/pages/admin/UserManagementPage';
+import { DEFAULT_USER_FILTER } from '@/pages/admin/UserManagementPage.types';
 
 interface UserFiltersProps {
   filters: UserFilter;
@@ -53,7 +54,6 @@ const ROLE_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Status' },
   { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
   { value: 'suspended', label: 'Suspended' },
 ] as const;
 
@@ -75,19 +75,14 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
 
   // Reset all filters
   const resetFilters = () => {
-    onFiltersChange({
-      search: '',
-      role: 'all',
-      status: 'all',
-      clubAffiliation: '',
-      dateRange: { start: null, end: null }
-    });
+    onFiltersChange(DEFAULT_USER_FILTER);
   };
 
   // Check if any filters are active
-  const hasActiveFilters = 
+  const hasActiveFilters =
     filters.role !== 'all' ||
     filters.status !== 'all' ||
+    filters.showDeleted ||
     filters.clubAffiliation !== '' ||
     filters.dateRange.start !== null ||
     filters.dateRange.end !== null;
@@ -207,6 +202,16 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
             Reset Filters
           </Button>
         </div>
+        {/* Show Deleted Checkbox */}
+        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer ml-auto">
+          <input
+            type="checkbox"
+            checked={filters.showDeleted}
+            onChange={(e) => updateFilter('showDeleted', e.target.checked)}
+            className="accent-destructive"
+          />
+          Show deleted
+        </label>
       </div>
 
       {/* Filter Controls Row 2: Date Range */}

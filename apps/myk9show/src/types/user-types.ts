@@ -18,18 +18,21 @@ export interface User {
   roles?: UserRole[] | undefined;
   judgeInfo?: JudgeInfo | undefined;
   judgeQualifications?: JudgeQualification[] | undefined; // Alias for judgeInfo.qualifications
-  emergencyContact?: {
-    name: string;
-    phone: string;
-    relationship: string;
-    [key: string]: unknown; // Index signature for JSON compatibility
-  } | undefined;
+  emergencyContact?:
+    | {
+        name: string;
+        phone: string;
+        relationship: string;
+        [key: string]: unknown; // Index signature for JSON compatibility
+      }
+    | undefined;
   profileImage?: string | undefined;
   dogs?: string[] | undefined; // Array of dog IDs for UI components
   associatedDogs?: string[] | undefined; // Array of dog IDs for Local-First sync
   user_id?: string | undefined; // Link to auth.users table for RBAC
   deletedAt?: string | undefined;
   deletedBy?: string | undefined;
+  status?: 'active' | 'suspended' | undefined;
 
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
@@ -55,7 +58,7 @@ export interface JudgeQualification {
   disciplines: string[];
   dateObtained: Date | null;
   expirationDate: Date | null;
-  
+
   // Additional properties from judge-types.ts
   judgeNumber: string;
   showTypes: string[]; // ['Scent Work', 'Agility', etc.]
@@ -96,4 +99,11 @@ export interface Exhibitor extends User {
   preferredClasses?: string[];
 }
 
-export type UserRole = 'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin' | 'chairman';
+export type UserRole =
+  | 'exhibitor'
+  | 'handler'
+  | 'judge'
+  | 'secretary'
+  | 'steward'
+  | 'admin'
+  | 'chairman';

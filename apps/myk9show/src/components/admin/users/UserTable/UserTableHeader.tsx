@@ -86,10 +86,10 @@ export const UserTableHeader: React.FC<UserTableHeaderProps> = ({
           </Button>
         </TableHead>
 
-        {/* Last Activity Column */}
+        {/* Last Login Column */}
         <TableHead className="myk9-table-header-cell">
           <Button variant="ghost" className={sortButtonClass} onClick={() => onSort('lastLogin')}>
-            Last Activity
+            Last Login
             {renderSortIcon('lastLogin')}
           </Button>
         </TableHead>

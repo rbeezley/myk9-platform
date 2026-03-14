@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import { User } from '@/types/user-types';
 
 // Status config type
@@ -28,38 +28,38 @@ export const getUserFullName = (user: User): string => {
 };
 
 /** Determine user account status */
-export const getUserStatus = (user: User): 'active' | 'incomplete' | 'inactive' => {
-  if (!user.email) return 'inactive';
-  if (!user.firstName || !user.lastName) return 'incomplete';
-  return 'active';
+export const getUserStatus = (user: User): 'active' | 'suspended' => {
+  return user.status || 'active';
 };
 
 /** Get status display config (icon, color, label) */
 export const getStatusConfig = (status: string): StatusConfig => {
   switch (status) {
+    case 'suspended':
+      return {
+        icon: XCircle,
+        color: '#EF4444',
+        background: 'rgba(239, 68, 68, 0.1)',
+        label: 'Suspended',
+      };
     case 'active':
+    default:
       return {
         icon: CheckCircle2,
         color: '#34C759',
         background: 'rgba(52, 199, 89, 0.1)',
         label: 'Active',
       };
-    case 'incomplete':
-      return {
-        icon: AlertCircle,
-        color: '#FF9500',
-        background: 'rgba(255, 149, 0, 0.1)',
-        label: 'Incomplete',
-      };
-    default:
-      return {
-        icon: Clock,
-        color: '#8E8E93',
-        background: 'rgba(142, 142, 147, 0.1)',
-        label: 'Inactive',
-      };
   }
 };
+
+/** Get deleted status display config */
+export const getDeletedStatusConfig = (): StatusConfig => ({
+  icon: Trash2,
+  color: '#8E8E93',
+  background: 'rgba(142, 142, 147, 0.1)',
+  label: 'Deleted',
+});
 
 /** Highlight search term within text, returning React nodes */
 export const highlightSearchTerm = (

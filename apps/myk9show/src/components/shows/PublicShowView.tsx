@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ShareButton } from '@/components/shows/ShareButton';
+import { ShowBrandedHero } from './ShowBrandedHero';
 import { useScheduleSummary } from '@/hooks/queries/useScheduleSummary';
 import { formatDateRange } from '@/utils/date-format';
-import { getInitials } from '@/lib/utils';
 import type { Show } from '@/types/show-types';
 
 interface PublicShowViewProps {
@@ -23,21 +22,11 @@ function formatLevelRange(levels: string[]): string {
   return `${levels[0]}–${levels[levels.length - 1]}`;
 }
 
-const STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  accepting_entries: { label: 'Accepting Entries', className: 'bg-green-500/10 text-green-400' },
-  published: { label: 'Coming Soon', className: 'bg-blue-500/10 text-blue-400' },
-  closed: { label: 'Entries Closed', className: 'bg-yellow-500/10 text-yellow-400' },
-  in_progress: { label: 'In Progress', className: 'bg-purple-500/10 text-purple-400' },
-  completed: { label: 'Completed', className: 'bg-muted text-muted-foreground' },
-  cancelled: { label: 'Cancelled', className: 'bg-red-500/10 text-red-400' },
-};
-
 const baseUrl = (import.meta.env.VITE_PUBLIC_URL as string | undefined) ?? window.location.origin;
 
 export function PublicShowView({ show, onRegister }: PublicShowViewProps) {
   const { data: schedule } = useScheduleSummary(show.id);
   const dateRange = formatDateRange(show.startDate, show.endDate);
-  const statusInfo = STATUS_LABELS[show.status] ?? STATUS_LABELS.published;
 
   const shareData = useMemo(
     () => ({
@@ -90,49 +79,29 @@ export function PublicShowView({ show, onRegister }: PublicShowViewProps) {
 
   return (
     <div className="max-w-3xl mx-auto min-h-screen">
-      {/* Hero */}
-      <div
-        className="relative border-b border-border p-6 pb-5 overflow-hidden"
-        style={{ borderLeft: `5px solid ${show.accentColor || '#14b8a6'}` }}
-      >
-        <div className="flex justify-between items-center mb-5">
-          <div className="flex items-center gap-2.5">
-            {show.logoUrl ? (
-              <img src={show.logoUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">
-                {getInitials(show.clubName)}
-              </div>
-            )}
-            <span className="text-sm text-muted-foreground">{show.clubName}</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            {show.organization && (
-              <span className="text-xs font-semibold tracking-wider px-3 py-1 rounded-full bg-primary/10 text-primary">
-                {show.organization}
-              </span>
-            )}
-            <ShareButton shareData={shareData} />
-          </div>
+      {/* Branded Hero */}
+      <ShowBrandedHero
+        showName={show.name}
+        location={show.location}
+        startDate={show.startDate}
+        endDate={show.endDate}
+        clubName={show.clubName}
+        organization={show.organization}
+        status={show.status}
+        logo={show.logoUrl || null}
+        coverImage={show.coverImageUrl || null}
+        accentColor={show.accentColor || null}
+      />
+      {/* Share + org badges (moved outside hero) */}
+      <div className="px-6 pt-4 flex justify-between items-center">
+        <div className="flex items-center gap-2.5">
+          {show.organization && (
+            <span className="text-xs font-semibold tracking-wider px-3 py-1 rounded-full bg-primary/10 text-primary">
+              {show.organization}
+            </span>
+          )}
         </div>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-foreground mb-3 leading-tight">
-          {show.name}
-        </h1>
-        <div className="flex flex-wrap gap-5 text-muted-foreground text-sm">
-          <span className="flex items-center gap-1.5">
-            <Calendar className="h-4 w-4" />
-            {dateRange}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <MapPin className="h-4 w-4" />
-            {show.location}
-          </span>
-        </div>
-        <span
-          className={`inline-block mt-3 text-xs font-semibold px-3 py-1 rounded-full ${statusInfo.className}`}
-        >
-          {statusInfo.label}
-        </span>
+        <ShareButton shareData={shareData} />
       </div>
 
       {/* Entry CTA */}

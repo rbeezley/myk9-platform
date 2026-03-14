@@ -100,6 +100,11 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
               checked && 'ring-2 ring-primary/50'
             )}
           >
+            {/* Accent color bar */}
+            {show.accentColor && (
+              <div className="h-[3px] rounded-t-lg" style={{ backgroundColor: show.accentColor }} />
+            )}
+
             {/* Selection checkbox */}
             {onToggleSelect && (
               <div className="absolute top-3 left-3 z-20">

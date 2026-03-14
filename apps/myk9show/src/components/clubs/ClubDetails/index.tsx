@@ -11,6 +11,7 @@ import { UpcomingShowsTab } from './UpcomingShowsTab';
 import { PastShowsTab } from './PastShowsTab';
 import { AboutTab } from './AboutTab';
 import { MembersTab } from './MembersTab';
+import { BrandingTab } from './BrandingTab';
 import { ClubDialogs } from './ClubDialogs';
 import { useClubDetailsState } from './useClubDetailsState';
 
@@ -109,6 +110,14 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               >
                 Members ({selectedClub.memberIds?.length || 0})
               </TabsTrigger>
+              {state.canEditBranding && (
+                <TabsTrigger
+                  value="branding"
+                  className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
+                >
+                  Branding
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Add Show Button - only shown on upcoming shows tab when shows exist */}
@@ -148,6 +157,19 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               onAddMember={state.handleAddMember}
             />
           </TabsContent>
+
+          {state.canEditBranding && (
+            <TabsContent value="branding" className="pt-6">
+              <BrandingTab
+                club={selectedClub}
+                onSaveAccentColor={state.handleSaveAccentColor}
+                onEditPhoto={state.handleEditPhoto}
+                onCoverUpload={state.handleCoverUpload}
+                onCoverRemove={state.handleCoverRemove}
+                isUploadingCover={state.isUploadingCover}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 

@@ -217,6 +217,7 @@ export interface LandingShow {
   date: string;
   location: string;
   imageUrl: string;
+  accentColor?: string | null;
 }
 
 export interface Feature {

@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 export interface ShowBranding {
   logo: string | null;
   coverImage: string | null;
@@ -119,4 +121,9 @@ export function generatePalette(hex: string): BrandPalette {
     primaryMuted: `rgba(${r}, ${g}, ${b}, 0.2)`,
     onPrimary,
   };
+}
+
+/** Returns a `borderLeft` style object for accent color, or undefined if no color. */
+export function accentBorderStyle(accentColor?: string | null): CSSProperties | undefined {
+  return accentColor ? { borderLeft: `4px solid ${accentColor}` } : undefined;
 }

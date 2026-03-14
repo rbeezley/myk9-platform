@@ -202,9 +202,16 @@ export const mapDatabaseToShow = (
       ((dbShow as Record<string, unknown>).club_email as string) ||
       ((dbShow.club as Record<string, unknown>)?.email as string) ||
       '', // Direct field or relation
-    logoUrl: dbShow.logo_url || '',
-    coverImageUrl: dbShow.cover_image_url || '',
-    accentColor: dbShow.accent_color || '',
+    logoUrl:
+      dbShow.logo_url || ((dbShow.club as Record<string, unknown>)?.logo_url as string) || '',
+    coverImageUrl:
+      dbShow.cover_image_url ||
+      ((dbShow.club as Record<string, unknown>)?.cover_image_url as string) ||
+      '',
+    accentColor:
+      dbShow.accent_color ||
+      ((dbShow.club as Record<string, unknown>)?.accent_color as string) ||
+      '',
     chairman: dbShow.chairman || '',
     secretary: dbShow.secretary || '',
     chiefSteward: dbShow.chief_steward || '',

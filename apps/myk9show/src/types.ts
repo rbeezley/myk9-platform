@@ -1,11 +1,4 @@
-
-export interface LandingShow {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  imageUrl: string;
-}
+export type { LandingShow } from './types/index';
 
 export interface Feature {
   icon: React.ReactNode;
@@ -17,7 +10,6 @@ export interface FAQ {
   question: string;
   answer: string;
 }
-
 
 // User interface is now exported from './types/user-types'.
 export type { User } from './types/user-types';
@@ -43,5 +35,5 @@ export type {
   AnalyticsExport,
   DashboardState,
   SyncQueueMetrics,
-  HealthCheckResult
+  HealthCheckResult,
 } from './types/analytics-types';

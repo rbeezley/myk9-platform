@@ -5,15 +5,17 @@ export interface ClubDetailsProps {
   breadcrumbItems: Array<{ label: string; href?: string }>;
 }
 
-export type ClubTab = 'upcoming' | 'past' | 'about' | 'members';
+export type ClubTab = 'upcoming' | 'past' | 'about' | 'members' | 'branding';
 
 export interface ShowStatus {
   status: 'completed' | 'registration' | 'upcoming';
   label: string;
 }
 
-/** Shape of an individual show from the Club model */
-export type ClubShow = Club['upcomingShows'][number];
+/** Shape of an individual show from the Club model, extended with branding */
+export type ClubShow = Club['upcomingShows'][number] & {
+  accentColor?: string | null;
+};
 
 export interface StatCard {
   title: string;

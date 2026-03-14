@@ -4,15 +4,17 @@ import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
 import type { IDBPDatabase } from 'idb';
 import type { ReplicatedRow } from '../types';
 
-// Node.js 22+ defines navigator but not navigator.onLine, which tricks
-// isExpired() into thinking we're offline. Mock it to true for tests.
-const originalOnLine = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+// Ensure navigator.onLine is true for tests. In Node environments,
+// navigator may not exist or may lack onLine, which tricks isExpired()
+// into thinking we're offline.
+const nav = typeof navigator !== 'undefined' ? navigator : (globalThis.navigator = {} as Navigator);
+const originalOnLine = Object.getOwnPropertyDescriptor(nav, 'onLine');
 beforeAll(() => {
-  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+  Object.defineProperty(nav, 'onLine', { value: true, configurable: true });
 });
 afterAll(() => {
   if (originalOnLine) {
-    Object.defineProperty(navigator, 'onLine', originalOnLine);
+    Object.defineProperty(nav, 'onLine', originalOnLine);
   }
 });
 
@@ -42,7 +44,7 @@ describe('ReplicatedTableCacheManager', () => {
       const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
       const index = tx.store.index('tableName');
       const rows = (await index.getAll(tableName)) as ReplicatedRow<TestEntity>[];
-      return rows.map((r) => r.data);
+      return rows.map(r => r.data);
     };
 
     cacheManager = new ReplicatedTableCacheManager<TestEntity>(
@@ -157,7 +159,7 @@ describe('ReplicatedTableCacheManager', () => {
       const callback = vi.fn();
       cacheManager.subscribe(callback);
 
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
 
       expect(callback).toHaveBeenCalledTimes(1);
       expect(callback.mock.calls[0]![0]).toEqual([{ id: '1', name: 'Rex' }]);
@@ -174,13 +176,13 @@ describe('ReplicatedTableCacheManager', () => {
       const callback = vi.fn();
       const unsubscribe = cacheManager.subscribe(callback);
 
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
       callback.mockClear();
 
       unsubscribe();
 
       await cacheManager.notifyListeners();
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 200));
 
       expect(callback).not.toHaveBeenCalled();
     });
@@ -193,7 +195,7 @@ describe('ReplicatedTableCacheManager', () => {
       cacheManager.subscribe(cb1);
       cacheManager.subscribe(cb2);
 
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
 
       expect(cb1).toHaveBeenCalled();
       expect(cb2).toHaveBeenCalled();
@@ -226,7 +228,7 @@ describe('ReplicatedTableCacheManager', () => {
       cacheManager.subscribe(callback);
 
       // Wait for initial subscribe callback
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
       callback.mockClear();
 
       // Fire multiple notifications rapidly
@@ -236,7 +238,7 @@ describe('ReplicatedTableCacheManager', () => {
 
       // Leading edge fires immediately, then debounced trailing edge
       // Wait for debounce to complete
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 200));
 
       // Should have been called with leading edge + trailing edge
       expect(callback.mock.calls.length).toBeGreaterThanOrEqual(1);
@@ -247,8 +249,16 @@ describe('ReplicatedTableCacheManager', () => {
   describe('refreshTimestamps', () => {
     it('should update lastSyncedAt and lastAccessedAt on all rows', async () => {
       const oldTime = Date.now() - 60000;
-      await insertRow('1', { id: '1', name: 'Rex' }, { lastSyncedAt: oldTime, lastAccessedAt: oldTime });
-      await insertRow('2', { id: '2', name: 'Buddy' }, { lastSyncedAt: oldTime, lastAccessedAt: oldTime });
+      await insertRow(
+        '1',
+        { id: '1', name: 'Rex' },
+        { lastSyncedAt: oldTime, lastAccessedAt: oldTime }
+      );
+      await insertRow(
+        '2',
+        { id: '2', name: 'Buddy' },
+        { lastSyncedAt: oldTime, lastAccessedAt: oldTime }
+      );
 
       await cacheManager.refreshTimestamps();
 
@@ -276,7 +286,9 @@ describe('ReplicatedTableCacheManager', () => {
       expect(deleted).toBe(1);
 
       const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
-      const remaining = (await tx.store.index('tableName').getAll(tableName)) as ReplicatedRow<TestEntity>[];
+      const remaining = (await tx.store
+        .index('tableName')
+        .getAll(tableName)) as ReplicatedRow<TestEntity>[];
       await tx.done;
 
       expect(remaining).toHaveLength(1);
@@ -287,7 +299,11 @@ describe('ReplicatedTableCacheManager', () => {
       cacheManager.setLastSuccessfulSync(Date.now());
 
       const expiredTime = Date.now() - TTL_MS - 1000;
-      await insertRow('1', { id: '1', name: 'Rex' }, { lastSyncedAt: expiredTime, isDirty: true, syncStatus: 'pending' });
+      await insertRow(
+        '1',
+        { id: '1', name: 'Rex' },
+        { lastSyncedAt: expiredTime, isDirty: true, syncStatus: 'pending' }
+      );
 
       const deleted = await cacheManager.cleanExpired();
 
@@ -331,7 +347,11 @@ describe('ReplicatedTableCacheManager', () => {
 
     it('should return accurate stats', async () => {
       const now = Date.now();
-      await insertRow('1', { id: '1', name: 'Rex' }, { lastAccessedAt: now - 1000, isDirty: true, syncStatus: 'pending' });
+      await insertRow(
+        '1',
+        { id: '1', name: 'Rex' },
+        { lastAccessedAt: now - 1000, isDirty: true, syncStatus: 'pending' }
+      );
       await insertRow('2', { id: '2', name: 'Buddy' }, { lastAccessedAt: now });
 
       const stats = await cacheManager.getCacheStats();
@@ -357,10 +377,14 @@ describe('ReplicatedTableCacheManager', () => {
       // Insert many rows with old access times
       const oldTime = Date.now() - 60000; // 60 seconds ago (past grace period)
       for (let i = 0; i < 20; i++) {
-        await insertRow(`${i}`, { id: `${i}`, name: `Dog ${i}` }, {
-          lastAccessedAt: oldTime - i * 1000,
-          accessCount: 1,
-        });
+        await insertRow(
+          `${i}`,
+          { id: `${i}`, name: `Dog ${i}` },
+          {
+            lastAccessedAt: oldTime - i * 1000,
+            accessCount: 1,
+          }
+        );
       }
 
       // Target: very small, should force eviction
@@ -371,11 +395,15 @@ describe('ReplicatedTableCacheManager', () => {
 
     it('should not evict dirty rows', async () => {
       const oldTime = Date.now() - 60000;
-      await insertRow('1', { id: '1', name: 'Rex' }, {
-        isDirty: true,
-        syncStatus: 'pending',
-        lastAccessedAt: oldTime,
-      });
+      await insertRow(
+        '1',
+        { id: '1', name: 'Rex' },
+        {
+          isDirty: true,
+          syncStatus: 'pending',
+          lastAccessedAt: oldTime,
+        }
+      );
 
       const evicted = await cacheManager.evictLRU(1);
 
@@ -384,9 +412,13 @@ describe('ReplicatedTableCacheManager', () => {
 
     it('should not evict recently accessed rows (grace period)', async () => {
       // Insert with very recent access
-      await insertRow('1', { id: '1', name: 'Rex' }, {
-        lastAccessedAt: Date.now(),
-      });
+      await insertRow(
+        '1',
+        { id: '1', name: 'Rex' },
+        {
+          lastAccessedAt: Date.now(),
+        }
+      );
 
       const evicted = await cacheManager.evictLRU(1);
 

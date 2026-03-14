@@ -65,6 +65,8 @@ vi.mock('@/components/shows/EnhancedEmptyStates', () => ({
 vi.mock('@/components/shows/browse', () => ({
   ShowsGridView: () => <div data-testid="shows-grid">Grid</div>,
   ShowsListView: () => <div data-testid="shows-list">List</div>,
+  ShowsTableView: () => <div data-testid="shows-table">Table</div>,
+  ShowBulkActionsBar: () => <div data-testid="bulk-actions-bar">Bulk Actions</div>,
 }));
 vi.mock('@/components/auth/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,

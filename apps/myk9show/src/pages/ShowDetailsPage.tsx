@@ -1,13 +1,16 @@
-import React, { useState, useEffect, startTransition } from 'react';
+import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PublicShowView } from '@/components/shows/PublicShowView';
+import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import type { ShowInput } from '@/store/showStore';
 import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { useTrialStore } from '@/store/trialStore';
 import type { Show } from '@/types/show-types';
 import { Button } from '@/components/ui/button';
 
@@ -15,6 +18,8 @@ const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { endNavigation } = useNavigationPerformance();
+  const { isSecretary, isAdmin } = useAuthContext();
+  const getTrialsByShow = useTrialStore(s => s.getTrialsByShow);
 
   // Use fast show details loading with cache optimization
   const {
@@ -63,6 +68,15 @@ const ShowDetailsPage: React.FC = () => {
     }
     return null;
   }, [currentShow, id, shows]);
+
+  // Whether the current user can manage this show (secretary or admin)
+  const canManageShow = isSecretary || isAdmin;
+
+  // Get associated trials for secretary view
+  const associatedTrials = useMemo(
+    () => (actualCurrentShow?.id ? getTrialsByShow(actualCurrentShow.id) : []),
+    [actualCurrentShow?.id, getTrialsByShow]
+  );
 
   // Override hasData to be true if we found the show in database
   const actualHasData = React.useMemo(() => {
@@ -123,6 +137,17 @@ const ShowDetailsPage: React.FC = () => {
     }
 
     if (actualHasData && actualCurrentShow) {
+      if (canManageShow) {
+        return (
+          <ShowDetailsMain
+            showData={actualCurrentShow}
+            associatedTrials={associatedTrials}
+            onEditShow={() => setShowEditPanel(true)}
+            onDeleteShow={() => setShowDeleteDialog(true)}
+            onRegisterForShow={handleRegisterForShow}
+          />
+        );
+      }
       return <PublicShowView show={actualCurrentShow} onRegister={handleRegisterForShow} />;
     }
 

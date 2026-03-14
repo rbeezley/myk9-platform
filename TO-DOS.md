@@ -4,6 +4,14 @@ Items to address in future sessions.
 
 ---
 
+## Shareable Show Pages Follow-up (2026-03-13)
+
+- [x] **Refresh authenticated show detail page** — Fixed: ShowDetailsPage now renders ShowDetailsMain (with edit/delete/manage controls) for secretaries and admins, PublicShowView for guests/exhibitors. Uses `useAuthContext` for role detection and `useTrialStore` for associated trials.
+- **Set VITE_PUBLIC_URL in Vercel** — Problem: OG tags use VERCEL_URL fallback which produces preview-domain URLs. Solution: Set `VITE_PUBLIC_URL` env var in Vercel project settings for production.
+- [x] **Pre-existing test failures** — Fixed: Added missing `ShowBulkActionsBar` and `ShowsTableView` mocks to BrowseShowsPage test. Updated `useAuth` test to match `resetPasswordForEmail` call with `redirectTo` option.
+
+---
+
 ## Sprint Items (from 2026-02-15 audit)
 
 ### Large File Refactoring
@@ -335,7 +343,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 - **Add per-show branding (club logo, accent color, cover image)** — Allow clubs to customize their show pages with their identity so the page feels like their event, not just our app. Inspired by Splash's brand-forward event pages. **Problem:** All show pages look identical — no visual distinction between clubs or events. Clubs can't inject their logo, colors, or imagery, reducing their sense of ownership and making shared show links generic. **Files:** `apps/myk9show/src/pages/ShowDetailsPage.tsx`, `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`, `apps/myk9show/src/components/shows/ShowCard.tsx`, `supabase/migrations/` (new migration for club branding columns on `clubs` or `shows` table — logo_url, accent_color, cover_image_url). **Solution:** Add branding fields to clubs table, file upload for logo/cover, accent color picker in club settings. Show detail page and show cards inherit club branding. Start simple — logo + accent color, add cover image later.
 
-- **Build shareable show pages with OG metadata and share UX** — Create public-facing show page URLs that look compelling when shared on social media, plus make sharing effortless for secretaries. Inspired by Splash. **Problem:** Show pages are behind the app shell with no public-facing URL optimized for sharing. When a show link is shared on social media, there's no OG image, title, or description — it looks like a generic app link. Free marketing opportunity missed. Secretaries currently have no easy way to share — they'd have to manually copy the URL. **Files:** `apps/myk9show/index.html` (default OG tags), `apps/myk9show/src/pages/ShowDetailsPage.tsx` (page content to mirror on public page, share button location), `apps/myk9show/vite.config.ts` (may need SSR or prerender for OG tags). **Solution:** (1) OG metadata: Either server-side render show pages for OG tags (Vercel edge middleware or serverless function that injects meta tags) or use a prerender service. Public URL pattern like `/shows/:id` with show name, date, location, club logo as OG image. (2) Share UX: Add "Share Show" button on show detail page header that uses `navigator.share()` (native share sheet — one tap to Facebook, iMessage, WhatsApp, email on mobile) with copy-link-to-clipboard fallback for desktop/unsupported browsers. Also add share button on the public show page for anyone viewing it.
+- [x] **Build shareable show pages with OG metadata and share UX** — Implemented on `feat/shareable-show-pages` branch (2026-03-13). OG metadata via Vercel serverless + edge functions, dynamic OG image with @vercel/og, PublicShowView with schedule summary, ShareButton with navigator.share + clipboard fallback. See follow-up items at top of file.
 
 - [x] **Exhibitor dashboard progressive disclosure and live show status** — Planned. See detailed 4-phase breakdown under "Exhibitor Dashboard Progressive Disclosure + Live Show Status - 2026-03-09" section below. **Plan:** `docs/plans/exhibitor-dashboard-redesign.md`.
 

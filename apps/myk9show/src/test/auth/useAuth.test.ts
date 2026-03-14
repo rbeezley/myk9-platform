@@ -206,7 +206,9 @@ describe('useAuth', () => {
         await result.current.resetPassword('test@example.com');
       });
 
-      expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com');
+      expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com', {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      });
     });
 
     it('should handle resetPassword errors', async () => {

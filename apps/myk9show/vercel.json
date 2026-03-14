@@ -4,6 +4,17 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/shows/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Twitterbot|LinkedInBot|Slackbot-LinkExpanding|Discordbot|WhatsApp|Applebot|Googlebot|bingbot|Pinterestbot|TelegramBot|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og-show?id=:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

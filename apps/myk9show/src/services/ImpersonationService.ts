@@ -293,17 +293,30 @@ export class ImpersonationService {
       throw new Error('Authentication required for impersonation');
     }
 
-    const { data: person, error } = await supabase
+    // Look up person ID from auth user
+    const { data: person, error: personError } = await supabase
       .from('people')
-      .select('roles')
+      .select('id')
       .eq('auth_user_id', user.id)
       .single();
 
-    if (error || !person) {
+    if (personError || !person) {
       throw new Error('Unable to verify admin permissions');
     }
 
-    const roles: string[] = person.roles ?? [];
+    const { data: userRoles, error } = await supabase
+      .from('user_roles')
+      .select('role:roles(name)')
+      .eq('user_id', person.id)
+      .eq('is_active', true);
+
+    if (error || !userRoles) {
+      throw new Error('Unable to verify admin permissions');
+    }
+
+    const roles: string[] = userRoles
+      .map((r: { role: { name: string } | null }) => r.role?.name ?? '')
+      .filter(Boolean);
     const hasAllowedRole = roles.some(role => this.config.allowedRoles.includes(role));
     if (!hasAllowedRole) {
       throw new Error(`Impersonation requires one of: ${this.config.allowedRoles.join(', ')}`);

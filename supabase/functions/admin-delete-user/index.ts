@@ -78,7 +78,7 @@ Deno.serve(async req => {
     // 2. Verify caller is SITE_ADMIN
     const { data: callerPerson, error: callerError } = await supabase
       .from('people')
-      .select('id, roles')
+      .select('id')
       .eq('auth_user_id', user.id)
       .is('deleted_at', null)
       .single();
@@ -87,25 +87,19 @@ Deno.serve(async req => {
       return corsResponse({ error: 'Caller not found' }, 403);
     }
 
-    // Check site_admin in people.roles (legacy) OR user_roles table (RBAC)
-    const legacyRoles: string[] = callerPerson.roles || [];
-    let isSiteAdmin = legacyRoles.includes('site_admin');
+    // Check if caller is site_admin via RBAC
+    const { data: rbacRoles } = await supabase
+      .from('user_roles')
+      .select('role:roles(name)')
+      .eq('user_id', callerPerson.id)
+      .eq('is_active', true);
+
+    const isSiteAdmin =
+      rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??
+      false;
 
     if (!isSiteAdmin) {
-      // Check database-driven RBAC roles
-      const { data: rbacRoles } = await supabase
-        .from('user_roles')
-        .select('role:roles(name)')
-        .eq('user_id', callerPerson.id)
-        .eq('is_active', true);
-
-      isSiteAdmin =
-        rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??
-        false;
-    }
-
-    if (!isSiteAdmin) {
-      return corsResponse({ error: 'Insufficient permissions: site_admin required' }, 403);
+      return corsResponse({ error: 'Unauthorized: requires site_admin role' }, 403);
     }
 
     // 3. Parse request

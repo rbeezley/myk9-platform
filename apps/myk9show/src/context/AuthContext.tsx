@@ -220,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     loadRbacData();
-  }, [auth.user?.id, auth.user]);
+  }, [auth.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- only re-run when user ID changes, not on every auth object reference change
 
   // Build userWithRoles - priority: mock user > database RBAC > default exhibitor
   const userWithRoles = useMemo((): UserWithRoles | null => {

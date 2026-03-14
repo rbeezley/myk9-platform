@@ -130,6 +130,21 @@ describe('branding fallback', () => {
     expect(result.coverImageUrl).toBe('');
     expect(result.accentColor).toBe('');
   });
+
+  // [ADDED] Test for null club join — graceful fallback
+  it('returns empty strings when club join is null', () => {
+    const dbShow = {
+      // ... minimal required fields ...
+      logo_url: null,
+      cover_image_url: null,
+      accent_color: null,
+      club: null,
+    };
+    const result = mapDatabaseToShow(dbShow);
+    expect(result.logoUrl).toBe('');
+    expect(result.coverImageUrl).toBe('');
+    expect(result.accentColor).toBe('');
+  });
 });
 ```
 
@@ -762,6 +777,7 @@ git commit -m "feat(branding): create BrandingTab component with tests"
 **Files:**
 
 - Modify: `apps/myk9show/src/components/clubs/ClubDetails/index.tsx`
+- Test: `apps/myk9show/src/test/components/clubs/ClubDetailsBranding.test.tsx` [ADDED]
 
 - [ ] **Step 1: Import BrandingTab**
 
@@ -807,15 +823,35 @@ After the Members `TabsContent`, add:
 Run: `pnpm typecheck`
 Expected: PASS
 
-- [ ] **Step 5: Run full test suite**
+- [ ] **Step 5: [ADDED] Write admin-only tab visibility test**
+
+Create `ClubDetailsBranding.test.tsx` to verify the Branding tab is conditionally rendered based on `canEditBranding`. Mock `useClubDetailsState` to control the `canEditBranding` value:
+
+```typescript
+describe('Branding tab visibility', () => {
+  it('shows Branding tab when canEditBranding is true', () => {
+    // Mock useClubDetailsState to return canEditBranding: true
+    // Render ClubDetails with a valid club
+    // Expect: screen.getByText('Branding') to be in document
+  });
+
+  it('hides Branding tab when canEditBranding is false', () => {
+    // Mock useClubDetailsState to return canEditBranding: false
+    // Render ClubDetails with a valid club
+    // Expect: screen.queryByText('Branding') to not be in document
+  });
+});
+```
+
+- [ ] **Step 6: Run full test suite**
 
 Run: `cd apps/myk9show && pnpm test`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/myk9show/src/components/clubs/ClubDetails/index.tsx
+git add apps/myk9show/src/components/clubs/ClubDetails/index.tsx apps/myk9show/src/test/components/clubs/ClubDetailsBranding.test.tsx
 git commit -m "feat(branding): wire BrandingTab into ClubDetails (admin-only)"
 ```
 

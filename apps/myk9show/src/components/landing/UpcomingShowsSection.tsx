@@ -108,6 +108,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({ shows, onAd
             <Card
               key={show.id}
               className="min-w-[320px] max-w-[340px] flex-shrink-0 shadow-md relative snap-start transition-transform duration-300 hover:scale-105 hover:shadow-xl bg-card border-border text-card-foreground"
+              style={show.accentColor ? { borderLeft: `4px solid ${show.accentColor}` } : undefined}
             >
               {/* Date badge */}
               <span className="absolute top-4 left-4 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-md z-10 shadow">

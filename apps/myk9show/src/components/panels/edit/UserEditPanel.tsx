@@ -415,17 +415,14 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       // Save roles to user_roles table (separate from people table)
       if (userId && formData.roles) {
         const { savePersonRoles } = await import('./BasicInfoTab');
-        const oldRoles = (initialFormData.roles || []).map((r: string) =>
-          r === 'site_admin' ? 'admin' : r
-        );
-        await savePersonRoles(userId, formData.roles, oldRoles);
+        await savePersonRoles(userId, formData.roles);
       }
 
       if (onSave) {
         await onSave(userData);
       }
     },
-    [onSave, userId, initialFormData.roles]
+    [onSave, userId]
   );
 
   return (

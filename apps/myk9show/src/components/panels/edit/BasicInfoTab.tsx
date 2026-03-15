@@ -33,9 +33,23 @@ function usePersonRoleNames(personId?: string) {
 }
 
 /** Apply role changes to user_roles table. Compares old vs new and grants/revokes. */
-export async function savePersonRoles(personId: string, newRoles: string[], oldRoles: string[]) {
+export async function savePersonRoles(personId: string, newRoles: string[]) {
   // Map 'admin' display name to DB name
   const mapName = (r: string) => (r === 'admin' ? 'site_admin' : r);
+
+  // Fetch current roles from DB to compute the diff
+  const { data: currentData } = await supabase
+    .from('user_roles')
+    .select('role:roles!user_roles_role_id_fkey(name)')
+    .eq('user_id', personId)
+    .eq('is_active', true);
+  const oldRoles = (currentData || [])
+    .map((r: Record<string, unknown>) => {
+      const name = (r.role as { name: string })?.name;
+      return name === 'site_admin' ? 'admin' : name;
+    })
+    .filter(Boolean) as string[];
+
   const toGrant = newRoles.filter(r => !oldRoles.includes(r)).map(mapName);
   const toRevoke = oldRoles.filter(r => !newRoles.includes(r)).map(mapName);
 

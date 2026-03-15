@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
@@ -83,10 +82,9 @@ interface EntryCTAProps {
 }
 
 export function EntryCTA({ show, onRegister }: EntryCTAProps) {
-  const state = useMemo(
-    () => computeRegistrationState(show),
-    [show.entryOpenDate, show.entryCloseDate, show.status]
-  );
+  // No useMemo — computation is cheap and uses new Date() internally,
+  // which makes it impure. React Compiler handles memoization automatically.
+  const state = computeRegistrationState(show);
 
   return (
     <Card

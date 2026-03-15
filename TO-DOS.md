@@ -48,7 +48,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Landing Page & Public UX (2026-03-14)
 
-- [ ] **Remove Kanban view from shows browse page** — Kanban is a management view, not useful for public show browsing. Hide it for unauthenticated users (or remove from the view switcher entirely on the browse page).
+- [x] **Remove Kanban view from shows browse page** — Done: removed Kanban view mode, its toggle button, drag-drop status handler, card renderer, and all related imports from BrowseShowsPage. Kanban remains available for secretary dashboard use.
 
 ---
 

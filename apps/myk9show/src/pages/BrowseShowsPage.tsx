@@ -19,7 +19,7 @@ import {
   List,
   Table2,
   CalendarDays,
-  Columns3,
+
   Plus,
   Users,
   Download,
@@ -55,55 +55,12 @@ import {
 } from '@/components/shows/browse';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { ViewPicker } from '@/components/common/ViewPicker';
-import { KanbanView, type KanbanColumn } from '@/components/common/KanbanView';
+
 import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
-import { parseLocalDateString } from '@myk9/core';
-import { useShowStore } from '@/store/showStore';
 
-type ViewMode = 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
 
-const SHOW_KANBAN_COLUMNS: KanbanColumn[] = [
-  { key: 'planning', label: 'Planning' },
-  { key: 'entries_open', label: 'Entries Open' },
-  { key: 'entries_closed', label: 'Entries Closed' },
-  { key: 'show_day', label: 'Show Day' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'archived', label: 'Archived' },
-];
 
-/** Derive a kanban column key from show data. */
-function getShowKanbanStatus(show: Show): string {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (show.status === 'archived' || show.status === 'cancelled') return 'archived';
-  if (show.status === 'completed') return 'completed';
-
-  const start = show.startDate ? parseLocalDateString(show.startDate) : undefined;
-  const end = show.endDate ? parseLocalDateString(show.endDate) : start;
-  const entryOpen = show.entryOpenDate ? parseLocalDateString(show.entryOpenDate) : undefined;
-  const entryClose = show.entryCloseDate ? parseLocalDateString(show.entryCloseDate) : undefined;
-
-  if (end && today > end) return 'completed';
-  if (start && end && today >= start && today <= end) return 'show_day';
-  if (entryClose && today > entryClose) return 'entries_closed';
-  if (entryOpen && today >= entryOpen) return 'entries_open';
-  return 'planning';
-}
-
-/**
- * Maps a kanban column key to an actual show status value.
- * Date-derived columns (entries_open, entries_closed, show_day) map to 'active'
- * since those columns are determined by the show's date fields, not its status.
- */
-const KANBAN_TO_SHOW_STATUS: Record<string, string> = {
-  planning: 'planning',
-  entries_open: 'active',
-  entries_closed: 'active',
-  show_day: 'active',
-  completed: 'completed',
-  archived: 'archived',
-};
+type ViewMode = 'grid' | 'list' | 'table' | 'calendar';
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -162,9 +119,6 @@ const BrowseShowsPage: React.FC = () => {
     },
     [savedViewsList, applyView, setFilters]
   );
-
-  // Show store for status updates via kanban drag-and-drop
-  const updateShow = useShowStore(state => state.updateShow);
 
   // Build club filter options from available shows
   const clubFilterOptions = useMemo(() => {
@@ -262,40 +216,6 @@ const BrowseShowsPage: React.FC = () => {
 
   // Get enhanced shows from data hook with actual filtered shows
   const { enhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
-
-  /** Handle kanban card drag to a new column — updates the show's status. */
-  const handleKanbanStatusChange = useCallback(
-    (showId: string, newKanbanColumn: string) => {
-      const newStatus = KANBAN_TO_SHOW_STATUS[newKanbanColumn];
-      if (!newStatus) return;
-
-      const show = enhancedShows.find(s => s.id === showId);
-      if (!show) return;
-
-      // Skip if the show already has this status (date-derived columns can't be changed via status)
-      if (show.status === newStatus) {
-        logger.info('Show already has this status; column is date-derived', 'shows', {
-          showId,
-          currentStatus: show.status,
-          targetColumn: newKanbanColumn,
-        });
-        return;
-      }
-
-      logger.info('Updating show status via kanban', 'shows', {
-        showId,
-        showName: show.name,
-        fromStatus: show.status,
-        toStatus: newStatus,
-        targetColumn: newKanbanColumn,
-      });
-
-      updateShow(showId, { status: newStatus }).catch(error => {
-        logger.error('Failed to update show status', 'shows', { showId, error });
-      });
-    },
-    [enhancedShows, updateShow]
-  );
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
@@ -434,36 +354,6 @@ const BrowseShowsPage: React.FC = () => {
     }
   }, [selectedTab, user, handleTabChange]);
 
-  // Kanban card renderer (stable reference for KanbanView)
-  const renderKanbanCard = useCallback(
-    (show: Show) => (
-      <Link
-        to={`/shows/${show.id}`}
-        className="group block rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-4 hover:shadow-xl hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="relative">
-          <div className="font-bold text-sm leading-tight truncate group-hover:text-primary transition-colors duration-300">
-            {show.name}
-          </div>
-          {show.location && (
-            <div className="text-xs text-muted-foreground mt-1.5 truncate">{show.location}</div>
-          )}
-          <div className="text-xs text-muted-foreground mt-1.5">
-            {show.startDate
-              ? (parseLocalDateString(show.startDate.slice(0, 10))?.toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                }) ?? 'No date')
-              : 'No date'}
-            {show.organization && ` \u00b7 ${show.organization}`}
-          </div>
-        </div>
-      </Link>
-    ),
-    []
-  );
-
   // Render shows in different view modes
   const renderShowsView = () => {
     if (enhancedShows.length === 0) {
@@ -492,18 +382,6 @@ const BrowseShowsPage: React.FC = () => {
     }
 
     switch (viewMode) {
-      case 'kanban':
-        return (
-          <KanbanView
-            items={enhancedShows}
-            columns={SHOW_KANBAN_COLUMNS}
-            getItemStatus={getShowKanbanStatus}
-            renderCard={renderKanbanCard}
-            onStatusChange={handleKanbanStatusChange}
-            className="mt-4"
-          />
-        );
-
       case 'calendar':
         return (
           <div className="mt-4">
@@ -687,13 +565,12 @@ const BrowseShowsPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
                   <div className="flex bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                    {(['grid', 'list', 'table', 'calendar', 'kanban'] as const).map(mode => {
+                    {(['grid', 'list', 'table', 'calendar'] as const).map(mode => {
                       const Icon = {
                         grid: Grid3X3,
                         list: List,
                         table: Table2,
                         calendar: CalendarDays,
-                        kanban: Columns3,
                       }[mode];
                       const label = mode.charAt(0).toUpperCase() + mode.slice(1);
                       return (

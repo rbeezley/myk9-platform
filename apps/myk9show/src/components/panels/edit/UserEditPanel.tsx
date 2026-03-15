@@ -185,9 +185,9 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
       await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
 
       // Create new qualifications
-      await Promise.all(
-        qualifications.map(qual =>
-          judgeQualificationQueries.create({
+      for (const qual of qualifications) {
+        try {
+          await judgeQualificationQueries.create({
             person_id: userId,
             organization: qual.organization,
             qualification_level: qual.level || 'Regular',
@@ -205,10 +205,13 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
                 }
               : {}),
             is_active: qual.status === 'Active',
-          })
-        )
-      );
-
+          });
+          console.log('[DEBUG] Created qualification:', qual.organization);
+        } catch (err) {
+          console.error('[DEBUG] FAILED to create qualification:', qual.organization, err);
+          throw err;
+        }
+      }
       // Invalidate caches so the store and queries pick up the new data
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });

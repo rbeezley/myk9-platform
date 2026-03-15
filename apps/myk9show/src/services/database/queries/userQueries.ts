@@ -62,6 +62,15 @@ export const getUserById = async (id: string) => {
           call_name,
           date_of_birth,
           active
+        ),
+        judge_qualifications(
+          id,
+          organization,
+          qualification_level,
+          disciplines,
+          date_obtained,
+          expiration_date,
+          is_active
         )
       `
       )

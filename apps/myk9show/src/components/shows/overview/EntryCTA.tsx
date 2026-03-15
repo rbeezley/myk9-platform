@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
@@ -83,7 +82,7 @@ interface EntryCTAProps {
 }
 
 export function EntryCTA({ show, onRegister }: EntryCTAProps) {
-  const state = useMemo(() => computeRegistrationState(show), [show]);
+  const state = computeRegistrationState(show);
 
   return (
     <Card

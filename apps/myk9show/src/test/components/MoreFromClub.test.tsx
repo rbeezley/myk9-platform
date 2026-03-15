@@ -16,15 +16,14 @@ vi.mock('react-router-dom', () => ({
   }) => React.createElement('a', { href: to, ...props }, children),
 }));
 
-// Mock useShowsQuery
+// Mock useShowsByClubQuery — returns shows for the requested club
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
-  useShowsQuery: () => ({
-    data: [
+  useShowsByClubQuery: (clubId: string) => {
+    const allShows = [
       {
         id: 'show-1',
         name: 'Spring Trial',
         clubId: 'club-1',
-        clubName: 'Jayhawk AC',
         startDate: '2026-04-01',
         location: 'Olathe, KS',
       },
@@ -32,7 +31,6 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
         id: 'show-2',
         name: 'Summer Trial',
         clubId: 'club-1',
-        clubName: 'Jayhawk AC',
         startDate: '2026-06-15',
         location: 'Olathe, KS',
       },
@@ -40,7 +38,6 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
         id: 'show-3',
         name: 'Fall Trial',
         clubId: 'club-1',
-        clubName: 'Jayhawk AC',
         startDate: '2026-09-20',
         location: 'Olathe, KS',
       },
@@ -48,7 +45,6 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
         id: 'show-4',
         name: 'Winter Trial',
         clubId: 'club-1',
-        clubName: 'Jayhawk AC',
         startDate: '2026-12-10',
         location: 'Olathe, KS',
       },
@@ -56,12 +52,12 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
         id: 'other-show',
         name: 'Other Club Show',
         clubId: 'club-2',
-        clubName: 'Other Club',
         startDate: '2026-05-01',
         location: 'KC, MO',
       },
-    ],
-  }),
+    ];
+    return { data: allShows.filter(s => s.clubId === clubId) };
+  },
 }));
 
 describe('MoreFromClub', () => {

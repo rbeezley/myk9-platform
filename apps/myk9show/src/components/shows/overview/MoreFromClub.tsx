@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { formatDate } from '@/lib/utils';
+import { useShowsByClubQuery } from '@/hooks/queries/useShowsDatabase';
 
 interface MoreFromClubProps {
   clubId: string;
@@ -11,15 +12,15 @@ interface MoreFromClubProps {
 }
 
 export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubProps) {
-  const { data: allShows } = useShowsQuery();
+  const { data: clubShows } = useShowsByClubQuery(clubId);
 
   const otherShows = useMemo(() => {
-    if (!allShows) return [];
-    return allShows
-      .filter(s => s.clubId === clubId && s.id !== currentShowId)
+    if (!clubShows) return [];
+    return clubShows
+      .filter(s => s.id !== currentShowId)
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
       .slice(0, 3);
-  }, [allShows, clubId, currentShowId]);
+  }, [clubShows, currentShowId]);
 
   if (otherShows.length === 0) return null;
 
@@ -36,11 +37,7 @@ export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubPr
               <div className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  {new Date(show.startDate + 'T00:00:00').toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
+                  {formatDate(show.startDate + 'T00:00:00')}
                 </div>
                 {show.location && (
                   <div className="flex items-center gap-1.5">

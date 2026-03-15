@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Facebook, Mail, Link2, Check } from 'lucide-react';
 import { shareOrCopy } from '@/utils/share';
@@ -16,6 +16,8 @@ interface ShareEventProps {
 
 export function ShareEvent({ shareData }: ShareEventProps) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareData.url)}`;
   const mailtoUrl = `mailto:?subject=${encodeURIComponent(shareData.title)}&body=${encodeURIComponent(`${shareData.text}\n\n${shareData.url}`)}`;
@@ -23,7 +25,8 @@ export function ShareEvent({ shareData }: ShareEventProps) {
   const handleCopyLink = async () => {
     await shareOrCopy({ url: shareData.url, title: shareData.title, text: shareData.text });
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
   const buttonClass =

@@ -1,10 +1,6 @@
 import { Card } from '@/components/ui/card';
+import { formatDate } from '@/lib/utils';
 import { useScheduleSummary } from '@/hooks/queries/useScheduleSummary';
-
-function formatDayDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-}
 
 function formatLevelRange(levels: string[]): string {
   if (levels.length <= 2) return levels.join(', ');
@@ -26,7 +22,7 @@ export function ScheduleSummary({ showId }: ScheduleSummaryProps) {
       {schedule.map(day => (
         <div key={day.date} className="mb-5 last:mb-0">
           <div className="text-sm font-semibold text-primary mb-2 pb-1.5 border-b border-border/30">
-            {formatDayDate(day.date)}
+            {formatDate(day.date + 'T00:00:00', { weekday: 'long', month: 'long', day: 'numeric' })}
           </div>
           {day.disciplines.map(disc => (
             <div key={disc.name} className="flex justify-between items-baseline py-1.5 text-sm">

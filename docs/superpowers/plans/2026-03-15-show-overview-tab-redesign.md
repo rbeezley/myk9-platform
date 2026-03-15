@@ -12,6 +12,67 @@
 
 ---
 
+## Known Spec Deviations [ADDED]
+
+| Spec Criterion                         | Plan Decision                                              | Rationale                                                                                                                                                                   |
+| -------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #5: "myk9-show-details.css is deleted" | **Deferred** — only remove the import from ShowDetailsPage | CSS file has 24+ consumers across the app. Full removal is a multi-sprint effort outside this task's scope.                                                                 |
+| Address composition from DB fields     | **Pragmatic** — check Show type at implementation time     | If `venue_name`, `address`, `city`, `state`, `zip_code` exist on the Show type, use them. If only `location` exists, use it as-is. Do NOT block on extending the Show type. |
+
+## Pre-Implementation Check [ADDED]
+
+Before starting Chunk 1, verify the Show type's address fields:
+
+```bash
+cd apps/myk9show && grep -A 60 'interface Show' src/types/show-types.ts | head -80
+```
+
+If the Show type already has `venueName`/`address`/`city`/`state`/`zipCode` fields, use them in VenueMap (compose address from parts). If it only has `location: string`, use that. Update VenueMap props accordingly during Task 9.
+
+Also check CSP configuration:
+
+```bash
+grep -r "Content-Security-Policy\|frame-src\|CSP" apps/myk9show/ --include="*.ts" --include="*.tsx" --include="*.html" --include="*.json" -l
+```
+
+If CSP headers exist and don't allow `maps.google.com`, add `maps.google.com` to `frame-src` before deploying.
+
+## 21st.dev Magic MCP Usage [ADDED]
+
+The 21st.dev Magic MCP tools (`21st_magic_component_inspiration`, `21st_magic_component_builder`, `21st_magic_component_refiner`) are available for generating polished component designs. Use them on visual components where design quality matters; skip them for utility code and data hooks.
+
+**Use Magic MCP inspiration/builder on these tasks:**
+
+| Task    | Component      | Why                                                                       |
+| ------- | -------------- | ------------------------------------------------------------------------- |
+| Task 3  | QuickInfoCards | Stat card / info-bar patterns — browse for polished layouts before coding |
+| Task 4  | EntryCTA       | CTA banner with urgency states — common design pattern in registries      |
+| Task 5  | ShowOfficials  | Team/people cards with avatars — classic component category               |
+| Task 7  | ShareEvent     | Social share button groups — well-trodden UI pattern                      |
+| Task 11 | MoreFromClub   | Event/feature card grid — lots of card grid designs to draw from          |
+
+**Workflow for Magic MCP tasks:**
+
+1. Write the failing test first (per TDD flow — tests define the contract)
+2. Use `21st_magic_component_inspiration` to browse relevant component designs
+3. Use `21st_magic_component_builder` to generate an initial implementation informed by the inspiration
+4. Adapt the generated code: swap any Radix imports for Base UI, match project theme (Tailwind classes, shadcn/ui Card/Button), ensure props match the test contract
+5. Use `21st_magic_component_refiner` if the result needs polish
+6. Run the test to verify
+
+**Code straight (no Magic MCP needed):**
+
+| Task    | Component         | Why                                               |
+| ------- | ----------------- | ------------------------------------------------- |
+| Task 1  | PersonAvatar      | Wraps existing Avatar primitive — tiny utility    |
+| Task 2  | useResolvePerson  | Data hook, no UI                                  |
+| Task 8  | ScheduleSummary   | Reuses existing hook, domain-specific format      |
+| Task 9  | VenueMap          | Google Maps iframe — very specific implementation |
+| Task 10 | AdditionalDetails | Simple key-value grid                             |
+| Task 12 | ShowOverviewTab   | Layout orchestrator, just wires children together |
+
+---
+
 ## File Structure
 
 ### New Files
@@ -493,8 +554,9 @@ import { Card } from '@/components/ui/card';
 import type { Show } from '@/types/show-types';
 
 function formatShowDate(startDate: string, endDate: string): string {
+  if (!startDate) return 'TBD'; // [ADDED] guard against undefined dates
   const start = new Date(startDate + 'T00:00:00');
-  const end = new Date(endDate + 'T00:00:00');
+  const end = endDate ? new Date(endDate + 'T00:00:00') : start; // [ADDED] fallback to start
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
 
   if (start.getTime() === end.getTime()) {
@@ -1303,6 +1365,8 @@ git commit -m "feat: add ScheduleSummary component wrapping useScheduleSummary"
 
 ### Task 9: VenueMap
 
+**[ADDED] Address composition:** Before writing this component, check the Pre-Implementation Check results. If the Show type has separate address fields (`venueName`, `address`, `city`, `state`, `zipCode`), accept them as individual props and compose the address internally: `[address, city, state, zipCode].filter(Boolean).join(', ')`. If the Show type only has `location: string`, use the simpler single-prop interface shown below. Update ShowOverviewTab (Task 12) accordingly.
+
 **Files:**
 
 - Create: `src/components/shows/overview/VenueMap.tsx`
@@ -1760,6 +1824,8 @@ git commit -m "feat: add MoreFromClub component showing related shows"
 ### Task 12: ShowOverviewTab
 
 The orchestrator component that brings all sections together in a two-column layout.
+
+**[ADDED] Loading state note:** The ShowOverviewTab itself receives a `show` prop (already loaded by ShowDetailsPage). Child components that fetch their own data (ScheduleSummary via `useScheduleSummary`, MoreFromClub via `useShowsQuery`) return `null` during loading — this is intentional. Sections appear progressively as data loads rather than blocking the entire tab behind a skeleton. The spec mentions "Loading state renders skeleton" for the integration test, but this refers to ShowDetailsPage's existing loading state (before `show` is available), not a new skeleton inside ShowOverviewTab.
 
 **Files:**
 

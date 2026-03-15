@@ -31,7 +31,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ### Scoring
 
-- [ ] **Scoresheet variants (full parity)** — myK9Q has UKC Obedience, UKC Rally, UKC Nosework, AKC Scent Work, AKC FastCat, ASCA Scent Detection, AKC Nationals. Verify all are available via `@myk9/scoring-ui` and wired up in myK9Show.
+- [x] **Scoresheet variants (full parity)** — Verified: all 7 variants (AKC Scent Work, AKC Nationals, AKC FastCat, UKC Obedience, UKC Rally, UKC Nosework, ASCA Scent Detection) are in `@myk9/scoring-ui` with both live and entry modes. myK9Show uses registry-based dynamic lookup via `getScoresheetComponent()` in both `ScoresheetPage` (judge) and `SecretaryScoringPage` (secretary). Full parity achieved.
 
 ### Data & Analytics
 
@@ -63,6 +63,16 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 - [x] **Build My Profile page** — Done: Created `/profile` page with editable fields (first name, last name, phone, address — all required for AKC/UKC reporting), avatar upload to Supabase Storage, read-only email, and link to Preferences for password change. Card-based layout with shadcn/ui. 23 unit tests (useAvatarUpload, useProfileForm, ProfilePage). Replaced old ProfileRedirect with ProfilePage. Updated AppHeader "My Profile" link.
 
 - [x] **Exhibitor missing "Add Dog" button on BrowseDogsPage** — Fixed: root cause was that `permissions` and `role_permissions` tables were never seeded for non-admin roles. Migration 067 adds 42 granular permissions and assigns role_permissions to exhibitor (15), secretary (31), judge (9), and club_admin (26) roles.
+
+---
+
+## Judge Qualification Management Improvements (2026-03-15)
+
+- [ ] **Manage Qualifications panel should append, not replace** — `handleQualificationsSave` deletes all existing qualifications then creates new ones. When the sub-panel only passes the newly added qualification, the old ones get wiped. Fix: merge new qualifications with existing instead of delete-all-recreate.
+- [ ] **Show judge number and show types on qualification card** — QualificationsTab card should display `judge_number` (from people table) and discipline/show type badges (e.g., "Scent Work", "Agility").
+- [ ] **Show Edit > Judges tab not finding qualified judges** — The `availableJudges` filter in ShowEditForm checks `person.judgeQualifications` which isn't loaded from the people store (getAllUsers doesn't join judge_qualifications). Fix: either join qualifications in getAllUsers, or use a dedicated React Query hook for qualified judges.
+- [ ] **Remove stale `people.roles` references** — `useUsersQuery.ts` mappers still reference `dbUser.roles` and write `roles` to the people table. Clean up to fully use `user_roles` table.
+- [ ] **Remove debug `useEffect`/`qualsLoaded` state from UserEditPanel** — The qualification loading useEffect was a workaround. Now that QualificationsTab fetches its own data, the useEffect can be removed.
 
 ---
 

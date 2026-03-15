@@ -77,6 +77,16 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
 vi.mock('@/components/shows/ShowDetails/dialogs/DeleteShowDialog', () => ({
   default: () => null,
 }));
+// Mock tab content components
+vi.mock('@/components/shows/tabs/MyEntriesTab', () => ({
+  MyEntriesTab: () => <div data-testid="my-entries-tab">MyEntriesTab</div>,
+}));
+vi.mock('@/components/shows/tabs/ClassesTab', () => ({
+  ClassesTab: () => <div data-testid="classes-tab">ClassesTab</div>,
+}));
+vi.mock('@/components/shows/EntryList', () => ({
+  EntryList: () => <div data-testid="entry-list">EntryList</div>,
+}));
 
 // Mock shared primitives to pass through
 vi.mock('@/components/common/PageShell', () => ({

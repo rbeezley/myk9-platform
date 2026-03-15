@@ -15,6 +15,8 @@ import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
 import { useMyEntries } from '@/hooks/useMyEntries';
+import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
+import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -263,18 +265,12 @@ const ShowDetailsPage: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="classes">
-            <div className="py-12 text-center text-muted-foreground">
-              <p className="text-lg font-medium">Classes</p>
-              <p className="text-sm mt-1">Class list coming soon.</p>
-            </div>
+            <ClassesTab classes={[]} userHasEntries={hasUserEntries} />
           </TabsContent>
 
           {isAuthenticated && (
             <TabsContent value="my-entries">
-              <div className="py-12 text-center text-muted-foreground">
-                <p className="text-lg font-medium">My Entries</p>
-                <p className="text-sm mt-1">Your entries for this show will appear here.</p>
-              </div>
+              <MyEntriesTab showId={actualCurrentShow.id} />
             </TabsContent>
           )}
 
@@ -282,7 +278,7 @@ const ShowDetailsPage: React.FC = () => {
             <TabsContent value="results">
               <div className="py-12 text-center text-muted-foreground">
                 <p className="text-lg font-medium">Results</p>
-                <p className="text-sm mt-1">Results will be posted after the show.</p>
+                <p className="text-sm mt-1">Results will appear here after classes are scored.</p>
               </div>
             </TabsContent>
           )}

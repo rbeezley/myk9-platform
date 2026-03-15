@@ -61,6 +61,7 @@ export function useClassEntries(classId: string | undefined): UseClassEntriesRes
     queryFn: () => fetchClassEntries(classId!),
     enabled: !!classId,
     ...cacheStrategies.dynamic,
+    refetchInterval: 30_000, // 30s polling for live show-day updates
   });
 
   const { pending, completed } = useMemo(() => {

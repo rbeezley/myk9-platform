@@ -48,6 +48,7 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
     queryFn: () => fetchMyEntries(showId!, personId!),
     enabled: !!showId && !!personId,
     ...cacheStrategies.dynamic,
+    refetchInterval: 30_000, // 30s polling for live show-day updates
   });
 
   const rawEntries = data || [];

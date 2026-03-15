@@ -31,7 +31,7 @@ const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
 const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
-const ProfileRedirect = lazy(() => import('@/pages/ProfileRedirect'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
 // Cart and checkout pages
@@ -187,7 +187,7 @@ export const PublicRoutes = () => (
       element={
         <ProtectedRoute>
           <SuspenseWrapper>
-            <ProfileRedirect />
+            <ProfilePage />
           </SuspenseWrapper>
         </ProtectedRoute>
       }
@@ -197,7 +197,7 @@ export const PublicRoutes = () => (
       element={
         <ProtectedRoute>
           <SuspenseWrapper>
-            <ProfileRedirect />
+            <ProfilePage />
           </SuspenseWrapper>
         </ProtectedRoute>
       }
@@ -245,7 +245,7 @@ export const PublicRoutes = () => (
       element={
         <ProtectedRoute>
           <SuspenseWrapper>
-            <ProfileRedirect />
+            <ProfilePage />
           </SuspenseWrapper>
         </ProtectedRoute>
       }

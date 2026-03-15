@@ -40,7 +40,6 @@ import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount } from '@/stores/cartStore';
 import { AboutDialog } from '@/components/common/AboutDialog';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const AppHeader: React.FC = () => {
@@ -51,7 +50,6 @@ const AppHeader: React.FC = () => {
   const navigate = useNavigate();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
-  const currentPersonId = useCurrentUserPersonId();
   const [aboutOpen, setAboutOpen] = useState(false);
   const cartItemCount = useCartItemCount();
 
@@ -286,7 +284,7 @@ const AppHeader: React.FC = () => {
                     {/* Common menu items */}
                     <DropdownMenuItem asChild>
                       <Link
-                        to={currentPersonId ? `/users/${currentPersonId}` : '/profile'}
+                        to="/profile"
                         className="w-full flex items-center gap-2"
                       >
                         <UserIcon className="h-4 w-4" />

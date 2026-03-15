@@ -10,7 +10,9 @@ import { AdditionalDetails } from '@/components/shows/overview/AdditionalDetails
 import { MoreFromClub } from '@/components/shows/overview/MoreFromClub';
 import { ShareEvent } from '@/components/shows/overview/ShareEvent';
 
-const baseUrl = (import.meta.env.VITE_PUBLIC_URL as string | undefined) ?? window.location.origin;
+const baseUrl =
+  (import.meta.env.VITE_PUBLIC_URL as string | undefined) ??
+  (typeof window !== 'undefined' ? window.location.origin : '');
 
 interface ShowOverviewTabProps {
   show: Show;

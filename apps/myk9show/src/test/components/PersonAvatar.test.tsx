@@ -53,11 +53,12 @@ describe('PersonAvatar', () => {
     expect(style1).toEqual(style2);
   });
 
-  it('different names can produce different colors', () => {
+  it('renders different names with different fallback colors', () => {
     const { container: c1 } = render(<PersonAvatar name="Jane Doe" />);
     const { container: c2 } = render(<PersonAvatar name="Zack Miller" />);
-    // At minimum, both should render without error
-    expect(c1.firstElementChild).toBeInTheDocument();
-    expect(c2.firstElementChild).toBeInTheDocument();
+    const color1 = c1.querySelector('[data-color]')?.getAttribute('data-color');
+    const color2 = c2.querySelector('[data-color]')?.getAttribute('data-color');
+    // These specific names hash to different color indices
+    expect(color1).not.toEqual(color2);
   });
 });

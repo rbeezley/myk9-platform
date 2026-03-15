@@ -16,7 +16,7 @@ import { useUserStore } from '@/store/userStore';
  * isn't found (handles legacy data that may still contain name strings).
  */
 export function useResolvePersonName() {
-  const { people } = useUserStore();
+  const people = useUserStore(s => s.people);
 
   return useCallback(
     (personId: string | undefined | null): string => {

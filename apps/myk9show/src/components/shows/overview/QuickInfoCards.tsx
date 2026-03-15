@@ -2,10 +2,17 @@ import { CalendarDays, DollarSign, MapPin, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { Show } from '@/types/show-types';
 
+function parseDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Handle both "2026-03-21" and ISO timestamp formats
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function formatShowDate(startDate: string, endDate: string): string {
-  if (!startDate) return 'TBD';
-  const start = new Date(startDate + 'T00:00:00');
-  const end = endDate ? new Date(endDate + 'T00:00:00') : start;
+  const start = parseDate(startDate);
+  if (!start) return 'TBD';
+  const end = parseDate(endDate) || start;
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
 
   if (start.getTime() === end.getTime()) {
@@ -17,9 +24,9 @@ function formatShowDate(startDate: string, endDate: string): string {
 }
 
 function getEntryCloseText(entryCloseDate: string): string | null {
-  const close = new Date(entryCloseDate + 'T00:00:00');
-  const now = new Date();
-  if (close <= now) return null;
+  const close = parseDate(entryCloseDate);
+  if (!close) return null;
+  if (close <= new Date()) return null;
   return `Entries close ${close.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 }
 

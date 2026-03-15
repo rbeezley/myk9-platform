@@ -1,24 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock dependencies before importing the hook
-const mockUseCurrentUserPersonId = vi.fn().mockReturnValue('person-123');
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: () => mockUseCurrentUserPersonId(),
+// Mock supabase — useCurrentUserPerson queries directly
+const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+const mockIsDeletedAt = vi.fn().mockReturnValue({ single: mockSingle });
+const mockEqAuthUserId = vi.fn().mockReturnValue({ is: mockIsDeletedAt });
+const mockSelect = vi.fn().mockReturnValue({ eq: mockEqAuthUserId });
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: {
+    from: () => ({ select: mockSelect }),
+  },
+}));
+
+vi.mock('@/lib/queryClient', () => ({
+  queryKeys: {
+    users: {
+      all: ['users'],
+      detail: (id: string) => ['users', id],
+    },
+  },
 }));
 
 const mockMutateAsync = vi.fn().mockResolvedValue({});
-const mockUseUserQuery = vi.fn().mockReturnValue({ data: null, isLoading: false });
-vi.mock('@/hooks/queries/useUsersQuery', () => ({
-  useUserQuery: (...args: unknown[]) => mockUseUserQuery(...args),
-}));
-
 vi.mock('@/hooks/useUsers', () => ({
   useUpdatePerson: () => ({ mutateAsync: mockMutateAsync }),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { email: 'test@example.com' } }),
+  useAuthContext: () => ({ user: { id: 'auth-user-123', email: 'test@example.com' } }),
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -29,29 +40,49 @@ vi.mock('@/lib/notifications', () => ({
 import { notifications, actionNotifications } from '@/lib/notifications';
 import { useProfileForm } from '../useProfileForm';
 
-const personData = {
+const dbPersonData = {
   id: 'person-123',
-  firstName: 'Jane',
-  lastName: 'Doe',
+  first_name: 'Jane',
+  last_name: 'Doe',
   phone: '555-1234',
-  streetAddress: '123 Main St',
+  street_address: '123 Main St',
   city: 'Springfield',
   state: 'IL',
-  zipCode: '62701',
+  zip_code: '62701',
+  email: 'test@example.com',
+  auth_user_id: 'auth-user-123',
+  profile_image: null,
 };
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+  };
+}
+
+/** Wait for person data to load AND form values to be pre-filled */
+async function waitForFormLoaded(result: { current: ReturnType<typeof useProfileForm> }) {
+  await waitFor(() => {
+    expect(result.current.values.firstName).not.toBe('');
+  });
+}
 
 describe('useProfileForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseCurrentUserPersonId.mockReturnValue('person-123');
-    mockUseUserQuery.mockReturnValue({ data: null, isLoading: false });
     mockMutateAsync.mockResolvedValue({});
+    // Default: return person data from supabase
+    mockSingle.mockResolvedValue({ data: dbPersonData, error: null });
   });
 
   it('returns initial empty form values when loading', () => {
-    mockUseUserQuery.mockReturnValue({ data: null, isLoading: true });
+    // Simulate loading by returning a pending promise
+    mockSingle.mockReturnValue(new Promise(() => {}));
 
-    const { result } = renderHook(() => useProfileForm());
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
     expect(result.current.values).toEqual({
       firstName: '',
@@ -65,10 +96,10 @@ describe('useProfileForm', () => {
     expect(result.current.isLoading).toBe(true);
   });
 
-  it('pre-fills form values from person data when loaded', () => {
-    mockUseUserQuery.mockReturnValue({ data: personData, isLoading: false });
+  it('pre-fills form values from person data when loaded', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
-    const { result } = renderHook(() => useProfileForm());
+    await waitForFormLoaded(result);
 
     expect(result.current.values.firstName).toBe('Jane');
     expect(result.current.values.lastName).toBe('Doe');
@@ -80,9 +111,9 @@ describe('useProfileForm', () => {
   });
 
   it('validates required fields (firstName, lastName, streetAddress, city, state, zipCode)', () => {
-    mockUseUserQuery.mockReturnValue({ data: null, isLoading: false });
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
 
-    const { result } = renderHook(() => useProfileForm());
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
     expect(result.current.errors.firstName).toBe('First name is required');
     expect(result.current.errors.lastName).toBe('Last name is required');
@@ -92,47 +123,54 @@ describe('useProfileForm', () => {
     expect(result.current.errors.zipCode).toBe('Zip code is required');
   });
 
-  it('phone is optional — no validation error when empty', () => {
-    mockUseUserQuery.mockReturnValue({
-      data: { ...personData, phone: '' },
-      isLoading: false,
+  it('phone is optional — no validation error when empty', async () => {
+    mockSingle.mockResolvedValue({
+      data: { ...dbPersonData, phone: '' },
+      error: null,
     });
 
-    const { result } = renderHook(() => useProfileForm());
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
-    // No phone error key should exist
+    await waitFor(() => {
+      expect(result.current.person).not.toBeNull();
+    });
+
+    // Need an extra tick for useEffect to pre-fill form
+    await waitFor(() => {
+      expect(result.current.isValid).toBe(true);
+    });
+
     expect((result.current.errors as Record<string, string>).phone).toBeUndefined();
-    expect(result.current.isValid).toBe(true);
   });
 
   it('isValid is false when required fields are empty', () => {
-    mockUseUserQuery.mockReturnValue({ data: null, isLoading: false });
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'not found' } });
 
-    const { result } = renderHook(() => useProfileForm());
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
     expect(result.current.isValid).toBe(false);
   });
 
-  it('isValid is true when all required fields are filled', () => {
-    mockUseUserQuery.mockReturnValue({ data: personData, isLoading: false });
+  it('isValid is true when all required fields are filled', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
-    const { result } = renderHook(() => useProfileForm());
+    await waitForFormLoaded(result);
 
     expect(result.current.isValid).toBe(true);
   });
 
-  it('isDirty is false when values match person data', () => {
-    mockUseUserQuery.mockReturnValue({ data: personData, isLoading: false });
+  it('isDirty is false when values match person data', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
-    const { result } = renderHook(() => useProfileForm());
+    await waitForFormLoaded(result);
 
     expect(result.current.isDirty).toBe(false);
   });
 
-  it('isDirty is true when values differ from person data', () => {
-    mockUseUserQuery.mockReturnValue({ data: personData, isLoading: false });
+  it('isDirty is true when values differ from person data', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
-    const { result } = renderHook(() => useProfileForm());
+    await waitForFormLoaded(result);
 
     act(() => {
       result.current.setValue('firstName', 'Janet');
@@ -142,11 +180,10 @@ describe('useProfileForm', () => {
   });
 
   it('save() calls updatePerson.mutateAsync with trimmed values', async () => {
-    mockUseUserQuery.mockReturnValue({ data: personData, isLoading: false });
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
-    const { result } = renderHook(() => useProfileForm());
+    await waitForFormLoaded(result);
 
-    // Make the form dirty so save will proceed
     act(() => {
       result.current.setValue('firstName', '  Jane  ');
     });
@@ -163,14 +200,14 @@ describe('useProfileForm', () => {
         city: 'Springfield',
         state: 'IL',
         zipCode: '62701',
-      }),
+      })
     );
   });
 
   it('save() shows success notification on success', async () => {
-    mockUseUserQuery.mockReturnValue({ data: personData, isLoading: false });
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
 
-    const { result } = renderHook(() => useProfileForm());
+    await waitForFormLoaded(result);
 
     act(() => {
       result.current.setValue('firstName', 'Janet');
@@ -185,9 +222,10 @@ describe('useProfileForm', () => {
 
   it('save() shows error notification on failure', async () => {
     mockMutateAsync.mockRejectedValue(new Error('Network error'));
-    mockUseUserQuery.mockReturnValue({ data: personData, isLoading: false });
 
-    const { result } = renderHook(() => useProfileForm());
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
+
+    await waitForFormLoaded(result);
 
     act(() => {
       result.current.setValue('firstName', 'Janet');

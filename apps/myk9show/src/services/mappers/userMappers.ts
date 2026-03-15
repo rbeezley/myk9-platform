@@ -68,7 +68,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     city: dbUser.city as string,
     state: dbUser.state as string,
     zipCode: dbUser.zip_code as string,
-    profileImage: dbUser.profile_image_url as string,
+    profileImage: dbUser.profile_image as string,
     user_id: dbUser.auth_user_id as string, // Link to auth.users for RBAC
 
     // Map associated dogs if included in query

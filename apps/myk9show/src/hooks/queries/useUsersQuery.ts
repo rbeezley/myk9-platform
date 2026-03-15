@@ -23,18 +23,20 @@ export interface AdminUser extends User {
 }
 
 // Database to UI mapper for User data
-const mapDbUserToUser = (dbUser: DbUser): User => ({
+export const mapDbUserToUser = (dbUser: DbUser): User => ({
   id: dbUser.id,
   firstName: dbUser.first_name || '',
   lastName: dbUser.last_name || '',
   email: dbUser.email || undefined,
   phone: dbUser.phone || undefined,
+  streetAddress: dbUser.street_address || undefined,
   address: dbUser.street_address || undefined,
   city: dbUser.city || undefined,
   state: dbUser.state || undefined,
   zipCode: dbUser.zip_code || undefined,
   country: dbUser.country || undefined,
   profileImage: dbUser.profile_image || undefined,
+  user_id: dbUser.auth_user_id || undefined,
   roles: (dbUser.roles as UserRole[]) || [],
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,
   updatedAt: dbUser.updated_at ? new Date(dbUser.updated_at) : undefined,
@@ -187,7 +189,7 @@ export function useAdminUsersQuery(showDeleted: boolean) {
           (row: Record<string, unknown>): AdminUser => ({
             ...mapDbUserToUser(row as unknown as DbUser),
             lastSignInAt: (row.last_sign_in_at as string) || null,
-          }),
+          })
         );
       } catch (err) {
         const error = ensureError(err);

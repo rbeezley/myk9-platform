@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
-import { useUserQuery } from '@/hooks/queries/useUsersQuery';
+import { useQuery } from '@tanstack/react-query';
 import { useUpdatePerson } from '@/hooks/useUsers';
+import { mapDbUserToUser } from '@/hooks/queries/useUsersQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications, actionNotifications } from '@/lib/notifications';
+import { supabase } from '@/services/database/supabaseClient';
+import { queryKeys } from '@/lib/queryClient';
 
 export interface ProfileFormValues {
   firstName: string;
@@ -24,10 +26,33 @@ interface ProfileFormErrors {
   zipCode?: string;
 }
 
+/**
+ * Query the current user's person record directly by auth_user_id.
+ * This avoids depending on the Zustand store being loaded first.
+ */
+function useCurrentUserPerson(authUserId: string | undefined) {
+  return useQuery({
+    queryKey: [...queryKeys.users.all, 'currentProfile', authUserId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('people')
+        .select('*')
+        .eq('auth_user_id', authUserId!)
+        .is('deleted_at', null)
+        .single();
+
+      if (error || !data) return null;
+
+      return mapDbUserToUser(data);
+    },
+    enabled: !!authUserId,
+  });
+}
+
 export function useProfileForm() {
-  const personId = useCurrentUserPersonId();
   const { user: authUser } = useAuthContext();
-  const { data: person, isLoading } = useUserQuery(personId || '');
+  const { data: person, isLoading } = useCurrentUserPerson(authUser?.id);
+  const personId = person?.id || null;
   const updatePerson = useUpdatePerson();
 
   const [values, setValues] = useState<ProfileFormValues>({
@@ -57,7 +82,7 @@ export function useProfileForm() {
   }, [person]);
 
   const setValue = (field: keyof ProfileFormValues, value: string) => {
-    setValues((prev) => ({ ...prev, [field]: value }));
+    setValues(prev => ({ ...prev, [field]: value }));
   };
 
   // Validation

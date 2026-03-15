@@ -1,0 +1,46 @@
+import { Card } from '@/components/ui/card';
+import { MapPin, Navigation } from 'lucide-react';
+
+interface VenueMapProps {
+  location?: string | null;
+  venueName?: string | null;
+}
+
+export function VenueMap({ location, venueName }: VenueMapProps) {
+  if (!location?.trim()) return null;
+
+  const encodedAddress = encodeURIComponent(location);
+  const mapSrc = `https://maps.google.com/maps?q=${encodedAddress}&output=embed`;
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+
+  return (
+    <Card className="overflow-hidden">
+      <iframe
+        src={mapSrc}
+        title={`Map showing ${venueName || location}`}
+        className="w-full h-[300px] border-0"
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        allowFullScreen
+      />
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-2">
+          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <div>
+            {venueName && <div className="font-semibold text-foreground text-sm">{venueName}</div>}
+            <div className="text-sm text-muted-foreground">{location}</div>
+          </div>
+        </div>
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+        >
+          <Navigation className="h-4 w-4" />
+          Get Directions
+        </a>
+      </div>
+    </Card>
+  );
+}

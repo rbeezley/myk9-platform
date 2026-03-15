@@ -1,12 +1,7 @@
-/**
- * Stub hook for fetching the current user's entries for a given show.
- * Returns entries grouped by class with position data.
- *
- * TODO: Full implementation in Task 15 (Chunk 5) — will query Supabase
- * entries joined with classes and calculate dogsAhead.
- */
-import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 
 interface MyEntryByClass {
   classId: string;
@@ -18,23 +13,65 @@ interface MyEntryByClass {
   scored: boolean;
 }
 
-interface UseMyEntriesResult {
+export interface UseMyEntriesResult {
   entries: Array<{ id: string; showId: string }>;
   entriesByClass: MyEntryByClass[];
   isLoading: boolean;
   isError: boolean;
 }
 
-export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
-  const { user } = useAuthContext();
+async function fetchMyEntries(showId: string, personId: string) {
+  const { data, error } = await supabase
+    .from('entries')
+    .select(
+      `
+      id, class_id, armband, run_order, is_scored, entry_status, show_id,
+      dog:dog_id (id, call_name),
+      class:class_id (id, name, scored_count, total_entries_count)
+    `
+    )
+    .eq('show_id', showId)
+    .eq('handler_id', personId)
+    .is('deleted_at', null)
+    .order('run_order', { ascending: true });
 
-  return useMemo(
-    () => ({
-      entries: [],
-      entriesByClass: [],
-      isLoading: false,
-      isError: false,
-    }),
-    [user?.id, showId]
-  );
+  if (error) throw error;
+  return data || [];
+}
+
+export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
+  const { userWithRoles } = useAuthContext();
+  const personId = userWithRoles?.databaseUserId;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: [...queryKeys.entriesByShow(showId || ''), 'mine', personId],
+    queryFn: () => fetchMyEntries(showId!, personId!),
+    enabled: !!showId && !!personId,
+    ...cacheStrategies.dynamic,
+  });
+
+  const rawEntries = data || [];
+
+  const entries = rawEntries.map((e) => ({ id: e.id, showId: String(e.show_id) }));
+
+  const entriesByClass: MyEntryByClass[] = rawEntries.map((entry) => {
+    const cls = entry.class as Record<string, unknown> | null;
+    const dog = entry.dog as Record<string, unknown> | null;
+    const scoredCount = (cls?.scored_count as number) || 0;
+    const runOrder = (entry.run_order as number) || 0;
+    // dogsAhead = entries ahead of us that haven't been scored
+    const dogsAhead = Math.max(0, runOrder - scoredCount - 1);
+
+    return {
+      classId: String(entry.class_id),
+      className: String(cls?.name || 'Unknown Class'),
+      dogName: String(dog?.call_name || 'Unknown Dog'),
+      armband: String(entry.armband || ''),
+      runOrder,
+      dogsAhead,
+      scored: Boolean(entry.is_scored),
+    };
+  });
+
+  return { entries, entriesByClass, isLoading, isError };
 }

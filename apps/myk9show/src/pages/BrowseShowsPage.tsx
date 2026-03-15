@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { Card, CardContent } from '@/components/ui/card';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { auditService } from '@/services/AuditService';
@@ -14,26 +12,15 @@ import type { Show } from '@/types/show-types';
 import {
   Search,
   Calendar,
-  Clock,
-  Grid3X3,
-  List,
-  Table2,
-  CalendarDays,
-
   Plus,
   Users,
   Download,
   Settings,
   FileText,
   BarChart3,
-  X,
-  Ticket,
 } from 'lucide-react';
-import { FilterBar } from '@/components/common/FilterBar';
-import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
 import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
 import '@/styles/myk9-show-details.css';
 
 import {
@@ -41,26 +28,37 @@ import {
   TabContentSkeleton,
   ShowCalendarSkeleton,
 } from '@/components/common/SkeletonLoaders';
-import { EnhancedEmptyState } from '@/components/shows/EnhancedEmptyStates';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
+
+// Shared primitives
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { SearchBar } from '@/components/common/SearchBar';
+import { FilterChips } from '@/components/common/FilterChips';
+import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
+import { ViewToggle } from '@/components/common/ViewToggle';
+import { ResultsCount } from '@/components/common/ResultsCount';
+import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
+import { MineToggle } from '@/components/common/MineToggle';
+import { useMineToggle } from '@/hooks/useMineToggle';
 
 // Extracted hooks and components
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
-import {
-  ShowsGridView,
-  ShowsListView,
-  ShowsTableView,
-  ShowBulkActionsBar,
-} from '@/components/shows/browse';
+import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { ViewPicker } from '@/components/common/ViewPicker';
 
 import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
 
+type ViewMode = 'cards' | 'table' | 'calendar';
 
-
-type ViewMode = 'grid' | 'list' | 'table' | 'calendar';
+const VIEW_MODES = [
+  { key: 'cards', label: 'Cards', icon: 'grid' as const },
+  { key: 'table', label: 'Table', icon: 'table' as const },
+  { key: 'calendar', label: 'Calendar', icon: 'calendar' as const },
+];
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,29 +66,41 @@ const BrowseShowsPage: React.FC = () => {
 
   // Get initial values from URL params
   const initialTab = searchParams.get('tab') || 'all';
-  const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
+  const initialViewMode = (searchParams.get('view') as ViewMode) || 'cards';
 
   const [selectedTab, setSelectedTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [isViewModeChanging, setIsViewModeChanging] = useState(false);
-  // Use extracted data hook (loads shows, entries, user context)
+
+  // Initial data load — filteredShows starts empty, populated after filter hook runs
+  const [filteredShowsState, setFilteredShowsState] = useState<Show[]>([]);
+
+  // Single data hook call — uses filteredShows for enhancement
   const {
     user,
     isLoading,
     hasError,
     shows,
     entries,
+    enhancedShows: allEnhancedShows,
     tabConfig,
     userContext,
     tabQuickActions,
-    quickStats,
     handleRetry,
-  } = useBrowseShowsData({ filteredShows: [], selectedTab });
+  } = useBrowseShowsData({ filteredShows: filteredShowsState, selectedTab });
 
   // Use extracted filter hook
   const { filters, setFilters, filteredShows, hasActiveFilters, clearAllFilters } =
     useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+
+  // Sync filtered shows into state for the data hook (avoids second hook call)
+  useEffect(() => {
+    setFilteredShowsState(filteredShows);
+  }, [filteredShows]);
+
+  // Mine toggle — filter to shows where user has entries
+  const { isMine, toggle: toggleMine } = useMineToggle('shows');
 
   // Saved views
   const {
@@ -133,13 +143,12 @@ const BrowseShowsPage: React.FC = () => {
       .map(([id, name]) => ({ label: name, value: id }));
   }, [shows]);
 
-  // FilterBar definitions for the 4 show filters
-  const filterDefs: FilterDefinition[] = useMemo(
+  // FilterChips definitions
+  const chipFilters: ChipFilterDefinition[] = useMemo(
     () => [
       {
         key: 'discipline',
         label: 'Discipline',
-        type: 'select' as const,
         options: [
           { label: 'Agility', value: 'agility' },
           { label: 'Scent Work', value: 'scent_work' },
@@ -150,7 +159,6 @@ const BrowseShowsPage: React.FC = () => {
       {
         key: 'entryStatus',
         label: 'Entry Status',
-        type: 'select' as const,
         options: [
           { label: 'Open', value: 'open' },
           { label: 'Closing Soon', value: 'closing_soon' },
@@ -161,7 +169,6 @@ const BrowseShowsPage: React.FC = () => {
       {
         key: 'dateRange',
         label: 'Date Range',
-        type: 'select' as const,
         options: [
           { label: 'Upcoming', value: 'upcoming' },
           { label: 'This Month', value: 'this_month' },
@@ -171,7 +178,6 @@ const BrowseShowsPage: React.FC = () => {
       {
         key: 'location',
         label: 'Location',
-        type: 'select' as const,
         options: [
           { label: 'Within 50 miles', value: 'within_50' },
           { label: 'Within 100 miles', value: 'within_100' },
@@ -181,41 +187,38 @@ const BrowseShowsPage: React.FC = () => {
       {
         key: 'club',
         label: 'Club',
-        type: 'select' as const,
         options: clubFilterOptions,
       },
     ],
     [clubFilterOptions]
   );
 
-  // Bridge existing filters state to FilterBarState
-  const filterBarState: FilterBarState = useMemo(() => {
-    const filterState: Record<string, string | string[] | boolean> = {};
-    if (filters.discipline !== 'all') filterState.discipline = filters.discipline;
-    if (filters.entryStatus !== 'all') filterState.entryStatus = filters.entryStatus;
-    if (filters.dateRange !== 'all') filterState.dateRange = filters.dateRange;
-    if (filters.location !== 'all') filterState.location = filters.location;
-    if (filters.club !== 'all') filterState.club = filters.club;
-    return { filters: filterState, sortKey: null, sortDirection: 'asc' as const };
+  // Bridge chip filter values from existing filters state
+  const chipFilterValues = useMemo(() => {
+    const values: Record<string, string> = {};
+    if (filters.discipline !== 'all') values.discipline = filters.discipline;
+    if (filters.entryStatus !== 'all') values.entryStatus = filters.entryStatus;
+    if (filters.dateRange !== 'all') values.dateRange = filters.dateRange;
+    if (filters.location !== 'all') values.location = filters.location;
+    if (filters.club !== 'all') values.club = filters.club;
+    return values;
   }, [filters.discipline, filters.entryStatus, filters.dateRange, filters.location, filters.club]);
 
-  // Bridge FilterBarState changes back to existing setFilters
-  const handleFilterBarChange = useCallback(
-    (newState: FilterBarState) => {
-      setFilters(prev => ({
-        ...prev,
-        discipline: (newState.filters.discipline as string) || 'all',
-        entryStatus: (newState.filters.entryStatus as string) || 'all',
-        dateRange: (newState.filters.dateRange as string) || 'all',
-        location: (newState.filters.location as string) || 'all',
-        club: (newState.filters.club as string) || 'all',
-      }));
+  const handleChipFilterChange = useCallback(
+    (key: string, value: string | null) => {
+      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
     },
     [setFilters]
   );
 
-  // Get enhanced shows from data hook with actual filtered shows
-  const { enhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
+  // Apply "mine" filter — when toggled, show only shows where user has entries
+  const { enhancedShows, mineCount } = useMemo(() => {
+    const mine = allEnhancedShows.filter(s => s.userHasEntries);
+    return {
+      enhancedShows: isMine ? mine : allEnhancedShows,
+      mineCount: mine.length,
+    };
+  }, [isMine, allEnhancedShows]);
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
@@ -253,7 +256,7 @@ const BrowseShowsPage: React.FC = () => {
       }
 
       if (newViewMode !== undefined) {
-        if (newViewMode === 'grid') {
+        if (newViewMode === 'cards') {
           params.delete('view');
         } else {
           params.set('view', newViewMode);
@@ -285,7 +288,8 @@ const BrowseShowsPage: React.FC = () => {
 
   // Handle view mode change with URL update and loading state
   const handleViewModeChange = useCallback(
-    (newViewMode: ViewMode) => {
+    (key: string) => {
+      const newViewMode = key as ViewMode;
       if (newViewMode === viewMode) return;
 
       setIsViewModeChanging(true);
@@ -299,9 +303,8 @@ const BrowseShowsPage: React.FC = () => {
   // Sync state with URL params on mount and param changes
   useEffect(() => {
     const rawTab = searchParams.get('tab') || tabConfig.defaultTab;
-    // Only apply if the tab is valid for this user; otherwise fall back to default
     const tabFromUrl = tabConfig.tabs.some(t => t.id === rawTab) ? rawTab : tabConfig.defaultTab;
-    const viewFromUrl = (searchParams.get('view') as ViewMode) || 'grid';
+    const viewFromUrl = (searchParams.get('view') as ViewMode) || 'cards';
 
     if (tabFromUrl !== selectedTab) {
       queueMicrotask(() => setSelectedTab(tabFromUrl));
@@ -315,8 +318,8 @@ const BrowseShowsPage: React.FC = () => {
     }
   }, [searchParams, tabConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Generate breadcrumb items
-  const breadcrumbItems = useMemo(() => {
+  // Breadcrumb items for PageHeader
+  const breadcrumbs = useMemo(() => {
     const items = [{ label: 'Shows', href: '/shows', onClick: () => handleTabChange('all') }];
 
     if (selectedTab !== 'all') {
@@ -328,6 +331,62 @@ const BrowseShowsPage: React.FC = () => {
 
     return items;
   }, [selectedTab, tabConfig.tabs, handleTabChange]);
+
+  // Quick action buttons for PageHeader
+  const actionButtons = useMemo(
+    () => (
+      <div className="flex flex-wrap gap-2">
+        {tabQuickActions.map(action => {
+          const IconComponent =
+            { Plus, Users, Search, Download, Settings, BarChart3, Calendar, FileText }[
+              action.icon
+            ] || Plus;
+          return action.permission ? (
+            <PermissionGuard key={action.id} permission={action.permission}>
+              <Button
+                variant={action.variant}
+                size="default"
+                onClick={() => action.onClick({} as Show)}
+              >
+                <IconComponent className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">{action.label}</span>
+                <span className="sm:hidden">Create</span>
+              </Button>
+            </PermissionGuard>
+          ) : (
+            <Button
+              key={action.id}
+              variant={action.variant}
+              size="default"
+              onClick={() => action.onClick({} as Show)}
+            >
+              <IconComponent className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">{action.label}</span>
+              <span className="sm:hidden">Create</span>
+            </Button>
+          );
+        })}
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link to="/calendar">
+              <Button
+                variant="outline"
+                size="default"
+                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 shadow-sm rounded-full"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Full Calendar</span>
+                <span className="sm:hidden">Calendar</span>
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>Open full calendar with show management</TooltipContent>
+        </Tooltip>
+      </div>
+    ),
+    [tabQuickActions, navigate]
+  );
 
   // Audit page access
   useEffect(() => {
@@ -358,25 +417,19 @@ const BrowseShowsPage: React.FC = () => {
   const renderShowsView = () => {
     if (enhancedShows.length === 0) {
       return (
-        <EnhancedEmptyState
-          tab={selectedTab}
-          user={user}
-          hasActiveFilters={hasActiveFilters}
-          onClearFilters={clearAllFilters}
-          onCreateShow={() => {
-            if (ShowPermissionValidator.canCreate(user)) {
-              navigate('/secretary/create-show/wizard');
-            } else {
-              logger.warn('User does not have permission to create shows', 'shows', {
-                userId: user?.id,
-              });
-            }
-          }}
-          onRegisterShow={() => logger.debug('Open registration clicked', 'shows')}
-          onFindShows={() => {
-            if (selectedTab !== 'all') handleTabChange('all');
-            if (hasActiveFilters) clearAllFilters();
-          }}
+        <EmptyState
+          icon={Search}
+          title={hasActiveFilters ? 'No matching shows' : 'No shows found'}
+          description={
+            hasActiveFilters
+              ? 'Try adjusting your filters or search to find what you are looking for.'
+              : 'Check back soon for upcoming shows in your area.'
+          }
+          action={
+            hasActiveFilters
+              ? { label: 'Clear Filters', onClick: clearAllFilters }
+              : undefined
+          }
         />
       );
     }
@@ -405,22 +458,10 @@ const BrowseShowsPage: React.FC = () => {
           />
         );
 
-      case 'list':
-        return (
-          <ShowsListView
-            shows={enhancedShows}
-            entries={entries}
-            selectedTab={selectedTab}
-            user={user}
-            isSelected={bulkSelection.isSelected}
-            onToggleSelect={bulkSelection.toggleItem}
-          />
-        );
-
-      case 'grid':
+      case 'cards':
       default:
         return (
-          <ShowsGridView
+          <ShowCardGrid
             shows={enhancedShows}
             entries={entries}
             selectedTab={selectedTab}
@@ -432,271 +473,120 @@ const BrowseShowsPage: React.FC = () => {
     }
   };
 
-  // Error state content
-  const errorStateContent = (
-    <Card className="bg-gradient-to-br from-card to-card/80 backdrop-blur-xl border-border/50 shadow-sm rounded-2xl">
-      <CardContent className="p-12 text-center">
-        <div className="flex items-center justify-center mb-4">
-          <div className="bg-error-red/10 rounded-full p-6">
-            <X className="h-12 w-12 text-error-red" />
-          </div>
-        </div>
-        <h3 className="text-lg font-semibold mb-2 text-error-red">Error Loading Shows</h3>
-        <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-          There was a problem loading the shows data. Please try again.
-        </p>
-        <Button
-          onClick={handleRetry}
-          variant="outline"
-          className="hover:-translate-y-0.5 transition-all duration-300"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Retry
-        </Button>
-      </CardContent>
-    </Card>
-  );
-
   return (
-    <div className="bg-background">
-      <div className="container mx-auto px-6 py-6 max-w-7xl">
-        <div className="space-y-8">
-          {/* Loading state */}
-          {isLoading && shows.length === 0 && <ShowsPageSkeleton viewMode={viewMode} count={6} />}
+    <PageShell>
+      {/* Loading state */}
+      {isLoading && shows.length === 0 && <ShowsPageSkeleton viewMode={viewMode} count={6} />}
 
-          {/* Error state */}
-          {hasError && !isLoading && (
-            <>
-              <Breadcrumb
-                items={breadcrumbItems}
-                showHomeIcon={true}
-                className="text-sm text-muted-foreground"
+      {/* Error state */}
+      {hasError && !isLoading && (
+        <ErrorState message="We couldn't load the shows." onRetry={handleRetry} />
+      )}
+
+      {/* Normal content */}
+      {!isLoading && !hasError && (
+        <>
+          <PageHeader breadcrumbs={breadcrumbs} title="Shows" actions={actionButtons} />
+
+          <SearchBar
+            value={filters.search}
+            onChange={value => setFilters(prev => ({ ...prev, search: value }))}
+            placeholder="Search shows by name, location, or club..."
+          />
+
+          <FilterChips
+            filters={chipFilters}
+            values={chipFilterValues}
+            onChange={handleChipFilterChange}
+          />
+
+          <MineToggle
+            isMine={isMine}
+            onToggle={toggleMine}
+            allLabel="All Shows"
+            mineLabel="My Shows"
+            allCount={allEnhancedShows.length}
+            mineCount={mineCount}
+            hidden={!user}
+          />
+
+          {/* View controls + results count */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <ViewToggle modes={VIEW_MODES} active={viewMode} onChange={handleViewModeChange} />
+              <ViewPicker
+                views={savedViewsList}
+                activeViewId={activeViewId}
+                getCurrentConfig={getCurrentConfig}
+                onApply={handleApplyView}
+                onSave={saveView}
+                onUpdate={updateView}
+                onDelete={deleteView}
+                onSetDefault={setDefault}
+                onClear={clearActiveView}
               />
-              {errorStateContent}
-            </>
-          )}
+            </div>
 
-          {/* Normal content */}
-          {!isLoading && !hasError && (
-            <>
-              <h1 className="sr-only">Shows</h1>
-              <div className="flex items-center justify-between">
-                <Breadcrumb
-                  items={breadcrumbItems}
-                  showHomeIcon={true}
-                  className="text-sm text-muted-foreground"
-                />
+            <ResultsCount
+              showing={enhancedShows.length}
+              total={shows.length}
+              filtered={hasActiveFilters}
+              entityName={shows.length === 1 ? 'show' : 'shows'}
+            />
+          </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {tabQuickActions.map(action => {
-                    const IconComponent =
-                      { Plus, Users, Search, Download, Settings, BarChart3, Calendar, FileText }[
-                        action.icon
-                      ] || Plus;
-                    return action.permission ? (
-                      <PermissionGuard key={action.id} permission={action.permission}>
-                        <Button
-                          variant={action.variant}
-                          size="default"
-                          onClick={() => action.onClick({} as Show)}
+          {/* Bulk Actions Bar */}
+          <ShowBulkActionsBar
+            selectedShows={bulkSelection.selectedItems}
+            onClearSelection={bulkSelection.clearSelection}
+            onBulkComplete={handleBulkComplete}
+          />
+
+          {/* Tabs */}
+          <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6">
+            <div className="overflow-x-auto">
+              <TabsList
+                className="grid w-full bg-muted/50 border border-border/30 rounded-xl p-1 h-auto min-w-max"
+                style={{
+                  gridTemplateColumns: `repeat(${tabConfig.tabs.length}, minmax(0, 1fr))`,
+                }}
+              >
+                {tabConfig.tabs.map(tab => {
+                  const count = tab.getCount ? tab.getCount(shows, entries, user?.id) : 0;
+                  return (
+                    <TabsTrigger
+                      key={tab.id}
+                      value={tab.id}
+                      className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap"
+                      title={tab.description}
+                      disabled={isTabSwitching}
+                    >
+                      <span className="flex items-center gap-2">
+                        {tab.label}
+                        <Badge
+                          variant={selectedTab === tab.id ? 'default' : 'secondary'}
+                          className="text-sm px-1.5 py-0.5 min-w-[20px] justify-center"
                         >
-                          <IconComponent className="h-4 w-4 mr-2" />
-                          <span className="hidden sm:inline">{action.label}</span>
-                          <span className="sm:hidden">Create</span>
-                        </Button>
-                      </PermissionGuard>
-                    ) : (
-                      <Button
-                        key={action.id}
-                        variant={action.variant}
-                        size="default"
-                        onClick={() => action.onClick({} as Show)}
-                      >
-                        <IconComponent className="h-4 w-4 mr-2" />
-                        <span className="hidden sm:inline">{action.label}</span>
-                        <span className="sm:hidden">Create</span>
-                      </Button>
-                    );
-                  })}
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link to="/calendar">
-                        <Button
-                          variant="outline"
-                          size="default"
-                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full"
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          <span className="hidden sm:inline">Full Calendar</span>
-                          <span className="sm:hidden">Calendar</span>
-                        </Button>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent>Open full calendar with show management</TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
-                <CardContent className="p-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search shows..."
-                      value={filters.search}
-                      onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                      className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                    />
-                  </div>
-
-                  <FilterBar
-                    filterDefs={filterDefs}
-                    state={filterBarState}
-                    onStateChange={handleFilterBarChange}
-                    className="mt-3"
-                  />
-                </CardContent>
-              </Card>
-
-              {/* View Mode Toggle */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-muted-foreground">View:</span>
-                  <div className="flex bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                    {(['grid', 'list', 'table', 'calendar'] as const).map(mode => {
-                      const Icon = {
-                        grid: Grid3X3,
-                        list: List,
-                        table: Table2,
-                        calendar: CalendarDays,
-                      }[mode];
-                      const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-                      return (
-                        <Tooltip key={mode}>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant={viewMode === mode ? 'default' : 'ghost'}
-                              size="default"
-                              onClick={() => handleViewModeChange(mode)}
-                              className="h-10 px-3 transition-all duration-200"
-                              disabled={isViewModeChanging}
-                            >
-                              <Icon className="h-4 w-4 sm:mr-2" />
-                              <span className="hidden sm:inline">{label}</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="sm:hidden">
-                            {label} View
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
-                  <ViewPicker
-                    views={savedViewsList}
-                    activeViewId={activeViewId}
-                    getCurrentConfig={getCurrentConfig}
-                    onApply={handleApplyView}
-                    onSave={saveView}
-                    onUpdate={updateView}
-                    onDelete={deleteView}
-                    onSetDefault={setDefault}
-                    onClear={clearActiveView}
-                  />
-                </div>
-
-                {/* Quick stats summary */}
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-muted-foreground">
-                    {enhancedShows.length} of {shows.length} show{shows.length !== 1 ? 's' : ''}
-                    {hasActiveFilters && ' (filtered)'}
-                  </span>
-                  {shows.length > 0 && (
-                    <div className="hidden sm:flex items-center gap-3 text-sm">
-                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-muted/50 rounded-full">
-                        <Calendar className="h-3 w-3 text-primary" />
-                        <span className="font-medium">{quickStats.upcoming}</span>
-                        <span className="text-muted-foreground">upcoming</span>
+                          {count}
+                        </Badge>
                       </span>
-                      {quickStats.userEntries > 0 && (
-                        <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 rounded-full">
-                          <Ticket className="h-3 w-3 text-green-600" />
-                          <span className="font-medium text-green-600">
-                            {quickStats.userEntries}
-                          </span>
-                          <span className="text-green-600/70">entered</span>
-                        </span>
-                      )}
-                      {quickStats.closingSoon > 0 && (
-                        <span className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-500/10 rounded-full">
-                          <Clock className="h-3 w-3 text-orange-600" />
-                          <span className="font-medium text-orange-600">
-                            {quickStats.closingSoon}
-                          </span>
-                          <span className="text-orange-600/70">closing soon</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
 
-              {/* Bulk Actions Bar */}
-              <ShowBulkActionsBar
-                selectedShows={bulkSelection.selectedItems}
-                onClearSelection={bulkSelection.clearSelection}
-                onBulkComplete={handleBulkComplete}
-              />
-
-              {/* Tabs */}
-              <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6">
-                <div className="overflow-x-auto">
-                  <TabsList
-                    className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"
-                    style={{
-                      gridTemplateColumns: `repeat(${tabConfig.tabs.length}, minmax(0, 1fr))`,
-                    }}
-                  >
-                    {tabConfig.tabs.map(tab => {
-                      const count = tab.getCount ? tab.getCount(shows, entries, user?.id) : 0;
-                      return (
-                        <TabsTrigger
-                          key={tab.id}
-                          value={tab.id}
-                          className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4 py-2 text-sm font-medium whitespace-nowrap"
-                          title={tab.description}
-                          disabled={isTabSwitching}
-                        >
-                          <span className="flex items-center gap-2">
-                            {tab.label}
-                            <Badge
-                              variant={selectedTab === tab.id ? 'default' : 'secondary'}
-                              className="text-sm px-1.5 py-0.5 min-w-[20px] justify-center"
-                            >
-                              {count}
-                            </Badge>
-                          </span>
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
-                </div>
-
-                <TabsContent value={selectedTab}>
-                  {isTabSwitching || isViewModeChanging ? (
-                    <TabContentSkeleton viewMode={viewMode} count={4} />
-                  ) : (
-                    renderShowsView()
-                  )}
-                </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+            <TabsContent value={selectedTab}>
+              {isTabSwitching || isViewModeChanging ? (
+                <TabContentSkeleton viewMode={viewMode} count={4} />
+              ) : (
+                renderShowsView()
+              )}
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
+    </PageShell>
   );
 };
 

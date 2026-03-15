@@ -3,7 +3,6 @@
  * Extracted from BrowseShowsPage.tsx as part of DEBT-002 refactoring
  */
 
-export { ShowsGridView } from './ShowsGridView';
-export { ShowsListView } from './ShowsListView';
+export { ShowCardGrid } from './ShowCardGrid';
 export { ShowsTableView } from './ShowsTableView';
 export { ShowBulkActionsBar } from './ShowBulkActionsBar';

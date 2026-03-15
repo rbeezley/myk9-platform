@@ -51,33 +51,56 @@ vi.mock('@/services/LoggingService', () => ({
 vi.mock('@/components/common/LazyComponents', () => ({
   ShowCalendar: () => <div data-testid="show-calendar">Calendar</div>,
 }));
-vi.mock('@/components/common/Breadcrumb', () => ({
-  Breadcrumb: () => <nav data-testid="breadcrumb">Breadcrumb</nav>,
-}));
 vi.mock('@/components/common/SkeletonLoaders', () => ({
   ShowsPageSkeleton: () => <div data-testid="shows-page-skeleton">Loading...</div>,
   TabContentSkeleton: () => <div data-testid="tab-content-skeleton">Tab loading...</div>,
   ShowCalendarSkeleton: () => <div data-testid="show-calendar-skeleton">Calendar loading...</div>,
 }));
-vi.mock('@/components/shows/EnhancedEmptyStates', () => ({
-  EnhancedEmptyState: () => <div data-testid="empty-state">No shows</div>,
-}));
 vi.mock('@/components/shows/browse', () => ({
-  ShowsGridView: () => <div data-testid="shows-grid">Grid</div>,
-  ShowsListView: () => <div data-testid="shows-list">List</div>,
+  ShowCardGrid: () => <div data-testid="shows-cards">Cards</div>,
   ShowsTableView: () => <div data-testid="shows-table">Table</div>,
   ShowBulkActionsBar: () => <div data-testid="bulk-actions-bar">Bulk Actions</div>,
 }));
 vi.mock('@/components/auth/PermissionGuard', () => ({
   PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
-vi.mock('@/utils/browseShowsUtils', () => ({
-  DISCIPLINE_LABELS: {} as Record<string, string>,
-  ENTRY_STATUS_LABELS: {} as Record<string, string>,
-  LOCATION_LABELS: {} as Record<string, string>,
-  DATE_RANGE_LABELS: {} as Record<string, string>,
-}));
 vi.mock('@/styles/myk9-show-details.css', () => ({}));
+// Mock shared primitives
+vi.mock('@/components/common/PageShell', () => ({
+  PageShell: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="page-shell">{children}</div>
+  ),
+}));
+vi.mock('@/components/common/PageHeader', () => ({
+  PageHeader: ({ actions }: { actions?: React.ReactNode }) => (
+    <div data-testid="page-header">{actions}</div>
+  ),
+}));
+vi.mock('@/components/common/SearchBar', () => ({
+  SearchBar: () => <div data-testid="search-bar" />,
+}));
+vi.mock('@/components/common/FilterChips', () => ({
+  FilterChips: () => <div data-testid="filter-chips" />,
+}));
+vi.mock('@/components/common/ViewToggle', () => ({
+  ViewToggle: () => <div data-testid="view-toggle" />,
+}));
+vi.mock('@/components/common/ResultsCount', () => ({
+  ResultsCount: () => <span data-testid="results-count" />,
+}));
+vi.mock('@/components/common/ErrorState', () => ({
+  ErrorState: ({ message }: { message: string }) => <div data-testid="error-state">{message}</div>,
+}));
+vi.mock('@/components/common/EmptyState', () => ({
+  EmptyState: () => <div data-testid="empty-state">No shows</div>,
+}));
+vi.mock('@/components/common/MineToggle', () => ({
+  MineToggle: ({ hidden }: { hidden?: boolean }) =>
+    hidden ? null : <div data-testid="mine-toggle">Mine Toggle</div>,
+}));
+vi.mock('@/hooks/useMineToggle', () => ({
+  useMineToggle: () => ({ isMine: false, toggle: vi.fn(), setMine: vi.fn() }),
+}));
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -507,6 +530,28 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
     });
   });
 
+  describe('MineToggle', () => {
+    it('should show MineToggle for authenticated users', async () => {
+      setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mine-toggle')).toBeInTheDocument();
+      });
+    });
+
+    it('should hide MineToggle for guests', async () => {
+      setupMocks({ user: null });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('mine-toggle')).not.toBeInTheDocument();
+      });
+    });
+  });
+
   describe('Loading and Error States', () => {
     it('should show loading skeleton while data is loading', async () => {
       setupMocks({
@@ -530,7 +575,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/error loading shows/i)).toBeInTheDocument();
+        expect(screen.getByTestId('error-state')).toBeInTheDocument();
       });
     });
   });

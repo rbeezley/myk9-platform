@@ -83,6 +83,8 @@
 
 All paths are relative to `apps/myk9show/`.
 
+**[ADDED] Role-adaptive design note:** Phase 1 builds the exhibitor experience only. The shared primitives (FilterChips, ViewToggle, MineToggle) accept their configuration as props — the page decides what to pass. This means secretary/admin features (Phase 2) are added by passing different props to the same components, not by modifying the components themselves. For example, `FilterChips` receives a `filters` array — exhibitors get 3 items, secretaries get 5. No conditional role logic inside the primitives.
+
 ---
 
 ## Chunk 1: Page Structure Primitives
@@ -1427,7 +1429,15 @@ Replace references to 'grid' and 'list' with 'cards' in test file.
 Run: `cd apps/myk9show && pnpm vitest run src/test/pages/BrowseShowsPage.test.tsx`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: [ADDED] Delete merged files**
+
+Delete `src/components/shows/browse/ShowsListView.tsx` and `src/components/shows/browse/ShowsGridView.tsx`. Search for any remaining imports of these files across the codebase and remove them.
+
+```bash
+grep -r "ShowsListView\|ShowsGridView" apps/myk9show/src/ --include="*.ts" --include="*.tsx" -l
+```
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git commit -m "refactor: merge grid + list views into unified ShowCardGrid"
@@ -2109,6 +2119,14 @@ describe('useMyEntries', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.entriesByClass).toHaveLength(0);
   });
+
+  // [ADDED] Error handling
+  it('returns error state when Supabase query fails', async () => {
+    mockSelect.mockResolvedValue({ data: null, error: { message: 'Network error' } });
+    const { result } = renderHook(() => useMyEntries('show-1'), { wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.entriesByClass).toHaveLength(0);
+  });
 });
 ```
 
@@ -2118,7 +2136,7 @@ Run: `cd apps/myk9show && pnpm vitest run src/test/hooks/useMyEntries.test.ts`
 
 - [ ] **Step 3: Implement useMyEntries**
 
-Query entries joined with classes for the given show where the handler/owner matches the current user (`people.id`). Calculate `dogsAhead` for each entry: `run_order - scored_count - 1` (entries ahead that haven't been scored yet). Return entries grouped by class. Use React Query with `cacheStrategies.dynamic` (1min) for auto-refresh. Data source: `src/hooks/queries/useShowDayData.ts:232` for reference on how existing show-day queries work.
+Query entries joined with classes for the given show where the handler/owner matches the current user (`people.id`). Calculate `dogsAhead` for each entry: `run_order - scored_count - 1` (entries ahead that haven't been scored yet). Return entries grouped by class. Use React Query with `cacheStrategies.dynamic` (1min) for auto-refresh. Data source: `src/hooks/queries/useShowDayData.ts:232` for reference on how existing show-day queries work. [ADDED] Return `isError` flag when query fails — the consuming component renders ErrorState.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -2335,6 +2353,29 @@ describe('MyEntriesTab', () => {
     render(<MyEntriesTab showId="show-1" />);
     expect(screen.getByText(/no entries/i)).toBeInTheDocument();
   });
+
+  // [ADDED] Edge case: all entries completed
+  it('shows celebration state when all entries are completed', () => {
+    vi.mocked(require('@/hooks/useMyEntries').useMyEntries).mockReturnValue({
+      entriesByClass: [
+        {
+          classId: 'c1',
+          className: 'Novice JWW',
+          dogName: 'Bella',
+          armband: '148',
+          dogsAhead: -1,
+          result: 'Q',
+          status: 'completed',
+          judgeName: 'Jane Smith',
+          totalEntries: 28,
+          completedEntries: 28,
+        },
+      ],
+      isLoading: false,
+    });
+    render(<MyEntriesTab showId="show-1" />);
+    expect(screen.getByText('Q')).toBeInTheDocument(); // Result shown instead of dogs ahead
+  });
 });
 ```
 
@@ -2424,6 +2465,16 @@ describe('ClassesTab', () => {
     render(<ClassesTab showId="show-1" userHasEntries={true} />);
     fireEvent.click(screen.getByText(/All Classes/));
     expect(screen.getByText('Exterior')).toBeInTheDocument();
+  });
+
+  // [ADDED] Edge case: show with 0 classes
+  it('shows empty state when show has no classes', () => {
+    vi.mocked(require('@/hooks/queries/useClassesData').useClassesData).mockReturnValue({
+      classes: [],
+      isLoading: false,
+    });
+    render(<ClassesTab showId="show-1" userHasEntries={false} />);
+    expect(screen.getByText(/no classes/i)).toBeInTheDocument();
   });
 });
 ```

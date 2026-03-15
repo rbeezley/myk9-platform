@@ -61,7 +61,10 @@ vi.mock('@/hooks/useNavigationPerformance', () => ({
 
 // Mock trial store
 vi.mock('@/store/trialStore', () => ({
-  useTrialStore: () => () => [],
+  useTrialStore: (selector: (s: Record<string, unknown>) => unknown) => {
+    const state = { trials: [], trialClasses: {} };
+    return selector(state);
+  },
 }));
 
 // Mock heavy child components

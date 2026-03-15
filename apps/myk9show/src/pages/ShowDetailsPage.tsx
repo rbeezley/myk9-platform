@@ -31,7 +31,7 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { endNavigation } = useNavigationPerformance();
   const { user, isSecretary, isAdmin } = useAuthContext();
-  const getTrialsByShow = useTrialStore(s => s.getTrialsByShow);
+  const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
 
   // Use fast show details loading with cache optimization
@@ -84,8 +84,8 @@ const ShowDetailsPage: React.FC = () => {
   // Get associated trials for secretary view
   const showId_ = actualCurrentShow?.id;
   const associatedTrials = useMemo(
-    () => (showId_ ? getTrialsByShow(showId_) : []),
-    [showId_, getTrialsByShow]
+    () => (showId_ ? trials.filter(t => t.showId === showId_) : []),
+    [showId_, trials]
   );
 
   // Check if user has entries in this show (determines default tab)

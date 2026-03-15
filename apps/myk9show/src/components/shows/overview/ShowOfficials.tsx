@@ -1,7 +1,10 @@
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Mail, Phone } from 'lucide-react';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { useResolvePerson, type ResolvedPerson } from '@/hooks/useResolvePerson';
+import { getUserById } from '@/services/database/queries/userQueries';
+import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 
 interface OfficialCardProps {
   person: ResolvedPerson;
@@ -42,15 +45,41 @@ function OfficialCard({ person, role }: OfficialCardProps) {
   );
 }
 
+/** Resolve a person by ID — tries Zustand store first, falls back to DB query. */
+function useResolveOfficial(personId: string | null | undefined): ResolvedPerson | null {
+  const resolvePerson = useResolvePerson();
+  const storePerson = resolvePerson(personId);
+  const isUnresolved = !!personId && storePerson?.name === personId;
+
+  const { data: fetchedPerson } = useQuery({
+    queryKey: ['person', personId],
+    queryFn: async () => {
+      const { data } = await getUserById(personId!);
+      if (!data) return null;
+      const user = mapDatabaseToUser(data);
+      return {
+        name: `${user.firstName} ${user.lastName}`,
+        profileImage: user.profileImage,
+        email: user.email,
+        phone: user.phone,
+      } as ResolvedPerson;
+    },
+    enabled: isUnresolved,
+    staleTime: 30 * 60 * 1000, // 30 min — people don't change often
+  });
+
+  if (!personId) return null;
+  return isUnresolved && fetchedPerson ? fetchedPerson : storePerson;
+}
+
 interface ShowOfficialsProps {
   chairmanId?: string | null;
   secretaryId?: string | null;
 }
 
 export function ShowOfficials({ chairmanId, secretaryId }: ShowOfficialsProps) {
-  const resolvePerson = useResolvePerson();
-  const chairman = resolvePerson(chairmanId);
-  const secretary = resolvePerson(secretaryId);
+  const chairman = useResolveOfficial(chairmanId);
+  const secretary = useResolveOfficial(secretaryId);
 
   if (!chairman && !secretary) return null;
 

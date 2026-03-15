@@ -65,11 +65,8 @@ vi.mock('@/store/trialStore', () => ({
 }));
 
 // Mock heavy child components
-vi.mock('@/components/shows/ShowDetailsMain', () => ({
-  default: () => <div data-testid="show-details-main">ShowDetailsMain</div>,
-}));
-vi.mock('@/components/shows/PublicShowView', () => ({
-  PublicShowView: () => <div data-testid="public-show-view">PublicShowView</div>,
+vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
+  ShowOverviewTab: () => <div data-testid="show-overview-tab">ShowOverviewTab</div>,
 }));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: () => null,

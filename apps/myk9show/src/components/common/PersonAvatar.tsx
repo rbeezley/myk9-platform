@@ -38,7 +38,7 @@ function getInitialsFromName(name: string): string {
 
 interface PersonAvatarProps {
   name: string;
-  avatarUrl?: string | null;
+  avatarUrl?: string | null | undefined;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }

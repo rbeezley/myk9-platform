@@ -1,5 +1,5 @@
 /**
- * Formats a date range for display. Used by PublicShowView and other SPA components.
+ * Formats a date range for display. Used by SPA components.
  * Note: API functions (api/og-show.ts, api/og-show-image.tsx) duplicate this function
  * because Vercel serverless functions cannot import from src/.
  */

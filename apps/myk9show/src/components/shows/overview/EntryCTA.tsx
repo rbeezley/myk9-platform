@@ -22,7 +22,6 @@ function computeRegistrationState(show: Show): RegistrationState {
   const isAccepting =
     show.status?.toLowerCase() === 'accepting_entries' ||
     show.status?.toLowerCase() === 'published';
-  const canRegister = entriesOpen && entriesNotClosed && isAccepting;
 
   if (!entriesOpen) {
     const daysUntilOpen = differenceInDays(openDate, now);

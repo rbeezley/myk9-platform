@@ -44,10 +44,8 @@ export const mapUserInputToUpdate = (input: Partial<UserInput>): DbUserUpdate =>
     if (input.address.zipCode !== undefined) update.zip_code = input.address.zipCode || null;
   }
 
-  // Handle roles updates
-  if (input.roles !== undefined) {
-    (update as Record<string, unknown>).roles = input.roles;
-  }
+  // Roles are managed via user_roles table, not the people table column
+  // (people.roles column was dropped in migration 066)
 
   return update;
 };
@@ -80,8 +78,8 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
       ? (dbUser.dog as Array<Record<string, unknown>>).map(dog => dog.id as string)
       : [],
 
-    // Map roles from the RBAC system if available
-    roles: Array.isArray(dbUser.roles) ? (dbUser.roles as UserRole[]) : [],
+    // Roles are managed via user_roles table, not the people table
+    roles: [],
 
     // Judge qualifications - handle if present (from nested select)
     judgeQualifications: Array.isArray(dbUser.judge_qualifications)
@@ -242,5 +240,5 @@ export const mapUserForList = (dbUser: Record<string, unknown>) => ({
   email: dbUser.email as string,
   phone: dbUser.phone as string,
   dogCount: Array.isArray(dbUser.dog) ? (dbUser.dog as Array<unknown>).length : 0,
-  roles: Array.isArray(dbUser.roles) ? (dbUser.roles as string[]) : [],
+  roles: [], // Roles managed via user_roles table
 });

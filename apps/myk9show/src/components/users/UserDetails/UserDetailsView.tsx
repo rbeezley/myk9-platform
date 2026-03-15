@@ -154,7 +154,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         ...(userData.lastName !== undefined && { lastName: userData.lastName }),
         ...(userData.email !== undefined && { email: userData.email }),
         ...(userData.phone !== undefined && { phone: userData.phone }),
-        ...(userData.roles !== undefined && { roles: userData.roles }),
+        // Roles are managed via user_roles table (RoleManager), not the people table
         address: addressValue,
         city: userData.city || '',
         state: userData.state || '',

@@ -1,0 +1,103 @@
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { MoreFromClub } from '@/components/shows/overview/MoreFromClub';
+
+// Mock React Router
+vi.mock('react-router-dom', () => ({
+  Link: ({
+    to,
+    children,
+    ...props
+  }: {
+    to: string;
+    children: React.ReactNode;
+    [key: string]: unknown;
+  }) => React.createElement('a', { href: to, ...props }, children),
+}));
+
+// Mock useShowsQuery
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({
+  useShowsQuery: () => ({
+    data: [
+      {
+        id: 'show-1',
+        name: 'Spring Trial',
+        clubId: 'club-1',
+        clubName: 'Jayhawk AC',
+        startDate: '2026-04-01',
+        location: 'Olathe, KS',
+      },
+      {
+        id: 'show-2',
+        name: 'Summer Trial',
+        clubId: 'club-1',
+        clubName: 'Jayhawk AC',
+        startDate: '2026-06-15',
+        location: 'Olathe, KS',
+      },
+      {
+        id: 'show-3',
+        name: 'Fall Trial',
+        clubId: 'club-1',
+        clubName: 'Jayhawk AC',
+        startDate: '2026-09-20',
+        location: 'Olathe, KS',
+      },
+      {
+        id: 'show-4',
+        name: 'Winter Trial',
+        clubId: 'club-1',
+        clubName: 'Jayhawk AC',
+        startDate: '2026-12-10',
+        location: 'Olathe, KS',
+      },
+      {
+        id: 'other-show',
+        name: 'Other Club Show',
+        clubId: 'club-2',
+        clubName: 'Other Club',
+        startDate: '2026-05-01',
+        location: 'KC, MO',
+      },
+    ],
+  }),
+}));
+
+describe('MoreFromClub', () => {
+  it('renders up to 3 shows from the same club', () => {
+    render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
+    expect(screen.getByText('Summer Trial')).toBeInTheDocument();
+    expect(screen.getByText('Fall Trial')).toBeInTheDocument();
+    expect(screen.getByText('Winter Trial')).toBeInTheDocument();
+  });
+
+  it('excludes the current show', () => {
+    render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
+    expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument();
+  });
+
+  it('does not show shows from other clubs', () => {
+    render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
+    expect(screen.queryByText('Other Club Show')).not.toBeInTheDocument();
+  });
+
+  it('returns null when no other shows from club', () => {
+    const { container } = render(
+      <MoreFromClub clubId="club-2" clubName="Other Club" currentShowId="other-show" />
+    );
+    expect(container.firstElementChild).toBeNull();
+  });
+
+  it('renders section heading with club name', () => {
+    render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
+    expect(screen.getByText(/more from jayhawk ac/i)).toBeInTheDocument();
+  });
+
+  it('renders show cards as links', () => {
+    render(<MoreFromClub clubId="club-1" clubName="Jayhawk AC" currentShowId="show-1" />);
+    const links = screen.getAllByRole('link');
+    expect(links.length).toBeGreaterThanOrEqual(1);
+    expect(links[0]).toHaveAttribute('href', expect.stringContaining('/shows/'));
+  });
+});

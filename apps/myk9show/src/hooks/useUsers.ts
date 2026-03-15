@@ -33,7 +33,6 @@ export function useAddPerson() {
         city: person.city || null,
         state: person.state || null,
         zip_code: person.zipCode || null,
-        roles: person.roles || [],
       });
       if (error || !data) throw new Error(error?.message || 'Failed to create user');
       return mapDatabaseToUser(data);
@@ -59,7 +58,6 @@ export function useUpdatePerson() {
         city: person.city || null,
         state: person.state || null,
         zip_code: person.zipCode || null,
-        roles: person.roles || [],
       });
       if (error || !data) throw new Error(error?.message || 'Failed to update user');
       return mapDatabaseToUser(data);

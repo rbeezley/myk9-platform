@@ -255,6 +255,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
         >
           <BasicInfoTab
             data={data}
+            personId={userId}
             errors={errors}
             updateData={updateData}
             hasAdminPermission={hasPermission('admin:manage')}
@@ -267,7 +268,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
               <Label className="text-sm font-[590]">Account Status</Label>
               <Select
                 value={data.status}
-                onValueChange={(value) => {
+                onValueChange={value => {
                   if (value === 'suspended' && data.status !== 'suspended') {
                     const confirmed = window.confirm(
                       'This will immediately block this user from logging in. Continue?'

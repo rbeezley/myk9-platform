@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -7,10 +8,71 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/services/database/supabaseClient';
 import type { UserFormData } from './UserEditPanel.types';
+
+/** Fetch role names for a person (people.id) from user_roles table */
+function usePersonRoleNames(personId?: string) {
+  return useQuery({
+    queryKey: ['personRoles', personId],
+    queryFn: async () => {
+      if (!personId) return [];
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role:roles!user_roles_role_id_fkey(name)')
+        .eq('user_id', personId)
+        .eq('is_active', true);
+      if (error) throw error;
+      return (data || [])
+        .map((r: Record<string, unknown>) => (r.role as { name: string })?.name)
+        .filter(Boolean) as string[];
+    },
+    enabled: !!personId,
+    staleTime: 30_000,
+  });
+}
+
+/** Toggle a role for a person via user_roles table */
+async function togglePersonRole(personId: string, roleName: string, grant: boolean) {
+  const { data: role } = await supabase
+    .from('roles')
+    .select('id')
+    .eq('name', roleName === 'admin' ? 'site_admin' : roleName)
+    .single();
+  if (!role) return;
+
+  if (grant) {
+    // Check if deactivated row exists — reactivate it
+    const { data: existing } = await supabase
+      .from('user_roles')
+      .select('id, is_active')
+      .eq('user_id', personId)
+      .eq('role_id', role.id)
+      .maybeSingle();
+
+    if (existing && !existing.is_active) {
+      await supabase.from('user_roles').update({ is_active: true }).eq('id', existing.id);
+    } else if (!existing) {
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      await supabase.from('user_roles').insert({
+        user_id: personId,
+        role_id: role.id,
+        granted_by: currentUser?.id ?? null,
+      });
+    }
+  } else {
+    // Soft-deactivate
+    await supabase
+      .from('user_roles')
+      .update({ is_active: false })
+      .eq('user_id', personId)
+      .eq('role_id', role.id);
+  }
+}
 
 interface BasicInfoTabProps {
   data: UserFormData;
+  personId?: string;
   errors: string[];
   updateData: (updates: Partial<UserFormData>) => void;
   hasAdminPermission: boolean;
@@ -20,12 +82,40 @@ interface BasicInfoTabProps {
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   data,
+  personId,
   errors,
   updateData,
   hasAdminPermission,
   canEditAdvancedFields,
   onOpenPhotoModal,
 }) => {
+  const queryClient = useQueryClient();
+  const { data: dbRoles = [] } = usePersonRoleNames(personId);
+  const [localRoles, setLocalRoles] = useState<string[]>([]);
+
+  // Sync DB roles into local state when they load
+  useEffect(() => {
+    // Map site_admin back to 'admin' for display
+    setLocalRoles(dbRoles.map(r => (r === 'site_admin' ? 'admin' : r)));
+  }, [dbRoles]);
+
+  const handleRoleToggle = useCallback(
+    async (role: string) => {
+      if (!personId) return;
+      const isSelected = localRoles.includes(role);
+      // Optimistic update
+      setLocalRoles(prev => (isSelected ? prev.filter(r => r !== role) : [...prev, role]));
+      try {
+        await togglePersonRole(personId, role, !isSelected);
+        queryClient.invalidateQueries({ queryKey: ['personRoles', personId] });
+      } catch {
+        // Revert on error
+        setLocalRoles(dbRoles.map(r => (r === 'site_admin' ? 'admin' : r)));
+      }
+    },
+    [personId, localRoles, dbRoles, queryClient]
+  );
+
   const handleInputChange = useCallback(
     (field: keyof UserFormData) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -162,17 +252,12 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       'admin',
                     ] as const
                   ).map(role => {
-                    const isSelected = data.roles.includes(role);
+                    const isSelected = localRoles.includes(role);
                     return (
                       <button
                         key={role}
                         type="button"
-                        onClick={() => {
-                          const newRoles = isSelected
-                            ? data.roles.filter(r => r !== role)
-                            : [...data.roles, role];
-                          updateData({ roles: newRoles });
-                        }}
+                        onClick={() => handleRoleToggle(role)}
                         className={cn(
                           'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200',
                           isSelected
@@ -185,7 +270,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     );
                   })}
                 </div>
-                {data.roles.length === 0 && (
+                {localRoles.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     No roles assigned. Users with no roles are considered Members.
                   </p>

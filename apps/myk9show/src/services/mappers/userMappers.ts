@@ -2,10 +2,31 @@
 // Phase 2.2: User Store Integration
 
 import type { User, JudgeInfo } from '@/types/user-types';
-import { UserRole } from '@/types/auth-types';
+import type { UserRole } from '@/types/auth-types';
 import type { DbUserInsert, DbUserUpdate, DbJudgeAvailability } from '@/types/database-mappings';
 import type { UserInput } from '@/store/userStore';
 import { toYYYYMMDD } from '@/utils/dateFormat';
+
+/**
+ * Extract roles from DB data. Supports two shapes:
+ * 1. Supabase join: user_roles(role:roles(name)) → [{ role: { name: "judge" } }, ...]
+ * 2. RPC flat array: roles → ["judge", "exhibitor", ...]
+ */
+export const extractRoles = (dbUser: Record<string, unknown>): UserRole[] => {
+  // Shape 1: joined user_roles data
+  const userRoles = dbUser.user_roles as Array<{ role: { name: string } | null }> | undefined;
+  if (Array.isArray(userRoles) && userRoles.length > 0) {
+    return userRoles
+      .map(ur => ur.role?.name)
+      .filter((name): name is string => !!name) as UserRole[];
+  }
+  // Shape 2: flat roles array from RPC (e.g. get_admin_user_list)
+  const roles = dbUser.roles;
+  if (Array.isArray(roles)) {
+    return roles as UserRole[];
+  }
+  return [];
+};
 
 /**
  * Convert UserInput (from userStore) to DbUserInsert (for database)
@@ -78,8 +99,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
       ? (dbUser.dog as Array<Record<string, unknown>>).map(dog => dog.id as string)
       : [],
 
-    // Roles are managed via user_roles table, not the people table
-    roles: [],
+    roles: extractRoles(dbUser),
 
     // Judge qualifications - handle if present (from nested select)
     judgeQualifications: Array.isArray(dbUser.judge_qualifications)
@@ -240,5 +260,5 @@ export const mapUserForList = (dbUser: Record<string, unknown>) => ({
   email: dbUser.email as string,
   phone: dbUser.phone as string,
   dogCount: Array.isArray(dbUser.dog) ? (dbUser.dog as Array<unknown>).length : 0,
-  roles: [], // Roles managed via user_roles table
+  roles: extractRoles(dbUser),
 });

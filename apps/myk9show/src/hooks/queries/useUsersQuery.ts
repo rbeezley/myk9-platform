@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
-import type { User, UserRole } from '@/types/user-types';
+import type { User } from '@/types/user-types';
 import {
   getAllUsers,
   getUserById,
@@ -17,6 +17,7 @@ import type { DbUser, DbUserInsert, DbUserUpdate } from '@/types/database-mappin
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
+import { extractRoles } from '@/services/mappers/userMappers';
 
 export interface AdminUser extends User {
   lastSignInAt: string | null;
@@ -37,7 +38,7 @@ export const mapDbUserToUser = (dbUser: DbUser): User => ({
   country: dbUser.country || undefined,
   profileImage: dbUser.profile_image || undefined,
   user_id: dbUser.auth_user_id || undefined,
-  roles: (dbUser.roles as UserRole[]) || [],
+  roles: extractRoles(dbUser as unknown as Record<string, unknown>),
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,
   updatedAt: dbUser.updated_at ? new Date(dbUser.updated_at) : undefined,
   status: (dbUser.status as 'active' | 'suspended') || 'active',
@@ -60,7 +61,7 @@ const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   if (user.state !== undefined) dbUpdate.state = user.state;
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;
   if (user.country !== undefined) dbUpdate.country = user.country;
-  if (user.roles !== undefined) dbUpdate.roles = user.roles;
+  // roles are managed via user_roles table, not the people table (people.roles was dropped in migration 066)
   if (user.status !== undefined) dbUpdate.status = user.status;
 
   return dbUpdate;

@@ -10,7 +10,7 @@ export const getAllUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('*')
+      .select('*, user_roles(role:roles(name))')
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
@@ -55,6 +55,7 @@ export const getUserById = async (id: string) => {
       .select(
         `
         *,
+        user_roles(role:roles(name)),
         dogs!dogs_owner_id_fkey(
           id,
           name,
@@ -407,7 +408,7 @@ export const searchUsers = async (searchTerm: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('*')
+      .select('*, user_roles(role:roles(name))')
       .is('deleted_at', null)
       .or(
         `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`

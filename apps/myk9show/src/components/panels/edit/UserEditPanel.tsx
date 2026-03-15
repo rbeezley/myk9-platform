@@ -63,7 +63,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
         return;
       }
       const mapped: JudgeQualification[] = dbQuals.map(
-        (q: Record<string, unknown>) =>
+        q =>
           ({
             organization: q.organization as string,
             level: q.qualification_level as string,
@@ -218,29 +218,25 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
 
       // Create new qualifications
       for (const qual of qualifications) {
-        try {
-          await judgeQualificationQueries.create({
-            person_id: userId,
-            organization: qual.organization,
-            qualification_level: qual.level || 'Regular',
-            disciplines: qual.disciplines || qual.showTypes || [],
-            date_obtained:
-              qual.certificationDate ||
-              (qual.dateObtained
-                ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0]
-                : new Date().toISOString().split('T')[0]),
-            ...(qual.expirationDate
-              ? {
-                  expiration_date: new Date(qual.expirationDate as unknown as string)
-                    .toISOString()
-                    .split('T')[0],
-                }
-              : {}),
-            is_active: qual.status === 'Active',
-          });
-        } catch (err) {
-          throw err;
-        }
+        await judgeQualificationQueries.create({
+          person_id: userId,
+          organization: qual.organization,
+          qualification_level: qual.level || 'Regular',
+          disciplines: qual.disciplines || qual.showTypes || [],
+          date_obtained:
+            qual.certificationDate ||
+            (qual.dateObtained
+              ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0]
+              : new Date().toISOString().split('T')[0]),
+          ...(qual.expirationDate
+            ? {
+                expiration_date: new Date(qual.expirationDate as unknown as string)
+                  .toISOString()
+                  .split('T')[0],
+              }
+            : {}),
+          is_active: qual.status === 'Active',
+        });
       }
       // Invalidate caches so the store and queries pick up the new data
       queryClient.invalidateQueries({ queryKey: ['judgeQualifications', userId] });

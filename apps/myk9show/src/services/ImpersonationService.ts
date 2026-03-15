@@ -7,6 +7,7 @@ import { ImpersonationContext, ImpersonationSession, AuditAction } from '@/types
 import { auditService } from './AuditService';
 import { logger } from '@/services/LoggingService';
 import { supabase } from '@/lib/supabase';
+import { extractRoles } from '@/services/mappers/userMappers';
 
 export interface ImpersonationConfig {
   maxSessionDuration?: number; // in milliseconds
@@ -314,9 +315,7 @@ export class ImpersonationService {
       throw new Error('Unable to verify admin permissions');
     }
 
-    const roles: string[] = userRoles
-      .map((r: { role: { name: string } | null }) => r.role?.name ?? '')
-      .filter(Boolean);
+    const roles = extractRoles({ user_roles: userRoles });
     const hasAllowedRole = roles.some(role => this.config.allowedRoles.includes(role));
     if (!hasAllowedRole) {
       throw new Error(`Impersonation requires one of: ${this.config.allowedRoles.join(', ')}`);

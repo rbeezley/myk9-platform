@@ -61,7 +61,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
                   <Badge variant="default">Active</Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {qual.date_obtained && (
+                  {Boolean(qual.date_obtained) && (
                     <p>Certified: {new Date(qual.date_obtained as string).toLocaleDateString()}</p>
                   )}
                   {Array.isArray(qual.disciplines) && (qual.disciplines as string[]).length > 0 && (

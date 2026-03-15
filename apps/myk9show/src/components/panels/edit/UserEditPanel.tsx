@@ -407,15 +407,25 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
 
-  // Handle save
+  // Handle save — persist form data + role changes
   const handleSave = useCallback(
     async (formData: UserFormData) => {
       const userData = formDataToUser(formData);
+
+      // Save roles to user_roles table (separate from people table)
+      if (userId && formData.roles) {
+        const { savePersonRoles } = await import('./BasicInfoTab');
+        const oldRoles = (initialFormData.roles || []).map((r: string) =>
+          r === 'site_admin' ? 'admin' : r
+        );
+        await savePersonRoles(userId, formData.roles, oldRoles);
+      }
+
       if (onSave) {
         await onSave(userData);
       }
     },
-    [onSave]
+    [onSave, userId, initialFormData.roles]
   );
 
   return (

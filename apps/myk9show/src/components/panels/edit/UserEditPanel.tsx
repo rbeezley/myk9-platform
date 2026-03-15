@@ -49,6 +49,38 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
   // Judge qualifications panel state
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
 
+  // Load qualifications from DB (the people store doesn't include them)
+  const [qualsLoaded, setQualsLoaded] = useState(false);
+  useEffect(() => {
+    if (qualsLoaded) return;
+    let cancelled = false;
+    (async () => {
+      const { judgeQualificationQueries } =
+        await import('@/services/database/queries/judgeQueries');
+      const dbQuals = await judgeQualificationQueries.getByJudgeId(userId);
+      if (cancelled || dbQuals.length === 0) {
+        setQualsLoaded(true);
+        return;
+      }
+      const mapped: JudgeQualification[] = dbQuals.map(
+        (q: Record<string, unknown>) =>
+          ({
+            organization: q.organization as string,
+            level: q.qualification_level as string,
+            showTypes: (q.disciplines as string[]) || [],
+            disciplines: (q.disciplines as string[]) || [],
+            certificationDate: q.date_obtained as string,
+            status: q.is_active ? 'Active' : 'Inactive',
+          }) as JudgeQualification
+      );
+      updateData({ judgeQualifications: mapped });
+      setQualsLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, qualsLoaded, updateData]);
+
   // Profile photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);

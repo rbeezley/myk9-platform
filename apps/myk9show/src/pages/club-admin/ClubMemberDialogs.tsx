@@ -24,6 +24,7 @@ import {
 
 // --- Badge color constants ---
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const TYPE_BADGE_CLASSES: Record<MembershipType, string> = {
   full: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   associate: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
@@ -31,6 +32,7 @@ export const TYPE_BADGE_CLASSES: Record<MembershipType, string> = {
   honorary: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const STATUS_BADGE_CLASSES: Record<MembershipStatus, string> = {
   active: 'bg-success-green/10 text-success-green border-success-green/20',
   lapsed: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20',

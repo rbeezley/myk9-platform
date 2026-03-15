@@ -155,20 +155,6 @@ export const componentLazyLoaders = {
       default: module.default as React.ComponentType<{ dog?: unknown }>,
     }))
   ),
-
-  // Show components
-  showDetailsMain: lazyLoadWithRetry(() =>
-    import('@/components/shows/ShowDetailsMain').then(module => ({
-      default: module.default as React.ComponentType<{
-        showData?: unknown;
-        associatedTrials?: unknown[];
-        onEditShow?: (show: unknown) => void;
-        onDeleteShow?: (showId: string) => void;
-        showEditDialog?: boolean;
-        showDeleteDialog?: boolean;
-      }>,
-    }))
-  ),
 } as const;
 
 // Intelligent preloading based on route patterns

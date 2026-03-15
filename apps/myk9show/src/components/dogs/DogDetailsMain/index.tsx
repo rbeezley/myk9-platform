@@ -40,21 +40,23 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
   }, [searchParams]);
 
-  const person = people.find(p => p.id === dog.ownerId);
-  const owner: Owner = person
-    ? {
-        id: person.id,
-        name: `${person.firstName} ${person.lastName}`,
-        email: person.email,
-        phone: person.phone,
-        profileImage: person.profileImage,
-      }
-    : {
-        id: 'unknown',
-        name: 'Unknown Owner',
-        email: 'N/A',
-        phone: 'N/A',
-      };
+  const owner: Owner = useMemo(() => {
+    const person = people.find(p => p.id === dog.ownerId);
+    return person
+      ? {
+          id: person.id,
+          name: `${person.firstName} ${person.lastName}`,
+          email: person.email,
+          phone: person.phone,
+          profileImage: person.profileImage,
+        }
+      : {
+          id: 'unknown',
+          name: 'Unknown Owner',
+          email: 'N/A',
+          phone: 'N/A',
+        };
+  }, [people, dog.ownerId]);
 
   // Panel/dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);

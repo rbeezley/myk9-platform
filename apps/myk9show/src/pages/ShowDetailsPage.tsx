@@ -5,8 +5,7 @@ import { CalendarDays, MapPin, Users as UsersIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
-import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
-import { PublicShowView } from '@/components/shows/PublicShowView';
+import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
@@ -271,17 +270,7 @@ const ShowDetailsPage: React.FC = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            {canManageShow ? (
-              <ShowDetailsMain
-                showData={actualCurrentShow}
-                associatedTrials={associatedTrials}
-                onEditShow={() => setShowEditPanel(true)}
-                onDeleteShow={() => setShowDeleteDialog(true)}
-                onRegisterForShow={handleRegisterForShow}
-              />
-            ) : (
-              <PublicShowView show={actualCurrentShow} onRegister={handleRegisterForShow} />
-            )}
+            <ShowOverviewTab show={actualCurrentShow} onRegister={handleRegisterForShow} />
           </TabsContent>
 
           <TabsContent value="classes">

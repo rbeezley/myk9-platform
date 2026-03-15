@@ -71,11 +71,11 @@ export function useMissionControlData() {
   // This ensures newly created classes appear immediately without waiting
   // for Supabase sync (which was the root cause of the missing-classes bug).
   const effectiveTrialId = selectedTrial?.id ?? '';
-  const localClasses = effectiveTrialId ? (allTrialClasses[effectiveTrialId] ?? []) : [];
   const classesLoading = false; // Local data is always available synchronously
 
   // Map local TrialClass → ClassPipelineItem[]
   const pipelineClasses = useMemo<ClassPipelineItem[]>(() => {
+    const localClasses = effectiveTrialId ? (allTrialClasses[effectiveTrialId] ?? []) : [];
     if (!localClasses.length) return [];
 
     return localClasses.map(cls => {
@@ -96,7 +96,7 @@ export function useMissionControlData() {
         planned_start_time: null, // Not tracked on TrialClass
       };
     });
-  }, [localClasses]);
+  }, [effectiveTrialId, allTrialClasses]);
 
   // Group by stage
   const classesByStage = useMemo(() => groupClassesByStage(pipelineClasses), [pipelineClasses]);

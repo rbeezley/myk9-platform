@@ -41,7 +41,8 @@ async function fetchClassEntries(classId: string) {
     .select(
       `
       id, armband, run_order, is_scored, result_status, entry_status, is_in_ring, handler_id,
-      dog:dog_id (id, call_name, breed)
+      dog:dog_id (id, call_name, breed),
+      handler:handler_id (id, first_name, last_name)
     `
     )
     .eq('class_id', classId)
@@ -69,15 +70,19 @@ export function useClassEntries(classId: string | undefined): UseClassEntriesRes
 
     const allEntries: ClassEntry[] = rawEntries.map(entry => {
       const dog = entry.dog as Record<string, unknown> | null;
+      const handler = entry.handler as Record<string, unknown> | null;
       const status = mapEntryStatus(entry as Record<string, unknown>);
       const isCurrentUser = personId ? String(entry.handler_id) === personId : false;
+      const firstName = String(handler?.first_name || '');
+      const lastName = String(handler?.last_name || '');
+      const handlerName = [firstName, lastName].filter(Boolean).join(' ') || 'Unknown';
 
       const base: ClassEntry = {
         id: entry.id,
         armband: String(entry.armband || ''),
         dogName: String(dog?.call_name || 'Unknown'),
         breed: String(dog?.breed || ''),
-        handlerName: '',
+        handlerName,
         status,
         isCurrentUser,
         runOrder: (entry.run_order as number) || 0,

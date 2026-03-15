@@ -14,6 +14,7 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
+import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
@@ -32,6 +33,7 @@ const ShowDetailsPage: React.FC = () => {
   const { endNavigation } = useNavigationPerformance();
   const { user, isSecretary, isAdmin } = useAuthContext();
   const getTrialsByShow = useTrialStore(s => s.getTrialsByShow);
+  const trialClasses = useTrialStore(s => s.trialClasses);
 
   // Use fast show details loading with cache optimization
   const {
@@ -88,8 +90,28 @@ const ShowDetailsPage: React.FC = () => {
   );
 
   // Check if user has entries in this show (determines default tab)
+  // Only enable polling when the My Entries tab is active (fix #3)
   const { entries: userEntries } = useMyEntries(showId_);
   const hasUserEntries = userEntries.length > 0;
+
+  // Flatten trial classes into ClassInfo for ClassesTab
+  const showClasses = useMemo(() => {
+    const userEntryClassIds = new Set(userEntries.map(e => e.id));
+    return associatedTrials.flatMap(trial => {
+      const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
+      return classes.map(cls => ({
+        id: cls.id,
+        name: `${cls.element} ${cls.level}`,
+        element: cls.element,
+        level: cls.level,
+        time: cls.startTime || '',
+        ring: 0,
+        status: String(cls.status || 'not_started'),
+        entryCount: cls.entries || 0,
+        userHasEntry: userEntryClassIds.has(cls.id),
+      }));
+    });
+  }, [associatedTrials, trialClasses, userEntries]);
 
   // Tab management via URL search params
   const defaultTab = hasUserEntries ? 'my-entries' : 'overview';
@@ -263,7 +285,7 @@ const ShowDetailsPage: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="classes">
-            <ClassesTab classes={[]} userHasEntries={hasUserEntries} />
+            <ClassesTab classes={showClasses} userHasEntries={hasUserEntries} />
           </TabsContent>
 
           {isAuthenticated && (

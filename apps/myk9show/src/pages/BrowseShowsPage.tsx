@@ -73,22 +73,31 @@ const BrowseShowsPage: React.FC = () => {
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [isViewModeChanging, setIsViewModeChanging] = useState(false);
 
-  // Use extracted data hook (loads shows, entries, user context)
+  // Initial data load — filteredShows starts empty, populated after filter hook runs
+  const [filteredShowsState, setFilteredShowsState] = useState<Show[]>([]);
+
+  // Single data hook call — uses filteredShows for enhancement
   const {
     user,
     isLoading,
     hasError,
     shows,
     entries,
+    enhancedShows: allEnhancedShows,
     tabConfig,
     userContext,
     tabQuickActions,
     handleRetry,
-  } = useBrowseShowsData({ filteredShows: [], selectedTab });
+  } = useBrowseShowsData({ filteredShows: filteredShowsState, selectedTab });
 
   // Use extracted filter hook
   const { filters, setFilters, filteredShows, hasActiveFilters, clearAllFilters } =
     useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+
+  // Sync filtered shows into state for the data hook (avoids second hook call)
+  useEffect(() => {
+    setFilteredShowsState(filteredShows);
+  }, [filteredShows]);
 
   // Mine toggle — filter to shows where user has entries
   const { isMine, toggle: toggleMine } = useMineToggle('shows');
@@ -201,9 +210,6 @@ const BrowseShowsPage: React.FC = () => {
     },
     [setFilters]
   );
-
-  // Get enhanced shows from data hook with actual filtered shows
-  const { enhancedShows: allEnhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
 
   // Apply "mine" filter — when toggled, show only shows where user has entries
   const { enhancedShows, mineCount } = useMemo(() => {

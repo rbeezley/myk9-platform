@@ -34,8 +34,6 @@ function usePersonRoleNames(personId?: string) {
 
 /** Apply role changes to user_roles table. Compares old vs new and grants/revokes. */
 export async function savePersonRoles(personId: string, newRoles: string[]) {
-  console.log('[DEBUG] savePersonRoles START:', { personId, newRoles });
-  // Map 'admin' display name to DB name
   const mapName = (r: string) => (r === 'admin' ? 'site_admin' : r);
 
   // Fetch current roles from DB to compute the diff
@@ -53,65 +51,51 @@ export async function savePersonRoles(personId: string, newRoles: string[]) {
 
   const toGrant = newRoles.filter(r => !oldRoles.includes(r)).map(mapName);
   const toRevoke = oldRoles.filter(r => !newRoles.includes(r)).map(mapName);
-  console.log('[DEBUG] savePersonRoles diff:', { oldRoles, newRoles, toGrant, toRevoke });
 
-  const currentUser = (await supabase.auth.getUser()).data.user;
+  // Get the current user's people.id (granted_by FK references people table, not auth.users)
+  const authUser = (await supabase.auth.getUser()).data.user;
+  let grantedBy: string | null = null;
+  if (authUser) {
+    const { data: person } = await supabase
+      .from('people')
+      .select('id')
+      .eq('auth_user_id', authUser.id)
+      .maybeSingle();
+    grantedBy = person?.id ?? null;
+  }
 
   for (const roleName of toGrant) {
-    const { data: role, error: roleErr } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('name', roleName)
-      .single();
-    if (roleErr || !role) {
-      console.error('[DEBUG] Role lookup failed:', roleName, roleErr);
-      continue;
-    }
+    const { data: role } = await supabase.from('roles').select('id').eq('name', roleName).single();
+    if (!role) continue;
 
     // Check if deactivated row exists — reactivate it
-    const { data: existing, error: existErr } = await supabase
+    const { data: existing } = await supabase
       .from('user_roles')
       .select('id, is_active')
       .eq('user_id', personId)
       .eq('role_id', role.id)
       .maybeSingle();
-    console.log('[DEBUG] Grant check existing:', { roleName, existing, existErr });
 
     if (existing && !existing.is_active) {
-      const { error: updateErr } = await supabase
-        .from('user_roles')
-        .update({ is_active: true })
-        .eq('id', existing.id);
-      console.log('[DEBUG] Reactivated role:', { roleName, updateErr });
+      await supabase.from('user_roles').update({ is_active: true }).eq('id', existing.id);
     } else if (!existing) {
-      const { error: insertErr } = await supabase.from('user_roles').insert({
+      await supabase.from('user_roles').insert({
         user_id: personId,
         role_id: role.id,
-        granted_by: currentUser?.id ?? null,
+        granted_by: grantedBy,
       });
-      console.log('[DEBUG] Inserted role:', { roleName, insertErr });
-    } else {
-      console.log('[DEBUG] Role already active, skipping:', roleName);
     }
   }
 
   for (const roleName of toRevoke) {
-    const { data: role, error: roleErr } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('name', roleName)
-      .single();
-    if (roleErr || !role) {
-      console.error('[DEBUG] Role lookup failed for revoke:', roleName, roleErr);
-      continue;
-    }
+    const { data: role } = await supabase.from('roles').select('id').eq('name', roleName).single();
+    if (!role) continue;
 
-    const { error: revokeErr } = await supabase
+    await supabase
       .from('user_roles')
       .update({ is_active: false })
       .eq('user_id', personId)
       .eq('role_id', role.id);
-    console.log('[DEBUG] Revoked role:', { roleName, revokeErr });
   }
 }
 

@@ -404,6 +404,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   enableAutoSave = false,
   // showAdvancedFields = false,
 }) => {
+  const queryClient = useQueryClient();
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
 
@@ -416,6 +417,8 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       if (userId && formData.roles) {
         const { savePersonRoles } = await import('./BasicInfoTab');
         await savePersonRoles(userId, formData.roles);
+        // Invalidate the role query cache so reopening shows fresh data
+        queryClient.invalidateQueries({ queryKey: ['personRoles', userId] });
       }
 
       if (onSave) {

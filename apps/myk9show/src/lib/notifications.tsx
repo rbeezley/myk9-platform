@@ -20,6 +20,7 @@ export interface NotificationOptions {
   duration?: number;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const notifications = {
   success: (message: string, options?: NotificationOptions) => {
     return toast.success(message, {
@@ -110,7 +111,7 @@ export const notifications = {
   },
 };
 
-// Predefined notification templates for common actions
+// eslint-disable-next-line react-refresh/only-export-components
 export const actionNotifications = {
   created: (entityType: string, entityName?: string) => {
     const name = entityName ? ` "${entityName}"` : '';

@@ -220,7 +220,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
         setIsSubmitting(false);
       }
     },
-    [validateForm, checkForDuplicates, addUser, context.selectionCallback, onResult]
+    [validateForm, checkForDuplicates, addUser, context, onResult]
   );
 
   // Register save handler for EntityCreationPanel footer buttons

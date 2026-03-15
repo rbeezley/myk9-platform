@@ -41,6 +41,7 @@ export function StatCardSkeleton() {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const CHART_TOOLTIP_STYLE: React.CSSProperties = {
   backgroundColor: 'hsl(var(--card))',
   border: '1px solid hsl(var(--border))',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@ const VIEW_MODES = [
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+
 
   // Get initial values from URL params
   const initialTab = searchParams.get('tab') || 'all';
@@ -385,7 +385,7 @@ const BrowseShowsPage: React.FC = () => {
         </Tooltip>
       </div>
     ),
-    [tabQuickActions, navigate]
+    [tabQuickActions]
   );
 
   // Audit page access

@@ -165,7 +165,7 @@ export function useWaitlistManagementData() {
       setIsProcessing(false);
       setActionDialog({ open: false, action: null, entry: null });
     }
-  }, [actionDialog.entry, selectedClassId, selectedShowId, loadWaitlist, loadClasses, user]);
+  }, [actionDialog.entry, selectedClassId, selectedShowId, loadWaitlist, loadClasses]);
 
   const handleRemoveFromWaitlist = useCallback(async () => {
     if (!actionDialog.entry) return;

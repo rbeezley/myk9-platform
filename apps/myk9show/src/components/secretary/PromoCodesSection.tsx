@@ -87,7 +87,10 @@ export const PromoCodesSection: React.FC<PromoCodesSectionProps> = ({ showId, tr
   const showQuery = usePromoCodesByShowQuery(showId ?? '');
   const trialQuery = usePromoCodesByTrialQuery(trialId ?? '');
 
-  const promoCodes = isShowMode ? (showQuery.data ?? []) : (trialQuery.data ?? []);
+  const promoCodes = useMemo(
+    () => (isShowMode ? (showQuery.data ?? []) : (trialQuery.data ?? [])),
+    [isShowMode, showQuery.data, trialQuery.data]
+  );
   const isLoading = isShowMode ? showQuery.isLoading : trialQuery.isLoading;
 
   const createMutation = useCreatePromoCodeMutation();

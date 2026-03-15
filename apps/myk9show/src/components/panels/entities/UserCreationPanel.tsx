@@ -422,7 +422,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
         setIsSubmitting(false);
       }
     },
-    [validateForm, checkForDuplicates, addUser, context.selectionCallback, onResult]
+    [validateForm, checkForDuplicates, addUser, context, onResult]
   );
 
   // Register save handler for EntityCreationPanel footer buttons

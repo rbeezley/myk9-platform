@@ -8,7 +8,7 @@ import type { DogEditContextType, DogEditPanelProps, DogFormData } from './DogEd
 import { dogToFormData, formDataToDog, validateDogData, isAdminRole } from './DogEditPanel.helpers';
 import { BasicInfoTab, RegistrationsTab, HealthRecordsTab } from './DogEditPanel.sections';
 
-// Context for passing admin-specific props to the form
+// eslint-disable-next-line react-refresh/only-export-components
 export const DogEditContext = createContext<DogEditContextType>({ isAdmin: false, people: [] });
 
 // Form content component

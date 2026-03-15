@@ -63,8 +63,7 @@ vi.mock('@/components/shows/EnhancedEmptyStates', () => ({
   EnhancedEmptyState: () => <div data-testid="empty-state">No shows</div>,
 }));
 vi.mock('@/components/shows/browse', () => ({
-  ShowsGridView: () => <div data-testid="shows-grid">Grid</div>,
-  ShowsListView: () => <div data-testid="shows-list">List</div>,
+  ShowCardGrid: () => <div data-testid="shows-cards">Cards</div>,
   ShowsTableView: () => <div data-testid="shows-table">Table</div>,
   ShowBulkActionsBar: () => <div data-testid="bulk-actions-bar">Bulk Actions</div>,
 }));

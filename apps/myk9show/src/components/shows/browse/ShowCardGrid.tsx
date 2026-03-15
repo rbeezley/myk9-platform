@@ -35,9 +35,6 @@ import type { UserWithRoles } from '@/types/auth-types';
 import { formatFee } from '@/utils/format';
 import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 
-/**
- * Icon component map for show actions
- */
 const ICON_COMPONENTS = {
   Eye,
   UserPlus,
@@ -56,7 +53,7 @@ const ICON_COMPONENTS = {
   Plus,
 } as const;
 
-interface ShowsGridViewProps {
+interface ShowCardGridProps {
   shows: EnhancedShow[];
   entries: SyncableShowEntry[];
   selectedTab: string;
@@ -66,10 +63,10 @@ interface ShowsGridViewProps {
 }
 
 /**
- * Grid view component for displaying shows in a card layout
- * Extracted from BrowseShowsPage.tsx as part of DEBT-002 refactoring
+ * Unified card grid for displaying shows.
+ * Replaces the former ShowsGridView and ShowsListView with a single responsive card layout.
  */
-export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
+export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
   shows,
   entries,
   selectedTab,
@@ -154,7 +151,6 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
               <p className="myk9-browse-card-description">{show.events.join(', ')}</p>
 
               <div className="myk9-browse-card-details">
-                {/* Date and Location grouped */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2 border-b border-border/30">
                   <div className="myk9-browse-card-detail-item">
                     <Calendar className="h-4 w-4" />
@@ -171,7 +167,6 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                   </div>
                 </div>
 
-                {/* Fee and Deadline grouped */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                   <div className="myk9-browse-card-detail-item">
                     <DollarSign className="h-4 w-4" />
@@ -225,4 +220,4 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
   );
 };
 
-export default ShowsGridView;
+export default ShowCardGrid;

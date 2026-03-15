@@ -192,7 +192,7 @@ export const ShowsPageHeaderSkeleton: React.FC = () => (
  * Tab content skeleton that adapts to view mode
  */
 export const TabContentSkeleton: React.FC<{
-  viewMode: 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
+  viewMode: 'cards' | 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
   count?: number;
 }> = ({ viewMode, count = 6 }) => {
   switch (viewMode) {
@@ -201,6 +201,7 @@ export const TabContentSkeleton: React.FC<{
     case 'list':
     case 'table':
       return <ShowCardListSkeleton count={count} />;
+    case 'cards':
     case 'grid':
     default:
       return <ShowCardGridSkeleton count={count} />;
@@ -211,9 +212,9 @@ export const TabContentSkeleton: React.FC<{
  * Complete shows page skeleton
  */
 export const ShowsPageSkeleton: React.FC<{
-  viewMode?: 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
+  viewMode?: 'cards' | 'grid' | 'list' | 'table' | 'calendar' | 'kanban';
   count?: number;
-}> = ({ viewMode = 'grid', count = 6 }) => (
+}> = ({ viewMode = 'cards', count = 6 }) => (
   <div className="min-h-screen bg-background">
     <div className="container mx-auto px-6 py-20 max-w-7xl">
       <div className="space-y-8">

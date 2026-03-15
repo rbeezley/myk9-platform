@@ -16,7 +16,6 @@ import {
   Calendar,
   Clock,
   Grid3X3,
-  List,
   Table2,
   CalendarDays,
 
@@ -48,8 +47,7 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import {
-  ShowsGridView,
-  ShowsListView,
+  ShowCardGrid,
   ShowsTableView,
   ShowBulkActionsBar,
 } from '@/components/shows/browse';
@@ -60,7 +58,7 @@ import { useSavedViews, type ViewConfig } from '@/hooks/useSavedViews';
 
 
 
-type ViewMode = 'grid' | 'list' | 'table' | 'calendar';
+type ViewMode = 'cards' | 'table' | 'calendar';
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,7 +66,7 @@ const BrowseShowsPage: React.FC = () => {
 
   // Get initial values from URL params
   const initialTab = searchParams.get('tab') || 'all';
-  const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
+  const initialViewMode = (searchParams.get('view') as ViewMode) || 'cards';
 
   const [selectedTab, setSelectedTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
@@ -253,7 +251,7 @@ const BrowseShowsPage: React.FC = () => {
       }
 
       if (newViewMode !== undefined) {
-        if (newViewMode === 'grid') {
+        if (newViewMode === 'cards') {
           params.delete('view');
         } else {
           params.set('view', newViewMode);
@@ -301,7 +299,7 @@ const BrowseShowsPage: React.FC = () => {
     const rawTab = searchParams.get('tab') || tabConfig.defaultTab;
     // Only apply if the tab is valid for this user; otherwise fall back to default
     const tabFromUrl = tabConfig.tabs.some(t => t.id === rawTab) ? rawTab : tabConfig.defaultTab;
-    const viewFromUrl = (searchParams.get('view') as ViewMode) || 'grid';
+    const viewFromUrl = (searchParams.get('view') as ViewMode) || 'cards';
 
     if (tabFromUrl !== selectedTab) {
       queueMicrotask(() => setSelectedTab(tabFromUrl));
@@ -405,22 +403,10 @@ const BrowseShowsPage: React.FC = () => {
           />
         );
 
-      case 'list':
-        return (
-          <ShowsListView
-            shows={enhancedShows}
-            entries={entries}
-            selectedTab={selectedTab}
-            user={user}
-            isSelected={bulkSelection.isSelected}
-            onToggleSelect={bulkSelection.toggleItem}
-          />
-        );
-
-      case 'grid':
+      case 'cards':
       default:
         return (
-          <ShowsGridView
+          <ShowCardGrid
             shows={enhancedShows}
             entries={entries}
             selectedTab={selectedTab}
@@ -565,10 +551,9 @@ const BrowseShowsPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
                   <div className="flex bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                    {(['grid', 'list', 'table', 'calendar'] as const).map(mode => {
+                    {(['cards', 'table', 'calendar'] as const).map(mode => {
                       const Icon = {
-                        grid: Grid3X3,
-                        list: List,
+                        cards: Grid3X3,
                         table: Table2,
                         calendar: CalendarDays,
                       }[mode];

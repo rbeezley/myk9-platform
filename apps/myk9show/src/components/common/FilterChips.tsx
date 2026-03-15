@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,9 +22,22 @@ interface FilterChipsProps {
 
 export function FilterChips({ filters, values, onChange, className }: FilterChipsProps) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!openKey) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpenKey(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openKey]);
 
   return (
-    <div className={cn('flex flex-wrap gap-2', className)}>
+    <div ref={containerRef} className={cn('flex flex-wrap gap-2', className)}>
       {filters.map(filter => {
         const activeValue = values[filter.key];
         const activeOption = filter.options.find(o => o.value === activeValue);

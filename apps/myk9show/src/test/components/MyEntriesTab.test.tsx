@@ -30,14 +30,14 @@ vi.mock('@/hooks/useMyEntries', () => ({
 // Mock LiveClassCard to simplify testing
 vi.mock('@/components/live/LiveClassCard', () => ({
   LiveClassCard: ({
-    className_,
+    classTitle,
     userDogsAhead,
   }: {
-    className_: string;
+    classTitle: string;
     userDogsAhead?: number;
   }) => (
     <div data-testid="live-class-card">
-      <span>{className_}</span>
+      <span>{classTitle}</span>
       {userDogsAhead !== undefined && <span>{userDogsAhead} dogs ahead</span>}
     </div>
   ),

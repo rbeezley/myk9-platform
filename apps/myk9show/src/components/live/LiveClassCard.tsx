@@ -11,11 +11,11 @@ const STATUS_CONFIG: Record<ClassStatus, { label: string; style: string }> = {
 };
 
 interface LiveClassCardProps {
-  className_: string;
-  judgeName: string;
+  classTitle: string;
+  judgeName?: string;
   status: ClassStatus;
-  totalEntries: number;
-  completedEntries: number;
+  totalEntries?: number;
+  completedEntries?: number;
   inRingArmband?: string;
   nextArmbands?: string[];
   userDogsAhead?: number;
@@ -26,7 +26,7 @@ interface LiveClassCardProps {
 }
 
 export function LiveClassCard({
-  className_,
+  classTitle,
   judgeName,
   status,
   totalEntries,
@@ -39,9 +39,12 @@ export function LiveClassCard({
   onClick,
   className,
 }: LiveClassCardProps) {
-  const remaining = totalEntries - completedEntries;
-  const progressPct = totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0;
+  const total = totalEntries ?? 0;
+  const completed = completedEntries ?? 0;
+  const remaining = total - completed;
+  const progressPct = total > 0 ? (completed / total) * 100 : 0;
   const statusConfig = STATUS_CONFIG[status];
+  const hasProgress = totalEntries !== undefined && completedEntries !== undefined;
 
   return (
     <div
@@ -55,32 +58,34 @@ export function LiveClassCard({
       {/* Header: class name + status badge */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="font-semibold text-base">{className_}</h3>
-          <p className="text-xs text-muted-foreground">Judge: {judgeName}</p>
+          <h3 className="font-semibold text-base">{classTitle}</h3>
+          {judgeName && <p className="text-xs text-muted-foreground">Judge: {judgeName}</p>}
         </div>
         <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', statusConfig.style)}>
           {statusConfig.label}
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="space-y-1">
-        <div
-          role="progressbar"
-          aria-valuenow={completedEntries}
-          aria-valuemin={0}
-          aria-valuemax={totalEntries}
-          className="h-2 bg-muted rounded-full overflow-hidden"
-        >
+      {/* Progress bar — only when totals are provided */}
+      {hasProgress && (
+        <div className="space-y-1">
           <div
-            className="h-full bg-primary rounded-full transition-all duration-500"
-            style={{ width: `${progressPct}%` }}
-          />
+            role="progressbar"
+            aria-valuenow={completed}
+            aria-valuemin={0}
+            aria-valuemax={total}
+            className="h-2 bg-muted rounded-full overflow-hidden"
+          >
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {remaining} of {total} remaining
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {remaining} of {totalEntries} remaining
-        </p>
-      </div>
+      )}
 
       {/* In ring + next up */}
       {(inRingArmband || nextArmbands.length > 0) && (

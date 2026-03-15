@@ -4,7 +4,7 @@ import { LiveClassCard } from '@/components/live/LiveClassCard';
 
 describe('LiveClassCard', () => {
   const baseProps = {
-    className_: 'Novice JWW',
+    classTitle: 'Novice JWW',
     judgeName: 'Jane Smith',
     status: 'in_progress' as const,
     totalEntries: 28,

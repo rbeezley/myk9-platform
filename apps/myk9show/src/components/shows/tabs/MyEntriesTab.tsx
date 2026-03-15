@@ -43,11 +43,8 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
         {entriesByClass.map(entry => (
           <LiveClassCard
             key={entry.classId}
-            className_={entry.className}
-            judgeName=""
+            classTitle={entry.className}
             status={entry.scored ? 'completed' : 'in_progress'}
-            totalEntries={0}
-            completedEntries={0}
             userDogsAhead={entry.dogsAhead}
             userDogName={entry.dogName}
           />

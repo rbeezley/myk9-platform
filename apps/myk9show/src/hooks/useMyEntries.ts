@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -51,28 +52,31 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
     refetchInterval: 30_000, // 30s polling for live show-day updates
   });
 
-  const rawEntries = data || [];
+  const { entries, entriesByClass } = useMemo(() => {
+    const rawEntries = data || [];
 
-  const entries = rawEntries.map((e) => ({ id: e.id, showId: String(e.show_id) }));
+    const entryList = rawEntries.map((e) => ({ id: e.id, showId: String(e.show_id) }));
 
-  const entriesByClass: MyEntryByClass[] = rawEntries.map((entry) => {
-    const cls = entry.class as Record<string, unknown> | null;
-    const dog = entry.dog as Record<string, unknown> | null;
-    const scoredCount = (cls?.scored_count as number) || 0;
-    const runOrder = (entry.run_order as number) || 0;
-    // dogsAhead = entries ahead of us that haven't been scored
-    const dogsAhead = Math.max(0, runOrder - scoredCount - 1);
+    const byClass: MyEntryByClass[] = rawEntries.map((entry) => {
+      const cls = entry.class as Record<string, unknown> | null;
+      const dog = entry.dog as Record<string, unknown> | null;
+      const scoredCount = (cls?.scored_count as number) || 0;
+      const runOrder = (entry.run_order as number) || 0;
+      const dogsAhead = Math.max(0, runOrder - scoredCount - 1);
 
-    return {
-      classId: String(entry.class_id),
-      className: String(cls?.name || 'Unknown Class'),
-      dogName: String(dog?.call_name || 'Unknown Dog'),
-      armband: String(entry.armband || ''),
-      runOrder,
-      dogsAhead,
-      scored: Boolean(entry.is_scored),
-    };
-  });
+      return {
+        classId: String(entry.class_id),
+        className: String(cls?.name || 'Unknown Class'),
+        dogName: String(dog?.call_name || 'Unknown Dog'),
+        armband: String(entry.armband || ''),
+        runOrder,
+        dogsAhead,
+        scored: Boolean(entry.is_scored),
+      };
+    });
+
+    return { entries: entryList, entriesByClass: byClass };
+  }, [data]);
 
   return { entries, entriesByClass, isLoading, isError };
 }

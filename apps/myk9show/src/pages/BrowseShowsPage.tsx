@@ -206,16 +206,13 @@ const BrowseShowsPage: React.FC = () => {
   const { enhancedShows: allEnhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
 
   // Apply "mine" filter — when toggled, show only shows where user has entries
-  const enhancedShows = useMemo(
-    () => (isMine ? allEnhancedShows.filter(s => s.userHasEntries) : allEnhancedShows),
-    [isMine, allEnhancedShows]
-  );
-
-  // Count for mine toggle
-  const mineCount = useMemo(
-    () => allEnhancedShows.filter(s => s.userHasEntries).length,
-    [allEnhancedShows]
-  );
+  const { enhancedShows, mineCount } = useMemo(() => {
+    const mine = allEnhancedShows.filter(s => s.userHasEntries);
+    return {
+      enhancedShows: isMine ? mine : allEnhancedShows,
+      mineCount: mine.length,
+    };
+  }, [isMine, allEnhancedShows]);
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
@@ -425,9 +422,7 @@ const BrowseShowsPage: React.FC = () => {
           action={
             hasActiveFilters
               ? { label: 'Clear Filters', onClick: clearAllFilters }
-              : user
-                ? undefined
-                : undefined
+              : undefined
           }
         />
       );

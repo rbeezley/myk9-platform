@@ -211,14 +211,12 @@ const ShowDetailsPage: React.FC = () => {
           title={actualCurrentShow.name || 'Show Details'}
           actions={
             canManageShow ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowEditPanel(true)}
-                  className="h-10 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
-                >
-                  Edit
-                </button>
-              </div>
+              <button
+                onClick={() => setShowEditPanel(true)}
+                className="h-10 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+              >
+                Edit
+              </button>
             ) : undefined
           }
         />

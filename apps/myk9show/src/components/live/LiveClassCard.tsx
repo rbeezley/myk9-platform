@@ -1,19 +1,11 @@
 import { cn } from '@/lib/utils';
 import { DogsAheadBadge } from './DogsAheadBadge';
-
-type ClassStatus = 'not_started' | 'in_progress' | 'completed' | 'paused';
-
-const STATUS_CONFIG: Record<ClassStatus, { label: string; style: string }> = {
-  not_started: { label: 'Not Started', style: 'bg-muted text-muted-foreground' },
-  in_progress: { label: 'In Progress', style: 'bg-green-500/10 text-green-600 animate-pulse' },
-  completed: { label: 'Completed', style: 'bg-primary/10 text-primary' },
-  paused: { label: 'Paused', style: 'bg-yellow-500/10 text-yellow-600' },
-};
+import { type ClassDisplayStatus, CLASS_STATUS_CONFIG } from '@/constants/live-status-config';
 
 interface LiveClassCardProps {
   classTitle: string;
   judgeName?: string;
-  status: ClassStatus;
+  status: ClassDisplayStatus;
   totalEntries?: number;
   completedEntries?: number;
   inRingArmband?: string;
@@ -43,7 +35,7 @@ export function LiveClassCard({
   const completed = completedEntries ?? 0;
   const remaining = total - completed;
   const progressPct = total > 0 ? (completed / total) * 100 : 0;
-  const statusConfig = STATUS_CONFIG[status];
+  const statusConfig = CLASS_STATUS_CONFIG[status];
   const hasProgress = totalEntries !== undefined && completedEntries !== undefined;
 
   return (

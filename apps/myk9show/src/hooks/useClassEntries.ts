@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
+import type { EntryDisplayStatus } from '@/constants/live-status-config';
 
 export interface ClassEntry {
   id: string;
@@ -10,7 +11,7 @@ export interface ClassEntry {
   dogName: string;
   breed: string;
   handlerName: string;
-  status: 'checked_in' | 'not_checked_in' | 'at_gate' | 'in_ring' | 'completed' | 'pulled';
+  status: EntryDisplayStatus;
   isCurrentUser: boolean;
   dogsAhead?: number;
   result?: string;
@@ -25,7 +26,7 @@ interface UseClassEntriesResult {
   isError: boolean;
 }
 
-function mapEntryStatus(entry: Record<string, unknown>): ClassEntry['status'] {
+function mapEntryStatus(entry: Record<string, unknown>): EntryDisplayStatus {
   if (entry.is_scored) return 'completed';
   if (entry.is_in_ring) return 'in_ring';
   const entryStatus = String(entry.entry_status || '');

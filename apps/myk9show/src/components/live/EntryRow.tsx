@@ -1,40 +1,17 @@
 import { cn } from '@/lib/utils';
-
-type EntryStatus = 'checked_in' | 'not_checked_in' | 'at_gate' | 'in_ring' | 'completed' | 'pulled';
-
-const STATUS_LABELS: Record<EntryStatus, string> = {
-  checked_in: 'Checked In',
-  not_checked_in: 'Not Checked In',
-  at_gate: 'At Gate',
-  in_ring: 'In Ring',
-  completed: 'Completed',
-  pulled: 'Pulled',
-};
-
-const STATUS_BORDER: Record<EntryStatus, string> = {
-  checked_in: 'border-l-green-500',
-  not_checked_in: 'border-l-gray-300',
-  at_gate: 'border-l-yellow-500',
-  in_ring: 'border-l-primary',
-  completed: 'border-l-transparent',
-  pulled: 'border-l-red-500',
-};
-
-const STATUS_BADGE_STYLE: Record<EntryStatus, string> = {
-  checked_in: 'bg-green-500/10 text-green-600',
-  not_checked_in: 'bg-muted text-muted-foreground',
-  at_gate: 'bg-yellow-500/10 text-yellow-600',
-  in_ring: 'bg-primary/10 text-primary',
-  completed: 'bg-muted text-muted-foreground',
-  pulled: 'bg-red-500/10 text-red-600',
-};
+import {
+  type EntryDisplayStatus,
+  ENTRY_STATUS_LABELS,
+  ENTRY_STATUS_BORDER,
+  ENTRY_STATUS_BADGE,
+} from '@/constants/live-status-config';
 
 interface EntryRowProps {
   armband: string;
   dogName: string;
   breed?: string;
   handlerName: string;
-  status: EntryStatus;
+  status: EntryDisplayStatus;
   isCurrentUser?: boolean;
   result?: string;
   time?: string;
@@ -52,7 +29,7 @@ export function EntryRow({
   time,
   className,
 }: EntryRowProps) {
-  const borderClass = isCurrentUser ? 'border-l-orange-500' : STATUS_BORDER[status];
+  const borderClass = isCurrentUser ? 'border-l-orange-500' : ENTRY_STATUS_BORDER[status];
 
   return (
     <div
@@ -101,9 +78,9 @@ export function EntryRow({
           </div>
         ) : (
           <span
-            className={cn('rounded px-2 py-0.5 text-xs font-medium', STATUS_BADGE_STYLE[status])}
+            className={cn('rounded px-2 py-0.5 text-xs font-medium', ENTRY_STATUS_BADGE[status])}
           >
-            {STATUS_LABELS[status]}
+            {ENTRY_STATUS_LABELS[status]}
           </span>
         )}
       </div>

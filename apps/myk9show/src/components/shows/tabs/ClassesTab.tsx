@@ -3,6 +3,7 @@ import { MineToggle } from '@/components/common/MineToggle';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CLASS_STATUS_CONFIG } from '@/constants/live-status-config';
 
 interface ClassInfo {
   id: string;
@@ -20,20 +21,6 @@ interface ClassesTabProps {
   classes: ClassInfo[];
   userHasEntries: boolean;
 }
-
-const STATUS_STYLES: Record<string, string> = {
-  in_progress: 'bg-green-500/10 text-green-600',
-  pending: 'bg-muted text-muted-foreground',
-  completed: 'bg-primary/10 text-primary',
-  not_started: 'bg-muted text-muted-foreground',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  in_progress: 'In Progress',
-  pending: 'Pending',
-  completed: 'Completed',
-  not_started: 'Not Started',
-};
 
 export function ClassesTab({ classes, userHasEntries }: ClassesTabProps) {
   const [isMine, setIsMine] = useState(userHasEntries);
@@ -93,10 +80,10 @@ export function ClassesTab({ classes, userHasEntries }: ClassesTabProps) {
                   <span
                     className={cn(
                       'px-2 py-0.5 rounded text-xs font-medium',
-                      STATUS_STYLES[cls.status] || STATUS_STYLES.pending
+                      (CLASS_STATUS_CONFIG[cls.status as keyof typeof CLASS_STATUS_CONFIG] ?? CLASS_STATUS_CONFIG.not_started).style
                     )}
                   >
-                    {STATUS_LABELS[cls.status] || cls.status}
+                    {(CLASS_STATUS_CONFIG[cls.status as keyof typeof CLASS_STATUS_CONFIG] ?? CLASS_STATUS_CONFIG.not_started).label}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right text-muted-foreground">{cls.entryCount}</td>

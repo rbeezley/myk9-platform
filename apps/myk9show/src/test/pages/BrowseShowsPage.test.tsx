@@ -94,6 +94,13 @@ vi.mock('@/components/common/ErrorState', () => ({
 vi.mock('@/components/common/EmptyState', () => ({
   EmptyState: () => <div data-testid="empty-state">No shows</div>,
 }));
+vi.mock('@/components/common/MineToggle', () => ({
+  MineToggle: ({ hidden }: { hidden?: boolean }) =>
+    hidden ? null : <div data-testid="mine-toggle">Mine Toggle</div>,
+}));
+vi.mock('@/hooks/useMineToggle', () => ({
+  useMineToggle: () => ({ isMine: false, toggle: vi.fn(), setMine: vi.fn() }),
+}));
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -519,6 +526,28 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         const myShowsTab = screen.getByRole('tab', { name: /my shows/i });
         expect(myShowsTab).toHaveAttribute('aria-selected', 'true');
+      });
+    });
+  });
+
+  describe('MineToggle', () => {
+    it('should show MineToggle for authenticated users', async () => {
+      setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('mine-toggle')).toBeInTheDocument();
+      });
+    });
+
+    it('should hide MineToggle for guests', async () => {
+      setupMocks({ user: null });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('mine-toggle')).not.toBeInTheDocument();
       });
     });
   });

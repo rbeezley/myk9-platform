@@ -40,6 +40,8 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ResultsCount } from '@/components/common/ResultsCount';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { MineToggle } from '@/components/common/MineToggle';
+import { useMineToggle } from '@/hooks/useMineToggle';
 
 // Extracted hooks and components
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
@@ -87,6 +89,9 @@ const BrowseShowsPage: React.FC = () => {
   // Use extracted filter hook
   const { filters, setFilters, filteredShows, hasActiveFilters, clearAllFilters } =
     useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+
+  // Mine toggle — filter to shows where user has entries
+  const { isMine, toggle: toggleMine } = useMineToggle('shows');
 
   // Saved views
   const {
@@ -198,7 +203,19 @@ const BrowseShowsPage: React.FC = () => {
   );
 
   // Get enhanced shows from data hook with actual filtered shows
-  const { enhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
+  const { enhancedShows: allEnhancedShows } = useBrowseShowsData({ filteredShows, selectedTab });
+
+  // Apply "mine" filter — when toggled, show only shows where user has entries
+  const enhancedShows = useMemo(
+    () => (isMine ? allEnhancedShows.filter(s => s.userHasEntries) : allEnhancedShows),
+    [isMine, allEnhancedShows]
+  );
+
+  // Count for mine toggle
+  const mineCount = useMemo(
+    () => allEnhancedShows.filter(s => s.userHasEntries).length,
+    [allEnhancedShows]
+  );
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
@@ -480,6 +497,16 @@ const BrowseShowsPage: React.FC = () => {
             filters={chipFilters}
             values={chipFilterValues}
             onChange={handleChipFilterChange}
+          />
+
+          <MineToggle
+            isMine={isMine}
+            onToggle={toggleMine}
+            allLabel="All Shows"
+            mineLabel="My Shows"
+            allCount={allEnhancedShows.length}
+            mineCount={mineCount}
+            hidden={!user}
           />
 
           {/* View controls + results count */}

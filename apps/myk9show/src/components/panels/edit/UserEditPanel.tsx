@@ -58,6 +58,12 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
       const { judgeQualificationQueries } =
         await import('@/services/database/queries/judgeQueries');
       const dbQuals = await judgeQualificationQueries.getByJudgeId(userId);
+      console.log(
+        '[DEBUG] Quals useEffect loaded:',
+        dbQuals.length,
+        'quals from DB. Current data.judgeQualifications:',
+        data.judgeQualifications.length
+      );
       if (cancelled || dbQuals.length === 0) {
         setQualsLoaded(true);
         return;
@@ -209,6 +215,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
   // Handle qualifications save -- persist to DB then update form state
   const handleQualificationsSave = useCallback(
     async (qualifications: JudgeQualification[]) => {
+      console.log('[DEBUG] handleQualificationsSave called with', qualifications.length, 'quals');
       const { judgeQualificationQueries } =
         await import('@/services/database/queries/judgeQueries');
 
@@ -238,13 +245,22 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
               : {}),
             is_active: qual.status === 'Active',
           });
-          console.log('[DEBUG] Created qualification:', qual.organization);
+          // Verify it actually persisted
+          const verify = await judgeQualificationQueries.getByJudgeId(userId);
+          console.log(
+            '[DEBUG] Created qualification:',
+            qual.organization,
+            '— DB now has',
+            verify.length,
+            'qualifications'
+          );
         } catch (err) {
           console.error('[DEBUG] FAILED to create qualification:', qual.organization, err);
           throw err;
         }
       }
       // Invalidate caches so the store and queries pick up the new data
+      queryClient.invalidateQueries({ queryKey: ['judgeQualifications', userId] });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
       loadUsers();
@@ -349,7 +365,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
             className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
           >
             <QualificationsTab
-              qualifications={data.judgeQualifications}
+              personId={userId}
               canEditQualifications={canEditQualifications}
               onManageQualifications={() => setIsQualificationsPanelOpen(true)}
             />

@@ -1,21 +1,37 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Award, Settings } from 'lucide-react';
-import type { JudgeQualification } from '@/types/user-types';
+import { supabase } from '@/services/database/supabaseClient';
 
 interface QualificationsTabProps {
-  qualifications: JudgeQualification[];
+  personId: string;
   canEditQualifications: boolean;
   onManageQualifications: () => void;
 }
 
 export const QualificationsTab: React.FC<QualificationsTabProps> = ({
-  qualifications,
+  personId,
   canEditQualifications,
   onManageQualifications,
 }) => {
+  const { data: qualifications = [] } = useQuery({
+    queryKey: ['judgeQualifications', personId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('judge_qualifications')
+        .select('*')
+        .eq('person_id', personId)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!personId,
+    staleTime: 10_000,
+  });
+
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
       <CardHeader>
@@ -33,36 +49,26 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {qualifications?.length > 0 ? (
+        {qualifications.length > 0 ? (
           <div className="space-y-4">
-            {qualifications.map((qual, index) => (
-              <div key={index} className="border-l-4 border-primary pl-4 space-y-2">
+            {qualifications.map((qual: Record<string, unknown>) => (
+              <div key={qual.id as string} className="border-l-4 border-primary pl-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Badge variant={qual.status === 'Active' ? 'default' : 'secondary'}>
-                      {qual.organization}
-                    </Badge>
-                    <span className="font-medium">Judge #{qual.judgeNumber}</span>
+                    <Badge variant="default">{qual.organization as string}</Badge>
+                    <span className="font-medium">{qual.qualification_level as string}</span>
                   </div>
-                  <Badge
-                    variant={
-                      qual.status === 'Active'
-                        ? 'default'
-                        : qual.status === 'Suspended'
-                          ? 'destructive'
-                          : 'secondary'
-                    }
-                  >
-                    {qual.status}
-                  </Badge>
+                  <Badge variant="default">Active</Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <p>Certified: {new Date(qual.certificationDate).toLocaleDateString()}</p>
-                  {qual.showTypes && qual.showTypes.length > 0 && (
+                  {qual.date_obtained && (
+                    <p>Certified: {new Date(qual.date_obtained as string).toLocaleDateString()}</p>
+                  )}
+                  {Array.isArray(qual.disciplines) && (qual.disciplines as string[]).length > 0 && (
                     <div className="mt-2">
                       <span className="font-medium">Qualified for: </span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {qual.showTypes.map(type => (
+                        {(qual.disciplines as string[]).map(type => (
                           <Badge key={type} variant="outline" className="text-xs">
                             {type}
                           </Badge>

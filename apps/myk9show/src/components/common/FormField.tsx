@@ -5,8 +5,8 @@ interface FormFieldProps {
   label: string;
   fieldId: string;
   required?: boolean;
-  error?: string;
-  hint?: string;
+  error?: string | undefined;
+  hint?: string | undefined;
   children: React.ReactNode;
   className?: string;
 }

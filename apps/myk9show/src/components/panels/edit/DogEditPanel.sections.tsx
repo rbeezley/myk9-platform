@@ -16,8 +16,15 @@ import {
 } from '@/components/ui/select';
 import { Dog, FileText, Camera, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FormField } from '@/components/common/FormField';
 import type { DogFormData } from './DogEditPanel.types';
 import { DogEditContext } from './DogEditPanel';
+
+/** Extract the error message for a specific field from the errors array. */
+function getFieldError(errors: string[], fieldKey: string): string | undefined {
+  const match = errors.find(e => e.toLowerCase().includes(fieldKey.toLowerCase()));
+  return match || undefined;
+}
 
 // ── Owner Selection Field (admin only) ──────────────────────────────
 
@@ -48,33 +55,32 @@ export const OwnerSelectionField: React.FC = () => {
   }
 
   return (
-    <div className="space-y-2 pt-4 border-t border-border/30">
-      <Label
-        htmlFor="ownerId"
-        className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+    <div className="pt-4 border-t border-border/30">
+      <FormField
+        label={`Owner (${people.length} available)`}
+        fieldId="ownerId"
+        hint="Change the owner of this dog (admin only)"
       >
-        Owner ({people.length} available)
-      </Label>
-      <select
-        id="ownerId"
-        value={data.ownerId || ''}
-        onChange={e => updateData({ ownerId: e.target.value })}
-        className="w-full border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 focus:outline-none"
-      >
-        <option value="" disabled>
-          Select owner
-        </option>
-        {data.ownerId && !currentOwner && (
-          <option value={data.ownerId}>Unknown Owner (ID: {data.ownerId.slice(0, 8)}...)</option>
-        )}
-        {people.map(person => (
-          <option key={person.id} value={person.id}>
-            {person.firstName} {person.lastName}
-            {person.email ? ` (${person.email})` : ''}
+        <select
+          id="ownerId"
+          value={data.ownerId || ''}
+          onChange={e => updateData({ ownerId: e.target.value })}
+          className="w-full border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 focus:outline-none"
+        >
+          <option value="" disabled>
+            Select owner
           </option>
-        ))}
-      </select>
-      <p className="text-xs text-muted-foreground/60">Change the owner of this dog (admin only)</p>
+          {data.ownerId && !currentOwner && (
+            <option value={data.ownerId}>Unknown Owner (ID: {data.ownerId.slice(0, 8)}...)</option>
+          )}
+          {people.map(person => (
+            <option key={person.id} value={person.id}>
+              {person.firstName} {person.lastName}
+              {person.email ? ` (${person.email})` : ''}
+            </option>
+          ))}
+        </select>
+      </FormField>
     </div>
   );
 };
@@ -144,52 +150,55 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label
-              htmlFor="callName"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Call Name *
-            </Label>
+          <FormField
+            label="Call Name"
+            fieldId="callName"
+            required
+            error={getFieldError(errors, 'call name')}
+          >
             <Input
               id="callName"
               value={data.callName}
               onChange={handleInputChange('callName')}
               placeholder="Enter call name"
-              className={cn(errors.some(e => e.includes('Call name')) && 'border-destructive')}
+              aria-invalid={!!getFieldError(errors, 'call name')}
+              aria-describedby={getFieldError(errors, 'call name') ? 'callName-error' : undefined}
+              className={cn(getFieldError(errors, 'call name') && 'border-destructive')}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="registeredName"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Registered Name *
-            </Label>
+          <FormField
+            label="Registered Name"
+            fieldId="registeredName"
+            required
+            error={getFieldError(errors, 'registered name')}
+          >
             <Input
               id="registeredName"
               value={data.registeredName}
               onChange={handleInputChange('registeredName')}
               placeholder="Enter registered name"
-              className={cn(
-                errors.some(e => e.includes('Registered name')) && 'border-destructive'
-              )}
+              aria-invalid={!!getFieldError(errors, 'registered name')}
+              aria-describedby={
+                getFieldError(errors, 'registered name') ? 'registeredName-error' : undefined
+              }
+              className={cn(getFieldError(errors, 'registered name') && 'border-destructive')}
             />
-          </div>
+          </FormField>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label
-              htmlFor="gender"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Gender *
-            </Label>
+          <FormField
+            label="Gender"
+            fieldId="gender"
+            required
+            error={getFieldError(errors, 'gender')}
+          >
             <Select value={data.gender} onValueChange={handleSelectChange('gender')}>
               <SelectTrigger
-                className={cn(errors.some(e => e.includes('Gender')) && 'border-destructive')}
+                aria-invalid={!!getFieldError(errors, 'gender')}
+                aria-describedby={getFieldError(errors, 'gender') ? 'gender-error' : undefined}
+                className={cn(getFieldError(errors, 'gender') && 'border-destructive')}
               >
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
@@ -198,48 +207,39 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="dateOfBirth"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Date of Birth *
-            </Label>
+          <FormField
+            label="Date of Birth"
+            fieldId="dateOfBirth"
+            required
+            error={getFieldError(errors, 'date of birth')}
+          >
             <Input
               id="dateOfBirth"
               type="date"
               value={data.dateOfBirth}
               onChange={handleInputChange('dateOfBirth')}
-              className={cn(errors.some(e => e.includes('Date of birth')) && 'border-destructive')}
+              aria-invalid={!!getFieldError(errors, 'date of birth')}
+              aria-describedby={
+                getFieldError(errors, 'date of birth') ? 'dateOfBirth-error' : undefined
+              }
+              className={cn(getFieldError(errors, 'date of birth') && 'border-destructive')}
             />
-          </div>
+          </FormField>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label
-              htmlFor="color"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Color
-            </Label>
+          <FormField label="Color" fieldId="color">
             <Input
               id="color"
               value={data.color}
               onChange={handleInputChange('color')}
               placeholder="Enter color"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="weight"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Weight (lbs)
-            </Label>
+          <FormField label="Weight (lbs)" fieldId="weight">
             <Input
               id="weight"
               type="number"
@@ -247,15 +247,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               onChange={handleInputChange('weight')}
               placeholder="Enter weight"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="height"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Height (inches)
-            </Label>
+          <FormField label="Height (inches)" fieldId="height">
             <Input
               id="height"
               type="number"
@@ -263,23 +257,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               onChange={handleInputChange('height')}
               placeholder="Enter height"
             />
-          </div>
+          </FormField>
         </div>
 
-        <div className="space-y-2">
-          <Label
-            htmlFor="microchip"
-            className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-          >
-            Microchip Number
-          </Label>
+        <FormField label="Microchip Number" fieldId="microchip">
           <Input
             id="microchip"
             value={data.microchip}
             onChange={handleInputChange('microchip')}
             placeholder="Enter microchip number"
           />
-        </div>
+        </FormField>
 
         <div className="flex items-center space-x-3 pt-2">
           <input
@@ -304,13 +292,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             Additional Information
           </h4>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="notes"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Notes
-            </Label>
+          <FormField label="Notes" fieldId="notes">
             <textarea
               id="notes"
               value={data.notes || ''}
@@ -318,15 +300,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               placeholder="Enter additional notes about the dog"
               className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="specialNeeds"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Special Needs
-            </Label>
+          <FormField label="Special Needs" fieldId="specialNeeds">
             <textarea
               id="specialNeeds"
               value={data.specialNeeds || ''}
@@ -334,7 +310,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               placeholder="Enter any special needs or requirements"
               className="min-h-[60px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
             />
-          </div>
+          </FormField>
         </div>
       </CardContent>
     </Card>

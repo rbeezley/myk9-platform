@@ -1,8 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X, Award, Save, AlertTriangle } from 'lucide-react';
@@ -18,6 +24,8 @@ import {
 } from '@/components/ui/alert-dialog/alert-dialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
+import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
+import type { JudgeQualification as DbJudgeQualification } from '@/types/judge-management';
 import type { JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
@@ -29,8 +37,21 @@ interface JudgeQualificationPanelProps {
   onClose: () => void;
   userId: string;
   userName: string;
-  initialQualifications?: JudgeQualification[];
   onSave?: (qualifications: JudgeQualification[]) => Promise<void>;
+}
+
+function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualification {
+  return {
+    judgeNumber: '',
+    organization: q.organization,
+    level: q.qualification_level || '',
+    showTypes: q.disciplines || [],
+    disciplines: q.disciplines || [],
+    certificationDate: q.date_obtained || '',
+    dateObtained: q.date_obtained ? new Date(q.date_obtained) : null,
+    expirationDate: q.expiration_date ? new Date(q.expiration_date) : null,
+    status: q.is_active ? 'Active' : q.suspension_date ? 'Suspended' : 'Expired',
+  } as JudgeQualification;
 }
 
 const JUDGE_ORGANIZATIONS = [
@@ -45,7 +66,7 @@ const SHOW_TYPE_GROUPS = {
   'Performance Events': ['Agility', 'Rally', 'Scent Work', 'Obedience'],
   'Conformation & Breeding': ['Conformation'],
   'Field & Hunting': ['Field Trials', 'Hunt Tests', 'Lure Coursing'],
-  'Specialty Events': ['Earthdog', 'Fast CAT', 'Dock Diving', 'Barn Hunt', 'Herding']
+  'Specialty Events': ['Earthdog', 'Fast CAT', 'Dock Diving', 'Barn Hunt', 'Herding'],
 };
 
 // const SHOW_TYPES = Object.values(SHOW_TYPE_GROUPS).flat();
@@ -55,47 +76,44 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   onClose,
   userId,
   userName,
-  initialQualifications = [],
-  onSave
+  onSave,
 }) => {
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
-  
-  // Local state for qualifications
-  const [qualifications, setQualifications] = useState<JudgeQualification[]>(initialQualifications);
+
+  // Fetch qualifications from DB using shared hook
+  const { data: dbQualifications = [] } = useJudgeQualifications(userId);
+
+  // Map DB-shaped data to UI-shaped data for form editing
+  const fetchedQualifications = useMemo(
+    () => dbQualifications.map(mapDbToUiQualification),
+    [dbQualifications]
+  );
+
+  // Local state for qualifications (editable copy)
+  const [qualifications, setQualifications] = useState<JudgeQualification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+
+  // Derive change tracking from comparing local edits to fetched data
+  const hasChanges =
+    qualifications.length !== fetchedQualifications.length ||
+    JSON.stringify(qualifications) !== JSON.stringify(fetchedQualifications);
 
   // Check if current user can edit judge qualifications
   const canEditQualifications = useCallback(() => {
-    // Site admins can always edit
     if (hasPermission('admin:manage')) return true;
-    
-    // Show secretaries can edit judge qualifications
     if (hasPermission('show:manage')) return true;
-    
-    // Users can edit their own qualifications if they are judges
     if (userId && currentUser?.id === userId) {
       return hasPermission('judge:manage_qualifications') || hasPermission('user:update');
     }
-    
     return false;
   }, [hasPermission, userId, currentUser?.id]);
 
-  // Update qualifications when initialQualifications changes
+  // Sync fetched qualifications into local state when query data changes
   useEffect(() => {
-    if (initialQualifications) {
-      setQualifications(initialQualifications);
-      setHasChanges(false);
-    }
-  }, [initialQualifications]);
-
-  // Track changes
-  useEffect(() => {
-    const hasChangesNow = JSON.stringify(qualifications) !== JSON.stringify(initialQualifications);
-    setHasChanges(hasChangesNow);
-  }, [qualifications, initialQualifications]);
+    setQualifications(fetchedQualifications);
+  }, [fetchedQualifications]);
 
   // Add a new qualification
   const addQualification = useCallback(() => {
@@ -144,11 +162,10 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   // Save qualifications
   const handleSave = async () => {
     if (!onSave) return;
-    
+
     try {
       setIsLoading(true);
       await onSave(qualifications);
-      setHasChanges(false);
       onClose();
     } catch (error) {
       logger.error('Failed to save qualifications:', 'components', {}, error as Error);
@@ -171,8 +188,7 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
 
   const handleConfirmDiscard = () => {
     setShowDiscardDialog(false);
-    setQualifications(initialQualifications);
-    setHasChanges(false);
+    setQualifications(fetchedQualifications);
     onClose();
   };
 
@@ -210,18 +226,10 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
         )}
       </div>
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          onClick={handleClose}
-          disabled={isLoading}
-        >
+        <Button variant="outline" onClick={handleClose} disabled={isLoading}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSave}
-          disabled={!hasChanges || isLoading}
-          className="gap-2"
-        >
+        <Button onClick={handleSave} disabled={!hasChanges || isLoading} className="gap-2">
           <Save className="h-4 w-4" />
           Save Changes
         </Button>
@@ -274,7 +282,8 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
                   <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-foreground mb-2">No Qualifications</h3>
                   <p className="text-sm text-muted-foreground mb-6">
-                    This user has no judge qualifications yet. Add their first qualification to get started.
+                    This user has no judge qualifications yet. Add their first qualification to get
+                    started.
                   </p>
                   <Button onClick={addQualification} className="gap-2">
                     <Plus className="h-4 w-4" />
@@ -307,16 +316,15 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
               Unsaved Changes
             </AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes to judge qualifications. Are you sure you want to close? Your changes will be lost.
+              You have unsaved changes to judge qualifications. Are you sure you want to close? Your
+              changes will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShowDiscardDialog(false)}>
               Keep Editing
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDiscard}>
-              Discard Changes
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmDiscard}>Discard Changes</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -338,7 +346,7 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
   index,
   onUpdate,
   onRemove,
-  onToggleShowType
+  onToggleShowType,
 }) => {
   return (
     <div className="border-0 rounded-xl bg-gradient-to-br from-muted/30 to-muted/10 backdrop-blur-sm">
@@ -347,13 +355,16 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Award className="h-4 w-4 text-primary" />
-            <h4 className="font-medium text-foreground">
-              Qualification {index + 1}
-            </h4>
+            <h4 className="font-medium text-foreground">Qualification {index + 1}</h4>
           </div>
-          <Badge 
-            variant={qualification.status === 'Active' ? 'default' : 
-                     qualification.status === 'Suspended' ? 'destructive' : 'secondary'}
+          <Badge
+            variant={
+              qualification.status === 'Active'
+                ? 'default'
+                : qualification.status === 'Suspended'
+                  ? 'destructive'
+                  : 'secondary'
+            }
             className="text-xs"
           >
             {qualification.status}
@@ -375,33 +386,53 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
         {/* Basic Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor={`judgeNumber-${index}`} style={{color: 'rgba(148, 163, 184, 0.8)', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+            <Label
+              htmlFor={`judgeNumber-${index}`}
+              style={{
+                color: 'rgba(148, 163, 184, 0.8)',
+                fontSize: '12px',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
               Judge Number *
             </Label>
             <Input
               id={`judgeNumber-${index}`}
               value={qualification.judgeNumber}
-              onChange={(e) => onUpdate(index, { judgeNumber: e.target.value })}
+              onChange={e => onUpdate(index, { judgeNumber: e.target.value })}
               placeholder="12345"
               className="h-9"
             />
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor={`organization-${index}`} style={{color: 'rgba(148, 163, 184, 0.8)', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+            <Label
+              htmlFor={`organization-${index}`}
+              style={{
+                color: 'rgba(148, 163, 184, 0.8)',
+                fontSize: '12px',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
               Organization *
             </Label>
             <Select
               value={qualification.organization}
-              onValueChange={(value) => onUpdate(index, { 
-                organization: value as JudgeQualification['organization'] 
-              })}
+              onValueChange={value =>
+                onUpdate(index, {
+                  organization: value as JudgeQualification['organization'],
+                })
+              }
             >
               <SelectTrigger className="h-9 border-0 bg-input rounded-xl">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {JUDGE_ORGANIZATIONS.map((org) => (
+                {JUDGE_ORGANIZATIONS.map(org => (
                   <SelectItem key={org.value} value={org.value}>
                     {org.label}
                   </SelectItem>
@@ -413,14 +444,25 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor={`status-${index}`} style={{color: 'rgba(148, 163, 184, 0.8)', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+            <Label
+              htmlFor={`status-${index}`}
+              style={{
+                color: 'rgba(148, 163, 184, 0.8)',
+                fontSize: '12px',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
               Status *
             </Label>
             <Select
               value={qualification.status}
-              onValueChange={(value) => onUpdate(index, { 
-                status: value as JudgeQualification['status'] 
-              })}
+              onValueChange={value =>
+                onUpdate(index, {
+                  status: value as JudgeQualification['status'],
+                })
+              }
             >
               <SelectTrigger className="h-9 border-0 bg-input rounded-xl">
                 <SelectValue />
@@ -432,16 +474,25 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor={`certificationDate-${index}`} style={{color: 'rgba(148, 163, 184, 0.8)', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em'}}>
+            <Label
+              htmlFor={`certificationDate-${index}`}
+              style={{
+                color: 'rgba(148, 163, 184, 0.8)',
+                fontSize: '12px',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
               Certification Date
             </Label>
             <Input
               id={`certificationDate-${index}`}
               type="date"
               value={qualification.certificationDate}
-              onChange={(e) => onUpdate(index, { certificationDate: e.target.value })}
+              onChange={e => onUpdate(index, { certificationDate: e.target.value })}
               className="h-9"
             />
           </div>
@@ -449,7 +500,17 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
 
         {/* Show Types Selection */}
         <div className="space-y-3">
-          <Label style={{color: 'rgba(148, 163, 184, 0.8)', fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Qualified Show Types</Label>
+          <Label
+            style={{
+              color: 'rgba(148, 163, 184, 0.8)',
+              fontSize: '12px',
+              fontWeight: '500',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            Qualified Show Types
+          </Label>
           <div className="border-0 rounded-xl p-4 bg-input">
             {Object.entries(SHOW_TYPE_GROUPS).map(([groupName, types]) => (
               <div key={groupName} className="mb-4 last:mb-0">
@@ -457,7 +518,7 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
                   {groupName}
                 </h5>
                 <div className="flex flex-wrap gap-2">
-                  {types.map((showType) => {
+                  {types.map(showType => {
                     const isSelected = qualification.showTypes.includes(showType);
                     return (
                       <button
@@ -465,10 +526,10 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
                         type="button"
                         onClick={() => onToggleShowType(index, showType)}
                         className={cn(
-                          "px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 hover:scale-105",
+                          'px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 hover:scale-105',
                           isSelected
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background hover:bg-muted border-border text-foreground hover:border-border-hover"
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                            : 'bg-background hover:bg-muted border-border text-foreground hover:border-border-hover'
                         )}
                       >
                         {isSelected && <span className="mr-1">✓</span>}
@@ -480,11 +541,12 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
               </div>
             ))}
           </div>
-          
+
           {/* Selected count */}
           {qualification.showTypes.length > 0 && (
             <div className="text-xs text-muted-foreground">
-              {qualification.showTypes.length} show type{qualification.showTypes.length !== 1 ? 's' : ''} selected
+              {qualification.showTypes.length} show type
+              {qualification.showTypes.length !== 1 ? 's' : ''} selected
             </div>
           )}
         </div>

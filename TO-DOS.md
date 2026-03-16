@@ -72,7 +72,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 - [ ] **Show judge number and show types on qualification card** — QualificationsTab card should display `judge_number` (from people table) and discipline/show type badges (e.g., "Scent Work", "Agility").
 - [ ] **Show Edit > Judges tab not finding qualified judges** — The `availableJudges` filter in ShowEditForm checks `person.judgeQualifications` which isn't loaded from the people store (getAllUsers doesn't join judge_qualifications). Fix: either join qualifications in getAllUsers, or use a dedicated React Query hook for qualified judges.
 - [x] **Remove stale `people.roles` references** — Done: `mapDbUserToUser` now extracts roles from joined `user_roles` data (or flat RPC array). Removed write of `roles` to people table. Added `user_roles(role:roles(name))` join to `getAllUsers`, `getUserById`, and `searchUsers` queries.
-- [ ] **Remove debug `useEffect`/`qualsLoaded` state from UserEditPanel** — The qualification loading useEffect was a workaround. Now that QualificationsTab fetches its own data, the useEffect can be removed.
+- [x] **Remove debug `useEffect`/`qualsLoaded` state from UserEditPanel** — Done: Removed `qualsLoaded` useEffect from UserEditPanel. Made JudgeQualificationPanel self-sufficient with its own React Query fetch (same pattern as QualificationsTab). Removed `initialQualifications` prop from JudgeQualificationPanel interface and all 4 call sites. Fixed 3 lint warnings (dep arrays).
 
 ---
 

@@ -96,7 +96,7 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         description="Are you sure you want to delete this person? This action cannot be undone."
         saveLabel="Delete"
         cancelLabel="Cancel"
-        saveButtonProps={{ variant: "destructive" }}
+        saveButtonProps={{ variant: 'destructive' }}
       >
         <p className="text-muted-foreground">
           This will permanently remove {formData.name} from your account.
@@ -109,7 +109,6 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         onClose={() => setIsQualificationsPanelOpen(false)}
         userId={person.id}
         userName={`${person.firstName} ${person.lastName}`}
-        initialQualifications={formData.judgeQualifications}
         onSave={onQualificationsSave}
       />
     </>

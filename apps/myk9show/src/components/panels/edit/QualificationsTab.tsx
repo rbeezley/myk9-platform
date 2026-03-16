@@ -1,10 +1,9 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Award, Settings } from 'lucide-react';
-import { supabase } from '@/services/database/supabaseClient';
+import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
 
 interface QualificationsTabProps {
   personId: string;
@@ -17,20 +16,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
   canEditQualifications,
   onManageQualifications,
 }) => {
-  const { data: qualifications = [] } = useQuery({
-    queryKey: ['judgeQualifications', personId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('judge_qualifications')
-        .select('*')
-        .eq('person_id', personId)
-        .eq('is_active', true);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!personId,
-    staleTime: 10_000,
-  });
+  const { data: qualifications = [] } = useJudgeQualifications(personId, { is_active: true });
 
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
@@ -51,24 +37,24 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
       <CardContent>
         {qualifications.length > 0 ? (
           <div className="space-y-4">
-            {qualifications.map((qual: Record<string, unknown>) => (
-              <div key={qual.id as string} className="border-l-4 border-primary pl-4 space-y-2">
+            {qualifications.map(qual => (
+              <div key={qual.id} className="border-l-4 border-primary pl-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Badge variant="default">{qual.organization as string}</Badge>
-                    <span className="font-medium">{qual.qualification_level as string}</span>
+                    <Badge variant="default">{qual.organization}</Badge>
+                    <span className="font-medium">{qual.qualification_level}</span>
                   </div>
                   <Badge variant="default">Active</Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {Boolean(qual.date_obtained) && (
-                    <p>Certified: {new Date(qual.date_obtained as string).toLocaleDateString()}</p>
+                  {qual.date_obtained && (
+                    <p>Certified: {new Date(qual.date_obtained).toLocaleDateString()}</p>
                   )}
-                  {Array.isArray(qual.disciplines) && (qual.disciplines as string[]).length > 0 && (
+                  {qual.disciplines.length > 0 && (
                     <div className="mt-2">
                       <span className="font-medium">Qualified for: </span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {(qual.disciplines as string[]).map(type => (
+                        {qual.disciplines.map(type => (
                           <Badge key={type} variant="outline" className="text-xs">
                             {type}
                           </Badge>

@@ -290,9 +290,6 @@ const UserListPage: React.FC = () => {
             ? `${selectedUserForQualifications.firstName} ${selectedUserForQualifications.lastName}`
             : ''
         }
-        initialQualifications={
-          (selectedUserForQualifications?.judgeQualifications as JudgeQualification[]) || []
-        }
         onSave={async (qualifications: JudgeQualification[]) => {
           if (!selectedUserForQualifications) return;
           try {

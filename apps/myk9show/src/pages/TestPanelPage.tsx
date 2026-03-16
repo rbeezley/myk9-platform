@@ -30,7 +30,7 @@ const mockUser: Partial<UserType> = {
       level: 'Senior',
       disciplines: ['Conformation', 'Obedience', 'Rally'],
       dateObtained: new Date('2020-01-15'),
-      expirationDate: new Date('2025-01-15')
+      expirationDate: new Date('2025-01-15'),
     } as JudgeQualification,
     {
       id: 'qual-2',
@@ -42,10 +42,10 @@ const mockUser: Partial<UserType> = {
       level: 'Apprentice',
       disciplines: ['Agility', 'Herding'],
       dateObtained: new Date('2019-06-20'),
-      expirationDate: new Date('2024-06-20')
-    } as JudgeQualification
+      expirationDate: new Date('2024-06-20'),
+    } as JudgeQualification,
   ] as JudgeQualification[],
-  roles: undefined // Roles would normally come from the database
+  roles: undefined, // Roles would normally come from the database
 };
 
 export default function TestPanelPage() {
@@ -78,7 +78,8 @@ export default function TestPanelPage() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Test the New Panel Components</h3>
               <p className="text-muted-foreground mb-4">
-                Click the buttons below to test the new SlideOverPanel implementations from Phase 1 and Phase 2 of the migration plan.
+                Click the buttons below to test the new SlideOverPanel implementations from Phase 1
+                and Phase 2 of the migration plan.
               </p>
             </div>
 
@@ -90,9 +91,10 @@ export default function TestPanelPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Comprehensive user editing with tabbed interface, validation, and auto-save capabilities.
+                    Comprehensive user editing with tabbed interface, validation, and auto-save
+                    capabilities.
                   </p>
-                  <Button 
+                  <Button
                     onClick={() => setIsUserPanelOpen(true)}
                     className="w-full"
                     variant="default"
@@ -117,7 +119,7 @@ export default function TestPanelPage() {
                   <p className="text-sm text-muted-foreground">
                     Spacious panel for managing judge qualifications with smart grouping.
                   </p>
-                  <Button 
+                  <Button
                     onClick={() => setIsQualificationsPanelOpen(true)}
                     className="w-full"
                     variant="outline"
@@ -148,14 +150,18 @@ export default function TestPanelPage() {
 
             {/* Instructions */}
             <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Testing Instructions:</h4>
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                Testing Instructions:
+              </h4>
               <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800 dark:text-blue-200">
                 <li>Click "Open User Edit Panel" to test the new tabbed user editing experience</li>
                 <li>Try switching between tabs (Basic Info, Contact, Qualifications)</li>
                 <li>Edit some fields and notice the "Unsaved changes" indicator</li>
                 <li>Try to close the panel with unsaved changes to see the warning</li>
                 <li>Save changes and watch the data update in the preview below</li>
-                <li>Test the Judge Qualifications panel separately or from within the User Edit Panel</li>
+                <li>
+                  Test the Judge Qualifications panel separately or from within the User Edit Panel
+                </li>
                 <li>On mobile, panels will appear full-screen for optimal UX</li>
               </ol>
             </div>
@@ -180,7 +186,6 @@ export default function TestPanelPage() {
         onClose={() => setIsQualificationsPanelOpen(false)}
         userId={userData.id || 'test-user'}
         userName={`${userData.firstName} ${userData.lastName}`}
-        initialQualifications={(userData.judgeQualifications as JudgeQualification[]) || []}
         onSave={handleQualificationsSave}
       />
     </div>

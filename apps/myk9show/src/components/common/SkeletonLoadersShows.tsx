@@ -15,34 +15,30 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 
 // Enhanced show-specific skeletons for unified interface
 export const ShowCardGridSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) => (
-  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="myk9-browse-card animate-pulse">
-        <div className="myk9-browse-card-header">
-          <div className="myk9-browse-card-badges">
-            <Skeleton className="h-5 w-16 rounded-full" />
-          </div>
+      <div key={i} className="animate-pulse rounded-lg border border-border bg-card p-4 shadow-sm">
+        {/* Badge */}
+        <div className="mb-3">
+          <Skeleton className="h-5 w-16 rounded-full" />
         </div>
-        <div className="myk9-browse-card-content">
-          <Skeleton className="h-6 w-3/4 mb-2" />
-          <Skeleton className="h-4 w-1/2 mb-4" />
-
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, j) => (
-              <div key={j} className="myk9-browse-card-detail-item">
-                <Skeleton className="h-4 w-4" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-            ))}
-          </div>
-
-          <div className="myk9-browse-card-footer">
-            <Skeleton className="h-5 w-20 rounded-full" />
-            <div className="flex gap-2">
-              <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-8 w-16" />
+        {/* Identity row */}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+          <Skeleton className="h-5 w-3/4" />
+        </div>
+        {/* Details */}
+        <div className="mt-3 space-y-2">
+          {Array.from({ length: 2 }).map((_, j) => (
+            <div key={j} className="flex items-center gap-2">
+              <Skeleton className="h-3.5 w-3.5 shrink-0" />
+              <Skeleton className="h-3 w-24" />
             </div>
-          </div>
+          ))}
+        </div>
+        {/* Footer */}
+        <div className="mt-4 flex justify-end border-t border-border pt-3">
+          <Skeleton className="h-8 w-24" />
         </div>
       </div>
     ))}

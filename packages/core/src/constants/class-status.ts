@@ -111,8 +111,10 @@ export function getNextClassStatus(currentStatus: ClassStatusValue): ClassStatus
  * @returns Display configuration or default values
  */
 export function getClassStatusDisplay(status: string) {
+  // Try direct lookup first, then normalize legacy/trial status values
   return (
-    CLASS_STATUS_DISPLAY[status as ClassStatusValue] ?? {
+    CLASS_STATUS_DISPLAY[status as ClassStatusValue] ??
+    CLASS_STATUS_DISPLAY[normalizeClassStatus(status)] ?? {
       label: status,
       color: 'gray',
       bgClass: 'bg-gray-100',
@@ -145,6 +147,10 @@ export const LEGACY_STATUS_MAP: Record<string, ClassStatusValue> = {
   upcoming: CLASS_STATUS.UPCOMING,
   Pending: CLASS_STATUS.SCHEDULED,
   pending: CLASS_STATUS.SCHEDULED,
+  Planned: CLASS_STATUS.SCHEDULED,
+  planned: CLASS_STATUS.SCHEDULED,
+  Published: CLASS_STATUS.UPCOMING,
+  published: CLASS_STATUS.UPCOMING,
 
   // Variations of In Progress
   'In Progress': CLASS_STATUS.IN_PROGRESS,

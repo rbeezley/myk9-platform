@@ -57,7 +57,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       name: '',
       date: format(new Date(), 'yyyy-MM-dd'),
       trialNumber: nextNumber,
-      status: 'Upcoming',
+      status: 'planned',
       description: '',
       eventNumber: '',
       plannedStartTime: '09:00 AM',
@@ -74,7 +74,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
         name: '',
         date: format(new Date(), 'yyyy-MM-dd'),
         trialNumber: nextNumber,
-        status: 'Upcoming',
+        status: 'planned',
         description: '',
         eventNumber: '',
         plannedStartTime: '09:00 AM',
@@ -104,7 +104,7 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       name: '',
       date: format(new Date(), 'yyyy-MM-dd'),
       trialNumber: nextNumber,
-      status: 'Upcoming',
+      status: 'planned',
       description: '',
       eventNumber: '',
       plannedStartTime: '09:00 AM',
@@ -211,10 +211,13 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Upcoming">Upcoming</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    <SelectItem value="planned">Planned</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="check_in">Check-In</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="scoring">Scoring</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

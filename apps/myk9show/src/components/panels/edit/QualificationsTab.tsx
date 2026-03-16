@@ -2,8 +2,9 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Award, Settings } from 'lucide-react';
+import { Award, Hash, Settings } from 'lucide-react';
 import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
+import { useUserQuery } from '@/hooks/queries/useUsersDatabase';
 
 interface QualificationsTabProps {
   personId: string;
@@ -17,6 +18,10 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
   onManageQualifications,
 }) => {
   const { data: qualifications = [] } = useJudgeQualifications(personId, { is_active: true });
+  const { data: person } = useUserQuery(personId);
+  const judgeNumber = (person as Record<string, unknown> | undefined)?.judge_number as
+    | string
+    | null;
 
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
@@ -25,6 +30,12 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
           <div className="flex items-center gap-2">
             <Award className="h-5 w-5" />
             Judge Qualifications
+            {judgeNumber && (
+              <Badge variant="outline" className="ml-1 gap-1 font-normal">
+                <Hash className="h-3 w-3" />
+                {judgeNumber}
+              </Badge>
+            )}
           </div>
           {canEditQualifications && (
             <Button variant="outline" size="sm" onClick={onManageQualifications} className="gap-2">
@@ -52,7 +63,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
                   )}
                   {qual.disciplines.length > 0 && (
                     <div className="mt-2">
-                      <span className="font-medium">Qualified for: </span>
+                      <span className="font-medium">Show Types: </span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {qual.disciplines.map(type => (
                           <Badge key={type} variant="outline" className="text-xs">

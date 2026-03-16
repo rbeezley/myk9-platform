@@ -6,18 +6,14 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  judgeQualificationQueries,
-} from '../../services/database/queries/judgeQueries';
+import { judgeQualificationQueries } from '../../services/database/queries/judgeQueries';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
   UpdateJudgeQualificationData,
   JudgeQualificationFilters,
 } from '../../types/judge-management';
-import {
-  validateJudgeQualification,
-} from '../../services/mappers/judgeMappers';
+import { validateJudgeQualification } from '../../services/mappers/judgeMappers';
 import { errorMonitor } from '../../lib/errorMonitoring';
 
 // Query Key Factories
@@ -40,8 +36,8 @@ export const useJudgeQualifications = (judgeId: string, filters?: JudgeQualifica
     gcTime: 30 * 60 * 1000, // 30 minutes
     enabled: !!judgeId,
     meta: {
-      errorMessage: 'Failed to fetch judge qualifications'
-    }
+      errorMessage: 'Failed to fetch judge qualifications',
+    },
   });
 };
 
@@ -53,8 +49,8 @@ export const useJudgeQualification = (id: string) => {
     gcTime: 30 * 60 * 1000,
     enabled: !!id,
     meta: {
-      errorMessage: 'Failed to fetch judge qualification'
-    }
+      errorMessage: 'Failed to fetch judge qualification',
+    },
   });
 };
 
@@ -66,8 +62,8 @@ export const useJudgeQualificationSummary = (judgeId: string) => {
     gcTime: 60 * 60 * 1000, // 1 hour
     enabled: !!judgeId,
     meta: {
-      errorMessage: 'Failed to fetch qualification summary'
-    }
+      errorMessage: 'Failed to fetch qualification summary',
+    },
   });
 };
 
@@ -83,31 +79,28 @@ export const useCreateJudgeQualification = () => {
       }
       return judgeQualificationQueries.create(data);
     },
-    onSuccess: (newQualification) => {
+    onSuccess: newQualification => {
       // Invalidate relevant queries
       queryClient.invalidateQueries({
-        queryKey: judgeQueryKeys.qualificationsByJudge(newQualification.person_id)
+        queryKey: judgeQueryKeys.qualificationsByJudge(newQualification.person_id),
       });
       queryClient.invalidateQueries({
-        queryKey: judgeQueryKeys.qualificationSummary(newQualification.person_id)
+        queryKey: judgeQueryKeys.qualificationSummary(newQualification.person_id),
       });
 
       // Update cache with new qualification
-      queryClient.setQueryData(
-        judgeQueryKeys.qualification(newQualification.id),
-        newQualification
-      );
+      queryClient.setQueryData(judgeQueryKeys.qualification(newQualification.id), newQualification);
     },
-    onError: (error) => {
+    onError: error => {
       errorMonitor.captureError(error, {
         operationType: 'create',
         entityType: 'judge_qualification',
-        additionalData: { severity: 'high' }
+        additionalData: { severity: 'high' },
       });
     },
     meta: {
-      successMessage: 'Judge qualification created successfully'
-    }
+      successMessage: 'Judge qualification created successfully',
+    },
   });
 };
 
@@ -116,7 +109,7 @@ export const useUpdateJudgeQualification = () => {
 
   return useMutation({
     mutationFn: (data: UpdateJudgeQualificationData) => judgeQualificationQueries.update(data),
-    onMutate: async (data) => {
+    onMutate: async data => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: judgeQueryKeys.qualification(data.id) });
 
@@ -127,10 +120,11 @@ export const useUpdateJudgeQualification = () => {
 
       // Optimistically update
       if (previousQualification) {
-        queryClient.setQueryData(
-          judgeQueryKeys.qualification(data.id),
-          { ...previousQualification, ...data, updated_at: new Date().toISOString() }
-        );
+        queryClient.setQueryData(judgeQueryKeys.qualification(data.id), {
+          ...previousQualification,
+          ...data,
+          updated_at: new Date().toISOString(),
+        });
       }
 
       return { previousQualification };
@@ -146,23 +140,23 @@ export const useUpdateJudgeQualification = () => {
       errorMonitor.captureError(error, {
         operationType: 'update',
         entityType: 'judge_qualification',
-        additionalData: { severity: 'medium' }
+        additionalData: { severity: 'medium' },
       });
     },
-    onSettled: (data) => {
+    onSettled: data => {
       if (data) {
         // Invalidate related queries
         queryClient.invalidateQueries({
-          queryKey: judgeQueryKeys.qualificationsByJudge(data.person_id)
+          queryKey: judgeQueryKeys.qualificationsByJudge(data.person_id),
         });
         queryClient.invalidateQueries({
-          queryKey: judgeQueryKeys.qualificationSummary(data.person_id)
+          queryKey: judgeQueryKeys.qualificationSummary(data.person_id),
         });
       }
     },
     meta: {
-      successMessage: 'Judge qualification updated successfully'
-    }
+      successMessage: 'Judge qualification updated successfully',
+    },
   });
 };
 
@@ -178,16 +172,16 @@ export const useDeleteJudgeQualification = () => {
       // Invalidate list queries
       queryClient.invalidateQueries({ queryKey: judgeQueryKeys.qualifications() });
     },
-    onError: (error) => {
+    onError: error => {
       errorMonitor.captureError(error, {
         operationType: 'delete',
         entityType: 'judge_qualification',
-        additionalData: { severity: 'high' }
+        additionalData: { severity: 'high' },
       });
     },
     meta: {
-      successMessage: 'Judge qualification deleted successfully'
-    }
+      successMessage: 'Judge qualification deleted successfully',
+    },
   });
 };
 
@@ -197,7 +191,7 @@ export const useSuspendJudgeQualification = () => {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       judgeQualificationQueries.suspend(id, reason),
-    onSuccess: (updatedQualification) => {
+    onSuccess: updatedQualification => {
       // Update cache
       queryClient.setQueryData(
         judgeQueryKeys.qualification(updatedQualification.id),
@@ -206,12 +200,12 @@ export const useSuspendJudgeQualification = () => {
 
       // Invalidate related queries
       queryClient.invalidateQueries({
-        queryKey: judgeQueryKeys.qualificationsByJudge(updatedQualification.person_id)
+        queryKey: judgeQueryKeys.qualificationsByJudge(updatedQualification.person_id),
       });
     },
     meta: {
-      successMessage: 'Judge qualification suspended'
-    }
+      successMessage: 'Judge qualification suspended',
+    },
   });
 };
 
@@ -220,7 +214,7 @@ export const useReinstateJudgeQualification = () => {
 
   return useMutation({
     mutationFn: (id: string) => judgeQualificationQueries.reinstate(id),
-    onSuccess: (updatedQualification) => {
+    onSuccess: updatedQualification => {
       // Update cache
       queryClient.setQueryData(
         judgeQueryKeys.qualification(updatedQualification.id),
@@ -229,12 +223,12 @@ export const useReinstateJudgeQualification = () => {
 
       // Invalidate related queries
       queryClient.invalidateQueries({
-        queryKey: judgeQueryKeys.qualificationsByJudge(updatedQualification.person_id)
+        queryKey: judgeQueryKeys.qualificationsByJudge(updatedQualification.person_id),
       });
     },
     meta: {
-      successMessage: 'Judge qualification reinstated'
-    }
+      successMessage: 'Judge qualification reinstated',
+    },
   });
 };
 
@@ -254,8 +248,8 @@ export const useBatchSuspendQualifications = () => {
       queryClient.invalidateQueries({ queryKey: judgeQueryKeys.qualifications() });
     },
     meta: {
-      successMessage: 'Batch qualification suspension completed'
-    }
+      successMessage: 'Batch qualification suspension completed',
+    },
   });
 };
 
@@ -267,31 +261,31 @@ export const useJudgeQualificationCacheUtils = () => {
     await queryClient.prefetchQuery({
       queryKey: judgeQueryKeys.qualificationsByJudge(judgeId),
       queryFn: () => judgeQualificationQueries.getByJudgeId(judgeId),
-      staleTime: 5 * 60 * 1000
+      staleTime: 5 * 60 * 1000,
     });
   };
 
   const invalidateQualifications = (judgeId: string) => {
     queryClient.invalidateQueries({
-      queryKey: judgeQueryKeys.qualificationsByJudge(judgeId)
+      queryKey: judgeQueryKeys.qualificationsByJudge(judgeId),
     });
     queryClient.invalidateQueries({
-      queryKey: judgeQueryKeys.qualificationSummary(judgeId)
+      queryKey: judgeQueryKeys.qualificationSummary(judgeId),
     });
   };
 
   const clearQualificationCache = (judgeId: string) => {
     queryClient.removeQueries({
-      queryKey: judgeQueryKeys.qualificationsByJudge(judgeId)
+      queryKey: judgeQueryKeys.qualificationsByJudge(judgeId),
     });
     queryClient.removeQueries({
-      queryKey: judgeQueryKeys.qualificationSummary(judgeId)
+      queryKey: judgeQueryKeys.qualificationSummary(judgeId),
     });
   };
 
   return {
     prefetchQualifications,
     invalidateQualifications,
-    clearQualificationCache
+    clearQualificationCache,
   };
 };

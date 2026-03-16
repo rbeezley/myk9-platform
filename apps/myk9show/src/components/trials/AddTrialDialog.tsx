@@ -66,6 +66,8 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
     };
   });
 
+  const [date, setDate] = useState<Date | undefined>(new Date());
+
   // Reset form when dialog opens
   React.useEffect(() => {
     if (open) {
@@ -84,8 +86,6 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
       setDate(new Date());
     }
   }, [open, existingTrialCount, currentShowName]);
-
-  const [date, setDate] = useState<Date | undefined>(new Date());
 
   const handleSave = () => {
     // Validate required fields

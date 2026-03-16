@@ -147,10 +147,12 @@ export const LEGACY_STATUS_MAP: Record<string, ClassStatusValue> = {
   upcoming: CLASS_STATUS.UPCOMING,
   Pending: CLASS_STATUS.SCHEDULED,
   pending: CLASS_STATUS.SCHEDULED,
-  Planned: CLASS_STATUS.SCHEDULED,
-  planned: CLASS_STATUS.SCHEDULED,
+  Planned: CLASS_STATUS.UPCOMING,
+  planned: CLASS_STATUS.UPCOMING,
   Published: CLASS_STATUS.UPCOMING,
   published: CLASS_STATUS.UPCOMING,
+  check_in: CLASS_STATUS.IN_PROGRESS,
+  scoring: CLASS_STATUS.IN_PROGRESS,
 
   // Variations of In Progress
   'In Progress': CLASS_STATUS.IN_PROGRESS,

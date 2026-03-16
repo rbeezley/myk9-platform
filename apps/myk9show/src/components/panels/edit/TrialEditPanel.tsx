@@ -306,11 +306,8 @@ const TrialEditForm: React.FC = () => {
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="planned">Planned</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                      <SelectItem value="check_in">Check-In</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
                       <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="scoring">Scoring</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>

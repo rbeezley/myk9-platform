@@ -60,11 +60,8 @@ export default function TestPanelPage() {
     await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
-  const handleQualificationsSave = async (qualifications: JudgeQualification[]) => {
-    logger.debug('Saving qualifications:', 'pages', { data: qualifications });
-    setUserData({ ...userData, judgeQualifications: qualifications });
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  const handleQualificationsSaved = () => {
+    logger.debug('Qualifications saved', 'pages');
   };
 
   return (
@@ -186,7 +183,7 @@ export default function TestPanelPage() {
         onClose={() => setIsQualificationsPanelOpen(false)}
         userId={userData.id || 'test-user'}
         userName={`${userData.firstName} ${userData.lastName}`}
-        onSave={handleQualificationsSave}
+        onSaved={handleQualificationsSaved}
       />
     </div>
   );

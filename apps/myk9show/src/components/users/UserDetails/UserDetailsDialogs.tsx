@@ -29,7 +29,7 @@ interface UserDetailsDialogsProps {
   onDragLeave: (e: React.DragEvent) => void;
   onDeleteUser: () => Promise<void>;
   onUserEditSave: (userData: Partial<UserType>) => Promise<void>;
-  onQualificationsSave: (qualifications: JudgeQualification[]) => Promise<void>;
+  onQualificationsSaved: () => void;
   onPhotoSave: () => void;
   onFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
@@ -53,7 +53,7 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   onDragLeave,
   onDeleteUser,
   onUserEditSave,
-  onQualificationsSave,
+  onQualificationsSaved,
   onPhotoSave,
   onFileInput,
 }) => {
@@ -109,7 +109,7 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         onClose={() => setIsQualificationsPanelOpen(false)}
         userId={person.id}
         userName={`${person.firstName} ${person.lastName}`}
-        onSave={onQualificationsSave}
+        onSaved={onQualificationsSaved}
       />
     </>
   );

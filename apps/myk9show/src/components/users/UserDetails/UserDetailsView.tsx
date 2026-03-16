@@ -1,11 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { Mail, MapPin, Settings, PawPrint, Award } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
-import { queryKeys } from '@/lib/queryClient';
 import { useUserStore } from '@/store/userStore';
 import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
@@ -33,7 +31,6 @@ interface UserDetailsViewProps {
 
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   const { loadUsers } = useUserStore();
@@ -88,49 +85,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     }
   };
 
-  const handleQualificationsSave = async (qualifications: JudgeQualification[]) => {
-    setFormData(prev => ({ ...prev, judgeQualifications: qualifications }));
-    try {
-      const { judgeQualificationQueries } =
-        await import('@/services/database/queries/judgeQueries');
-      const existing = await judgeQualificationQueries.getByJudgeId(person.id);
-      await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
-      await Promise.all(
-        qualifications.map(qual =>
-          judgeQualificationQueries.create({
-            person_id: person.id,
-            organization: qual.organization,
-            qualification_level: qual.level || 'Regular',
-            disciplines: qual.disciplines || qual.showTypes || [],
-            date_obtained:
-              qual.certificationDate ||
-              (qual.dateObtained
-                ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0]
-                : new Date().toISOString().split('T')[0]),
-            ...(qual.expirationDate
-              ? {
-                  expiration_date: new Date(qual.expirationDate as unknown as string)
-                    .toISOString()
-                    .split('T')[0],
-                }
-              : {}),
-            is_active: qual.status === 'Active',
-          })
-        )
-      );
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(person.id) });
-      loadUsers();
-      logger.info('Qualifications saved successfully', 'users', {
-        userId: person.id,
-        count: qualifications.length,
-      });
-    } catch (error) {
-      logger.error('Failed to save qualifications', 'users', { userId: person.id }, error as Error);
-      notifications.error('Failed to save qualifications', {
-        description: getErrorMessage(error),
-      });
-    }
+  const handleQualificationsSaved = () => {
+    loadUsers();
   };
 
   const handleUserEditSave = async (userData: Partial<UserType>) => {
@@ -366,7 +322,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         onDragLeave={handleDragLeave}
         onDeleteUser={handleDeleteUser}
         onUserEditSave={handleUserEditSave}
-        onQualificationsSave={handleQualificationsSave}
+        onQualificationsSaved={handleQualificationsSaved}
         onPhotoSave={() => {
           if (previewImage) {
             setFormData(prev => ({ ...prev, photo: previewImage }));

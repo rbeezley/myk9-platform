@@ -290,51 +290,7 @@ const UserListPage: React.FC = () => {
             ? `${selectedUserForQualifications.firstName} ${selectedUserForQualifications.lastName}`
             : ''
         }
-        onSave={async (qualifications: JudgeQualification[]) => {
-          if (!selectedUserForQualifications) return;
-          try {
-            const { judgeQualificationQueries } =
-              await import('@/services/database/queries/judgeQueries');
-            const existing = await judgeQualificationQueries.getByJudgeId(
-              selectedUserForQualifications.id
-            );
-
-            // Delete all existing qualifications
-            await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
-
-            // Create new qualifications from the updated array
-            await Promise.all(
-              qualifications.map(qual =>
-                judgeQualificationQueries.create({
-                  person_id: selectedUserForQualifications.id,
-                  organization: qual.organization,
-                  qualification_level: qual.level || 'Regular',
-                  disciplines: qual.disciplines || qual.showTypes || [],
-                  date_obtained:
-                    qual.certificationDate ||
-                    (qual.dateObtained
-                      ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0]
-                      : new Date().toISOString().split('T')[0]),
-                  ...(qual.expirationDate
-                    ? {
-                        expiration_date: new Date(qual.expirationDate as unknown as string)
-                          .toISOString()
-                          .split('T')[0],
-                      }
-                    : {}),
-                  is_active: qual.status === 'Active',
-                })
-              )
-            );
-
-            logger.info('Qualifications saved for user', 'users', {
-              userId: selectedUserForQualifications.id,
-              count: qualifications.length,
-            });
-          } catch (error) {
-            logger.error('Failed to save qualifications:', 'users', {}, error as Error);
-          }
-
+        onSaved={() => {
           setIsQualificationsPanelOpen(false);
           setSelectedUserForQualifications(null);
         }}

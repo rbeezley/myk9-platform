@@ -18,13 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { JudgeQualification, JudgeInfo } from '@/types/user-types';
+import type { JudgeInfo } from '@/types/user-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { useUserStore } from '@/store/userStore';
-import { judgeQueryKeys } from '@/hooks/queries/useJudgeDatabase';
 import AvailabilityFormFields from '@/components/judges/AvailabilityFormFields';
 
 import type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
@@ -175,48 +174,10 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
     [handleFileUpload]
   );
 
-  // Handle qualifications save -- persist to DB then update form state
-  const handleQualificationsSave = useCallback(
-    async (qualifications: JudgeQualification[]) => {
-      const { judgeQualificationQueries } =
-        await import('@/services/database/queries/judgeQueries');
-
-      // Delete existing qualifications for this person
-      const existing = await judgeQualificationQueries.getByJudgeId(userId);
-      await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
-
-      // Create new qualifications
-      for (const qual of qualifications) {
-        await judgeQualificationQueries.create({
-          person_id: userId,
-          organization: qual.organization,
-          qualification_level: qual.level || 'Regular',
-          disciplines: qual.disciplines || qual.showTypes || [],
-          date_obtained:
-            qual.certificationDate ||
-            (qual.dateObtained
-              ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0]
-              : new Date().toISOString().split('T')[0]),
-          ...(qual.expirationDate
-            ? {
-                expiration_date: new Date(qual.expirationDate as unknown as string)
-                  .toISOString()
-                  .split('T')[0],
-              }
-            : {}),
-          is_active: qual.status === 'Active',
-        });
-      }
-      // Invalidate caches so the store and queries pick up the new data
-      queryClient.invalidateQueries({ queryKey: judgeQueryKeys.qualificationsByJudge(userId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
-      loadUsers();
-
-      setIsQualificationsPanelOpen(false);
-    },
-    [userId, queryClient, loadUsers]
-  );
+  // Callback when qualifications panel saves successfully (panel handles its own close)
+  const handleQualificationsSaved = useCallback(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   return (
     <div className="space-y-6 p-6">
@@ -359,7 +320,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
           onClose={() => setIsQualificationsPanelOpen(false)}
           userId={userId}
           userName={`${data.firstName} ${data.lastName}`}
-          onSave={handleQualificationsSave}
+          onSaved={handleQualificationsSaved}
         />
       )}
 

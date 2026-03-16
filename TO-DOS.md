@@ -68,7 +68,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Judge Qualification Management Improvements (2026-03-15)
 
-- [ ] **Manage Qualifications panel should append, not replace** — `handleQualificationsSave` deletes all existing qualifications then creates new ones. When the sub-panel only passes the newly added qualification, the old ones get wiped. Fix: merge new qualifications with existing instead of delete-all-recreate.
+- [x] **Manage Qualifications panel should append, not replace** — Done: Moved persistence logic into JudgeQualificationPanel itself (self-sufficient pattern). Panel always has the full qualification list in local state, so delete-all-recreate is safe. Removed duplicated save handlers from UserEditPanel, UserListPage, UserDetailsView, and TestPanelPage. Changed `onSave` callback to `onSaved` (no-arg).
 - [ ] **Show judge number and show types on qualification card** — QualificationsTab card should display `judge_number` (from people table) and discipline/show type badges (e.g., "Scent Work", "Agility").
 - [ ] **Show Edit > Judges tab not finding qualified judges** — The `availableJudges` filter in ShowEditForm checks `person.judgeQualifications` which isn't loaded from the people store (getAllUsers doesn't join judge_qualifications). Fix: either join qualifications in getAllUsers, or use a dedicated React Query hook for qualified judges.
 - [x] **Remove stale `people.roles` references** — Done: `mapDbUserToUser` now extracts roles from joined `user_roles` data (or flat RPC array). Removed write of `roles` to people table. Added `user_roles(role:roles(name))` join to `getAllUsers`, `getUserById`, and `searchUsers` queries.

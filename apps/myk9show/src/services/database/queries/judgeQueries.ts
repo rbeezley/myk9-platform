@@ -126,6 +126,15 @@ export const judgeQualificationQueries = {
     }
   },
 
+  // Delete all qualifications for a person
+  async deleteByPersonId(personId: string): Promise<void> {
+    const { error } = await qualificationsTable().delete().eq('person_id', personId);
+
+    if (error) {
+      throw new Error(`Failed to delete judge qualifications for person: ${error.message}`);
+    }
+  },
+
   // Suspend qualification
   async suspend(id: string, reason: string): Promise<JudgeQualification> {
     const { data: qualification, error } = await qualificationsTable()

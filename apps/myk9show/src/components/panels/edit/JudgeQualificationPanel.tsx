@@ -24,20 +24,24 @@ import {
 } from '@/components/ui/alert-dialog/alert-dialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
-import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
+import { useJudgeQualifications, judgeQueryKeys } from '@/hooks/queries/useJudgeDatabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
 import type { JudgeQualification as DbJudgeQualification } from '@/types/judge-management';
 import type { JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { getErrorMessage } from '@myk9/core';
+import { getErrorMessage, toYYYYMMDD } from '@myk9/core';
+import { judgeQualificationQueries } from '@/services/database/queries/judgeQueries';
+import type { CreateJudgeQualificationData } from '@/types/judge-management';
 
 interface JudgeQualificationPanelProps {
   open: boolean;
   onClose: () => void;
   userId: string;
   userName: string;
-  onSave?: (qualifications: JudgeQualification[]) => Promise<void>;
+  onSaved?: () => void;
 }
 
 function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualification {
@@ -52,6 +56,23 @@ function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualification {
     expirationDate: q.expiration_date ? new Date(q.expiration_date) : null,
     status: q.is_active ? 'Active' : q.suspension_date ? 'Suspended' : 'Expired',
   } as JudgeQualification;
+}
+
+function mapUiToDbQualification(
+  qual: JudgeQualification,
+  personId: string
+): CreateJudgeQualificationData {
+  return {
+    person_id: personId,
+    organization: qual.organization,
+    qualification_level: qual.level || 'Regular',
+    disciplines: qual.disciplines || qual.showTypes || [],
+    date_obtained:
+      qual.certificationDate ||
+      (qual.dateObtained ? toYYYYMMDD(qual.dateObtained) : toYYYYMMDD(new Date())),
+    ...(qual.expirationDate ? { expiration_date: toYYYYMMDD(qual.expirationDate) } : {}),
+    is_active: qual.status === 'Active',
+  };
 }
 
 const JUDGE_ORGANIZATIONS = [
@@ -76,10 +97,11 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   onClose,
   userId,
   userName,
-  onSave,
+  onSaved,
 }) => {
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
+  const queryClient = useQueryClient();
 
   // Fetch qualifications from DB using shared hook
   const { data: dbQualifications = [] } = useJudgeQualifications(userId);
@@ -159,13 +181,25 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
     });
   }, []);
 
-  // Save qualifications
+  // Save qualifications — panel owns persistence since it always has the full list
   const handleSave = async () => {
-    if (!onSave) return;
-
     try {
       setIsLoading(true);
-      await onSave(qualifications);
+
+      // Replace all qualifications in a single bulk delete + parallel create
+      await judgeQualificationQueries.deleteByPersonId(userId);
+      await Promise.all(
+        qualifications.map(qual =>
+          judgeQualificationQueries.create(mapUiToDbQualification(qual, userId))
+        )
+      );
+
+      // Invalidate caches so the store and queries pick up the new data
+      queryClient.invalidateQueries({ queryKey: judgeQueryKeys.qualificationsByJudge(userId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
+
+      onSaved?.();
       onClose();
     } catch (error) {
       logger.error('Failed to save qualifications:', 'components', {}, error as Error);

@@ -114,7 +114,7 @@ export function useFormValidation<T extends Record<string, unknown>>(
           if (firstErrorField) {
             const el = fieldRefs.current.get(firstErrorField);
             if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
               if (
                 el instanceof HTMLInputElement ||
                 el instanceof HTMLSelectElement ||

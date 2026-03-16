@@ -22,6 +22,7 @@ import { Calendar, Users, UserCheck, DollarSign } from 'lucide-react';
 import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
+import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
@@ -34,6 +35,7 @@ export const ShowEditForm: React.FC = () => {
   const { templates } = useTemplateStore();
   const { clubs, loadClubs } = useClubStore();
   const { people, loadUsers } = useUserStore();
+  const { data: judges = [] } = useJudgesWithQualifications();
 
   // Ensure clubs and people are loaded when the form opens
   useEffect(() => {
@@ -105,23 +107,23 @@ export const ShowEditForm: React.FC = () => {
     }));
   }, [people]);
 
-  // Filter people who have judge qualifications for the selected show type
+  // Filter judges who have active qualifications for the selected show type
   const availableJudges = useMemo(() => {
     if (!data.organization) return [];
 
-    const filtered = people.filter(person => {
-      return person.judgeQualifications?.some(
+    const filtered = judges.filter(judge => {
+      return judge.judgeQualifications?.some(
         qualification =>
           qualification.status === 'Active' && qualification.showTypes.includes(data.organization)
       );
     });
 
-    return filtered.map(person => ({
-      id: person.id,
-      name: `${person.firstName} ${person.lastName}`,
-      qualifications: person.judgeQualifications || [],
+    return filtered.map(judge => ({
+      id: judge.id,
+      name: `${judge.firstName} ${judge.lastName}`,
+      qualifications: judge.judgeQualifications || [],
     }));
-  }, [people, data.organization]);
+  }, [judges, data.organization]);
 
   // Handle judge assignment toggle
   const handleJudgeToggle = useCallback(

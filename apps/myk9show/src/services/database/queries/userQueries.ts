@@ -3,6 +3,12 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
 
+// Shared select fragment for judge qualifications join
+const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
+  id, organization, qualification_level, disciplines,
+  date_obtained, expiration_date, is_active
+)`;
+
 // Get all users (excluding soft-deleted)
 export const getAllUsers = async () => {
   const startTime = Date.now();
@@ -64,15 +70,7 @@ export const getUserById = async (id: string) => {
           date_of_birth,
           active
         ),
-        judge_qualifications(
-          id,
-          organization,
-          qualification_level,
-          disciplines,
-          date_obtained,
-          expiration_date,
-          is_active
-        )
+        ${JUDGE_QUALIFICATIONS_SELECT}
       `
       )
       .eq('id', id)
@@ -457,6 +455,35 @@ export const getUsersByRole = async (role: string) => {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_by_role');
     logQuery('user', 'select_by_role', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
+// Get judges with their qualifications (for show judge assignment UI)
+export const getJudgesWithQualifications = async () => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('people')
+      .select(`*, user_roles!inner(role:roles!inner(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
+      .eq('user_roles.is_active', true)
+      .eq('user_roles.roles.name', 'judge')
+      .is('deleted_at', null)
+      .order('last_name', { ascending: true });
+
+    const duration = Date.now() - startTime;
+    logQuery('user', 'select_judges_with_qualifications', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'user', 'select_judges_with_qualifications');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'user', 'select_judges_with_qualifications');
+    logQuery('user', 'select_judges_with_qualifications', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };

@@ -12,6 +12,7 @@ import { useRBAC } from '@/hooks/useRBAC';
 import { notifications } from '@/lib/notifications';
 import { getClassStatusBadgeClasses, getClassStatusDisplay } from '@myk9/core';
 import type { ClassStatusValue } from '@myk9/core';
+import { parseLocalDateString } from '@/utils/dateLocal';
 
 interface TrialsTabProps {
   trials: Trial[];
@@ -20,7 +21,10 @@ interface TrialsTabProps {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, {
+  // Parse as local date to avoid UTC midnight → previous day timezone shift
+  const date = parseLocalDateString(dateStr);
+  if (!date) return dateStr;
+  return date.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',

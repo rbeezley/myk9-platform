@@ -169,6 +169,7 @@ export function TrialsTab({ trials, showId, showName }: TrialsTabProps) {
         onOpenChange={setAddTrialOpen}
         onSave={handleAddTrial}
         currentShowName={showName}
+        existingTrialCount={trials.length}
       />
     </div>
   );

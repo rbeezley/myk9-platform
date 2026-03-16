@@ -434,6 +434,25 @@ describe('reset', () => {
     expect(result.current.data).toEqual(newData);
     expect(result.current.hasChanges).toBe(false);
   });
+
+  // [ADDED] Wizard step-change simulation: reset clears touched/errors for new step data
+  it('clears touched state and errors on reset (wizard step change)', () => {
+    const { result } = renderHook(() => useFormValidation(testSchema, initialData));
+    // Simulate user editing and triggering errors on step 1
+    act(() => result.current.touchField('name'));
+    act(() => result.current.touchField('email'));
+    expect(result.current.getError('name')).toBeDefined();
+
+    // Reset with new step data (simulating wizard advancing)
+    const step2Data: TestData = { name: 'Pre-filled', email: 'pre@filled.com', age: '' };
+    act(() => result.current.reset(step2Data));
+
+    // All touched state and visible errors should be cleared
+    expect(result.current.errors).toEqual({});
+    expect(result.current.getError('name')).toBeUndefined();
+    expect(result.current.data).toEqual(step2Data);
+    expect(result.current.isValid).toBe(true);
+  });
 });
 ```
 
@@ -881,11 +900,24 @@ const contextValue: EditPanelContextValue<Record<string, unknown>> = {
 
 1. Add imports and `schema` prop to interface
 2. Replace internal state with dual-hook pattern
-3. Update `handleSave` to delegate to `form.handleSubmit` when schema is present
+3. Update `handleSave` to delegate to `form.handleSubmit` when schema is present. [ADDED] The schema path must wrap `onSave` to preserve the existing `notifications.error()` call on save failure:
+   ```typescript
+   const wrappedSave = async (data: T) => {
+     try {
+       await onSave(data);
+       onClose();
+     } catch (error) {
+       notifications.error('Failed to save changes', { description: getErrorMessage(error) });
+     }
+   };
+   // Then: form.handleSubmit(wrappedSave)
+   ```
 4. Remove the error banner `<div>` block from the panel body
 5. Update Save button disabled condition (remove `!isValid`)
 6. Update footer error count to read from `form.errors`
 7. Update context value to include `form`
+8. [ADDED] Preserve `onValidationChange` callback — when schema path is active, fire it with `(form.isValid, Object.values(form.errors))` inside a `useEffect` watching those values. When legacy path is active, keep existing behavior.
+9. [ADDED] Wire auto-save to schema path: the existing auto-save `useEffect` reads `data`, `hasChanges`, and `isValid`. When schema is active, these should read from `form.data`, `form.hasChanges`, and `form.isValid` (which they already will via the unified accessors defined in the dual-hook pattern).
 
 - [ ] **Step 3: Write integration tests for EditPanelWrapper**
 
@@ -1203,7 +1235,7 @@ git commit -m "refactor(myk9show): migrate DogEditPanel to useFormValidation + F
 
 ---
 
-### Task 10: Migrate ClubEditPanel and UserEditPanel
+### Task 10: Migrate ClubEditPanel, UserEditPanel, and AddRegistrationPanel [EXPANDED]
 
 **Files:**
 
@@ -1211,10 +1243,11 @@ git commit -m "refactor(myk9show): migrate DogEditPanel to useFormValidation + F
 - Modify: `apps/myk9show/src/components/panels/edit/UserEditPanel.tsx`
 - Possibly modify: `apps/myk9show/src/components/panels/edit/UserEditPanel.helpers.ts`
 - Possibly modify: `apps/myk9show/src/components/panels/edit/UserEditPanel.types.ts`
+- Modify: `apps/myk9show/src/components/panels/edit/AddRegistrationPanel.tsx` [ADDED]
 
 - [ ] **Step 1: Read current panels**
 
-Read all files for both panels (including any `.helpers.ts` and `.types.ts` companions) to understand structure and current validation.
+Read all files for all three panels (including any `.helpers.ts` and `.types.ts` companions) to understand structure and current validation.
 
 - [ ] **Step 2: Ensure Zod schemas exist for both**
 
@@ -1228,6 +1261,10 @@ Replace `validateData` with `schema`, replace manual error display with `<FormFi
 
 Same pattern.
 
+- [ ] **Step 4b: Migrate AddRegistrationPanel** [ADDED]
+
+Same pattern. Uses `dogSchemas.registration` from `validation.ts`.
+
 - [ ] **Step 5: Run typecheck and tests**
 
 Run: `pnpm typecheck && cd apps/myk9show && pnpm vitest run`
@@ -1237,7 +1274,7 @@ Expected: PASS
 
 ```bash
 git add apps/myk9show/src/components/panels/edit/ClubEditPanel.tsx apps/myk9show/src/components/panels/edit/UserEditPanel.tsx
-git commit -m "refactor(myk9show): migrate ClubEditPanel and UserEditPanel to FormField"
+git commit -m "refactor(myk9show): migrate ClubEditPanel, UserEditPanel, and AddRegistrationPanel to FormField"
 ```
 
 ---

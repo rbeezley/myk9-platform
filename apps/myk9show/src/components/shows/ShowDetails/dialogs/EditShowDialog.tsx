@@ -267,48 +267,14 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="draft">
-                    <div>
-                      <div className="font-medium">Draft</div>
-                      <div className="text-xs text-muted-foreground">
-                        Work in progress - only visible to you
-                      </div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="unpublished">
-                    <div>
-                      <div className="font-medium">Ready (Unpublished)</div>
-                      <div className="text-xs text-muted-foreground">
-                        Complete but not visible to exhibitors
-                      </div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="published">
-                    <div>
-                      <div className="font-medium">Published</div>
-                      <div className="text-xs text-muted-foreground">
-                        Live and accepting registrations
-                      </div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="cancelled">
-                    <div>
-                      <div className="font-medium text-red-600">Cancelled</div>
-                      <div className="text-xs text-muted-foreground">Show has been cancelled</div>
-                    </div>
-                  </SelectItem>
+                  <SelectItem value="draft">Draft — not visible to exhibitors</SelectItem>
+                  <SelectItem value="published">Published — live and accepting entries</SelectItem>
+                  <SelectItem value="upcoming">Upcoming — entries closed</SelectItem>
+                  <SelectItem value="in_progress">In Progress — show is running</SelectItem>
+                  <SelectItem value="completed">Completed — results finalized</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formData.status === 'published' &&
-                  `Show is ${
-                    new Date() < new Date(formData.startDate)
-                      ? 'upcoming'
-                      : new Date() > new Date(formData.endDate)
-                        ? 'completed'
-                        : 'in progress'
-                  }`}
-              </p>
             </div>
           </div>
 

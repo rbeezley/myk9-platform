@@ -118,15 +118,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                     <div>
                       <div className="font-medium">Draft</div>
                       <div className="text-xs text-muted-foreground">
-                        Work in progress - only visible to you
-                      </div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="unpublished">
-                    <div>
-                      <div className="font-medium">Ready (Unpublished)</div>
-                      <div className="text-xs text-muted-foreground">
-                        Complete but not visible to exhibitors
+                        Work in progress — not visible to exhibitors
                       </div>
                     </div>
                   </SelectItem>
@@ -134,7 +126,29 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                     <div>
                       <div className="font-medium">Published</div>
                       <div className="text-xs text-muted-foreground">
-                        Live and accepting registrations
+                        Live and accepting entries
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="upcoming">
+                    <div>
+                      <div className="font-medium">Upcoming</div>
+                      <div className="text-xs text-muted-foreground">
+                        Entries closed, show is coming up
+                      </div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="in_progress">
+                    <div>
+                      <div className="font-medium">In Progress</div>
+                      <div className="text-xs text-muted-foreground">Show is actively running</div>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="completed">
+                    <div>
+                      <div className="font-medium">Completed</div>
+                      <div className="text-xs text-muted-foreground">
+                        Show is finished, results finalized
                       </div>
                     </div>
                   </SelectItem>
@@ -146,16 +160,6 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   </SelectItem>
                 </SelectContent>
               </Select>
-              {data.status === 'published' && data.startDate && (
-                <p className="text-xs text-muted-foreground">
-                  Show is{' '}
-                  {new Date() < new Date(data.startDate)
-                    ? 'upcoming'
-                    : new Date() > new Date(data.endDate || data.startDate)
-                      ? 'completed'
-                      : 'in progress'}
-                </p>
-              )}
             </div>
           </div>
 

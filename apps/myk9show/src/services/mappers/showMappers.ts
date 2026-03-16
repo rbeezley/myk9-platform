@@ -179,7 +179,18 @@ export const mapDatabaseToShow = (
     endDate: dbShow.end_date,
     location: dbShow.location || '',
     status: dbShow.status || 'upcoming',
-    events: [dbShow.organization], // Convert the organization to an events array
+    // Extract unique sport types from trials (e.g., "Scent Work", "Agility")
+    // Falls back to organization if no trials have sport_type set
+    events: (() => {
+      const sportTypes = [
+        ...new Set(
+          (rawTrials as Array<Record<string, unknown>>)
+            .map(t => t.sport_type as string | null)
+            .filter((s): s is string => !!s)
+        ),
+      ];
+      return sportTypes.length > 0 ? sportTypes : [dbShow.organization];
+    })(),
     source: ((dbShow as Record<string, unknown>).source as 'myK9Show' | 'external') || 'myK9Show', // Use source from database or default
     entryOpenDate: dbShow.entry_open_date || '',
     entryCloseDate: dbShow.entry_close_date || '',

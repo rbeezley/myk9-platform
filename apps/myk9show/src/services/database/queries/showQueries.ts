@@ -25,6 +25,7 @@ export const getAllShows = async () => {
           date,
           trial_number,
           status,
+          sport_type,
           max_entries_per_dog,
           max_total_entries,
           max_entries_per_handler
@@ -77,6 +78,7 @@ export const getShowById = async (id: string) => {
           date,
           trial_number,
           status,
+          sport_type,
           max_entries_per_dog,
           max_total_entries,
           max_entries_per_handler

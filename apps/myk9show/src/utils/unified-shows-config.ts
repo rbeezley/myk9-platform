@@ -64,13 +64,13 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     userRoles.includes(UserRole.CLUB_ADMIN) ||
     userRoles.includes(UserRole.SITE_ADMIN);
 
-  // --- Role-specific "My Shows" tab first (secretary/club_admin/site_admin) ---
+  // --- Role-specific "Managing" tab first (secretary/club_admin/site_admin) ---
   // Placed before "Browse All" so the secretary's primary view is front-and-center.
   if (hasManagementRole) {
     if (userRoles.includes(UserRole.SITE_ADMIN)) {
       tabs.push({
         id: 'managing',
-        label: 'My Shows',
+        label: 'Managing',
         description: 'Global administrative view of all shows',
         requiredRoles: [UserRole.SITE_ADMIN],
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
@@ -84,7 +84,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     } else {
       tabs.push({
         id: 'managing',
-        label: 'My Shows',
+        label: 'Managing',
         description: 'Shows you are secretary or administrator for',
         requiredRoles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN],
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
@@ -166,7 +166,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
-  // Default tab: "My Shows" for management roles, "Browse All" for others
+  // Default tab: "Managing" for management roles, "Browse All" for others
   const defaultTab = hasManagementRole ? 'managing' : 'all';
 
   return {

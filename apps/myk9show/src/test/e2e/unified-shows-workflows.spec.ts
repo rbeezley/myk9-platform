@@ -91,7 +91,7 @@ test.describe('Exhibitor Workflow', () => {
     await expect(page.getByRole('tab', { name: /browse all/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /past shows/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /my entries/i })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /my shows/i })).not.toBeVisible();
+    await expect(page.getByRole('tab', { name: /managing/i })).not.toBeVisible();
   });
 
   test('should be able to register for a show', async ({ page }) => {
@@ -143,11 +143,11 @@ test.describe('Secretary Workflow', () => {
     await login(page, users.secretary);
   });
 
-  test('should see My Shows tab and Create Show button', async ({ page }) => {
+  test('should see Managing tab and Create Show button', async ({ page }) => {
     await navigateToBrowseShows(page);
 
     // Check secretary tabs
-    await expect(page.getByRole('tab', { name: /my shows/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /managing/i })).toBeVisible();
 
     // Check Create Show button in header
     await expect(page.getByRole('button', { name: /create show/i })).toBeVisible();
@@ -184,11 +184,11 @@ test.describe('Secretary Workflow', () => {
     await expect(page.getByText('Test Agility Trial')).toBeVisible();
   });
 
-  test('should see managed shows in My Shows tab', async ({ page }) => {
+  test('should see managed shows in Managing tab', async ({ page }) => {
     await navigateToBrowseShows(page);
 
-    // Click My Shows tab
-    await page.getByRole('tab', { name: /my shows/i }).click();
+    // Click Managing tab
+    await page.getByRole('tab', { name: /managing/i }).click();
 
     // Wait for tab content
     await page.waitForSelector('[data-testid="tab-content-managing"]');
@@ -207,7 +207,7 @@ test.describe('Secretary Workflow', () => {
 
   test('should be able to manage show entries', async ({ page }) => {
     await navigateToBrowseShows(page);
-    await page.getByRole('tab', { name: /my shows/i }).click();
+    await page.getByRole('tab', { name: /managing/i }).click();
 
     // Find a managed show
     const showCard = page.locator('[data-testid^="show-card"]').first();
@@ -292,8 +292,8 @@ test.describe('Site Admin Workflow', () => {
   test('should have global management capabilities', async ({ page }) => {
     await navigateToBrowseShows(page);
 
-    // Click My Shows tab
-    await page.getByRole('tab', { name: /my shows/i }).click();
+    // Click Managing tab
+    await page.getByRole('tab', { name: /managing/i }).click();
 
     // Admin sees all shows
     const showCards = page.locator('[data-testid^="show-card"]');
@@ -311,7 +311,7 @@ test.describe('Site Admin Workflow', () => {
 
   test('should be able to access analytics', async ({ page }) => {
     await navigateToBrowseShows(page);
-    await page.getByRole('tab', { name: /my shows/i }).click();
+    await page.getByRole('tab', { name: /managing/i }).click();
 
     // Look for analytics button
     await page.getByRole('button', { name: /analytics/i }).click();
@@ -330,7 +330,7 @@ test.describe('Multi-Role User Workflow', () => {
     await navigateToBrowseShows(page);
 
     // Multi-role user (secretary + judge) should see both role tabs
-    await expect(page.getByRole('tab', { name: /my shows/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /managing/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /browse all/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /past shows/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /my assignments/i })).toBeVisible();
@@ -340,7 +340,7 @@ test.describe('Multi-Role User Workflow', () => {
     await navigateToBrowseShows(page);
 
     // Test secretary functionality
-    await page.getByRole('tab', { name: /my shows/i }).click();
+    await page.getByRole('tab', { name: /managing/i }).click();
     await page.waitForSelector('[data-testid="tab-content-managing"]');
 
     const managedShow = page.locator('[data-testid^="show-card"]').first();

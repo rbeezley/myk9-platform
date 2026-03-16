@@ -63,7 +63,6 @@ const VIEW_MODES = [
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-
   // Get initial values from URL params
   const initialTab = searchParams.get('tab') || 'all';
   const initialViewMode = (searchParams.get('view') as ViewMode) || 'cards';
@@ -426,9 +425,7 @@ const BrowseShowsPage: React.FC = () => {
               : 'Check back soon for upcoming shows in your area.'
           }
           action={
-            hasActiveFilters
-              ? { label: 'Clear Filters', onClick: clearAllFilters }
-              : undefined
+            hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : undefined
           }
         />
       );
@@ -488,51 +485,56 @@ const BrowseShowsPage: React.FC = () => {
         <>
           <PageHeader breadcrumbs={breadcrumbs} title="Shows" actions={actionButtons} />
 
-          <SearchBar
-            value={filters.search}
-            onChange={value => setFilters(prev => ({ ...prev, search: value }))}
-            placeholder="Search shows by name, location, or club..."
-          />
+          {/* Filter toolbar */}
+          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
+            <SearchBar
+              value={filters.search}
+              onChange={value => setFilters(prev => ({ ...prev, search: value }))}
+              placeholder="Search shows by name, location, or club..."
+            />
 
-          <FilterChips
-            filters={chipFilters}
-            values={chipFilterValues}
-            onChange={handleChipFilterChange}
-          />
-
-          <MineToggle
-            isMine={isMine}
-            onToggle={toggleMine}
-            allLabel="All Shows"
-            mineLabel="My Shows"
-            allCount={allEnhancedShows.length}
-            mineCount={mineCount}
-            hidden={!user}
-          />
-
-          {/* View controls + results count */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <ViewToggle modes={VIEW_MODES} active={viewMode} onChange={handleViewModeChange} />
-              <ViewPicker
-                views={savedViewsList}
-                activeViewId={activeViewId}
-                getCurrentConfig={getCurrentConfig}
-                onApply={handleApplyView}
-                onSave={saveView}
-                onUpdate={updateView}
-                onDelete={deleteView}
-                onSetDefault={setDefault}
-                onClear={clearActiveView}
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterChips
+                filters={chipFilters}
+                values={chipFilterValues}
+                onChange={handleChipFilterChange}
               />
+              {user && (
+                <MineToggle
+                  className="ml-auto"
+                  isMine={isMine}
+                  onToggle={toggleMine}
+                  allLabel="All Shows"
+                  mineLabel="My Shows"
+                  allCount={allEnhancedShows.length}
+                  mineCount={mineCount}
+                />
+              )}
             </div>
 
-            <ResultsCount
-              showing={enhancedShows.length}
-              total={shows.length}
-              filtered={hasActiveFilters}
-              entityName={shows.length === 1 ? 'show' : 'shows'}
-            />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
+              <div className="flex items-center gap-3">
+                <ViewToggle modes={VIEW_MODES} active={viewMode} onChange={handleViewModeChange} />
+                <ViewPicker
+                  views={savedViewsList}
+                  activeViewId={activeViewId}
+                  getCurrentConfig={getCurrentConfig}
+                  onApply={handleApplyView}
+                  onSave={saveView}
+                  onUpdate={updateView}
+                  onDelete={deleteView}
+                  onSetDefault={setDefault}
+                  onClear={clearActiveView}
+                />
+              </div>
+
+              <ResultsCount
+                showing={enhancedShows.length}
+                total={shows.length}
+                filtered={hasActiveFilters}
+                entityName={shows.length === 1 ? 'show' : 'shows'}
+              />
+            </div>
           </div>
 
           {/* Bulk Actions Bar */}

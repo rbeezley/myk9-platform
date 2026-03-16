@@ -1,6 +1,6 @@
 /**
  * Enhanced Judge Management Types
- * 
+ *
  * Comprehensive types for judge qualifications, certifications, and assignments
  * supporting multiple organizations and disciplines.
  */
@@ -12,6 +12,7 @@ export interface JudgeQualification {
   organization: string;
   qualification_level: string;
   disciplines: string[];
+  judge_number?: string;
   date_obtained: string;
   expiration_date?: string;
   approval_number?: string;
@@ -24,7 +25,7 @@ export interface JudgeQualification {
   updated_at: string;
 }
 
-// Judge Assignment Entity  
+// Judge Assignment Entity
 export interface JudgeAssignment {
   id: string;
   judge_id: string;
@@ -69,6 +70,7 @@ export interface CreateJudgeQualificationData {
   organization: string;
   qualification_level: string;
   disciplines: string[];
+  judge_number?: string;
   date_obtained: string;
   expiration_date?: string;
   approval_number?: string;
@@ -321,19 +323,19 @@ export const JUDGE_QUALIFICATION_LEVELS = [
   'Specialty',
   'Senior',
   'Master',
-  'Emeritus'
+  'Emeritus',
 ] as const;
 
 export const ASSIGNMENT_TYPES = [
   'Regular Class',
   'Specialty Match',
-  'Fun Match', 
+  'Fun Match',
   'Championship',
   'Premier',
   'Trial',
   'Test',
   'Workshop',
-  'Seminar'
+  'Seminar',
 ] as const;
 
 export const ASSIGNMENT_STATUSES = [
@@ -343,19 +345,19 @@ export const ASSIGNMENT_STATUSES = [
   'Confirmed',
   'Completed',
   'Cancelled',
-  'Declined'
+  'Declined',
 ] as const;
 
 export const JUDGE_ORGANIZATIONS = [
   'AKC',
-  'UKC', 
+  'UKC',
   'NACSW',
   'CPE',
   'USDAA',
   'NADAC',
   'ASCA',
   'CKC',
-  'OTHER'
+  'OTHER',
 ] as const;
 
 export const JUDGE_DISCIPLINES = [
@@ -372,11 +374,11 @@ export const JUDGE_DISCIPLINES = [
   'Barn Hunt',
   'FastCAT',
   'Dock Diving',
-  'Weight Pull'
+  'Weight Pull',
 ] as const;
 
-export type JudgeQualificationLevel = typeof JUDGE_QUALIFICATION_LEVELS[number];
-export type AssignmentType = typeof ASSIGNMENT_TYPES[number];
-export type AssignmentStatus = typeof ASSIGNMENT_STATUSES[number];
-export type JudgeOrganization = typeof JUDGE_ORGANIZATIONS[number];
-export type JudgeDiscipline = typeof JUDGE_DISCIPLINES[number];
+export type JudgeQualificationLevel = (typeof JUDGE_QUALIFICATION_LEVELS)[number];
+export type AssignmentType = (typeof ASSIGNMENT_TYPES)[number];
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+export type JudgeOrganization = (typeof JUDGE_ORGANIZATIONS)[number];
+export type JudgeDiscipline = (typeof JUDGE_DISCIPLINES)[number];

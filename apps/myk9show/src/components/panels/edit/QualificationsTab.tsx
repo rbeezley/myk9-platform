@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Award, Hash, Settings } from 'lucide-react';
 import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
-import { useUserQuery } from '@/hooks/queries/useUsersDatabase';
 
 interface QualificationsTabProps {
   personId: string;
@@ -18,10 +17,6 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
   onManageQualifications,
 }) => {
   const { data: qualifications = [] } = useJudgeQualifications(personId, { is_active: true });
-  const { data: person } = useUserQuery(personId);
-  const judgeNumber = (person as Record<string, unknown> | undefined)?.judge_number as
-    | string
-    | null;
 
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
@@ -30,10 +25,10 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
           <div className="flex items-center gap-2">
             <Award className="h-5 w-5" />
             Judge Qualifications
-            {judgeNumber && (
+            {qualifications[0]?.judge_number && (
               <Badge variant="outline" className="ml-1 gap-1 font-normal">
                 <Hash className="h-3 w-3" />
-                {judgeNumber}
+                {qualifications[0].judge_number}
               </Badge>
             )}
           </div>

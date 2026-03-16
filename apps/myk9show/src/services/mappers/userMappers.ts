@@ -104,7 +104,7 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
     // Judge qualifications - handle if present (from nested select)
     judgeQualifications: Array.isArray(dbUser.judge_qualifications)
       ? (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(qual => ({
-          judgeNumber: (dbUser.judge_number as string) || '',
+          judgeNumber: (qual.judge_number as string) || '',
           organization: (qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER') || 'OTHER',
           showTypes: (qual.disciplines as string[]) || [],
           certificationDate: (qual.date_obtained as string) || '',
@@ -120,13 +120,16 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
         }))
       : [],
 
-    // Judge info - build from judge_number column + related tables
-    judgeInfo: dbUser.judge_number
-      ? {
-          judgeNumber: dbUser.judge_number as string,
-          qualifications: Array.isArray(dbUser.judge_qualifications)
-            ? (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(qual => ({
-                judgeNumber: (dbUser.judge_number as string) || '',
+    // Judge info - build from judge qualifications
+    judgeInfo:
+      Array.isArray(dbUser.judge_qualifications) && dbUser.judge_qualifications.length > 0
+        ? {
+            judgeNumber:
+              ((dbUser.judge_qualifications as Array<Record<string, unknown>>)[0]
+                ?.judge_number as string) || '',
+            qualifications: (dbUser.judge_qualifications as Array<Record<string, unknown>>).map(
+              qual => ({
+                judgeNumber: (qual.judge_number as string) || '',
                 organization:
                   (qual.organization as 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'OTHER') || 'OTHER',
                 showTypes: (qual.disciplines as string[]) || [],
@@ -142,30 +145,30 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
                 expirationDate: qual.expiration_date
                   ? new Date(qual.expiration_date as string)
                   : null,
-              }))
-            : [],
-          certifications: Array.isArray(dbUser.judge_certifications)
-            ? (dbUser.judge_certifications as Array<Record<string, unknown>>).map(cert => ({
-                name: (cert.sport as string) || '',
-                issuingBody: (cert.organization as string) || '',
-                dateObtained: cert.certification_date
-                  ? new Date(cert.certification_date as string)
-                  : null,
-                expirationDate: cert.expiration_date
-                  ? new Date(cert.expiration_date as string)
-                  : null,
-                certificationNumber: (cert.certification_number as string) || '',
-              }))
-            : [],
-          availability: {
-            startDate: null,
-            endDate: null,
-            blackoutDates: [],
-            maxShowsPerMonth: 0,
-            travelRadius: 0,
-          },
-        }
-      : undefined,
+              })
+            ),
+            certifications: Array.isArray(dbUser.judge_certifications)
+              ? (dbUser.judge_certifications as Array<Record<string, unknown>>).map(cert => ({
+                  name: (cert.sport as string) || '',
+                  issuingBody: (cert.organization as string) || '',
+                  dateObtained: cert.certification_date
+                    ? new Date(cert.certification_date as string)
+                    : null,
+                  expirationDate: cert.expiration_date
+                    ? new Date(cert.expiration_date as string)
+                    : null,
+                  certificationNumber: (cert.certification_number as string) || '',
+                }))
+              : [],
+            availability: {
+              startDate: null,
+              endDate: null,
+              blackoutDates: [],
+              maxShowsPerMonth: 0,
+              travelRadius: 0,
+            },
+          }
+        : undefined,
 
     // Sync metadata - maintained for compatibility
     _version: 1,

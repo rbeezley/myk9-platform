@@ -89,11 +89,11 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                     >
                       {qual.organization}
                     </Badge>
-                    {qual.qualification_level && (
-                      <span className="font-semibold text-foreground">
-                        {qual.qualification_level}
-                      </span>
-                    )}
+                    <span className="font-semibold text-foreground">
+                      {qual.disciplines?.length
+                        ? qual.disciplines.join(', ')
+                        : qual.qualification_level || 'General'}
+                    </span>
                   </div>
                   <Badge
                     className={`font-medium px-3 py-1 ${
@@ -120,22 +120,14 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                     </div>
                   )}
 
-                  {qual.disciplines && qual.disciplines.length > 0 && (
-                    <div>
-                      <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2 block">
-                        Qualified for:
+                  {qual.judge_number && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+                        Judge #:
                       </span>
-                      <div className="flex flex-wrap gap-2">
-                        {qual.disciplines.map(type => (
-                          <Badge
-                            key={type}
-                            className="text-xs bg-gradient-to-r from-primary/10 to-primary/5
-                                          text-primary border-primary/20 font-medium"
-                          >
-                            {type}
-                          </Badge>
-                        ))}
-                      </div>
+                      <span className="text-sm font-medium text-foreground">
+                        {qual.judge_number}
+                      </span>
                     </div>
                   )}
                 </div>

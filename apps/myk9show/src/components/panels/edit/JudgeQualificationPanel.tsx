@@ -46,7 +46,7 @@ interface JudgeQualificationPanelProps {
 
 function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualification {
   return {
-    judgeNumber: '',
+    judgeNumber: q.judge_number || '',
     organization: q.organization,
     level: q.qualification_level || '',
     showTypes: q.disciplines || [],
@@ -65,8 +65,9 @@ function mapUiToDbQualification(
   return {
     person_id: personId,
     organization: qual.organization,
-    qualification_level: qual.level || 'Regular',
-    disciplines: qual.disciplines || qual.showTypes || [],
+    qualification_level: qual.level || '',
+    disciplines: qual.showTypes || qual.disciplines || [],
+    ...(qual.judgeNumber ? { judge_number: qual.judgeNumber } : {}),
     date_obtained:
       qual.certificationDate ||
       (qual.dateObtained ? toYYYYMMDD(qual.dateObtained) : toYYYYMMDD(new Date())),
@@ -83,14 +84,61 @@ const JUDGE_ORGANIZATIONS = [
   { value: 'OTHER', label: 'Other' },
 ] as const;
 
-const SHOW_TYPE_GROUPS = {
-  'Performance Events': ['Agility', 'Rally', 'Scent Work', 'Obedience'],
-  'Conformation & Breeding': ['Conformation'],
-  'Field & Hunting': ['Field Trials', 'Hunt Tests', 'Lure Coursing'],
-  'Specialty Events': ['Earthdog', 'Fast CAT', 'Dock Diving', 'Barn Hunt', 'Herding'],
+// Organization-specific disciplines sourced from official org websites:
+// AKC: akc.org/sports/ and akc.org/sports/titles-and-abbreviations/titles-by-sport/
+// UKC: ukcdogs.com/all-breed-sports
+// NACSW: nacsw.net/understanding-nw1-nw2-nw3-levels-competition
+// CPE: cpe.dog (2026 Agility Rulebook)
+const SHOW_TYPE_GROUPS_BY_ORG: Record<string, Record<string, string[]>> = {
+  AKC: {
+    'Companion Events': ['Agility', 'Obedience', 'Rally', 'Tracking'],
+    'Scent Sports': ['Scent Work', 'Barn Hunt'],
+    Conformation: ['Conformation'],
+    'Field Events': ['Field Trials', 'Hunt Tests', 'Herding', 'Earthdog', 'Lure Coursing'],
+    'Other AKC Events': ['Fast CAT', 'Dock Diving', 'Flyball'],
+  },
+  UKC: {
+    'Companion Events': ['Agility', 'Obedience', 'Rally Obedience'],
+    'Nose & Scent': ['Nosework'],
+    Conformation: ['Conformation'],
+    'Hunting & Field': [
+      'Coonhound Events',
+      'Cur/Feist Events',
+      'Pointing Dog',
+      'Hunting Retriever',
+    ],
+    'Other UKC Events': [
+      'Dock Jumping',
+      'Lure Coursing',
+      'Precision Coursing',
+      'Weight Pull',
+      'Drag Racing',
+    ],
+  },
+  NACSW: {
+    'Trial Levels': ['NW1', 'NW2', 'NW3'],
+    Advanced: ['Elite Division', 'Summit League', 'Element Specialty'],
+  },
+  CPE: {
+    'Agility Games': [
+      'Standard',
+      'Jumpers',
+      'Colors',
+      'Wildcard',
+      'Snooker',
+      'Jackpot',
+      'Full House',
+    ],
+    'Other CPE Sports': ['Canine Scent Sport', 'SpeedWay'],
+  },
+  OTHER: {
+    General: ['Agility', 'Obedience', 'Rally', 'Conformation', 'Scent Work', 'Other'],
+  },
 };
 
-// const SHOW_TYPES = Object.values(SHOW_TYPE_GROUPS).flat();
+function getShowTypeGroups(org: string): Record<string, string[]> {
+  return SHOW_TYPE_GROUPS_BY_ORG[org] || SHOW_TYPE_GROUPS_BY_ORG.OTHER;
+}
 
 export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = ({
   open,
@@ -176,7 +224,7 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
       const newShowTypes = currentTypes.includes(showType)
         ? currentTypes.filter(t => t !== showType)
         : [...currentTypes, showType];
-      updated[qualIndex] = { ...qual, showTypes: newShowTypes };
+      updated[qualIndex] = { ...qual, showTypes: newShowTypes, disciplines: newShowTypes };
       return updated;
     });
   }, []);
@@ -459,6 +507,8 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
               onValueChange={value =>
                 onUpdate(index, {
                   organization: value as JudgeQualification['organization'],
+                  showTypes: [],
+                  disciplines: [],
                 })
               }
             >
@@ -546,34 +596,36 @@ const QualificationCard: React.FC<QualificationCardProps> = ({
             Qualified Show Types
           </Label>
           <div className="border-0 rounded-xl p-4 bg-input">
-            {Object.entries(SHOW_TYPE_GROUPS).map(([groupName, types]) => (
-              <div key={groupName} className="mb-4 last:mb-0">
-                <h5 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                  {groupName}
-                </h5>
-                <div className="flex flex-wrap gap-2">
-                  {types.map(showType => {
-                    const isSelected = qualification.showTypes.includes(showType);
-                    return (
-                      <button
-                        key={showType}
-                        type="button"
-                        onClick={() => onToggleShowType(index, showType)}
-                        className={cn(
-                          'px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 hover:scale-105',
-                          isSelected
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                            : 'bg-background hover:bg-muted border-border text-foreground hover:border-border-hover'
-                        )}
-                      >
-                        {isSelected && <span className="mr-1">✓</span>}
-                        {showType}
-                      </button>
-                    );
-                  })}
+            {Object.entries(getShowTypeGroups(qualification.organization)).map(
+              ([groupName, types]) => (
+                <div key={groupName} className="mb-4 last:mb-0">
+                  <h5 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                    {groupName}
+                  </h5>
+                  <div className="flex flex-wrap gap-2">
+                    {types.map(showType => {
+                      const isSelected = qualification.showTypes.includes(showType);
+                      return (
+                        <button
+                          key={showType}
+                          type="button"
+                          onClick={() => onToggleShowType(index, showType)}
+                          className={cn(
+                            'px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-200 hover:scale-105',
+                            isSelected
+                              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                              : 'bg-background hover:bg-muted border-border text-foreground hover:border-border-hover'
+                          )}
+                        >
+                          {isSelected && <span className="mr-1">✓</span>}
+                          {showType}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
 
           {/* Selected count */}

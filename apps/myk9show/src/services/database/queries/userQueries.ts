@@ -5,7 +5,7 @@ import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mapping
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
-  id, organization, qualification_level, disciplines,
+  id, organization, qualification_level, disciplines, judge_number,
   date_obtained, expiration_date, is_active
 )`;
 

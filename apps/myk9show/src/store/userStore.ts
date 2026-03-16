@@ -124,7 +124,6 @@ export const useUserStore = create<UserStore>()(
             state: userData.address?.state || null,
             zip_code: userData.address?.zipCode || null,
             roles: userData.roles || [],
-            judge_number: userData.judgeInfo?.judgeNumber || null,
           };
 
           // Save to database first

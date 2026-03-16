@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, MapPin, Settings, PawPrint, Award } from 'lucide-react';
+import { Mail, MapPin, Settings, PawPrint } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
@@ -16,7 +16,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { RecordPageLayout } from '@/components/layout/record';
 import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
-import type { JudgeQualification } from '@/types/judge-types';
 import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
 import JudgeQualificationsCard from './JudgeQualificationsCard';
@@ -236,26 +235,15 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       });
     }
 
-    if (person.judgeQualifications && person.judgeQualifications.length > 0) {
-      items.push({
-        key: 'qualifications',
-        title: 'Judge Qualifications',
-        subtitle: `${person.judgeQualifications.length} qualification${person.judgeQualifications.length !== 1 ? 's' : ''}`,
-        icon: Award,
-        badge: String(person.judgeQualifications.length),
-      });
-    }
-
     return items;
-  }, [dogCount, person.judgeQualifications]);
+  }, [dogCount]);
 
   // Center content: judge cards + tabs
   const centerContent = (
     <div className="space-y-6">
-      {(person.roles?.includes(UserRole.JUDGE) ||
-        (person.judgeQualifications && person.judgeQualifications.length > 0)) && (
+      {person.roles?.includes(UserRole.JUDGE) && (
         <JudgeQualificationsCard
-          qualifications={(formData.judgeQualifications as JudgeQualification[]) || []}
+          personId={person.id}
           canManageQualifications={canManageQualifications()}
           onManageQualifications={() => setIsQualificationsPanelOpen(true)}
         />
@@ -304,7 +292,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         formData={{
           name: formData.name,
           photo: formData.photo,
-          judgeQualifications: formData.judgeQualifications as JudgeQualification[],
         }}
         isEditModalOpen={isEditModalOpen}
         setIsEditModalOpen={setIsEditModalOpen}

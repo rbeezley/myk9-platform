@@ -3,25 +3,31 @@ import { Award, Settings } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { JudgeQualification } from '@/types/judge-types';
+import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
 
 interface JudgeQualificationsCardProps {
-  qualifications: JudgeQualification[];
+  personId: string;
   canManageQualifications: boolean;
   onManageQualifications: () => void;
 }
 
 const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
-  qualifications,
+  personId,
   canManageQualifications,
   onManageQualifications,
 }) => {
+  const { data: dbQualifications = [], isLoading } = useJudgeQualifications(personId);
+
   return (
-    <Card className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
+    <Card
+      className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                      rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
-                     hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.02] to-transparent
-                      opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
+                     hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
+    >
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.02] to-transparent
+                      opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl"
+      />
 
       <div className="relative space-y-6">
         <div className="flex items-center justify-between">
@@ -49,55 +55,83 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
           )}
         </div>
 
-        {qualifications && qualifications.length > 0 ? (
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2].map(i => (
+              <div
+                key={i}
+                className="animate-pulse rounded-xl border-l-4 border-amber-500/30 bg-muted/10 p-5"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-6 w-16 rounded-full bg-muted" />
+                  <div className="h-6 w-16 rounded-full bg-muted" />
+                </div>
+                <div className="h-4 w-32 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
+        ) : dbQualifications.length > 0 ? (
           <div className="space-y-6">
-            {qualifications.map((qual, index) => (
-              <div key={index} className="relative p-5 bg-gradient-to-br from-muted/20 to-muted/10
+            {dbQualifications.map(qual => (
+              <div
+                key={qual.id}
+                className="relative p-5 bg-gradient-to-br from-muted/20 to-muted/10
                                          border-l-4 border-amber-500 rounded-xl
                                          hover:from-muted/30 hover:to-muted/20
-                                         transition-all duration-300">
+                                         transition-all duration-300"
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <Badge className="bg-gradient-to-r from-amber-500/20 to-amber-500/10
+                    <Badge
+                      className="bg-gradient-to-r from-amber-500/20 to-amber-500/10
                                     text-amber-700 dark:text-amber-300 border-amber-500/30
-                                    font-medium px-3 py-1">
+                                    font-medium px-3 py-1"
+                    >
                       {qual.organization}
                     </Badge>
-                    <span className="font-semibold text-foreground">
-                      Judge #{qual.judgeNumber}
-                    </span>
+                    {qual.qualification_level && (
+                      <span className="font-semibold text-foreground">
+                        {qual.qualification_level}
+                      </span>
+                    )}
                   </div>
-                  <Badge className={`font-medium px-3 py-1 ${
-                    qual.status === 'Active'
-                      ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-green-700 dark:text-green-300 border-green-500/30'
-                      : qual.status === 'Suspended'
-                      ? 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-red-700 dark:text-red-300 border-red-500/30'
-                      : 'bg-gradient-to-r from-gray-500/20 to-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/30'
-                  }`}>
-                    {qual.status}
+                  <Badge
+                    className={`font-medium px-3 py-1 ${
+                      qual.is_active
+                        ? 'bg-gradient-to-r from-green-500/20 to-green-500/10 text-green-700 dark:text-green-300 border-green-500/30'
+                        : qual.suspension_date
+                          ? 'bg-gradient-to-r from-red-500/20 to-red-500/10 text-red-700 dark:text-red-300 border-red-500/30'
+                          : 'bg-gradient-to-r from-gray-500/20 to-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/30'
+                    }`}
+                  >
+                    {qual.is_active ? 'Active' : qual.suspension_date ? 'Suspended' : 'Expired'}
                   </Badge>
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                      Certified:
-                    </span>
-                    <span className="text-sm font-medium text-foreground">
-                      {new Date(qual.certificationDate).toLocaleDateString()}
-                    </span>
-                  </div>
+                  {qual.date_obtained && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+                        Certified:
+                      </span>
+                      <span className="text-sm font-medium text-foreground">
+                        {new Date(qual.date_obtained).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
 
-                  {qual.showTypes && qual.showTypes.length > 0 && (
+                  {qual.disciplines && qual.disciplines.length > 0 && (
                     <div>
                       <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2 block">
                         Qualified for:
                       </span>
                       <div className="flex flex-wrap gap-2">
-                        {qual.showTypes.map((type) => (
-                          <Badge key={type}
-                                 className="text-xs bg-gradient-to-r from-primary/10 to-primary/5
-                                          text-primary border-primary/20 font-medium">
+                        {qual.disciplines.map(type => (
+                          <Badge
+                            key={type}
+                            className="text-xs bg-gradient-to-r from-primary/10 to-primary/5
+                                          text-primary border-primary/20 font-medium"
+                          >
                             {type}
                           </Badge>
                         ))}
@@ -110,13 +144,16 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
           </div>
         ) : (
           <div className="text-center py-12">
-            <div className="p-4 bg-gradient-to-br from-amber-500/5 to-amber-500/10
-                           rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+            <div
+              className="p-4 bg-gradient-to-br from-amber-500/5 to-amber-500/10
+                           rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center"
+            >
               <Award className="h-10 w-10 text-amber-500" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-3">No Judge Qualifications</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              This user has no judge qualifications on record. Add qualifications to enable judging privileges.
+              This user has no judge qualifications on record. Add qualifications to enable judging
+              privileges.
             </p>
             {canManageQualifications && (
               <Button

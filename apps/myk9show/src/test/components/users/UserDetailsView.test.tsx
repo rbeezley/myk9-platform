@@ -210,7 +210,7 @@ describe('UserDetailsView', () => {
       expect(screen.getByText('Judge Qualifications')).toBeInTheDocument();
     });
 
-    it('should show Judge Qualifications card for users with existing qualifications', () => {
+    it('should hide Judge Qualifications card for non-judge users even with qualifications data', () => {
       const user = createMockUser({
         roles: ['exhibitor'],
         judgeQualifications: [
@@ -230,9 +230,8 @@ describe('UserDetailsView', () => {
 
       renderWithRouter(<UserDetailsView person={user} />);
 
-      // May appear in both JudgeQualificationsCard and the associations sidebar
-      const elements = screen.getAllByText('Judge Qualifications');
-      expect(elements.length).toBeGreaterThan(0);
+      // Card only renders for users with the Judge role
+      expect(screen.queryByText('Judge Qualifications')).not.toBeInTheDocument();
     });
 
     it('should hide Judge Qualifications card for non-judge users without qualifications', () => {

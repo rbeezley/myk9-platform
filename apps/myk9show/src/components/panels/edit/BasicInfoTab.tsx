@@ -2,6 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -10,6 +11,10 @@ import { User, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/services/database/supabaseClient';
 import type { UserFormData } from './UserEditPanel.types';
+
+/** Extract the first validation error that matches any of the given keywords. */
+const findFieldError = (errors: string[], ...keywords: string[]): string | undefined =>
+  errors.find(e => keywords.some(k => e.toLowerCase().includes(k.toLowerCase())));
 
 /** Fetch role names for a person (people.id) from user_roles table */
 function usePersonRoleNames(personId?: string) {
@@ -101,52 +106,47 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label
-            htmlFor="firstName"
-            className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-          >
-            First Name *
-          </Label>
+        <FormField
+          label="First Name"
+          fieldId="firstName"
+          required
+          error={findFieldError(errors, 'first name')}
+        >
           <Input
             id="firstName"
             value={data.firstName}
             onChange={handleInputChange('firstName')}
             placeholder="Enter first name"
             name="firstName"
-            className={cn(
-              errors.some(e => e.includes('first') || e.includes('First')) && 'border-destructive'
-            )}
+            aria-invalid={!!findFieldError(errors, 'first name')}
+            aria-describedby="firstName-error"
           />
-        </div>
-        <div className="space-y-2">
-          <Label
-            htmlFor="lastName"
-            className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-          >
-            Last Name *
-          </Label>
+        </FormField>
+        <FormField
+          label="Last Name"
+          fieldId="lastName"
+          required
+          error={findFieldError(errors, 'last name')}
+        >
           <Input
             id="lastName"
             value={data.lastName}
             onChange={handleInputChange('lastName')}
             placeholder="Enter last name"
             name="lastName"
-            className={cn(
-              errors.some(e => e.includes('last') || e.includes('Last')) && 'border-destructive'
-            )}
+            aria-invalid={!!findFieldError(errors, 'last name')}
+            aria-describedby="lastName-error"
           />
-        </div>
+        </FormField>
       </div>
 
       {/* Email */}
-      <div className="space-y-2">
-        <Label
-          htmlFor="email"
-          className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-        >
-          Email Address *
-        </Label>
+      <FormField
+        label="Email Address"
+        fieldId="email"
+        required
+        error={findFieldError(errors, 'email')}
+      >
         <Input
           id="email"
           type="email"
@@ -154,11 +154,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           onChange={handleInputChange('email')}
           placeholder="Enter email address"
           name="email"
-          className={cn(
-            errors.some(e => e.includes('email') || e.includes('Email')) && 'border-destructive'
-          )}
+          aria-invalid={!!findFieldError(errors, 'email')}
+          aria-describedby="email-error"
         />
-      </div>
+      </FormField>
 
       {/* Role Management - Admin Only */}
       {hasAdminPermission && (
@@ -226,13 +225,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               Additional Information
             </h4>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="bio"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                Bio
-              </Label>
+            <FormField label="Bio" fieldId="bio">
               <Input
                 id="bio"
                 value={data.bio || ''}
@@ -240,7 +233,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 placeholder="Enter bio or description"
                 name="bio"
               />
-            </div>
+            </FormField>
           </div>
         </>
       )}

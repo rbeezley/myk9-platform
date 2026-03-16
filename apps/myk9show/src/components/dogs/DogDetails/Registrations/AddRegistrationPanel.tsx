@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
@@ -131,11 +131,11 @@ export function AddRegistrationPanel({
 
   const validateData = (data: RegistrationFormData): string[] | null => {
     const errors: string[] = [];
-    if (!data.organization) errors.push('Organization is required');
-    if (!data.registeredName) errors.push('Registered name is required');
-    if (!data.breed) errors.push('Breed is required');
-    if (!data.registrationNumber) errors.push('Registration number is required');
-    if (!data.status) errors.push('Status is required');
+    if (!data.organization) errors.push('Please select an organization');
+    if (!data.registeredName) errors.push('Please enter a registered name');
+    if (!data.breed) errors.push('Please select a breed');
+    if (!data.registrationNumber) errors.push('Please enter a registration number');
+    if (!data.status) errors.push('Please select a status');
     return errors.length > 0 ? errors : null;
   };
 
@@ -167,15 +167,12 @@ export function AddRegistrationPanel({
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Organization */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Organization <span className="text-destructive">*</span>
-              </Label>
+            <FormField label="Organization" fieldId="organization" required>
               <Select
                 value={formData.organization}
                 onValueChange={handleOrganizationChange}
               >
-                <SelectTrigger>
+                <SelectTrigger id="organization">
                   <SelectValue placeholder="Select organization" />
                 </SelectTrigger>
                 <SelectContent>
@@ -190,32 +187,27 @@ export function AddRegistrationPanel({
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
 
             {/* Registered Name */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Registered Name <span className="text-destructive">*</span>
-              </Label>
+            <FormField label="Registered Name" fieldId="registeredName" required>
               <Input
+                id="registeredName"
                 value={formData.registeredName}
                 onChange={(e) => handleFieldChange('registeredName', e.target.value)}
                 placeholder="Full registered name"
               />
-            </div>
+            </FormField>
 
             {/* Breed and Variety */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Breed <span className="text-destructive">*</span>
-                </Label>
+              <FormField label="Breed" fieldId="breed" required>
                 <Select
                   value={formData.breed}
                   onValueChange={handleBreedChange}
                   disabled={!formData.organization}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="breed">
                     <SelectValue placeholder={formData.organization ? "Select breed" : "Select organization first"} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
@@ -226,16 +218,15 @@ export function AddRegistrationPanel({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Variety</Label>
+              <FormField label="Variety" fieldId="variety">
                 {availableVarieties.length > 0 ? (
                   <Select
                     value={formData.variety}
                     onValueChange={(value) => handleFieldChange('variety', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="variety">
                       <SelectValue placeholder="Select variety" />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,37 +239,33 @@ export function AddRegistrationPanel({
                   </Select>
                 ) : (
                   <Input
+                    id="variety"
                     value={formData.variety}
                     onChange={(e) => handleFieldChange('variety', e.target.value)}
                     placeholder={formData.breed ? "No varieties for this breed" : "Select breed first"}
                     disabled={!formData.breed}
                   />
                 )}
-              </div>
+              </FormField>
             </div>
 
             {/* Registration Number and Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Registration Number <span className="text-destructive">*</span>
-                </Label>
+              <FormField label="Registration Number" fieldId="registrationNumber" required>
                 <Input
+                  id="registrationNumber"
                   value={formData.registrationNumber}
                   onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
                   placeholder="Enter registration number"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Status <span className="text-destructive">*</span>
-                </Label>
+              <FormField label="Status" fieldId="status" required>
                 <Select
                   value={formData.status}
                   onValueChange={(value) => handleFieldChange('status', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="status">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -288,18 +275,18 @@ export function AddRegistrationPanel({
                     <SelectItem value="Under review">Under review</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             </div>
 
             {/* Registration Date */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Registration Date</Label>
+            <FormField label="Registration Date" fieldId="registrationDate">
               <Input
+                id="registrationDate"
                 type="date"
                 value={formData.registrationDate}
                 onChange={(e) => handleFieldChange('registrationDate', e.target.value)}
               />
-            </div>
+            </FormField>
           </CardContent>
         </Card>
       </div>

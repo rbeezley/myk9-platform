@@ -10,7 +10,7 @@ import { User, Phone, Award, CalendarDays } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import {
   Select,
   SelectContent,
@@ -223,8 +223,11 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
           />
 
           {hasPermission('manage_users') && (
-            <div className="space-y-2">
-              <Label className="text-sm font-[590]">Account Status</Label>
+            <FormField
+              label="Account Status"
+              fieldId="status"
+              hint={userId === currentUser?.id ? 'You cannot suspend your own account' : undefined}
+            >
               <Select
                 value={data.status}
                 onValueChange={value => {
@@ -238,7 +241,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
                 }}
                 disabled={userId === currentUser?.id}
               >
-                <SelectTrigger>
+                <SelectTrigger id="status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -246,10 +249,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
                   <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
-              {userId === currentUser?.id && (
-                <p className="text-xs text-muted-foreground">You cannot suspend your own account</p>
-              )}
-            </div>
+            </FormField>
           )}
         </TabsContent>
 

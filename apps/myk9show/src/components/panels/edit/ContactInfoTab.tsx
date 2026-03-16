@@ -1,11 +1,14 @@
 import React, { useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Phone, MapPin } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { UserFormData } from './UserEditPanel.types';
+
+/** Extract the first validation error that matches any of the given keywords. */
+const findFieldError = (errors: string[], ...keywords: string[]): string | undefined =>
+  errors.find(e => keywords.some(k => e.toLowerCase().includes(k.toLowerCase())));
 
 interface ContactInfoTabProps {
   data: UserFormData;
@@ -36,22 +39,17 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label
-            htmlFor="phone"
-            className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-          >
-            Phone Number
-          </Label>
+        <FormField label="Phone Number" fieldId="phone" error={findFieldError(errors, 'phone')}>
           <Input
             id="phone"
             type="tel"
             value={data.phone}
             onChange={handleInputChange('phone')}
             placeholder="Enter phone number"
-            className={cn(errors.some(e => e.includes('Phone')) && 'border-destructive')}
+            aria-invalid={!!findFieldError(errors, 'phone')}
+            aria-describedby="phone-error"
           />
-        </div>
+        </FormField>
 
         <Separator />
 
@@ -61,73 +59,54 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
             Address Information
           </h4>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="address"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Street Address
-            </Label>
+          <FormField
+            label="Street Address"
+            fieldId="address"
+            error={findFieldError(errors, 'address')}
+          >
             <Input
               id="address"
               value={data.address}
               onChange={handleInputChange('address')}
               placeholder="Enter street address"
-              className={cn(
-                errors.some(e => e.includes('address') || e.includes('Address')) &&
-                  'border-destructive'
-              )}
+              aria-invalid={!!findFieldError(errors, 'address')}
+              aria-describedby="address-error"
             />
-          </div>
+          </FormField>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="city"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                City
-              </Label>
+            <FormField label="City" fieldId="city" error={findFieldError(errors, 'city')}>
               <Input
                 id="city"
                 value={data.city}
                 onChange={handleInputChange('city')}
                 placeholder="Enter city"
-                className={cn(errors.some(e => e.includes('City')) && 'border-destructive')}
+                aria-invalid={!!findFieldError(errors, 'city')}
+                aria-describedby="city-error"
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="state"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                State
-              </Label>
+            <FormField label="State" fieldId="state" error={findFieldError(errors, 'state')}>
               <Input
                 id="state"
                 value={data.state}
                 onChange={handleInputChange('state')}
                 placeholder="Enter state"
-                className={cn(errors.some(e => e.includes('State')) && 'border-destructive')}
+                aria-invalid={!!findFieldError(errors, 'state')}
+                aria-describedby="state-error"
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="zipCode"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                ZIP Code
-              </Label>
+            <FormField label="ZIP Code" fieldId="zipCode" error={findFieldError(errors, 'zip')}>
               <Input
                 id="zipCode"
                 value={data.zipCode}
                 onChange={handleInputChange('zipCode')}
                 placeholder="Enter ZIP code"
-                className={cn(errors.some(e => e.includes('ZIP')) && 'border-destructive')}
+                aria-invalid={!!findFieldError(errors, 'zip')}
+                aria-describedby="zipCode-error"
               />
-            </div>
+            </FormField>
           </div>
         </div>
 
@@ -140,28 +119,16 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="emergencyContact"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Emergency Contact Name
-                  </Label>
+                <FormField label="Emergency Contact Name" fieldId="emergencyContact">
                   <Input
                     id="emergencyContact"
                     value={data.emergencyContact || ''}
                     onChange={handleInputChange('emergencyContact')}
                     placeholder="Enter emergency contact name"
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="emergencyPhone"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Emergency Phone
-                  </Label>
+                <FormField label="Emergency Phone" fieldId="emergencyPhone">
                   <Input
                     id="emergencyPhone"
                     type="tel"
@@ -169,7 +136,7 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
                     onChange={handleInputChange('emergencyPhone')}
                     placeholder="Enter emergency phone number"
                   />
-                </div>
+                </FormField>
               </div>
             </div>
           </>

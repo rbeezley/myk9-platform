@@ -17,6 +17,7 @@ export function useScheduleSummary(showId: string | null) {
         .select(
           `
           date,
+          trial_number,
           trial_type,
           classes (
             name,
@@ -45,6 +46,7 @@ export function useScheduleSummary(showId: string | null) {
         for (const cls of classes) {
           rows.push({
             trialDate: trial.date,
+            trialNumber: trial.trial_number,
             discipline: trial.trial_type ?? cls.competition_type,
             element: cls.element,
             level: cls.level,

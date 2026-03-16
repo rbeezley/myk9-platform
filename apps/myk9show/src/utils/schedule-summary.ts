@@ -3,6 +3,7 @@
  */
 export interface ScheduleClassRow {
   trialDate: string;
+  trialNumber: string | null;
   discipline: string | null;
   element: string | null;
   level: string | null;
@@ -10,7 +11,7 @@ export interface ScheduleClassRow {
 }
 
 /**
- * A single discipline's summary for one day.
+ * A single discipline's summary for one trial.
  */
 export interface DisciplineSummary {
   name: string;
@@ -20,10 +21,20 @@ export interface DisciplineSummary {
 }
 
 /**
- * One day's schedule.
+ * One trial's schedule within a day.
+ */
+export interface TrialSummary {
+  trialNumber: string | null;
+  disciplines: DisciplineSummary[];
+}
+
+/**
+ * One day's schedule (may contain multiple trials).
  */
 export interface DaySummary {
   date: string;
+  trials: TrialSummary[];
+  /** @deprecated Use trials instead */
   disciplines: DisciplineSummary[];
 }
 
@@ -48,60 +59,88 @@ function compareLevels(a: string, b: string): number {
 }
 
 /**
+ * Build a DisciplineSummary array from a set of class rows.
+ */
+function buildDisciplines(rows: ScheduleClassRow[]): DisciplineSummary[] {
+  const disciplineMap = new Map<
+    string,
+    { elements: Set<string>; levels: Set<string>; classNames: Set<string> }
+  >();
+
+  for (const row of rows) {
+    const disciplineKey = row.discipline ?? 'Other';
+    if (!disciplineMap.has(disciplineKey)) {
+      disciplineMap.set(disciplineKey, {
+        elements: new Set(),
+        levels: new Set(),
+        classNames: new Set(),
+      });
+    }
+    const disc = disciplineMap.get(disciplineKey)!;
+    if (row.element) disc.elements.add(row.element);
+    if (row.level) disc.levels.add(row.level);
+    disc.classNames.add(row.name);
+  }
+
+  return [...disciplineMap.keys()].sort().map(name => {
+    const data = disciplineMap.get(name)!;
+    return {
+      name,
+      elements: [...data.elements].sort(),
+      levels: [...data.levels].sort(compareLevels),
+      classNames: name === 'Other' ? [...data.classNames].sort() : [],
+    };
+  });
+}
+
+/**
  * Groups trial/class rows into a day-by-day schedule summary.
  *
- * Groups by date → discipline, collecting distinct elements and levels.
+ * Groups by date → trial → discipline, collecting distinct elements and levels.
  * Classes with null discipline go into an "Other" group showing class names verbatim.
  */
 export function summarizeSchedule(rows: ScheduleClassRow[]): DaySummary[] {
   if (rows.length === 0) return [];
 
-  // Group by date, then by discipline
-  const byDate = new Map<
-    string,
-    Map<string, { elements: Set<string>; levels: Set<string>; classNames: Set<string> }>
-  >();
+  // Group by date, then by trial number
+  const byDate = new Map<string, Map<string, ScheduleClassRow[]>>();
 
   for (const row of rows) {
     const dateKey = row.trialDate;
-    const disciplineKey = row.discipline ?? 'Other';
+    const trialKey = row.trialNumber ?? '_default';
 
     if (!byDate.has(dateKey)) {
       byDate.set(dateKey, new Map());
     }
     const dateGroup = byDate.get(dateKey)!;
 
-    if (!dateGroup.has(disciplineKey)) {
-      dateGroup.set(disciplineKey, {
-        elements: new Set(),
-        levels: new Set(),
-        classNames: new Set(),
-      });
+    if (!dateGroup.has(trialKey)) {
+      dateGroup.set(trialKey, []);
     }
-    const disc = dateGroup.get(disciplineKey)!;
-
-    if (row.element) disc.elements.add(row.element);
-    if (row.level) disc.levels.add(row.level);
-    disc.classNames.add(row.name);
+    dateGroup.get(trialKey)!.push(row);
   }
 
-  // Convert to sorted output
   const dates = [...byDate.keys()].sort();
 
   return dates.map(date => {
-    const disciplineMap = byDate.get(date)!;
-    const disciplineNames = [...disciplineMap.keys()].sort();
+    const trialMap = byDate.get(date)!;
+    const trialKeys = [...trialMap.keys()].sort();
 
-    const disciplines: DisciplineSummary[] = disciplineNames.map(name => {
-      const data = disciplineMap.get(name)!;
-      return {
-        name,
-        elements: [...data.elements].sort(),
-        levels: [...data.levels].sort(compareLevels),
-        classNames: name === 'Other' ? [...data.classNames].sort() : [],
-      };
-    });
+    const trials: TrialSummary[] = trialKeys.map(key => ({
+      trialNumber: key === '_default' ? null : key,
+      disciplines: buildDisciplines(trialMap.get(key)!),
+    }));
 
-    return { date, disciplines };
+    // Flatten all disciplines for backwards compat
+    const allRows: ScheduleClassRow[] = [];
+    for (const trialRows of trialMap.values()) {
+      allRows.push(...trialRows);
+    }
+
+    return {
+      date,
+      trials,
+      disciplines: buildDisciplines(allRows),
+    };
   });
 }

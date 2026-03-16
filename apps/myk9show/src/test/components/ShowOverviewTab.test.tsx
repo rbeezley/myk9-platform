@@ -9,9 +9,6 @@ vi.mock('@/components/shows/overview/QuickInfoCards', () => ({
     <div data-testid="quick-info-cards">{show.name}</div>
   ),
 }));
-vi.mock('@/components/shows/overview/EntryCTA', () => ({
-  EntryCTA: () => <div data-testid="entry-cta" />,
-}));
 vi.mock('@/components/shows/overview/ScheduleSummary', () => ({
   ScheduleSummary: () => <div data-testid="schedule-summary" />,
 }));
@@ -27,9 +24,6 @@ vi.mock('@/components/shows/overview/JudgesList', () => ({
 vi.mock('@/components/shows/overview/VenueMap', () => ({
   VenueMap: ({ location }: { location?: string }) =>
     location ? <div data-testid="venue-map" /> : null,
-}));
-vi.mock('@/components/shows/overview/AdditionalDetails', () => ({
-  AdditionalDetails: () => <div data-testid="additional-details" />,
 }));
 vi.mock('@/components/shows/overview/ShareEvent', () => ({
   ShareEvent: () => <div data-testid="share-event" />,
@@ -69,48 +63,43 @@ const fullShow: Show = {
 
 describe('ShowOverviewTab', () => {
   it('renders QuickInfoCards', () => {
-    render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
+    render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('quick-info-cards')).toBeInTheDocument();
   });
 
-  it('renders EntryCTA', () => {
-    render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
-    expect(screen.getByTestId('entry-cta')).toBeInTheDocument();
-  });
-
   it('renders ShowOfficials when chairman exists', () => {
-    render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
+    render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('show-officials')).toBeInTheDocument();
   });
 
   it('renders JudgesList', () => {
-    render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
+    render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('judges-list')).toBeInTheDocument();
   });
 
   it('renders VenueMap when location exists', () => {
-    render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
+    render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('venue-map')).toBeInTheDocument();
   });
 
   it('omits VenueMap when no location', () => {
     const noLocation = { ...fullShow, location: '' };
-    render(<ShowOverviewTab show={noLocation} onRegister={() => {}} />);
+    render(<ShowOverviewTab show={noLocation} />);
     expect(screen.queryByTestId('venue-map')).not.toBeInTheDocument();
   });
 
   it('renders MoreFromClub', () => {
-    render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
+    render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('more-from-club')).toBeInTheDocument();
   });
 
   it('renders ShareEvent', () => {
-    render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
+    render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('share-event')).toBeInTheDocument();
   });
 
   it('has two-column layout on desktop', () => {
-    const { container } = render(<ShowOverviewTab show={fullShow} onRegister={() => {}} />);
+    const { container } = render(<ShowOverviewTab show={fullShow} />);
     const grid = container.querySelector(
       '.md\\:grid-cols-\\[1fr_340px\\],.md\\:grid-cols-\\[1fr\\,340px\\]'
     );

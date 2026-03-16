@@ -18,8 +18,9 @@ interface HeroAction {
 
 interface DetailHeroProps {
   name: string;
+  subtitle?: string | undefined;
   metadata?: MetadataItem[];
-  badge?: HeroBadge;
+  badge?: HeroBadge | undefined;
   primaryAction?: HeroAction;
   secondaryActions?: React.ReactNode;
   className?: string;
@@ -34,6 +35,7 @@ const badgeStyles: Record<string, string> = {
 
 export function DetailHero({
   name,
+  subtitle,
   metadata,
   badge,
   primaryAction,
@@ -43,7 +45,7 @@ export function DetailHero({
   return (
     <div className={cn('rounded-xl border border-border/50 bg-card p-6', className)}>
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
             {badge && (
@@ -57,6 +59,7 @@ export function DetailHero({
               </span>
             )}
           </div>
+          {subtitle && <div className="text-sm font-medium text-muted-foreground">{subtitle}</div>}
           {metadata && metadata.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
               {metadata.map((item, i) => (

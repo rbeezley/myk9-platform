@@ -1,5 +1,4 @@
 import { Card } from '@/components/ui/card';
-import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import type { Show } from '@/types/show-types';
 
 interface DetailItem {
@@ -7,18 +6,9 @@ interface DetailItem {
   value: string;
 }
 
-function getDetailItems(show: Show, resolvePersonName: (id: string | null | undefined) => string): DetailItem[] {
+function getDetailItems(show: Show): DetailItem[] {
   const items: DetailItem[] = [];
 
-  if (show.organization) {
-    items.push({ label: 'Organization', value: show.organization });
-  }
-  if (show.chiefSteward) {
-    items.push({ label: 'Chief Steward', value: resolvePersonName(show.chiefSteward) });
-  }
-  if (show.dayOfShowFee && show.dayOfShowFee !== show.preEntryFee) {
-    items.push({ label: 'Day-of-Show Fee', value: show.dayOfShowFee });
-  }
   if (show.maxEntriesPerDog) {
     items.push({ label: 'Max Entries per Dog', value: String(show.maxEntriesPerDog) });
   }
@@ -40,8 +30,7 @@ interface AdditionalDetailsProps {
 }
 
 export function AdditionalDetails({ show }: AdditionalDetailsProps) {
-  const resolvePersonName = useResolvePersonName();
-  const items = getDetailItems(show, resolvePersonName);
+  const items = getDetailItems(show);
   if (items.length === 0) return null;
 
   return (

@@ -75,6 +75,7 @@ export function QuickInfoCards({ show }: QuickInfoCardsProps) {
         icon={<DollarSign className="h-5 w-5" />}
         label="Entry Fee"
         value={show.preEntryFee || 'TBD'}
+        secondary={show.dayOfShowFee ? `Day of show: ${show.dayOfShowFee}` : null}
       />
       <InfoItem
         icon={<MapPin className="h-5 w-5" />}

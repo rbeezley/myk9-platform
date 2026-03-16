@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, MapPin, Users as UsersIcon } from 'lucide-react';
+import { CalendarDays, MapPin } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
@@ -174,12 +174,6 @@ const ShowDetailsPage: React.FC = () => {
         icon: <MapPin className="h-4 w-4" />,
       });
     }
-    if (actualCurrentShow.clubName) {
-      items.push({
-        label: actualCurrentShow.clubName,
-        icon: <UsersIcon className="h-4 w-4" />,
-      });
-    }
     return items;
   }, [actualCurrentShow]);
 
@@ -244,6 +238,12 @@ const ShowDetailsPage: React.FC = () => {
 
         <DetailHero
           name={actualCurrentShow.name || 'Untitled Show'}
+          subtitle={actualCurrentShow.clubName || undefined}
+          badge={
+            actualCurrentShow.organization
+              ? { label: actualCurrentShow.organization, variant: 'default' }
+              : undefined
+          }
           metadata={heroMetadata}
           primaryAction={{
             label: 'Register',
@@ -270,7 +270,7 @@ const ShowDetailsPage: React.FC = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <ShowOverviewTab show={actualCurrentShow} onRegister={handleRegisterForShow} />
+            <ShowOverviewTab show={actualCurrentShow} />
           </TabsContent>
 
           <TabsContent value="classes">

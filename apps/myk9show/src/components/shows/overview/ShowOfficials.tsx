@@ -75,13 +75,15 @@ function useResolveOfficial(personId: string | null | undefined): ResolvedPerson
 interface ShowOfficialsProps {
   chairmanId?: string | null;
   secretaryId?: string | null;
+  chiefStewardId?: string | null;
 }
 
-export function ShowOfficials({ chairmanId, secretaryId }: ShowOfficialsProps) {
+export function ShowOfficials({ chairmanId, secretaryId, chiefStewardId }: ShowOfficialsProps) {
   const chairman = useResolveOfficial(chairmanId);
   const secretary = useResolveOfficial(secretaryId);
+  const chiefSteward = useResolveOfficial(chiefStewardId);
 
-  if (!chairman && !secretary) return null;
+  if (!chairman && !secretary && !chiefSteward) return null;
 
   return (
     <Card>
@@ -93,6 +95,7 @@ export function ShowOfficials({ chairmanId, secretaryId }: ShowOfficialsProps) {
       <div className="divide-y divide-border/30">
         {chairman && <OfficialCard person={chairman} role="Chairman" />}
         {secretary && <OfficialCard person={secretary} role="Secretary" />}
+        {chiefSteward && <OfficialCard person={chiefSteward} role="Chief Steward" />}
       </div>
     </Card>
   );

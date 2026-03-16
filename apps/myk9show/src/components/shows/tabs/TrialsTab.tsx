@@ -10,6 +10,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import { notifications } from '@/lib/notifications';
+import { getClassStatusBadgeClasses, getClassStatusDisplay } from '@myk9/core';
 import type { ClassStatusValue } from '@myk9/core';
 
 interface TrialsTabProps {
@@ -25,24 +26,6 @@ function formatDate(dateStr: string): string {
     day: 'numeric',
     year: 'numeric',
   });
-}
-
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'completed':
-      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
-    case 'in_progress':
-    case 'active':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'cancelled':
-      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-}
-
-function formatStatus(status: string): string {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 export function TrialsTab({ trials, showId, showName }: TrialsTabProps) {
@@ -134,8 +117,8 @@ export function TrialsTab({ trials, showId, showName }: TrialsTabProps) {
                   <h3 className="text-sm font-semibold text-card-foreground">
                     {trial.name || `Trial ${trial.trialNumber}`}
                   </h3>
-                  <Badge className={`shrink-0 text-xs ${getStatusColor(trial.status)}`}>
-                    {formatStatus(trial.status)}
+                  <Badge className={`shrink-0 text-xs ${getClassStatusBadgeClasses(trial.status)}`}>
+                    {getClassStatusDisplay(trial.status).label}
                   </Badge>
                 </div>
 

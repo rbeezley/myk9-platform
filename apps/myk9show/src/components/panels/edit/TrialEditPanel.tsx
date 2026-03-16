@@ -7,7 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon, Clock, Info, Settings } from 'lucide-react';
@@ -81,7 +87,10 @@ const validateTrialData = (data: TrialEditFormData): string[] | null => {
   }
 
   // Validate time format for planned start time (basic validation)
-  if (data.plannedStartTime && !/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i.test(data.plannedStartTime.trim())) {
+  if (
+    data.plannedStartTime &&
+    !/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i.test(data.plannedStartTime.trim())
+  ) {
     errors.push('Planned start time should be in format "9:00 AM" or "2:30 PM"');
   }
 
@@ -129,52 +138,60 @@ const formDataToTrial = (formData: TrialEditFormData): Partial<Trial> => ({
 // Form content component
 const TrialEditForm: React.FC = () => {
   const { data, updateData, errors } = useEditPanel<TrialEditFormData>();
-  
+
   // Date picker state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     data.trialDate ? new Date(data.trialDate) : undefined
   );
 
   // Handle input changes
-  const handleInputChange = useCallback((field: keyof TrialEditFormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    updateData({ [field]: e.target.value });
-  }, [updateData]);
+  const handleInputChange = useCallback(
+    (field: keyof TrialEditFormData) =>
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        updateData({ [field]: e.target.value });
+      },
+    [updateData]
+  );
 
   // Handle select changes
-  const handleSelectChange = useCallback((field: keyof TrialEditFormData) => (value: string) => {
-    updateData({ [field]: value });
-  }, [updateData]);
+  const handleSelectChange = useCallback(
+    (field: keyof TrialEditFormData) => (value: string) => {
+      updateData({ [field]: value });
+    },
+    [updateData]
+  );
 
   // Handle date changes
-  const handleDateChange = useCallback((date: Date | undefined) => {
-    setSelectedDate(date);
-    if (date) {
-      updateData({ trialDate: format(date, 'yyyy-MM-dd') });
-    }
-  }, [updateData]);
+  const handleDateChange = useCallback(
+    (date: Date | undefined) => {
+      setSelectedDate(date);
+      if (date) {
+        updateData({ trialDate: format(date, 'yyyy-MM-dd') });
+      }
+    },
+    [updateData]
+  );
 
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger 
-            value="basic" 
+          <TabsTrigger
+            value="basic"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <Info className="h-4 w-4" />
             Basic Info
           </TabsTrigger>
-          <TabsTrigger 
-            value="scheduling" 
+          <TabsTrigger
+            value="scheduling"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <Clock className="h-4 w-4" />
             Scheduling
           </TabsTrigger>
-          <TabsTrigger 
-            value="advanced" 
+          <TabsTrigger
+            value="advanced"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <Settings className="h-4 w-4" />
@@ -183,7 +200,10 @@ const TrialEditForm: React.FC = () => {
         </TabsList>
 
         {/* Basic Information Tab */}
-        <TabsContent value="basic" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="basic"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -193,62 +213,71 @@ const TrialEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Trial Name *</Label>
+                <Label
+                  htmlFor="name"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Trial Name *
+                </Label>
                 <Input
                   id="name"
                   value={data.name}
                   onChange={handleInputChange('name')}
                   placeholder="Enter trial name (e.g., Scent Work, Agility, Obedience)"
-                  className={cn(
-                    errors.some(e => e.includes('Trial name')) && 'border-destructive'
-                  )}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="showName" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Show Name</Label>
-                <Input
-                  id="showName"
-                  value={data.showName}
-                  onChange={handleInputChange('showName')}
-                  placeholder="Associated show name"
-                  className="bg-muted text-muted-foreground"
-                  disabled
+                  className={cn(errors.some(e => e.includes('Trial name')) && 'border-destructive')}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="trialNumber" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Trial Number *</Label>
+                  <Label
+                    htmlFor="trialNumber"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Trial Number *
+                  </Label>
                   <Input
                     id="trialNumber"
+                    type="number"
+                    min={1}
+                    max={10}
                     value={data.trialNumber}
                     onChange={handleInputChange('trialNumber')}
-                    placeholder="Trial #"
+                    placeholder="1"
                     className={cn(
                       errors.some(e => e.includes('Trial number')) && 'border-destructive'
                     )}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="eventNumber" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Event Number *</Label>
+                  <Label
+                    htmlFor="eventNumber"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Event Number
+                  </Label>
                   <Input
                     id="eventNumber"
                     value={data.eventNumber}
                     onChange={handleInputChange('eventNumber')}
-                    placeholder="e.g., EV-2025-001"
-                    className={cn(
-                      errors.some(e => e.includes('Event number')) && 'border-destructive'
-                    )}
+                    placeholder="Assigned by organization"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Trial Type</Label>
-                  <Select value={data.trialType || ''} onValueChange={handleSelectChange('trialType')}>
+                  <Label
+                    htmlFor="type"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Trial Type
+                  </Label>
+                  <Select
+                    value={data.trialType || ''}
+                    onValueChange={handleSelectChange('trialType')}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select trial type" />
                     </SelectTrigger>
@@ -262,20 +291,28 @@ const TrialEditForm: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="status" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Status *</Label>
+                  <Label
+                    htmlFor="status"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Status *
+                  </Label>
                   <Select value={data.status} onValueChange={handleSelectChange('status')}>
-                    <SelectTrigger className={cn(
-                      errors.some(e => e.includes('Status')) && 'border-destructive'
-                    )}>
+                    <SelectTrigger
+                      className={cn(errors.some(e => e.includes('Status')) && 'border-destructive')}
+                    >
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Upcoming">Upcoming</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      <SelectItem value="planned">Planned</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="check_in">Check-In</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="scoring">Scoring</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -285,7 +322,10 @@ const TrialEditForm: React.FC = () => {
         </TabsContent>
 
         {/* Scheduling Tab */}
-        <TabsContent value="scheduling" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="scheduling"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -296,7 +336,12 @@ const TrialEditForm: React.FC = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="trialDate" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Trial Date *</Label>
+                  <Label
+                    htmlFor="trialDate"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Trial Date *
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -321,9 +366,14 @@ const TrialEditForm: React.FC = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="order" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Display Order *</Label>
+                  <Label
+                    htmlFor="order"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Display Order *
+                  </Label>
                   <Input
                     id="order"
                     type="number"
@@ -331,23 +381,24 @@ const TrialEditForm: React.FC = () => {
                     onChange={handleInputChange('order')}
                     placeholder="Display order"
                     min="1"
-                    className={cn(
-                      errors.some(e => e.includes('Order')) && 'border-destructive'
-                    )}
+                    className={cn(errors.some(e => e.includes('Order')) && 'border-destructive')}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="plannedStartTime" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Planned Start Time *</Label>
+                <Label
+                  htmlFor="plannedStartTime"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Planned Start Time *
+                </Label>
                 <Input
                   id="plannedStartTime"
                   value={data.plannedStartTime}
                   onChange={handleInputChange('plannedStartTime')}
                   placeholder="e.g., 09:00 AM"
-                  className={cn(
-                    errors.some(e => e.includes('start time')) && 'border-destructive'
-                  )}
+                  className={cn(errors.some(e => e.includes('start time')) && 'border-destructive')}
                 />
               </div>
 
@@ -357,10 +408,15 @@ const TrialEditForm: React.FC = () => {
                 <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                   Actual Times (Optional)
                 </h4>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="timeStarted" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Time Started</Label>
+                    <Label
+                      htmlFor="timeStarted"
+                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                    >
+                      Time Started
+                    </Label>
                     <Input
                       id="timeStarted"
                       value={data.timeStarted || ''}
@@ -368,9 +424,14 @@ const TrialEditForm: React.FC = () => {
                       placeholder="e.g., 09:15 AM"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="timeEnded" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Time Ended</Label>
+                    <Label
+                      htmlFor="timeEnded"
+                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                    >
+                      Time Ended
+                    </Label>
                     <Input
                       id="timeEnded"
                       value={data.timeEnded || ''}
@@ -385,7 +446,10 @@ const TrialEditForm: React.FC = () => {
         </TabsContent>
 
         {/* Advanced Tab */}
-        <TabsContent value="advanced" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="advanced"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -395,7 +459,12 @@ const TrialEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="type" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Category</Label>
+                <Label
+                  htmlFor="type"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Category
+                </Label>
                 <Input
                   id="type"
                   value={data.type || ''}
@@ -405,7 +474,12 @@ const TrialEditForm: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="image" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Image URL</Label>
+                <Label
+                  htmlFor="image"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Image URL
+                </Label>
                 <Input
                   id="image"
                   value={data.image || ''}
@@ -418,7 +492,12 @@ const TrialEditForm: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="showId" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Show ID</Label>
+                <Label
+                  htmlFor="showId"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Show ID
+                </Label>
                 <Input
                   id="showId"
                   value={data.showId}
@@ -450,14 +529,17 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
 }) => {
   // Convert trial data to form data
   const initialFormData = useMemo(() => trialToFormData(initialTrialData), [initialTrialData]);
-  
+
   // Handle save
-  const handleSave = useCallback(async (formData: TrialEditFormData) => {
-    const trialData = formDataToTrial(formData);
-    if (onSave) {
-      await onSave(trialData);
-    }
-  }, [onSave]);
+  const handleSave = useCallback(
+    async (formData: TrialEditFormData) => {
+      const trialData = formDataToTrial(formData);
+      if (onSave) {
+        await onSave(trialData);
+      }
+    },
+    [onSave]
+  );
 
   return (
     <EditPanelWrapper<TrialEditFormData>

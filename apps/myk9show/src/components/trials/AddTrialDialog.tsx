@@ -139,18 +139,6 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
               />
             </div>
 
-            {/* Show Name - Full Width */}
-            <div className="space-y-2">
-              <Label>Show Name</Label>
-              <Input
-                value={formData.showName}
-                onChange={e => setFormData({ ...formData, showName: e.target.value })}
-                placeholder="Associated show name"
-                className="h-10"
-                disabled
-              />
-            </div>
-
             {/* Trial Number and Date */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -158,9 +146,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                   Trial Number <span className="text-destructive">*</span>
                 </Label>
                 <Input
+                  type="number"
+                  min={1}
+                  max={10}
                   value={formData.trialNumber}
                   onChange={e => setFormData({ ...formData, trialNumber: e.target.value })}
-                  placeholder="e.g., 1, 2, 3"
+                  placeholder="1"
                   className="h-10"
                 />
               </div>

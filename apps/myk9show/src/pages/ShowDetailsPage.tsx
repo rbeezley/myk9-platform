@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
+import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import {
@@ -218,6 +219,7 @@ const ShowDetailsPage: React.FC = () => {
   const isAuthenticated = !!user;
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'trials', label: 'Trials' },
     { id: 'classes', label: 'Classes' },
     ...(isAuthenticated ? [{ id: 'my-entries', label: 'My Entries' }] : []),
     ...(isAuthenticated ? [{ id: 'results', label: 'Results' }] : []),
@@ -276,6 +278,14 @@ const ShowDetailsPage: React.FC = () => {
 
           <TabsContent value="overview">
             <ShowOverviewTab show={actualCurrentShow} />
+          </TabsContent>
+
+          <TabsContent value="trials">
+            <TrialsTab
+              trials={associatedTrials}
+              showId={actualCurrentShow.id}
+              showName={actualCurrentShow.name || ''}
+            />
           </TabsContent>
 
           <TabsContent value="classes">

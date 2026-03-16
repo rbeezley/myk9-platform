@@ -1,0 +1,188 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar, Clock, Hash, Plus } from 'lucide-react';
+import type { Trial } from '@/components/trials/types/trial.types';
+import AddTrialDialog from '@/components/trials/AddTrialDialog';
+import { useTrialStore } from '@/store/trialStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { useRBAC } from '@/hooks/useRBAC';
+import { notifications } from '@/lib/notifications';
+import type { ClassStatusValue } from '@myk9/core';
+
+interface TrialsTabProps {
+  trials: Trial[];
+  showId: string;
+  showName: string;
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'completed':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    case 'in_progress':
+    case 'active':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'cancelled':
+      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+}
+
+function formatStatus(status: string): string {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function TrialsTab({ trials, showId, showName }: TrialsTabProps) {
+  const navigate = useNavigate();
+  const { user } = useAuthContext();
+  const { hasPermission } = useRBAC();
+  const { addTrial } = useTrialStore();
+  const [addTrialOpen, setAddTrialOpen] = useState(false);
+
+  const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+
+  const handleAddTrial = async (trialData: {
+    name: string;
+    date: string;
+    trialNumber: string;
+    status: string;
+    eventNumber: string;
+    plannedStartTime: string;
+    order: string;
+    showName: string;
+    description: string;
+  }) => {
+    try {
+      await addTrial(
+        {
+          showId,
+          showName,
+          name: trialData.name,
+          trialDate: trialData.date,
+          trialNumber: trialData.trialNumber,
+          status: (trialData.status || 'Upcoming') as ClassStatusValue,
+          eventNumber: trialData.eventNumber,
+          plannedStartTime: trialData.plannedStartTime,
+          order: trialData.order,
+        },
+        user?.id || ''
+      );
+      notifications.success('Trial added successfully');
+      setAddTrialOpen(false);
+    } catch {
+      notifications.error('Failed to add trial');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header with Add button */}
+      {canManage && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setAddTrialOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Add Trial
+          </Button>
+        </div>
+      )}
+
+      {trials.length === 0 ? (
+        <div className="py-16 text-center">
+          <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+          <h3 className="text-lg font-medium text-foreground">No Trials</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            No trials have been created for this show yet.
+          </p>
+          {canManage && (
+            <Button
+              variant="outline"
+              className="mt-4 gap-1.5"
+              onClick={() => setAddTrialOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Add Trial
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {trials.map(trial => (
+            <Card
+              key={trial.id}
+              className="cursor-pointer overflow-hidden border border-border bg-card shadow-sm transition-all hover:shadow-md hover:border-primary/30"
+              onClick={() => navigate(`/shows/${showId}/trials/${trial.id}`)}
+              role="link"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && navigate(`/shows/${showId}/trials/${trial.id}`)}
+            >
+              <div className="p-5">
+                {/* Header: name + status */}
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <h3 className="text-sm font-semibold text-card-foreground">
+                    {trial.name || `Trial ${trial.trialNumber}`}
+                  </h3>
+                  <Badge className={`shrink-0 text-xs ${getStatusColor(trial.status)}`}>
+                    {formatStatus(trial.status)}
+                  </Badge>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-2">
+                  {trial.trialDate && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      <span>{formatDate(trial.trialDate)}</span>
+                    </div>
+                  )}
+
+                  {trial.trialNumber && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Hash className="h-3.5 w-3.5 shrink-0" />
+                      <span>Trial {trial.trialNumber}</span>
+                    </div>
+                  )}
+
+                  {trial.trialType && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="text-xs">
+                        {trial.trialType}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {trial.plannedStartTime && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
+                      <span>Starts {trial.plannedStartTime}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Add Trial Dialog */}
+      <AddTrialDialog
+        open={addTrialOpen}
+        onOpenChange={setAddTrialOpen}
+        onSave={handleAddTrial}
+        currentShowName={showName}
+      />
+    </div>
+  );
+}

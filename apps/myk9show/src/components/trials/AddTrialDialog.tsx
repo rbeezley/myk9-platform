@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import {
   Select,
   SelectContent,
@@ -127,25 +127,21 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
         <SheetBody>
           <div className="space-y-4">
             {/* Trial Name - Full Width */}
-            <div className="space-y-2">
-              <Label>
-                Trial Name <span className="text-destructive">*</span>
-              </Label>
+            <FormField label="Trial Name" fieldId="trialName" required>
               <Input
+                id="trialName"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter trial name (e.g., Scent Work, Agility, Obedience)"
                 className="h-10"
               />
-            </div>
+            </FormField>
 
             {/* Trial Number and Date */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>
-                  Trial Number <span className="text-destructive">*</span>
-                </Label>
+              <FormField label="Trial Number" fieldId="trialNumber" required>
                 <Input
+                  id="trialNumber"
                   type="number"
                   min={1}
                   max={10}
@@ -154,14 +150,12 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                   placeholder="1"
                   className="h-10"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Date <span className="text-destructive">*</span>
-                </Label>
+              </FormField>
+              <FormField label="Date" fieldId="trialDate" required>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
+                      id="trialDate"
                       variant="outline"
                       className={cn(
                         'w-full justify-start text-left font-normal h-10',
@@ -176,29 +170,26 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                     <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
                   </PopoverContent>
                 </Popover>
-              </div>
+              </FormField>
             </div>
 
             {/* Event Number and Status */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Event Number</Label>
+              <FormField label="Event Number" fieldId="eventNumber">
                 <Input
+                  id="eventNumber"
                   value={formData.eventNumber}
                   onChange={e => setFormData({ ...formData, eventNumber: e.target.value })}
                   placeholder="Assigned by organization"
                   className="h-10"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Status <span className="text-destructive">*</span>
-                </Label>
+              </FormField>
+              <FormField label="Status" fieldId="trialStatus" required>
                 <Select
                   value={formData.status}
                   onValueChange={value => setFormData({ ...formData, status: value })}
                 >
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger id="trialStatus" className="h-10">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -208,46 +199,42 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             </div>
 
             {/* Planned Start Time and Order */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>
-                  Planned Start Time <span className="text-destructive">*</span>
-                </Label>
+              <FormField label="Planned Start Time" fieldId="plannedStartTime" required>
                 <Input
+                  id="plannedStartTime"
                   value={formData.plannedStartTime}
                   onChange={e => setFormData({ ...formData, plannedStartTime: e.target.value })}
                   placeholder="e.g., 09:00 AM"
                   className="h-10"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Order <span className="text-destructive">*</span>
-                </Label>
+              </FormField>
+              <FormField label="Order" fieldId="trialOrder" required>
                 <Input
+                  id="trialOrder"
                   type="number"
                   value={formData.order}
                   onChange={e => setFormData({ ...formData, order: e.target.value })}
                   placeholder="Display order"
                   className="h-10"
                 />
-              </div>
+              </FormField>
             </div>
 
             {/* Description - Full Width */}
-            <div className="space-y-2">
-              <Label>Description</Label>
+            <FormField label="Description" fieldId="trialDescription">
               <Textarea
+                id="trialDescription"
                 value={formData.description}
                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Optional notes about this trial"
                 rows={3}
               />
-            </div>
+            </FormField>
           </div>
         </SheetBody>
 

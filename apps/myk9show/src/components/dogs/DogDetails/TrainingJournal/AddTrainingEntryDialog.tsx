@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,10 +20,14 @@ interface AddTrainingEntryDialogProps {
   onAdd: (entry: TrainingEntry) => void;
 }
 
-const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({ open, onClose, onAdd }) => {
+const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({
+  open,
+  onClose,
+  onAdd,
+}) => {
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [date, setDate] = useState<string>("");
+  const [date, setDate] = useState<string>('');
   const [tags, setTags] = useState('');
 
   // Form validation state
@@ -57,31 +61,34 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({ open, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form
-    const newErrors: {[key: string]: string} = {};
-    if (!title) newErrors.title = "Title is required";
-    if (!notes) newErrors.notes = "Notes are required";
-    if (!date) newErrors.date = "Date is required";
-    
+    const newErrors: { [key: string]: string } = {};
+    if (!title) newErrors.title = 'Please enter a title.';
+    if (!notes) newErrors.notes = 'Please enter notes.';
+    if (!date) newErrors.date = 'Please select a date.';
+
     // If there are validation errors, update state and return
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-    
-    onAdd({ 
+
+    onAdd({
       id: Date.now(), // Generate a unique ID
-      title, 
-      notes, 
-      date, 
-      tags: tags.split(',').map(t => t.trim()).filter(Boolean) 
+      title,
+      notes,
+      date,
+      tags: tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean),
     });
-    
+
     // Reset form fields
     setTitle('');
     setNotes('');
-    setDate("");
+    setDate('');
     setTags('');
     onClose();
   };
@@ -90,47 +97,56 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({ open, o
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() => document.getElementById('add-training-entry-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={() =>
+        document
+          .getElementById('add-training-entry-form')
+          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+      }
       title="New Training Entry"
       description="All fields are required."
       formId="add-training-entry-form"
-      saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
+      saveLabel={
+        <>
+          <Plus className="mr-2 h-4 w-4" /> Add
+        </>
+      }
     >
       <form id="add-training-entry-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <RequiredLabel required>Title</RequiredLabel>
+        <FormField label="Title" fieldId="trainingTitle" required error={errors.title}>
           <Input
+            id="trainingTitle"
             type="text"
             value={title}
             onChange={e => handleTitleChange(e.target.value)}
             required
-            className={errors.title ? "border-red-500 focus-visible:ring-red-500" : ""}
+            aria-invalid={!!errors.title}
+            aria-describedby={errors.title ? 'trainingTitle-error' : undefined}
+            className={errors.title ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
-          {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
-        </div>
-        <div>
-          <RequiredLabel required>Notes</RequiredLabel>
+        </FormField>
+        <FormField label="Notes" fieldId="trainingNotes" required error={errors.notes}>
           <Textarea
+            id="trainingNotes"
             value={notes}
             onChange={e => handleNotesChange(e.target.value)}
             required
-            className={errors.notes ? "border-red-500 focus-visible:ring-red-500" : ""}
+            aria-invalid={!!errors.notes}
+            aria-describedby={errors.notes ? 'trainingNotes-error' : undefined}
+            className={errors.notes ? 'border-red-500 focus-visible:ring-red-500' : ''}
           />
-          {errors.notes && <p className="text-red-500 text-xs mt-1">{errors.notes}</p>}
-        </div>
-        <div>
-          <DatePickerField
-            label="Date"
-            value={date}
-            onChange={handleDateChange}
-            required
+        </FormField>
+        <FormField label="Date" fieldId="trainingDate" required error={errors.date}>
+          <DatePickerField value={date} onChange={handleDateChange} required />
+        </FormField>
+        <FormField label="Tags" fieldId="trainingTags" hint="Comma separated">
+          <Input
+            id="trainingTags"
+            type="text"
+            value={tags}
+            onChange={e => setTags(e.target.value)}
+            placeholder="e.g. Obedience, Progress"
           />
-          {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
-        </div>
-        <div>
-          <RequiredLabel>Tags <span className="text-muted-foreground">(comma separated)</span></RequiredLabel>
-          <Input type="text" value={tags} onChange={e => setTags(e.target.value)} placeholder="e.g. Obedience, Progress" />
-        </div>
+        </FormField>
       </form>
     </StandardDialog>
   );

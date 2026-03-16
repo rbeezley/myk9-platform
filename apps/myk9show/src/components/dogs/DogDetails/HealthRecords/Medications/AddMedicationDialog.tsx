@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,15 +26,15 @@ const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({ open, onClose
   const [dosage, setDosage] = useState('');
   const [notes, setNotes] = useState('');
   const [frequency, setFrequency] = useState('');
-  const [expiration, setNextDue] = useState<string>("");
+  const [expiration, setNextDue] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const errors: { [key: string]: string } = {};
-    if (!name) errors.name = 'Name is required.';
-    if (!dosage) errors.dosage = 'Dosage is required.';
-    if (!expiration) errors.expiration = 'Next Due date is required.';
+    if (!name) errors.name = 'Please enter a medication name.';
+    if (!dosage) errors.dosage = 'Please enter a dosage.';
+    if (!expiration) errors.expiration = 'Please select a next due date.';
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
     onAdd({ name, dosage, notes, frequency, expiration });
@@ -42,7 +42,7 @@ const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({ open, onClose
     setDosage('');
     setNotes('');
     setFrequency('');
-    setNextDue("");
+    setNextDue('');
     setFormErrors({});
     onClose();
   };
@@ -51,11 +51,19 @@ const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({ open, onClose
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() => document.getElementById('add-medication-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={() =>
+        document
+          .getElementById('add-medication-form')
+          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+      }
       title="Add Medication"
       description="All fields except Notes are required."
       formId="add-medication-form"
-      saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
+      saveLabel={
+        <>
+          <Plus className="mr-2 h-4 w-4" /> Add
+        </>
+      }
     >
       {/*
   Two-column grid layout for medication fields:
@@ -63,63 +71,49 @@ const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({ open, onClose
   - Notes spans both columns for full width
   - Consistent gap between fields, responsive width
 */}
-<form
-  id="add-medication-form"
-  onSubmit={handleSubmit}
-  className="py-4 min-w-[350px] max-w-[500px] mx-auto"
->
-  <div className="grid grid-cols-2 gap-4">
-    <div className="flex flex-col">
-      <RequiredLabel required>Name</RequiredLabel>
-      <Input
-        id="medicationName"
-        value={""}
-        onChange={e => setName(e.target.value)}
-        required
-        className={formErrors.name ? 'border-red-500' : ''}
-      />
-      {formErrors.name && (
-        <div className="text-red-500 text-xs mt-1">{formErrors.name}</div>
-      )}
-    </div>
-    <div className="flex flex-col">
-      <RequiredLabel required>Dosage</RequiredLabel>
-      <Input
-        id="dosage"
-        value={""}
-        onChange={e => setDosage(e.target.value)}
-        required
-        className={formErrors.dosage ? 'border-red-500' : ''}
-      />
-      {formErrors.dosage && (
-        <div className="text-red-500 text-xs mt-1">{formErrors.dosage}</div>
-      )}
-    </div>
-    <div className="flex flex-col">
-      <RequiredLabel>Frequency</RequiredLabel>
-      <Input
-        id="frequency"
-        value={""}
-        onChange={e => setFrequency(e.target.value)}
-      />
-    </div>
-    <div className="flex flex-col">
-      <DatePickerField label="Next Due" value={""} onChange={setNextDue} required className="space-y-0" />
-      {formErrors.expiration && (
-        <div className="text-red-500 text-xs mt-1">{formErrors.expiration}</div>
-      )}
-    </div>
-    <div className="flex flex-col col-span-2">
-      <RequiredLabel>Notes</RequiredLabel>
-      <Textarea
-        id="notes"
-        value={""}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-      />
-    </div>
-  </div>
-</form>
-
+      <form
+        id="add-medication-form"
+        onSubmit={handleSubmit}
+        className="py-4 min-w-[350px] max-w-[500px] mx-auto"
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="Name" fieldId="medicationName" required error={formErrors.name}>
+            <Input
+              id="medicationName"
+              value={''}
+              onChange={e => setName(e.target.value)}
+              required
+              aria-invalid={!!formErrors.name}
+              aria-describedby={formErrors.name ? 'medicationName-error' : undefined}
+              className={formErrors.name ? 'border-red-500' : ''}
+            />
+          </FormField>
+          <FormField label="Dosage" fieldId="dosage" required error={formErrors.dosage}>
+            <Input
+              id="dosage"
+              value={''}
+              onChange={e => setDosage(e.target.value)}
+              required
+              aria-invalid={!!formErrors.dosage}
+              aria-describedby={formErrors.dosage ? 'dosage-error' : undefined}
+              className={formErrors.dosage ? 'border-red-500' : ''}
+            />
+          </FormField>
+          <FormField label="Frequency" fieldId="frequency">
+            <Input id="frequency" value={''} onChange={e => setFrequency(e.target.value)} />
+          </FormField>
+          <FormField label="Next Due" fieldId="expiration" required error={formErrors.expiration}>
+            <DatePickerField value={''} onChange={setNextDue} required className="space-y-0" />
+          </FormField>
+          <FormField label="Notes" fieldId="notes" className="col-span-2">
+            <Textarea
+              id="notes"
+              value={''}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
+            />
+          </FormField>
+        </div>
+      </form>
     </StandardDialog>
   );
 };

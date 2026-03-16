@@ -107,14 +107,14 @@ export const ShowEditForm: React.FC = () => {
     }));
   }, [people]);
 
-  // Filter judges who have active qualifications for the selected show type
+  // Filter judges who have active qualifications for this show's organization
   const availableJudges = useMemo(() => {
     if (!data.organization) return [];
 
     const filtered = judges.filter(judge => {
       return judge.judgeQualifications?.some(
         qualification =>
-          qualification.status === 'Active' && qualification.showTypes.includes(data.organization)
+          qualification.status === 'Active' && qualification.organization === data.organization
       );
     });
 
@@ -363,11 +363,16 @@ export const ShowEditForm: React.FC = () => {
                                 {judge.qualifications
                                   .filter(
                                     q =>
-                                      q.showTypes.includes(data.organization) &&
-                                      q.status === 'Active'
+                                      q.organization === data.organization && q.status === 'Active'
                                   )
-                                  .map(q => `${q.organization} Judge #${q.judgeNumber}`)
-                                  .join(', ')}
+                                  .map(q => {
+                                    const parts: string[] = [q.organization];
+                                    if (q.judgeNumber) parts.push(`#${q.judgeNumber}`);
+                                    if (q.showTypes?.length)
+                                      parts.push(`— ${q.showTypes.join(', ')}`);
+                                    return parts.join(' ');
+                                  })
+                                  .join('; ')}
                               </div>
 
                               {isAssigned && (

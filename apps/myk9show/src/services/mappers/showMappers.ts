@@ -137,28 +137,23 @@ export const mapDatabaseToShow = (
   });
 
   // Map judge assignments from judge_assignments table
-  // Supabase returns the key matching the table name ("judge_assignments", plural) or the alias
   const rawJudgeAssignments = dbShow.judge_assignments || dbShow.judge_assignment || [];
-  const assignedJudges = rawJudgeAssignments
-    .filter((assignment: unknown) => {
-      const assignmentObj = assignment as Record<string, unknown>;
-      return assignmentObj.assignment_type === 'judge'; // Only include judge assignments, not stewards etc.
-    })
-    .map((assignment: unknown) => {
-      const assignmentObj = assignment as Record<string, unknown>;
-      const judge = assignmentObj.judge as Record<string, unknown>;
+  const assignedJudges = (rawJudgeAssignments as Array<Record<string, unknown>>).map(
+    assignmentObj => {
+      // The join uses alias "judge:people(...)" so data is under "judge" key
+      const person = (assignmentObj.judge || assignmentObj.people) as
+        | Record<string, unknown>
+        | undefined;
 
       return {
-        judgeId: assignmentObj.judge_id as string,
-        judgeName: `${judge?.first_name || ''} ${judge?.last_name || ''}`.trim(),
+        judgeId: (assignmentObj.person_id as string) || '',
+        judgeName: person ? `${person.first_name || ''} ${person.last_name || ''}`.trim() : '',
         assignedDate:
-          (assignmentObj.assignment_date as string) || new Date().toISOString().split('T')[0],
-        availableStartTime: (assignmentObj.special_requirements as string)?.includes('morning')
-          ? 'Morning'
-          : 'Full Day',
-        availableEndTime: (assignmentObj.special_requirements as string)?.includes('afternoon')
-          ? 'Afternoon'
-          : 'Full Day',
+          (assignmentObj.confirmed_at as string)?.split('T')[0] ||
+          (assignmentObj.created_at as string)?.split('T')[0] ||
+          new Date().toISOString().split('T')[0],
+        availableStartTime: 'Full Day',
+        availableEndTime: 'Full Day',
         // Additional fields from judge_assignment table
         assignmentStatus: (assignmentObj.assignment_status as string) || 'confirmed',
         compensationAmount: (assignmentObj.compensation_amount as number) || undefined,
@@ -169,7 +164,8 @@ export const mapDatabaseToShow = (
         confirmedBy: (assignmentObj.confirmed_by as string) || undefined,
         confirmedAt: (assignmentObj.confirmed_at as string) || undefined,
       };
-    });
+    }
+  );
 
   return {
     id: dbShow.id,

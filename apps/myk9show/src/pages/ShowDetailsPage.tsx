@@ -8,7 +8,12 @@ import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowD
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
-import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
+import {
+  useShowsQuery,
+  useUpdateShowMutation,
+  showQueryKeys,
+} from '@/hooks/queries/useShowsDatabase';
+import { untypedFrom } from '@/services/database/queries/search-query-helpers';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -303,10 +308,29 @@ const ShowDetailsPage: React.FC = () => {
         initialShowData={actualCurrentShow || {}}
         onSave={async showData => {
           if (actualCurrentShow.id) {
+            const showId = actualCurrentShow.id;
             await updateShowMutation.mutateAsync({
-              id: actualCurrentShow.id,
+              id: showId,
               updates: showData as Partial<ShowInput>,
             });
+
+            // Persist judge assignments to judge_assignments table
+            const judges = showData.assignedJudges || [];
+            await untypedFrom('judge_assignments').delete().eq('show_id', showId);
+            if (judges.length > 0) {
+              await untypedFrom('judge_assignments').insert(
+                judges.map((j: { judgeId: string; judgeName?: string }) => ({
+                  person_id: j.judgeId,
+                  show_id: showId,
+                  status: 'confirmed',
+                  confirmed_at: new Date().toISOString(),
+                }))
+              );
+            }
+
+            // Re-invalidate show cache after judge assignments are saved
+            queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
+            queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
           }
           setShowEditPanel(false);
         }}

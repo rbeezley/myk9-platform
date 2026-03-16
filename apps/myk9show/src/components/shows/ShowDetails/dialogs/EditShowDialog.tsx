@@ -17,6 +17,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { ShowJudgeAssignment } from '@/types/judge-types';
 import { logger } from '@/services/LoggingService';
+import { untypedFrom } from '@/services/database/queries/search-query-helpers';
 
 export interface ShowFormData {
   name: string;
@@ -73,23 +74,65 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
     }));
   }, [people]);
 
-  // Filter people who have judge qualifications for the selected show type
-  const availableJudges = React.useMemo(() => {
-    if (!formData.type) return [];
+  // Query judges with active qualifications for the selected show type (organization)
+  const [availableJudges, setAvailableJudges] = React.useState<
+    {
+      id: string;
+      name: string;
+      qualifications: { organization: string; disciplines: string[]; judge_number?: string }[];
+    }[]
+  >([]);
 
-    const filtered = people.filter(person => {
-      return person.judgeQualifications?.some(
-        qualification =>
-          qualification.status === 'Active' && qualification.showTypes.includes(formData.type)
-      );
-    });
+  React.useEffect(() => {
+    if (!formData.type) {
+      setAvailableJudges([]);
+      return;
+    }
 
-    return filtered.map(person => ({
-      id: person.id,
-      name: `${person.firstName} ${person.lastName}`,
-      qualifications: person.judgeQualifications || [],
-    }));
-  }, [people, formData.type]);
+    const fetchJudges = async () => {
+      const { data, error } = await untypedFrom('judge_qualifications')
+        .select(
+          'person_id, organization, disciplines, judge_number, people!inner(first_name, last_name)'
+        )
+        .contains('disciplines', [formData.type])
+        .eq('is_active', true);
+
+      if (error || !data) {
+        logger.error('Failed to fetch qualified judges', 'shows', {}, error as unknown as Error);
+        setAvailableJudges([]);
+        return;
+      }
+
+      // Group by person
+      const byPerson = new Map<
+        string,
+        {
+          id: string;
+          name: string;
+          qualifications: { organization: string; disciplines: string[]; judge_number?: string }[];
+        }
+      >();
+      for (const row of data) {
+        const personData = row.people as unknown as { first_name: string; last_name: string };
+        const personId = row.person_id;
+        if (!byPerson.has(personId)) {
+          byPerson.set(personId, {
+            id: personId,
+            name: `${personData.first_name || ''} ${personData.last_name || ''}`.trim(),
+            qualifications: [],
+          });
+        }
+        byPerson.get(personId)!.qualifications.push({
+          organization: row.organization,
+          disciplines: row.disciplines || [],
+          judge_number: row.judge_number ?? undefined,
+        });
+      }
+      setAvailableJudges(Array.from(byPerson.values()));
+    };
+
+    fetchJudges();
+  }, [formData.type]);
 
   // Handle judge assignment toggle
   const handleJudgeToggle = (judgeId: string, judgeName: string, checked: boolean) => {
@@ -495,11 +538,14 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                             </label>
                             <div className="text-sm text-muted-foreground mt-1">
                               {judge.qualifications
-                                .filter(
-                                  q => q.showTypes.includes(formData.type) && q.status === 'Active'
-                                )
-                                .map(q => `${q.organization} Judge #${q.judgeNumber}`)
-                                .join(', ')}
+                                .map(q => {
+                                  const parts = [q.organization];
+                                  if (q.judge_number) parts.push(`#${q.judge_number}`);
+                                  if (q.disciplines?.length)
+                                    parts.push(`— ${q.disciplines.join(', ')}`);
+                                  return parts.join(' ');
+                                })
+                                .join('; ')}
                             </div>
 
                             {/* Show assignment confirmation for selected judges */}

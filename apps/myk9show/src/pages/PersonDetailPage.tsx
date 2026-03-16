@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRoleBasedPeople, useCanAccessPerson } from '@/hooks/useRoleBasedData';
-import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 
 /**
@@ -12,8 +11,7 @@ const PersonDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const people = useRoleBasedPeople();
-  const { isLoading } = useUsersQuery();
+  const { people, isLoading } = useRoleBasedPeople();
   const canAccessPerson = useCanAccessPerson(id || '');
 
   const person = useMemo(() => {

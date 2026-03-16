@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
-import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
 import { extractPersonName } from '@/components/users/UserDetails/userDetailsTypes';
 import type { User } from '@/types/user-types';
 
@@ -18,6 +17,7 @@ export interface BrowsePeopleData {
   people: User[];
   filteredPeople: User[];
   isLoading: boolean;
+  error: Error | null;
   filters: PeopleFilters;
   setFilters: React.Dispatch<React.SetStateAction<PeopleFilters>>;
   hasActiveFilters: boolean;
@@ -26,8 +26,7 @@ export interface BrowsePeopleData {
 }
 
 export function useBrowsePeopleData(): BrowsePeopleData {
-  const people = useRoleBasedPeople();
-  const { isLoading } = useUsersQuery();
+  const { people, isLoading, error } = useRoleBasedPeople();
 
   const [filters, setFilters] = useState<PeopleFilters>(INITIAL_FILTERS);
 
@@ -82,6 +81,7 @@ export function useBrowsePeopleData(): BrowsePeopleData {
     people,
     filteredPeople,
     isLoading,
+    error,
     filters,
     setFilters,
     hasActiveFilters,

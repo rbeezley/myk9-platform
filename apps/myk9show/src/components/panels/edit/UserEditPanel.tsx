@@ -373,7 +373,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
 
       // Save roles to user_roles table (separate from people table)
       if (userId && formData.roles) {
-        const { savePersonRoles } = await import('./BasicInfoTab');
+        const { savePersonRoles } = await import('./personRolesService');
         await savePersonRoles(userId, formData.roles);
         // Invalidate the role query cache so reopening shows fresh data
         queryClient.invalidateQueries({ queryKey: ['personRoles', userId] });

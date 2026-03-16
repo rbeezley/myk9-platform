@@ -1,7 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { useRoleBasedDogs, useRoleBasedPeople } from '@/hooks/useRoleBasedData';
-import { globalSearchIndex, createSearchableItem, SearchResult, SearchOptions } from '@/utils/searchIndex';
+import {
+  globalSearchIndex,
+  createSearchableItem,
+  SearchResult,
+  SearchOptions,
+} from '@/utils/searchIndex';
 import { useDebounce } from '@myk9/scoring-ui';
 import { useSearchAnalytics } from '@/lib/searchCache';
 
@@ -32,12 +37,7 @@ interface UseGlobalSearchResult {
  * Automatically maintains search index and provides debounced search
  */
 export function useGlobalSearch(options: UseGlobalSearchOptions = {}): UseGlobalSearchResult {
-  const {
-    debounceMs = 300,
-    maxResults = 50,
-    categories = [],
-    minScore = 0.1
-  } = options;
+  const { debounceMs = 300, maxResults = 50, categories = [], minScore = 0.1 } = options;
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -45,7 +45,7 @@ export function useGlobalSearch(options: UseGlobalSearchOptions = {}): UseGlobal
 
   // Get data from stores - use role-based filtering for dogs and people
   const dogs = useRoleBasedDogs();
-  const people = useRoleBasedPeople();
+  const { people } = useRoleBasedPeople();
   const shows = useShowStore(state => state.shows);
 
   // Debounce the search query
@@ -59,9 +59,15 @@ export function useGlobalSearch(options: UseGlobalSearchOptions = {}): UseGlobal
       try {
         globalSearchIndex.clear();
 
-        const dogItems = dogs.map(dog => createSearchableItem('dog', dog as unknown as Record<string, unknown>));
-        const peopleItems = people.map(person => createSearchableItem('person', person as unknown as Record<string, unknown>));
-        const showItems = shows.map(show => createSearchableItem('show', show as unknown as Record<string, unknown>));
+        const dogItems = dogs.map(dog =>
+          createSearchableItem('dog', dog as unknown as Record<string, unknown>)
+        );
+        const peopleItems = people.map(person =>
+          createSearchableItem('person', person as unknown as Record<string, unknown>)
+        );
+        const showItems = shows.map(show =>
+          createSearchableItem('show', show as unknown as Record<string, unknown>)
+        );
 
         const searchableItems = [...dogItems, ...peopleItems, ...showItems];
 
@@ -105,7 +111,7 @@ export function useGlobalSearch(options: UseGlobalSearchOptions = {}): UseGlobal
         maxResults,
         ...(categories.length > 0 && { categories }),
         minScore,
-        fuzzyThreshold: 0.6
+        fuzzyThreshold: 0.6,
       };
 
       const searchResults = globalSearchIndex.search(debouncedQuery, searchOptions);
@@ -117,7 +123,7 @@ export function useGlobalSearch(options: UseGlobalSearchOptions = {}): UseGlobal
         resultCount: searchResults.length,
         responseTime,
         cacheHit: false,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       return searchResults;
@@ -149,17 +155,20 @@ export function useGlobalSearch(options: UseGlobalSearchOptions = {}): UseGlobal
     isIndexReady,
     suggestions,
     stats,
-    clearSearch
+    clearSearch,
   };
 }
 
 /**
  * Hook for category-specific search
  */
-export function useCategorySearch(category: 'dog' | 'person' | 'show' | 'club', options: UseGlobalSearchOptions = {}) {
+export function useCategorySearch(
+  category: 'dog' | 'person' | 'show' | 'club',
+  options: UseGlobalSearchOptions = {}
+) {
   return useGlobalSearch({
     ...options,
-    categories: [category]
+    categories: [category],
   });
 }
 
@@ -170,6 +179,6 @@ export function useQuickSearch(options: UseGlobalSearchOptions = {}) {
   return useGlobalSearch({
     debounceMs: 150,
     maxResults: 10,
-    ...options
+    ...options,
   });
 }

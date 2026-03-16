@@ -70,7 +70,7 @@ export function useRoleBasedPeople() {
     return [];
   }, [userWithRoles, hasRole, allPeople, isLoading, error]);
 
-  return filteredPeople;
+  return { people: filteredPeople, isLoading, error: error as Error | null };
 }
 
 /**

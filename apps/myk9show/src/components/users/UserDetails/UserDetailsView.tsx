@@ -37,7 +37,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
   const updateUserMutation = useUpdateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
-  const people = useRoleBasedPeople();
+  const { people } = useRoleBasedPeople();
 
   const dogCount = ownerDogs.length;
 

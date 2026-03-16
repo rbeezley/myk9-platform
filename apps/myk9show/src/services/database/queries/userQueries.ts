@@ -9,6 +9,9 @@ const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
   date_obtained, expiration_date, is_active
 )`;
 
+// FK hint to disambiguate user_roles → people (two FKs: user_id and granted_by)
+const USER_ROLES_FK = 'user_roles!user_roles_user_id_fkey';
+
 // Get all users (excluding soft-deleted)
 export const getAllUsers = async () => {
   const startTime = Date.now();
@@ -16,7 +19,7 @@ export const getAllUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('*, user_roles(role:roles(name))')
+      .select(`*, ${USER_ROLES_FK}(role:roles(name))`)
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
@@ -61,7 +64,7 @@ export const getUserById = async (id: string) => {
       .select(
         `
         *,
-        user_roles(role:roles(name)),
+        ${USER_ROLES_FK}(role:roles(name)),
         dogs!dogs_owner_id_fkey(
           id,
           name,
@@ -406,7 +409,7 @@ export const searchUsers = async (searchTerm: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('*, user_roles(role:roles(name))')
+      .select(`*, ${USER_ROLES_FK}(role:roles(name))`)
       .is('deleted_at', null)
       .or(
         `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
@@ -437,7 +440,7 @@ export const getUsersByRole = async (role: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select('*, user_roles!inner(role:roles!inner(name))')
+      .select(`*, ${USER_ROLES_FK}!inner(role:roles!inner(name))`)
       .eq('user_roles.is_active', true)
       .eq('user_roles.roles.name', role)
       .is('deleted_at', null)
@@ -466,7 +469,7 @@ export const getJudgesWithQualifications = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, user_roles!inner(role:roles!inner(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
+      .select(`*, ${USER_ROLES_FK}!inner(role:roles!inner(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
       .eq('user_roles.is_active', true)
       .eq('user_roles.roles.name', 'judge')
       .is('deleted_at', null)

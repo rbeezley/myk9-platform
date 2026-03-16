@@ -7,6 +7,7 @@ import { Search, Grid3X3, List, Table2, Plus, X } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { FilterBar } from '@/components/common/FilterBar';
 import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
+import { ErrorState } from '@/components/common/ErrorState';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import '@/styles/myk9-show-details.css';
@@ -33,6 +34,7 @@ const BrowsePeoplePage: React.FC = () => {
     people,
     filteredPeople,
     isLoading,
+    error,
     filters,
     setFilters,
     hasActiveFilters,
@@ -171,6 +173,9 @@ const BrowsePeoplePage: React.FC = () => {
     <div className="bg-background">
       <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-8">
+          {/* Error state */}
+          {error && !isLoading && <ErrorState message="We couldn't load people." />}
+
           {/* Loading state */}
           {isLoading && people.length === 0 && <BrowsePeopleSkeleton viewMode={viewMode} />}
 

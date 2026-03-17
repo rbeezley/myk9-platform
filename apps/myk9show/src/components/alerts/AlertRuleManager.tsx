@@ -448,8 +448,8 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-6">
               {errors.general && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-600">{errors.general}</p>
+                <div className="bg-destructive/5 border border-destructive/20 rounded-md p-3">
+                  <p className="text-sm text-destructive">{errors.general}</p>
                 </div>
               )}
 
@@ -460,9 +460,9 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                     id="name"
                     value={formData.name}
                     onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className={errors.name ? 'border-red-500' : ''}
+                    className={errors.name ? 'border-destructive' : ''}
                   />
-                  {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
+                  {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -494,9 +494,11 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                   id="description"
                   value={formData.description}
                   onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className={errors.description ? 'border-red-500' : ''}
+                  className={errors.description ? 'border-destructive' : ''}
                 />
-                {errors.description && <p className="text-sm text-red-600">{errors.description}</p>}
+                {errors.description && (
+                  <p className="text-sm text-destructive">{errors.description}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -630,7 +632,9 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                   </Card>
                 ))}
 
-                {errors.thresholds && <p className="text-sm text-red-600">{errors.thresholds}</p>}
+                {errors.thresholds && (
+                  <p className="text-sm text-destructive">{errors.thresholds}</p>
+                )}
               </div>
 
               {/* Notification Channels */}
@@ -661,7 +665,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                     </div>
                   ))}
                 </div>
-                {errors.channels && <p className="text-sm text-red-600">{errors.channels}</p>}
+                {errors.channels && <p className="text-sm text-destructive">{errors.channels}</p>}
               </div>
             </div>
           </ScrollArea>

@@ -43,7 +43,6 @@ import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
 import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
-import { FormErrorProvider } from './providers/FormErrorProvider';
 import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 
@@ -224,130 +223,128 @@ function App() {
               <UserDataInitializer />
               <AnnouncementSubscriptionInitializer />
               <AudioSettingsProvider>
-                <FormErrorProvider>
-                  <PanelProvider>
-                    <AlertInitializer>
-                      <ExhibitorOnboardingChecker>
-                        <ErrorBoundary
-                          level="page"
-                          context="Application"
-                          fallback={({ error, resetErrorBoundary }) => (
-                            <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
-                          )}
-                        >
-                          <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                            <AppHeader />
-                            <NotificationCenter />
-                            <Routes>
-                              {/* Public routes */}
-                              <Route
-                                path="/"
-                                element={
-                                  <PageTransition>
-                                    <HomeRedirect />
-                                  </PageTransition>
-                                }
-                              />
-                              <Route
-                                path="/pricing-page"
-                                element={
-                                  <PageTransition>
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <PricingPage />
-                                    </Suspense>
-                                  </PageTransition>
-                                }
-                              />
-                              <Route
-                                path="/sign-in"
-                                element={
-                                  <PageTransition>
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <SignInPage />
-                                    </Suspense>
-                                  </PageTransition>
-                                }
-                              />
-                              <Route
-                                path="/sign-up"
-                                element={
-                                  <PageTransition>
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <SignUpPage />
-                                    </Suspense>
-                                  </PageTransition>
-                                }
-                              />
-                              <Route
-                                path="/forgot-password"
-                                element={
-                                  <PageTransition>
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <ForgotPasswordPage />
-                                    </Suspense>
-                                  </PageTransition>
-                                }
-                              />
-
-                              <Route
-                                path="/auth/callback"
-                                element={
+                <PanelProvider>
+                  <AlertInitializer>
+                    <ExhibitorOnboardingChecker>
+                      <ErrorBoundary
+                        level="page"
+                        context="Application"
+                        fallback={({ error, resetErrorBoundary }) => (
+                          <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
+                        )}
+                      >
+                        <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                          <AppHeader />
+                          <NotificationCenter />
+                          <Routes>
+                            {/* Public routes */}
+                            <Route
+                              path="/"
+                              element={
+                                <PageTransition>
+                                  <HomeRedirect />
+                                </PageTransition>
+                              }
+                            />
+                            <Route
+                              path="/pricing-page"
+                              element={
+                                <PageTransition>
                                   <Suspense fallback={<PageLoadingFallback />}>
-                                    <AuthCallbackPage />
+                                    <PricingPage />
                                   </Suspense>
-                                }
-                              />
-                              <Route
-                                path="/reset-password"
-                                element={
+                                </PageTransition>
+                              }
+                            />
+                            <Route
+                              path="/sign-in"
+                              element={
+                                <PageTransition>
                                   <Suspense fallback={<PageLoadingFallback />}>
-                                    <ResetPasswordPage />
+                                    <SignInPage />
                                   </Suspense>
-                                }
-                              />
+                                </PageTransition>
+                              }
+                            />
+                            <Route
+                              path="/sign-up"
+                              element={
+                                <PageTransition>
+                                  <Suspense fallback={<PageLoadingFallback />}>
+                                    <SignUpPage />
+                                  </Suspense>
+                                </PageTransition>
+                              }
+                            />
+                            <Route
+                              path="/forgot-password"
+                              element={
+                                <PageTransition>
+                                  <Suspense fallback={<PageLoadingFallback />}>
+                                    <ForgotPasswordPage />
+                                  </Suspense>
+                                </PageTransition>
+                              }
+                            />
 
-                              {/* Test page for SlideOverPanel components - Phase 2 */}
-                              <Route
-                                path="/test-panels"
-                                element={
-                                  <PageTransition>
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <TestPanelPage />
-                                    </Suspense>
-                                  </PageTransition>
-                                }
-                              />
+                            <Route
+                              path="/auth/callback"
+                              element={
+                                <Suspense fallback={<PageLoadingFallback />}>
+                                  <AuthCallbackPage />
+                                </Suspense>
+                              }
+                            />
+                            <Route
+                              path="/reset-password"
+                              element={
+                                <Suspense fallback={<PageLoadingFallback />}>
+                                  <ResetPasswordPage />
+                                </Suspense>
+                              }
+                            />
 
-                              {/* Scoring routes — full screen, NO sidebar */}
-                              {JudgeScoringRoutes()}
+                            {/* Test page for SlideOverPanel components - Phase 2 */}
+                            <Route
+                              path="/test-panels"
+                              element={
+                                <PageTransition>
+                                  <Suspense fallback={<PageLoadingFallback />}>
+                                    <TestPanelPage />
+                                  </Suspense>
+                                </PageTransition>
+                              }
+                            />
 
-                              {/* All other routes — inside unified sidebar layout */}
-                              <Route element={<UnifiedAppLayout />}>
-                                {AdminRoutes()}
-                                {JudgeSidebarRoutes()}
-                                {SecretaryRoutes()}
-                                {ClubAdminRoutes()}
-                                {PublicRoutes()}
-                              </Route>
+                            {/* Scoring routes — full screen, NO sidebar */}
+                            {JudgeScoringRoutes()}
 
-                              {/* 404 catch-all */}
-                              <Route
-                                path="*"
-                                element={
-                                  <PageTransition>
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <NotFoundPage />
-                                    </Suspense>
-                                  </PageTransition>
-                                }
-                              />
-                            </Routes>
-                          </div>
-                        </ErrorBoundary>
-                      </ExhibitorOnboardingChecker>
-                    </AlertInitializer>
-                  </PanelProvider>
-                </FormErrorProvider>
+                            {/* All other routes — inside unified sidebar layout */}
+                            <Route element={<UnifiedAppLayout />}>
+                              {AdminRoutes()}
+                              {JudgeSidebarRoutes()}
+                              {SecretaryRoutes()}
+                              {ClubAdminRoutes()}
+                              {PublicRoutes()}
+                            </Route>
+
+                            {/* 404 catch-all */}
+                            <Route
+                              path="*"
+                              element={
+                                <PageTransition>
+                                  <Suspense fallback={<PageLoadingFallback />}>
+                                    <NotFoundPage />
+                                  </Suspense>
+                                </PageTransition>
+                              }
+                            />
+                          </Routes>
+                        </div>
+                      </ErrorBoundary>
+                    </ExhibitorOnboardingChecker>
+                  </AlertInitializer>
+                </PanelProvider>
               </AudioSettingsProvider>
             </AuthProvider>
           </StoreProvider>

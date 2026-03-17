@@ -1,13 +1,18 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, User, AlertCircle, Camera, Edit } from 'lucide-react';
+import { Heart, User, Camera, Edit } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { UserRole } from '@/types/auth-types';
-import { cn } from '@/lib/utils';
+import { FormField } from '@/components/common/FormField';
 import { calculateAge } from './validation';
 import type { TabSectionProps } from './types';
 
@@ -70,32 +75,24 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </div>
           </button>
           <div className="flex-1 space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="callName" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Call Name *
-              </Label>
+            <FormField
+              label="Call Name"
+              fieldId="callName"
+              required
+              error={validationErrors.callName}
+            >
               <Input
                 id="callName"
                 value={formData.callName}
-                onChange={(e) => onFieldChange('callName', e.target.value)}
+                onChange={e => onFieldChange('callName', e.target.value)}
                 placeholder="Everyday name your dog goes by"
-                className={cn(
-                  "border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium tracking-tight transition-all duration-200",
-                  "focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1",
-                  "placeholder:text-muted-foreground/60",
-                  validationErrors.callName && "ring-2 ring-destructive/50 bg-destructive/5"
-                )}
+                aria-invalid={!!validationErrors.callName}
+                aria-describedby={validationErrors.callName ? 'callName-error' : undefined}
               />
-              {validationErrors.callName && (
-                <p className="text-xs text-destructive mt-2 flex items-center gap-1 animate-in slide-in-from-top-1 duration-200">
-                  <AlertCircle className="h-3 w-3" />
-                  {validationErrors.callName}
-                </p>
-              )}
-            </div>
+            </FormField>
             {formData.callName && (
               <div className="text-xs text-muted-foreground/70 animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
-                ✨ Looking great! This will be your dog's primary name.
+                Looking great! This will be your dog's primary name.
               </div>
             )}
           </div>
@@ -103,100 +100,85 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
         {/* Form Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="gender" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-              Gender *
-            </Label>
-            <Select value={formData.gender} onValueChange={(value) => onFieldChange('gender', value)}>
-              <SelectTrigger className={cn(
-                "border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200",
-                "focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1",
-                validationErrors.gender && "ring-2 ring-destructive/50 bg-destructive/5"
-              )}>
+          <FormField label="Gender" fieldId="gender" required error={validationErrors.gender}>
+            <Select value={formData.gender} onValueChange={value => onFieldChange('gender', value)}>
+              <SelectTrigger
+                aria-invalid={!!validationErrors.gender}
+                aria-describedby={validationErrors.gender ? 'gender-error' : undefined}
+              >
                 <SelectValue placeholder="Choose gender" />
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl">
                 <SelectItem value="Male" className="rounded-lg transition-colors">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <span>Male ♂</span>
+                    <span>Male &#9794;</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="Female" className="rounded-lg transition-colors">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-pink-500"></div>
-                    <span>Female ♀</span>
+                    <span>Female &#9792;</span>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-            {validationErrors.gender && (
-              <p className="text-xs text-destructive mt-2 flex items-center gap-1 animate-in slide-in-from-top-1 duration-200">
-                <AlertCircle className="h-3 w-3" />
-                {validationErrors.gender}
-              </p>
-            )}
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="dateOfBirth" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-              Date of Birth *
-            </Label>
+          <FormField
+            label="Date of Birth"
+            fieldId="dateOfBirth"
+            required
+            error={validationErrors.dateOfBirth}
+          >
             <Input
               id="dateOfBirth"
               type="date"
               value={formData.dateOfBirth}
-              onChange={(e) => onFieldChange('dateOfBirth', e.target.value)}
-              className={cn(
-                "border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200",
-                "focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1",
-                validationErrors.dateOfBirth && "ring-2 ring-destructive/50 bg-destructive/5"
-              )}
+              onChange={e => onFieldChange('dateOfBirth', e.target.value)}
+              aria-invalid={!!validationErrors.dateOfBirth}
+              aria-describedby={validationErrors.dateOfBirth ? 'dateOfBirth-error' : undefined}
             />
             {formData.dateOfBirth && !validationErrors.dateOfBirth && (
               <div className="text-xs text-muted-foreground/70 bg-muted/30 px-3 py-2 rounded-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
-                🎂 Age: {calculateAge(formData.dateOfBirth)}
+                Age: {calculateAge(formData.dateOfBirth)}
               </div>
             )}
-            {validationErrors.dateOfBirth && (
-              <p className="text-xs text-destructive mt-2 flex items-center gap-1 animate-in slide-in-from-top-1 duration-200">
-                <AlertCircle className="h-3 w-3" />
-                {validationErrors.dateOfBirth}
-              </p>
-            )}
-          </div>
+          </FormField>
 
-          <div className="md:col-span-2 space-y-2">
-            <Label htmlFor="color" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-              Color & Markings
-            </Label>
+          <FormField
+            label="Color & Markings"
+            fieldId="color"
+            className="md:col-span-2"
+            hint="Describe the primary color and any distinctive markings"
+          >
             <Input
               id="color"
               value={formData.color}
-              onChange={(e) => onFieldChange('color', e.target.value)}
+              onChange={e => onFieldChange('color', e.target.value)}
               placeholder="e.g., Black & White, Red, Blue Merle"
-              className="border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium tracking-tight transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 placeholder:text-muted-foreground/60"
             />
-            <div className="text-xs text-muted-foreground/60">
-              Describe the primary color and any distinctive markings
-            </div>
-          </div>
+          </FormField>
         </div>
 
-        <div className="my-8" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}></div>
+        <div
+          className="my-8"
+          style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}
+        ></div>
 
         {/* Owner Selection (admin/secretary roles) */}
-        {(userRole === UserRole.SECRETARY || userRole === UserRole.CLUB_ADMIN || userRole === UserRole.SITE_ADMIN) && (
-          <div className="space-y-2">
-            <Label htmlFor="owner" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-              Owner *
-            </Label>
-            <Select value={formData.ownerId} onValueChange={(value) => onFieldChange('ownerId', value)}>
-              <SelectTrigger className={cn(
-                "border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200",
-                "focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1",
-                validationErrors.ownerId && "ring-2 ring-destructive/50 bg-destructive/5"
-              )}>
+        {(userRole === UserRole.SECRETARY ||
+          userRole === UserRole.CLUB_ADMIN ||
+          userRole === UserRole.SITE_ADMIN) && (
+          <FormField label="Owner" fieldId="owner" required error={validationErrors.ownerId}>
+            <Select
+              value={formData.ownerId}
+              onValueChange={value => onFieldChange('ownerId', value)}
+            >
+              <SelectTrigger
+                aria-invalid={!!validationErrors.ownerId}
+                aria-describedby={validationErrors.ownerId ? 'owner-error' : undefined}
+              >
                 <SelectValue placeholder="Choose dog owner">
                   {formData.ownerId
                     ? (() => {
@@ -207,14 +189,20 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">
-                {people.map((person) => (
-                  <SelectItem key={person.id} value={person.id} className="rounded-lg transition-colors">
+                {people.map(person => (
+                  <SelectItem
+                    key={person.id}
+                    value={person.id}
+                    className="rounded-lg transition-colors"
+                  >
                     <div className="flex items-center gap-3 py-1">
                       <div className="p-1.5 bg-primary/10 rounded-lg">
                         <User className="h-3.5 w-3.5 text-primary" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">{person.firstName} {person.lastName}</div>
+                        <div className="font-medium">
+                          {person.firstName} {person.lastName}
+                        </div>
                         {person.email && (
                           <div className="text-xs text-muted-foreground/70">{person.email}</div>
                         )}
@@ -224,21 +212,12 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 ))}
               </SelectContent>
             </Select>
-            {validationErrors.ownerId && (
-              <p className="text-xs text-destructive mt-2 flex items-center gap-1 animate-in slide-in-from-top-1 duration-200">
-                <AlertCircle className="h-3 w-3" />
-                {validationErrors.ownerId}
-              </p>
-            )}
-          </div>
+          </FormField>
         )}
 
         {/* Owner Display for Exhibitor */}
         {userRole === UserRole.EXHIBITOR && currentUserPersonId && (
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-              Owner
-            </Label>
+          <FormField label="Owner" fieldId="owner-display">
             <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-muted/30 to-muted/10 border border-border/20 rounded-xl backdrop-blur-sm">
               <div className="p-2 bg-primary/10 rounded-xl">
                 <User className="h-5 w-5 text-primary" />
@@ -247,7 +226,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 <div className="font-medium text-foreground">
                   {(() => {
                     const currentPerson = people.find(p => p.id === currentUserPersonId);
-                    return currentPerson ? `${currentPerson.firstName} ${currentPerson.lastName}` : 'You';
+                    return currentPerson
+                      ? `${currentPerson.firstName} ${currentPerson.lastName}`
+                      : 'You';
                   })()}
                 </div>
                 <div className="text-xs text-muted-foreground/70 mt-0.5">
@@ -258,7 +239,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 You
               </div>
             </div>
-          </div>
+          </FormField>
         )}
       </CardContent>
     </Card>

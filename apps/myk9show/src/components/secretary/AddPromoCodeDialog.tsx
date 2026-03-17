@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import type { PromoCodeFormData, PromoCodeTarget } from '@/types/promo-codes';
@@ -112,8 +112,7 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="code">Code</Label>
+          <FormField label="Code" fieldId="code">
             <Input
               id="code"
               value={code}
@@ -121,10 +120,9 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
               placeholder="e.g. WORKER, JUDGE50"
               className="uppercase"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>Discount Type</Label>
+          <FormField label="Discount Type" fieldId="discount-type">
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -145,12 +143,9 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
                 Flat ($)
               </Button>
             </div>
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="discount-value">
-              {discountType === 'percentage' ? 'Discount (%)' : 'Discount ($)'}
-            </Label>
+          <FormField label={discountType === 'percentage' ? 'Discount (%)' : 'Discount ($)'} fieldId="discount-value">
             <Input
               id="discount-value"
               type="number"
@@ -161,10 +156,9 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
               onChange={e => setDiscountValue(e.target.value)}
               placeholder={discountType === 'percentage' ? 'e.g. 50' : 'e.g. 10.00'}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="usage-limit">Usage Limit (optional)</Label>
+          <FormField label="Usage Limit (optional)" fieldId="usage-limit">
             <Input
               id="usage-limit"
               type="number"
@@ -173,19 +167,18 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
               onChange={e => setUsageLimit(e.target.value)}
               placeholder="Leave empty for unlimited"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="expires-at">Expiration Date (optional)</Label>
+          <FormField label="Expiration Date (optional)" fieldId="expires-at">
             <Input
               id="expires-at"
               type="date"
               value={expiresAt}
               onChange={e => setExpiresAt(e.target.value)}
             />
-          </div>
+          </FormField>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

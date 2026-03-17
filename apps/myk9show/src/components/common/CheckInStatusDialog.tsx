@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckInStatus, CHECK_IN_STATUS_CONFIG } from '@/types/check-in-types';
@@ -175,10 +176,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
 
               {/* Notes Field - Compact for officials only */}
               {userRole !== 'exhibitor' && (
-                <div className="space-y-1">
-                  <Label htmlFor="notes" className="text-sm font-medium">
-                    Notes (Optional)
-                  </Label>
+                <FormField label="Notes (Optional)" fieldId="notes">
                   <Textarea
                     id="notes"
                     value={notes}
@@ -186,7 +184,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
                     placeholder="Add notes..."
                     className="min-h-[60px] resize-none text-sm"
                   />
-                </div>
+                </FormField>
               )}
             </>
           )}

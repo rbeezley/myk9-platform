@@ -3,6 +3,7 @@ import { EditPanelWrapper } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +17,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Building, MapPin, Phone, Camera } from 'lucide-react';
+import { findFieldError } from '@/lib/validation';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
-import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
 
 interface ClubEditPanelProps {
@@ -60,39 +61,39 @@ const validateClubData = (data: ClubEditFormData): string[] | null => {
   const errors: string[] = [];
 
   if (!data.name?.trim()) {
-    errors.push('Club name is required');
+    errors.push('Please enter a club name');
   }
 
   if (!data.email?.trim()) {
-    errors.push('Email is required');
+    errors.push('Please enter an email address');
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
     errors.push('Please enter a valid email address');
   }
 
   if (!data.phone?.trim()) {
-    errors.push('Phone number is required');
+    errors.push('Please enter a phone number');
   } else if (!/^[\d\s\-().+]+$/.test(data.phone.trim())) {
     errors.push('Please enter a valid phone number');
   }
 
   if (!data.street?.trim()) {
-    errors.push('Street address is required');
+    errors.push('Please enter a street address');
   }
 
   if (!data.city?.trim()) {
-    errors.push('City is required');
+    errors.push('Please enter a city');
   }
 
   if (!data.state?.trim()) {
-    errors.push('State/Province is required');
+    errors.push('Please enter a state or province');
   }
 
   if (!data.zipCode?.trim()) {
-    errors.push('ZIP/Postal code is required');
+    errors.push('Please enter a ZIP or postal code');
   }
 
   if (!data.country?.trim()) {
-    errors.push('Country is required');
+    errors.push('Please select a country');
   }
 
   // Website validation if provided
@@ -152,6 +153,17 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
 // Form content component
 const ClubEditForm: React.FC = () => {
   const { data, updateData, errors } = useEditPanel<ClubEditFormData>();
+
+  // Pre-compute field errors
+  const clubNameError = findFieldError(errors, 'club name');
+  const emailError = findFieldError(errors, 'email');
+  const phoneError = findFieldError(errors, 'phone');
+  const websiteError = findFieldError(errors, 'website', 'URL');
+  const streetError = findFieldError(errors, 'street');
+  const cityError = findFieldError(errors, 'city');
+  const stateError = findFieldError(errors, 'state');
+  const zipError = findFieldError(errors, 'zip');
+  const countryError = findFieldError(errors, 'country');
 
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -302,47 +314,33 @@ const ClubEditForm: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="name"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Club Name *
-                  </Label>
+                <FormField
+                  label="Club Name"
+                  fieldId="name"
+                  required
+                  error={clubNameError}
+                >
                   <Input
                     id="name"
                     value={data.name}
                     onChange={handleInputChange('name')}
                     placeholder="Enter club name"
-                    className={cn(
-                      errors.some(e => e.includes('Club name')) && 'border-destructive'
-                    )}
+                    aria-invalid={!!clubNameError}
+                    aria-describedby={clubNameError ? 'name-error' : undefined}
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="clubNumber"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Club Number
-                  </Label>
+                <FormField label="Club Number" fieldId="clubNumber">
                   <Input
                     id="clubNumber"
                     value={data.clubNumber}
                     onChange={handleInputChange('clubNumber')}
                     placeholder="Enter club number"
                   />
-                </div>
+                </FormField>
               </div>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="description"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Description
-                </Label>
+              <FormField label="Description" fieldId="description">
                 <textarea
                   id="description"
                   value={data.description || ''}
@@ -350,7 +348,7 @@ const ClubEditForm: React.FC = () => {
                   placeholder="Enter club description"
                   className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                 />
-              </div>
+              </FormField>
 
               <div className="space-y-2">
                 <AccentColorPicker
@@ -362,18 +360,12 @@ const ClubEditForm: React.FC = () => {
               <Separator />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="clubType"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Club Type
-                  </Label>
+                <FormField label="Club Type" fieldId="clubType">
                   <Select
                     value={data.clubType || ''}
                     onValueChange={handleSelectChange('clubType')}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="clubType">
                       <SelectValue placeholder="Select club type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -384,22 +376,16 @@ const ClubEditForm: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="founded"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Founded
-                  </Label>
+                <FormField label="Founded" fieldId="founded">
                   <Input
                     id="founded"
                     type="date"
                     value={data.founded || ''}
                     onChange={handleInputChange('founded')}
                   />
-                </div>
+                </FormField>
               </div>
             </CardContent>
           </Card>
@@ -419,63 +405,56 @@ const ClubEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="email"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Email Address *
-                  </Label>
+                <FormField
+                  label="Email Address"
+                  fieldId="email"
+                  required
+                  error={emailError}
+                >
                   <Input
                     id="email"
                     type="email"
                     value={data.email}
                     onChange={handleInputChange('email')}
                     placeholder="Enter email address"
-                    className={cn(
-                      errors.some(e => e.includes('email') || e.includes('Email')) &&
-                        'border-destructive'
-                    )}
+                    aria-invalid={!!emailError}
+                    aria-describedby={emailError ? 'email-error' : undefined}
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="phone"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Phone Number *
-                  </Label>
+                <FormField
+                  label="Phone Number"
+                  fieldId="phone"
+                  required
+                  error={phoneError}
+                >
                   <Input
                     id="phone"
                     type="tel"
                     value={data.phone}
                     onChange={handleInputChange('phone')}
                     placeholder="Enter phone number"
-                    className={cn(errors.some(e => e.includes('Phone')) && 'border-destructive')}
+                    aria-invalid={!!phoneError}
+                    aria-describedby={phoneError ? 'phone-error' : undefined}
                   />
-                </div>
+                </FormField>
               </div>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="website"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Website
-                </Label>
+              <FormField
+                label="Website"
+                fieldId="website"
+                error={websiteError}
+              >
                 <Input
                   id="website"
                   type="url"
                   value={data.website}
                   onChange={handleInputChange('website')}
                   placeholder="https://www.clubwebsite.com"
-                  className={cn(
-                    errors.some(e => e.includes('website') || e.includes('URL')) &&
-                      'border-destructive'
-                  )}
+                  aria-invalid={!!websiteError}
+                  aria-describedby={websiteError ? 'website-error' : undefined}
                 />
-              </div>
+              </FormField>
 
               <Separator />
 
@@ -485,84 +464,83 @@ const ClubEditForm: React.FC = () => {
                   Address Information
                 </h4>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="street"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Street Address *
-                  </Label>
+                <FormField
+                  label="Street Address"
+                  fieldId="street"
+                  required
+                  error={streetError}
+                >
                   <Input
                     id="street"
                     value={data.street}
                     onChange={handleInputChange('street')}
                     placeholder="123 Main Street"
-                    className={cn(errors.some(e => e.includes('Street')) && 'border-destructive')}
+                    aria-invalid={!!streetError}
+                    aria-describedby={streetError ? 'street-error' : undefined}
                   />
-                </div>
+                </FormField>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="city"
-                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                    >
-                      City *
-                    </Label>
+                  <FormField
+                    label="City"
+                    fieldId="city"
+                    required
+                    error={cityError}
+                  >
                     <Input
                       id="city"
                       value={data.city}
                       onChange={handleInputChange('city')}
                       placeholder="Enter city"
-                      className={cn(errors.some(e => e.includes('City')) && 'border-destructive')}
+                      aria-invalid={!!cityError}
+                      aria-describedby={cityError ? 'city-error' : undefined}
                     />
-                  </div>
+                  </FormField>
 
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="state"
-                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                    >
-                      State/Province *
-                    </Label>
+                  <FormField
+                    label="State/Province"
+                    fieldId="state"
+                    required
+                    error={stateError}
+                  >
                     <Input
                       id="state"
                       value={data.state}
                       onChange={handleInputChange('state')}
                       placeholder="Enter state"
-                      className={cn(errors.some(e => e.includes('State')) && 'border-destructive')}
+                      aria-invalid={!!stateError}
+                      aria-describedby={stateError ? 'state-error' : undefined}
                     />
-                  </div>
+                  </FormField>
 
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="zipCode"
-                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                    >
-                      ZIP Code *
-                    </Label>
+                  <FormField
+                    label="ZIP Code"
+                    fieldId="zipCode"
+                    required
+                    error={zipError}
+                  >
                     <Input
                       id="zipCode"
                       value={data.zipCode}
                       onChange={handleInputChange('zipCode')}
                       placeholder="12345"
-                      className={cn(errors.some(e => e.includes('ZIP')) && 'border-destructive')}
+                      aria-invalid={!!zipError}
+                      aria-describedby={zipError ? 'zipCode-error' : undefined}
                     />
-                  </div>
+                  </FormField>
                 </div>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="country"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Country *
-                  </Label>
+                <FormField
+                  label="Country"
+                  fieldId="country"
+                  required
+                  error={countryError}
+                >
                   <Select value={data.country} onValueChange={handleSelectChange('country')}>
                     <SelectTrigger
-                      className={cn(
-                        errors.some(e => e.includes('Country')) && 'border-destructive'
-                      )}
+                      id="country"
+                      aria-invalid={!!countryError}
+                      aria-describedby={countryError ? 'country-error' : undefined}
                     >
                       <SelectValue placeholder="Select country" />
                     </SelectTrigger>
@@ -574,7 +552,7 @@ const ClubEditForm: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
               </div>
             </CardContent>
           </Card>

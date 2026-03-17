@@ -4,7 +4,6 @@
 
 import React from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -17,8 +16,9 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from 'lucide-react';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { FormField } from '@/components/common/FormField';
+import { findFieldError } from '@/lib/validation';
 import type { ShowEditFormData } from './ShowEditPanel.types';
-import { cn } from '@/lib/utils';
 
 interface ShowEditBasicInfoTabProps {
   data: ShowEditFormData;
@@ -41,6 +41,13 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   handleSelectChange,
   handleDateChange,
 }) => {
+  const nameError = findFieldError(errors, 'show name');
+  const clubError = findFieldError(errors, 'club');
+  const startDateError = findFieldError(errors, 'start date');
+  const endDateError = findFieldError(errors, 'end date');
+  const entryOpenError = findFieldError(errors, 'entry open');
+  const entryCloseError = findFieldError(errors, 'entry close');
+
   return (
     <TabsContent
       value="basic"
@@ -55,29 +62,19 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="name"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                Show Name *
-              </Label>
+            <FormField label="Show Name" fieldId="name" required error={nameError}>
               <Input
                 id="name"
                 value={data.name}
                 onChange={handleInputChange('name')}
                 placeholder="Enter show name"
-                className={cn(errors.some(e => e.includes('Show name')) && 'border-destructive')}
+                className={nameError ? 'border-destructive' : ''}
+                aria-invalid={!!nameError}
+                aria-describedby={nameError ? 'name-error' : undefined}
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="organization"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                Organization
-              </Label>
+            <FormField label="Organization" fieldId="organization">
               <Select value={data.organization} onValueChange={handleSelectChange('organization')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
@@ -100,15 +97,9 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   )}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="status"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                Status
-              </Label>
+            <FormField label="Status" fieldId="status">
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -160,19 +151,15 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="clubId"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Hosting Club *
-            </Label>
+          <FormField label="Hosting Club" fieldId="clubId" required error={clubError}>
             <Select value={data.clubId} onValueChange={handleSelectChange('clubId')}>
               <SelectTrigger
-                className={cn(errors.some(e => e.includes('club')) && 'border-destructive')}
+                className={clubError ? 'border-destructive' : ''}
+                aria-invalid={!!clubError}
+                aria-describedby={clubError ? 'clubId-error' : undefined}
               >
                 <SelectValue placeholder="Select hosting club">
                   {data.clubId
@@ -201,22 +188,16 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 )}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="location"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Location
-            </Label>
+          <FormField label="Location" fieldId="location">
             <Input
               id="location"
               value={data.location}
               onChange={handleInputChange('location')}
               placeholder="Enter show location"
             />
-          </div>
+          </FormField>
 
           <Separator />
 
@@ -226,67 +207,45 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="startDate"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Start Date *
-                </Label>
+              <FormField label="Start Date" fieldId="startDate" required error={startDateError}>
                 <DateTimePicker
                   value={data.startDate ? new Date(data.startDate) : undefined}
                   onChange={handleDateChange('startDate')}
                   placeholder="Select start date"
                   showTime={true}
-                  className={cn(errors.some(e => e.includes('Start date')) && 'border-destructive')}
+                  className={startDateError ? 'border-destructive' : ''}
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="endDate"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  End Date *
-                </Label>
+              <FormField label="End Date" fieldId="endDate" required error={endDateError}>
                 <DateTimePicker
                   value={data.endDate ? new Date(data.endDate) : undefined}
                   onChange={handleDateChange('endDate')}
                   placeholder="Select end date"
                   showTime={true}
-                  className={cn(errors.some(e => e.includes('End date')) && 'border-destructive')}
+                  className={endDateError ? 'border-destructive' : ''}
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="entryOpenDate"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Entry Open Date
-                </Label>
+              <FormField label="Entry Open Date" fieldId="entryOpenDate" error={entryOpenError}>
                 <DateTimePicker
                   value={data.entryOpenDate ? new Date(data.entryOpenDate) : undefined}
                   onChange={handleDateChange('entryOpenDate')}
                   placeholder="Select entry open date"
                   showTime={true}
+                  className={entryOpenError ? 'border-destructive' : ''}
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="entryCloseDate"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Entry Close Date
-                </Label>
+              <FormField label="Entry Close Date" fieldId="entryCloseDate" error={entryCloseError}>
                 <DateTimePicker
                   value={data.entryCloseDate ? new Date(data.entryCloseDate) : undefined}
                   onChange={handleDateChange('entryCloseDate')}
                   placeholder="Select entry close date"
                   showTime={true}
+                  className={entryCloseError ? 'border-destructive' : ''}
                 />
-              </div>
+              </FormField>
             </div>
           </div>
         </CardContent>

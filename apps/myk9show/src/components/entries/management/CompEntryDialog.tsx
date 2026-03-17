@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Gift } from 'lucide-react';
 
 interface CompEntryDialogProps {
@@ -59,14 +59,15 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-3 py-2">
-          <Label htmlFor="comp-reason">Reason</Label>
-          <Textarea
-            id="comp-reason"
-            placeholder="e.g., Judge entry, Worker comp, Club guest..."
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-          />
+          <FormField label="Reason" fieldId="comp-reason">
+            <Textarea
+              id="comp-reason"
+              placeholder="e.g., Judge entry, Worker comp, Club guest..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+            />
+          </FormField>
         </div>
 
         <DialogFooter>

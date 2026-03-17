@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectValue
+  SelectValue,
 } from '@/components/ui/select';
 
-
-import RequiredLabel from '@/components/common/RequiredLabel';
 import type { Competition } from '@/types/competition-types';
 import { toYYYYMMDD } from '@/utils/dateFormat';
 
@@ -25,12 +24,7 @@ interface AddExternalShowDialogProps {
 const statusOptions: Competition['status'][] = ['Upcoming', 'Cancelled', 'Completed'];
 
 const isCompetitionValid = (comp: Competition) => {
-  return (
-    !!comp.name.trim() &&
-    !!comp.date &&
-    !!comp.location.trim() &&
-    !!comp.status.trim()
-  );
+  return !!comp.name.trim() && !!comp.date && !!comp.location.trim() && !!comp.status.trim();
 };
 
 const blankCompetition: Competition = {
@@ -42,10 +36,18 @@ const blankCompetition: Competition = {
   dogId: '',
 };
 
-const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({ show, mode, open, onClose, onSave }) => {
+const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
+  show,
+  mode,
+  open,
+  onClose,
+  onSave,
+}) => {
   const isAddMode = open && (!show || mode === 'add');
-  const [form, setForm] = useState<Competition>(isAddMode ? blankCompetition : (show || blankCompetition));
-  const [touched, setTouched] = useState<{[K in keyof Competition]?: boolean}>({});
+  const [form, setForm] = useState<Competition>(
+    isAddMode ? blankCompetition : show || blankCompetition
+  );
+  const [touched, setTouched] = useState<{ [K in keyof Competition]?: boolean }>({});
 
   React.useEffect(() => {
     if (isAddMode) {
@@ -90,18 +92,28 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({ show, mod
   };
 
   // Validation helpers
-  const showErrors = (field: keyof Competition) => {
-    if (!touched[field]) return false;
+  const getFieldError = (field: keyof Competition): string | undefined => {
+    if (!touched[field]) return undefined;
     switch (field) {
-      case 'name': return !form.name.trim();
-      case 'date': return !form.date;
-      case 'location': return !form.location.trim();
-      case 'status': return !form.status.trim();
-      default: return false;
+      case 'name':
+        return !form.name.trim() ? 'Please enter a competition name.' : undefined;
+      case 'date':
+        return !form.date ? 'Please select a date.' : undefined;
+      case 'location':
+        return !form.location.trim() ? 'Please enter a location.' : undefined;
+      case 'status':
+        return !form.status.trim() ? 'Please select a status.' : undefined;
+      default:
+        return undefined;
     }
   };
 
   if (!form) return null;
+
+  const nameError = getFieldError('name');
+  const dateError = getFieldError('date');
+  const locationError = getFieldError('location');
+  const statusError = getFieldError('status');
 
   return (
     <StandardDialog
@@ -110,79 +122,98 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({ show, mod
       description={isAddMode ? 'Add a new competition.' : 'Update competition information.'}
       onClose={onClose}
       formId="competition-edit-form"
-      onSave={() => document.getElementById('competition-edit-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={() =>
+        document
+          .getElementById('competition-edit-form')
+          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+      }
     >
       <form id="competition-edit-form" onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
-        <div>
-          <label className="block text-xs font-medium mb-1"><RequiredLabel required>Competition Name</RequiredLabel></label>
+        <FormField
+          label="Competition Name"
+          fieldId="competitionName"
+          required
+          error={nameError}
+        >
           <Input
+            id="competitionName"
             name="name"
-            value={""}
+            value={''}
             onChange={handleChange}
             onBlur={handleBlur}
             required
-            className={showErrors('name') ? 'border-red-500 focus:ring-red-300' : ''}
+            aria-invalid={!!nameError}
+            aria-describedby={nameError ? 'competitionName-error' : undefined}
+            className={nameError ? 'border-destructive focus-visible:ring-destructive' : ''}
           />
-          {showErrors('name') && <div className="text-xs text-red-500 mt-1">Name is required.</div>}
-        </div>
+        </FormField>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium mb-1"><RequiredLabel required>Date</RequiredLabel></label>
+          <FormField label="Date" fieldId="competitionDate" required error={dateError}>
             <Input
+              id="competitionDate"
               name="date"
               type="date"
-              value={""}
+              value={''}
               onChange={handleChange}
               onBlur={handleBlur}
               required
-              className={showErrors('date') ? 'border-red-500 focus:ring-red-300' : ''}
+              aria-invalid={!!dateError}
+              aria-describedby={dateError ? 'competitionDate-error' : undefined}
+              className={dateError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
-            {showErrors('date') && <div className="text-xs text-red-500 mt-1">Date is required.</div>}
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1"><RequiredLabel required>Location</RequiredLabel></label>
+          </FormField>
+          <FormField
+            label="Location"
+            fieldId="competitionLocation"
+            required
+            error={locationError}
+          >
             <Input
+              id="competitionLocation"
               name="location"
-              value={""}
+              value={''}
               onChange={handleChange}
               onBlur={handleBlur}
               required
-              className={showErrors('location') ? 'border-red-500 focus:ring-red-300' : ''}
+              aria-invalid={!!locationError}
+              aria-describedby={locationError ? 'competitionLocation-error' : undefined}
+              className={locationError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
-            {showErrors('location') && <div className="text-xs text-red-500 mt-1">Location is required.</div>}
-          </div>
+          </FormField>
         </div>
-        <div>
-          <label className="block text-xs font-medium mb-1"><RequiredLabel required>Status</RequiredLabel></label>
+        <FormField
+          label="Status"
+          fieldId="competitionStatus"
+          required
+          error={statusError}
+        >
           <Select
-            value={""}
+            value={''}
             onValueChange={value => {
               setForm({ ...form, status: value as Competition['status'] });
               setTouched({ ...touched, status: true });
             }}
             required
           >
-            <SelectTrigger className={showErrors('status') ? 'border-red-500 focus:ring-red-300' : ''}>
+            <SelectTrigger
+              aria-invalid={!!statusError}
+              aria-describedby={statusError ? 'competitionStatus-error' : undefined}
+              className={statusError ? 'border-destructive focus-visible:ring-destructive' : ''}
+            >
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
               {statusOptions.map(opt => (
-                <SelectItem key={opt} value={""}>{opt}</SelectItem>
+                <SelectItem key={opt} value={''}>
+                  {opt}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {showErrors('status') && <div className="text-xs text-red-500 mt-1">Status is required.</div>}
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1">Dog ID</label>
-          <Input
-            name="dogId"
-            value={""}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            className={showErrors('dogId') ? 'border-red-500 focus:ring-red-300' : ''}
-          />
-        </div>
+        </FormField>
+        <FormField label="Dog ID" fieldId="dogId">
+          <Input id="dogId" name="dogId" value={''} onChange={handleChange} onBlur={handleBlur} />
+        </FormField>
       </form>
     </StandardDialog>
   );

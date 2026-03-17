@@ -7,19 +7,19 @@ export const validateDogData = (data: DogFormData): string[] | null => {
   const errors: string[] = [];
 
   if (!data.callName?.trim()) {
-    errors.push('Call name is required');
+    errors.push('Please enter a call name');
   }
 
   if (!data.registeredName?.trim()) {
-    errors.push('Registered name is required');
+    errors.push('Please enter a registered name');
   }
 
   if (!data.gender) {
-    errors.push('Gender is required');
+    errors.push('Please select a gender');
   }
 
   if (!data.dateOfBirth) {
-    errors.push('Date of birth is required');
+    errors.push('Please enter a date of birth');
   }
 
   // Note: ownerId is not validated here - it's set during dog creation

@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
@@ -140,8 +141,7 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
 
           {/* User Information */}
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="user-id">User ID *</Label>
+            <FormField label="User ID" fieldId="user-id" required hint="The unique identifier for the user in the system">
               <Input
                 id="user-id"
                 value={formData.userId}
@@ -149,13 +149,9 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
                 placeholder="Enter user UUID"
                 required
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                The unique identifier for the user in the system
-              </p>
-            </div>
+            </FormField>
 
-            <div>
-              <Label htmlFor="user-email">User Email (Optional)</Label>
+            <FormField label="User Email (Optional)" fieldId="user-email" hint="For reference only, not used for assignment">
               <Input
                 id="user-email"
                 type="email"
@@ -163,17 +159,13 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
                 onChange={(e) => setFormData(prev => ({ ...prev, userEmail: e.target.value }))}
                 placeholder="user@example.com"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                For reference only, not used for assignment
-              </p>
-            </div>
+            </FormField>
           </div>
 
           {/* Role Selection */}
-          <div>
-            <Label htmlFor="role">Role *</Label>
-            <Select 
-              value={formData.roleId} 
+          <FormField label="Role" fieldId="role" required hint={selectedRole?.description ?? undefined}>
+            <Select
+              value={formData.roleId}
               onValueChange={(value) => setFormData(prev => ({ ...prev, roleId: value }))}
             >
               <SelectTrigger>
@@ -192,23 +184,17 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
                 ))}
               </SelectContent>
             </Select>
-            {selectedRole?.description && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {selectedRole.description}
-              </p>
-            )}
-          </div>
+          </FormField>
 
           {/* Scope Settings */}
           <div className="space-y-3">
             <Label>Scope (Optional)</Label>
-            
-            <div>
-              <Label htmlFor="scope-type" className="text-sm">Scope Type</Label>
-              <Select 
-                value={formData.scopeType} 
-                onValueChange={(value) => setFormData(prev => ({ 
-                  ...prev, 
+
+            <FormField label="Scope Type" fieldId="scope-type">
+              <Select
+                value={formData.scopeType}
+                onValueChange={(value) => setFormData(prev => ({
+                  ...prev,
                   scopeType: value,
                   scopeId: '' // Clear scope ID when type changes
                 }))}
@@ -224,27 +210,22 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
 
             {formData.scopeType && (
-              <div>
-                <Label htmlFor="scope-id" className="text-sm">Scope ID</Label>
+              <FormField label="Scope ID" fieldId="scope-id" hint={`The ID of the ${formData.scopeType} this role assignment applies to`}>
                 <Input
                   id="scope-id"
                   value={formData.scopeId}
                   onChange={(e) => setFormData(prev => ({ ...prev, scopeId: e.target.value }))}
                   placeholder={`Enter ${formData.scopeType} ID`}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  The ID of the {formData.scopeType} this role assignment applies to
-                </p>
-              </div>
+              </FormField>
             )}
           </div>
 
           {/* Expiration Date */}
-          <div>
-            <Label>Expiration Date (Optional)</Label>
+          <FormField label="Expiration Date (Optional)" fieldId="expiration-date" hint="Leave empty for permanent assignment">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -269,10 +250,7 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
                 />
               </PopoverContent>
             </Popover>
-            <p className="text-xs text-muted-foreground mt-1">
-              Leave empty for permanent assignment
-            </p>
-          </div>
+          </FormField>
 
           <DialogFooter>
             <Button 

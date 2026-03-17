@@ -22,15 +22,15 @@ export const validateUserData = (data: UserFormData): string[] | null => {
   });
 
   if (!data.firstName?.trim()) {
-    errors.push('First name is required');
+    errors.push('Please enter a first name');
   }
 
   if (!data.lastName?.trim()) {
-    errors.push('Last name is required');
+    errors.push('Please enter a last name');
   }
 
   if (!data.email?.trim()) {
-    errors.push('Email is required');
+    errors.push('Please enter an email address');
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
     errors.push('Please enter a valid email address');
   }
@@ -48,10 +48,10 @@ export const validateUserData = (data: UserFormData): string[] | null => {
   if (hasAddressInfo) {
     // If user starts filling address info, require the basic fields
     if (!data.city?.trim()) {
-      errors.push('City is required when providing address information');
+      errors.push('Please enter a city when providing address information');
     }
     if (!data.state?.trim()) {
-      errors.push('State is required when providing address information');
+      errors.push('Please enter a state when providing address information');
     }
   }
 

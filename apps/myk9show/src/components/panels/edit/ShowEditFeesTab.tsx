@@ -5,14 +5,15 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Label } from '@/components/ui/label';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { DollarSign } from 'lucide-react';
+import { FormField } from '@/components/common/FormField';
+import { findFieldError } from '@/lib/validation';
 import type { ShowEditFormData } from './ShowEditPanel.types';
-import { cn } from '@/lib/utils';
 
 interface ShowEditFeesTabProps {
   data: ShowEditFormData;
@@ -29,6 +30,9 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   handleInputChange,
   handleCheckboxChange,
 }) => {
+  const preEntryFeeError = findFieldError(errors, 'pre-entry fee');
+  const dayOfShowFeeError = findFieldError(errors, 'day of show fee');
+
   const handleFeeChange = (field: keyof ShowEditFormData) => (value: number) => {
     const handler = handleInputChange(field);
     handler({ target: { value: String(value) } } as React.ChangeEvent<HTMLInputElement>);
@@ -48,41 +52,29 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
-            <div className="space-y-2">
-              <Label
-                htmlFor="preEntryFee"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                Pre-Entry Fee
-              </Label>
+            <FormField label="Pre-Entry Fee" fieldId="preEntryFee" error={preEntryFeeError}>
               <CurrencyInput
                 id="preEntryFee"
                 value={data.preEntryFee}
                 onChange={handleFeeChange('preEntryFee')}
                 placeholder="0.00"
-                className={cn(
-                  errors.some(e => e.includes('Pre-entry fee')) && 'border-destructive'
-                )}
+                className={preEntryFeeError ? 'border-destructive' : ''}
+                aria-invalid={!!preEntryFeeError}
+                aria-describedby={preEntryFeeError ? 'preEntryFee-error' : undefined}
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="dayOfShowFee"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                Day of Show Fee
-              </Label>
+            <FormField label="Day of Show Fee" fieldId="dayOfShowFee" error={dayOfShowFeeError}>
               <CurrencyInput
                 id="dayOfShowFee"
                 value={data.dayOfShowFee}
                 onChange={handleFeeChange('dayOfShowFee')}
                 placeholder="0.00"
-                className={cn(
-                  errors.some(e => e.includes('Day of show fee')) && 'border-destructive'
-                )}
+                className={dayOfShowFeeError ? 'border-destructive' : ''}
+                aria-invalid={!!dayOfShowFeeError}
+                aria-describedby={dayOfShowFeeError ? 'dayOfShowFee-error' : undefined}
               />
-            </div>
+            </FormField>
           </div>
 
           <p className="text-sm text-muted-foreground">
@@ -98,13 +90,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="maxEntriesPerDog"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Max Entries Per Dog
-                </Label>
+              <FormField label="Max Entries Per Dog" fieldId="maxEntriesPerDog">
                 <Input
                   id="maxEntriesPerDog"
                   type="number"
@@ -113,15 +99,9 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                   placeholder="Unlimited"
                   min="1"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="maxTotalEntries"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Max Total Entries
-                </Label>
+              <FormField label="Max Total Entries" fieldId="maxTotalEntries">
                 <Input
                   id="maxTotalEntries"
                   type="number"
@@ -130,7 +110,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                   placeholder="Unlimited"
                   min="1"
                 />
-              </div>
+              </FormField>
             </div>
 
             <div className="flex items-center space-x-2">

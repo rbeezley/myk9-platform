@@ -2,6 +2,7 @@ import React from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
+import { FormField } from '@/components/common/FormField';
 import {
   Select,
   SelectContent,
@@ -220,17 +221,16 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
         <SheetBody>
           {/* First Row - Show Name, Show Type, Status */}
           <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="form-field">
-              <label className="form-label required">Show Name</label>
+            <FormField label="Show Name" fieldId="show-name" required>
               <Input
+                id="show-name"
                 value={formData.name || ''}
                 onChange={e => handleInputChange('name', e.target.value)}
                 placeholder="Enter show name"
                 className="form-input h-10"
               />
-            </div>
-            <div className="form-field">
-              <label className="form-label">Show Type</label>
+            </FormField>
+            <FormField label="Show Type" fieldId="show-type">
               <Select
                 value={formData.type || ''}
                 onValueChange={value => handleInputChange('type', value)}
@@ -256,9 +256,8 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   )}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="form-field">
-              <label className="form-label">Status</label>
+            </FormField>
+            <FormField label="Status" fieldId="show-status">
               <Select
                 value={formData.status || ''}
                 onValueChange={value => handleInputChange('status', value)}
@@ -275,15 +274,14 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
 
           {/* Second Row - Club and Personnel */}
           <div className="mb-6">
             <h3 className="form-section-title">Hosting Club & Key Personnel</h3>
             <div className="grid grid-cols-4 gap-4">
-              <div className="form-field">
-                <label className="form-label required">Hosting Club</label>
+              <FormField label="Hosting Club" fieldId="hosting-club" required>
                 <Select
                   value={formData.clubId || ''}
                   onValueChange={value => handleInputChange('clubId', value)}
@@ -321,9 +319,8 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                     )}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="form-field">
-                <label className="form-label">Chairman</label>
+              </FormField>
+              <FormField label="Chairman" fieldId="chairman">
                 <Select
                   value={formData.chairman || ''}
                   onValueChange={value => handleInputChange('chairman', value)}
@@ -353,9 +350,8 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                     )}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="form-field">
-                <label className="form-label">Secretary</label>
+              </FormField>
+              <FormField label="Secretary" fieldId="secretary">
                 <Select
                   value={formData.secretary || ''}
                   onValueChange={value => handleInputChange('secretary', value)}
@@ -385,9 +381,8 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                     )}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="form-field">
-                <label className="form-label">Chief Steward</label>
+              </FormField>
+              <FormField label="Chief Steward" fieldId="chief-steward">
                 <Select
                   value={formData.chiefSteward || ''}
                   onValueChange={value => handleInputChange('chiefSteward', value)}
@@ -418,7 +413,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                     )}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             </div>
           </div>
 
@@ -426,8 +421,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
           <div className="mb-6">
             <h3 className="form-section-title">Important Dates</h3>
             <div className="grid grid-cols-4 gap-4">
-              <div className="form-field">
-                <label className="form-label required">Start Date</label>
+              <FormField label="Start Date" fieldId="start-date" required>
                 <DateTimePicker
                   value={formData.startDate ? new Date(formData.startDate) : undefined}
                   onChange={date => {
@@ -436,9 +430,8 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   placeholder="Select start date"
                   showTime={true}
                 />
-              </div>
-              <div className="form-field">
-                <label className="form-label">End Date</label>
+              </FormField>
+              <FormField label="End Date" fieldId="end-date">
                 <DateTimePicker
                   value={formData.endDate ? new Date(formData.endDate) : undefined}
                   onChange={date => {
@@ -447,9 +440,8 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   placeholder="Select end date"
                   showTime={true}
                 />
-              </div>
-              <div className="form-field">
-                <label className="form-label">Entry Open Date</label>
+              </FormField>
+              <FormField label="Entry Open Date" fieldId="entry-open-date">
                 <DateTimePicker
                   value={formData.entryOpenDate ? new Date(formData.entryOpenDate) : undefined}
                   onChange={date => {
@@ -458,9 +450,8 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   placeholder="Select entry open date"
                   showTime={true}
                 />
-              </div>
-              <div className="form-field">
-                <label className="form-label">Entry Close Date</label>
+              </FormField>
+              <FormField label="Entry Close Date" fieldId="entry-close-date">
                 <DateTimePicker
                   value={formData.entryCloseDate ? new Date(formData.entryCloseDate) : undefined}
                   onChange={date => {
@@ -469,7 +460,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   placeholder="Select entry close date"
                   showTime={true}
                 />
-              </div>
+              </FormField>
             </div>
           </div>
 
@@ -570,24 +561,22 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
           <div>
             <h3 className="form-section-title">Default Entry Fees</h3>
             <div className="grid grid-cols-2 gap-4 max-w-md">
-              <div className="form-field">
-                <label className="form-label">Pre-Entry Fee</label>
+              <FormField label="Pre-Entry Fee" fieldId="pre-entry-fee">
                 <CurrencyInput
                   value={formData.preEntryFee}
                   onChange={v => handleInputChange('preEntryFee', String(v))}
                   placeholder="0.00"
                   className="form-input h-10"
                 />
-              </div>
-              <div className="form-field">
-                <label className="form-label">Day of Show Fee</label>
+              </FormField>
+              <FormField label="Day of Show Fee" fieldId="day-of-show-fee">
                 <CurrencyInput
                   value={formData.dayOfShowFee}
                   onChange={v => handleInputChange('dayOfShowFee', String(v))}
                   placeholder="0.00"
                   className="form-input h-10"
                 />
-              </div>
+              </FormField>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
               These fees will be used as defaults for each class and can be adjusted per class as
@@ -598,10 +587,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
           {/* Confirmation Message Section */}
           <div className="mt-6">
             <h3 className="form-section-title">Email Settings</h3>
-            <div className="space-y-2">
-              <label htmlFor="confirmationMessage" className="text-sm font-medium">
-                Confirmation Message
-              </label>
+            <FormField label="Confirmation Message" fieldId="confirmationMessage" hint="This message will be included in registration confirmation emails sent to exhibitors.">
               <textarea
                 id="confirmationMessage"
                 value={formData.confirmationMessage || ''}
@@ -610,11 +596,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                 className="w-full min-h-[80px] p-2 border border-input rounded-md bg-background text-foreground text-sm"
                 rows={3}
               />
-              <p className="text-xs text-muted-foreground">
-                This message will be included in registration confirmation emails sent to
-                exhibitors.
-              </p>
-            </div>
+            </FormField>
           </div>
         </SheetBody>
 

@@ -12,19 +12,19 @@ export const validateShowData = (data: ShowEditFormData): string[] | null => {
   const errors: string[] = [];
 
   if (!data.name?.trim()) {
-    errors.push('Show name is required');
+    errors.push('Please enter a show name');
   }
 
   if (!data.clubId?.trim()) {
-    errors.push('Hosting club is required');
+    errors.push('Please select a hosting club');
   }
 
   if (!data.startDate?.trim()) {
-    errors.push('Start date is required');
+    errors.push('Please select a start date');
   }
 
   if (!data.endDate?.trim()) {
-    errors.push('End date is required');
+    errors.push('Please select an end date');
   }
 
   // Validate date logic
@@ -54,11 +54,11 @@ export const validateShowData = (data: ShowEditFormData): string[] | null => {
 
   // Validate fees if provided
   if (data.preEntryFee && isNaN(parseFloat(data.preEntryFee.replace(/[$,]/g, '')))) {
-    errors.push('Pre-entry fee must be a valid amount');
+    errors.push('Please enter a valid pre-entry fee amount');
   }
 
   if (data.dayOfShowFee && isNaN(parseFloat(data.dayOfShowFee.replace(/[$,]/g, '')))) {
-    errors.push('Day of show fee must be a valid amount');
+    errors.push('Please enter a valid day of show fee amount');
   }
 
   return errors.length > 0 ? errors : null;

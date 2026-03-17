@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -161,18 +162,18 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = 'Please enter a first name';
     }
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'Please enter a last name';
     }
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Please enter an email address';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
     if (formData.roles.length === 0) {
-      newErrors.roles = 'At least one role must be assigned';
+      newErrors.roles = 'Please select at least one role';
     }
 
     setErrors(newErrors);
@@ -355,8 +356,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     </h3>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="firstName">First Name *</Label>
+                      <FormField label="First Name" fieldId="firstName" required error={errors.firstName}>
                         <Input
                           id="firstName"
                           value={formData.firstName}
@@ -364,14 +364,11 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                             setFormData(prev => ({ ...prev, firstName: e.target.value }))
                           }
                           disabled={!isEditing}
-                          className={errors.firstName ? 'border-destructive' : ''}
+                          aria-invalid={!!errors.firstName}
+                          aria-describedby={errors.firstName ? 'firstName-error' : undefined}
                         />
-                        {errors.firstName && (
-                          <p className="text-xs text-destructive mt-1">{errors.firstName}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Last Name *</Label>
+                      </FormField>
+                      <FormField label="Last Name" fieldId="lastName" required error={errors.lastName}>
                         <Input
                           id="lastName"
                           value={formData.lastName}
@@ -379,16 +376,13 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                             setFormData(prev => ({ ...prev, lastName: e.target.value }))
                           }
                           disabled={!isEditing}
-                          className={errors.lastName ? 'border-destructive' : ''}
+                          aria-invalid={!!errors.lastName}
+                          aria-describedby={errors.lastName ? 'lastName-error' : undefined}
                         />
-                        {errors.lastName && (
-                          <p className="text-xs text-destructive mt-1">{errors.lastName}</p>
-                        )}
-                      </div>
+                      </FormField>
                     </div>
 
-                    <div>
-                      <Label htmlFor="membershipId">Membership ID</Label>
+                    <FormField label="Membership ID" fieldId="membershipId">
                       <Input
                         id="membershipId"
                         value={formData.membershipId}
@@ -398,7 +392,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         disabled={!isEditing}
                         placeholder="Optional membership identifier"
                       />
-                    </div>
+                    </FormField>
                   </div>
 
                   {/* Contact Information */}
@@ -408,23 +402,19 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       Contact Information
                     </h3>
 
-                    <div>
-                      <Label htmlFor="email">Email Address *</Label>
+                    <FormField label="Email Address" fieldId="email" required error={errors.email}>
                       <Input
                         id="email"
                         type="email"
                         value={formData.email}
                         onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                         disabled={!isEditing}
-                        className={errors.email ? 'border-destructive' : ''}
+                        aria-invalid={!!errors.email}
+                        aria-describedby={errors.email ? 'email-error' : undefined}
                       />
-                      {errors.email && (
-                        <p className="text-xs text-destructive mt-1">{errors.email}</p>
-                      )}
-                    </div>
+                    </FormField>
 
-                    <div>
-                      <Label htmlFor="phone">Phone Number</Label>
+                    <FormField label="Phone Number" fieldId="phone">
                       <Input
                         id="phone"
                         type="tel"
@@ -433,7 +423,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         disabled={!isEditing}
                         placeholder="Optional phone number"
                       />
-                    </div>
+                    </FormField>
                   </div>
                 </div>
 
@@ -446,8 +436,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     Address Information
                   </h3>
 
-                  <div>
-                    <Label htmlFor="address">Street Address</Label>
+                  <FormField label="Street Address" fieldId="address">
                     <Input
                       id="address"
                       value={formData.address}
@@ -455,11 +444,10 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       disabled={!isEditing}
                       placeholder="Street address"
                     />
-                  </div>
+                  </FormField>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="city">City</Label>
+                    <FormField label="City" fieldId="city">
                       <Input
                         id="city"
                         value={formData.city}
@@ -467,9 +455,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         disabled={!isEditing}
                         placeholder="City"
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="state">State/Province</Label>
+                    </FormField>
+                    <FormField label="State/Province" fieldId="state">
                       <Input
                         id="state"
                         value={formData.state}
@@ -477,9 +464,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         disabled={!isEditing}
                         placeholder="State or province"
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="zipCode">ZIP/Postal Code</Label>
+                    </FormField>
+                    <FormField label="ZIP/Postal Code" fieldId="zipCode">
                       <Input
                         id="zipCode"
                         value={formData.zipCode}
@@ -487,11 +473,10 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         disabled={!isEditing}
                         placeholder="ZIP or postal code"
                       />
-                    </div>
+                    </FormField>
                   </div>
 
-                  <div>
-                    <Label htmlFor="country">Country</Label>
+                  <FormField label="Country" fieldId="country">
                     <Input
                       id="country"
                       value={formData.country}
@@ -499,7 +484,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       disabled={!isEditing}
                       placeholder="Country"
                     />
-                  </div>
+                  </FormField>
                 </div>
 
                 <Separator />

@@ -1,9 +1,21 @@
 import React, { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FormField } from '@/components/common/FormField';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Registration } from '@/types/dog-types';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 
@@ -24,7 +36,7 @@ const ORG_CODE_MAP: Record<string, string> = {
   'ILP (Indefinite Listing Privilege)': 'AKC', // ILP is an AKC program
   'PAL (Purebred Alternative Listing)': 'AKC', // PAL is an AKC program
   'Mixed Breed': 'AKC',
-  'Other': 'Other'
+  Other: 'Other',
 };
 
 const REGISTRATION_ORGS = [
@@ -36,7 +48,7 @@ const REGISTRATION_ORGS = [
   'ILP (Indefinite Listing Privilege)',
   'PAL (Purebred Alternative Listing)',
   'Mixed Breed',
-  'Other'
+  'Other',
 ];
 
 const INITIAL_REGISTRATION_DATA: Registration = {
@@ -55,7 +67,9 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
   onSave,
   initialData,
 }) => {
-  const [registrationData, setRegistrationData] = useState<Registration>(initialData || INITIAL_REGISTRATION_DATA);
+  const [registrationData, setRegistrationData] = useState<Registration>(
+    initialData || INITIAL_REGISTRATION_DATA
+  );
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [wasOpen, setWasOpen] = useState(open);
   const [lastInitialData, setLastInitialData] = useState(initialData);
@@ -97,10 +111,11 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
 
   const validateForm = (data: Registration): Record<string, string> => {
     const errors: Record<string, string> = {};
-    if (!data.organization.trim()) errors.organization = 'Organization is required';
-    if (!data.registeredName.trim()) errors.registeredName = 'Registered name is required';
-    if (!data.breed.trim()) errors.breed = 'Breed is required';
-    if (!data.registrationNumber.trim()) errors.registrationNumber = 'Registration number is required';
+    if (!data.organization.trim()) errors.organization = 'Please select an organization.';
+    if (!data.registeredName.trim()) errors.registeredName = 'Please enter a registered name.';
+    if (!data.breed.trim()) errors.breed = 'Please select a breed.';
+    if (!data.registrationNumber.trim())
+      errors.registrationNumber = 'Please enter a registration number.';
     return errors;
   };
 
@@ -121,7 +136,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       ...prev,
       organization: value,
       breed: '',
-      variety: ''
+      variety: '',
     }));
     if (validationErrors.organization) {
       setValidationErrors(prev => {
@@ -137,7 +152,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     setRegistrationData(prev => ({
       ...prev,
       breed: value,
-      variety: ''
+      variety: '',
     }));
     if (validationErrors.breed) {
       setValidationErrors(prev => {
@@ -165,17 +180,24 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{initialData ? "Edit Registration" : "Add New Registration"}</DialogTitle>
+          <DialogTitle>{initialData ? 'Edit Registration' : 'Add New Registration'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-          <div className="space-y-2">
-            <Label>Registration Organization <span className="text-destructive">*</span></Label>
-            <Select
-              value={registrationData.organization}
-              onValueChange={handleOrganizationChange}
-            >
-              <SelectTrigger>
+          <FormField
+            label="Registration Organization"
+            fieldId="organization"
+            required
+            error={getVisibleError('organization')}
+          >
+            <Select value={registrationData.organization} onValueChange={handleOrganizationChange}>
+              <SelectTrigger
+                id="organization"
+                aria-invalid={!!getVisibleError('organization')}
+                aria-describedby={
+                  getVisibleError('organization') ? 'organization-error' : undefined
+                }
+              >
                 <SelectValue placeholder="Select organization" />
               </SelectTrigger>
               <SelectContent>
@@ -186,33 +208,48 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                 ))}
               </SelectContent>
             </Select>
-            {getVisibleError('organization') && (
-              <p className="text-sm text-destructive">{getVisibleError('organization')}</p>
-            )}
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label>Registered Name <span className="text-destructive">*</span></Label>
+          <FormField
+            label="Registered Name"
+            fieldId="registeredName"
+            required
+            error={getVisibleError('registeredName')}
+          >
             <Input
+              id="registeredName"
               value={registrationData.registeredName}
-              onChange={(e) => handleFieldChange('registeredName', e.target.value)}
+              onChange={e => handleFieldChange('registeredName', e.target.value)}
               placeholder="Full registered name"
+              aria-invalid={!!getVisibleError('registeredName')}
+              aria-describedby={
+                getVisibleError('registeredName') ? 'registeredName-error' : undefined
+              }
             />
-            {getVisibleError('registeredName') && (
-              <p className="text-sm text-destructive">{getVisibleError('registeredName')}</p>
-            )}
-          </div>
+          </FormField>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Registered Breed <span className="text-destructive">*</span></Label>
+            <FormField
+              label="Registered Breed"
+              fieldId="breed"
+              required
+              error={getVisibleError('breed')}
+            >
               <Select
                 value={registrationData.breed}
                 onValueChange={handleBreedChange}
                 disabled={!registrationData.organization}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={registrationData.organization ? "Select breed" : "Select organization first"} />
+                <SelectTrigger
+                  id="breed"
+                  aria-invalid={!!getVisibleError('breed')}
+                  aria-describedby={getVisibleError('breed') ? 'breed-error' : undefined}
+                >
+                  <SelectValue
+                    placeholder={
+                      registrationData.organization ? 'Select breed' : 'Select organization first'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {availableBreeds.map(breed => (
@@ -222,19 +259,15 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                   ))}
                 </SelectContent>
               </Select>
-              {getVisibleError('breed') && (
-                <p className="text-sm text-destructive">{getVisibleError('breed')}</p>
-              )}
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label>Variety</Label>
+            <FormField label="Variety" fieldId="variety">
               {availableVarieties.length > 0 ? (
                 <Select
                   value={registrationData.variety || ''}
-                  onValueChange={(value) => handleFieldChange('variety', value)}
+                  onValueChange={value => handleFieldChange('variety', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="variety">
                     <SelectValue placeholder="Select variety" />
                   </SelectTrigger>
                   <SelectContent>
@@ -247,35 +280,43 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                 </Select>
               ) : (
                 <Input
+                  id="variety"
                   value={registrationData.variety || ''}
-                  onChange={(e) => handleFieldChange('variety', e.target.value)}
-                  placeholder={registrationData.breed ? "No varieties for this breed" : "Select breed first"}
+                  onChange={e => handleFieldChange('variety', e.target.value)}
+                  placeholder={
+                    registrationData.breed ? 'No varieties for this breed' : 'Select breed first'
+                  }
                   disabled={!registrationData.breed}
                 />
               )}
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Registration Number <span className="text-destructive">*</span></Label>
+            <FormField
+              label="Registration Number"
+              fieldId="registrationNumber"
+              required
+              error={getVisibleError('registrationNumber')}
+            >
               <Input
+                id="registrationNumber"
                 value={registrationData.registrationNumber}
-                onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
+                onChange={e => handleFieldChange('registrationNumber', e.target.value)}
                 placeholder="Enter registration number"
+                aria-invalid={!!getVisibleError('registrationNumber')}
+                aria-describedby={
+                  getVisibleError('registrationNumber') ? 'registrationNumber-error' : undefined
+                }
               />
-              {getVisibleError('registrationNumber') && (
-                <p className="text-sm text-destructive">{getVisibleError('registrationNumber')}</p>
-              )}
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
+            <FormField label="Status" fieldId="registrationStatus">
               <Select
                 value={registrationData.status}
-                onValueChange={(value) => handleFieldChange('status', value)}
+                onValueChange={value => handleFieldChange('status', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="registrationStatus">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -285,7 +326,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                   <SelectItem value="Under review">Under review</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
         </div>
 
@@ -293,9 +334,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
-            Save Registration
-          </Button>
+          <Button onClick={handleSubmit}>Save Registration</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

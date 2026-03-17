@@ -8,10 +8,10 @@ export const validateDogData = (data: DogFormData): Record<string, string> => {
   const errors: Record<string, string> = {};
 
   // Basic information validation
-  if (!data.callName.trim()) errors.callName = 'Call name is required';
-  if (!data.gender) errors.gender = 'Gender is required';
-  if (!data.dateOfBirth) errors.dateOfBirth = 'Date of birth is required';
-  if (!data.ownerId) errors.ownerId = 'Owner is required';
+  if (!data.callName.trim()) errors.callName = 'Please enter a call name';
+  if (!data.gender) errors.gender = 'Please select a gender';
+  if (!data.dateOfBirth) errors.dateOfBirth = 'Please enter a date of birth';
+  if (!data.ownerId) errors.ownerId = 'Please select an owner';
 
   // Date validation
   if (data.dateOfBirth) {
@@ -27,10 +27,13 @@ export const validateDogData = (data: DogFormData): Record<string, string> => {
 
   // Registration validation
   data.registrations.forEach((reg, index) => {
-    if (!reg.organization.trim()) errors[`registration-${index}-organization`] = 'Organization is required';
-    if (!reg.registeredName.trim()) errors[`registration-${index}-registeredName`] = 'Registered name is required';
-    if (!reg.breed.trim()) errors[`registration-${index}-breed`] = 'Breed is required';
-    if (!reg.registrationNumber.trim()) errors[`registration-${index}-registrationNumber`] = 'Registration number is required';
+    if (!reg.organization.trim())
+      errors[`registration-${index}-organization`] = 'Please select an organization';
+    if (!reg.registeredName.trim())
+      errors[`registration-${index}-registeredName`] = 'Please enter a registered name';
+    if (!reg.breed.trim()) errors[`registration-${index}-breed`] = 'Please enter a breed';
+    if (!reg.registrationNumber.trim())
+      errors[`registration-${index}-registrationNumber`] = 'Please enter a registration number';
   });
 
   return errors;
@@ -46,11 +49,12 @@ export const isTabValid = (tab: string, formData: DogFormData): boolean => {
       return !errors.callName && !errors.gender && !errors.dateOfBirth && !errors.ownerId;
     case 'registration':
       if (formData.registrations.length === 0) return true;
-      return formData.registrations.every((_, index) =>
-        !errors[`registration-${index}-organization`] &&
-        !errors[`registration-${index}-registeredName`] &&
-        !errors[`registration-${index}-breed`] &&
-        !errors[`registration-${index}-registrationNumber`]
+      return formData.registrations.every(
+        (_, index) =>
+          !errors[`registration-${index}-organization`] &&
+          !errors[`registration-${index}-registeredName`] &&
+          !errors[`registration-${index}-breed`] &&
+          !errors[`registration-${index}-registrationNumber`]
       );
     case 'optional':
       return true;

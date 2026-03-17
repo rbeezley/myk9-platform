@@ -169,7 +169,7 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
     const commonProps = {
       id: fieldId,
       disabled,
-      className: error ? 'border-red-500' : undefined,
+      className: error ? 'border-destructive' : undefined,
     };
 
     const renderFieldInput = () => {
@@ -297,7 +297,7 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
               onValueChange={newValue => handleFieldChange(field.fieldName, newValue)}
               disabled={disabled}
             >
-              <SelectTrigger className={error ? 'border-red-500' : ''}>
+              <SelectTrigger className={error ? 'border-destructive' : ''}>
                 <SelectValue placeholder={`Select ${field.displayName.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
@@ -431,7 +431,7 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
         )}
 
         {error && (
-          <p className="text-xs text-red-500 flex items-center gap-1">
+          <p className="text-xs text-destructive flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             {error}
           </p>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -44,7 +44,7 @@ const INITIAL_FORM_DATA: ExhibitorFormData = {
   streetAddress: '',
   city: '',
   state: '',
-  zipCode: ''
+  zipCode: '',
 };
 
 export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
@@ -52,7 +52,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   onOpenChange,
   onExhibitorCreated,
   onDuplicateSelected,
-  searchQuery = ''
+  searchQuery = '',
 }) => {
   const [formData, setFormData] = useState<ExhibitorFormData>(INITIAL_FORM_DATA);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
@@ -74,7 +74,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       city: 'Anytown',
       state: 'CA',
       zipCode: '12345',
-      dogs: []
+      dogs: [],
     },
     // Add more mock data as needed
   ];
@@ -88,12 +88,12 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
         setFormData(prev => ({
           ...prev,
           firstName: parts[0],
-          lastName: parts.slice(1).join(' ')
+          lastName: parts.slice(1).join(' '),
         }));
       } else {
         setFormData(prev => ({
           ...prev,
-          lastName: searchQuery
+          lastName: searchQuery,
         }));
       }
     }
@@ -110,7 +110,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       // Name matching (high weight)
       const firstNameMatch = person.firstName.toLowerCase() === data.firstName.toLowerCase();
       const lastNameMatch = person.lastName.toLowerCase() === data.lastName.toLowerCase();
-      
+
       if (firstNameMatch && lastNameMatch) {
         score += 90;
         matchReasons.push('Exact name match');
@@ -151,7 +151,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
         candidates.push({
           person,
           matchScore: score,
-          matchReasons
+          matchReasons,
         });
       }
     });
@@ -163,14 +163,14 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   const validateForm = (data: ExhibitorFormData): Partial<ExhibitorFormData> => {
     const errors: Partial<ExhibitorFormData> = {};
 
-    if (!data.firstName.trim()) errors.firstName = 'First name is required';
-    if (!data.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!data.firstName.trim()) errors.firstName = 'Please enter a first name';
+    if (!data.lastName.trim()) errors.lastName = 'Please enter a last name';
     if (!data.email.trim()) {
-      errors.email = 'Email is required';
+      errors.email = 'Please enter an email address';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.email = 'Invalid email format';
+      errors.email = 'Please enter a valid email address';
     }
-    if (!data.phone.trim()) errors.phone = 'Phone number is required';
+    if (!data.phone.trim()) errors.phone = 'Please enter a phone number';
 
     return errors;
   };
@@ -178,7 +178,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   // Handle form field changes
   const handleFieldChange = (field: keyof ExhibitorFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear validation error for this field
     if (validationErrors[field]) {
       setValidationErrors(prev => ({ ...prev, [field]: undefined }));
@@ -189,7 +189,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       const updatedData = { ...formData, [field]: value };
       const newDuplicates = detectDuplicates(updatedData);
       setDuplicates(newDuplicates);
-      
+
       // Switch to duplicates tab if we found potential matches
       if (newDuplicates.length > 0) {
         setActiveTab('duplicates');
@@ -226,7 +226,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
         city: formData.city,
         state: formData.state,
         zipCode: formData.zipCode,
-        dogs: []
+        dogs: [],
       };
 
       // In real app, this would be an API call
@@ -257,6 +257,12 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     handleClose();
   };
 
+  // Pre-compute visible errors to avoid repeated getVisibleError calls in JSX
+  const firstNameError = getVisibleError('firstName');
+  const lastNameError = getVisibleError('lastName');
+  const emailError = getVisibleError('email');
+  const phoneError = getVisibleError('phone');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -267,7 +273,10 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'create' | 'duplicates')}>
+        <Tabs
+          value={activeTab}
+          onValueChange={value => setActiveTab(value as 'create' | 'duplicates')}
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="create" className="flex items-center gap-2">
               <UserIcon className="h-4 w-4" />
@@ -286,110 +295,98 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
 
           <TabsContent value="create" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
+              <FormField label="First Name" fieldId="firstName" required error={firstNameError}>
                 <Input
                   id="firstName"
                   value={formData.firstName}
-                  onChange={(e) => handleFieldChange('firstName', e.target.value)}
+                  onChange={e => handleFieldChange('firstName', e.target.value)}
                   placeholder="Enter first name"
+                  aria-invalid={!!firstNameError}
+                  aria-describedby={firstNameError ? 'firstName-error' : undefined}
                 />
-                {getVisibleError('firstName') && (
-                  <p className="text-sm text-red-600">{getVisibleError('firstName')}</p>
-                )}
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
+              <FormField label="Last Name" fieldId="lastName" required error={lastNameError}>
                 <Input
                   id="lastName"
                   value={formData.lastName}
-                  onChange={(e) => handleFieldChange('lastName', e.target.value)}
+                  onChange={e => handleFieldChange('lastName', e.target.value)}
                   placeholder="Enter last name"
+                  aria-invalid={!!lastNameError}
+                  aria-describedby={lastNameError ? 'lastName-error' : undefined}
                 />
-                {getVisibleError('lastName') && (
-                  <p className="text-sm text-red-600">{getVisibleError('lastName')}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
+              <FormField label="Email Address" fieldId="email" required error={emailError}>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => handleFieldChange('email', e.target.value)}
+                  onChange={e => handleFieldChange('email', e.target.value)}
                   placeholder="Enter email address"
+                  aria-invalid={!!emailError}
+                  aria-describedby={emailError ? 'email-error' : undefined}
                 />
-                {getVisibleError('email') && (
-                  <p className="text-sm text-red-600">{getVisibleError('email')}</p>
-                )}
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
+              <FormField label="Phone Number" fieldId="phone" required error={phoneError}>
                 <Input
                   id="phone"
                   value={formData.phone}
-                  onChange={(e) => handleFieldChange('phone', e.target.value)}
+                  onChange={e => handleFieldChange('phone', e.target.value)}
                   placeholder="Enter phone number"
+                  aria-invalid={!!phoneError}
+                  aria-describedby={phoneError ? 'phone-error' : undefined}
                 />
-                {getVisibleError('phone') && (
-                  <p className="text-sm text-red-600">{getVisibleError('phone')}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="streetAddress">Street Address</Label>
+            <FormField label="Street Address" fieldId="streetAddress">
               <Input
                 id="streetAddress"
                 value={formData.streetAddress}
-                onChange={(e) => handleFieldChange('streetAddress', e.target.value)}
+                onChange={e => handleFieldChange('streetAddress', e.target.value)}
                 placeholder="Enter street address"
               />
-            </div>
+            </FormField>
 
             <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
+              <FormField label="City" fieldId="city">
                 <Input
                   id="city"
                   value={formData.city}
-                  onChange={(e) => handleFieldChange('city', e.target.value)}
+                  onChange={e => handleFieldChange('city', e.target.value)}
                   placeholder="Enter city"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="state">State</Label>
+              <FormField label="State" fieldId="state">
                 <Input
                   id="state"
                   value={formData.state}
-                  onChange={(e) => handleFieldChange('state', e.target.value)}
+                  onChange={e => handleFieldChange('state', e.target.value)}
                   placeholder="State"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="zipCode">ZIP Code</Label>
+              <FormField label="ZIP Code" fieldId="zipCode">
                 <Input
                   id="zipCode"
                   value={formData.zipCode}
-                  onChange={(e) => handleFieldChange('zipCode', e.target.value)}
+                  onChange={e => handleFieldChange('zipCode', e.target.value)}
                   placeholder="ZIP"
                 />
-              </div>
+              </FormField>
             </div>
 
             {duplicates.length > 0 && (
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  We found {duplicates.length} potential duplicate(s). Please check the "Possible Duplicates" tab 
-                  to ensure you're not creating a duplicate exhibitor.
+                  We found {duplicates.length} potential duplicate(s). Please check the "Possible
+                  Duplicates" tab to ensure you're not creating a duplicate exhibitor.
                 </AlertDescription>
               </Alert>
             )}
@@ -407,8 +404,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                 <p className="text-sm text-gray-600">
                   Found {duplicates.length} potential duplicate(s). Review these carefully:
                 </p>
-                
-                {duplicates.map((candidate) => (
+
+                {duplicates.map(candidate => (
                   <div key={candidate.person.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -416,19 +413,18 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                           <h4 className="font-semibold">
                             {candidate.person.firstName} {candidate.person.lastName}
                           </h4>
-                          <Badge 
-                            variant={candidate.matchScore >= 70 ? 'destructive' : 'secondary'}
-                          >
+                          <Badge variant={candidate.matchScore >= 70 ? 'destructive' : 'secondary'}>
                             {candidate.matchScore}% match
                           </Badge>
                         </div>
-                        
+
                         <div className="space-y-1 text-sm text-gray-600">
                           <p>Email: {candidate.person.email}</p>
                           <p>Phone: {candidate.person.phone}</p>
                           {candidate.person.streetAddress && (
                             <p>
-                              Address: {candidate.person.streetAddress}, {candidate.person.city}, {candidate.person.state} {candidate.person.zipCode}
+                              Address: {candidate.person.streetAddress}, {candidate.person.city},{' '}
+                              {candidate.person.state} {candidate.person.zipCode}
                             </p>
                           )}
                         </div>
@@ -458,15 +454,12 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                 ))}
 
                 <Separator />
-                
+
                 <div className="text-center">
                   <p className="text-sm text-gray-600 mb-2">
                     None of these match? Continue creating a new exhibitor.
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => setActiveTab('create')}
-                  >
+                  <Button variant="outline" onClick={() => setActiveTab('create')}>
                     Create New Exhibitor Anyway
                   </Button>
                 </div>

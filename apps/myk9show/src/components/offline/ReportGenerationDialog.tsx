@@ -11,6 +11,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Checkbox } from '../ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
@@ -236,8 +237,7 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
             <CollapsibleContent className="space-y-4 mt-4">
               <div className="space-y-3">
                 {/* Custom Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="customTitle">Custom report title (optional)</Label>
+                <FormField label="Custom report title (optional)" fieldId="customTitle">
                   <Input
                     id="customTitle"
                     placeholder="Leave empty for default title"
@@ -255,12 +255,11 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                       }
                     }}
                   />
-                </div>
+                </FormField>
 
                 {/* Judge Filter for Judge Book */}
                 {reportOptions.type === 'judge-book' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="judgeFilter">Filter by judge (optional)</Label>
+                  <FormField label="Filter by judge (optional)" fieldId="judgeFilter">
                     <Select
                       value={reportOptions.judgeId || ''}
                       onValueChange={(value) => {
@@ -292,15 +291,11 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                         )}
                       </SelectContent>
                     </Select>
-                  </div>
+                  </FormField>
                 )}
 
                 {/* Class Filter */}
-                <div className="space-y-2">
-                  <Label htmlFor="classFilter">Filter by classes (optional)</Label>
-                  <div className="text-sm text-muted-foreground mb-2">
-                    Leave empty to include all classes. Enter class names or IDs separated by commas.
-                  </div>
+                <FormField label="Filter by classes (optional)" fieldId="classFilter" hint="Leave empty to include all classes. Enter class names or IDs separated by commas.">
                   <Input
                     id="classFilter"
                     placeholder="e.g., Novice A, Open B, or class IDs"
@@ -347,7 +342,7 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                       ))}
                     </div>
                   )}
-                </div>
+                </FormField>
               </div>
             </CollapsibleContent>
           </Collapsible>

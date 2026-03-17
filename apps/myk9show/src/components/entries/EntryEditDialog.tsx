@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import {
   Select,
   SelectContent,
@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { AlertCircle, Loader2, X, Save, Dog, Trophy } from 'lucide-react';
@@ -257,15 +258,14 @@ export function EntryEditDialog({
               </div>
 
               {/* Handler */}
-              <div className="space-y-2">
-                <Label htmlFor="handler">Handler Name</Label>
+              <FormField label="Handler Name" fieldId="handler">
                 <Input
                   id="handler"
                   value={handler}
                   onChange={(e) => setHandler(e.target.value)}
                   placeholder="Enter handler name"
                 />
-              </div>
+              </FormField>
 
               <Separator />
 

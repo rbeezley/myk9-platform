@@ -33,7 +33,7 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
   maxScore = 100,
   onScoreUpdate,
   disabled = false,
-  className
+  className,
 }) => {
   const [score, setScore] = useState(currentScore.toString());
   const [previousScore, setPreviousScore] = useState(currentScore);
@@ -42,56 +42,49 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
 
   const { addUndoAction } = useOptimisticNotifications();
 
-  const {
-    optimisticUpdate,
-    isProcessing,
-    lastOperationId,
-    getOperationStatus,
-    undo
-  } = useOptimisticScores({
-    onSuccess: () => {
-      setLastSaveTime(new Date());
-      setPreviousScore(parseFloat(score));
-      
-      // Show undo option for score changes
-      if (previousScore !== parseFloat(score)) {
-        setShowUndoToast(true);
-        addUndoAction(
-          `Score changed from ${previousScore} to ${score}`,
-          async () => {
+  const { optimisticUpdate, isProcessing, lastOperationId, getOperationStatus, undo } =
+    useOptimisticScores({
+      onSuccess: () => {
+        setLastSaveTime(new Date());
+        setPreviousScore(parseFloat(score));
+
+        // Show undo option for score changes
+        if (previousScore !== parseFloat(score)) {
+          setShowUndoToast(true);
+          addUndoAction(`Score changed from ${previousScore} to ${score}`, async () => {
             setScore(previousScore.toString());
             await handleScoreSubmit(previousScore);
-          }
+          });
+
+          // Auto-hide undo toast after 5 seconds
+          setTimeout(() => setShowUndoToast(false), 5000);
+        }
+      },
+      onError: () => {
+        // Revert to previous score on error
+        setScore(previousScore.toString());
+      },
+      onRollback: () => {
+        setScore(previousScore.toString());
+      },
+    });
+
+  const handleScoreSubmit = useCallback(
+    async (scoreValue: number) => {
+      if (scoreValue < 0 || scoreValue > maxScore) {
+        return;
+      }
+
+      try {
+        await optimisticUpdate(entryId, { score: scoreValue, updatedAt: new Date() }, () =>
+          onScoreUpdate(scoreValue)
         );
-        
-        // Auto-hide undo toast after 5 seconds
-        setTimeout(() => setShowUndoToast(false), 5000);
+      } catch (error) {
+        logger.error('Failed to update score:', 'scoring', {}, error as Error);
       }
     },
-    onError: () => {
-      // Revert to previous score on error
-      setScore(previousScore.toString());
-    },
-    onRollback: () => {
-      setScore(previousScore.toString());
-    }
-  });
-
-  const handleScoreSubmit = useCallback(async (scoreValue: number) => {
-    if (scoreValue < 0 || scoreValue > maxScore) {
-      return;
-    }
-
-    try {
-      await optimisticUpdate(
-        entryId,
-        { score: scoreValue, updatedAt: new Date() },
-        () => onScoreUpdate(scoreValue)
-      );
-    } catch (error) {
-      logger.error('Failed to update score:', 'scoring', {}, error as Error);
-    }
-  }, [entryId, maxScore, optimisticUpdate, onScoreUpdate]);
+    [entryId, maxScore, optimisticUpdate, onScoreUpdate]
+  );
 
   // Auto-save after user stops typing
   useEffect(() => {
@@ -176,21 +169,21 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
     <>
       <Card className={cn('relative transition-all duration-200', className)}>
         {isProcessing && lastOperationId && <SaveIndicator operationId={lastOperationId} />}
-        
+
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-sm font-semibold">{dogName}</CardTitle>
               <p className="text-xs text-muted-foreground">Entry #{entryNumber}</p>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {lastSaveTime && (
                 <Badge variant="secondary" className="text-xs">
                   Saved {lastSaveTime.toLocaleTimeString()}
                 </Badge>
               )}
-              
+
               <div className={cn('flex items-center gap-1 text-xs', getStatusColor(status))}>
                 {getStatusIcon(status)}
                 <span className="capitalize">{status === 'confirmed' ? 'saved' : status}</span>
@@ -205,12 +198,12 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
               <label className="text-sm font-medium">Score</label>
               <span className="text-xs text-muted-foreground">Max: {maxScore}</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Input
                 type="number"
                 value={score}
-                onChange={(e) => handleScoreChange(e.target.value)}
+                onChange={e => handleScoreChange(e.target.value)}
                 placeholder="Enter score"
                 min="0"
                 max={maxScore}
@@ -218,11 +211,11 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
                 disabled={disabled || isProcessing}
                 className={cn(
                   'text-center text-lg font-semibold',
-                  !isValidScore() && 'border-red-500',
+                  !isValidScore() && 'border-destructive',
                   hasChanged && 'border-blue-500'
                 )}
               />
-              
+
               {hasChanged && !isProcessing && (
                 <Button
                   size="sm"
@@ -234,11 +227,9 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
                 </Button>
               )}
             </div>
-            
+
             {!isValidScore() && (
-              <p className="text-xs text-red-500">
-                Score must be between 0 and {maxScore}
-              </p>
+              <p className="text-xs text-destructive">Score must be between 0 and {maxScore}</p>
             )}
           </div>
 
@@ -246,14 +237,16 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Progress</span>
-              <span>{isValidScore() ? `${((parseFloat(score) / maxScore) * 100).toFixed(1)}%` : '0%'}</span>
+              <span>
+                {isValidScore() ? `${((parseFloat(score) / maxScore) * 100).toFixed(1)}%` : '0%'}
+              </span>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
               <motion.div
                 className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
                 initial={{ width: `${(previousScore / maxScore) * 100}%` }}
-                animate={{ 
-                  width: isValidScore() ? `${(parseFloat(score) / maxScore) * 100}%` : '0%' 
+                animate={{
+                  width: isValidScore() ? `${(parseFloat(score) / maxScore) * 100}%` : '0%',
                 }}
                 transition={{ duration: 0.3 }}
               />
@@ -301,7 +294,7 @@ export const OptimisticBulkScoreEntry: React.FC<{
 }> = ({ entries, maxScore, onBulkUpdate }) => {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const { showSuccess } = useOptimisticNotifications();
 
   const updateScore = (entryId: string, score: number) => {
@@ -310,15 +303,15 @@ export const OptimisticBulkScoreEntry: React.FC<{
 
   const handleBulkSubmit = async () => {
     setIsSubmitting(true);
-    
+
     try {
       const scoreUpdates = Object.entries(scores).map(([entryId, score]) => ({
         entryId,
-        score
+        score,
       }));
 
       await onBulkUpdate(scoreUpdates);
-      
+
       showSuccess(`Updated ${scoreUpdates.length} scores successfully`);
       setScores({});
     } catch (error) {
@@ -341,7 +334,7 @@ export const OptimisticBulkScoreEntry: React.FC<{
             entryNumber={entry.entryNumber}
             currentScore={entry.currentScore}
             maxScore={maxScore}
-            onScoreUpdate={async (score) => {
+            onScoreUpdate={async score => {
               updateScore(entry.id, score);
               return Promise.resolve();
             }}
@@ -352,11 +345,7 @@ export const OptimisticBulkScoreEntry: React.FC<{
 
       {hasChanges && (
         <div className="flex justify-center pt-4">
-          <Button
-            onClick={handleBulkSubmit}
-            disabled={isSubmitting}
-            size="lg"
-          >
+          <Button onClick={handleBulkSubmit} disabled={isSubmitting} size="lg">
             {isSubmitting ? (
               <>
                 <Clock className="w-4 h-4 mr-2 animate-spin" />

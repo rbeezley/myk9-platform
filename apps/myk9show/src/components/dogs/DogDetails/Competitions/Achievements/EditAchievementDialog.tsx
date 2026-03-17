@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +21,7 @@ const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, ach
     icon: '🏆',
     color: '#3b82f6',
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Sync form state with achievement prop - using render-time state update pattern
   const achievementId = achievement?.id || '';
@@ -28,6 +30,7 @@ const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, ach
     setLastAchievementId(achievementId);
     const { ...achievementData } = achievement;
     setForm(achievementData);
+    setErrors({});
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -35,9 +38,20 @@ const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, ach
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    if (!form.title) newErrors.title = 'Please enter a title';
+    if (!form.date) newErrors.date = 'Please select a date';
+    if (!form.description) newErrors.description = 'Please enter a description';
+    return newErrors;
+  };
+
   const handleSubmit = (e?: React.MouseEvent<HTMLButtonElement>) => {
     e?.preventDefault();
-    if (!form.title || !form.date || !form.description || !achievement?.id) return;
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+    if (!achievement?.id) return;
     onSave(achievement.id, form);
   };
 
@@ -50,60 +64,57 @@ const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, ach
       onSave={handleSubmit}
     >
       <div className="space-y-4">
-        <div>
-          <label htmlFor="title" className="block font-medium text-sm mb-1">Title<span className="text-red-500">*</span></label>
+        <FormField label="Title" fieldId="title" required error={errors.title}>
           <Input
             id="title"
             name="title"
-            value={""}
+            value={form.title}
             onChange={handleChange}
             placeholder="Enter title"
-            required
+            aria-invalid={!!errors.title}
+            aria-describedby={errors.title ? 'title-error' : undefined}
           />
-        </div>
-        <div>
+        </FormField>
+        <FormField label="Date" fieldId="date" required error={errors.date}>
           <DatePickerField
-            label="Date"
-            value={""}
+            value={form.date}
             onChange={(value) => setForm(prev => ({ ...prev, date: value }))}
             required
             name="date"
             id="date"
           />
-        </div>
-        <div>
-          <label htmlFor="description" className="block font-medium text-sm mb-1">Description<span className="text-red-500">*</span></label>
+        </FormField>
+        <FormField label="Description" fieldId="description" required error={errors.description}>
           <Textarea
             id="description"
             name="description"
-            value={""}
+            value={form.description}
             onChange={handleChange}
             placeholder="Enter description"
             rows={3}
-            required
+            aria-invalid={!!errors.description}
+            aria-describedby={errors.description ? 'description-error' : undefined}
           />
-        </div>
-        <div>
-          <label htmlFor="icon" className="block font-medium text-sm mb-1">Icon</label>
+        </FormField>
+        <FormField label="Icon" fieldId="icon">
           <Input
             id="icon"
             name="icon"
-            value={""}
+            value={form.icon}
             onChange={handleChange}
             placeholder="Enter emoji icon"
           />
-        </div>
-        <div>
-          <label htmlFor="color" className="block font-medium text-sm mb-1">Color</label>
+        </FormField>
+        <FormField label="Color" fieldId="color">
           <Input
             type="color"
             id="color"
             name="color"
-            value={""}
+            value={form.color}
             onChange={handleChange}
             className="w-16 h-10 p-1"
           />
-        </div>
+        </FormField>
       </div>
     </StandardDialog>
   );

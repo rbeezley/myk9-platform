@@ -7,33 +7,33 @@ export const validateClassData = (data: ClassEditFormData): string[] | null => {
   const errors: string[] = [];
 
   if (!data.element?.trim()) {
-    errors.push('Element is required');
+    errors.push('Please enter an element');
   }
 
   if (!data.level?.trim()) {
-    errors.push('Level is required');
+    errors.push('Please enter a level');
   }
 
   // Validate time limits if provided
   if (data.timeLimit1 && isNaN(parseInt(data.timeLimit1))) {
-    errors.push('Time Limit 1 must be a valid number');
+    errors.push('Please enter a valid time limit 1');
   }
 
   if (data.timeLimit2 && isNaN(parseInt(data.timeLimit2))) {
-    errors.push('Time Limit 2 must be a valid number');
+    errors.push('Please enter a valid time limit 2');
   }
 
   if (data.timeLimit3 && isNaN(parseInt(data.timeLimit3))) {
-    errors.push('Time Limit 3 must be a valid number');
+    errors.push('Please enter a valid time limit 3');
   }
 
   // Validate fees if provided
   if (data.preEntryFee && (isNaN(data.preEntryFee) || data.preEntryFee < 0)) {
-    errors.push('Pre-entry fee must be a valid positive number');
+    errors.push('Please enter a valid pre-entry fee');
   }
 
   if (data.dayOfShowFee && (isNaN(data.dayOfShowFee) || data.dayOfShowFee < 0)) {
-    errors.push('Day of show fee must be a valid positive number');
+    errors.push('Please enter a valid day of show fee');
   }
 
   return errors.length > 0 ? errors : null;
@@ -44,15 +44,15 @@ export const validateTrialClassData = (data: TrialClassEditFormData): string[] |
   const errors: string[] = [];
 
   if (!data.judgeId?.trim()) {
-    errors.push('Judge is required');
+    errors.push('Please select a judge');
   }
 
   if (!data.startTime?.trim()) {
-    errors.push('Start time is required');
+    errors.push('Please enter a start time');
   }
 
   if (!data.status?.trim()) {
-    errors.push('Status is required');
+    errors.push('Please select a status');
   }
 
   return errors.length > 0 ? errors : null;

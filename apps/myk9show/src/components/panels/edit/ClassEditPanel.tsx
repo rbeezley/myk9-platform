@@ -2,7 +2,6 @@ import React, { useCallback, useMemo } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -15,6 +14,8 @@ import { ClassData } from '@/components/classes/types/classTypes';
 import { TrialClass } from '@/components/trials/types/trial.types';
 import { useShowStore } from '@/store/showStore';
 import { cn } from '@/lib/utils';
+import { FormField } from '@/components/common/FormField';
+import { findFieldError } from '@/lib/validation';
 import type {
   ClassEditPanelProps,
   ClassEditFormData,
@@ -60,6 +61,10 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
     [updateData, assignedJudges]
   );
 
+  const judgeError = findFieldError(errors, 'judge');
+  const startTimeError = findFieldError(errors, 'start time');
+  const statusError = findFieldError(errors, 'status');
+
   return (
     <div className="space-y-6 p-6">
       <Card>
@@ -68,49 +73,43 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Element
-              </Label>
+            <FormField label="Element" fieldId="trialElement">
               <Input
+                id="trialElement"
                 value={data.element}
                 className="bg-muted text-muted-foreground"
                 disabled
                 readOnly
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Level
-              </Label>
+            </FormField>
+            <FormField label="Level" fieldId="trialLevel">
               <Input
+                id="trialLevel"
                 value={data.level}
                 className="bg-muted text-muted-foreground"
                 disabled
                 readOnly
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Section
-              </Label>
+            </FormField>
+            <FormField label="Section" fieldId="trialSection">
               <Input
+                id="trialSection"
                 value={data.section}
                 className="bg-muted text-muted-foreground"
                 disabled
                 readOnly
               />
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Judge *
-              </Label>
+            <FormField label="Judge" fieldId="judgeId" required error={judgeError}>
               <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
                 <SelectTrigger
-                  className={cn(errors.some(e => e.includes('Judge')) && 'border-destructive')}
+                  id="judgeId"
+                  className={cn(judgeError && 'border-destructive')}
+                  aria-invalid={!!judgeError}
+                  aria-describedby={judgeError ? 'judgeId-error' : undefined}
                 >
                   <SelectValue placeholder="Select a judge" />
                 </SelectTrigger>
@@ -134,25 +133,25 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   <SelectItem value="TBD">TBD</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Start Time *
-              </Label>
+            </FormField>
+            <FormField label="Start Time" fieldId="startTime" required error={startTimeError}>
               <Input
+                id="startTime"
                 type="datetime-local"
                 value={data.startTime}
                 onChange={handleInputChange('startTime')}
-                className={cn(errors.some(e => e.includes('Start time')) && 'border-destructive')}
+                className={cn(startTimeError && 'border-destructive')}
+                aria-invalid={!!startTimeError}
+                aria-describedby={startTimeError ? 'startTime-error' : undefined}
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Status *
-              </Label>
+            </FormField>
+            <FormField label="Status" fieldId="trialStatus" required error={statusError}>
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
                 <SelectTrigger
-                  className={cn(errors.some(e => e.includes('Status')) && 'border-destructive')}
+                  id="trialStatus"
+                  className={cn(statusError && 'border-destructive')}
+                  aria-invalid={!!statusError}
+                  aria-describedby={statusError ? 'trialStatus-error' : undefined}
                 >
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -163,22 +162,20 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   <SelectItem value="Cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                Number of Entries
-              </Label>
+            <FormField label="Number of Entries" fieldId="trialEntries">
               <Input
+                id="trialEntries"
                 type="number"
                 value={data.entries}
                 className="bg-muted text-muted-foreground"
                 disabled
                 readOnly
               />
-            </div>
+            </FormField>
           </div>
         </CardContent>
       </Card>

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
 import StandardDialog from '@/components/common/StandardDialog';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import type { TrainingEntry } from './AddTrainingEntryDialog';
 import { parseLocalDateString, formatDateLocal } from '@/utils/dateLocal';
 
@@ -17,6 +19,7 @@ const EditTrainingEntryDialog: React.FC<EditTrainingEntryDialogProps> = ({ open,
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState('');
   const [tags, setTags] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Sync form state with entry prop - using render-time state update pattern
   const entryId = entry?.id || '';
@@ -27,11 +30,23 @@ const EditTrainingEntryDialog: React.FC<EditTrainingEntryDialogProps> = ({ open,
     setNotes(entry.notes);
     setDate(entry.date);
     setTags(entry.tags ? entry.tags.join(', ') : '');
+    setErrors({});
   }
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    if (!title) newErrors.title = 'Please enter a title';
+    if (!notes) newErrors.notes = 'Please enter notes';
+    if (!date) newErrors.date = 'Please select a date';
+    return newErrors;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!entry) return;
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
     onSave({ ...entry, title, notes, date, tags: tags.split(',').map(t => t.trim()).filter(Boolean) });
   };
 
@@ -44,20 +59,27 @@ const EditTrainingEntryDialog: React.FC<EditTrainingEntryDialogProps> = ({ open,
       formId="edit-training-entry-form"
       saveLabel="Save"
     >
-      <div className="text-xs text-muted-foreground mb-2">
-        <span className="text-red-500">*</span> All fields are required
-      </div>
       <form id="edit-training-entry-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <RequiredLabel>Title</RequiredLabel>
-          <input type="text" className="w-full border rounded px-3 py-2" value={title} onChange={e => setTitle(e.target.value)} required />
-        </div>
-        <div>
-          <RequiredLabel>Notes</RequiredLabel>
-          <textarea className="w-full border rounded px-3 py-2" value={notes} onChange={e => setNotes(e.target.value)} required />
-        </div>
-        <div>
-          <RequiredLabel>Date</RequiredLabel>
+        <FormField label="Title" fieldId="trainingTitle" required error={errors.title}>
+          <Input
+            id="trainingTitle"
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            aria-invalid={!!errors.title}
+            aria-describedby={errors.title ? 'trainingTitle-error' : undefined}
+          />
+        </FormField>
+        <FormField label="Notes" fieldId="trainingNotes" required error={errors.notes}>
+          <Textarea
+            id="trainingNotes"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            aria-invalid={!!errors.notes}
+            aria-describedby={errors.notes ? 'trainingNotes-error' : undefined}
+          />
+        </FormField>
+        <FormField label="Date" fieldId="trainingEntryDate" required error={errors.date}>
           <DatePicker
             date={date ? parseLocalDateString(date) : undefined}
             setDate={(newDate) => setDate(newDate ? formatDateLocal(newDate) : '')}
@@ -67,11 +89,16 @@ const EditTrainingEntryDialog: React.FC<EditTrainingEntryDialogProps> = ({ open,
             name="date"
             placeholder="YYYY-MM-DD"
           />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Tags <span className="text-muted-foreground">(comma separated)</span></label>
-          <input type="text" className="w-full border rounded px-3 py-2" value={""} onChange={e => setTags(e.target.value)} placeholder="e.g. Obedience, Progress" />
-        </div>
+        </FormField>
+        <FormField label="Tags (comma separated)" fieldId="trainingTags">
+          <Input
+            id="trainingTags"
+            type="text"
+            value={tags}
+            onChange={e => setTags(e.target.value)}
+            placeholder="e.g. Obedience, Progress"
+          />
+        </FormField>
       </form>
     </StandardDialog>
   );

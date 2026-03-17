@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { z } from 'zod';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { Save, X, AlertCircle } from 'lucide-react';
@@ -7,6 +8,7 @@ import { EditPanelContext, EditPanelContextValue } from './useEditPanel';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
+import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 
 export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   // Panel configuration
@@ -15,20 +17,21 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   title: string;
   subtitle?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  
+
   // Data management
   initialData: T;
   onSave: (data: T) => Promise<void> | void;
-  
+
   // Form configuration
   children: React.ReactNode;
-  validateData?: (data: T) => string[] | null; // Returns error messages or null
-  
+  schema?: z.ZodSchema<T>; // NEW: Zod schema for validation
+  validateData?: (data: T) => string[] | null; // LEGACY: console warning when used
+
   // Advanced features
   enableAutoSave?: boolean;
   autoSaveInterval?: number; // milliseconds
   showUnsavedWarning?: boolean;
-  
+
   // Customization
   saveLabel?: string;
   cancelLabel?: string;
@@ -45,6 +48,11 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   onAutoSave?: (data: T) => Promise<void> | void;
 }
 
+// Dummy schema used when no schema is provided (satisfies rules of hooks).
+// IMPORTANT: Do not read form.isValid/form.errors on the legacy path — the dummy
+// schema always validates as valid, which would be misleading. Use legacyIsValid instead.
+const DUMMY_SCHEMA = z.object({}) as z.ZodSchema<Record<string, unknown>>;
+
 export function EditPanelWrapper<T extends Record<string, unknown> = Record<string, unknown>>({
   open,
   onClose,
@@ -54,6 +62,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   initialData,
   onSave,
   children,
+  schema,
   validateData,
   enableAutoSave = false,
   autoSaveInterval = 30000, // 30 seconds
@@ -68,49 +77,99 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   onValidationChange,
   onAutoSave,
 }: EditPanelWrapperProps<T>) {
-  
-  // Internal state
-  const [data, setData] = useState<T>(initialData);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [isValid, setIsValid] = useState(true);
+  // Determine which path to use
+  const useSchemaPath = !!schema;
+
+  // Log deprecation warning for validateData
+  useEffect(() => {
+    if (validateData && !schema) {
+      console.warn(
+        'EditPanelWrapper: validateData is deprecated. Use schema prop with a Zod schema instead.'
+      );
+    }
+  }, [validateData, schema]);
+
+  // --- Schema path: useFormValidation owns state ---
+  const form = useFormValidation((schema ?? DUMMY_SCHEMA) as z.ZodSchema<T>, initialData);
+
+  // Reset form when initialData changes (schema path)
+  useEffect(() => {
+    if (useSchemaPath) {
+      form.reset(initialData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData, useSchemaPath]);
+
+  // --- Legacy path: useState owns state ---
+  const [legacyData, setLegacyData] = useState<T>(initialData);
+  const [legacyHasChanges, setLegacyHasChanges] = useState(false);
+  const [legacyErrors, setLegacyErrors] = useState<string[]>([]);
+  const [legacyIsValid, setLegacyIsValid] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [, setLastAutoSave] = useState<number>(Date.now());
   const [isTouched, setIsTouched] = useState(false);
 
-  // Update data when initialData changes
+  // Update legacy data when initialData changes
   useEffect(() => {
-    setData(initialData);
-    setHasChanges(false);
-    setIsTouched(false);
-    setLastAutoSave(Date.now());
-  }, [initialData]);
+    if (!useSchemaPath) {
+      setLegacyData(initialData);
+      setLegacyHasChanges(false);
+      setIsTouched(false);
+      setLastAutoSave(Date.now());
+    }
+  }, [initialData, useSchemaPath]);
 
-  // Track changes
+  // Unified accessors
+  const data = useSchemaPath ? form.data : legacyData;
+  const hasChanges = useSchemaPath ? form.hasChanges : legacyHasChanges;
+  const isValid = useSchemaPath ? form.isValid : legacyIsValid;
+  const errors = useSchemaPath ? Object.values(form.errors) : legacyErrors;
+  const errorCount = useSchemaPath ? Object.keys(form.errors).length : legacyErrors.length;
+
+  // Legacy: Track changes and validate
   useEffect(() => {
-    const hasChangesNow = JSON.stringify(data) !== JSON.stringify(initialData);
-    setHasChanges(hasChangesNow);
+    if (useSchemaPath) return;
 
-    // Validate data (always compute validity, but only surface errors after user interaction)
+    const hasChangesNow = JSON.stringify(legacyData) !== JSON.stringify(initialData);
+    setLegacyHasChanges(hasChangesNow);
+
     let validationErrors: string[] = [];
     let isValidNow = true;
 
     if (validateData) {
-      const result = validateData(data);
+      const result = validateData(legacyData);
       if (result && result.length > 0) {
         validationErrors = result;
         isValidNow = false;
       }
     }
 
-    // Only show errors after the user has started editing
-    setErrors(isTouched ? validationErrors : []);
-    setIsValid(isValidNow);
+    setLegacyErrors(isTouched ? validationErrors : []);
+    setLegacyIsValid(isValidNow);
 
-    // Notify parent components
-    onDataChange?.(data, hasChangesNow);
+    onDataChange?.(legacyData, hasChangesNow);
     onValidationChange?.(isValidNow, isTouched ? validationErrors : []);
-  }, [data, initialData, validateData, onDataChange, onValidationChange, isTouched]);
+  }, [
+    legacyData,
+    initialData,
+    validateData,
+    onDataChange,
+    onValidationChange,
+    isTouched,
+    useSchemaPath,
+  ]);
+
+  // Schema path: fire onValidationChange callback
+  useEffect(() => {
+    if (!useSchemaPath) return;
+    onValidationChange?.(form.isValid, Object.values(form.errors));
+  }, [form.isValid, form.errors, onValidationChange, useSchemaPath]);
+
+  // Schema path: fire onDataChange callback
+  useEffect(() => {
+    if (!useSchemaPath) return;
+    onDataChange?.(form.data, form.hasChanges);
+  }, [form.data, form.hasChanges, onDataChange, useSchemaPath]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -132,45 +191,84 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     return () => clearTimeout(autoSaveTimer);
   }, [data, hasChanges, isValid, enableAutoSave, autoSaveInterval, onAutoSave]);
 
-  // Update data function
-  const updateData = useCallback((updates: Partial<T>) => {
-    setIsTouched(true);
-    setData(prev => ({ ...prev, ...updates }));
-  }, []);
+  // Legacy: Update data function
+  const updateData = useCallback(
+    (updates: Partial<T>) => {
+      if (useSchemaPath) {
+        form.setValues(updates);
+      } else {
+        setIsTouched(true);
+        setLegacyData(prev => ({ ...prev, ...updates }));
+      }
+    },
+    [useSchemaPath, form]
+  );
 
-  // Set complete data function
-  const setCompleteData = useCallback((newData: T) => {
-    setData(newData);
-  }, []);
+  // Legacy: Set complete data function
+  const setCompleteData = useCallback(
+    (newData: T) => {
+      if (useSchemaPath) {
+        form.reset(newData);
+      } else {
+        setLegacyData(newData);
+      }
+    },
+    [useSchemaPath, form]
+  );
 
-  // Handle save
-  const handleSave = async () => {
-    // Show validation errors on save attempt even if user hasn't edited yet
-    setIsTouched(true);
-    if (!isValid) {
-      logger.warn('Cannot save: validation errors exist', 'components', {});
-      return;
+  // Handle save — schema path delegates to form.handleSubmit
+  const wrappedSave = useCallback(
+    async (validatedData: T) => {
+      try {
+        setIsLoading(true);
+        await onSave(validatedData);
+        onClose();
+      } catch (error) {
+        logger.error('Save failed:', 'components', {}, error as Error);
+        notifications.error('Failed to save changes', {
+          description: getErrorMessage(error),
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [onSave, onClose]
+  );
+
+  const handleSave = useMemo(() => {
+    if (useSchemaPath) {
+      return form.handleSubmit(wrappedSave);
     }
+    // Legacy save
+    return async () => {
+      setIsTouched(true);
+      if (!legacyIsValid) {
+        logger.warn('Cannot save: validation errors exist', 'components', {});
+        return;
+      }
 
-    try {
-      setIsLoading(true);
-      await onSave(data);
-      setHasChanges(false);
-      onClose();
-    } catch (error) {
-      logger.error('Save failed:', 'components', {}, error as Error);
-      notifications.error('Failed to save changes', {
-        description: getErrorMessage(error),
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      try {
+        setIsLoading(true);
+        await onSave(legacyData);
+        setLegacyHasChanges(false);
+        onClose();
+      } catch (error) {
+        logger.error('Save failed:', 'components', {}, error as Error);
+        notifications.error('Failed to save changes', {
+          description: getErrorMessage(error),
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  }, [useSchemaPath, form, wrappedSave, legacyIsValid, onSave, legacyData, onClose]);
 
   // Handle close with unsaved changes warning
   const handleClose = () => {
     if ((hasChanges || forceHasChanges) && showUnsavedWarning) {
-      const shouldClose = window.confirm('You have unsaved changes. Are you sure you want to close?');
+      const shouldClose = window.confirm(
+        'You have unsaved changes. Are you sure you want to close?'
+      );
       if (!shouldClose) return;
     }
     onClose();
@@ -178,6 +276,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Context value
   const contextValue: EditPanelContextValue<Record<string, unknown>> = {
+    form: useSchemaPath ? (form as unknown as FormValidation<Record<string, unknown>>) : undefined,
     data: data as Record<string, unknown>,
     updateData: updateData as (updates: Partial<Record<string, unknown>>) => void,
     setData: setCompleteData as (data: Record<string, unknown>) => void,
@@ -199,21 +298,19 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             <span>Unsaved changes</span>
           </div>
         )}
-        
-        {enableAutoSave && (
-          <div className="text-xs text-muted-foreground">
-            Auto-save enabled
-          </div>
-        )}
-        
-        {errors.length > 0 && (
+
+        {enableAutoSave && <div className="text-xs text-muted-foreground">Auto-save enabled</div>}
+
+        {errorCount > 0 && (
           <div className="flex items-center gap-1 text-sm text-destructive">
             <AlertCircle className="h-3 w-3" />
-            <span>{errors.length} error{errors.length !== 1 ? 's' : ''}</span>
+            <span>
+              {errorCount} error{errorCount !== 1 ? 's' : ''}
+            </span>
           </div>
         )}
       </div>
-      
+
       <div className="flex items-center gap-2">
         {footerActions}
         <Button
@@ -227,7 +324,11 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         </Button>
         <Button
           onClick={handleSave}
-          disabled={(!hasChanges && !forceHasChanges) || !isValid || isLoading}
+          disabled={
+            useSchemaPath
+              ? (!hasChanges && !forceHasChanges) || isLoading
+              : (!hasChanges && !forceHasChanges) || !isValid || isLoading
+          }
           className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <Save className="h-4 w-4" />
@@ -252,8 +353,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         preventClose={(hasChanges || forceHasChanges) && showUnsavedWarning}
       >
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">
-          {/* Error display */}
-          {errors.length > 0 && (
+          {/* Error display — legacy path only (schema path uses inline FormField errors) */}
+          {!useSchemaPath && errors.length > 0 && (
             <div className="flex-shrink-0 mx-6 mt-4 mb-2 animate-in slide-in-from-top-2 duration-200 ease-out">
               <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 backdrop-blur-sm transition-all duration-200 hover:bg-destructive/15">
                 <div className="flex items-start gap-2">
@@ -272,7 +373,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
               </div>
             </div>
           )}
-          
+
           {/* Main content - no overflow here, SlideOverPanel handles scrolling */}
           <div className="flex-1 animate-in slide-in-from-bottom-1 duration-400 ease-out">
             {children}

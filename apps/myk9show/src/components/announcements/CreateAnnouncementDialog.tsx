@@ -3,6 +3,7 @@ import { X, Megaphone, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Textarea } from '@/components/ui/textarea';
 import { useAnnouncementStore } from '@/store/announcementStore';
 import { notifications } from '@/lib/notifications';
@@ -120,8 +121,7 @@ export function CreateAnnouncementDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="ann-title">Title</Label>
+          <FormField label="Title" fieldId="ann-title" required>
             <Input
               id="ann-title"
               value={title}
@@ -130,10 +130,9 @@ export function CreateAnnouncementDialog({
               required
               maxLength={200}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <Label htmlFor="ann-content">Message</Label>
+          <FormField label="Message" fieldId="ann-content" required>
             <Textarea
               id="ann-content"
               value={content}
@@ -143,7 +142,7 @@ export function CreateAnnouncementDialog({
               rows={3}
               maxLength={2000}
             />
-          </div>
+          </FormField>
 
           <div>
             <Label>Priority</Label>
@@ -167,18 +166,14 @@ export function CreateAnnouncementDialog({
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="ann-expires">Expires at (optional)</Label>
+          <FormField label="Expires at (optional)" fieldId="ann-expires" hint="Defaults to show end date. Clear to keep indefinitely.">
             <Input
               id="ann-expires"
               type="datetime-local"
               value={expiresAt}
               onChange={e => setExpiresAt(e.target.value)}
             />
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Defaults to show end date. Clear to keep indefinitely.
-            </p>
-          </div>
+          </FormField>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>

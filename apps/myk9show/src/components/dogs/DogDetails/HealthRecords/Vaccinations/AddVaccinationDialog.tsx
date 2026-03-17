@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Plus } from 'lucide-react';
@@ -29,10 +29,10 @@ const AddVaccinationDialog: React.FC<AddVaccinationDialogProps> = ({ open, onClo
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const errors: { [key: string]: string } = {};
-    if (!vaccination) errors.vaccination = 'Vaccination is required.';
-    if (!date) errors.date = 'Date is required.';
-    if (!expiration) errors.expiration = 'Expiration is required.';
-    if (!vetName) errors.vetName = 'Veterinarian is required.';
+    if (!vaccination) errors.vaccination = 'Please enter a vaccination name.';
+    if (!date) errors.date = 'Please select a date.';
+    if (!expiration) errors.expiration = 'Please select an expiration date.';
+    if (!vetName) errors.vetName = 'Please enter a veterinarian name.';
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
     onAdd({ vaccination, date, expiration, vetName });
@@ -55,36 +55,46 @@ const AddVaccinationDialog: React.FC<AddVaccinationDialogProps> = ({ open, onClo
       saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
     >
       <form id="add-vaccination-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <FormField label="Vaccination" fieldId="addVaccination" required error={formErrors.vaccination}>
+          <Input
+            id="addVaccination"
+            type="text"
+            value={""}
+            onChange={e => setVaccination(e.target.value)}
+            required
+            aria-invalid={!!formErrors.vaccination}
+            aria-describedby={formErrors.vaccination ? 'addVaccination-error' : undefined}
+          />
+        </FormField>
         <div>
-          <RequiredLabel required>Vaccination</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setVaccination(e.target.value)} required className={formErrors.vaccination ? 'border-red-500' : ''} />
-          {formErrors.vaccination && <div className="text-red-500 text-xs mt-1">{formErrors.vaccination}</div>}
-        </div>
-        <div>
-          <RequiredLabel required>Date</RequiredLabel>
           <DatePickerField
             label="Date"
             value={""}
             onChange={setDate}
             required
           />
-          {formErrors.date && <div className="text-red-500 text-xs mt-1">{formErrors.date}</div>}
+          {formErrors.date && <p className="text-sm text-destructive" role="alert">{formErrors.date}</p>}
         </div>
         <div>
-          <RequiredLabel required>Expiration</RequiredLabel>
           <DatePickerField
             label="Expiration Date"
             value={""}
             onChange={setExpiration}
             required
           />
-          {formErrors.expiration && <div className="text-red-500 text-xs mt-1">{formErrors.expiration}</div>}
+          {formErrors.expiration && <p className="text-sm text-destructive" role="alert">{formErrors.expiration}</p>}
         </div>
-        <div>
-          <RequiredLabel required>Veterinarian</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setVeterinarian(e.target.value)} required className={formErrors.vetName ? 'border-red-500' : ''} />
-          {formErrors.vetName && <div className="text-red-500 text-xs mt-1">{formErrors.vetName}</div>}
-        </div>
+        <FormField label="Veterinarian" fieldId="addVaccinationVet" required error={formErrors.vetName}>
+          <Input
+            id="addVaccinationVet"
+            type="text"
+            value={""}
+            onChange={e => setVeterinarian(e.target.value)}
+            required
+            aria-invalid={!!formErrors.vetName}
+            aria-describedby={formErrors.vetName ? 'addVaccinationVet-error' : undefined}
+          />
+        </FormField>
       </form>
     </StandardDialog>
   );

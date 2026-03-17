@@ -1,10 +1,10 @@
 import React, { useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Phone, MapPin } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { findFieldError } from '@/lib/validation';
 import type { UserFormData } from './UserEditPanel.types';
 
 interface ContactInfoTabProps {
@@ -27,6 +27,12 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
     [updateData]
   );
 
+  const phoneError = findFieldError(errors, 'phone');
+  const addressError = findFieldError(errors, 'address');
+  const cityError = findFieldError(errors, 'city');
+  const stateError = findFieldError(errors, 'state');
+  const zipError = findFieldError(errors, 'zip');
+
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
       <CardHeader>
@@ -36,22 +42,17 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label
-            htmlFor="phone"
-            className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-          >
-            Phone Number
-          </Label>
+        <FormField label="Phone Number" fieldId="phone" error={phoneError}>
           <Input
             id="phone"
             type="tel"
             value={data.phone}
             onChange={handleInputChange('phone')}
             placeholder="Enter phone number"
-            className={cn(errors.some(e => e.includes('Phone')) && 'border-destructive')}
+            aria-invalid={!!phoneError}
+            aria-describedby={phoneError ? 'phone-error' : undefined}
           />
-        </div>
+        </FormField>
 
         <Separator />
 
@@ -61,73 +62,54 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
             Address Information
           </h4>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="address"
-              className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-            >
-              Street Address
-            </Label>
+          <FormField
+            label="Street Address"
+            fieldId="address"
+            error={addressError}
+          >
             <Input
               id="address"
               value={data.address}
               onChange={handleInputChange('address')}
               placeholder="Enter street address"
-              className={cn(
-                errors.some(e => e.includes('address') || e.includes('Address')) &&
-                  'border-destructive'
-              )}
+              aria-invalid={!!addressError}
+              aria-describedby={addressError ? 'address-error' : undefined}
             />
-          </div>
+          </FormField>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="city"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                City
-              </Label>
+            <FormField label="City" fieldId="city" error={cityError}>
               <Input
                 id="city"
                 value={data.city}
                 onChange={handleInputChange('city')}
                 placeholder="Enter city"
-                className={cn(errors.some(e => e.includes('City')) && 'border-destructive')}
+                aria-invalid={!!cityError}
+                aria-describedby={cityError ? 'city-error' : undefined}
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="state"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                State
-              </Label>
+            <FormField label="State" fieldId="state" error={stateError}>
               <Input
                 id="state"
                 value={data.state}
                 onChange={handleInputChange('state')}
                 placeholder="Enter state"
-                className={cn(errors.some(e => e.includes('State')) && 'border-destructive')}
+                aria-invalid={!!stateError}
+                aria-describedby={stateError ? 'state-error' : undefined}
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="zipCode"
-                className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-              >
-                ZIP Code
-              </Label>
+            <FormField label="ZIP Code" fieldId="zipCode" error={zipError}>
               <Input
                 id="zipCode"
                 value={data.zipCode}
                 onChange={handleInputChange('zipCode')}
                 placeholder="Enter ZIP code"
-                className={cn(errors.some(e => e.includes('ZIP')) && 'border-destructive')}
+                aria-invalid={!!zipError}
+                aria-describedby={zipError ? 'zipCode-error' : undefined}
               />
-            </div>
+            </FormField>
           </div>
         </div>
 
@@ -140,28 +122,16 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="emergencyContact"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Emergency Contact Name
-                  </Label>
+                <FormField label="Emergency Contact Name" fieldId="emergencyContact">
                   <Input
                     id="emergencyContact"
                     value={data.emergencyContact || ''}
                     onChange={handleInputChange('emergencyContact')}
                     placeholder="Enter emergency contact name"
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="emergencyPhone"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Emergency Phone
-                  </Label>
+                <FormField label="Emergency Phone" fieldId="emergencyPhone">
                   <Input
                     id="emergencyPhone"
                     type="tel"
@@ -169,7 +139,7 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
                     onChange={handleInputChange('emergencyPhone')}
                     placeholder="Enter emergency phone number"
                   />
-                </div>
+                </FormField>
               </div>
             </div>
           </>

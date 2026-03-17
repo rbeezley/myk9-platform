@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -254,9 +254,9 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
       <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
         {type === 'vaccination' && (
           <>
-            <div>
-              <RequiredLabel required>Vaccine Name</RequiredLabel>
+            <FormField label="Vaccine Name" fieldId="healthVaccineName" required>
               <Input
+                id="healthVaccineName"
                 value={vaccineName}
                 onChange={e => setVaccineName(e.target.value)}
                 required
@@ -274,7 +274,7 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
                   </button>
                 ))}
               </div>
-            </div>
+            </FormField>
             <DatePickerField
               label="Date Given"
               value={dateGiven}
@@ -286,44 +286,42 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
               value={expirationDate}
               onChange={setExpirationDate}
             />
-            <div>
-              <RequiredLabel>Veterinarian</RequiredLabel>
-              <Input value={vetName} onChange={e => setVetName(e.target.value)} />
-            </div>
-            <div>
-              <RequiredLabel>Lot Number</RequiredLabel>
-              <Input value={lotNumber} onChange={e => setLotNumber(e.target.value)} />
-            </div>
+            <FormField label="Veterinarian" fieldId="healthVaccineVet">
+              <Input id="healthVaccineVet" value={vetName} onChange={e => setVetName(e.target.value)} />
+            </FormField>
+            <FormField label="Lot Number" fieldId="healthVaccineLot">
+              <Input id="healthVaccineLot" value={lotNumber} onChange={e => setLotNumber(e.target.value)} />
+            </FormField>
           </>
         )}
 
         {type === 'medication' && (
           <>
-            <div>
-              <RequiredLabel required>Medication Name</RequiredLabel>
+            <FormField label="Medication Name" fieldId="healthMedName" required>
               <Input
+                id="healthMedName"
                 value={medicationName}
                 onChange={e => setMedicationName(e.target.value)}
                 required
               />
-            </div>
+            </FormField>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <RequiredLabel>Dosage</RequiredLabel>
+              <FormField label="Dosage" fieldId="healthMedDosage">
                 <Input
+                  id="healthMedDosage"
                   value={dosage}
                   onChange={e => setDosage(e.target.value)}
                   placeholder="e.g., 50mg"
                 />
-              </div>
-              <div>
-                <RequiredLabel>Frequency</RequiredLabel>
+              </FormField>
+              <FormField label="Frequency" fieldId="healthMedFrequency">
                 <Input
+                  id="healthMedFrequency"
                   value={frequency}
                   onChange={e => setFrequency(e.target.value)}
                   placeholder="e.g., Twice daily"
                 />
-              </div>
+              </FormField>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <DatePickerField label="Start Date" value={startDate} onChange={setStartDate} />
@@ -334,26 +332,26 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
 
         {type === 'allergy' && (
           <>
-            <div>
-              <RequiredLabel required>Allergen</RequiredLabel>
+            <FormField label="Allergen" fieldId="healthAllergen" required>
               <Input
+                id="healthAllergen"
                 value={allergen}
                 onChange={e => setAllergen(e.target.value)}
                 required
                 placeholder="e.g., Chicken"
               />
-            </div>
-            <div>
-              <RequiredLabel>Reaction</RequiredLabel>
+            </FormField>
+            <FormField label="Reaction" fieldId="healthAllergyReaction">
               <Input
+                id="healthAllergyReaction"
                 value={reaction}
                 onChange={e => setReaction(e.target.value)}
                 placeholder="e.g., Skin irritation"
               />
-            </div>
-            <div>
-              <RequiredLabel>Severity</RequiredLabel>
+            </FormField>
+            <FormField label="Severity" fieldId="healthAllergySeverity">
               <select
+                id="healthAllergySeverity"
                 value={severity}
                 onChange={e => setSeverity(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md"
@@ -364,7 +362,7 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
                 <option value="severe">Severe</option>
                 <option value="life_threatening">Life Threatening</option>
               </select>
-            </div>
+            </FormField>
             <DatePickerField
               label="Discovered Date"
               value={discoveredDate}
@@ -381,46 +379,43 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
               onChange={setVisitDate}
               required
             />
-            <div>
-              <RequiredLabel required>Reason</RequiredLabel>
+            <FormField label="Reason" fieldId="healthVisitReason" required>
               <Input
+                id="healthVisitReason"
                 value={reason}
                 onChange={e => setReason(e.target.value)}
                 required
                 placeholder="e.g., Annual checkup"
               />
-            </div>
-            <div>
-              <RequiredLabel>Diagnosis</RequiredLabel>
-              <Textarea value={diagnosis} onChange={e => setDiagnosis(e.target.value)} />
-            </div>
-            <div>
-              <RequiredLabel>Treatment</RequiredLabel>
-              <Textarea value={treatment} onChange={e => setTreatment(e.target.value)} />
-            </div>
+            </FormField>
+            <FormField label="Diagnosis" fieldId="healthVisitDiagnosis">
+              <Textarea id="healthVisitDiagnosis" value={diagnosis} onChange={e => setDiagnosis(e.target.value)} />
+            </FormField>
+            <FormField label="Treatment" fieldId="healthVisitTreatment">
+              <Textarea id="healthVisitTreatment" value={treatment} onChange={e => setTreatment(e.target.value)} />
+            </FormField>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <RequiredLabel>Veterinarian</RequiredLabel>
-                <Input value={vetName} onChange={e => setVetName(e.target.value)} />
-              </div>
-              <div>
-                <RequiredLabel>Cost ($)</RequiredLabel>
+              <FormField label="Veterinarian" fieldId="healthVisitVet">
+                <Input id="healthVisitVet" value={vetName} onChange={e => setVetName(e.target.value)} />
+              </FormField>
+              <FormField label="Cost ($)" fieldId="healthVisitCost">
                 <Input
+                  id="healthVisitCost"
                   type="number"
                   step="0.01"
                   value={cost}
                   onChange={e => setCost(e.target.value)}
                 />
-              </div>
+              </FormField>
             </div>
           </>
         )}
 
         {type === 'ofa_screening' && (
           <>
-            <div>
-              <RequiredLabel required>Test Type</RequiredLabel>
+            <FormField label="Test Type" fieldId="healthOfaTestType" required>
               <select
+                id="healthOfaTestType"
                 value={ofaTestType}
                 onChange={e => setOfaTestType(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md"
@@ -432,16 +427,16 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
                   </option>
                 ))}
               </select>
-            </div>
+            </FormField>
             <DatePickerField
               label="Test Date"
               value={ofaTestDate}
               onChange={setOfaTestDate}
               required
             />
-            <div>
-              <RequiredLabel required>Status</RequiredLabel>
+            <FormField label="Status" fieldId="healthOfaStatus" required>
               <select
+                id="healthOfaStatus"
                 value={ofaStatus}
                 onChange={e => setOfaStatus(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md"
@@ -453,38 +448,38 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <RequiredLabel>Result</RequiredLabel>
+            </FormField>
+            <FormField label="Result" fieldId="healthOfaResult">
               <Input
+                id="healthOfaResult"
                 value={ofaResult}
                 onChange={e => setOfaResult(e.target.value)}
                 placeholder="e.g., Good, Excellent, Fair"
               />
-            </div>
-            <div>
-              <RequiredLabel>Certification Number</RequiredLabel>
+            </FormField>
+            <FormField label="Certification Number" fieldId="healthOfaCertNumber">
               <Input
+                id="healthOfaCertNumber"
                 value={ofaCertNumber}
                 onChange={e => setOfaCertNumber(e.target.value)}
                 placeholder="e.g., OFA-123456"
               />
-            </div>
-            <div>
-              <RequiredLabel>Veterinarian</RequiredLabel>
+            </FormField>
+            <FormField label="Veterinarian" fieldId="healthOfaVet">
               <Input
+                id="healthOfaVet"
                 value={ofaVeterinarian}
                 onChange={e => setOfaVeterinarian(e.target.value)}
               />
-            </div>
+            </FormField>
           </>
         )}
 
         {type === 'genetic_screening' && (
           <>
-            <div>
-              <RequiredLabel required>Provider</RequiredLabel>
+            <FormField label="Provider" fieldId="healthGeneticProvider" required>
               <Input
+                id="healthGeneticProvider"
                 value={geneticProvider}
                 onChange={e => setGeneticProvider(e.target.value)}
                 required
@@ -502,15 +497,14 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
                   </button>
                 ))}
               </div>
-            </div>
+            </FormField>
             <DatePickerField
               label="Test Date"
               value={geneticTestDate}
               onChange={setGeneticTestDate}
               required
             />
-            <div>
-              <RequiredLabel>Marker Results</RequiredLabel>
+            <FormField label="Marker Results" fieldId="healthGeneticMarkers">
               <div className="space-y-2">
                 {geneticMarkers.map((row, index) => (
                   <div key={index} className="flex gap-2 items-start">
@@ -544,7 +538,7 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
                         onClick={() => removeMarkerRow(index)}
                         className="px-2"
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
                   </div>
@@ -553,14 +547,13 @@ const AddHealthItemDialog: React.FC<AddHealthItemDialogProps> = ({
                   <Plus className="h-3 w-3 mr-1" /> Add Marker
                 </Button>
               </div>
-            </div>
+            </FormField>
           </>
         )}
 
-        <div>
-          <RequiredLabel>Notes</RequiredLabel>
-          <Textarea value={notes} onChange={e => setNotes(e.target.value)} />
-        </div>
+        <FormField label="Notes" fieldId="healthItemNotes">
+          <Textarea id="healthItemNotes" value={notes} onChange={e => setNotes(e.target.value)} />
+        </FormField>
       </form>
     </StandardDialog>
   );

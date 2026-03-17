@@ -7,6 +7,7 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FormField } from '@/components/common/FormField';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserPlus, Shield, Search, X, MoreVertical, Trash2, KeyRound } from 'lucide-react';
@@ -240,11 +241,11 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
         </div>
         <CardContent className="space-y-4 pt-2">
           {/* Person search */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Person</label>
+          <FormField label="Person" fieldId="member-search">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                id="member-search"
                 placeholder="Search by name or email..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -275,12 +276,12 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 ))
               )}
             </div>
-          </div>
+          </FormField>
 
           {/* Membership type */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Membership Type</label>
+          <FormField label="Membership Type" fieldId="membership-type">
             <select
+              id="membership-type"
               value={membershipType}
               onChange={e => setMembershipType(e.target.value as MembershipType)}
               className="w-full rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground"
@@ -293,7 +294,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 )
               )}
             </select>
-          </div>
+          </FormField>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
@@ -385,11 +386,11 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
         </div>
         <CardContent className="space-y-4 pt-2">
           {/* Person search */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Person</label>
+          <FormField label="Person" fieldId="officer-search">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                id="officer-search"
                 placeholder="Search members..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -428,12 +429,12 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                 })
               )}
             </div>
-          </div>
+          </FormField>
 
           {/* Position select */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Position</label>
+          <FormField label="Position" fieldId="officer-position">
             <select
+              id="officer-position"
               value={position}
               onChange={e => setPosition(e.target.value as OfficerPosition)}
               className="w-full rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground"
@@ -444,7 +445,7 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">

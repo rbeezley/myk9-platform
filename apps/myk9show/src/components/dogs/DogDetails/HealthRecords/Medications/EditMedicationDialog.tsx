@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
+import { FormField } from '@/components/common/FormField';
 import type { MedicationRecord } from './AddMedicationDialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import RequiredLabel from '@/components/common/RequiredLabel';
 import DatePickerField from '@/components/common/DatePickerField';
 
 interface EditMedicationDialogProps {
@@ -67,43 +67,39 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({ open, recor
   className="py-4 min-w-[350px] max-w-[500px] mx-auto"
 >
   <div className="grid grid-cols-2 gap-4">
-    <div className="flex flex-col">
-      <RequiredLabel required>Name</RequiredLabel>
+    <FormField label="Name" fieldId="editMedicationName" required>
       <Input
         id="editMedicationName"
         value={""}
         onChange={e => setName(e.target.value)}
         required
       />
-    </div>
-    <div className="flex flex-col">
-      <RequiredLabel required>Dosage</RequiredLabel>
+    </FormField>
+    <FormField label="Dosage" fieldId="editDosage" required>
       <Input
         id="editDosage"
         value={""}
         onChange={e => setDosage(e.target.value)}
         required
       />
-    </div>
-    <div className="flex flex-col">
-      <RequiredLabel>Frequency</RequiredLabel>
+    </FormField>
+    <FormField label="Frequency" fieldId="editFrequency">
       <Input
         id="editFrequency"
         value={""}
         onChange={e => setFrequency(e.target.value)}
       />
-    </div>
+    </FormField>
     <div className="flex flex-col">
       <DatePickerField label="Next Due" value={""} onChange={setNextDue} required className="space-y-0" />
     </div>
-    <div className="flex flex-col col-span-2">
-      <RequiredLabel>Notes</RequiredLabel>
+    <FormField label="Notes" fieldId="editNotes" className="col-span-2">
       <Textarea
         id="editNotes"
         value={""}
         onChange={e => setNotes(e.target.value)}
       />
-    </div>
+    </FormField>
   </div>
 </form>
 

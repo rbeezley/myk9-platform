@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,11 +32,11 @@ const AddVetVisitDialog: React.FC<AddVetVisitDialogProps> = ({ open, onClose, on
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const errors: { [key: string]: string } = {};
-    if (!title) errors.title = 'Title is required.';
-    if (!date) errors.date = 'Date is required.';
-    if (!vetName) errors.vetName = 'Vet Name is required.';
-    if (!clinicName) errors.clinicName = 'Clinic Name is required.';
-    if (!notes) errors.notes = 'Notes are required.';
+    if (!title) errors.title = 'Please enter a title.';
+    if (!date) errors.date = 'Please select a date.';
+    if (!vetName) errors.vetName = 'Please enter a vet name.';
+    if (!clinicName) errors.clinicName = 'Please enter a clinic name.';
+    if (!notes) errors.notes = 'Please enter notes.';
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
     onAdd({ title, date, notes, vetName, clinicName });
@@ -60,11 +60,17 @@ const AddVetVisitDialog: React.FC<AddVetVisitDialogProps> = ({ open, onClose, on
       saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
     >
       <form id="add-vet-visit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <RequiredLabel required>Title</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setTitle(e.target.value)} required className={formErrors.title ? 'border-red-500' : ''} />
-          {formErrors.title && <div className="text-red-500 text-xs mt-1">{formErrors.title}</div>}
-        </div>
+        <FormField label="Title" fieldId="addVetVisitTitle" required error={formErrors.title}>
+          <Input
+            id="addVetVisitTitle"
+            type="text"
+            value={""}
+            onChange={e => setTitle(e.target.value)}
+            required
+            aria-invalid={!!formErrors.title}
+            aria-describedby={formErrors.title ? 'addVetVisitTitle-error' : undefined}
+          />
+        </FormField>
         <div>
           <DatePickerField
             label="Date"
@@ -72,23 +78,40 @@ const AddVetVisitDialog: React.FC<AddVetVisitDialogProps> = ({ open, onClose, on
             onChange={setDate}
             required
           />
-          {formErrors.date && <div className="text-red-500 text-xs mt-1">{formErrors.date}</div>}
+          {formErrors.date && <p className="text-sm text-destructive" role="alert">{formErrors.date}</p>}
         </div>
-        <div>
-          <RequiredLabel required>Vet Name</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setVetName(e.target.value)} required className={formErrors.vetName ? 'border-red-500' : ''} />
-          {formErrors.vetName && <div className="text-red-500 text-xs mt-1">{formErrors.vetName}</div>}
-        </div>
-        <div>
-          <RequiredLabel required>Clinic Name</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setClinicName(e.target.value)} required className={formErrors.clinicName ? 'border-red-500' : ''} />
-          {formErrors.clinicName && <div className="text-red-500 text-xs mt-1">{formErrors.clinicName}</div>}
-        </div>
-        <div>
-          <RequiredLabel required>Notes</RequiredLabel>
-          <Textarea value={""} onChange={e => setNotes(e.target.value)} required className={formErrors.notes ? 'border-red-500' : ''} />
-          {formErrors.notes && <div className="text-red-500 text-xs mt-1">{formErrors.notes}</div>}
-        </div>
+        <FormField label="Vet Name" fieldId="addVetVisitVetName" required error={formErrors.vetName}>
+          <Input
+            id="addVetVisitVetName"
+            type="text"
+            value={""}
+            onChange={e => setVetName(e.target.value)}
+            required
+            aria-invalid={!!formErrors.vetName}
+            aria-describedby={formErrors.vetName ? 'addVetVisitVetName-error' : undefined}
+          />
+        </FormField>
+        <FormField label="Clinic Name" fieldId="addVetVisitClinicName" required error={formErrors.clinicName}>
+          <Input
+            id="addVetVisitClinicName"
+            type="text"
+            value={""}
+            onChange={e => setClinicName(e.target.value)}
+            required
+            aria-invalid={!!formErrors.clinicName}
+            aria-describedby={formErrors.clinicName ? 'addVetVisitClinicName-error' : undefined}
+          />
+        </FormField>
+        <FormField label="Notes" fieldId="addVetVisitNotes" required error={formErrors.notes}>
+          <Textarea
+            id="addVetVisitNotes"
+            value={""}
+            onChange={e => setNotes(e.target.value)}
+            required
+            aria-invalid={!!formErrors.notes}
+            aria-describedby={formErrors.notes ? 'addVetVisitNotes-error' : undefined}
+          />
+        </FormField>
       </form>
     </StandardDialog>
   );

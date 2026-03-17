@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import {
   Select,
   SelectContent,
@@ -144,10 +144,10 @@ export function DayOfEntryDialog({
 
         <div className="space-y-4">
           {/* Dog Search */}
-          <div className="space-y-2">
-            <Label>Search for Dog</Label>
+          <FormField label="Search for Dog" fieldId="dog-search">
             <div className="flex gap-2">
               <Input
+                id="dog-search"
                 placeholder="Enter dog name..."
                 value={dogSearch}
                 onChange={(e) => setDogSearch(e.target.value)}
@@ -188,21 +188,21 @@ export function DayOfEntryDialog({
                 </Button>
               </div>
             )}
-          </div>
+          </FormField>
 
           {/* Handler */}
-          <div className="space-y-2">
-            <Label>Handler Name *</Label>
+          <FormField label="Handler Name" fieldId="handler-name" required>
             <Input
+              id="handler-name"
               placeholder="Handler name"
               value={handler}
               onChange={(e) => setHandler(e.target.value)}
             />
-          </div>
+          </FormField>
 
           {/* Class Selection */}
           <div className="space-y-2">
-            <Label>Select Classes *</Label>
+            <FormField label="Select Classes" fieldId="class-selection" required>
             <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-2">
               {availableClasses.map((cls) => (
                 <div key={cls.id} className="flex items-center space-x-2">
@@ -228,14 +228,14 @@ export function DayOfEntryDialog({
                 </div>
               )}
             </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Payment Method */}
-            <div className="space-y-2">
-              <Label>Payment Method</Label>
+            <FormField label="Payment Method" fieldId="payment-method">
               <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
-                <SelectTrigger>
+                <SelectTrigger id="payment-method">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -244,28 +244,28 @@ export function DayOfEntryDialog({
                   <SelectItem value="waived">Waived</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
 
             {/* Jump Height */}
-            <div className="space-y-2">
-              <Label>Jump Height (optional)</Label>
+            <FormField label="Jump Height (optional)" fieldId="jump-height">
               <Input
+                id="jump-height"
                 placeholder="e.g., 20"
                 value={jumpHeight}
                 onChange={(e) => setJumpHeight(e.target.value)}
               />
-            </div>
+            </FormField>
           </div>
 
           {/* Notes */}
-          <div className="space-y-2">
-            <Label>Notes (optional)</Label>
+          <FormField label="Notes (optional)" fieldId="entry-notes">
             <Textarea
+              id="entry-notes"
               placeholder="Any special notes..."
               value={entryNotes}
               onChange={(e) => setEntryNotes(e.target.value)}
             />
-          </div>
+          </FormField>
         </div>
 
         <DialogFooter>

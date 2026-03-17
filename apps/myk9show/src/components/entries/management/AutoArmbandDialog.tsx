@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import {
   Dialog,
   DialogContent,
@@ -43,8 +43,7 @@ export const AutoArmbandDialog: React.FC<AutoArmbandDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="start-number">Starting Number</Label>
+          <FormField label="Starting Number" fieldId="start-number" hint="Armbands will be assigned starting from this number, skipping any already assigned.">
             <Input
               id="start-number"
               type="number"
@@ -55,10 +54,7 @@ export const AutoArmbandDialog: React.FC<AutoArmbandDialogProps> = ({
               }
               placeholder="1"
             />
-            <p className="text-xs text-muted-foreground">
-              Armbands will be assigned starting from this number, skipping any already assigned.
-            </p>
-          </div>
+          </FormField>
         </div>
         <DialogFooter>
           <Button

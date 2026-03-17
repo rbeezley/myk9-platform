@@ -34,8 +34,8 @@ describe('CreateAnnouncementDialog', () => {
   it('renders form fields when open', () => {
     render(<CreateAnnouncementDialog {...defaultProps} />);
 
-    expect(screen.getByLabelText('Title')).toBeInTheDocument();
-    expect(screen.getByLabelText('Message')).toBeInTheDocument();
+    expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/message/i)).toBeInTheDocument();
     expect(screen.getByText('Normal')).toBeInTheDocument();
     expect(screen.getByText('High')).toBeInTheDocument();
     expect(screen.getByText('Urgent')).toBeInTheDocument();
@@ -55,8 +55,8 @@ describe('CreateAnnouncementDialog', () => {
     const user = userEvent.setup();
     render(<CreateAnnouncementDialog {...defaultProps} />);
 
-    await user.type(screen.getByLabelText('Title'), 'Test Title');
-    await user.type(screen.getByLabelText('Message'), 'Test content');
+    await user.type(screen.getByLabelText(/title/i), 'Test Title');
+    await user.type(screen.getByLabelText(/message/i), 'Test content');
     await user.click(screen.getByText('Post Announcement'));
 
     await waitFor(() => {
@@ -86,8 +86,8 @@ describe('CreateAnnouncementDialog', () => {
     const user = userEvent.setup();
     render(<CreateAnnouncementDialog {...defaultProps} />);
 
-    await user.type(screen.getByLabelText('Title'), 'Title');
-    await user.type(screen.getByLabelText('Message'), 'Content');
+    await user.type(screen.getByLabelText(/title/i), 'Title');
+    await user.type(screen.getByLabelText(/message/i), 'Content');
     await user.click(screen.getByText('Post Announcement'));
 
     await waitFor(() => {
@@ -100,8 +100,8 @@ describe('CreateAnnouncementDialog', () => {
     const user = userEvent.setup();
     render(<CreateAnnouncementDialog {...defaultProps} />);
 
-    await user.type(screen.getByLabelText('Title'), 'Title');
-    await user.type(screen.getByLabelText('Message'), 'Content');
+    await user.type(screen.getByLabelText(/title/i), 'Title');
+    await user.type(screen.getByLabelText(/message/i), 'Content');
     await user.click(screen.getByText('Post Announcement'));
 
     const { notifications } = await import('@/lib/notifications');

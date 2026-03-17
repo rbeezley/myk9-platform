@@ -4,6 +4,7 @@ import { msToDisplay, parseTimeInput } from '@/lib/timeUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -98,22 +99,13 @@ export const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
           <Separator />
 
           {/* Default Value */}
-          <div className="space-y-2">
-            <Label htmlFor="defaultValue">Default Value</Label>
+          <FormField label="Default Value" fieldId="defaultValue" hint={field.dataType === FieldDataType.DURATION_ARRAY ? 'Time format: MM:SS (e.g., 1:30 for 1 minute 30 seconds)' : (field.unit ? `Unit: ${field.unit}` : undefined)}>
             <DefaultValueInput
               field={field}
               localConfig={localConfig}
               setLocalConfig={setLocalConfig}
             />
-            {field.unit && field.dataType !== FieldDataType.DURATION_ARRAY && (
-              <p className="text-xs text-muted-foreground">Unit: {field.unit}</p>
-            )}
-            {field.dataType === FieldDataType.DURATION_ARRAY && (
-              <p className="text-xs text-muted-foreground">
-                Time format: MM:SS (e.g., 1:30 for 1 minute 30 seconds)
-              </p>
-            )}
-          </div>
+          </FormField>
 
           <ToggleRow
             id="defaultVariesByClass"
@@ -130,10 +122,7 @@ export const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
             <div className="space-y-2">
               <Label>Value Constraints (Optional)</Label>
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="minValue" className="text-xs">
-                    Minimum {isDurationType(field.dataType) ? '(MM:SS)' : ''}
-                  </Label>
+                <FormField label={`Minimum ${isDurationType(field.dataType) ? '(MM:SS)' : ''}`} fieldId="minValue">
                   <Input
                     id="minValue"
                     type={isDurationType(field.dataType) ? 'text' : 'number'}
@@ -145,11 +134,8 @@ export const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
                     }
                     onChange={e => updateConstraint({ min: parseConstraintValue(e.target.value) })}
                   />
-                </div>
-                <div>
-                  <Label htmlFor="maxValue" className="text-xs">
-                    Maximum {isDurationType(field.dataType) ? '(MM:SS)' : ''}
-                  </Label>
+                </FormField>
+                <FormField label={`Maximum ${isDurationType(field.dataType) ? '(MM:SS)' : ''}`} fieldId="maxValue">
                   <Input
                     id="maxValue"
                     type={isDurationType(field.dataType) ? 'text' : 'number'}
@@ -161,26 +147,22 @@ export const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
                     }
                     onChange={e => updateConstraint({ max: parseConstraintValue(e.target.value) })}
                   />
-                </div>
+                </FormField>
               </div>
-              <div>
-                <Label htmlFor="constraintHint" className="text-xs">
-                  Helper Text
-                </Label>
+              <FormField label="Helper Text" fieldId="constraintHint">
                 <Input
                   id="constraintHint"
                   placeholder="e.g., 'Judge sets within 1-3 minutes'"
                   value={localConfig.valueConstraints?.hint || ''}
                   onChange={e => updateConstraint({ hint: e.target.value })}
                 />
-              </div>
+              </FormField>
             </div>
           )}
 
           <Separator />
 
-          <div className="space-y-2">
-            <Label htmlFor="displayOrder">Display Order</Label>
+          <FormField label="Display Order" fieldId="displayOrder">
             <Input
               id="displayOrder"
               type="number"
@@ -190,7 +172,7 @@ export const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               }
               min={1}
             />
-          </div>
+          </FormField>
         </div>
 
         <div className="flex justify-end gap-2">

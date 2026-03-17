@@ -2,22 +2,27 @@ import { z } from 'zod';
 
 // Common field validations
 export const commonValidations = {
-  name: z.string().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
+  name: z.string().min(1, 'Please enter a name').max(100, 'Name must be less than 100 characters'),
   email: z.string().email('Please enter a valid email address'),
-  phone: z.string().regex(/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number').optional().or(z.literal('')),
-  required: z.string().min(1, 'This field is required'),
+  phone: z
+    .string()
+    .regex(/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number')
+    .optional()
+    .or(z.literal('')),
+  required: z.string().min(1, 'Please fill in this field'),
   optionalString: z.string().optional(),
-  positiveNumber: z.number().positive('Must be a positive number'),
+  positiveNumber: z.number().positive('Please enter a positive number'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date (YYYY-MM-DD)'),
-  url: z.string()
+  url: z
+    .string()
     .optional()
     .or(z.literal(''))
-    .transform((val) => {
+    .transform(val => {
       // If empty or not provided, return as is
       if (!val || val.trim() === '') return val;
-      
+
       const trimmed = val.trim();
-      
+
       // If it already has a protocol, validate as-is
       if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
         try {
@@ -27,7 +32,7 @@ export const commonValidations = {
           throw new Error('Please enter a valid URL');
         }
       }
-      
+
       // If it looks like a domain (contains a dot), prepend https://
       if (trimmed.includes('.') && !trimmed.includes(' ')) {
         const withProtocol = `https://${trimmed}`;
@@ -35,12 +40,16 @@ export const commonValidations = {
           new URL(withProtocol);
           return withProtocol;
         } catch {
-          throw new Error('Please enter a valid website URL (e.g., example.com or https://example.com)');
+          throw new Error(
+            'Please enter a valid website URL (e.g., example.com or https://example.com)'
+          );
         }
       }
-      
+
       // Otherwise, it's not a valid URL format
-      throw new Error('Please enter a valid website URL (e.g., example.com or https://example.com)');
+      throw new Error(
+        'Please enter a valid website URL (e.g., example.com or https://example.com)'
+      );
     }),
 };
 
@@ -58,7 +67,7 @@ export const dogSchemas = {
     microchip: commonValidations.optionalString,
     description: commonValidations.optionalString,
   }),
-  
+
   registration: z.object({
     organization: commonValidations.required,
     registeredName: commonValidations.name,
@@ -72,7 +81,7 @@ export const dogSchemas = {
 
   health: z.object({
     type: z.enum(['vaccination', 'medication', 'allergy', 'vet-visit'], {
-      message: 'Please select a health record type'
+      message: 'Please select a health record type',
     }),
     name: commonValidations.required,
     date: commonValidations.date,
@@ -92,35 +101,48 @@ export const personSchemas = {
     streetAddress: commonValidations.optionalString,
     city: commonValidations.optionalString,
     state: commonValidations.optionalString,
-    zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, 'Please enter a valid ZIP code').optional().or(z.literal('')),
+    zipCode: z
+      .string()
+      .regex(/^\d{5}(-\d{4})?$/, 'Please enter a valid ZIP code')
+      .optional()
+      .or(z.literal('')),
   }),
 };
 
 // Show validation schemas
 export const showSchemas = {
-  basic: z.object({
-    name: commonValidations.name,
-    type: z.enum(['Specialty', 'All-Breed', 'Fun Match', 'Sanctioned Match'], {
-      message: 'Please select a show type'
-    }),
-    startDate: commonValidations.date,
-    endDate: commonValidations.date,
-    location: commonValidations.required,
-    entryOpenDate: commonValidations.date.optional(),
-    entryCloseDate: commonValidations.date.optional(),
-    preEntryFee: z.string().regex(/^\$?\d+(\.\d{2})?$/, 'Please enter a valid fee amount').optional().or(z.literal('')),
-    chairman: commonValidations.optionalString,
-    secretary: commonValidations.optionalString,
-    chiefSteward: commonValidations.optionalString,
-  }).refine((data) => {
-    if (data.startDate && data.endDate) {
-      return new Date(data.startDate) <= new Date(data.endDate);
-    }
-    return true;
-  }, {
-    message: 'End date must be after start date',
-    path: ['endDate'],
-  }),
+  basic: z
+    .object({
+      name: commonValidations.name,
+      type: z.enum(['Specialty', 'All-Breed', 'Fun Match', 'Sanctioned Match'], {
+        message: 'Please select a show type',
+      }),
+      startDate: commonValidations.date,
+      endDate: commonValidations.date,
+      location: commonValidations.required,
+      entryOpenDate: commonValidations.date.optional(),
+      entryCloseDate: commonValidations.date.optional(),
+      preEntryFee: z
+        .string()
+        .regex(/^\$?\d+(\.\d{2})?$/, 'Please enter a valid fee amount')
+        .optional()
+        .or(z.literal('')),
+      chairman: commonValidations.optionalString,
+      secretary: commonValidations.optionalString,
+      chiefSteward: commonValidations.optionalString,
+    })
+    .refine(
+      data => {
+        if (data.startDate && data.endDate) {
+          return new Date(data.startDate) <= new Date(data.endDate);
+        }
+        return true;
+      },
+      {
+        message: 'End date must be after start date',
+        path: ['endDate'],
+      }
+    ),
 
   trial: z.object({
     name: commonValidations.name,
@@ -136,23 +158,36 @@ export const clubSchemas = {
     name: commonValidations.name,
     clubNumber: commonValidations.optionalString,
     email: commonValidations.email,
-    phone: z.string().min(1, 'Phone number is required').regex(/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number'),
+    phone: z
+      .string()
+      .min(1, 'Please enter a phone number')
+      .regex(/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number'),
     website: commonValidations.url,
     description: commonValidations.optionalString,
     logo: commonValidations.optionalString,
-    
+
     // Address fields - all required
-    street: z.string().min(1, 'Street address is required'),
-    city: z.string().min(1, 'City is required'),
-    state: z.string().min(1, 'State/Province is required'),
-    zipCode: z.string().min(1, 'ZIP/Postal code is required').regex(/^[A-Z0-9\s-]{3,10}$/i, 'Please enter a valid postal/ZIP code'),
+    street: z.string().min(1, 'Please enter a street address'),
+    city: z.string().min(1, 'Please enter a city'),
+    state: z.string().min(1, 'Please select a state/province'),
+    zipCode: z
+      .string()
+      .min(1, 'Please enter a ZIP/postal code')
+      .regex(/^[A-Z0-9\s-]{3,10}$/i, 'Please enter a valid postal/ZIP code'),
     country: z.string().min(2, 'Please select a country').max(3, 'Invalid country code'),
-    
+
     // Additional fields
-    founded: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date (YYYY-MM-DD)').optional().or(z.literal('')),
-    clubType: z.enum(['specialty', 'all-breed', 'local', 'regional', 'national'], {
-      message: 'Please select a club type'
-    }).optional().or(z.literal('')),
+    founded: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date (YYYY-MM-DD)')
+      .optional()
+      .or(z.literal('')),
+    clubType: z
+      .enum(['specialty', 'all-breed', 'local', 'regional', 'national'], {
+        message: 'Please select a club type',
+      })
+      .optional()
+      .or(z.literal('')),
   }),
 };
 
@@ -165,8 +200,20 @@ export type ShowBasicInput = z.infer<typeof showSchemas.basic>;
 export type ShowTrialInput = z.infer<typeof showSchemas.trial>;
 export type ClubBasicInput = z.infer<typeof clubSchemas.basic>;
 
+/**
+ * Find the first error in a string[] that matches any of the given keywords (case-insensitive).
+ * Used by legacy EditPanelWrapper consumers that receive errors as string[].
+ */
+export function findFieldError(errors: string[], ...keywords: string[]): string | undefined {
+  return errors.find((e) => keywords.some((k) => e.toLowerCase().includes(k.toLowerCase())));
+}
+
 // Validation helper function
-export function validateField<T>(schema: z.ZodSchema<T>, field: string, value: unknown): string | null {
+export function validateField<T>(
+  schema: z.ZodSchema<T>,
+  field: string,
+  value: unknown
+): string | null {
   try {
     schema.parse({ [field]: value });
     return null;
@@ -180,7 +227,10 @@ export function validateField<T>(schema: z.ZodSchema<T>, field: string, value: u
 }
 
 // Validation helper for entire objects
-export function validateForm<T>(schema: z.ZodSchema<T>, data: unknown): {
+export function validateForm<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): {
   success: boolean;
   errors: Record<string, string>;
   data?: T;
@@ -195,7 +245,7 @@ export function validateForm<T>(schema: z.ZodSchema<T>, data: unknown): {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.issues.forEach((err) => {
+      error.issues.forEach(err => {
         if (err.path.length > 0) {
           errors[err.path[0] as string] = err.message;
         }

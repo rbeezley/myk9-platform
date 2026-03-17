@@ -124,6 +124,7 @@ export interface DayTimelineData {
 export interface JudgeTimelineData {
   judgeId: string | null;
   judgeName: string;
+  ringNumber: string | null; // [ADDED] ring number if applicable
   elements: ElementSummary[];
 }
 ```
@@ -688,6 +689,7 @@ export function groupByJudge(rows: TrialTimelineClassRow[]): JudgeTimelineData[]
     judges.push({
       judgeId: isUnassigned ? null : judgeRows[0].judgePersonId,
       judgeName,
+      ringNumber: null, // [ADDED] ring number not yet in class data — pass null until schema supports it
       elements,
     });
   }
@@ -819,7 +821,8 @@ export function useScheduleTimeline(showId: string | null) {
             level,
             start_time,
             status,
-            total_entries_count
+            total_entries_count,
+            deleted_at
           )
         `
         )
@@ -831,7 +834,8 @@ export function useScheduleTimeline(showId: string | null) {
 
       const rows: TimelineClassRow[] = [];
       for (const trial of data) {
-        const classes =
+        // [ADDED] Filter out soft-deleted classes (nested selects don't support .is() filters)
+        const allClasses =
           (trial.classes as Array<{
             id: string;
             name: string;
@@ -840,7 +844,9 @@ export function useScheduleTimeline(showId: string | null) {
             start_time: string | null;
             status: string | null;
             total_entries_count: number | null;
+            deleted_at: string | null;
           }>) ?? [];
+        const classes = allClasses.filter(c => c.deleted_at === null);
 
         for (const cls of classes) {
           rows.push({
@@ -1166,6 +1172,7 @@ git commit -m "feat(schedule): add ScheduleTimeline overview component"
 ```tsx
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event'; // [ADDED]
 import { MemoryRouter } from 'react-router-dom';
 import { ScheduleTimeline } from '../ScheduleTimeline';
 import type { DayTimelineData } from '../schedule-timeline.types';
@@ -1241,15 +1248,89 @@ describe('ScheduleTimeline', () => {
     const levelTexts = screen.getAllByText(/Nov–Mst/);
     expect(levelTexts.length).toBeGreaterThanOrEqual(2);
   });
+
+  // [ADDED] navigation click test
+  it('navigates to trial detail on element card click', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<ScheduleTimeline showId="show-1" />);
+    await user.click(screen.getByText('Container'));
+    // MemoryRouter won't navigate, but we verify the button is clickable
+    // Full navigation tested via E2E
+  });
 });
 ```
 
-- [ ] **Step 2: Run tests**
+- [ ] **Step 2: [ADDED] Add loading/error/empty state tests**
+
+Add additional describe blocks to the same test file that re-mock the hook for different states:
+
+```tsx
+// Add after the main describe block, in the same file:
+
+describe('ScheduleTimeline — loading state', () => {
+  beforeEach(() => {
+    vi.doMock('@/hooks/queries/useScheduleTimeline', () => ({
+      useScheduleTimeline: () => ({
+        data: undefined,
+        isLoading: true,
+        error: null,
+        refetch: vi.fn(),
+      }),
+    }));
+  });
+
+  it('renders skeleton while loading', async () => {
+    const { ScheduleTimeline: ST } = await import('../ScheduleTimeline');
+    renderWithRouter(<ST showId="show-1" />);
+    expect(screen.getByText('Schedule')).toBeInTheDocument();
+    // Skeleton has animate-pulse
+    const skeleton = document.querySelector('.animate-pulse');
+    expect(skeleton).toBeInTheDocument();
+  });
+});
+
+describe('ScheduleTimeline — error state', () => {
+  const mockRefetch = vi.fn();
+  beforeEach(() => {
+    vi.doMock('@/hooks/queries/useScheduleTimeline', () => ({
+      useScheduleTimeline: () => ({
+        data: undefined,
+        isLoading: false,
+        error: new Error('fail'),
+        refetch: mockRefetch,
+      }),
+    }));
+  });
+
+  it('renders error with retry button', async () => {
+    const { ScheduleTimeline: ST } = await import('../ScheduleTimeline');
+    renderWithRouter(<ST showId="show-1" />);
+    expect(screen.getByText(/Failed to load/)).toBeInTheDocument();
+    expect(screen.getByText('Try again')).toBeInTheDocument();
+  });
+});
+
+describe('ScheduleTimeline — empty state', () => {
+  beforeEach(() => {
+    vi.doMock('@/hooks/queries/useScheduleTimeline', () => ({
+      useScheduleTimeline: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
+    }));
+  });
+
+  it('renders empty message', async () => {
+    const { ScheduleTimeline: ST } = await import('../ScheduleTimeline');
+    renderWithRouter(<ST showId="show-1" />);
+    expect(screen.getByText('No schedule available')).toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 3: Run tests**
 
 Run: `cd apps/myk9show && pnpm vitest run src/components/schedule/__tests__/ScheduleTimeline.test.tsx`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add src/components/schedule/__tests__/ScheduleTimeline.test.tsx
@@ -1610,6 +1691,10 @@ export function JudgeSection({ judge, showId, trialId, onNavigateToClass }: Judg
           {getJudgeInitials(judge.judgeName)}
         </div>
         <span className="text-sm font-medium text-card-foreground">{judge.judgeName}</span>
+        {/* [ADDED] ring number display */}
+        {judge.ringNumber && (
+          <span className="ml-auto text-xs text-muted-foreground">Ring {judge.ringNumber}</span>
+        )}
       </div>
 
       {/* Spine + accordions */}

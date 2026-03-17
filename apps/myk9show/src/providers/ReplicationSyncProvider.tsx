@@ -240,7 +240,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       queryClient.invalidateQueries({ queryKey: ['dogs'] });
       queryClient.invalidateQueries({ queryKey: ['clubs'] });
       queryClient.invalidateQueries({ queryKey: ['judge_assignments'] });
-      queryClient.invalidateQueries({ queryKey: ['shows'] }); // refresh shows with updated judge join
 
       logger.info('Full sync complete', 'replication');
     } catch (error) {

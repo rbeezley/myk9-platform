@@ -121,10 +121,13 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         };
       }
 
+      // Build lookup from already-fetched cache to avoid N individual IDB reads
+      const localCache = new Map(allCached.map(a => [a.id, a]));
+
       for (const remoteRow of remoteRows) {
         const assignmentId = String(remoteRow.id);
         const remoteAssignment = rowToJudgeAssignment(remoteRow);
-        const localAssignment = await this.get(assignmentId);
+        const localAssignment = localCache.get(assignmentId) ?? null;
 
         if (localAssignment) {
           const resolved = this.resolveConflict(localAssignment, remoteAssignment);
@@ -157,6 +160,12 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      await this.updateSyncMetadata({
+        syncStatus: 'error',
+        errorMessage,
+      });
+
       logger.error(`[${this.getTableName()}] Sync failed:`, error);
 
       return {

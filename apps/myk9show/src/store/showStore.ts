@@ -553,12 +553,21 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         const { people } = useUserStore.getState();
         const currentShows = get().shows;
 
-        const updatedShows = currentShows.map(show => ({
-          ...show,
-          assignedJudges: buildAssignedJudges(assignments, show.id, people),
-        }));
+        // Build new judges per show, but only update state if something changed
+        let changed = false;
+        const updatedShows = currentShows.map(show => {
+          const newJudges = buildAssignedJudges(assignments, show.id, people);
+          const prev = show.assignedJudges;
+          const same =
+            prev.length === newJudges.length &&
+            prev.every((j, i) => j.judgeId === newJudges[i]?.judgeId);
+          if (!same) changed = true;
+          return same ? show : { ...show, assignedJudges: newJudges };
+        });
 
-        set({ shows: updatedShows });
+        if (changed) {
+          set({ shows: updatedShows });
+        }
       }
     );
 

@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User as UserIcon, AlertTriangle, CheckCircle } from 'lucide-react';
 import { User } from '@/types/dog-types';
 import { logger } from '@/services/LoggingService';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 
 interface CreateExhibitorDialogProps {
   open: boolean;
@@ -25,16 +27,21 @@ interface DuplicateCandidate {
   matchReasons: string[];
 }
 
-interface ExhibitorFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  streetAddress: string;
-  city: string;
-  state: string;
-  zipCode: string;
-}
+const exhibitorFormSchema = z.object({
+  firstName: z.string().min(1, 'Please enter a first name'),
+  lastName: z.string().min(1, 'Please enter a last name'),
+  email: z
+    .string()
+    .min(1, 'Please enter an email address')
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+  phone: z.string().min(1, 'Please enter a phone number'),
+  streetAddress: z.string(),
+  city: z.string(),
+  state: z.string(),
+  zipCode: z.string(),
+});
+
+type ExhibitorFormData = z.infer<typeof exhibitorFormSchema>;
 
 const INITIAL_FORM_DATA: ExhibitorFormData = {
   firstName: '',
@@ -54,13 +61,10 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   onDuplicateSelected,
   searchQuery = '',
 }) => {
-  const [formData, setFormData] = useState<ExhibitorFormData>(INITIAL_FORM_DATA);
+  const form = useFormValidation(exhibitorFormSchema, INITIAL_FORM_DATA);
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   const [activeTab, setActiveTab] = useState<'create' | 'duplicates'>('create');
   const [isCreating, setIsCreating] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Partial<ExhibitorFormData>>({});
-  // Track if form has been submitted - only show errors after first submit attempt
-  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Mock people data for duplicate detection (in real app, this would come from a store/API)
   const mockUsers: User[] = [
@@ -85,19 +89,19 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       // Try to parse search query for name parts
       const parts = searchQuery.split(' ');
       if (parts.length >= 2) {
-        setFormData(prev => ({
-          ...prev,
+        form.reset({
+          ...INITIAL_FORM_DATA,
           firstName: parts[0],
           lastName: parts.slice(1).join(' '),
-        }));
+        });
       } else {
-        setFormData(prev => ({
-          ...prev,
+        form.reset({
+          ...INITIAL_FORM_DATA,
           lastName: searchQuery,
-        }));
+        });
       }
     }
-  }, [searchQuery, open]);
+  }, [searchQuery, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Duplicate detection logic
   const detectDuplicates = (data: ExhibitorFormData): DuplicateCandidate[] => {
@@ -159,34 +163,14 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     return candidates.sort((a, b) => b.matchScore - a.matchScore);
   };
 
-  // Form validation
-  const validateForm = (data: ExhibitorFormData): Partial<ExhibitorFormData> => {
-    const errors: Partial<ExhibitorFormData> = {};
-
-    if (!data.firstName.trim()) errors.firstName = 'Please enter a first name';
-    if (!data.lastName.trim()) errors.lastName = 'Please enter a last name';
-    if (!data.email.trim()) {
-      errors.email = 'Please enter an email address';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-    if (!data.phone.trim()) errors.phone = 'Please enter a phone number';
-
-    return errors;
-  };
-
   // Handle form field changes
   const handleFieldChange = (field: keyof ExhibitorFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-
-    // Clear validation error for this field
-    if (validationErrors[field]) {
-      setValidationErrors(prev => ({ ...prev, [field]: undefined }));
-    }
+    form.setValue(field, value);
+    form.touchField(field);
 
     // Re-run duplicate detection on key fields
     if (['firstName', 'lastName', 'email', 'phone'].includes(field)) {
-      const updatedData = { ...formData, [field]: value };
+      const updatedData = { ...form.data, [field]: value };
       const newDuplicates = detectDuplicates(updatedData);
       setDuplicates(newDuplicates);
 
@@ -197,35 +181,21 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     }
   };
 
-  // Helper to get visible error (only show after first submit attempt)
-  const getVisibleError = (field: keyof ExhibitorFormData): string | undefined => {
-    return hasSubmitted ? validationErrors[field] : undefined;
-  };
-
   // Handle form submission
-  const handleSubmit = async () => {
-    // Mark that we've attempted to submit - this enables error display
-    setHasSubmitted(true);
-
-    const errors = validateForm(formData);
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-
+  const handleSubmit = form.handleSubmit(async (validatedData: ExhibitorFormData) => {
     setIsCreating(true);
     try {
       // Create new exhibitor
       const newExhibitor: User = {
         id: `exhibitor-${Date.now()}`,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        streetAddress: formData.streetAddress,
-        city: formData.city,
-        state: formData.state,
-        zipCode: formData.zipCode,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        streetAddress: validatedData.streetAddress,
+        city: validatedData.city,
+        state: validatedData.state,
+        zipCode: validatedData.zipCode,
         dogs: [],
       };
 
@@ -239,15 +209,13 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     } finally {
       setIsCreating(false);
     }
-  };
+  });
 
   // Handle dialog close
   const handleClose = () => {
-    setFormData(INITIAL_FORM_DATA);
+    form.reset(INITIAL_FORM_DATA);
     setDuplicates([]);
     setActiveTab('create');
-    setValidationErrors({});
-    setHasSubmitted(false);
     onOpenChange(false);
   };
 
@@ -257,11 +225,11 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     handleClose();
   };
 
-  // Pre-compute visible errors to avoid repeated getVisibleError calls in JSX
-  const firstNameError = getVisibleError('firstName');
-  const lastNameError = getVisibleError('lastName');
-  const emailError = getVisibleError('email');
-  const phoneError = getVisibleError('phone');
+  // Pre-compute visible errors
+  const firstNameError = form.getError('firstName');
+  const lastNameError = form.getError('lastName');
+  const emailError = form.getError('email');
+  const phoneError = form.getError('phone');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -298,22 +266,20 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
               <FormField label="First Name" fieldId="firstName" required error={firstNameError}>
                 <Input
                   id="firstName"
-                  value={formData.firstName}
+                  value={form.data.firstName}
                   onChange={e => handleFieldChange('firstName', e.target.value)}
                   placeholder="Enter first name"
-                  aria-invalid={!!firstNameError}
-                  aria-describedby={firstNameError ? 'firstName-error' : undefined}
+                  {...form.getFieldProps('firstName')}
                 />
               </FormField>
 
               <FormField label="Last Name" fieldId="lastName" required error={lastNameError}>
                 <Input
                   id="lastName"
-                  value={formData.lastName}
+                  value={form.data.lastName}
                   onChange={e => handleFieldChange('lastName', e.target.value)}
                   placeholder="Enter last name"
-                  aria-invalid={!!lastNameError}
-                  aria-describedby={lastNameError ? 'lastName-error' : undefined}
+                  {...form.getFieldProps('lastName')}
                 />
               </FormField>
             </div>
@@ -323,22 +289,20 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                 <Input
                   id="email"
                   type="email"
-                  value={formData.email}
+                  value={form.data.email}
                   onChange={e => handleFieldChange('email', e.target.value)}
                   placeholder="Enter email address"
-                  aria-invalid={!!emailError}
-                  aria-describedby={emailError ? 'email-error' : undefined}
+                  {...form.getFieldProps('email')}
                 />
               </FormField>
 
               <FormField label="Phone Number" fieldId="phone" required error={phoneError}>
                 <Input
                   id="phone"
-                  value={formData.phone}
+                  value={form.data.phone}
                   onChange={e => handleFieldChange('phone', e.target.value)}
                   placeholder="Enter phone number"
-                  aria-invalid={!!phoneError}
-                  aria-describedby={phoneError ? 'phone-error' : undefined}
+                  {...form.getFieldProps('phone')}
                 />
               </FormField>
             </div>
@@ -346,7 +310,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
             <FormField label="Street Address" fieldId="streetAddress">
               <Input
                 id="streetAddress"
-                value={formData.streetAddress}
+                value={form.data.streetAddress}
                 onChange={e => handleFieldChange('streetAddress', e.target.value)}
                 placeholder="Enter street address"
               />
@@ -356,7 +320,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
               <FormField label="City" fieldId="city">
                 <Input
                   id="city"
-                  value={formData.city}
+                  value={form.data.city}
                   onChange={e => handleFieldChange('city', e.target.value)}
                   placeholder="Enter city"
                 />
@@ -365,7 +329,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
               <FormField label="State" fieldId="state">
                 <Input
                   id="state"
-                  value={formData.state}
+                  value={form.data.state}
                   onChange={e => handleFieldChange('state', e.target.value)}
                   placeholder="State"
                 />
@@ -374,7 +338,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
               <FormField label="ZIP Code" fieldId="zipCode">
                 <Input
                   id="zipCode"
-                  value={formData.zipCode}
+                  value={form.data.zipCode}
                   onChange={e => handleFieldChange('zipCode', e.target.value)}
                   placeholder="ZIP"
                 />

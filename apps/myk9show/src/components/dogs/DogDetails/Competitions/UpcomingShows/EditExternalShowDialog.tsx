@@ -1,5 +1,11 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
@@ -10,7 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 import type { Show } from '@/types/show-types';
+
+const externalShowSchema = z.object({
+  name: z.string().min(1, 'Please enter a show name'),
+  date: z.string().min(1, 'Please select a date'),
+  location: z.string().min(1, 'Please enter a location'),
+  events: z.string().optional().default(''),
+  status: z.string().min(1),
+});
+
+type ExternalShowFormData = z.infer<typeof externalShowSchema>;
 
 interface EditExternalShowDialogProps {
   open: boolean;
@@ -20,52 +38,53 @@ interface EditExternalShowDialogProps {
   onDelete?: () => void;
 }
 
-const EditExternalShowDialog: React.FC<EditExternalShowDialogProps> = ({ open, show, onClose, onSave, onDelete }) => {
-  const [name, setName] = React.useState('');
-  const [date, setDate] = React.useState('');
-  const [location, setLocation] = React.useState('');
-  const [events, setEvents] = React.useState<string[]>([]);
-  const [status, setStatus] = React.useState('Entry Pending');
-  const [errors, setErrors] = React.useState<Record<string, string>>({});
+const defaultData: ExternalShowFormData = {
+  name: '',
+  date: '',
+  location: '',
+  events: '',
+  status: 'Entry Pending',
+};
+
+const EditExternalShowDialog: React.FC<EditExternalShowDialogProps> = ({
+  open,
+  show,
+  onClose,
+  onSave,
+  onDelete,
+}) => {
+  const form = useFormValidation(externalShowSchema, defaultData);
 
   // Sync form state with show prop - using render-time state update pattern
   const showId = show?.id || '';
   const [lastShowId, setLastShowId] = React.useState(showId);
   if (showId !== lastShowId && show) {
     setLastShowId(showId);
-    setName(show.name || '');
-    setDate(show.startDate || '');
-    setLocation(show.location || '');
-    setEvents(show.events || []);
-    setStatus(show.status || 'Entry Pending');
-    setErrors({});
+    form.reset({
+      name: show.name || '',
+      date: show.startDate || '',
+      location: show.location || '',
+      events: (show.events || []).join(', '),
+      status: show.status || 'Entry Pending',
+    });
   }
 
   if (!show) return null;
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!name) newErrors.name = 'Please enter a show name';
-    if (!date) newErrors.date = 'Please select a date';
-    if (!location) newErrors.location = 'Please enter a location';
-    return newErrors;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
+  const handleSave = form.handleSubmit(data => {
     onSave({
       ...show,
-      name,
-      startDate: date,
-      location,
-      status,
-      events: events.filter(Boolean),
+      name: data.name,
+      startDate: data.date,
+      location: data.location,
+      status: data.status,
+      events: (data.events || '')
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean),
     });
     onClose();
-  };
+  });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -73,47 +92,57 @@ const EditExternalShowDialog: React.FC<EditExternalShowDialogProps> = ({ open, s
         <DialogHeader>
           <DialogTitle>Edit External Show</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Show Name" fieldId="editShowName" required error={errors.name}>
+        <div className="flex flex-col gap-4">
+          <FormField
+            label="Show Name"
+            fieldId="editShowName"
+            required
+            error={form.getError('name')}
+          >
             <Input
               id="editShowName"
               type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? 'editShowName-error' : undefined}
+              value={form.data.name}
+              onChange={e => form.setValue('name', e.target.value)}
+              onBlur={() => form.touchField('name')}
+              {...form.getFieldProps('name')}
             />
           </FormField>
-          <FormField label="Date" fieldId="editShowDate" required error={errors.date}>
+          <FormField label="Date" fieldId="editShowDate" required error={form.getError('date')}>
             <Input
               id="editShowDate"
               type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              aria-invalid={!!errors.date}
-              aria-describedby={errors.date ? 'editShowDate-error' : undefined}
+              value={form.data.date}
+              onChange={e => form.setValue('date', e.target.value)}
+              onBlur={() => form.touchField('date')}
+              {...form.getFieldProps('date')}
             />
           </FormField>
-          <FormField label="Location" fieldId="editShowLocation" required error={errors.location}>
+          <FormField
+            label="Location"
+            fieldId="editShowLocation"
+            required
+            error={form.getError('location')}
+          >
             <Input
               id="editShowLocation"
               type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              aria-invalid={!!errors.location}
-              aria-describedby={errors.location ? 'editShowLocation-error' : undefined}
+              value={form.data.location}
+              onChange={e => form.setValue('location', e.target.value)}
+              onBlur={() => form.touchField('location')}
+              {...form.getFieldProps('location')}
             />
           </FormField>
           <FormField label="Events (comma separated)" fieldId="editShowEvents">
             <Input
               id="editShowEvents"
               type="text"
-              value={events.join(', ')}
-              onChange={e => setEvents(e.target.value.split(',').map(t => t.trim()))}
+              value={form.data.events ?? ''}
+              onChange={e => form.setValue('events', e.target.value)}
             />
           </FormField>
           <FormField label="Status" fieldId="editShowStatus">
-            <Select value={status} onValueChange={val => setStatus(val)}>
+            <Select value={form.data.status} onValueChange={val => form.setValue('status', val)}>
               <SelectTrigger id="editShowStatus">
                 <SelectValue />
               </SelectTrigger>
@@ -127,13 +156,19 @@ const EditExternalShowDialog: React.FC<EditExternalShowDialogProps> = ({ open, s
             </Select>
           </FormField>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
             {onDelete && (
-              <Button type="button" variant="destructive" onClick={onDelete}>Delete</Button>
+              <Button type="button" variant="destructive" onClick={onDelete}>
+                Delete
+              </Button>
             )}
-            <Button type="submit">Save</Button>
+            <Button type="button" onClick={handleSave}>
+              Save
+            </Button>
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

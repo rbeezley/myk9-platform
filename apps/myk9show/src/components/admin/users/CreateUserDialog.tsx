@@ -4,7 +4,7 @@
  * Features:
  * - Complete user creation form
  * - Role assignment during creation (fetched dynamically from DB)
- * - Form validation
+ * - Form validation with Zod schema
  * - Password generation options
  * - Email invitation sending
  */
@@ -40,6 +40,8 @@ import { rbacService } from '@/services/rbac/RBACService';
 
 import { User } from '@/types/user-types';
 import { useCreateUserMutation } from '@/hooks/queries/useUsersQuery';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 
 interface CreateUserDialogProps {
   open: boolean;
@@ -47,48 +49,72 @@ interface CreateUserDialogProps {
   onUserCreated: (user: User) => void;
 }
 
-// Form data interface
-interface CreateUserFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  membershipId: string;
-  clubAffiliations: string[];
-  roles: string[];
-  sendInviteEmail: boolean;
-  generatePassword: boolean;
-  customPassword: string;
-}
+const createUserSchema = z
+  .object({
+    firstName: z.string().min(1, 'Please enter a first name'),
+    lastName: z.string().min(1, 'Please enter a last name'),
+    email: z
+      .string()
+      .min(1, 'Please enter an email address')
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+    phone: z.string(),
+    address: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zipCode: z.string(),
+    country: z.string(),
+    membershipId: z.string(),
+    clubAffiliations: z.array(z.string()),
+    roles: z.array(z.string()).min(1, 'Please select at least one role'),
+    sendInviteEmail: z.boolean(),
+    generatePassword: z.boolean(),
+    customPassword: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.generatePassword) {
+      if (!data.customPassword.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please enter a password',
+          path: ['customPassword'],
+        });
+      } else if (data.customPassword.length < 8) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Password must be at least 8 characters long',
+          path: ['customPassword'],
+        });
+      }
+    }
+  });
+
+type CreateUserFormData = z.infer<typeof createUserSchema>;
+
+const INITIAL_FORM_DATA: CreateUserFormData = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  country: '',
+  membershipId: '',
+  clubAffiliations: [],
+  roles: ['exhibitor'],
+  sendInviteEmail: true,
+  generatePassword: true,
+  customPassword: '',
+};
 
 export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   open,
   onOpenChange,
   onUserCreated,
 }) => {
-  const [formData, setFormData] = useState<CreateUserFormData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: '',
-    membershipId: '',
-    clubAffiliations: [],
-    roles: ['exhibitor'], // Default role
-    sendInviteEmail: true,
-    generatePassword: true,
-    customPassword: '',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const form = useFormValidation(createUserSchema, INITIAL_FORM_DATA);
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [newClub, setNewClub] = useState('');
 
@@ -109,82 +135,30 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   // Reset form when dialog opens/closes
   React.useEffect(() => {
     if (!open) {
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        address: '',
-        city: '',
-        state: '',
-        zipCode: '',
-        country: '',
-        membershipId: '',
-        clubAffiliations: [],
-        roles: ['exhibitor'],
-        sendInviteEmail: true,
-        generatePassword: true,
-        customPassword: '',
-      });
-      setErrors({});
+      form.reset(INITIAL_FORM_DATA);
+      setGeneralError(null);
       setNewClub('');
     }
-  }, [open]);
-
-  // Form validation
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Required fields
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Please enter a first name';
-    }
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Please enter a last name';
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = 'Please enter an email address';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    // Role validation
-    if (formData.roles.length === 0) {
-      newErrors.roles = 'Please select at least one role';
-    }
-
-    // Password validation (if custom password is used)
-    if (!formData.generatePassword) {
-      if (!formData.customPassword.trim()) {
-        newErrors.customPassword = 'Please enter a password';
-      } else if (formData.customPassword.length < 8) {
-        newErrors.customPassword = 'Password must be at least 8 characters long';
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle form submission
-  const handleCreate = async () => {
-    if (!validateForm()) return;
-
+  const handleCreate = form.handleSubmit(async (validatedData: CreateUserFormData) => {
+    setGeneralError(null);
     try {
       // Create the person (without roles -- roles go to user_roles table)
       const newUser = await createUserMutation.mutateAsync({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
-        phone: formData.phone || null,
-        city: formData.city || null,
-        state: formData.state || null,
-        zip_code: formData.zipCode || null,
+        first_name: validatedData.firstName,
+        last_name: validatedData.lastName,
+        email: validatedData.email,
+        phone: validatedData.phone || null,
+        city: validatedData.city || null,
+        state: validatedData.state || null,
+        zip_code: validatedData.zipCode || null,
       });
 
       // Assign selected roles via RBAC service (handles dedup + reactivation)
-      if (newUser?.id && formData.roles.length > 0) {
-        for (const roleName of formData.roles) {
+      if (newUser?.id && validatedData.roles.length > 0) {
+        for (const roleName of validatedData.roles) {
           try {
             await rbacService.ensureUserHasRole(newUser.id, roleName);
           } catch (err) {
@@ -197,41 +171,36 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       onOpenChange(false);
     } catch (error) {
       logger.error('Failed to create user:', 'admin', {}, error as Error);
-      setErrors({ general: 'Failed to create user. Please try again.' });
+      setGeneralError('Failed to create user. Please try again.');
     }
-  };
+  });
 
   // Handle role changes
   const handleRoleChange = (role: string, checked: boolean) => {
     if (checked) {
-      setFormData(prev => ({
-        ...prev,
-        roles: [...prev.roles, role],
-      }));
+      form.setValue('roles', [...form.data.roles, role]);
     } else {
-      setFormData(prev => ({
-        ...prev,
-        roles: prev.roles.filter(r => r !== role),
-      }));
+      form.setValue(
+        'roles',
+        form.data.roles.filter(r => r !== role)
+      );
     }
+    form.touchField('roles');
   };
 
   // Handle club affiliations
   const addClub = () => {
-    if (newClub.trim() && !formData.clubAffiliations.includes(newClub.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        clubAffiliations: [...prev.clubAffiliations, newClub.trim()],
-      }));
+    if (newClub.trim() && !form.data.clubAffiliations.includes(newClub.trim())) {
+      form.setValue('clubAffiliations', [...form.data.clubAffiliations, newClub.trim()]);
       setNewClub('');
     }
   };
 
   const removeClub = (club: string) => {
-    setFormData(prev => ({
-      ...prev,
-      clubAffiliations: prev.clubAffiliations.filter(c => c !== club),
-    }));
+    form.setValue(
+      'clubAffiliations',
+      form.data.clubAffiliations.filter(c => c !== club)
+    );
   };
 
   return (
@@ -247,10 +216,10 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         <SheetBody>
           <div className="space-y-6">
             {/* Error Alert */}
-            {errors.general && (
+            {generalError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{errors.general}</AlertDescription>
+                <AlertDescription>{generalError}</AlertDescription>
               </Alert>
             )}
 
@@ -264,23 +233,37 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField label="First Name" fieldId="firstName" required error={errors.firstName}>
+                  <FormField
+                    label="First Name"
+                    fieldId="firstName"
+                    required
+                    error={form.getError('firstName')}
+                  >
                     <Input
                       id="firstName"
-                      value={formData.firstName}
-                      onChange={e => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                      aria-invalid={!!errors.firstName}
-                      aria-describedby={errors.firstName ? 'firstName-error' : undefined}
+                      value={form.data.firstName}
+                      onChange={e => {
+                        form.setValue('firstName', e.target.value);
+                        form.touchField('firstName');
+                      }}
+                      {...form.getFieldProps('firstName')}
                       placeholder="Enter first name"
                     />
                   </FormField>
-                  <FormField label="Last Name" fieldId="lastName" required error={errors.lastName}>
+                  <FormField
+                    label="Last Name"
+                    fieldId="lastName"
+                    required
+                    error={form.getError('lastName')}
+                  >
                     <Input
                       id="lastName"
-                      value={formData.lastName}
-                      onChange={e => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                      aria-invalid={!!errors.lastName}
-                      aria-describedby={errors.lastName ? 'lastName-error' : undefined}
+                      value={form.data.lastName}
+                      onChange={e => {
+                        form.setValue('lastName', e.target.value);
+                        form.touchField('lastName');
+                      }}
+                      {...form.getFieldProps('lastName')}
                       placeholder="Enter last name"
                     />
                   </FormField>
@@ -289,8 +272,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 <FormField label="Membership ID" fieldId="membershipId">
                   <Input
                     id="membershipId"
-                    value={formData.membershipId}
-                    onChange={e => setFormData(prev => ({ ...prev, membershipId: e.target.value }))}
+                    value={form.data.membershipId}
+                    onChange={e => form.setValue('membershipId', e.target.value)}
                     placeholder="Optional membership identifier"
                   />
                 </FormField>
@@ -306,14 +289,21 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField label="Email Address" fieldId="email" required error={errors.email}>
+                <FormField
+                  label="Email Address"
+                  fieldId="email"
+                  required
+                  error={form.getError('email')}
+                >
                   <Input
                     id="email"
                     type="email"
-                    value={formData.email}
-                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    aria-invalid={!!errors.email}
-                    aria-describedby={errors.email ? 'email-error' : undefined}
+                    value={form.data.email}
+                    onChange={e => {
+                      form.setValue('email', e.target.value);
+                      form.touchField('email');
+                    }}
+                    {...form.getFieldProps('email')}
                     placeholder="Enter email address"
                   />
                 </FormField>
@@ -322,8 +312,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   <Input
                     id="phone"
                     type="tel"
-                    value={formData.phone}
-                    onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    value={form.data.phone}
+                    onChange={e => form.setValue('phone', e.target.value)}
                     placeholder="Optional phone number"
                   />
                 </FormField>
@@ -342,8 +332,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 <FormField label="Street Address" fieldId="address">
                   <Input
                     id="address"
-                    value={formData.address}
-                    onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    value={form.data.address}
+                    onChange={e => form.setValue('address', e.target.value)}
                     placeholder="Street address"
                   />
                 </FormField>
@@ -352,24 +342,24 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   <FormField label="City" fieldId="city">
                     <Input
                       id="city"
-                      value={formData.city}
-                      onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                      value={form.data.city}
+                      onChange={e => form.setValue('city', e.target.value)}
                       placeholder="City"
                     />
                   </FormField>
                   <FormField label="State/Province" fieldId="state">
                     <Input
                       id="state"
-                      value={formData.state}
-                      onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                      value={form.data.state}
+                      onChange={e => form.setValue('state', e.target.value)}
                       placeholder="State or province"
                     />
                   </FormField>
                   <FormField label="ZIP/Postal Code" fieldId="zipCode">
                     <Input
                       id="zipCode"
-                      value={formData.zipCode}
-                      onChange={e => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                      value={form.data.zipCode}
+                      onChange={e => form.setValue('zipCode', e.target.value)}
                       placeholder="ZIP or postal code"
                     />
                   </FormField>
@@ -378,8 +368,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 <FormField label="Country" fieldId="country">
                   <Input
                     id="country"
-                    value={formData.country}
-                    onChange={e => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                    value={form.data.country}
+                    onChange={e => form.setValue('country', e.target.value)}
                     placeholder="Country"
                   />
                 </FormField>
@@ -396,7 +386,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  {formData.clubAffiliations.map(club => (
+                  {form.data.clubAffiliations.map(club => (
                     <div
                       key={club}
                       className="flex items-center justify-between p-2 border rounded"
@@ -432,10 +422,10 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {errors.roles && (
+                {form.getError('roles') && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{errors.roles}</AlertDescription>
+                    <AlertDescription>{form.getError('roles')}</AlertDescription>
                   </Alert>
                 )}
 
@@ -444,7 +434,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <div key={role.name} className="flex items-start space-x-3 p-3 border rounded">
                       <Checkbox
                         id={role.name}
-                        checked={formData.roles.includes(role.name)}
+                        checked={form.data.roles.includes(role.name)}
                         onCheckedChange={checked => handleRoleChange(role.name, !!checked)}
                       />
                       <div className="flex-1 min-w-0">
@@ -463,12 +453,12 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 <div className="pt-4 border-t">
                   <h4 className="font-medium mb-2">Selected Roles:</h4>
                   <div className="flex flex-wrap gap-2">
-                    {formData.roles.map(role => (
+                    {form.data.roles.map(role => (
                       <Badge key={role} variant="default" className="capitalize">
                         {role}
                       </Badge>
                     ))}
-                    {formData.roles.length === 0 && (
+                    {form.data.roles.length === 0 && (
                       <span className="text-muted-foreground italic">No roles selected</span>
                     )}
                   </div>
@@ -493,30 +483,34 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     </p>
                   </div>
                   <Switch
-                    checked={formData.generatePassword}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({
-                        ...prev,
+                    checked={form.data.generatePassword}
+                    onCheckedChange={checked => {
+                      form.setValues({
                         generatePassword: checked,
-                        customPassword: checked ? '' : prev.customPassword,
-                      }))
-                    }
+                        customPassword: checked ? '' : form.data.customPassword,
+                      });
+                    }}
                   />
                 </div>
 
-                {!formData.generatePassword && (
-                  <FormField label="Custom Password" fieldId="customPassword" required error={errors.customPassword}>
+                {!form.data.generatePassword && (
+                  <FormField
+                    label="Custom Password"
+                    fieldId="customPassword"
+                    required
+                    error={form.getError('customPassword')}
+                  >
                     <div className="relative">
                       <Input
                         id="customPassword"
                         type={showPassword ? 'text' : 'password'}
-                        value={formData.customPassword}
-                        onChange={e =>
-                          setFormData(prev => ({ ...prev, customPassword: e.target.value }))
-                        }
+                        value={form.data.customPassword}
+                        onChange={e => {
+                          form.setValue('customPassword', e.target.value);
+                          form.touchField('customPassword');
+                        }}
                         className="pr-10"
-                        aria-invalid={!!errors.customPassword}
-                        aria-describedby={errors.customPassword ? 'customPassword-error' : undefined}
+                        {...form.getFieldProps('customPassword')}
                         placeholder="Enter secure password"
                       />
                       <Button
@@ -544,10 +538,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     </p>
                   </div>
                   <Switch
-                    checked={formData.sendInviteEmail}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({ ...prev, sendInviteEmail: checked }))
-                    }
+                    checked={form.data.sendInviteEmail}
+                    onCheckedChange={checked => form.setValue('sendInviteEmail', checked)}
                   />
                 </div>
               </CardContent>

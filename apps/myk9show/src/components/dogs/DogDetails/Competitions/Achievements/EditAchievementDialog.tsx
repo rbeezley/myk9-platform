@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 import type { Achievement } from '@/types/achievement-types';
+
+const achievementSchema = z.object({
+  title: z.string().min(1, 'Please enter a title'),
+  date: z.string().min(1, 'Please select a date'),
+  description: z.string().min(1, 'Please enter a description'),
+  icon: z.string().optional().default('🏆'),
+  color: z.string().optional().default('#3b82f6'),
+});
+
+type AchievementFormData = z.infer<typeof achievementSchema>;
 
 interface EditAchievementDialogProps {
   open: boolean;
@@ -13,47 +25,40 @@ interface EditAchievementDialogProps {
   achievement: Achievement | null;
 }
 
-const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, achievement, onClose, onSave }) => {
-  const [form, setForm] = useState<Omit<Achievement, 'id'>>({
-    title: '',
-    date: '',
-    description: '',
-    icon: '🏆',
-    color: '#3b82f6',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+const defaultData: AchievementFormData = {
+  title: '',
+  date: '',
+  description: '',
+  icon: '🏆',
+  color: '#3b82f6',
+};
+
+const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({
+  open,
+  achievement,
+  onClose,
+  onSave,
+}) => {
+  const form = useFormValidation(achievementSchema, defaultData);
 
   // Sync form state with achievement prop - using render-time state update pattern
   const achievementId = achievement?.id || '';
-  const [lastAchievementId, setLastAchievementId] = useState(achievementId);
+  const [lastAchievementId, setLastAchievementId] = React.useState(achievementId);
   if (achievementId !== lastAchievementId && achievement) {
     setLastAchievementId(achievementId);
-    const { ...achievementData } = achievement;
-    setForm(achievementData);
-    setErrors({});
+    form.reset({
+      title: achievement.title,
+      date: achievement.date,
+      description: achievement.description,
+      icon: achievement.icon ?? '🏆',
+      color: achievement.color ?? '#3b82f6',
+    });
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!form.title) newErrors.title = 'Please enter a title';
-    if (!form.date) newErrors.date = 'Please select a date';
-    if (!form.description) newErrors.description = 'Please enter a description';
-    return newErrors;
-  };
-
-  const handleSubmit = (e?: React.MouseEvent<HTMLButtonElement>) => {
-    e?.preventDefault();
-    const validationErrors = validate();
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
+  const handleSave = form.handleSubmit(data => {
     if (!achievement?.id) return;
-    onSave(achievement.id, form);
-  };
+    onSave(achievement.id, data);
+  });
 
   return (
     <StandardDialog
@@ -61,47 +66,52 @@ const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, ach
       onClose={onClose}
       title="Edit Achievement"
       description="Update the achievement details"
-      onSave={handleSubmit}
+      onSave={handleSave}
     >
       <div className="space-y-4">
-        <FormField label="Title" fieldId="title" required error={errors.title}>
+        <FormField label="Title" fieldId="title" required error={form.getError('title')}>
           <Input
             id="title"
             name="title"
-            value={form.title}
-            onChange={handleChange}
+            value={form.data.title}
+            onChange={e => form.setValue('title', e.target.value)}
+            onBlur={() => form.touchField('title')}
             placeholder="Enter title"
-            aria-invalid={!!errors.title}
-            aria-describedby={errors.title ? 'title-error' : undefined}
+            {...form.getFieldProps('title')}
           />
         </FormField>
-        <FormField label="Date" fieldId="date" required error={errors.date}>
+        <FormField label="Date" fieldId="date" required error={form.getError('date')}>
           <DatePickerField
-            value={form.date}
-            onChange={(value) => setForm(prev => ({ ...prev, date: value }))}
+            value={form.data.date}
+            onChange={value => form.setValue('date', value)}
             required
             name="date"
             id="date"
           />
         </FormField>
-        <FormField label="Description" fieldId="description" required error={errors.description}>
+        <FormField
+          label="Description"
+          fieldId="description"
+          required
+          error={form.getError('description')}
+        >
           <Textarea
             id="description"
             name="description"
-            value={form.description}
-            onChange={handleChange}
+            value={form.data.description}
+            onChange={e => form.setValue('description', e.target.value)}
+            onBlur={() => form.touchField('description')}
             placeholder="Enter description"
             rows={3}
-            aria-invalid={!!errors.description}
-            aria-describedby={errors.description ? 'description-error' : undefined}
+            {...form.getFieldProps('description')}
           />
         </FormField>
         <FormField label="Icon" fieldId="icon">
           <Input
             id="icon"
             name="icon"
-            value={form.icon}
-            onChange={handleChange}
+            value={form.data.icon ?? '🏆'}
+            onChange={e => form.setValue('icon', e.target.value)}
             placeholder="Enter emoji icon"
           />
         </FormField>
@@ -110,8 +120,8 @@ const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, ach
             type="color"
             id="color"
             name="color"
-            value={form.color}
-            onChange={handleChange}
+            value={form.data.color ?? '#3b82f6'}
+            onChange={e => form.setValue('color', e.target.value)}
             className="w-16 h-10 p-1"
           />
         </FormField>

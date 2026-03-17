@@ -6,7 +6,7 @@
  * - Role assignment and management
  * - Account status controls
  * - Audit trail integration
- * - Form validation and error handling
+ * - Form validation with Zod schema
  */
 
 import React, { useState } from 'react';
@@ -44,6 +44,8 @@ import { rbacService } from '@/services/rbac/RBACService';
 
 import { User } from '@/types/user-types';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 import { format } from 'date-fns';
 
 interface UserDetailsDialogProps {
@@ -53,22 +55,26 @@ interface UserDetailsDialogProps {
   onUserUpdated: (user: User) => void;
 }
 
-// Form validation schema (basic)
-interface UserFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  membershipId: string;
-  clubAffiliations: string[];
-  roles: string[];
-  isActive: boolean;
-}
+const userDetailsSchema = z.object({
+  firstName: z.string().min(1, 'Please enter a first name'),
+  lastName: z.string().min(1, 'Please enter a last name'),
+  email: z
+    .string()
+    .min(1, 'Please enter an email address')
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+  phone: z.string(),
+  address: z.string(),
+  city: z.string(),
+  state: z.string(),
+  zipCode: z.string(),
+  country: z.string(),
+  membershipId: z.string(),
+  clubAffiliations: z.array(z.string()),
+  roles: z.array(z.string()).min(1, 'Please select at least one role'),
+  isActive: z.boolean(),
+});
+
+type UserFormData = z.infer<typeof userDetailsSchema>;
 
 export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   user,
@@ -77,22 +83,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
   onUserUpdated,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<UserFormData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: '',
-    membershipId: '',
-    clubAffiliations: [],
-    roles: [],
-    isActive: true,
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const [newClub, setNewClub] = useState('');
 
   const updateUserMutation = useUpdateUserMutation();
@@ -147,64 +138,41 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     isActive: true, // Mock - would come from actual user status
   });
 
-  // Reset form when user changes - this pattern is allowed by React
-  // as it's setting state during render based on prop changes
+  const form = useFormValidation(userDetailsSchema, getInitialFormData());
+
+  // Reset form when user changes
   const userKey = user?.id || '';
   const [lastUserKey, setLastUserKey] = useState(userKey);
   if (userKey !== lastUserKey) {
     setLastUserKey(userKey);
-    setFormData(getInitialFormData());
-    setErrors({});
+    form.reset(getInitialFormData());
+    setGeneralError(null);
   }
 
-  // Form validation
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'Please enter a first name';
-    }
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Please enter a last name';
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = 'Please enter an email address';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-    if (formData.roles.length === 0) {
-      newErrors.roles = 'Please select at least one role';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   // Handle form submission
-  const handleSave = async () => {
-    if (!validateForm()) return;
-
+  const handleSave = form.handleSubmit(async (validatedData: UserFormData) => {
+    setGeneralError(null);
     try {
       // Update person fields (no roles — those go to user_roles)
       const updatedUser = await updateUserMutation.mutateAsync({
         id: user.id,
         updates: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone || undefined,
-          address: formData.address || undefined,
-          city: formData.city || undefined,
-          state: formData.state || undefined,
-          zipCode: formData.zipCode || undefined,
+          firstName: validatedData.firstName,
+          lastName: validatedData.lastName,
+          email: validatedData.email,
+          phone: validatedData.phone || undefined,
+          address: validatedData.address || undefined,
+          city: validatedData.city || undefined,
+          state: validatedData.state || undefined,
+          zipCode: validatedData.zipCode || undefined,
         },
       });
 
       // Diff roles: add new, soft-deactivate removed
       const currentSet = new Set(currentUserRoles);
-      const selectedSet = new Set(formData.roles);
+      const selectedSet = new Set(validatedData.roles);
 
-      const toAdd = formData.roles.filter(r => !currentSet.has(r));
+      const toAdd = validatedData.roles.filter(r => !currentSet.has(r));
       const toDeactivate = currentUserRoles.filter(r => !selectedSet.has(r));
 
       for (const roleName of toAdd) {
@@ -233,54 +201,49 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
       setIsEditing(false);
     } catch (error) {
       logger.error('Failed to update user:', 'admin', {}, error as Error);
-      setErrors({ general: 'Failed to update user. Please try again.' });
+      setGeneralError('Failed to update user. Please try again.');
     }
-  };
+  });
 
   // Handle role changes
   const handleRoleChange = (role: string, checked: boolean) => {
     if (checked) {
-      setFormData(prev => ({
-        ...prev,
-        roles: [...prev.roles, role],
-      }));
+      form.setValue('roles', [...form.data.roles, role]);
     } else {
-      setFormData(prev => ({
-        ...prev,
-        roles: prev.roles.filter(r => r !== role),
-      }));
+      form.setValue(
+        'roles',
+        form.data.roles.filter(r => r !== role)
+      );
     }
+    form.touchField('roles');
   };
 
   // Handle club affiliations
   const addClub = () => {
-    if (newClub.trim() && !formData.clubAffiliations.includes(newClub.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        clubAffiliations: [...prev.clubAffiliations, newClub.trim()],
-      }));
+    if (newClub.trim() && !form.data.clubAffiliations.includes(newClub.trim())) {
+      form.setValue('clubAffiliations', [...form.data.clubAffiliations, newClub.trim()]);
       setNewClub('');
     }
   };
 
   const removeClub = (club: string) => {
-    setFormData(prev => ({
-      ...prev,
-      clubAffiliations: prev.clubAffiliations.filter(c => c !== club),
-    }));
+    form.setValue(
+      'clubAffiliations',
+      form.data.clubAffiliations.filter(c => c !== club)
+    );
   };
 
   // Generate user initials
   const getUserInitials = () => {
-    const first = formData.firstName?.[0] || user.firstName?.[0] || '';
-    const last = formData.lastName?.[0] || user.lastName?.[0] || '';
+    const first = form.data.firstName?.[0] || user.firstName?.[0] || '';
+    const last = form.data.lastName?.[0] || user.lastName?.[0] || '';
     return (first + last).toUpperCase() || 'U';
   };
 
   // Get user's full name
   const getUserFullName = () => {
-    const firstName = formData.firstName || user.firstName || '';
-    const lastName = formData.lastName || user.lastName || '';
+    const firstName = form.data.firstName || user.firstName || '';
+    const lastName = form.data.lastName || user.lastName || '';
     return `${firstName} ${lastName}`.trim() || 'Unnamed User';
   };
 
@@ -315,7 +278,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setFormData(getInitialFormData());
+                    form.reset(getInitialFormData());
                     setIsEditing(true);
                   }}
                 >
@@ -330,10 +293,10 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
         <ScrollArea className="max-h-[calc(90vh-120px)]">
           <div className="space-y-6 p-1">
             {/* Error Alert */}
-            {errors.general && (
+            {generalError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{errors.general}</AlertDescription>
+                <AlertDescription>{generalError}</AlertDescription>
               </Alert>
             )}
 
@@ -356,28 +319,38 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     </h3>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField label="First Name" fieldId="firstName" required error={errors.firstName}>
+                      <FormField
+                        label="First Name"
+                        fieldId="firstName"
+                        required
+                        error={form.getError('firstName')}
+                      >
                         <Input
                           id="firstName"
-                          value={formData.firstName}
-                          onChange={e =>
-                            setFormData(prev => ({ ...prev, firstName: e.target.value }))
-                          }
+                          value={form.data.firstName}
+                          onChange={e => {
+                            form.setValue('firstName', e.target.value);
+                            form.touchField('firstName');
+                          }}
                           disabled={!isEditing}
-                          aria-invalid={!!errors.firstName}
-                          aria-describedby={errors.firstName ? 'firstName-error' : undefined}
+                          {...form.getFieldProps('firstName')}
                         />
                       </FormField>
-                      <FormField label="Last Name" fieldId="lastName" required error={errors.lastName}>
+                      <FormField
+                        label="Last Name"
+                        fieldId="lastName"
+                        required
+                        error={form.getError('lastName')}
+                      >
                         <Input
                           id="lastName"
-                          value={formData.lastName}
-                          onChange={e =>
-                            setFormData(prev => ({ ...prev, lastName: e.target.value }))
-                          }
+                          value={form.data.lastName}
+                          onChange={e => {
+                            form.setValue('lastName', e.target.value);
+                            form.touchField('lastName');
+                          }}
                           disabled={!isEditing}
-                          aria-invalid={!!errors.lastName}
-                          aria-describedby={errors.lastName ? 'lastName-error' : undefined}
+                          {...form.getFieldProps('lastName')}
                         />
                       </FormField>
                     </div>
@@ -385,10 +358,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <FormField label="Membership ID" fieldId="membershipId">
                       <Input
                         id="membershipId"
-                        value={formData.membershipId}
-                        onChange={e =>
-                          setFormData(prev => ({ ...prev, membershipId: e.target.value }))
-                        }
+                        value={form.data.membershipId}
+                        onChange={e => form.setValue('membershipId', e.target.value)}
                         disabled={!isEditing}
                         placeholder="Optional membership identifier"
                       />
@@ -402,15 +373,22 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       Contact Information
                     </h3>
 
-                    <FormField label="Email Address" fieldId="email" required error={errors.email}>
+                    <FormField
+                      label="Email Address"
+                      fieldId="email"
+                      required
+                      error={form.getError('email')}
+                    >
                       <Input
                         id="email"
                         type="email"
-                        value={formData.email}
-                        onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        value={form.data.email}
+                        onChange={e => {
+                          form.setValue('email', e.target.value);
+                          form.touchField('email');
+                        }}
                         disabled={!isEditing}
-                        aria-invalid={!!errors.email}
-                        aria-describedby={errors.email ? 'email-error' : undefined}
+                        {...form.getFieldProps('email')}
                       />
                     </FormField>
 
@@ -418,8 +396,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       <Input
                         id="phone"
                         type="tel"
-                        value={formData.phone}
-                        onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        value={form.data.phone}
+                        onChange={e => form.setValue('phone', e.target.value)}
                         disabled={!isEditing}
                         placeholder="Optional phone number"
                       />
@@ -439,8 +417,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   <FormField label="Street Address" fieldId="address">
                     <Input
                       id="address"
-                      value={formData.address}
-                      onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      value={form.data.address}
+                      onChange={e => form.setValue('address', e.target.value)}
                       disabled={!isEditing}
                       placeholder="Street address"
                     />
@@ -450,8 +428,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <FormField label="City" fieldId="city">
                       <Input
                         id="city"
-                        value={formData.city}
-                        onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                        value={form.data.city}
+                        onChange={e => form.setValue('city', e.target.value)}
                         disabled={!isEditing}
                         placeholder="City"
                       />
@@ -459,8 +437,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <FormField label="State/Province" fieldId="state">
                       <Input
                         id="state"
-                        value={formData.state}
-                        onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                        value={form.data.state}
+                        onChange={e => form.setValue('state', e.target.value)}
                         disabled={!isEditing}
                         placeholder="State or province"
                       />
@@ -468,8 +446,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     <FormField label="ZIP/Postal Code" fieldId="zipCode">
                       <Input
                         id="zipCode"
-                        value={formData.zipCode}
-                        onChange={e => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                        value={form.data.zipCode}
+                        onChange={e => form.setValue('zipCode', e.target.value)}
                         disabled={!isEditing}
                         placeholder="ZIP or postal code"
                       />
@@ -479,8 +457,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   <FormField label="Country" fieldId="country">
                     <Input
                       id="country"
-                      value={formData.country}
-                      onChange={e => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                      value={form.data.country}
+                      onChange={e => form.setValue('country', e.target.value)}
                       disabled={!isEditing}
                       placeholder="Country"
                     />
@@ -497,7 +475,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   </h3>
 
                   <div className="space-y-2">
-                    {formData.clubAffiliations.map(club => (
+                    {form.data.clubAffiliations.map(club => (
                       <div
                         key={club}
                         className="flex items-center justify-between p-2 border rounded"
@@ -536,10 +514,10 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     Role Assignments
                   </h3>
 
-                  {errors.roles && (
+                  {form.getError('roles') && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{errors.roles}</AlertDescription>
+                      <AlertDescription>{form.getError('roles')}</AlertDescription>
                     </Alert>
                   )}
 
@@ -551,7 +529,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                       >
                         <Checkbox
                           id={role.name}
-                          checked={formData.roles.includes(role.name)}
+                          checked={form.data.roles.includes(role.name)}
                           onCheckedChange={checked => handleRoleChange(role.name, !!checked)}
                           disabled={!isEditing}
                         />
@@ -571,12 +549,12 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                   <div className="pt-4 border-t">
                     <h4 className="font-medium mb-2">Current Roles:</h4>
                     <div className="flex flex-wrap gap-2">
-                      {formData.roles.map(role => (
+                      {form.data.roles.map(role => (
                         <Badge key={role} variant="default" className="capitalize">
                           {role}
                         </Badge>
                       ))}
-                      {formData.roles.length === 0 && (
+                      {form.data.roles.length === 0 && (
                         <span className="text-muted-foreground italic">No roles assigned</span>
                       )}
                     </div>
@@ -601,10 +579,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         </p>
                       </div>
                       <Switch
-                        checked={formData.isActive}
-                        onCheckedChange={checked =>
-                          setFormData(prev => ({ ...prev, isActive: checked }))
-                        }
+                        checked={form.data.isActive}
+                        onCheckedChange={checked => form.setValue('isActive', checked)}
                         disabled={!isEditing}
                       />
                     </div>

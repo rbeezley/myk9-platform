@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Plus } from 'lucide-react';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 
 export interface VaccinationRecord {
   id?: number;
@@ -13,6 +15,22 @@ export interface VaccinationRecord {
   vetName: string;
 }
 
+const vaccinationSchema = z.object({
+  vaccination: z.string().min(1, 'Please enter a vaccination name.'),
+  date: z.string().min(1, 'Please select a date.'),
+  expiration: z.string().min(1, 'Please select an expiration date.'),
+  vetName: z.string().min(1, 'Please enter a veterinarian name.'),
+});
+
+type VaccinationFormData = z.infer<typeof vaccinationSchema>;
+
+const initialData: VaccinationFormData = {
+  vaccination: '',
+  date: '',
+  expiration: '',
+  vetName: '',
+};
+
 interface AddVaccinationDialogProps {
   open: boolean;
   onClose: () => void;
@@ -20,82 +38,81 @@ interface AddVaccinationDialogProps {
 }
 
 const AddVaccinationDialog: React.FC<AddVaccinationDialogProps> = ({ open, onClose, onAdd }) => {
-  const [vaccination, setVaccination] = useState('');
-  const [date, setDate] = useState<string>("");
-  const [expiration, setExpiration] = useState<string>("");
-  const [vetName, setVeterinarian] = useState('');
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const form = useFormValidation(vaccinationSchema, initialData);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors: { [key: string]: string } = {};
-    if (!vaccination) errors.vaccination = 'Please enter a vaccination name.';
-    if (!date) errors.date = 'Please select a date.';
-    if (!expiration) errors.expiration = 'Please select an expiration date.';
-    if (!vetName) errors.vetName = 'Please enter a veterinarian name.';
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    onAdd({ vaccination, date, expiration, vetName });
-    setVaccination('');
-    setDate("");
-    setExpiration("");
-    setVeterinarian('');
-    setFormErrors({});
+  useEffect(() => {
+    if (open) form.reset(initialData);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSave = form.handleSubmit(data => {
+    onAdd(data);
     onClose();
-  };
+  });
 
   return (
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() => document.getElementById('add-vaccination-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={handleSave}
       title="Add Vaccination Record"
       description="All fields are required."
-      formId="add-vaccination-form"
-      saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
+      saveLabel={
+        <>
+          <Plus className="mr-2 h-4 w-4" /> Add
+        </>
+      }
     >
-      <form id="add-vaccination-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Vaccination" fieldId="addVaccination" required error={formErrors.vaccination}>
+      <div className="flex flex-col gap-4">
+        <FormField
+          label="Vaccination"
+          fieldId="addVaccination"
+          required
+          error={form.getError('vaccination')}
+        >
           <Input
             id="addVaccination"
             type="text"
-            value={""}
-            onChange={e => setVaccination(e.target.value)}
-            required
-            aria-invalid={!!formErrors.vaccination}
-            aria-describedby={formErrors.vaccination ? 'addVaccination-error' : undefined}
+            value={form.data.vaccination}
+            onChange={e => form.setValue('vaccination', e.target.value)}
+            onBlur={() => form.touchField('vaccination')}
+            {...form.getFieldProps('vaccination')}
           />
         </FormField>
-        <div>
+        <FormField label="Date" fieldId="date" required error={form.getError('date')}>
           <DatePickerField
-            label="Date"
-            value={""}
-            onChange={setDate}
+            value={form.data.date}
+            onChange={val => form.setValue('date', val)}
             required
           />
-          {formErrors.date && <p className="text-sm text-destructive" role="alert">{formErrors.date}</p>}
-        </div>
-        <div>
+        </FormField>
+        <FormField
+          label="Expiration Date"
+          fieldId="expiration"
+          required
+          error={form.getError('expiration')}
+        >
           <DatePickerField
-            label="Expiration Date"
-            value={""}
-            onChange={setExpiration}
+            value={form.data.expiration}
+            onChange={val => form.setValue('expiration', val)}
             required
           />
-          {formErrors.expiration && <p className="text-sm text-destructive" role="alert">{formErrors.expiration}</p>}
-        </div>
-        <FormField label="Veterinarian" fieldId="addVaccinationVet" required error={formErrors.vetName}>
+        </FormField>
+        <FormField
+          label="Veterinarian"
+          fieldId="addVaccinationVet"
+          required
+          error={form.getError('vetName')}
+        >
           <Input
             id="addVaccinationVet"
             type="text"
-            value={""}
-            onChange={e => setVeterinarian(e.target.value)}
-            required
-            aria-invalid={!!formErrors.vetName}
-            aria-describedby={formErrors.vetName ? 'addVaccinationVet-error' : undefined}
+            value={form.data.vetName}
+            onChange={e => form.setValue('vetName', e.target.value)}
+            onBlur={() => form.touchField('vetName')}
+            {...form.getFieldProps('vetName')}
           />
         </FormField>
-      </form>
+      </div>
     </StandardDialog>
   );
 };

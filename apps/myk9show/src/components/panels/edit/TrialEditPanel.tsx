@@ -18,6 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon, Clock, Info, Settings } from 'lucide-react';
 import { format } from 'date-fns';
+import { parseLocalDateString } from '@/utils/dateLocal';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
@@ -149,7 +150,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
 
   // Date picker state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    form?.data.trialDate ? new Date(form.data.trialDate) : undefined
+    form?.data.trialDate ? parseLocalDateString(form.data.trialDate) : undefined
   );
 
   // Handle input changes

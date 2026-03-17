@@ -1,81 +1,74 @@
+import { z } from 'zod';
 import type { User as UserType, UserRole, JudgeQualification } from '@/types/user-types';
 import { logger } from '@/services/LoggingService';
 import type { UserFormData } from './UserEditPanel.types';
 
-// Form validation
-export const validateUserData = (data: UserFormData): string[] | null => {
-  const errors: string[] = [];
+// Zod schema for judge qualification entries
+const judgeQualificationSchema = z.object({
+  organization: z.enum(['AKC', 'UKC', 'FCI', 'NACSW', 'CPE', 'OTHER', 'Other']),
+  level: z.string(),
+  disciplines: z.array(z.string()),
+  dateObtained: z.union([z.date(), z.null()]),
+  expirationDate: z.union([z.date(), z.null()]),
+  judgeNumber: z.string().min(1, 'Judge number is required'),
+  showTypes: z.array(z.string()),
+  certificationDate: z.string().min(1, 'Certification date is required'),
+  status: z.enum(['Active', 'Suspended', 'Expired']),
+});
 
-  logger.debug('UserEditPanel validation debug:', 'panels', {
-    data: {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      phone: data.phone,
-      address: data.address,
-      city: data.city,
-      state: data.state,
-      zipCode: data.zipCode,
-      roles: data.roles,
-      formDataKeys: Object.keys(data),
-    },
-  });
+// Zod schema for UserFormData
+export const userFormSchema: z.ZodSchema<UserFormData> = z
+  .object({
+    firstName: z
+      .string()
+      .min(1, 'Please enter a first name')
+      .refine(v => v.trim().length > 0, 'Please enter a first name'),
+    lastName: z
+      .string()
+      .min(1, 'Please enter a last name')
+      .refine(v => v.trim().length > 0, 'Please enter a last name'),
+    email: z
+      .string()
+      .min(1, 'Please enter an email address')
+      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+    phone: z
+      .string()
+      .refine(v => !v || /^[\d\s\-().+]+$/.test(v.trim()), 'Please enter a valid phone number'),
+    address: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zipCode: z.string(),
+    profileImage: z.string().optional(),
+    judgeQualifications: z.array(judgeQualificationSchema),
+    roles: z.array(z.string()),
+    status: z.enum(['active', 'suspended']),
+    bio: z.string().optional(),
+    website: z.string().optional(),
+    emergencyContact: z.string().optional(),
+    emergencyPhone: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // Conditional address validation: if any address field is filled, city and state are required
+    const hasAddressInfo =
+      data.address?.trim() || data.city?.trim() || data.state?.trim() || data.zipCode?.trim();
 
-  if (!data.firstName?.trim()) {
-    errors.push('Please enter a first name');
-  }
-
-  if (!data.lastName?.trim()) {
-    errors.push('Please enter a last name');
-  }
-
-  if (!data.email?.trim()) {
-    errors.push('Please enter an email address');
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.push('Please enter a valid email address');
-  }
-
-  // Phone and address are optional for basic user profiles
-  // Only validate they are properly formatted if provided
-  if (data.phone && !/^[\d\s\-().+]+$/.test(data.phone.trim())) {
-    errors.push('Please enter a valid phone number');
-  }
-
-  // Address fields are optional but should be validated if any are provided
-  const hasAddressInfo =
-    data.address?.trim() || data.city?.trim() || data.state?.trim() || data.zipCode?.trim();
-
-  if (hasAddressInfo) {
-    // If user starts filling address info, require the basic fields
-    if (!data.city?.trim()) {
-      errors.push('Please enter a city when providing address information');
+    if (hasAddressInfo) {
+      if (!data.city?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please enter a city when providing address information',
+          path: ['city'],
+        });
+      }
+      if (!data.state?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please enter a state when providing address information',
+          path: ['state'],
+        });
+      }
     }
-    if (!data.state?.trim()) {
-      errors.push('Please enter a state when providing address information');
-    }
-  }
-
-  // Validate judge qualifications if present
-  data.judgeQualifications?.forEach((qual: JudgeQualification, index: number) => {
-    if (!qual.judgeNumber?.trim()) {
-      errors.push(`Judge qualification ${index + 1}: Judge number is required`);
-    }
-    if (!qual.organization) {
-      errors.push(`Judge qualification ${index + 1}: Organization is required`);
-    }
-    if (!qual.certificationDate) {
-      errors.push(`Judge qualification ${index + 1}: Certification date is required`);
-    }
-  });
-
-  if (errors.length > 0) {
-    logger.debug('UserEditPanel validation errors:', 'panels', { data: errors });
-  } else {
-    logger.debug('UserEditPanel validation passed', 'components', {});
-  }
-
-  return errors.length > 0 ? errors : null;
-};
+  }) as z.ZodSchema<UserFormData>;
 
 // Convert UserType to form data
 export const userToFormData = (user: Partial<UserType>): UserFormData => {

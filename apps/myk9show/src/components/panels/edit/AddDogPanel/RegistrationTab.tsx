@@ -5,21 +5,26 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FileText, AlertCircle, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import type { Registration } from '@/types/dog-types';
+import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import type { DogFormData } from './types';
 
 interface RegistrationTabProps {
-  formData: DogFormData;
   onRemoveRegistration: (id: string) => void;
   onEditRegistration: (reg: Registration) => void;
   onAddRegistration: () => void;
 }
 
 export const RegistrationTab: React.FC<RegistrationTabProps> = ({
-  formData,
   onRemoveRegistration,
   onEditRegistration,
   onAddRegistration,
 }) => {
+  const { form } = useEditPanel<DogFormData>();
+
+  if (!form) return null;
+
+  const registrations = form.data.registrations;
+
   return (
     <Card>
       <CardHeader>
@@ -29,7 +34,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {formData.registrations.length === 0 ? (
+        {registrations.length === 0 ? (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -38,7 +43,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
           </Alert>
         ) : (
           <div className="space-y-4">
-            {formData.registrations.map((reg, index) => (
+            {registrations.map((reg, index) => (
               <Card key={reg.id || index} className="border-2">
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
@@ -47,9 +52,14 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                         <Badge className="bg-primary/10 text-primary border-primary/20">
                           {reg.organization}
                         </Badge>
-                        <Badge variant="outline" className={
-                          reg.status === 'active' ? 'border-green-500 text-green-700' : 'border-gray-500 text-gray-700'
-                        }>
+                        <Badge
+                          variant="outline"
+                          className={
+                            reg.status === 'active'
+                              ? 'border-green-500 text-green-700'
+                              : 'border-gray-500 text-gray-700'
+                          }
+                        >
                           {reg.status}
                         </Badge>
                       </div>
@@ -60,11 +70,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEditRegistration(reg)}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => onEditRegistration(reg)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button

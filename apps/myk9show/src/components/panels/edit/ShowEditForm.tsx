@@ -29,7 +29,7 @@ import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 
 export const ShowEditForm: React.FC = () => {
-  const { data, updateData, errors } = useEditPanel<ShowEditFormData>();
+  const { data, form } = useEditPanel<ShowEditFormData>();
 
   // Store data
   const { templates } = useTemplateStore();
@@ -47,33 +47,34 @@ export const ShowEditForm: React.FC = () => {
   const handleInputChange = useCallback(
     (field: keyof ShowEditFormData) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        updateData({ [field]: e.target.value });
+        form?.setValue(field, e.target.value);
       },
-    [updateData]
+    [form]
   );
 
   // Handle select changes
   const handleSelectChange = useCallback(
     (field: keyof ShowEditFormData) => (value: string) => {
-      updateData({ [field]: value });
+      form?.setValue(field, value);
     },
-    [updateData]
+    [form]
   );
 
   // Handle date picker changes (DateTimePicker returns Date | undefined)
   const handleDateChange = useCallback(
     (field: keyof ShowEditFormData) => (date: Date | undefined) => {
-      updateData({ [field]: date ? date.toISOString() : '' });
+      form?.setValue(field, date ? date.toISOString() : '');
+      form?.touchField(field);
     },
-    [updateData]
+    [form]
   );
 
   // Handle checkbox changes
   const handleCheckboxChange = useCallback(
     (field: keyof ShowEditFormData) => (checked: boolean) => {
-      updateData({ [field]: checked });
+      form?.setValue(field, checked);
     },
-    [updateData]
+    [form]
   );
 
   // Get available show types from active templates
@@ -137,13 +138,13 @@ export const ShowEditForm: React.FC = () => {
           availableEndTime: 'Full Day',
         };
         const updatedJudges = [...data.assignedJudges, newAssignment];
-        updateData({ assignedJudges: updatedJudges });
+        form?.setValue('assignedJudges', updatedJudges);
       } else {
         const updatedJudges = data.assignedJudges.filter(judge => judge.judgeId !== judgeId);
-        updateData({ assignedJudges: updatedJudges });
+        form?.setValue('assignedJudges', updatedJudges);
       }
     },
-    [data.assignedJudges, updateData]
+    [data.assignedJudges, form]
   );
 
   return (
@@ -183,7 +184,7 @@ export const ShowEditForm: React.FC = () => {
         {/* Basic Information Tab */}
         <ShowEditBasicInfoTab
           data={data}
-          errors={errors}
+          form={form}
           availableShowTypes={availableShowTypes}
           clubs={clubs}
           handleInputChange={handleInputChange}
@@ -400,7 +401,7 @@ export const ShowEditForm: React.FC = () => {
         {/* Fees Tab */}
         <ShowEditFeesTab
           data={data}
-          errors={errors}
+          form={form}
           handleInputChange={handleInputChange}
           handleCheckboxChange={handleCheckboxChange}
         />

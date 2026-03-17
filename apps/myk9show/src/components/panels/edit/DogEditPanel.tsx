@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dog, FileText, Heart } from 'lucide-react';
 import PhotoDialog from '@/components/common/PhotoDialog';
 import type { DogEditContextType, DogEditPanelProps, DogFormData } from './DogEditPanel.types';
-import { dogToFormData, formDataToDog, validateDogData, isAdminRole } from './DogEditPanel.helpers';
+import { dogToFormData, formDataToDog, dogFormSchema, isAdminRole } from './DogEditPanel.helpers';
 import { BasicInfoTab, RegistrationsTab, HealthRecordsTab } from './DogEditPanel.sections';
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -218,7 +218,7 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
         size="xl"
         initialData={initialFormData}
         onSave={handleSave}
-        validateData={validateDogData}
+        schema={dogFormSchema}
         enableAutoSave={enableAutoSave}
         saveLabel="Save Changes"
         cancelLabel="Cancel"

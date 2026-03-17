@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { EditPanelWrapper } from '../EditPanelWrapper';
+import { useEditPanel } from '../useEditPanel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -8,11 +9,9 @@ import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistration
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { DogInput } from '@/store/dogStore';
 import { UserRole } from '@/types/auth-types';
-import { logger } from '@/services/LoggingService';
-
 import type { AddDogPanelProps, DogFormData } from './types';
 import { INITIAL_FORM_DATA } from './types';
-import { validateDogData, isTabValid } from './validation';
+import { addDogSchema, isTabValid } from './validation';
 import { useAddDogForm } from './useAddDogForm';
 import { TabNavigation } from './TabNavigation';
 import { BasicInfoTab } from './BasicInfoTab';
@@ -30,16 +29,87 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
 }) => {
   const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
 
-  const form = useAddDogForm({ open, userRole, currentUserPersonId });
+  // Stable initial data — recalculated when userRole or currentUserPersonId changes
+  const initialFormData = useMemo<DogFormData>(
+    () => ({
+      ...INITIAL_FORM_DATA,
+      ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
+    }),
+    [userRole, currentUserPersonId]
+  );
+
+  // Handle save: map DogFormData -> DogInput and persist
+  const handleSave = async (formData: DogFormData) => {
+    const dogInput: DogInput = {
+      name: formData.callName,
+      callName: formData.callName,
+      breed: formData.registrations?.[0]?.breed || 'Mixed Breed',
+      birthDate: formData.dateOfBirth,
+      sex: formData.gender === 'Female' ? 'female' : 'male',
+      color: formData.color,
+      weight: formData.weight ? parseFloat(formData.weight) : undefined,
+      height: formData.height ? parseFloat(formData.height) : undefined,
+      ownerId: formData.ownerId,
+      microchipNumber: formData.microchip || undefined,
+      registrations: formData.registrations?.map(reg => ({
+        organization: reg.organization,
+        number: reg.registrationNumber,
+        registeredName: reg.registeredName,
+        type: reg.breed,
+        status: reg.status || 'active',
+      })),
+    };
+
+    const newDog = await addDog(dogInput);
+    onDogCreated(newDog);
+  };
+
+  return (
+    <EditPanelWrapper<DogFormData>
+      open={open}
+      onClose={onClose}
+      title="Add New Dog"
+      initialData={initialFormData}
+      schema={addDogSchema}
+      onSave={handleSave}
+      forceHasChanges
+      size="xl"
+      saveLabel={isSaving ? 'Creating...' : 'Create Dog'}
+      enableAutoSave={false}
+      showUnsavedWarning={true}
+    >
+      <AddDogPanelContent
+        open={open}
+        userRole={userRole}
+        currentUserPersonId={currentUserPersonId}
+        saveError={saveError}
+      />
+    </EditPanelWrapper>
+  );
+};
+
+/** Inner component rendered within EditPanelWrapper so it can access useEditPanel context */
+interface AddDogPanelContentProps {
+  open: boolean;
+  userRole: UserRole;
+  currentUserPersonId?: string | undefined;
+  saveError: string | null;
+}
+
+const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
+  open,
+  userRole,
+  currentUserPersonId,
+  saveError,
+}) => {
+  const { form } = useEditPanel<DogFormData>();
+
+  // The hook needs form to manage registrations/photos via context
+  const uiState = useAddDogForm({ open, form });
 
   const {
-    formData,
-    validationErrors,
-    setValidationErrors,
     activeTab,
     setActiveTab,
-    isCreating,
-    setIsCreating,
     // Photo state
     isPhotoDialogOpen,
     photoPreview,
@@ -50,7 +120,6 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
     setIsAddEditRegDialogOpen,
     currentRegToEdit,
     // Handlers
-    handleFieldChange,
     handleSaveRegistration,
     handleRemoveRegistration,
     handlePhotoDialogOpen,
@@ -59,142 +128,67 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
     handlePhotoSave,
     openAddRegistration,
     openEditRegistration,
-  } = form;
+  } = uiState;
 
-  // Handle form submission
-  const handleSave = async () => {
-    const errors = validateDogData(formData);
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      return;
+  // Sync ownerId when currentUserPersonId resolves asynchronously
+  const ownerIdValue = form?.data.ownerId;
+  const setFormValue = form?.setValue;
+  useEffect(() => {
+    if (currentUserPersonId && userRole === UserRole.EXHIBITOR && setFormValue && !ownerIdValue) {
+      setFormValue('ownerId', currentUserPersonId);
     }
+  }, [currentUserPersonId, userRole, setFormValue, ownerIdValue]);
 
-    setIsCreating(true);
-    try {
-      const dogInput: DogInput = {
-        name: formData.callName,
-        callName: formData.callName,
-        breed: formData.registrations?.[0]?.breed || 'Mixed Breed',
-        birthDate: formData.dateOfBirth,
-        sex: formData.gender === 'Female' ? 'female' : 'male',
-        color: formData.color,
-        weight: formData.weight ? parseFloat(formData.weight) : undefined,
-        height: formData.height ? parseFloat(formData.height) : undefined,
-        ownerId: formData.ownerId,
-        microchipNumber: formData.microchip || undefined,
-        registrations: formData.registrations?.map(reg => ({
-          organization: reg.organization,
-          number: reg.registrationNumber,
-          registeredName: reg.registeredName,
-          type: reg.breed,
-          status: reg.status || 'active',
-        })),
-      };
-
-      const newDog = await addDog(dogInput);
-      onDogCreated(newDog);
-      onClose();
-    } catch (error) {
-      logger.error('Error creating dog:', 'components', {}, error as Error);
-      setValidationErrors({
-        submit: error instanceof Error ? error.message : 'Failed to create dog',
+  // Reset form when panel re-opens
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open && form) {
+      form.reset({
+        ...INITIAL_FORM_DATA,
+        ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
       });
-    } finally {
-      setIsCreating(false);
     }
-  };
+  }
+
+  if (!form) return null;
+
+  const formData = form.data;
 
   // Tab validity for navigation indicators
-  const isBasicValid = useMemo(() => isTabValid('basic', formData), [formData]);
-  const isRegistrationValid = useMemo(() => isTabValid('registration', formData), [formData]);
-  const isOptionalValid = useMemo(() => isTabValid('optional', formData), [formData]);
-
-  // Panel subtitle
-  const panelSubtitle = useMemo(() => {
-    const completedTabs = [isBasicValid, isRegistrationValid, isOptionalValid].filter(Boolean).length;
-    return `${completedTabs} of 3 sections complete`;
-  }, [isBasicValid, isRegistrationValid, isOptionalValid]);
-
-  // Stable empty initial data — never changes, so EditPanelWrapper correctly tracks
-  // hasChanges relative to a fixed baseline (not the live form state).
-  const initialFormData = useMemo<DogFormData>(() => ({
-    ...INITIAL_FORM_DATA,
-    ownerId: userRole === UserRole.EXHIBITOR ? (currentUserPersonId || '') : '',
-  }), [userRole, currentUserPersonId]);
-
-  // For create panels, treat as "dirty" whenever the user has edited any field.
-  const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
-  }, [formData, initialFormData]);
+  const isBasicValid = isTabValid('basic', formData);
+  const isRegistrationValid = isTabValid('registration', formData);
+  const isOptionalValid = isTabValid('optional', formData);
 
   return (
-    <EditPanelWrapper
-      open={open}
-      onClose={onClose}
-      title="Add New Dog"
-      subtitle={panelSubtitle}
-      initialData={initialFormData}
-      onSave={async () => await handleSave()}
-      validateData={() => {
-        // Use formData from closure — the wrapper's internal data is a stable empty
-        // baseline and is not driven by child tab changes, so we validate the live state.
-        const hasRequiredFields = formData.callName?.trim() &&
-                                  formData.gender &&
-                                  formData.dateOfBirth &&
-                                  formData.ownerId;
-
-        if (!hasRequiredFields) {
-          const missingFields: string[] = [];
-          if (!formData.callName?.trim()) missingFields.push('Call name');
-          if (!formData.gender) missingFields.push('Gender');
-          if (!formData.dateOfBirth) missingFields.push('Date of birth');
-          if (!formData.ownerId) missingFields.push('Owner');
-          return [`Missing required fields: ${missingFields.join(', ')}`];
-        }
-
-        if (formData.dateOfBirth) {
-          const birthDate = new Date(formData.dateOfBirth);
-          const now = new Date();
-          if (birthDate > now) {
-            return ['Date of birth cannot be in the future'];
-          }
-          if (birthDate < new Date(now.getFullYear() - 30, 0, 1)) {
-            return ['Date of birth seems too far in the past'];
-          }
-        }
-
-        return null;
-      }}
-      forceHasChanges={isDirty}
-      size="xl"
-      saveLabel={isCreating || isSaving ? 'Creating...' : 'Create Dog'}
-      enableAutoSave={false}
-      showUnsavedWarning={true}
-    >
+    <>
       <div className="space-y-8">
         {/* Error Display */}
-        {(saveError || validationErrors.submit) && (
+        {saveError && (
           <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
             <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
             <AlertDescription className="text-red-800 dark:text-red-300">
-              {saveError || validationErrors.submit}
+              {saveError}
             </AlertDescription>
           </Alert>
         )}
 
         {/* Tabbed Content */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'basic' | 'registration' | 'optional')}>
+        <Tabs
+          value={activeTab}
+          onValueChange={value => setActiveTab(value as 'basic' | 'registration' | 'optional')}
+        >
           <TabNavigation
             isBasicValid={isBasicValid}
             isRegistrationValid={isRegistrationValid}
             isOptionalValid={isOptionalValid}
           />
 
-          <TabsContent value="basic" className="space-y-8 mt-8 animate-in slide-in-from-bottom-2 duration-500 ease-apple">
+          <TabsContent
+            value="basic"
+            className="space-y-8 mt-8 animate-in slide-in-from-bottom-2 duration-500 ease-apple"
+          >
             <BasicInfoTab
-              formData={formData}
-              validationErrors={validationErrors}
-              onFieldChange={handleFieldChange}
               userRole={userRole}
               currentUserPersonId={currentUserPersonId}
               onPhotoOpen={() => handlePhotoDialogOpen(true)}
@@ -203,7 +197,6 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
 
           <TabsContent value="registration" className="space-y-8 mt-8">
             <RegistrationTab
-              formData={formData}
               onRemoveRegistration={handleRemoveRegistration}
               onEditRegistration={openEditRegistration}
               onAddRegistration={openAddRegistration}
@@ -211,11 +204,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
           </TabsContent>
 
           <TabsContent value="optional" className="space-y-8 mt-8">
-            <AdditionalInfoTab
-              formData={formData}
-              validationErrors={validationErrors}
-              onFieldChange={handleFieldChange}
-            />
+            <AdditionalInfoTab />
           </TabsContent>
         </Tabs>
       </div>
@@ -228,8 +217,14 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
         currentPhoto={formData.imageUrl || ''}
         isDragging={isPhotoDragging}
         onDrop={handlePhotoDrop}
-        onDragOver={(e) => { e.preventDefault(); setIsPhotoDragging(true); }}
-        onDragLeave={(e) => { e.preventDefault(); setIsPhotoDragging(false); }}
+        onDragOver={e => {
+          e.preventDefault();
+          setIsPhotoDragging(true);
+        }}
+        onDragLeave={e => {
+          e.preventDefault();
+          setIsPhotoDragging(false);
+        }}
         onFileInput={handlePhotoFileInput}
         onCancel={() => handlePhotoDialogOpen(false)}
         onSave={handlePhotoSave}
@@ -244,6 +239,6 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
         onSave={handleSaveRegistration}
         initialData={currentRegToEdit}
       />
-    </EditPanelWrapper>
+    </>
   );
 };

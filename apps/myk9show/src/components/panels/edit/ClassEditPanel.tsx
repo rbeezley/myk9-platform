@@ -15,15 +15,21 @@ import { TrialClass } from '@/components/trials/types/trial.types';
 import { useShowStore } from '@/store/showStore';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
-import { findFieldError } from '@/lib/validation';
+import { z } from 'zod';
+import { classSchemas } from '@/lib/validation';
 import type {
   ClassEditPanelProps,
   ClassEditFormData,
   TrialClassEditFormData,
 } from './ClassEditPanel.types';
+
+// Cast schemas to match the pre-existing form data interfaces.
+// Needed because exactOptionalPropertyTypes causes structural mismatch
+// between Zod's optional field output (T | undefined) and the interface's
+// optional property syntax (prop?: T).
+const classFullSchema = classSchemas.full as unknown as z.ZodSchema<ClassEditFormData>;
+const classSimpleSchema = classSchemas.simple as unknown as z.ZodSchema<TrialClassEditFormData>;
 import {
-  validateClassData,
-  validateTrialClassData,
   classToFormData,
   trialClassToFormData,
   formDataToClass,
@@ -33,7 +39,7 @@ import { ClassEditForm } from './ClassEditForm';
 
 // Simple mode form for TrialClass
 const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
-  const { data, updateData, errors } = useEditPanel<TrialClassEditFormData>();
+  const { data, form } = useEditPanel<TrialClassEditFormData>();
   const { shows } = useShowStore();
 
   const assignedJudges = useMemo(() => {
@@ -45,25 +51,33 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
   const handleInputChange = useCallback(
     (field: keyof TrialClassEditFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.type === 'number' ? parseInt(e.target.value) || 0 : e.target.value;
-      updateData({ [field]: value });
+      form?.setValue(field, value);
     },
-    [updateData]
+    [form]
+  );
+
+  const handleBlur = useCallback(
+    (field: keyof TrialClassEditFormData) => () => {
+      form?.touchField(field);
+    },
+    [form]
   );
 
   const handleSelectChange = useCallback(
     (field: keyof TrialClassEditFormData) => (value: string) => {
-      updateData({ [field]: value });
+      form?.setValue(field, value);
+      form?.touchField(field);
       if (field === 'judgeId') {
         const selectedJudge = assignedJudges.find(judge => judge.judgeId === value);
-        updateData({ judgeName: selectedJudge?.judgeName || 'TBD' });
+        form?.setValue('judgeName', selectedJudge?.judgeName || 'TBD');
       }
     },
-    [updateData, assignedJudges]
+    [form, assignedJudges]
   );
 
-  const judgeError = findFieldError(errors, 'judge');
-  const startTimeError = findFieldError(errors, 'start time');
-  const statusError = findFieldError(errors, 'status');
+  const judgeError = form?.getError('judgeId');
+  const startTimeError = form?.getError('startTime');
+  const statusError = form?.getError('status');
 
   return (
     <div className="space-y-6 p-6">
@@ -140,6 +154,7 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 type="datetime-local"
                 value={data.startTime}
                 onChange={handleInputChange('startTime')}
+                onBlur={handleBlur('startTime')}
                 className={cn(startTimeError && 'border-destructive')}
                 aria-invalid={!!startTimeError}
                 aria-describedby={startTimeError ? 'startTime-error' : undefined}
@@ -199,52 +214,52 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
     ('judgeId' in (initialClassData || {}) &&
       !('estimatedJudgingTime' in (initialClassData || {})));
 
-  const initialFormData = useMemo(() => {
-    if (isSimpleMode) {
-      return trialClassToFormData(initialClassData as Partial<TrialClass>);
-    } else {
-      return classToFormData(initialClassData as Partial<ClassData>);
-    }
-  }, [initialClassData, isSimpleMode]);
+  const commonProps = {
+    open,
+    onClose,
+    title: 'Edit Class',
+    subtitle: `Editing details for ${className}`,
+    size: 'xl' as const,
+    enableAutoSave,
+    saveLabel: 'Save Changes',
+    cancelLabel: 'Cancel',
+  };
 
-  const handleSave = useCallback(
-    async (formData: ClassEditFormData | TrialClassEditFormData) => {
-      const classData = isSimpleMode
-        ? formDataToTrialClass(formData as TrialClassEditFormData)
-        : formDataToClass(formData as ClassEditFormData);
+  if (isSimpleMode) {
+    const initialFormData = trialClassToFormData(initialClassData as Partial<TrialClass>);
+
+    const handleSave = async (formData: TrialClassEditFormData) => {
+      const classData = formDataToTrialClass(formData);
       if (onSave) await onSave(classData);
-    },
-    [onSave, isSimpleMode]
-  );
+    };
 
-  const validateData = useCallback(
-    (data: ClassEditFormData | TrialClassEditFormData) => {
-      return isSimpleMode
-        ? validateTrialClassData(data as TrialClassEditFormData)
-        : validateClassData(data as ClassEditFormData);
-    },
-    [isSimpleMode]
-  );
+    return (
+      <EditPanelWrapper<TrialClassEditFormData>
+        {...commonProps}
+        initialData={initialFormData}
+        onSave={handleSave}
+        schema={classSimpleSchema}
+      >
+        <TrialClassEditForm {...(showId !== undefined && { showId })} />
+      </EditPanelWrapper>
+    );
+  }
+
+  const initialFormData = classToFormData(initialClassData as Partial<ClassData>);
+
+  const handleSave = async (formData: ClassEditFormData) => {
+    const classData = formDataToClass(formData);
+    if (onSave) await onSave(classData);
+  };
 
   return (
-    <EditPanelWrapper<ClassEditFormData | TrialClassEditFormData>
-      open={open}
-      onClose={onClose}
-      title="Edit Class"
-      subtitle={`Editing details for ${className}`}
-      size="xl"
+    <EditPanelWrapper<ClassEditFormData>
+      {...commonProps}
       initialData={initialFormData}
       onSave={handleSave}
-      validateData={validateData}
-      enableAutoSave={enableAutoSave}
-      saveLabel="Save Changes"
-      cancelLabel="Cancel"
+      schema={classFullSchema}
     >
-      {isSimpleMode ? (
-        <TrialClassEditForm {...(showId !== undefined && { showId })} />
-      ) : (
-        <ClassEditForm {...(showId !== undefined && { showId })} />
-      )}
+      <ClassEditForm {...(showId !== undefined && { showId })} />
     </EditPanelWrapper>
   );
 };

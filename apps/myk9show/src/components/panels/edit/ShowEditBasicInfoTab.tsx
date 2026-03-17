@@ -17,12 +17,12 @@ import {
 import { Calendar } from 'lucide-react';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { FormField } from '@/components/common/FormField';
-import { findFieldError } from '@/lib/validation';
+import type { FormValidation } from '@/hooks/useFormValidation';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditBasicInfoTabProps {
   data: ShowEditFormData;
-  errors: string[];
+  form?: FormValidation<ShowEditFormData> | undefined;
   availableShowTypes: string[];
   clubs: Array<{ id: string; name: string; clubNumber: string }>;
   handleInputChange: (
@@ -34,19 +34,19 @@ interface ShowEditBasicInfoTabProps {
 
 export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   data,
-  errors,
+  form,
   availableShowTypes,
   clubs,
   handleInputChange,
   handleSelectChange,
   handleDateChange,
 }) => {
-  const nameError = findFieldError(errors, 'show name');
-  const clubError = findFieldError(errors, 'club');
-  const startDateError = findFieldError(errors, 'start date');
-  const endDateError = findFieldError(errors, 'end date');
-  const entryOpenError = findFieldError(errors, 'entry open');
-  const entryCloseError = findFieldError(errors, 'entry close');
+  const nameError = form?.getError('name');
+  const clubError = form?.getError('clubId');
+  const startDateError = form?.getError('startDate');
+  const endDateError = form?.getError('endDate');
+  const entryOpenError = form?.getError('entryOpenDate');
+  const entryCloseError = form?.getError('entryCloseDate');
 
   return (
     <TabsContent
@@ -67,10 +67,10 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 id="name"
                 value={data.name}
                 onChange={handleInputChange('name')}
+                onBlur={() => form?.touchField('name')}
                 placeholder="Enter show name"
                 className={nameError ? 'border-destructive' : ''}
-                aria-invalid={!!nameError}
-                aria-describedby={nameError ? 'name-error' : undefined}
+                {...form?.getFieldProps('name')}
               />
             </FormField>
 
@@ -158,8 +158,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             <Select value={data.clubId} onValueChange={handleSelectChange('clubId')}>
               <SelectTrigger
                 className={clubError ? 'border-destructive' : ''}
-                aria-invalid={!!clubError}
-                aria-describedby={clubError ? 'clubId-error' : undefined}
+                {...form?.getFieldProps('clubId')}
               >
                 <SelectValue placeholder="Select hosting club">
                   {data.clubId
@@ -195,6 +194,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               id="location"
               value={data.location}
               onChange={handleInputChange('location')}
+              onBlur={() => form?.touchField('location')}
               placeholder="Enter show location"
             />
           </FormField>

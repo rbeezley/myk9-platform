@@ -21,7 +21,7 @@ export interface DogFormData extends Record<string, unknown> {
   weight: string;
   microchip: string;
   spayedNeutered: boolean;
-  imageUrl?: string;
+  imageUrl: string;
 
   // Owner Information
   ownerId: string;
@@ -45,10 +45,3 @@ export const INITIAL_FORM_DATA: DogFormData = {
 };
 
 export type TabValue = 'basic' | 'registration' | 'optional';
-
-/** Props shared by all tab sub-components */
-export interface TabSectionProps {
-  formData: DogFormData;
-  validationErrors: Record<string, string>;
-  onFieldChange: (field: keyof DogFormData, value: string | boolean) => void;
-}

@@ -1,68 +1,12 @@
 /**
  * ShowEditPanel - Helper Functions
  *
- * Validation, form data conversion, and other pure logic.
+ * Form data conversion and other pure logic.
+ * Validation is handled by showSchemas.edit in @/lib/validation.
  */
 
 import type { Show } from '@/types/show-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
-
-// Form validation
-export const validateShowData = (data: ShowEditFormData): string[] | null => {
-  const errors: string[] = [];
-
-  if (!data.name?.trim()) {
-    errors.push('Please enter a show name');
-  }
-
-  if (!data.clubId?.trim()) {
-    errors.push('Please select a hosting club');
-  }
-
-  if (!data.startDate?.trim()) {
-    errors.push('Please select a start date');
-  }
-
-  if (!data.endDate?.trim()) {
-    errors.push('Please select an end date');
-  }
-
-  // Validate date logic
-  if (data.startDate && data.endDate) {
-    const startDate = new Date(data.startDate);
-    const endDate = new Date(data.endDate);
-    if (endDate < startDate) {
-      errors.push('End date must be after start date');
-    }
-  }
-
-  if (data.entryOpenDate && data.entryCloseDate) {
-    const openDate = new Date(data.entryOpenDate);
-    const closeDate = new Date(data.entryCloseDate);
-    if (closeDate < openDate) {
-      errors.push('Entry close date must be after entry open date');
-    }
-  }
-
-  if (data.entryCloseDate && data.startDate) {
-    const closeDate = new Date(data.entryCloseDate);
-    const showDate = new Date(data.startDate);
-    if (closeDate > showDate) {
-      errors.push('Entry close date must be before show start date');
-    }
-  }
-
-  // Validate fees if provided
-  if (data.preEntryFee && isNaN(parseFloat(data.preEntryFee.replace(/[$,]/g, '')))) {
-    errors.push('Please enter a valid pre-entry fee amount');
-  }
-
-  if (data.dayOfShowFee && isNaN(parseFloat(data.dayOfShowFee.replace(/[$,]/g, '')))) {
-    errors.push('Please enter a valid day of show fee amount');
-  }
-
-  return errors.length > 0 ? errors : null;
-};
 
 // Convert Show to form data
 export const showToFormData = (show: Partial<Show>): ShowEditFormData => {

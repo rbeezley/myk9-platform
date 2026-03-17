@@ -1,42 +1,28 @@
+import { z } from 'zod';
 import { getDogDisplayName } from '@/types/dog-types';
 import type { DogFormData, DogType, Registration } from './DogEditPanel.types';
 import { UserRole } from './DogEditPanel.types';
 
-/** Validate dog form data, returning an array of error messages or null if valid. */
-export const validateDogData = (data: DogFormData): string[] | null => {
-  const errors: string[] = [];
-
-  if (!data.callName?.trim()) {
-    errors.push('Please enter a call name');
-  }
-
-  if (!data.registeredName?.trim()) {
-    errors.push('Please enter a registered name');
-  }
-
-  if (!data.gender) {
-    errors.push('Please select a gender');
-  }
-
-  if (!data.dateOfBirth) {
-    errors.push('Please enter a date of birth');
-  }
-
-  // Note: ownerId is not validated here - it's set during dog creation
-  // and preserved during editing. Owner changes should be handled separately.
-
-  // Validate registrations if present
-  data.registrations?.forEach((reg, index) => {
-    if (!reg.organization) {
-      errors.push(`Registration ${index + 1}: Organization is required`);
-    }
-    if (!reg.registrationNumber?.trim()) {
-      errors.push(`Registration ${index + 1}: Registration number is required`);
-    }
-  });
-
-  return errors.length > 0 ? errors : null;
-};
+/** Zod schema for DogFormData validation. */
+export const dogFormSchema = z.object({
+  callName: z.string().min(1, 'Please enter a call name'),
+  registeredName: z.string().min(1, 'Please enter a registered name'),
+  gender: z.string().min(1, 'Please select a gender'),
+  dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
+  color: z.string(),
+  weight: z.string(),
+  height: z.string(),
+  microchip: z.string(),
+  imageUrl: z.string().optional(),
+  ownerId: z.string(),
+  registrations: z.custom<Registration[]>(val => Array.isArray(val)),
+  healthRecords: z.custom<DogType['healthRecords']>(
+    val => val === undefined || val === null || typeof val === 'object'
+  ),
+  notes: z.string().optional(),
+  specialNeeds: z.string().optional(),
+  spayedNeutered: z.boolean().optional(),
+}) as unknown as z.ZodSchema<DogFormData>;
 
 /** Convert DogType to form data for the edit panel. */
 export const dogToFormData = (dog: Partial<DogType>): DogFormData => {

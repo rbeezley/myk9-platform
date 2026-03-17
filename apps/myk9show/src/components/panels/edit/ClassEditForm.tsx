@@ -19,7 +19,6 @@ import { useUserStore } from '@/store/userStore';
 import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
-import { findFieldError } from '@/lib/validation';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
 import type { ClassEditFormData } from './ClassEditPanel.types';
 
@@ -59,12 +58,12 @@ function RequirementField({
 
 // Full mode form for ClassData
 export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
-  const { data, updateData, errors } = useEditPanel<ClassEditFormData>();
+  const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
 
-  const preEntryFeeError = findFieldError(errors, 'pre-entry fee');
-  const dayOfShowFeeError = findFieldError(errors, 'day of show fee');
+  const preEntryFeeError = form?.getError('preEntryFee');
+  const dayOfShowFeeError = form?.getError('dayOfShowFee');
 
   const assignedJudges = useMemo(() => {
     if (!showId) return [];
@@ -82,17 +81,25 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
   const handleInputChange = useCallback(
     (field: keyof ClassEditFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
-      updateData({ [field]: value });
+      form?.setValue(field, value);
     },
-    [updateData]
+    [form]
+  );
+
+  const handleBlur = useCallback(
+    (field: keyof ClassEditFormData) => () => {
+      form?.touchField(field);
+    },
+    [form]
   );
 
   const handleSelectChange = useCallback(
     (field: keyof ClassEditFormData) => (value: string) => {
       const finalValue = value === 'none' ? '' : value;
-      updateData({ [field]: finalValue });
+      form?.setValue(field, finalValue);
+      form?.touchField(field);
     },
-    [updateData]
+    [form]
   );
 
   return (
@@ -140,13 +147,28 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <FormField label="Element" fieldId="element" required>
-                  <Input id="element" value={data.element} className="bg-muted text-muted-foreground" readOnly />
+                  <Input
+                    id="element"
+                    value={data.element}
+                    className="bg-muted text-muted-foreground"
+                    readOnly
+                  />
                 </FormField>
                 <FormField label="Level" fieldId="level" required>
-                  <Input id="level" value={data.level} className="bg-muted text-muted-foreground" readOnly />
+                  <Input
+                    id="level"
+                    value={data.level}
+                    className="bg-muted text-muted-foreground"
+                    readOnly
+                  />
                 </FormField>
                 <FormField label="Section" fieldId="section">
-                  <Input id="section" value={data.section} className="bg-muted text-muted-foreground" readOnly />
+                  <Input
+                    id="section"
+                    value={data.section}
+                    className="bg-muted text-muted-foreground"
+                    readOnly
+                  />
                 </FormField>
               </div>
 
@@ -156,6 +178,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     id="classOrder"
                     value={data.classOrder}
                     onChange={handleInputChange('classOrder')}
+                    onBlur={handleBlur('classOrder')}
                     placeholder="Enter order number"
                   />
                 </FormField>
@@ -191,7 +214,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   id="estimatedJudgingTime"
                   label="Estimated Judging Time"
                   value={data.estimatedJudgingTime || ''}
-                  onChange={value => updateData({ estimatedJudgingTime: value })}
+                  onChange={value => form?.setValue('estimatedJudgingTime', value)}
                   maxMinutes={data.element === 'Detective' ? 15 : 9}
                 />
               </div>
@@ -218,7 +241,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   id="timeLimit1"
                   label="Time Limit 1"
                   value={data.timeLimit1 || ''}
-                  onChange={value => updateData({ timeLimit1: value })}
+                  onChange={value => form?.setValue('timeLimit1', value)}
                   maxMinutes={data.element === 'Detective' ? 15 : 9}
                 />
 
@@ -228,7 +251,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                       id="timeLimit2"
                       label="Time Limit 2"
                       value={data.timeLimit2 || ''}
-                      onChange={value => updateData({ timeLimit2: value })}
+                      onChange={value => form?.setValue('timeLimit2', value)}
                       maxMinutes={9}
                     />
                   )}
@@ -238,7 +261,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     id="timeLimit3"
                     label="Time Limit 3"
                     value={data.timeLimit3 || ''}
-                    onChange={value => updateData({ timeLimit3: value })}
+                    onChange={value => form?.setValue('timeLimit3', value)}
                     maxMinutes={9}
                   />
                 )}
@@ -258,17 +281,22 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="Judge" fieldId="judge">
-                  <Select value={data.judge || ''} onValueChange={handleSelectChange('judge')}>
+                  <Select
+                    value={data.judge || ''}
+                    onValueChange={handleSelectChange('judge')}
+                  >
                     <SelectTrigger id="judge">
                       <SelectValue placeholder="Select a judge" />
                     </SelectTrigger>
                     <SelectContent>
                       {assignedJudges.length > 0 ? (
-                        assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
-                          <SelectItem key={judge.judgeId} value={judge.judgeName}>
-                            {judge.judgeName}
-                          </SelectItem>
-                        ))
+                        assignedJudges.map(
+                          (judge: { judgeId: string; judgeName: string }) => (
+                            <SelectItem key={judge.judgeId} value={judge.judgeName}>
+                              {judge.judgeName}
+                            </SelectItem>
+                          )
+                        )
                       ) : (
                         <SelectItem value="TBD" disabled>
                           No judges assigned to this show
@@ -290,7 +318,9 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 ].map(({ field, label }) => (
                   <FormField key={field} label={label} fieldId={field}>
                     <Select
-                      value={((data as Record<string, unknown>)[field] as string) || 'none'}
+                      value={
+                        ((data as Record<string, unknown>)[field] as string) || 'none'
+                      }
                       onValueChange={handleSelectChange(field as keyof ClassEditFormData)}
                     >
                       <SelectTrigger id={field}>
@@ -364,6 +394,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                       type="number"
                       value={data.preEntryFee || ''}
                       onChange={handleInputChange('preEntryFee')}
+                      onBlur={handleBlur('preEntryFee')}
                       placeholder="Enter pre entry fee"
                       min="0"
                       step="0.01"
@@ -383,6 +414,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                       type="number"
                       value={data.dayOfShowFee || ''}
                       onChange={handleInputChange('dayOfShowFee')}
+                      onBlur={handleBlur('dayOfShowFee')}
                       placeholder="Enter day of show fee"
                       min="0"
                       step="0.01"

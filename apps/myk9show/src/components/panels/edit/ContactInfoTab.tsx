@@ -1,37 +1,22 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Phone, MapPin } from 'lucide-react';
-import { findFieldError } from '@/lib/validation';
+import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
 
 interface ContactInfoTabProps {
-  data: UserFormData;
-  errors: string[];
-  updateData: (updates: Partial<UserFormData>) => void;
   canEditAdvancedFields: boolean;
 }
 
-export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
-  data,
-  errors,
-  updateData,
-  canEditAdvancedFields,
-}) => {
-  const handleInputChange = useCallback(
-    (field: keyof UserFormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      updateData({ [field]: e.target.value });
-    },
-    [updateData]
-  );
+export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({ canEditAdvancedFields }) => {
+  const { data, form } = useEditPanel<UserFormData>();
 
-  const phoneError = findFieldError(errors, 'phone');
-  const addressError = findFieldError(errors, 'address');
-  const cityError = findFieldError(errors, 'city');
-  const stateError = findFieldError(errors, 'state');
-  const zipError = findFieldError(errors, 'zip');
+  const phoneError = form?.getError('phone');
+  const cityError = form?.getError('city');
+  const stateError = form?.getError('state');
 
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
@@ -47,10 +32,10 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
             id="phone"
             type="tel"
             value={data.phone}
-            onChange={handleInputChange('phone')}
+            onChange={e => form?.setValue('phone', e.target.value)}
+            onBlur={() => form?.touchField('phone')}
             placeholder="Enter phone number"
-            aria-invalid={!!phoneError}
-            aria-describedby={phoneError ? 'phone-error' : undefined}
+            {...form?.getFieldProps('phone')}
           />
         </FormField>
 
@@ -62,18 +47,14 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
             Address Information
           </h4>
 
-          <FormField
-            label="Street Address"
-            fieldId="address"
-            error={addressError}
-          >
+          <FormField label="Street Address" fieldId="address">
             <Input
               id="address"
               value={data.address}
-              onChange={handleInputChange('address')}
+              onChange={e => form?.setValue('address', e.target.value)}
+              onBlur={() => form?.touchField('address')}
               placeholder="Enter street address"
-              aria-invalid={!!addressError}
-              aria-describedby={addressError ? 'address-error' : undefined}
+              {...form?.getFieldProps('address')}
             />
           </FormField>
 
@@ -82,10 +63,10 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
               <Input
                 id="city"
                 value={data.city}
-                onChange={handleInputChange('city')}
+                onChange={e => form?.setValue('city', e.target.value)}
+                onBlur={() => form?.touchField('city')}
                 placeholder="Enter city"
-                aria-invalid={!!cityError}
-                aria-describedby={cityError ? 'city-error' : undefined}
+                {...form?.getFieldProps('city')}
               />
             </FormField>
 
@@ -93,21 +74,21 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
               <Input
                 id="state"
                 value={data.state}
-                onChange={handleInputChange('state')}
+                onChange={e => form?.setValue('state', e.target.value)}
+                onBlur={() => form?.touchField('state')}
                 placeholder="Enter state"
-                aria-invalid={!!stateError}
-                aria-describedby={stateError ? 'state-error' : undefined}
+                {...form?.getFieldProps('state')}
               />
             </FormField>
 
-            <FormField label="ZIP Code" fieldId="zipCode" error={zipError}>
+            <FormField label="ZIP Code" fieldId="zipCode">
               <Input
                 id="zipCode"
                 value={data.zipCode}
-                onChange={handleInputChange('zipCode')}
+                onChange={e => form?.setValue('zipCode', e.target.value)}
+                onBlur={() => form?.touchField('zipCode')}
                 placeholder="Enter ZIP code"
-                aria-invalid={!!zipError}
-                aria-describedby={zipError ? 'zipCode-error' : undefined}
+                {...form?.getFieldProps('zipCode')}
               />
             </FormField>
           </div>
@@ -126,7 +107,8 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
                   <Input
                     id="emergencyContact"
                     value={data.emergencyContact || ''}
-                    onChange={handleInputChange('emergencyContact')}
+                    onChange={e => form?.setValue('emergencyContact', e.target.value)}
+                    onBlur={() => form?.touchField('emergencyContact')}
                     placeholder="Enter emergency contact name"
                   />
                 </FormField>
@@ -136,7 +118,8 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
                     id="emergencyPhone"
                     type="tel"
                     value={data.emergencyPhone || ''}
-                    onChange={handleInputChange('emergencyPhone')}
+                    onChange={e => form?.setValue('emergencyPhone', e.target.value)}
+                    onBlur={() => form?.touchField('emergencyPhone')}
                     placeholder="Enter emergency phone number"
                   />
                 </FormField>

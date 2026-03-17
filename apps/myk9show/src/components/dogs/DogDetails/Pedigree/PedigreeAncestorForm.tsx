@@ -1,5 +1,5 @@
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { parseLocalDateString, formatDateLocal } from '@/utils/dateLocal';
@@ -70,43 +70,42 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
 
     return (
       <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <RequiredLabel required>Registered Name</RequiredLabel>
+        <FormField label="Registered Name" fieldId={`${formId}-registeredName`} required>
           <Input
+            id={`${formId}-registeredName`}
             type="text"
             value={form.registeredName}
             onChange={e => update('registeredName', e.target.value)}
             required
           />
-        </div>
-        <div>
-          <RequiredLabel>Call Name</RequiredLabel>
+        </FormField>
+        <FormField label="Call Name" fieldId={`${formId}-callName`}>
           <Input
+            id={`${formId}-callName`}
             type="text"
             value={form.callName}
             onChange={e => update('callName', e.target.value)}
             placeholder="Optional"
           />
-        </div>
-        <div>
-          <RequiredLabel>Titles</RequiredLabel>
+        </FormField>
+        <FormField label="Titles" fieldId={`${formId}-titles`}>
           <Input
+            id={`${formId}-titles`}
             type="text"
             value={form.titles}
             onChange={e => update('titles', e.target.value)}
             placeholder="e.g. CH, GCH, MACH"
           />
-        </div>
+        </FormField>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <RequiredLabel>Sex</RequiredLabel>
+          <FormField label="Sex" fieldId={`${formId}-sex`}>
             <Select
               value={form.sex}
               onValueChange={val => {
                 if (val === 'male' || val === 'female') update('sex', val);
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger id={`${formId}-sex`}>
                 <SelectValue placeholder="Select sex" />
               </SelectTrigger>
               <SelectContent>
@@ -114,9 +113,8 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
                 <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <RequiredLabel>DOB</RequiredLabel>
+          </FormField>
+          <FormField label="DOB" fieldId={`${formId}-dob`}>
             <DatePicker
               date={form.dob ? parseLocalDateString(form.dob) : undefined}
               setDate={date => update('dob', date ? formatDateLocal(date) : '')}
@@ -125,66 +123,66 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
               name="dob"
               placeholder="YYYY-MM-DD"
             />
-          </div>
+          </FormField>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <RequiredLabel>Breed</RequiredLabel>
+          <FormField label="Breed" fieldId={`${formId}-breed`}>
             <Input
+              id={`${formId}-breed`}
               type="text"
               value={form.breed}
               onChange={e => update('breed', e.target.value)}
               placeholder="Optional"
             />
-          </div>
-          <div>
-            <RequiredLabel>Color</RequiredLabel>
+          </FormField>
+          <FormField label="Color" fieldId={`${formId}-color`}>
             <Input
+              id={`${formId}-color`}
               type="text"
               value={form.color}
               onChange={e => update('color', e.target.value)}
               placeholder="Optional"
             />
-          </div>
+          </FormField>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <RequiredLabel>Registry Org</RequiredLabel>
+          <FormField label="Registry Org" fieldId={`${formId}-regOrg`}>
             <Input
+              id={`${formId}-regOrg`}
               type="text"
               value={form.regOrg}
               onChange={e => update('regOrg', e.target.value)}
               placeholder="e.g. AKC, UKC"
             />
-          </div>
-          <div>
-            <RequiredLabel>Registration #</RequiredLabel>
+          </FormField>
+          <FormField label="Registration #" fieldId={`${formId}-regNumber`}>
             <Input
+              id={`${formId}-regNumber`}
               type="text"
               value={form.regNumber}
               onChange={e => update('regNumber', e.target.value)}
               placeholder="e.g. SS12345"
             />
-          </div>
+          </FormField>
         </div>
-        <div>
-          <RequiredLabel>Health Info</RequiredLabel>
+        <FormField label="Health Info" fieldId={`${formId}-healthInfo`}>
           <Input
+            id={`${formId}-healthInfo`}
             type="text"
             value={form.healthInfo}
             onChange={e => update('healthInfo', e.target.value)}
             placeholder="Optional"
           />
-        </div>
-        <div>
-          <RequiredLabel>Photo URL</RequiredLabel>
+        </FormField>
+        <FormField label="Photo URL" fieldId={`${formId}-photoUrl`}>
           <Input
+            id={`${formId}-photoUrl`}
             type="text"
             value={form.photoUrl}
             onChange={e => update('photoUrl', e.target.value)}
             placeholder="Optional"
           />
-        </div>
+        </FormField>
       </form>
     );
   }

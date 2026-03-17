@@ -4,7 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FormField } from '@/components/common/FormField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,7 +40,7 @@ interface DogFormData {
   weight: string;
   microchip: string;
   spayedNeutered: boolean;
-  
+
   // Registration Information
   hasRegistration: boolean;
   registrationOrg: string;
@@ -56,7 +62,7 @@ const INITIAL_FORM_DATA: DogFormData = {
   hasRegistration: false,
   registrationOrg: '',
   registrationNumber: '',
-  registrationStatus: 'Active'
+  registrationStatus: 'Active',
 };
 
 // Common dog breeds for quick selection
@@ -78,18 +84,18 @@ const COMMON_BREEDS = [
   'Shih Tzu',
   'Pembroke Welsh Corgi',
   'Mixed Breed',
-  'All American Dog'
+  'All American Dog',
 ];
 
 // Registration organizations
 const REGISTRATION_ORGS = [
   'AKC (American Kennel Club)',
-  'UKC (United Kennel Club)', 
+  'UKC (United Kennel Club)',
   'CKC (Canadian Kennel Club)',
   'ILP (Indefinite Listing Privilege)',
   'PAL (Purebred Alternative Listing)',
   'Mixed Breed',
-  'Other'
+  'Other',
 ];
 
 export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
@@ -98,7 +104,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
   onDogCreated,
   ownerId,
   ownerInfo,
-  prefilledData
+  prefilledData,
 }) => {
   const [formData, setFormData] = useState<DogFormData>(INITIAL_FORM_DATA);
   const [activeTab, setActiveTab] = useState<'basic' | 'registration' | 'optional'>('basic');
@@ -144,8 +150,10 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
     // Registration validation
     if (data.hasRegistration) {
-      if (!data.registrationOrg) errors.registrationOrg = 'Please select a registration organization';
-      if (!data.registrationNumber.trim()) errors.registrationNumber = 'Please enter a registration number';
+      if (!data.registrationOrg)
+        errors.registrationOrg = 'Please select a registration organization';
+      if (!data.registrationNumber.trim())
+        errors.registrationNumber = 'Please enter a registration number';
     }
 
     // Weight/height validation
@@ -162,7 +170,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
   // Handle form field changes
   const handleFieldChange = (field: keyof DogFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear validation error for this field
     if (validationErrors[field]) {
       setValidationErrors(prev => {
@@ -182,12 +190,12 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: string): string => {
     if (!dateOfBirth) return '';
-    
+
     const birth = new Date(dateOfBirth);
     const now = new Date();
     const years = now.getFullYear() - birth.getFullYear();
     const months = now.getMonth() - birth.getMonth();
-    
+
     if (years === 0) {
       return `${months + (months === 1 ? ' month' : ' months')}`;
     } else if (months < 0) {
@@ -209,7 +217,13 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
       setValidationErrors(errors);
 
       // Switch to the tab with errors
-      if (errors.registeredName || errors.callName || errors.breed || errors.gender || errors.dateOfBirth) {
+      if (
+        errors.registeredName ||
+        errors.callName ||
+        errors.breed ||
+        errors.gender ||
+        errors.dateOfBirth
+      ) {
         setActiveTab('basic');
       } else if (errors.registrationOrg || errors.registrationNumber) {
         setActiveTab('registration');
@@ -231,14 +245,16 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
           breed: formData.breed,
           registrationNumber: formData.registrationNumber,
           status: formData.registrationStatus,
-          registrationDate: new Date().toISOString().split('T')[0]
+          registrationDate: new Date().toISOString().split('T')[0],
         });
       }
 
       // Calculate age
       const birthDate = new Date(formData.dateOfBirth);
       const now = new Date();
-      const ageInMonths = (now.getFullYear() - birthDate.getFullYear()) * 12 + (now.getMonth() - birthDate.getMonth());
+      const ageInMonths =
+        (now.getFullYear() - birthDate.getFullYear()) * 12 +
+        (now.getMonth() - birthDate.getMonth());
       const ageInYears = Math.floor(ageInMonths / 12);
 
       // Create new dog
@@ -258,7 +274,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
         weight: formData.weight,
         microchip: formData.microchip,
         spayedNeutered: formData.spayedNeutered,
-        registrations: registrations.length > 0 ? registrations : undefined
+        registrations: registrations.length > 0 ? registrations : undefined,
       };
 
       // In real app, this would be an API call
@@ -287,7 +303,13 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
     const errors = validateForm(formData);
     switch (tab) {
       case 'basic':
-        return !errors.registeredName && !errors.callName && !errors.breed && !errors.gender && !errors.dateOfBirth;
+        return (
+          !errors.registeredName &&
+          !errors.callName &&
+          !errors.breed &&
+          !errors.gender &&
+          !errors.dateOfBirth
+        );
       case 'registration':
         return !formData.hasRegistration || (!errors.registrationOrg && !errors.registrationNumber);
       case 'optional':
@@ -296,6 +318,17 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
         return true;
     }
   };
+
+  // Pre-compute visible errors to avoid repeated getVisibleError calls in JSX
+  const registeredNameError = getVisibleError('registeredName');
+  const callNameError = getVisibleError('callName');
+  const breedError = getVisibleError('breed');
+  const genderError = getVisibleError('gender');
+  const dateOfBirthError = getVisibleError('dateOfBirth');
+  const registrationOrgError = getVisibleError('registrationOrg');
+  const registrationNumberError = getVisibleError('registrationNumber');
+  const heightError = getVisibleError('height');
+  const weightError = getVisibleError('weight');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -312,23 +345,26 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'basic' | 'registration' | 'optional')}>
+        <Tabs
+          value={activeTab}
+          onValueChange={value => setActiveTab(value as 'basic' | 'registration' | 'optional')}
+        >
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger 
-              value="basic" 
+            <TabsTrigger
+              value="basic"
               className={`flex items-center gap-2 ${!isTabValid('basic') ? 'text-red-600' : ''}`}
             >
               Basic Info *
               {isTabValid('basic') && <CheckCircle className="h-4 w-4 text-green-600" />}
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="registration"
               className={`flex items-center gap-2 ${!isTabValid('registration') ? 'text-red-600' : ''}`}
             >
               Registration
               {isTabValid('registration') && <CheckCircle className="h-4 w-4 text-green-600" />}
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="optional"
               className={`flex items-center gap-2 ${!isTabValid('optional') ? 'text-red-600' : ''}`}
             >
@@ -339,35 +375,40 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Registered Name" fieldId="registeredName" required error={getVisibleError('registeredName')}>
+              <FormField
+                label="Registered Name"
+                fieldId="registeredName"
+                required
+                error={registeredNameError}
+              >
                 <Input
                   id="registeredName"
                   value={formData.registeredName}
-                  onChange={(e) => handleFieldChange('registeredName', e.target.value)}
+                  onChange={e => handleFieldChange('registeredName', e.target.value)}
                   placeholder="Full registered name"
-                  aria-invalid={!!getVisibleError('registeredName')}
-                  aria-describedby={getVisibleError('registeredName') ? 'registeredName-error' : undefined}
+                  aria-invalid={!!registeredNameError}
+                  aria-describedby={registeredNameError ? 'registeredName-error' : undefined}
                 />
               </FormField>
 
-              <FormField label="Call Name" fieldId="callName" required error={getVisibleError('callName')}>
+              <FormField label="Call Name" fieldId="callName" required error={callNameError}>
                 <Input
                   id="callName"
                   value={formData.callName}
-                  onChange={(e) => handleFieldChange('callName', e.target.value)}
+                  onChange={e => handleFieldChange('callName', e.target.value)}
                   placeholder="Everyday name"
-                  aria-invalid={!!getVisibleError('callName')}
-                  aria-describedby={getVisibleError('callName') ? 'callName-error' : undefined}
+                  aria-invalid={!!callNameError}
+                  aria-describedby={callNameError ? 'callName-error' : undefined}
                 />
               </FormField>
             </div>
 
-            <FormField label="Breed" fieldId="breed" required error={getVisibleError('breed')}>
+            <FormField label="Breed" fieldId="breed" required error={breedError}>
               <Select
                 value={formData.breed}
-                onValueChange={(value) => handleFieldChange('breed', value)}
+                onValueChange={value => handleFieldChange('breed', value)}
               >
-                <SelectTrigger aria-invalid={!!getVisibleError('breed')}>
+                <SelectTrigger aria-invalid={!!breedError}>
                   <SelectValue placeholder="Select breed" />
                 </SelectTrigger>
                 <SelectContent>
@@ -381,12 +422,12 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
             </FormField>
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Gender" fieldId="gender" required error={getVisibleError('gender')}>
+              <FormField label="Gender" fieldId="gender" required error={genderError}>
                 <Select
                   value={formData.gender}
-                  onValueChange={(value) => handleFieldChange('gender', value)}
+                  onValueChange={value => handleFieldChange('gender', value)}
                 >
-                  <SelectTrigger aria-invalid={!!getVisibleError('gender')}>
+                  <SelectTrigger aria-invalid={!!genderError}>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -396,14 +437,22 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                 </Select>
               </FormField>
 
-              <FormField label="Date of Birth" fieldId="dateOfBirth" required error={getVisibleError('dateOfBirth')} hint={formData.dateOfBirth ? `Age: ${calculateAge(formData.dateOfBirth)}` : undefined}>
+              <FormField
+                label="Date of Birth"
+                fieldId="dateOfBirth"
+                required
+                error={dateOfBirthError}
+                hint={
+                  formData.dateOfBirth ? `Age: ${calculateAge(formData.dateOfBirth)}` : undefined
+                }
+              >
                 <Input
                   id="dateOfBirth"
                   type="date"
                   value={formData.dateOfBirth}
-                  onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
-                  aria-invalid={!!getVisibleError('dateOfBirth')}
-                  aria-describedby={getVisibleError('dateOfBirth') ? 'dateOfBirth-error' : undefined}
+                  onChange={e => handleFieldChange('dateOfBirth', e.target.value)}
+                  aria-invalid={!!dateOfBirthError}
+                  aria-describedby={dateOfBirthError ? 'dateOfBirth-error' : undefined}
                 />
               </FormField>
             </div>
@@ -412,7 +461,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
               <Input
                 id="color"
                 value={formData.color}
-                onChange={(e) => handleFieldChange('color', e.target.value)}
+                onChange={e => handleFieldChange('color', e.target.value)}
                 placeholder="e.g., Black & White, Red, Blue Merle"
               />
             </FormField>
@@ -431,21 +480,26 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   <Checkbox
                     id="hasRegistration"
                     checked={formData.hasRegistration}
-                    onCheckedChange={(checked) => handleFieldChange('hasRegistration', checked === true)}
+                    onCheckedChange={checked =>
+                      handleFieldChange('hasRegistration', checked === true)
+                    }
                   />
-                  <Label htmlFor="hasRegistration">
-                    This dog has a formal registration
-                  </Label>
+                  <Label htmlFor="hasRegistration">This dog has a formal registration</Label>
                 </div>
 
                 {formData.hasRegistration && (
                   <>
-                    <FormField label="Registration Organization" fieldId="registrationOrg" required error={getVisibleError('registrationOrg')}>
+                    <FormField
+                      label="Registration Organization"
+                      fieldId="registrationOrg"
+                      required
+                      error={registrationOrgError}
+                    >
                       <Select
                         value={formData.registrationOrg}
-                        onValueChange={(value) => handleFieldChange('registrationOrg', value)}
+                        onValueChange={value => handleFieldChange('registrationOrg', value)}
                       >
-                        <SelectTrigger aria-invalid={!!getVisibleError('registrationOrg')}>
+                        <SelectTrigger aria-invalid={!!registrationOrgError}>
                           <SelectValue placeholder="Select organization" />
                         </SelectTrigger>
                         <SelectContent>
@@ -459,21 +513,28 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                     </FormField>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <FormField label="Registration Number" fieldId="registrationNumber" required error={getVisibleError('registrationNumber')}>
+                      <FormField
+                        label="Registration Number"
+                        fieldId="registrationNumber"
+                        required
+                        error={registrationNumberError}
+                      >
                         <Input
                           id="registrationNumber"
                           value={formData.registrationNumber}
-                          onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
+                          onChange={e => handleFieldChange('registrationNumber', e.target.value)}
                           placeholder="Enter registration number"
-                          aria-invalid={!!getVisibleError('registrationNumber')}
-                          aria-describedby={getVisibleError('registrationNumber') ? 'registrationNumber-error' : undefined}
+                          aria-invalid={!!registrationNumberError}
+                          aria-describedby={
+                            registrationNumberError ? 'registrationNumber-error' : undefined
+                          }
                         />
                       </FormField>
 
                       <FormField label="Status" fieldId="registrationStatus">
                         <Select
                           value={formData.registrationStatus}
-                          onValueChange={(value) => handleFieldChange('registrationStatus', value)}
+                          onValueChange={value => handleFieldChange('registrationStatus', value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -493,8 +554,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   <Alert>
                     <Info className="h-4 w-4" />
                     <AlertDescription>
-                      No registration information will be stored. This is fine for mixed breeds or dogs 
-                      without formal registration papers.
+                      No registration information will be stored. This is fine for mixed breeds or
+                      dogs without formal registration papers.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -504,29 +565,29 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
           <TabsContent value="optional" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Height (inches)" fieldId="height" error={getVisibleError('height')}>
+              <FormField label="Height (inches)" fieldId="height" error={heightError}>
                 <Input
                   id="height"
                   value={formData.height}
-                  onChange={(e) => handleFieldChange('height', e.target.value)}
+                  onChange={e => handleFieldChange('height', e.target.value)}
                   placeholder="e.g., 24"
                   type="number"
                   step="0.1"
-                  aria-invalid={!!getVisibleError('height')}
-                  aria-describedby={getVisibleError('height') ? 'height-error' : undefined}
+                  aria-invalid={!!heightError}
+                  aria-describedby={heightError ? 'height-error' : undefined}
                 />
               </FormField>
 
-              <FormField label="Weight (pounds)" fieldId="weight" error={getVisibleError('weight')}>
+              <FormField label="Weight (pounds)" fieldId="weight" error={weightError}>
                 <Input
                   id="weight"
                   value={formData.weight}
-                  onChange={(e) => handleFieldChange('weight', e.target.value)}
+                  onChange={e => handleFieldChange('weight', e.target.value)}
                   placeholder="e.g., 55"
                   type="number"
                   step="0.1"
-                  aria-invalid={!!getVisibleError('weight')}
-                  aria-describedby={getVisibleError('weight') ? 'weight-error' : undefined}
+                  aria-invalid={!!weightError}
+                  aria-describedby={weightError ? 'weight-error' : undefined}
                 />
               </FormField>
             </div>
@@ -535,7 +596,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
               <Input
                 id="microchip"
                 value={formData.microchip}
-                onChange={(e) => handleFieldChange('microchip', e.target.value)}
+                onChange={e => handleFieldChange('microchip', e.target.value)}
                 placeholder="15-digit microchip number"
               />
             </FormField>
@@ -544,11 +605,9 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
               <Checkbox
                 id="spayedNeutered"
                 checked={formData.spayedNeutered}
-                onCheckedChange={(checked) => handleFieldChange('spayedNeutered', checked === true)}
+                onCheckedChange={checked => handleFieldChange('spayedNeutered', checked === true)}
               />
-              <Label htmlFor="spayedNeutered">
-                Spayed/Neutered
-              </Label>
+              <Label htmlFor="spayedNeutered">Spayed/Neutered</Label>
             </div>
           </TabsContent>
         </Tabs>
@@ -586,11 +645,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isCreating}
-              className="min-w-[100px]"
-            >
+            <Button onClick={handleSubmit} disabled={isCreating} className="min-w-[100px]">
               {isCreating ? 'Creating...' : 'Create Dog'}
             </Button>
           </div>

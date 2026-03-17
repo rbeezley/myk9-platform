@@ -66,9 +66,9 @@ const trialEditSchema = z.object({
   order: z.string().refine(
     val => {
       const n = parseInt(val, 10);
-      return !isNaN(n) && n > 0;
+      return !isNaN(n) && n >= 0;
     },
-    { message: 'Order must be a positive number' }
+    { message: 'Order must be a number' }
   ),
   showId: z.string().optional().or(z.literal('')),
   showName: z.string().optional().or(z.literal('')),
@@ -238,11 +238,7 @@ const TrialEditForm: React.FC = () => {
                   />
                 </FormField>
 
-                <FormField
-                  label="Event Number"
-                  fieldId="eventNumber"
-                  error={eventNumberError}
-                >
+                <FormField label="Event Number" fieldId="eventNumber" error={eventNumberError}>
                   <Input
                     id="eventNumber"
                     value={form.data.eventNumber}
@@ -275,12 +271,7 @@ const TrialEditForm: React.FC = () => {
                   </Select>
                 </FormField>
 
-                <FormField
-                  label="Status"
-                  fieldId="status"
-                  required
-                  error={statusError}
-                >
+                <FormField label="Status" fieldId="status" required error={statusError}>
                   <Select value={form.data.status} onValueChange={handleSelectChange('status')}>
                     <SelectTrigger
                       id="status"
@@ -317,12 +308,7 @@ const TrialEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  label="Trial Date"
-                  fieldId="trialDate"
-                  required
-                  error={trialDateError}
-                >
+                <FormField label="Trial Date" fieldId="trialDate" required error={trialDateError}>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -351,12 +337,7 @@ const TrialEditForm: React.FC = () => {
                   </Popover>
                 </FormField>
 
-                <FormField
-                  label="Display Order"
-                  fieldId="order"
-                  required
-                  error={orderError}
-                >
+                <FormField label="Display Order" fieldId="order" required error={orderError}>
                   <Input
                     id="order"
                     type="number"

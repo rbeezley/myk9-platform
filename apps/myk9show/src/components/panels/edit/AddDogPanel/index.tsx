@@ -33,7 +33,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
   const initialFormData = useMemo<DogFormData>(
     () => ({
       ...INITIAL_FORM_DATA,
-      ownerId: userRole === UserRole.EXHIBITOR ? (currentUserPersonId || '') : '',
+      ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
     }),
     [userRole, currentUserPersonId]
   );
@@ -105,7 +105,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   const { form } = useEditPanel<DogFormData>();
 
   // The hook needs form to manage registrations/photos via context
-  const uiState = useAddDogForm({ open, form: form! });
+  const uiState = useAddDogForm({ open, form });
 
   const {
     activeTab,
@@ -146,7 +146,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
     if (open && form) {
       form.reset({
         ...INITIAL_FORM_DATA,
-        ownerId: userRole === UserRole.EXHIBITOR ? (currentUserPersonId || '') : '',
+        ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
       });
     }
   }

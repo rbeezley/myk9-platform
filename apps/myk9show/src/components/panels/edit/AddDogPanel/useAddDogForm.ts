@@ -5,7 +5,7 @@ import type { DogFormData, TabValue } from './types';
 
 interface UseAddDogFormOptions {
   open: boolean;
-  form: FormValidation<DogFormData>;
+  form?: FormValidation<DogFormData> | undefined;
 }
 
 export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
@@ -32,6 +32,7 @@ export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
   // Handle adding/editing a registration — updates form context
   const handleSaveRegistration = useCallback(
     (newReg: Registration) => {
+      if (!form) return;
       const current = form.data.registrations;
       const existingIndex = current.findIndex(r => r.id === newReg.id);
       if (existingIndex > -1) {
@@ -50,6 +51,7 @@ export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
   // Handle removing a registration
   const handleRemoveRegistration = useCallback(
     (id: string) => {
+      if (!form) return;
       form.setValue(
         'registrations',
         form.data.registrations.filter(reg => reg.id !== id)
@@ -86,7 +88,7 @@ export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
   };
 
   const handlePhotoSave = (preview: string | null) => {
-    if (preview) {
+    if (preview && form) {
       form.setValue('imageUrl', preview);
     }
     setIsPhotoDialogOpen(false);

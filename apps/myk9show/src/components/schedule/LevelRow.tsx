@@ -9,7 +9,6 @@ interface LevelRowProps {
 
 export function LevelRow({ level, onClick }: LevelRowProps) {
   const isInProgress = level.status === CLASS_STATUS.IN_PROGRESS;
-  const isComplete = level.status === CLASS_STATUS.COMPLETED;
 
   return (
     <button
@@ -32,7 +31,9 @@ export function LevelRow({ level, onClick }: LevelRowProps) {
         <span className="text-[10px] text-muted-foreground">
           {level.entryCount} {level.entryCount === 1 ? 'entry' : 'entries'}
         </span>
-        {isComplete && <span className="text-[10px] text-green-500">✓</span>}
+        {level.status === CLASS_STATUS.COMPLETED && (
+          <span className="text-[10px] text-green-500">✓</span>
+        )}
         {isInProgress && <span className="text-[10px] text-amber-500">●</span>}
       </div>
     </button>

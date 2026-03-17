@@ -36,6 +36,10 @@ export interface ElementSummary {
   levelRange: string;
   status: ClassStatusValue;
   levels: LevelDetail[];
+  /** Pre-computed: number of completed levels */
+  completedCount: number;
+  /** Pre-computed: number of non-cancelled levels */
+  totalCount: number;
 }
 
 /** Individual level detail within an element */

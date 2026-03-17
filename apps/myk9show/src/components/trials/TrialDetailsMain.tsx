@@ -24,6 +24,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
+import { TrialTimeline } from '@/components/schedule';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import type { Show } from '@/types/show-types';
@@ -321,6 +322,12 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Timeline */}
+      <div className="mb-6">
+        <h3 className="mb-3 text-base font-semibold">Timeline</h3>
+        <TrialTimeline trialId={trial.id} showId={trial.showId} />
       </div>
 
       {/* Classes Section */}

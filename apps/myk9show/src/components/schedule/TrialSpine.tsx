@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import type { TrialTimelineData } from './schedule-timeline.types';
+import { formatStartTime } from './schedule-timeline.utils';
 import { StatusDot } from './StatusDot';
 import { SpineLine } from './SpineLine';
 import { ElementCard } from './ElementCard';
@@ -11,13 +12,7 @@ interface TrialSpineProps {
 
 export function TrialSpine({ trial, showId }: TrialSpineProps) {
   const navigate = useNavigate();
-
-  const formattedStartTime = trial.plannedStartTime
-    ? new Date(`1970-01-01T${trial.plannedStartTime}`).toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : null;
+  const formattedStartTime = formatStartTime(trial.plannedStartTime);
 
   const trialLabel = trial.trialNumber ? `Trial ${trial.trialNumber}` : 'Trial';
 

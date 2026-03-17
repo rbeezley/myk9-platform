@@ -117,9 +117,35 @@ const formDataToTrial = (formData: TrialEditFormData): Partial<Trial> => ({
   image: formData.image,
 });
 
+// Tab type
+type TabId = 'basic' | 'scheduling' | 'advanced';
+
+// Fields that belong to each tab (for touch-on-leave validation)
+const TAB_FIELDS: Record<TabId, (keyof TrialEditFormData)[]> = {
+  basic: ['name', 'trialNumber', 'eventNumber', 'status'],
+  scheduling: ['trialDate', 'order', 'plannedStartTime'],
+  advanced: [],
+};
+
 // Form content component
-const TrialEditForm: React.FC = () => {
+interface TrialEditFormProps {
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
+}
+
+const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange }) => {
   const { form } = useEditPanel<TrialEditFormData>();
+
+  // Touch all fields on the departing tab before switching
+  const handleTabChange = useCallback(
+    (newTab: string) => {
+      if (form && TAB_FIELDS[activeTab]) {
+        TAB_FIELDS[activeTab].forEach(field => form.touchField(field));
+      }
+      onTabChange(newTab as TabId);
+    },
+    [form, activeTab, onTabChange]
+  );
 
   // Date picker state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -154,20 +180,37 @@ const TrialEditForm: React.FC = () => {
     [form]
   );
 
-  if (!form) return null;
+  // Pre-compute error states (safe with optional chaining when form is null)
+  const nameError = form?.getError('name');
+  const trialNumberError = form?.getError('trialNumber');
+  const eventNumberError = form?.getError('eventNumber');
+  const statusError = form?.getError('status');
+  const trialDateError = form?.getError('trialDate');
+  const orderError = form?.getError('order');
+  const plannedStartTimeError = form?.getError('plannedStartTime');
 
-  // Pre-compute error states for validated fields
-  const nameError = form.getError('name');
-  const trialNumberError = form.getError('trialNumber');
-  const eventNumberError = form.getError('eventNumber');
-  const statusError = form.getError('status');
-  const trialDateError = form.getError('trialDate');
-  const orderError = form.getError('order');
-  const plannedStartTimeError = form.getError('plannedStartTime');
+  // Per-tab error counts for tab badges
+  const tabErrorCounts = useMemo(
+    () => ({
+      basic: [nameError, trialNumberError, eventNumberError, statusError].filter(Boolean).length,
+      scheduling: [trialDateError, orderError, plannedStartTimeError].filter(Boolean).length,
+      advanced: 0,
+    }),
+    [
+      nameError,
+      trialNumberError,
+      eventNumberError,
+      statusError,
+      trialDateError,
+      orderError,
+      plannedStartTimeError,
+    ]
+  );
+  if (!form) return null;
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="basic" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger
             value="basic"
@@ -175,6 +218,11 @@ const TrialEditForm: React.FC = () => {
           >
             <Info className="h-4 w-4" />
             Basic Info
+            {tabErrorCounts.basic > 0 && (
+              <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
+                {tabErrorCounts.basic}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="scheduling"
@@ -182,6 +230,11 @@ const TrialEditForm: React.FC = () => {
           >
             <Clock className="h-4 w-4" />
             Scheduling
+            {tabErrorCounts.scheduling > 0 && (
+              <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
+                {tabErrorCounts.scheduling}
+              </span>
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="advanced"
@@ -189,6 +242,11 @@ const TrialEditForm: React.FC = () => {
           >
             <Settings className="h-4 w-4" />
             Advanced
+            {tabErrorCounts.advanced > 0 && (
+              <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
+                {tabErrorCounts.advanced}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -238,7 +296,12 @@ const TrialEditForm: React.FC = () => {
                   />
                 </FormField>
 
-                <FormField label="Event Number" fieldId="eventNumber" error={eventNumberError}>
+                <FormField
+                  label="Event Number"
+                  fieldId="eventNumber"
+                  required
+                  error={eventNumberError}
+                >
                   <Input
                     id="eventNumber"
                     value={form.data.eventNumber}
@@ -457,6 +520,29 @@ const TrialEditForm: React.FC = () => {
   );
 };
 
+// Scroll to a field by id after the DOM updates
+function scrollToField(fieldId: string) {
+  requestAnimationFrame(() => {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLSelectElement ||
+        el instanceof HTMLTextAreaElement
+      ) {
+        el.focus();
+      }
+      const errorEl = document.getElementById(`${fieldId}-error`);
+      if (errorEl) {
+        errorEl.classList.remove('animate-pulse-error');
+        void errorEl.offsetWidth;
+        errorEl.classList.add('animate-pulse-error');
+      }
+    }
+  });
+}
+
 // Main component
 export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   open,
@@ -466,6 +552,8 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   onSave,
   enableAutoSave = false,
 }) => {
+  const [activeTab, setActiveTab] = useState<TabId>('basic');
+
   // Convert trial data to form data
   const initialFormData = useMemo(() => trialToFormData(initialTrialData), [initialTrialData]);
 
@@ -480,6 +568,17 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
     [onSave]
   );
 
+  // When validation fails, switch to the tab containing the first error and scroll to it
+  const handleValidationFail = useCallback((firstErrorField: string) => {
+    for (const [tab, fields] of Object.entries(TAB_FIELDS)) {
+      if ((fields as string[]).includes(firstErrorField)) {
+        setActiveTab(tab as TabId);
+        scrollToField(firstErrorField);
+        break;
+      }
+    }
+  }, []);
+
   return (
     <EditPanelWrapper<TrialEditFormData>
       open={open}
@@ -493,8 +592,9 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"
+      onValidationFail={handleValidationFail}
     >
-      <TrialEditForm />
+      <TrialEditForm activeTab={activeTab} onTabChange={setActiveTab} />
     </EditPanelWrapper>
   );
 };

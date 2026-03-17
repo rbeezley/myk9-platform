@@ -15,7 +15,10 @@ export interface FormValidation<T> {
   getError: (field: keyof T) => string | undefined;
   getFieldProps: (field: keyof T) => FormFieldInputProps;
   touchField: (field: keyof T) => void;
-  handleSubmit: (onSave: (data: T) => Promise<void> | void) => () => Promise<void>;
+  handleSubmit: (
+    onSave: (data: T) => Promise<void> | void,
+    onValidationFail?: (firstErrorField: string) => void
+  ) => () => Promise<void>;
   isSubmitting: boolean;
   isValid: boolean;
   reset: (data?: T) => void;
@@ -103,7 +106,10 @@ export function useFormValidation<T extends Record<string, unknown>>(
   );
 
   const handleSubmit = useCallback(
-    (onSave: (data: T) => Promise<void> | void) => {
+    (
+      onSave: (data: T) => Promise<void> | void,
+      onValidationFail?: (firstErrorField: string) => void
+    ) => {
       return async () => {
         setSubmitted(true);
         // Mark all fields as touched
@@ -115,6 +121,10 @@ export function useFormValidation<T extends Record<string, unknown>>(
           // Find first error field and scroll to it
           const firstErrorField = result.error.issues[0]?.path[0] as string;
           if (firstErrorField) {
+            // Notify caller (e.g., for tab switching in tabbed forms)
+            onValidationFail?.(firstErrorField);
+
+            // Direct scroll (works when field is already in DOM)
             const el = fieldRefs.current.get(firstErrorField);
             if (el) {
               el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });

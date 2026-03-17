@@ -46,6 +46,7 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   onDataChange?: (data: T, hasChanges: boolean) => void;
   onValidationChange?: (isValid: boolean, errors: string[]) => void;
   onAutoSave?: (data: T) => Promise<void> | void;
+  onValidationFail?: (firstErrorField: string) => void;
 }
 
 // Dummy schema used when no schema is provided (satisfies rules of hooks).
@@ -76,6 +77,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   onDataChange,
   onValidationChange,
   onAutoSave,
+  onValidationFail,
 }: EditPanelWrapperProps<T>) {
   // Determine which path to use
   const useSchemaPath = !!schema;
@@ -237,7 +239,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   const handleSave = useMemo(() => {
     if (useSchemaPath) {
-      return form.handleSubmit(wrappedSave);
+      return form.handleSubmit(wrappedSave, onValidationFail);
     }
     // Legacy save
     return async () => {
@@ -261,7 +263,16 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         setIsLoading(false);
       }
     };
-  }, [useSchemaPath, form, wrappedSave, legacyIsValid, onSave, legacyData, onClose]);
+  }, [
+    useSchemaPath,
+    form,
+    wrappedSave,
+    legacyIsValid,
+    onSave,
+    legacyData,
+    onClose,
+    onValidationFail,
+  ]);
 
   // Handle close with unsaved changes warning
   const handleClose = () => {
@@ -305,7 +316,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           <div className="flex items-center gap-1 text-sm text-destructive">
             <AlertCircle className="h-3 w-3" />
             <span>
-              {errorCount} error{errorCount !== 1 ? 's' : ''}
+              {errors.slice(0, 2).join(' \u2022 ')}
+              {errorCount > 2 && ` (+${errorCount - 2} more)`}
             </span>
           </div>
         )}

@@ -87,7 +87,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 onChange={e => onFieldChange('callName', e.target.value)}
                 placeholder="Everyday name your dog goes by"
                 aria-invalid={!!validationErrors.callName}
-                aria-describedby="callName-error"
+                aria-describedby={validationErrors.callName ? 'callName-error' : undefined}
               />
             </FormField>
             {formData.callName && (
@@ -104,7 +104,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <Select value={formData.gender} onValueChange={value => onFieldChange('gender', value)}>
               <SelectTrigger
                 aria-invalid={!!validationErrors.gender}
-                aria-describedby="gender-error"
+                aria-describedby={validationErrors.gender ? 'gender-error' : undefined}
               >
                 <SelectValue placeholder="Choose gender" />
               </SelectTrigger>
@@ -137,7 +137,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               value={formData.dateOfBirth}
               onChange={e => onFieldChange('dateOfBirth', e.target.value)}
               aria-invalid={!!validationErrors.dateOfBirth}
-              aria-describedby="dateOfBirth-error"
+              aria-describedby={validationErrors.dateOfBirth ? 'dateOfBirth-error' : undefined}
             />
             {formData.dateOfBirth && !validationErrors.dateOfBirth && (
               <div className="text-xs text-muted-foreground/70 bg-muted/30 px-3 py-2 rounded-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
@@ -177,7 +177,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             >
               <SelectTrigger
                 aria-invalid={!!validationErrors.ownerId}
-                aria-describedby="owner-error"
+                aria-describedby={validationErrors.ownerId ? 'owner-error' : undefined}
               >
                 <SelectValue placeholder="Choose dog owner">
                   {formData.ownerId

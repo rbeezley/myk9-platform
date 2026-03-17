@@ -98,7 +98,17 @@ const ShowDetailsPage: React.FC = () => {
   // Get associated trials for secretary view
   const showId_ = actualCurrentShow?.id;
   const associatedTrials = useMemo(
-    () => (showId_ ? trials.filter(t => t.showId === showId_) : []),
+    () =>
+      showId_
+        ? trials
+            .filter(t => t.showId === showId_)
+            .sort((a, b) => {
+              const orderA = a.order ? parseInt(a.order, 10) : Infinity;
+              const orderB = b.order ? parseInt(b.order, 10) : Infinity;
+              if (orderA !== orderB) return orderA - orderB;
+              return (a.trialDate || '').localeCompare(b.trialDate || '');
+            })
+        : [],
     [showId_, trials]
   );
 

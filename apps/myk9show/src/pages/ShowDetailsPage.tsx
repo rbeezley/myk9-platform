@@ -132,6 +132,9 @@ const ShowDetailsPage: React.FC = () => {
         status: String(cls.status || 'not_started'),
         entryCount: cls.entries || 0,
         userHasEntry: userEntryClassIds.has(cls.id),
+        trialDate: trial.trialDate || '',
+        trialNumber: trial.trialNumber || '',
+        trialName: trial.name || '',
       }));
     });
   }, [associatedTrials, trialClasses, userEntries]);
@@ -311,7 +314,16 @@ const ShowDetailsPage: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="classes">
-            <ClassesTab classes={showClasses} userHasEntries={hasUserEntries} />
+            <ClassesTab
+              classes={showClasses}
+              userHasEntries={hasUserEntries}
+              hideRing={associatedTrials.some(
+                t =>
+                  t.trialType === 'Scent Work' ||
+                  t.trialType === 'Nosework' ||
+                  t.trialType === 'Scent Detection'
+              )}
+            />
           </TabsContent>
 
           {isAuthenticated && (

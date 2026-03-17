@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Registration } from '@/types/dog-types';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 
 interface AddEditRegistrationDialogProps {
   open: boolean;
@@ -51,7 +53,23 @@ const REGISTRATION_ORGS = [
   'Other',
 ];
 
-const INITIAL_REGISTRATION_DATA: Registration = {
+const registrationFormSchema = z.object({
+  id: z.string(),
+  organization: z.string().min(1, 'Please select an organization.'),
+  registeredName: z.string().min(1, 'Please enter a registered name.'),
+  breed: z.string().min(1, 'Please select a breed.'),
+  variety: z.string().optional(),
+  registrationNumber: z.string().min(1, 'Please enter a registration number.'),
+  status: z.string(),
+  applicationNumber: z.string().optional(),
+  submissionDate: z.string().optional(),
+  registrationDate: z.string().optional(),
+  certificate: z.string().optional(),
+});
+
+type RegistrationFormData = z.infer<typeof registrationFormSchema>;
+
+const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
   id: '',
   organization: '',
   registeredName: '',
@@ -61,120 +79,107 @@ const INITIAL_REGISTRATION_DATA: Registration = {
   status: 'Active',
 };
 
+function generateRegistrationId(): string {
+  return `reg-${Date.now()}`;
+}
+
 export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps> = ({
   open,
   onOpenChange,
   onSave,
   initialData,
 }) => {
-  const [registrationData, setRegistrationData] = useState<Registration>(
-    initialData || INITIAL_REGISTRATION_DATA
-  );
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [wasOpen, setWasOpen] = useState(open);
-  const [lastInitialData, setLastInitialData] = useState(initialData);
-  // Track if form has been submitted - only show errors after first submit attempt
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const toFormData = (reg: Registration): RegistrationFormData => ({
+    id: reg.id,
+    organization: reg.organization,
+    registeredName: reg.registeredName,
+    breed: reg.breed,
+    variety: reg.variety,
+    registrationNumber: reg.registrationNumber,
+    status: reg.status,
+    applicationNumber: reg.applicationNumber,
+    submissionDate: reg.submissionDate,
+    registrationDate: reg.registrationDate,
+    certificate: reg.certificate,
+  });
+
+  const formInitial = initialData ? toFormData(initialData) : INITIAL_REGISTRATION_DATA;
+  const form = useFormValidation(registrationFormSchema, formInitial);
 
   // Reset state when dialog opens or initialData changes
+  const [wasOpen, setWasOpen] = React.useState(open);
+  const [lastInitialData, setLastInitialData] = React.useState(initialData);
+
   if (open && (!wasOpen || initialData !== lastInitialData)) {
     setWasOpen(open);
     setLastInitialData(initialData);
-    setRegistrationData(initialData || INITIAL_REGISTRATION_DATA);
-    setValidationErrors({});
-    setHasSubmitted(false);
+    form.reset(initialData ? toFormData(initialData) : INITIAL_REGISTRATION_DATA);
   } else if (!open && wasOpen) {
     setWasOpen(false);
   }
 
-  // Helper to get visible error (only show after first submit attempt)
-  const getVisibleError = (field: string): string | undefined => {
-    return hasSubmitted ? validationErrors[field] : undefined;
-  };
-
   // Get the organization code for breed lookup
   const orgCode = useMemo(() => {
-    return ORG_CODE_MAP[registrationData.organization] || 'AKC';
-  }, [registrationData.organization]);
+    return ORG_CODE_MAP[form.data.organization] || 'AKC';
+  }, [form.data.organization]);
 
   // Get breeds for the selected organization
   const availableBreeds = useMemo(() => {
-    if (!registrationData.organization) return [];
+    if (!form.data.organization) return [];
     return getBreedNamesForOrganization(orgCode);
-  }, [registrationData.organization, orgCode]);
+  }, [form.data.organization, orgCode]);
 
   // Get varieties for the selected breed
   const availableVarieties = useMemo(() => {
-    if (!registrationData.organization || !registrationData.breed) return [];
-    return getVarietiesForBreed(orgCode, registrationData.breed);
-  }, [registrationData.organization, registrationData.breed, orgCode]);
+    if (!form.data.organization || !form.data.breed) return [];
+    return getVarietiesForBreed(orgCode, form.data.breed);
+  }, [form.data.organization, form.data.breed, orgCode]);
 
-  const validateForm = (data: Registration): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    if (!data.organization.trim()) errors.organization = 'Please select an organization.';
-    if (!data.registeredName.trim()) errors.registeredName = 'Please enter a registered name.';
-    if (!data.breed.trim()) errors.breed = 'Please select a breed.';
-    if (!data.registrationNumber.trim())
-      errors.registrationNumber = 'Please enter a registration number.';
-    return errors;
-  };
-
-  const handleFieldChange = (field: keyof Registration, value: string) => {
-    setRegistrationData(prev => ({ ...prev, [field]: value }));
-    if (validationErrors[field]) {
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
+  const handleFieldChange = (field: keyof RegistrationFormData, value: string) => {
+    form.setValue(field, value);
+    form.touchField(field);
   };
 
   // Handle organization change - clear breed and variety
   const handleOrganizationChange = (value: string) => {
-    setRegistrationData(prev => ({
-      ...prev,
-      organization: value,
-      breed: '',
-      variety: '',
-    }));
-    if (validationErrors.organization) {
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.organization;
-        return newErrors;
-      });
-    }
+    form.setValues({ organization: value, breed: '', variety: '' });
+    form.touchField('organization');
   };
 
   // Handle breed change - clear variety
   const handleBreedChange = (value: string) => {
-    setRegistrationData(prev => ({
-      ...prev,
-      breed: value,
-      variety: '',
-    }));
-    if (validationErrors.breed) {
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.breed;
-        return newErrors;
-      });
-    }
+    form.setValues({ breed: value, variety: '' });
+    form.touchField('breed');
   };
 
-  const handleSubmit = () => {
-    // Mark that we've attempted to submit - this enables error display
-    setHasSubmitted(true);
-
-    const errors = validateForm(registrationData);
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-    onSave({ ...registrationData, id: registrationData.id || `reg-${Date.now()}` });
+  const onSubmitValid = (validatedData: RegistrationFormData) => {
+    const registration: Registration = {
+      id: validatedData.id || generateRegistrationId(),
+      organization: validatedData.organization,
+      registeredName: validatedData.registeredName,
+      breed: validatedData.breed,
+      registrationNumber: validatedData.registrationNumber,
+      status: validatedData.status,
+      ...(validatedData.variety != null && { variety: validatedData.variety }),
+      ...(validatedData.applicationNumber != null && {
+        applicationNumber: validatedData.applicationNumber,
+      }),
+      ...(validatedData.submissionDate != null && {
+        submissionDate: validatedData.submissionDate,
+      }),
+      ...(validatedData.registrationDate != null && {
+        registrationDate: validatedData.registrationDate,
+      }),
+      ...(validatedData.certificate != null && { certificate: validatedData.certificate }),
+    };
+    onSave(registration);
     onOpenChange(false);
   };
+  const handleSubmit = form.handleSubmit(onSubmitValid);
+
+  // Pre-compute errors for fields referenced multiple times
+  const organizationError = form.getError('organization');
+  const breedError = form.getError('breed');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -188,15 +193,13 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
             label="Registration Organization"
             fieldId="organization"
             required
-            error={getVisibleError('organization')}
+            error={organizationError}
           >
-            <Select value={registrationData.organization} onValueChange={handleOrganizationChange}>
+            <Select value={form.data.organization} onValueChange={handleOrganizationChange}>
               <SelectTrigger
                 id="organization"
-                aria-invalid={!!getVisibleError('organization')}
-                aria-describedby={
-                  getVisibleError('organization') ? 'organization-error' : undefined
-                }
+                aria-invalid={!!organizationError}
+                aria-describedby={organizationError ? 'organization-error' : undefined}
               >
                 <SelectValue placeholder="Select organization" />
               </SelectTrigger>
@@ -214,17 +217,14 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
             label="Registered Name"
             fieldId="registeredName"
             required
-            error={getVisibleError('registeredName')}
+            error={form.getError('registeredName')}
           >
             <Input
               id="registeredName"
-              value={registrationData.registeredName}
+              value={form.data.registeredName}
               onChange={e => handleFieldChange('registeredName', e.target.value)}
               placeholder="Full registered name"
-              aria-invalid={!!getVisibleError('registeredName')}
-              aria-describedby={
-                getVisibleError('registeredName') ? 'registeredName-error' : undefined
-              }
+              {...form.getFieldProps('registeredName')}
             />
           </FormField>
 
@@ -233,21 +233,21 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
               label="Registered Breed"
               fieldId="breed"
               required
-              error={getVisibleError('breed')}
+              error={breedError}
             >
               <Select
-                value={registrationData.breed}
+                value={form.data.breed}
                 onValueChange={handleBreedChange}
-                disabled={!registrationData.organization}
+                disabled={!form.data.organization}
               >
                 <SelectTrigger
                   id="breed"
-                  aria-invalid={!!getVisibleError('breed')}
-                  aria-describedby={getVisibleError('breed') ? 'breed-error' : undefined}
+                  aria-invalid={!!breedError}
+                  aria-describedby={breedError ? 'breed-error' : undefined}
                 >
                   <SelectValue
                     placeholder={
-                      registrationData.organization ? 'Select breed' : 'Select organization first'
+                      form.data.organization ? 'Select breed' : 'Select organization first'
                     }
                   />
                 </SelectTrigger>
@@ -264,7 +264,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
             <FormField label="Variety" fieldId="variety">
               {availableVarieties.length > 0 ? (
                 <Select
-                  value={registrationData.variety || ''}
+                  value={form.data.variety || ''}
                   onValueChange={value => handleFieldChange('variety', value)}
                 >
                   <SelectTrigger id="variety">
@@ -281,12 +281,12 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
               ) : (
                 <Input
                   id="variety"
-                  value={registrationData.variety || ''}
+                  value={form.data.variety || ''}
                   onChange={e => handleFieldChange('variety', e.target.value)}
                   placeholder={
-                    registrationData.breed ? 'No varieties for this breed' : 'Select breed first'
+                    form.data.breed ? 'No varieties for this breed' : 'Select breed first'
                   }
-                  disabled={!registrationData.breed}
+                  disabled={!form.data.breed}
                 />
               )}
             </FormField>
@@ -297,23 +297,20 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
               label="Registration Number"
               fieldId="registrationNumber"
               required
-              error={getVisibleError('registrationNumber')}
+              error={form.getError('registrationNumber')}
             >
               <Input
                 id="registrationNumber"
-                value={registrationData.registrationNumber}
+                value={form.data.registrationNumber}
                 onChange={e => handleFieldChange('registrationNumber', e.target.value)}
                 placeholder="Enter registration number"
-                aria-invalid={!!getVisibleError('registrationNumber')}
-                aria-describedby={
-                  getVisibleError('registrationNumber') ? 'registrationNumber-error' : undefined
-                }
+                {...form.getFieldProps('registrationNumber')}
               />
             </FormField>
 
             <FormField label="Status" fieldId="registrationStatus">
               <Select
-                value={registrationData.status}
+                value={form.data.status}
                 onValueChange={value => handleFieldChange('status', value)}
               >
                 <SelectTrigger id="registrationStatus">

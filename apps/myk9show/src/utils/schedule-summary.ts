@@ -42,7 +42,7 @@ export interface DaySummary {
  * Progression order for levels — matches the order shown in show premiums.
  * Levels not in this list sort alphabetically after all known levels.
  */
-const LEVEL_ORDER: Record<string, number> = {
+export const LEVEL_ORDER: Record<string, number> = {
   Novice: 0,
   Advanced: 1,
   Open: 2,
@@ -51,7 +51,7 @@ const LEVEL_ORDER: Record<string, number> = {
   Master: 5,
 };
 
-function compareLevels(a: string, b: string): number {
+export function compareLevels(a: string, b: string): number {
   const aOrder = LEVEL_ORDER[a] ?? 100;
   const bOrder = LEVEL_ORDER[b] ?? 100;
   if (aOrder !== bOrder) return aOrder - bOrder;

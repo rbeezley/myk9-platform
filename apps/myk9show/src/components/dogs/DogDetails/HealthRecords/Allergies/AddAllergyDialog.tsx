@@ -1,15 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus } from 'lucide-react';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 
 export interface AllergyRecord {
   id?: number;
   name: string;
   description: string;
 }
+
+const allergySchema = z.object({
+  name: z.string().min(1, 'Please enter an allergy name.'),
+  description: z.string().min(1, 'Please enter a description.'),
+});
+
+type AllergyFormData = z.infer<typeof allergySchema>;
+
+const initialData: AllergyFormData = {
+  name: '',
+  description: '',
+};
 
 interface AddAllergyDialogProps {
   open: boolean;
@@ -18,57 +32,62 @@ interface AddAllergyDialogProps {
 }
 
 const AddAllergyDialog: React.FC<AddAllergyDialogProps> = ({ open, onClose, onAdd }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const form = useFormValidation(allergySchema, initialData);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors: { [key: string]: string } = {};
-    if (!name) errors.name = 'Please enter an allergy name.';
-    if (!description) errors.description = 'Please enter a description.';
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    onAdd({ name, description });
-    setName('');
-    setDescription('');
-    setFormErrors({});
+  const resetForm = form.reset;
+  useEffect(() => {
+    if (open) resetForm(initialData);
+  }, [open, resetForm]);
+
+  const handleSave = form.handleSubmit(data => {
+    onAdd(data);
     onClose();
-  };
+  });
 
   return (
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() => document.getElementById('add-allergy-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={handleSave}
       title="Add Allergy"
       description="All fields are required."
-      formId="add-allergy-form"
-      saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
+      saveLabel={
+        <>
+          <Plus className="mr-2 h-4 w-4" /> Add
+        </>
+      }
     >
-      <form id="add-allergy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Allergy Name" fieldId="addAllergyName" required error={formErrors.name}>
+      <div className="flex flex-col gap-4">
+        <FormField
+          label="Allergy Name"
+          fieldId="addAllergyName"
+          required
+          error={form.getError('name')}
+        >
           <Input
             id="addAllergyName"
             type="text"
-            value={""}
-            onChange={e => setName(e.target.value)}
-            required
-            aria-invalid={!!formErrors.name}
-            aria-describedby={formErrors.name ? 'addAllergyName-error' : undefined}
+            value={form.data.name}
+            onChange={e => form.setValue('name', e.target.value)}
+            onBlur={() => form.touchField('name')}
+            {...form.getFieldProps('name')}
           />
         </FormField>
-        <FormField label="Description" fieldId="addAllergyDescription" required error={formErrors.description}>
+        <FormField
+          label="Description"
+          fieldId="addAllergyDescription"
+          required
+          error={form.getError('description')}
+        >
           <Textarea
             id="addAllergyDescription"
-            value={""}
-            onChange={e => setDescription(e.target.value)}
-            required
-            aria-invalid={!!formErrors.description}
-            aria-describedby={formErrors.description ? 'addAllergyDescription-error' : undefined}
+            value={form.data.description}
+            onChange={e => form.setValue('description', e.target.value)}
+            onBlur={() => form.touchField('description')}
+            {...form.getFieldProps('description')}
           />
         </FormField>
-      </form>
+      </div>
     </StandardDialog>
   );
 };

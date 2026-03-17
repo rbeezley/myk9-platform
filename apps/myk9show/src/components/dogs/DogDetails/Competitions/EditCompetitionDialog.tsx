@@ -1,16 +1,33 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 
-interface CompetitionFormData {
-  name: string;
-  date: string;
-  location: string;
-  status: 'Upcoming' | 'Completed' | 'Cancelled';
-}
+const competitionSchema = z.object({
+  name: z.string().min(1, 'Please enter a competition name'),
+  date: z.string().min(1, 'Please select a date'),
+  location: z.string().min(1, 'Please enter a location'),
+  status: z.enum(['Upcoming', 'Completed', 'Cancelled']),
+});
+
+type CompetitionFormData = z.infer<typeof competitionSchema>;
 
 interface EditCompetitionDialogProps {
   open: boolean;
@@ -19,43 +36,32 @@ interface EditCompetitionDialogProps {
   initialData?: Record<string, unknown>;
 }
 
-const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({ open, onClose, onSave, initialData }) => {
-  const [form, setForm] = useState<CompetitionFormData>(() => ({
-    name: String(initialData?.name || ''),
-    date: String(initialData?.date || ''),
-    location: String(initialData?.location || ''),
-    status: (initialData?.status as CompetitionFormData['status']) || 'Upcoming',
-  }));
-  const [errors, setErrors] = useState<Record<string, string>>({});
+const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({
+  open,
+  onClose,
+  onSave,
+  initialData,
+}) => {
+  const buildFormData = (data?: Record<string, unknown>): CompetitionFormData => ({
+    name: String(data?.name || ''),
+    date: String(data?.date || ''),
+    location: String(data?.location || ''),
+    status: (data?.status as CompetitionFormData['status']) || 'Upcoming',
+  });
 
-  const [lastInitialId, setLastInitialId] = useState(String(initialData?.id || ''));
+  const form = useFormValidation(competitionSchema, buildFormData(initialData));
+
+  // Sync form state with initialData prop - using render-time state update pattern
+  const [lastInitialId, setLastInitialId] = React.useState(String(initialData?.id || ''));
   const currentId = String(initialData?.id || '');
   if (currentId !== lastInitialId && initialData) {
     setLastInitialId(currentId);
-    setForm({
-      name: String(initialData.name || ''),
-      date: String(initialData.date || ''),
-      location: String(initialData.location || ''),
-      status: (initialData.status as CompetitionFormData['status']) || 'Upcoming',
-    });
-    setErrors({});
+    form.reset(buildFormData(initialData));
   }
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!form.name) newErrors.name = 'Please enter a competition name';
-    if (!form.date) newErrors.date = 'Please select a date';
-    if (!form.location) newErrors.location = 'Please enter a location';
-    return newErrors;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-    onSave({ ...initialData, ...form });
-  };
+  const handleSave = form.handleSubmit(data => {
+    onSave({ ...initialData, ...data });
+  });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -63,44 +69,54 @@ const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({ open, onC
         <DialogHeader>
           <DialogTitle>Edit Competition Entry</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormField label="Competition Name" fieldId="edit-comp-name" required error={errors.name}>
+        <div className="space-y-4">
+          <FormField
+            label="Competition Name"
+            fieldId="edit-comp-name"
+            required
+            error={form.getError('name')}
+          >
             <Input
               id="edit-comp-name"
-              value={form.name}
-              onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+              value={form.data.name}
+              onChange={e => form.setValue('name', e.target.value)}
+              onBlur={() => form.touchField('name')}
               placeholder="e.g., AKC Agility Trial"
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? 'edit-comp-name-error' : undefined}
+              {...form.getFieldProps('name')}
             />
           </FormField>
 
-          <FormField label="Date" fieldId="edit-comp-date" required error={errors.date}>
+          <FormField label="Date" fieldId="edit-comp-date" required error={form.getError('date')}>
             <Input
               id="edit-comp-date"
               type="date"
-              value={form.date}
-              onChange={(e) => setForm(prev => ({ ...prev, date: e.target.value }))}
-              aria-invalid={!!errors.date}
-              aria-describedby={errors.date ? 'edit-comp-date-error' : undefined}
+              value={form.data.date}
+              onChange={e => form.setValue('date', e.target.value)}
+              onBlur={() => form.touchField('date')}
+              {...form.getFieldProps('date')}
             />
           </FormField>
 
-          <FormField label="Location" fieldId="edit-comp-location" required error={errors.location}>
+          <FormField
+            label="Location"
+            fieldId="edit-comp-location"
+            required
+            error={form.getError('location')}
+          >
             <Input
               id="edit-comp-location"
-              value={form.location}
-              onChange={(e) => setForm(prev => ({ ...prev, location: e.target.value }))}
+              value={form.data.location}
+              onChange={e => form.setValue('location', e.target.value)}
+              onBlur={() => form.touchField('location')}
               placeholder="e.g., Springfield Fairgrounds"
-              aria-invalid={!!errors.location}
-              aria-describedby={errors.location ? 'edit-comp-location-error' : undefined}
+              {...form.getFieldProps('location')}
             />
           </FormField>
 
           <FormField label="Status" fieldId="edit-comp-status">
             <Select
-              value={form.status}
-              onValueChange={(value) => setForm(prev => ({ ...prev, status: value as CompetitionFormData['status'] }))}
+              value={form.data.status}
+              onValueChange={value => form.setValue('status', value)}
             >
               <SelectTrigger id="edit-comp-status">
                 <SelectValue />
@@ -115,11 +131,15 @@ const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({ open, onC
 
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" type="button">Cancel</Button>
+              <Button variant="outline" type="button">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button type="submit">Save Changes</Button>
+            <Button type="button" onClick={handleSave}>
+              Save Changes
+            </Button>
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

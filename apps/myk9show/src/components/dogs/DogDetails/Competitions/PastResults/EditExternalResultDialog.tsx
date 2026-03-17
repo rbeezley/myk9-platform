@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
@@ -10,7 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 import type { ExternalResult } from './AddExternalResultDialog';
+
+const externalResultSchema = z.object({
+  name: z.string().min(1, 'Please enter a show name'),
+  date: z.string().min(1, 'Please select a date'),
+  location: z.string().min(1, 'Please enter a location'),
+  className: z.string().min(1, 'Please enter a class'),
+  resultText: z.string().min(1, 'Please enter a result'),
+  tags: z.string().optional().default(''),
+  status: z.string().min(1, 'Please select a status'),
+});
+
+type ExternalResultFormData = z.infer<typeof externalResultSchema>;
 
 interface EditExternalResultDialogProps {
   open: boolean;
@@ -19,50 +39,56 @@ interface EditExternalResultDialogProps {
   onSave: (result: ExternalResult) => void;
 }
 
-const EditExternalResultDialog: React.FC<EditExternalResultDialogProps> = ({ open, result, onClose, onSave }) => {
-  const [name, setName] = useState('');
-  const [date, setDate] = useState('');
-  const [location, setLocation] = useState('');
-  const [className, setClassName] = useState('');
-  const [resultText, setResultText] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [status, setStatus] = useState('Completed');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+const defaultData: ExternalResultFormData = {
+  name: '',
+  date: '',
+  location: '',
+  className: '',
+  resultText: '',
+  tags: '',
+  status: 'Completed',
+};
+
+const EditExternalResultDialog: React.FC<EditExternalResultDialogProps> = ({
+  open,
+  result,
+  onClose,
+  onSave,
+}) => {
+  const form = useFormValidation(externalResultSchema, defaultData);
 
   // Sync form state with result prop - using render-time state update pattern
-  const resultId = result?.id || '';
-  const [lastResultId, setLastResultId] = useState(resultId);
+  const resultId = result?.id?.toString() || '';
+  const [lastResultId, setLastResultId] = React.useState(resultId);
   if (resultId !== lastResultId && result) {
     setLastResultId(resultId);
-    setName(result.name);
-    setDate(result.date);
-    setLocation(result.location);
-    setClassName(result.className || '');
-    setResultText(result.result);
-    setTags(result.tags || []);
-    setStatus(result.status);
-    setErrors({});
+    form.reset({
+      name: result.name,
+      date: result.date,
+      location: result.location,
+      className: result.className || '',
+      resultText: result.result,
+      tags: (result.tags || []).join(', '),
+      status: result.status,
+    });
   }
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!name) newErrors.name = 'Please enter a show name';
-    if (!date) newErrors.date = 'Please select a date';
-    if (!location) newErrors.location = 'Please enter a location';
-    if (!className) newErrors.className = 'Please enter a class';
-    if (!resultText) newErrors.resultText = 'Please enter a result';
-    if (!status) newErrors.status = 'Please select a status';
-    return newErrors;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = form.handleSubmit(data => {
     if (!result) return;
-    const validationErrors = validate();
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-    onSave({ ...result, name, date, location, className, result: resultText, tags, status });
-  };
+    onSave({
+      ...result,
+      name: data.name,
+      date: data.date,
+      location: data.location,
+      className: data.className,
+      result: data.resultText,
+      tags: (data.tags || '')
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean),
+      status: data.status,
+    });
+  });
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -73,72 +99,93 @@ const EditExternalResultDialog: React.FC<EditExternalResultDialogProps> = ({ ope
         <div className="text-xs text-muted-foreground mb-2">
           <span className="text-destructive">*</span> All fields except Tags are required
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormField label="Show Name" fieldId="editResultName" required error={errors.name}>
+        <div className="flex flex-col gap-4">
+          <FormField
+            label="Show Name"
+            fieldId="editResultName"
+            required
+            error={form.getError('name')}
+          >
             <Input
               id="editResultName"
               type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? 'editResultName-error' : undefined}
+              value={form.data.name}
+              onChange={e => form.setValue('name', e.target.value)}
+              onBlur={() => form.touchField('name')}
+              {...form.getFieldProps('name')}
             />
           </FormField>
-          <FormField label="Date" fieldId="editResultDate" required error={errors.date}>
+          <FormField label="Date" fieldId="editResultDate" required error={form.getError('date')}>
             <Input
               id="editResultDate"
               type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              aria-invalid={!!errors.date}
-              aria-describedby={errors.date ? 'editResultDate-error' : undefined}
+              value={form.data.date}
+              onChange={e => form.setValue('date', e.target.value)}
+              onBlur={() => form.touchField('date')}
+              {...form.getFieldProps('date')}
             />
           </FormField>
-          <FormField label="Location" fieldId="editResultLocation" required error={errors.location}>
+          <FormField
+            label="Location"
+            fieldId="editResultLocation"
+            required
+            error={form.getError('location')}
+          >
             <Input
               id="editResultLocation"
               type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              aria-invalid={!!errors.location}
-              aria-describedby={errors.location ? 'editResultLocation-error' : undefined}
+              value={form.data.location}
+              onChange={e => form.setValue('location', e.target.value)}
+              onBlur={() => form.touchField('location')}
+              {...form.getFieldProps('location')}
             />
           </FormField>
-          <FormField label="Class" fieldId="editResultClassName" required error={errors.className}>
+          <FormField
+            label="Class"
+            fieldId="editResultClassName"
+            required
+            error={form.getError('className')}
+          >
             <Input
               id="editResultClassName"
               type="text"
-              value={className}
-              onChange={e => setClassName(e.target.value)}
-              aria-invalid={!!errors.className}
-              aria-describedby={errors.className ? 'editResultClassName-error' : undefined}
+              value={form.data.className}
+              onChange={e => form.setValue('className', e.target.value)}
+              onBlur={() => form.touchField('className')}
+              {...form.getFieldProps('className')}
             />
           </FormField>
-          <FormField label="Result" fieldId="editResultText" required error={errors.resultText}>
+          <FormField
+            label="Result"
+            fieldId="editResultText"
+            required
+            error={form.getError('resultText')}
+          >
             <Input
               id="editResultText"
               type="text"
-              value={resultText}
-              onChange={e => setResultText(e.target.value)}
-              aria-invalid={!!errors.resultText}
-              aria-describedby={errors.resultText ? 'editResultText-error' : undefined}
+              value={form.data.resultText}
+              onChange={e => form.setValue('resultText', e.target.value)}
+              onBlur={() => form.touchField('resultText')}
+              {...form.getFieldProps('resultText')}
             />
           </FormField>
           <FormField label="Tags (comma separated)" fieldId="editResultTags">
             <Input
               id="editResultTags"
               type="text"
-              value={tags.join(', ')}
-              onChange={e => setTags(e.target.value.split(',').map(t => t.trim()))}
+              value={form.data.tags ?? ''}
+              onChange={e => form.setValue('tags', e.target.value)}
             />
           </FormField>
-          <FormField label="Status" fieldId="editResultStatus" required error={errors.status}>
-            <Select value={status} onValueChange={val => setStatus(val)}>
-              <SelectTrigger
-                id="editResultStatus"
-                aria-invalid={!!errors.status}
-                aria-describedby={errors.status ? 'editResultStatus-error' : undefined}
-              >
+          <FormField
+            label="Status"
+            fieldId="editResultStatus"
+            required
+            error={form.getError('status')}
+          >
+            <Select value={form.data.status} onValueChange={val => form.setValue('status', val)}>
+              <SelectTrigger id="editResultStatus" {...form.getFieldProps('status')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -149,10 +196,14 @@ const EditExternalResultDialog: React.FC<EditExternalResultDialogProps> = ({ ope
             </Select>
           </FormField>
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
-            <Button type="submit">Save</Button>
+            <Button variant="outline" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleSave}>
+              Save
+            </Button>
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

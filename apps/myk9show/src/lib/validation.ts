@@ -4,6 +4,10 @@ import { z } from 'zod';
 export const commonValidations = {
   name: z.string().min(1, 'Please enter a name').max(100, 'Name must be less than 100 characters'),
   email: z.string().email('Please enter a valid email address'),
+  emailRequired: z
+    .string()
+    .min(1, 'Please enter an email address')
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
   phone: z
     .string()
     .regex(/^\+?[\d\s\-()]+$/, 'Please enter a valid phone number')

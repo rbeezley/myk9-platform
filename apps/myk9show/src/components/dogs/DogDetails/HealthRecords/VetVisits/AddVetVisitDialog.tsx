@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus } from 'lucide-react';
+import { useFormValidation } from '@/hooks/useFormValidation';
+import { z } from 'zod';
 
 export interface VetVisitRecord {
   id?: number;
@@ -15,6 +17,24 @@ export interface VetVisitRecord {
   clinicName: string;
 }
 
+const vetVisitSchema = z.object({
+  title: z.string().min(1, 'Please enter a title.'),
+  date: z.string().min(1, 'Please select a date.'),
+  notes: z.string().min(1, 'Please enter notes.'),
+  vetName: z.string().min(1, 'Please enter a vet name.'),
+  clinicName: z.string().min(1, 'Please enter a clinic name.'),
+});
+
+type VetVisitFormData = z.infer<typeof vetVisitSchema>;
+
+const initialData: VetVisitFormData = {
+  title: '',
+  date: '',
+  notes: '',
+  vetName: '',
+  clinicName: '',
+};
+
 interface AddVetVisitDialogProps {
   open: boolean;
   onClose: () => void;
@@ -22,97 +42,89 @@ interface AddVetVisitDialogProps {
 }
 
 const AddVetVisitDialog: React.FC<AddVetVisitDialogProps> = ({ open, onClose, onAdd }) => {
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState<string>("");
-  const [notes, setNotes] = useState('');
-  const [vetName, setVetName] = useState('');
-  const [clinicName, setClinicName] = useState('');
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const form = useFormValidation(vetVisitSchema, initialData);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors: { [key: string]: string } = {};
-    if (!title) errors.title = 'Please enter a title.';
-    if (!date) errors.date = 'Please select a date.';
-    if (!vetName) errors.vetName = 'Please enter a vet name.';
-    if (!clinicName) errors.clinicName = 'Please enter a clinic name.';
-    if (!notes) errors.notes = 'Please enter notes.';
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    onAdd({ title, date, notes, vetName, clinicName });
-    setTitle('');
-    setDate("");
-    setNotes('');
-    setVetName('');
-    setClinicName('');
-    setFormErrors({});
+  const resetForm = form.reset;
+  useEffect(() => {
+    if (open) resetForm(initialData);
+  }, [open, resetForm]);
+
+  const handleSave = form.handleSubmit(data => {
+    onAdd(data);
     onClose();
-  };
+  });
 
   return (
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() => document.getElementById('add-vet-visit-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={handleSave}
       title="Add Vet Visit"
       description="All fields are required."
-      formId="add-vet-visit-form"
-      saveLabel={<><Plus className="mr-2 h-4 w-4" /> Add</>}
+      saveLabel={
+        <>
+          <Plus className="mr-2 h-4 w-4" /> Add
+        </>
+      }
     >
-      <form id="add-vet-visit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <FormField label="Title" fieldId="addVetVisitTitle" required error={formErrors.title}>
+      <div className="flex flex-col gap-4">
+        <FormField label="Title" fieldId="addVetVisitTitle" required error={form.getError('title')}>
           <Input
             id="addVetVisitTitle"
             type="text"
-            value={""}
-            onChange={e => setTitle(e.target.value)}
-            required
-            aria-invalid={!!formErrors.title}
-            aria-describedby={formErrors.title ? 'addVetVisitTitle-error' : undefined}
+            value={form.data.title}
+            onChange={e => form.setValue('title', e.target.value)}
+            onBlur={() => form.touchField('title')}
+            {...form.getFieldProps('title')}
           />
         </FormField>
-        <div>
+        <FormField label="Date" fieldId="date" required error={form.getError('date')}>
           <DatePickerField
-            label="Date"
-            value={""}
-            onChange={setDate}
+            value={form.data.date}
+            onChange={val => form.setValue('date', val)}
             required
           />
-          {formErrors.date && <p className="text-sm text-destructive" role="alert">{formErrors.date}</p>}
-        </div>
-        <FormField label="Vet Name" fieldId="addVetVisitVetName" required error={formErrors.vetName}>
+        </FormField>
+        <FormField
+          label="Vet Name"
+          fieldId="addVetVisitVetName"
+          required
+          error={form.getError('vetName')}
+        >
           <Input
             id="addVetVisitVetName"
             type="text"
-            value={""}
-            onChange={e => setVetName(e.target.value)}
-            required
-            aria-invalid={!!formErrors.vetName}
-            aria-describedby={formErrors.vetName ? 'addVetVisitVetName-error' : undefined}
+            value={form.data.vetName}
+            onChange={e => form.setValue('vetName', e.target.value)}
+            onBlur={() => form.touchField('vetName')}
+            {...form.getFieldProps('vetName')}
           />
         </FormField>
-        <FormField label="Clinic Name" fieldId="addVetVisitClinicName" required error={formErrors.clinicName}>
+        <FormField
+          label="Clinic Name"
+          fieldId="addVetVisitClinicName"
+          required
+          error={form.getError('clinicName')}
+        >
           <Input
             id="addVetVisitClinicName"
             type="text"
-            value={""}
-            onChange={e => setClinicName(e.target.value)}
-            required
-            aria-invalid={!!formErrors.clinicName}
-            aria-describedby={formErrors.clinicName ? 'addVetVisitClinicName-error' : undefined}
+            value={form.data.clinicName}
+            onChange={e => form.setValue('clinicName', e.target.value)}
+            onBlur={() => form.touchField('clinicName')}
+            {...form.getFieldProps('clinicName')}
           />
         </FormField>
-        <FormField label="Notes" fieldId="addVetVisitNotes" required error={formErrors.notes}>
+        <FormField label="Notes" fieldId="addVetVisitNotes" required error={form.getError('notes')}>
           <Textarea
             id="addVetVisitNotes"
-            value={""}
-            onChange={e => setNotes(e.target.value)}
-            required
-            aria-invalid={!!formErrors.notes}
-            aria-describedby={formErrors.notes ? 'addVetVisitNotes-error' : undefined}
+            value={form.data.notes}
+            onChange={e => form.setValue('notes', e.target.value)}
+            onBlur={() => form.touchField('notes')}
+            {...form.getFieldProps('notes')}
           />
         </FormField>
-      </form>
+      </div>
     </StandardDialog>
   );
 };

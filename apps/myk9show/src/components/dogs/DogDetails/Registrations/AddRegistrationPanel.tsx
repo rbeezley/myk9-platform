@@ -14,28 +14,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
+import { registrationFormFields } from '@/lib/validation';
+import { getOrgCode } from './registrationUtils';
 
-// Extract organization code from full string (e.g., "AKC" from "AKC (American Kennel Club)")
-function getOrgCode(organization: string): string {
-  if (!organization) return '';
-  // Handle codes at the start like "AKC (American Kennel Club)"
-  const match = organization.match(/^(\w+)\s*\(/);
-  if (match) return match[1];
-  // Handle special cases
-  if (organization === 'Mixed Breed') return 'Other';
-  if (organization === 'Other') return 'Other';
-  return organization;
-}
-
-const addRegistrationFormSchema = z.object({
-  organization: z.string().min(1, 'Please select an organization'),
-  registeredName: z.string().min(1, 'Please enter a registered name'),
-  breed: z.string().min(1, 'Please enter a breed'),
-  variety: z.string(),
-  registrationNumber: z.string().min(1, 'Please enter a registration number'),
-  status: z.string().min(1, 'Please select a status'),
-  registrationDate: z.string(),
-});
+const addRegistrationFormSchema = z.object(registrationFormFields);
 
 type AddRegistrationFormData = z.infer<typeof addRegistrationFormSchema>;
 
@@ -59,30 +41,38 @@ const INITIAL_FORM_DATA: AddRegistrationFormData = {
 // Inner component that accesses form from EditPanelWrapper context
 function RegistrationFormFields() {
   const { form } = useEditPanel<AddRegistrationFormData>();
-  const formData = form!.data;
+
+  const organization = form?.data.organization ?? '';
+  const breed = form?.data.breed ?? '';
 
   // Get breeds for the selected organization (using org code for lookup)
   const availableBreeds = useMemo(() => {
-    if (!formData.organization) return [];
-    const orgCode = getOrgCode(formData.organization);
+    if (!organization) return [];
+    const orgCode = getOrgCode(organization);
     return getBreedNamesForOrganization(orgCode);
-  }, [formData.organization]);
+  }, [organization]);
 
   // Get varieties for the selected breed
   const availableVarieties = useMemo(() => {
-    if (!formData.organization || !formData.breed) return [];
-    const orgCode = getOrgCode(formData.organization);
-    return getVarietiesForBreed(orgCode, formData.breed);
-  }, [formData.organization, formData.breed]);
+    if (!organization || !breed) return [];
+    const orgCode = getOrgCode(organization);
+    return getVarietiesForBreed(orgCode, breed);
+  }, [organization, breed]);
+
+  if (!form) return null;
+
+  const formData = form.data;
 
   // Handle organization change - clear breed and variety
   const handleOrganizationChange = (value: string) => {
-    form!.setValues({ organization: value, breed: '', variety: '' });
+    form.setValues({ organization: value, breed: '', variety: '' });
+    form.touchField('organization');
   };
 
   // Handle breed change - clear variety
   const handleBreedChange = (value: string) => {
-    form!.setValues({ breed: value, variety: '' });
+    form.setValues({ breed: value, variety: '' });
+    form.touchField('breed');
   };
 
   return (
@@ -100,10 +90,10 @@ function RegistrationFormFields() {
             label="Organization"
             fieldId="organization"
             required
-            error={form?.getError('organization')}
+            error={form.getError('organization')}
           >
             <Select value={formData.organization} onValueChange={handleOrganizationChange}>
-              <SelectTrigger id="organization" {...form?.getFieldProps('organization')}>
+              <SelectTrigger id="organization" {...form.getFieldProps('organization')}>
                 <SelectValue placeholder="Select organization" />
               </SelectTrigger>
               <SelectContent>
@@ -135,27 +125,27 @@ function RegistrationFormFields() {
             label="Registered Name"
             fieldId="registeredName"
             required
-            error={form?.getError('registeredName')}
+            error={form.getError('registeredName')}
           >
             <Input
               id="registeredName"
               value={formData.registeredName}
-              onChange={e => form!.setValue('registeredName', e.target.value)}
-              onBlur={() => form!.touchField('registeredName')}
+              onChange={e => form.setValue('registeredName', e.target.value)}
+              onBlur={() => form.touchField('registeredName')}
               placeholder="Full registered name"
-              {...form?.getFieldProps('registeredName')}
+              {...form.getFieldProps('registeredName')}
             />
           </FormField>
 
           {/* Breed and Variety */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Breed" fieldId="breed" required error={form?.getError('breed')}>
+            <FormField label="Breed" fieldId="breed" required error={form.getError('breed')}>
               <Select
                 value={formData.breed}
                 onValueChange={handleBreedChange}
                 disabled={!formData.organization}
               >
-                <SelectTrigger id="breed" {...form?.getFieldProps('breed')}>
+                <SelectTrigger id="breed" {...form.getFieldProps('breed')}>
                   <SelectValue
                     placeholder={
                       formData.organization ? 'Select breed' : 'Select organization first'
@@ -176,7 +166,7 @@ function RegistrationFormFields() {
               {availableVarieties.length > 0 ? (
                 <Select
                   value={formData.variety}
-                  onValueChange={value => form!.setValue('variety', value)}
+                  onValueChange={value => form.setValue('variety', value)}
                 >
                   <SelectTrigger id="variety">
                     <SelectValue placeholder="Select variety" />
@@ -193,7 +183,7 @@ function RegistrationFormFields() {
                 <Input
                   id="variety"
                   value={formData.variety}
-                  onChange={e => form!.setValue('variety', e.target.value)}
+                  onChange={e => form.setValue('variety', e.target.value)}
                   placeholder={
                     formData.breed ? 'No varieties for this breed' : 'Select breed first'
                   }
@@ -209,24 +199,27 @@ function RegistrationFormFields() {
               label="Registration Number"
               fieldId="registrationNumber"
               required
-              error={form?.getError('registrationNumber')}
+              error={form.getError('registrationNumber')}
             >
               <Input
                 id="registrationNumber"
                 value={formData.registrationNumber}
-                onChange={e => form!.setValue('registrationNumber', e.target.value)}
-                onBlur={() => form!.touchField('registrationNumber')}
+                onChange={e => form.setValue('registrationNumber', e.target.value)}
+                onBlur={() => form.touchField('registrationNumber')}
                 placeholder="Enter registration number"
-                {...form?.getFieldProps('registrationNumber')}
+                {...form.getFieldProps('registrationNumber')}
               />
             </FormField>
 
-            <FormField label="Status" fieldId="status" required error={form?.getError('status')}>
+            <FormField label="Status" fieldId="status" required error={form.getError('status')}>
               <Select
                 value={formData.status}
-                onValueChange={value => form!.setValue('status', value)}
+                onValueChange={value => {
+                  form.setValue('status', value);
+                  form.touchField('status');
+                }}
               >
-                <SelectTrigger id="status" {...form?.getFieldProps('status')}>
+                <SelectTrigger id="status" {...form.getFieldProps('status')}>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -245,7 +238,7 @@ function RegistrationFormFields() {
               id="registrationDate"
               type="date"
               value={formData.registrationDate}
-              onChange={e => form!.setValue('registrationDate', e.target.value)}
+              onChange={e => form.setValue('registrationDate', e.target.value)}
             />
           </FormField>
         </CardContent>

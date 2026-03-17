@@ -325,6 +325,17 @@ export const classSchemas = {
   }),
 };
 
+// Shared registration form fields used by Add/Edit registration panels
+export const registrationFormFields = {
+  organization: z.string().min(1, 'Please select an organization'),
+  registeredName: z.string().min(1, 'Please enter a registered name'),
+  breed: z.string().min(1, 'Please enter a breed'),
+  variety: z.string(),
+  registrationNumber: z.string().min(1, 'Please enter a registration number'),
+  status: z.string().min(1, 'Please select a status'),
+  registrationDate: z.string(),
+};
+
 // Export types for TypeScript
 export type DogBasicInput = z.infer<typeof dogSchemas.basic>;
 export type DogRegistrationInput = z.infer<typeof dogSchemas.registration>;
@@ -336,14 +347,6 @@ export type ShowTrialInput = z.infer<typeof showSchemas.trial>;
 export type ClubBasicInput = z.infer<typeof clubSchemas.basic>;
 export type ClassFullInput = z.infer<typeof classSchemas.full>;
 export type ClassSimpleInput = z.infer<typeof classSchemas.simple>;
-
-/**
- * Find the first error in a string[] that matches any of the given keywords (case-insensitive).
- * Used by legacy EditPanelWrapper consumers that receive errors as string[].
- */
-export function findFieldError(errors: string[], ...keywords: string[]): string | undefined {
-  return errors.find(e => keywords.some(k => e.toLowerCase().includes(k.toLowerCase())));
-}
 
 // Validation helper function
 export function validateField<T>(

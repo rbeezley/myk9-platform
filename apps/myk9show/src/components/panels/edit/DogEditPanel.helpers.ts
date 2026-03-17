@@ -15,8 +15,10 @@ export const dogFormSchema = z.object({
   microchip: z.string(),
   imageUrl: z.string().optional(),
   ownerId: z.string(),
-  registrations: z.custom<Registration[]>(),
-  healthRecords: z.custom<DogType['healthRecords']>(),
+  registrations: z.custom<Registration[]>(val => Array.isArray(val)),
+  healthRecords: z.custom<DogType['healthRecords']>(
+    val => val === undefined || val === null || typeof val === 'object'
+  ),
   notes: z.string().optional(),
   specialNeeds: z.string().optional(),
   spayedNeutered: z.boolean().optional(),

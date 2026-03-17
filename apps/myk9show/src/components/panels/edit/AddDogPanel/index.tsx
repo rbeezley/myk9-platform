@@ -131,11 +131,13 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   } = uiState;
 
   // Sync ownerId when currentUserPersonId resolves asynchronously
+  const ownerIdValue = form?.data.ownerId;
+  const setFormValue = form?.setValue;
   useEffect(() => {
-    if (currentUserPersonId && userRole === UserRole.EXHIBITOR && form && !form.data.ownerId) {
-      form.setValue('ownerId', currentUserPersonId);
+    if (currentUserPersonId && userRole === UserRole.EXHIBITOR && setFormValue && !ownerIdValue) {
+      setFormValue('ownerId', currentUserPersonId);
     }
-  }, [currentUserPersonId, userRole, form]);
+  }, [currentUserPersonId, userRole, setFormValue, ownerIdValue]);
 
   // Reset form when panel re-opens
   const [prevOpen, setPrevOpen] = React.useState(open);

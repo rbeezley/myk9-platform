@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { FormField } from '@/components/common/FormField';
 import type { DogStatus } from '@/types/dog-types';
 
 interface DogStatusDialogProps {
@@ -84,15 +85,16 @@ function StatusForm({
         </RadioGroup>
 
         {status === 'deceased' && (
-          <div className="space-y-2 pl-7">
-            <Label htmlFor="deceased-date">Date of Passing</Label>
-            <Input
-              id="deceased-date"
-              type="date"
-              value={deceasedDate}
-              onChange={e => setDeceasedDate(e.target.value)}
-              max={new Date().toISOString().split('T')[0]}
-            />
+          <div className="pl-7">
+            <FormField label="Date of Passing" fieldId="deceased-date">
+              <Input
+                id="deceased-date"
+                type="date"
+                value={deceasedDate}
+                onChange={e => setDeceasedDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </FormField>
           </div>
         )}
       </div>

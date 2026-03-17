@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { AllergyRecord } from './AddAllergyDialog';
@@ -41,14 +42,12 @@ const EditAllergyDialog: React.FC<EditAllergyDialogProps> = ({ open, record, onC
       saveLabel="Save"
     >
       <form id="edit-allergy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <label className="block mb-1 font-medium">Allergy Name <span className="text-red-500">*</span></label>
-          <Input type="text" value={""} onChange={e => setName(e.target.value)} required />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Description <span className="text-red-500">*</span></label>
-          <Textarea value={""} onChange={e => setDescription(e.target.value)} required />
-        </div>
+        <FormField label="Allergy Name" fieldId="editAllergyName" required>
+          <Input id="editAllergyName" type="text" value={""} onChange={e => setName(e.target.value)} required />
+        </FormField>
+        <FormField label="Description" fieldId="editAllergyDescription" required>
+          <Textarea id="editAllergyDescription" value={""} onChange={e => setDescription(e.target.value)} required />
+        </FormField>
       </form>
     </StandardDialog>
   );

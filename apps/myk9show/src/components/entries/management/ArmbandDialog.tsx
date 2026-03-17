@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import {
   Dialog,
   DialogContent,
@@ -43,15 +43,14 @@ export const ArmbandDialog: React.FC<ArmbandDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="armband-number">Armband Number</Label>
+          <FormField label="Armband Number" fieldId="armband-number">
             <Input
               id="armband-number"
               value={dialogState.value}
               onChange={(e) => setDialogState((prev) => ({ ...prev, value: e.target.value }))}
               placeholder="Enter armband number"
             />
-          </div>
+          </FormField>
         </div>
         <DialogFooter>
           <Button

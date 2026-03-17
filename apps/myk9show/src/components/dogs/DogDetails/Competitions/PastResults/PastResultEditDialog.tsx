@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
-import RequiredLabel from '@/components/common/RequiredLabel';
+import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,10 +54,10 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
-    if (!form.showName) newErrors.showName = 'Show Name is required';
-    if (!form.date) newErrors.date = 'Date is required';
-    if (!form.className) newErrors.className = 'Class is required';
-    if (!form.placement) newErrors.placement = 'Placement is required';
+    if (!form.showName) newErrors.showName = 'Please enter a show name';
+    if (!form.date) newErrors.date = 'Please select a date';
+    if (!form.className) newErrors.className = 'Please enter a class';
+    if (!form.placement) newErrors.placement = 'Please enter a placement';
     return newErrors;
   };
 
@@ -81,19 +81,17 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
       formId="past-result-edit-form"
     >
       <form id="past-result-edit-form" className="space-y-4" onSubmit={handleSubmit}>
-        <div>
-          <RequiredLabel required>Show Name</RequiredLabel>
+        <FormField label="Show Name" fieldId="showName" required error={errors.showName}>
           <Input
             id="showName"
             name="showName"
             value={form.showName}
             onChange={handleChange}
-            required
+            aria-invalid={!!errors.showName}
+            aria-describedby={errors.showName ? 'showName-error' : undefined}
           />
-          {errors.showName && <div className="text-red-500 text-xs mt-1">{errors.showName}</div>}
-        </div>
-        <div>
-          <RequiredLabel required>Date</RequiredLabel>
+        </FormField>
+        <FormField label="Date" fieldId="date" required error={errors.date}>
           <DatePickerField
             value={form.date}
             onChange={(value) => setForm(prev => ({ ...prev, date: value }))}
@@ -101,41 +99,36 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
             name="date"
             id="date"
           />
-          {errors.date && <div className="text-red-500 text-xs mt-1">{errors.date}</div>}
-        </div>
-        <div>
-          <RequiredLabel required>Judge</RequiredLabel>
+        </FormField>
+        <FormField label="Judge" fieldId="judge">
           <Input
             id="judge"
             name="judge"
             value={form.judge}
             onChange={handleChange}
           />
-        </div>
-        <div>
-          <RequiredLabel required>Class</RequiredLabel>
+        </FormField>
+        <FormField label="Class" fieldId="className" required error={errors.className}>
           <Input
             id="className"
             name="className"
             value={form.className}
             onChange={handleChange}
-            required
+            aria-invalid={!!errors.className}
+            aria-describedby={errors.className ? 'className-error' : undefined}
           />
-          {errors.className && <div className="text-red-500 text-xs mt-1">{errors.className}</div>}
-        </div>
-        <div>
-          <RequiredLabel required>Placement</RequiredLabel>
+        </FormField>
+        <FormField label="Placement" fieldId="placement" required error={errors.placement}>
           <Input
             id="placement"
             name="placement"
             value={form.placement}
             onChange={handleChange}
-            required
+            aria-invalid={!!errors.placement}
+            aria-describedby={errors.placement ? 'placement-error' : undefined}
           />
-          {errors.placement && <div className="text-red-500 text-xs mt-1">{errors.placement}</div>}
-        </div>
-        <div>
-          <label htmlFor="notes" className="block font-medium text-sm">Notes</label>
+        </FormField>
+        <FormField label="Notes" fieldId="notes">
           <Textarea
             id="notes"
             name="notes"
@@ -143,7 +136,7 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
             onChange={handleChange}
             rows={3}
           />
-        </div>
+        </FormField>
       </form>
     </StandardDialog>
   );

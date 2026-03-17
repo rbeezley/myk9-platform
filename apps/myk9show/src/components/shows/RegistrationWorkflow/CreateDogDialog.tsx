@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -123,11 +124,11 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
     const errors: Record<string, string> = {};
 
     // Basic information validation
-    if (!data.registeredName.trim()) errors.registeredName = 'Registered name is required';
-    if (!data.callName.trim()) errors.callName = 'Call name is required';
-    if (!data.breed.trim()) errors.breed = 'Breed is required';
-    if (!data.gender) errors.gender = 'Gender is required';
-    if (!data.dateOfBirth) errors.dateOfBirth = 'Date of birth is required';
+    if (!data.registeredName.trim()) errors.registeredName = 'Please enter a registered name';
+    if (!data.callName.trim()) errors.callName = 'Please enter a call name';
+    if (!data.breed.trim()) errors.breed = 'Please select a breed';
+    if (!data.gender) errors.gender = 'Please select a gender';
+    if (!data.dateOfBirth) errors.dateOfBirth = 'Please enter a date of birth';
 
     // Date validation
     if (data.dateOfBirth) {
@@ -143,8 +144,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
     // Registration validation
     if (data.hasRegistration) {
-      if (!data.registrationOrg) errors.registrationOrg = 'Registration organization is required';
-      if (!data.registrationNumber.trim()) errors.registrationNumber = 'Registration number is required';
+      if (!data.registrationOrg) errors.registrationOrg = 'Please select a registration organization';
+      if (!data.registrationNumber.trim()) errors.registrationNumber = 'Please enter a registration number';
     }
 
     // Weight/height validation
@@ -338,40 +339,35 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="registeredName">Registered Name *</Label>
+              <FormField label="Registered Name" fieldId="registeredName" required error={getVisibleError('registeredName')}>
                 <Input
                   id="registeredName"
                   value={formData.registeredName}
                   onChange={(e) => handleFieldChange('registeredName', e.target.value)}
                   placeholder="Full registered name"
+                  aria-invalid={!!getVisibleError('registeredName')}
+                  aria-describedby={getVisibleError('registeredName') ? 'registeredName-error' : undefined}
                 />
-                {getVisibleError('registeredName') && (
-                  <p className="text-sm text-red-600">{getVisibleError('registeredName')}</p>
-                )}
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="callName">Call Name *</Label>
+              <FormField label="Call Name" fieldId="callName" required error={getVisibleError('callName')}>
                 <Input
                   id="callName"
                   value={formData.callName}
                   onChange={(e) => handleFieldChange('callName', e.target.value)}
                   placeholder="Everyday name"
+                  aria-invalid={!!getVisibleError('callName')}
+                  aria-describedby={getVisibleError('callName') ? 'callName-error' : undefined}
                 />
-                {getVisibleError('callName') && (
-                  <p className="text-sm text-red-600">{getVisibleError('callName')}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="breed">Breed *</Label>
+            <FormField label="Breed" fieldId="breed" required error={getVisibleError('breed')}>
               <Select
                 value={formData.breed}
                 onValueChange={(value) => handleFieldChange('breed', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={!!getVisibleError('breed')}>
                   <SelectValue placeholder="Select breed" />
                 </SelectTrigger>
                 <SelectContent>
@@ -382,19 +378,15 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-              {getVisibleError('breed') && (
-                <p className="text-sm text-red-600">{getVisibleError('breed')}</p>
-              )}
-            </div>
+            </FormField>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender *</Label>
+              <FormField label="Gender" fieldId="gender" required error={getVisibleError('gender')}>
                 <Select
                   value={formData.gender}
                   onValueChange={(value) => handleFieldChange('gender', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-invalid={!!getVisibleError('gender')}>
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -402,39 +394,28 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                     <SelectItem value="Female">Female</SelectItem>
                   </SelectContent>
                 </Select>
-                {getVisibleError('gender') && (
-                  <p className="text-sm text-red-600">{getVisibleError('gender')}</p>
-                )}
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+              <FormField label="Date of Birth" fieldId="dateOfBirth" required error={getVisibleError('dateOfBirth')} hint={formData.dateOfBirth ? `Age: ${calculateAge(formData.dateOfBirth)}` : undefined}>
                 <Input
                   id="dateOfBirth"
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
+                  aria-invalid={!!getVisibleError('dateOfBirth')}
+                  aria-describedby={getVisibleError('dateOfBirth') ? 'dateOfBirth-error' : undefined}
                 />
-                {formData.dateOfBirth && (
-                  <p className="text-xs text-gray-600">
-                    Age: {calculateAge(formData.dateOfBirth)}
-                  </p>
-                )}
-                {getVisibleError('dateOfBirth') && (
-                  <p className="text-sm text-red-600">{getVisibleError('dateOfBirth')}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="color">Color/Markings</Label>
+            <FormField label="Color/Markings" fieldId="color">
               <Input
                 id="color"
                 value={formData.color}
                 onChange={(e) => handleFieldChange('color', e.target.value)}
                 placeholder="e.g., Black & White, Red, Blue Merle"
               />
-            </div>
+            </FormField>
           </TabsContent>
 
           <TabsContent value="registration" className="space-y-4">
@@ -459,13 +440,12 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
                 {formData.hasRegistration && (
                   <>
-                    <div className="space-y-2">
-                      <Label htmlFor="registrationOrg">Registration Organization *</Label>
+                    <FormField label="Registration Organization" fieldId="registrationOrg" required error={getVisibleError('registrationOrg')}>
                       <Select
                         value={formData.registrationOrg}
                         onValueChange={(value) => handleFieldChange('registrationOrg', value)}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-invalid={!!getVisibleError('registrationOrg')}>
                           <SelectValue placeholder="Select organization" />
                         </SelectTrigger>
                         <SelectContent>
@@ -476,27 +456,21 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
-                      {getVisibleError('registrationOrg') && (
-                        <p className="text-sm text-red-600">{getVisibleError('registrationOrg')}</p>
-                      )}
-                    </div>
+                    </FormField>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="registrationNumber">Registration Number *</Label>
+                      <FormField label="Registration Number" fieldId="registrationNumber" required error={getVisibleError('registrationNumber')}>
                         <Input
                           id="registrationNumber"
                           value={formData.registrationNumber}
                           onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
                           placeholder="Enter registration number"
+                          aria-invalid={!!getVisibleError('registrationNumber')}
+                          aria-describedby={getVisibleError('registrationNumber') ? 'registrationNumber-error' : undefined}
                         />
-                        {getVisibleError('registrationNumber') && (
-                          <p className="text-sm text-red-600">{getVisibleError('registrationNumber')}</p>
-                        )}
-                      </div>
+                      </FormField>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="registrationStatus">Status</Label>
+                      <FormField label="Status" fieldId="registrationStatus">
                         <Select
                           value={formData.registrationStatus}
                           onValueChange={(value) => handleFieldChange('registrationStatus', value)}
@@ -510,7 +484,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                             <SelectItem value="Expired">Expired</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
+                      </FormField>
                     </div>
                   </>
                 )}
@@ -530,8 +504,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
           <TabsContent value="optional" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="height">Height (inches)</Label>
+              <FormField label="Height (inches)" fieldId="height" error={getVisibleError('height')}>
                 <Input
                   id="height"
                   value={formData.height}
@@ -539,14 +512,12 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   placeholder="e.g., 24"
                   type="number"
                   step="0.1"
+                  aria-invalid={!!getVisibleError('height')}
+                  aria-describedby={getVisibleError('height') ? 'height-error' : undefined}
                 />
-                {getVisibleError('height') && (
-                  <p className="text-sm text-red-600">{getVisibleError('height')}</p>
-                )}
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="weight">Weight (pounds)</Label>
+              <FormField label="Weight (pounds)" fieldId="weight" error={getVisibleError('weight')}>
                 <Input
                   id="weight"
                   value={formData.weight}
@@ -554,22 +525,20 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   placeholder="e.g., 55"
                   type="number"
                   step="0.1"
+                  aria-invalid={!!getVisibleError('weight')}
+                  aria-describedby={getVisibleError('weight') ? 'weight-error' : undefined}
                 />
-                {getVisibleError('weight') && (
-                  <p className="text-sm text-red-600">{getVisibleError('weight')}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="microchip">Microchip Number</Label>
+            <FormField label="Microchip Number" fieldId="microchip">
               <Input
                 id="microchip"
                 value={formData.microchip}
                 onChange={(e) => handleFieldChange('microchip', e.target.value)}
                 placeholder="15-digit microchip number"
               />
-            </div>
+            </FormField>
 
             <div className="flex items-center space-x-2">
               <Checkbox

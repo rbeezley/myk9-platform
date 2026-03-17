@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
+import { FormField } from '@/components/common/FormField';
 import type { VaccinationRecord } from './AddVaccinationDialog';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
@@ -31,7 +32,7 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({ open, rec
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
-    
+
 
 onSave({
       ...record,
@@ -53,10 +54,9 @@ onSave({
       saveLabel="Save"
     >
       <form id="edit-vaccination-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <label className="block mb-1 font-medium">Vaccination <span className="text-red-500">*</span></label>
-          <Input type="text" value={""} onChange={e => setVaccination(e.target.value)} required />
-        </div>
+        <FormField label="Vaccination" fieldId="editVaccination" required>
+          <Input id="editVaccination" type="text" value={""} onChange={e => setVaccination(e.target.value)} required />
+        </FormField>
         <div>
           <DatePickerField
             label="Date"
@@ -73,10 +73,9 @@ onSave({
             required
           />
         </div>
-        <div>
-          <label className="block mb-1 font-medium">Veterinarian <span className="text-red-500">*</span></label>
-          <Input type="text" value={""} onChange={e => setVeterinarian(e.target.value)} required />
-        </div>
+        <FormField label="Veterinarian" fieldId="editVaccinationVet" required>
+          <Input id="editVaccinationVet" type="text" value={""} onChange={e => setVeterinarian(e.target.value)} required />
+        </FormField>
       </form>
     </StandardDialog>
   );

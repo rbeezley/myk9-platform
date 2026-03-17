@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { FormField } from '@/components/common/FormField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useShowStore } from '@/store/showStore';
 import { logger } from '@/services/LoggingService';
@@ -266,10 +267,9 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
       <div className="space-y-6">
         <>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Available Templates</label>
+            <FormField label="Available Templates" fieldId="template-select">
               <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                <SelectTrigger>
+                <SelectTrigger id="template-select">
                   <SelectValue placeholder="Select a template" />
                 </SelectTrigger>
                 <SelectContent>
@@ -293,7 +293,7 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
                   })}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
 
           {selectedTemplate && (

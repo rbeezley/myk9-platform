@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -163,14 +163,14 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   const validateForm = (data: ExhibitorFormData): Partial<ExhibitorFormData> => {
     const errors: Partial<ExhibitorFormData> = {};
 
-    if (!data.firstName.trim()) errors.firstName = 'First name is required';
-    if (!data.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!data.firstName.trim()) errors.firstName = 'Please enter a first name';
+    if (!data.lastName.trim()) errors.lastName = 'Please enter a last name';
     if (!data.email.trim()) {
-      errors.email = 'Email is required';
+      errors.email = 'Please enter an email address';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-      errors.email = 'Invalid email format';
+      errors.email = 'Please enter a valid email address';
     }
-    if (!data.phone.trim()) errors.phone = 'Phone number is required';
+    if (!data.phone.trim()) errors.phone = 'Please enter a phone number';
 
     return errors;
   };
@@ -286,102 +286,90 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
 
           <TabsContent value="create" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
+              <FormField label="First Name" fieldId="firstName" required error={getVisibleError('firstName')}>
                 <Input
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => handleFieldChange('firstName', e.target.value)}
                   placeholder="Enter first name"
+                  aria-invalid={!!getVisibleError('firstName')}
+                  aria-describedby={getVisibleError('firstName') ? 'firstName-error' : undefined}
                 />
-                {getVisibleError('firstName') && (
-                  <p className="text-sm text-red-600">{getVisibleError('firstName')}</p>
-                )}
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
+              <FormField label="Last Name" fieldId="lastName" required error={getVisibleError('lastName')}>
                 <Input
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => handleFieldChange('lastName', e.target.value)}
                   placeholder="Enter last name"
+                  aria-invalid={!!getVisibleError('lastName')}
+                  aria-describedby={getVisibleError('lastName') ? 'lastName-error' : undefined}
                 />
-                {getVisibleError('lastName') && (
-                  <p className="text-sm text-red-600">{getVisibleError('lastName')}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
+              <FormField label="Email Address" fieldId="email" required error={getVisibleError('email')}>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleFieldChange('email', e.target.value)}
                   placeholder="Enter email address"
+                  aria-invalid={!!getVisibleError('email')}
+                  aria-describedby={getVisibleError('email') ? 'email-error' : undefined}
                 />
-                {getVisibleError('email') && (
-                  <p className="text-sm text-red-600">{getVisibleError('email')}</p>
-                )}
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
+              <FormField label="Phone Number" fieldId="phone" required error={getVisibleError('phone')}>
                 <Input
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => handleFieldChange('phone', e.target.value)}
                   placeholder="Enter phone number"
+                  aria-invalid={!!getVisibleError('phone')}
+                  aria-describedby={getVisibleError('phone') ? 'phone-error' : undefined}
                 />
-                {getVisibleError('phone') && (
-                  <p className="text-sm text-red-600">{getVisibleError('phone')}</p>
-                )}
-              </div>
+              </FormField>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="streetAddress">Street Address</Label>
+            <FormField label="Street Address" fieldId="streetAddress">
               <Input
                 id="streetAddress"
                 value={formData.streetAddress}
                 onChange={(e) => handleFieldChange('streetAddress', e.target.value)}
                 placeholder="Enter street address"
               />
-            </div>
+            </FormField>
 
             <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
+              <FormField label="City" fieldId="city">
                 <Input
                   id="city"
                   value={formData.city}
                   onChange={(e) => handleFieldChange('city', e.target.value)}
                   placeholder="Enter city"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="state">State</Label>
+              <FormField label="State" fieldId="state">
                 <Input
                   id="state"
                   value={formData.state}
                   onChange={(e) => handleFieldChange('state', e.target.value)}
                   placeholder="State"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label htmlFor="zipCode">ZIP Code</Label>
+              <FormField label="ZIP Code" fieldId="zipCode">
                 <Input
                   id="zipCode"
                   value={formData.zipCode}
                   onChange={(e) => handleFieldChange('zipCode', e.target.value)}
                   placeholder="ZIP"
                 />
-              </div>
+              </FormField>
             </div>
 
             {duplicates.length > 0 && (

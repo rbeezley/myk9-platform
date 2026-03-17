@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import {
   Select,
   SelectContent,
@@ -148,10 +148,7 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
           <div className="space-y-6">
             {/* Element, Level, Section */}
             <div className="grid grid-cols-3 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="element" className="flex items-center text-sm font-medium">
-                  Element <span className="text-destructive ml-1">*</span>
-                </Label>
+              <FormField label="Element" fieldId="element" required>
                 <Input
                   id="element"
                   value={classData.element || ''}
@@ -161,12 +158,9 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
                   className="h-11 bg-muted text-muted-foreground cursor-not-allowed"
                   readOnly
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-3">
-                <Label htmlFor="level" className="flex items-center text-sm font-medium">
-                  Level <span className="text-destructive ml-1">*</span>
-                </Label>
+              <FormField label="Level" fieldId="level" required>
                 <Input
                   id="level"
                   value={classData.level || ''}
@@ -176,12 +170,9 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
                   className="h-11 bg-muted text-muted-foreground cursor-not-allowed"
                   readOnly
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-3">
-                <Label htmlFor="section" className="flex items-center text-sm font-medium">
-                  Section
-                </Label>
+              <FormField label="Section" fieldId="section">
                 <Input
                   id="section"
                   value={classData.section || ''}
@@ -190,15 +181,12 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
                   className="h-11 bg-muted text-muted-foreground cursor-not-allowed"
                   readOnly
                 />
-              </div>
+              </FormField>
             </div>
 
             {/* Class Order and Class Status */}
             <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="classOrder" className="text-sm font-medium">
-                  Class Order
-                </Label>
+              <FormField label="Class Order" fieldId="classOrder">
                 <Input
                   id="classOrder"
                   value={classData.classOrder || ''}
@@ -206,12 +194,9 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
                   placeholder="Enter order number"
                   className="h-11"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-3">
-                <Label htmlFor="status" className="text-sm font-medium">
-                  Class Status
-                </Label>
+              <FormField label="Class Status" fieldId="status">
                 <Select
                   value={classData.status || ''}
                   onValueChange={value => handleChange('status', value)}
@@ -226,7 +211,7 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
                     <SelectItem value="Cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             </div>
 
             {/* Section Controls */}

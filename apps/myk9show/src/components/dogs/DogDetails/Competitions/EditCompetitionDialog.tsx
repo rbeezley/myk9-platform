@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface CompetitionFormData {
@@ -26,6 +26,7 @@ const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({ open, onC
     location: String(initialData?.location || ''),
     status: (initialData?.status as CompetitionFormData['status']) || 'Upcoming',
   }));
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [lastInitialId, setLastInitialId] = useState(String(initialData?.id || ''));
   const currentId = String(initialData?.id || '');
@@ -37,11 +38,22 @@ const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({ open, onC
       location: String(initialData.location || ''),
       status: (initialData.status as CompetitionFormData['status']) || 'Upcoming',
     });
+    setErrors({});
   }
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    if (!form.name) newErrors.name = 'Please enter a competition name';
+    if (!form.date) newErrors.date = 'Please select a date';
+    if (!form.location) newErrors.location = 'Please enter a location';
+    return newErrors;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.date || !form.location) return;
+    const validationErrors = validate();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
     onSave({ ...initialData, ...form });
   };
 
@@ -52,47 +64,40 @@ const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({ open, onC
           <DialogTitle>Edit Competition Entry</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-comp-name">
-              Competition Name <span className="text-red-500">*</span>
-            </Label>
+          <FormField label="Competition Name" fieldId="edit-comp-name" required error={errors.name}>
             <Input
               id="edit-comp-name"
               value={form.name}
               onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
               placeholder="e.g., AKC Agility Trial"
-              required
+              aria-invalid={!!errors.name}
+              aria-describedby={errors.name ? 'edit-comp-name-error' : undefined}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-comp-date">
-              Date <span className="text-red-500">*</span>
-            </Label>
+          <FormField label="Date" fieldId="edit-comp-date" required error={errors.date}>
             <Input
               id="edit-comp-date"
               type="date"
               value={form.date}
               onChange={(e) => setForm(prev => ({ ...prev, date: e.target.value }))}
-              required
+              aria-invalid={!!errors.date}
+              aria-describedby={errors.date ? 'edit-comp-date-error' : undefined}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-comp-location">
-              Location <span className="text-red-500">*</span>
-            </Label>
+          <FormField label="Location" fieldId="edit-comp-location" required error={errors.location}>
             <Input
               id="edit-comp-location"
               value={form.location}
               onChange={(e) => setForm(prev => ({ ...prev, location: e.target.value }))}
               placeholder="e.g., Springfield Fairgrounds"
-              required
+              aria-invalid={!!errors.location}
+              aria-describedby={errors.location ? 'edit-comp-location-error' : undefined}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-comp-status">Status</Label>
+          <FormField label="Status" fieldId="edit-comp-status">
             <Select
               value={form.status}
               onValueChange={(value) => setForm(prev => ({ ...prev, status: value as CompetitionFormData['status'] }))}
@@ -106,7 +111,7 @@ const EditCompetitionDialog: React.FC<EditCompetitionDialogProps> = ({ open, onC
                 <SelectItem value="Cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
           <DialogFooter>
             <DialogClose asChild>

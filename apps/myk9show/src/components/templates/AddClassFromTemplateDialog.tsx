@@ -6,7 +6,7 @@ import { usesStructuredFields } from '@/lib/fieldUtils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -103,8 +103,7 @@ export const AddClassFromTemplateDialog: React.FC<AddClassFromTemplateDialogProp
         </Alert>
       ) : (
         <>
-          <div className="space-y-2">
-            <Label htmlFor="template-select">Template</Label>
+          <FormField label="Template" fieldId="template-select">
             <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
               <SelectTrigger id="template-select">
                 <SelectValue placeholder="Select a template" />
@@ -125,7 +124,7 @@ export const AddClassFromTemplateDialog: React.FC<AddClassFromTemplateDialogProp
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
           
           {selectedTemplate && (
             <Card>

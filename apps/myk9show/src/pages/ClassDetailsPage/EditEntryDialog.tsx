@@ -7,6 +7,7 @@
 import { useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { FormField } from '@/components/common/FormField';
 import type { ShowEntry } from './types';
 
 interface Dog {
@@ -86,76 +87,76 @@ export function EditEntryDialog({
               <div className="space-y-3">
                 <h4 className="font-medium">Handler Information</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Handler Name</label>
+                  <FormField label="Handler Name" fieldId="handler">
                     <input
                       type="text"
+                      id="handler"
                       name="handler"
                       defaultValue={entry.registrationData?.handler || ''}
                       className="w-full px-3 py-2 border rounded-md text-sm"
                       placeholder="Handler name"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Armband</label>
+                  </FormField>
+                  <FormField label="Armband" fieldId="armband">
                     <input
                       type="text"
+                      id="armband"
                       name="armband"
                       defaultValue={entry.registrationData?.armband || ''}
                       className="w-full px-3 py-2 border rounded-md text-sm"
                       placeholder="A101"
                     />
-                  </div>
+                  </FormField>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Special Requests</label>
+                <FormField label="Special Requests" fieldId="specialRequests">
                   <textarea
+                    id="specialRequests"
                     name="specialRequests"
                     defaultValue={entry.registrationData?.specialRequests || ''}
                     className="w-full px-3 py-2 border rounded-md text-sm"
                     rows={2}
                     placeholder="Any special requests or notes"
                   />
-                </div>
+                </FormField>
               </div>
 
               {/* Results Section */}
               <div className="space-y-3">
                 <h4 className="font-medium">Competition Results</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Score</label>
+                  <FormField label="Score" fieldId="score">
                     <input
                       type="text"
+                      id="score"
                       name="score"
                       defaultValue={entry.competitionData?.score || ''}
                       className="w-full px-3 py-2 border rounded-md text-sm"
                       placeholder="85"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Time</label>
+                  </FormField>
+                  <FormField label="Time" fieldId="time">
                     <input
                       type="text"
+                      id="time"
                       name="time"
                       defaultValue={entry.competitionData?.time || ''}
                       className="w-full px-3 py-2 border rounded-md text-sm"
                       placeholder="2:45"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Placement</label>
+                  </FormField>
+                  <FormField label="Placement" fieldId="placement">
                     <input
                       type="text"
+                      id="placement"
                       name="placement"
                       defaultValue={entry.competitionData?.placement || ''}
                       className="w-full px-3 py-2 border rounded-md text-sm"
                       placeholder="1"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Status</label>
+                  </FormField>
+                  <FormField label="Status" fieldId="status">
                     <select
+                      id="status"
                       name="status"
                       defaultValue={entry.competitionData?.qualified ? 'Qualified' : 'Not Qualified'}
                       className="w-full px-3 py-2 border rounded-md text-sm"
@@ -165,18 +166,18 @@ export function EditEntryDialog({
                       <option value="Withdrawn">Withdrawn</option>
                       <option value="Absent">Absent</option>
                     </select>
-                  </div>
+                  </FormField>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Judge Notes</label>
+                <FormField label="Judge Notes" fieldId="judgeNotes">
                   <textarea
+                    id="judgeNotes"
                     name="judgeNotes"
                     defaultValue={entry.competitionData?.judgeNotes || ''}
                     className="w-full px-3 py-2 border rounded-md text-sm"
                     rows={2}
                     placeholder="Judge comments or notes"
                   />
-                </div>
+                </FormField>
               </div>
             </form>
           )}

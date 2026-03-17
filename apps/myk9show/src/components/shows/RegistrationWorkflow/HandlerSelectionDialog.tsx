@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -120,8 +120,11 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
                     )}
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`handler-${dogId}`}>Handler name</Label>
+                  <FormField
+                    label="Handler name"
+                    fieldId={`handler-${dogId}`}
+                    error={hasError && isEmpty ? 'Please enter a handler name' : undefined}
+                  >
                     <div className="flex gap-2">
                       <Input
                         id={`handler-${dogId}`}
@@ -131,7 +134,8 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
                           setHasError(false);
                         }}
                         placeholder="Enter handler name"
-                        className={hasError && isEmpty ? 'border-destructive' : ''}
+                        aria-invalid={hasError && isEmpty}
+                        aria-describedby={hasError && isEmpty ? `handler-${dogId}-error` : undefined}
                       />
                       {isModified && (
                         <Button
@@ -145,10 +149,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
                         </Button>
                       )}
                     </div>
-                    {hasError && isEmpty && (
-                      <p className="text-sm text-destructive">Handler name is required</p>
-                    )}
-                  </div>
+                  </FormField>
                 </CardContent>
               </Card>
             );

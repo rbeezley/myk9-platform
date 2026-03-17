@@ -11,6 +11,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Checkbox } from '../ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
@@ -215,8 +216,7 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
                   <Label htmlFor="includeMetadata">Include metadata and timestamps</Label>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="filename">Custom filename (optional)</Label>
+                <FormField label="Custom filename (optional)" fieldId="filename">
                   <Input
                     id="filename"
                     placeholder="Leave empty for auto-generated name"
@@ -236,15 +236,14 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
                       }
                     }}
                   />
-                </div>
+                </FormField>
 
                 {/* Date Range Filter */}
                 {(exportOptions.entities.includes('shows') || exportOptions.entities.includes('entries')) && (
                   <div className="space-y-2">
                     <Label>Date Range Filter (optional)</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="startDate" className="text-xs">Start Date</Label>
+                      <FormField label="Start Date" fieldId="startDate">
                         <Input
                           id="startDate"
                           type="date"
@@ -264,9 +263,8 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
                             }
                           }}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor="endDate" className="text-xs">End Date</Label>
+                      </FormField>
+                      <FormField label="End Date" fieldId="endDate">
                         <Input
                           id="endDate"
                           type="date"
@@ -289,7 +287,7 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
                             }
                           }}
                         />
-                      </div>
+                      </FormField>
                     </div>
                   </div>
                 )}

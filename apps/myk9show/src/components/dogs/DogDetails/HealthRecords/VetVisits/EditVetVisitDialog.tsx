@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
+import { FormField } from '@/components/common/FormField';
 import type { VetVisitRecord } from './AddVetVisitDialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -48,10 +49,9 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({ open, record, o
       saveLabel="Save"
     >
       <form id="edit-vet-visit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <label className="block mb-1 font-medium">Title <span className="text-red-500">*</span></label>
-          <Input type="text" value={""} onChange={e => setTitle(e.target.value)} required />
-        </div>
+        <FormField label="Title" fieldId="editVetVisitTitle" required>
+          <Input id="editVetVisitTitle" type="text" value={""} onChange={e => setTitle(e.target.value)} required />
+        </FormField>
         <div>
           <DatePickerField
             label="Date"
@@ -60,18 +60,15 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({ open, record, o
             required
           />
         </div>
-        <div>
-          <label className="block mb-1 font-medium">Vet Name <span className="text-red-500">*</span></label>
-          <Input type="text" value={""} onChange={e => setVetName(e.target.value)} required />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Clinic Name <span className="text-red-500">*</span></label>
-          <Input type="text" value={""} onChange={e => setClinicName(e.target.value)} required />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Notes <span className="text-red-500">*</span></label>
-          <Textarea value={""} onChange={e => setNotes(e.target.value)} required />
-        </div>
+        <FormField label="Vet Name" fieldId="editVetVisitVetName" required>
+          <Input id="editVetVisitVetName" type="text" value={""} onChange={e => setVetName(e.target.value)} required />
+        </FormField>
+        <FormField label="Clinic Name" fieldId="editVetVisitClinicName" required>
+          <Input id="editVetVisitClinicName" type="text" value={""} onChange={e => setClinicName(e.target.value)} required />
+        </FormField>
+        <FormField label="Notes" fieldId="editVetVisitNotes" required>
+          <Textarea id="editVetVisitNotes" value={""} onChange={e => setNotes(e.target.value)} required />
+        </FormField>
       </form>
     </StandardDialog>
   );

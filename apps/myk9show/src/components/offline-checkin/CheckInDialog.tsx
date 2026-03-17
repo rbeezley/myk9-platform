@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FormField } from '@/components/common/FormField';
 import {
   Dialog,
   DialogContent,
@@ -67,13 +68,12 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
           </div>
 
           {/* Status Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
+          <FormField label="Status" fieldId="checkin-status">
             <Select
               value={formState.checkInStatus}
               onValueChange={value => onFormStateChange({ checkInStatus: value as CheckInStatus })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="checkin-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -83,46 +83,46 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
                 <SelectItem value="pulled">Scratch</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
           {/* Additional Fields */}
           {formState.checkInStatus === 'pulled' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Scratch Reason</label>
+            <FormField label="Scratch Reason" fieldId="scratch-reason">
               <Textarea
+                id="scratch-reason"
                 value={formState.scratchReason}
                 onChange={e => onFormStateChange({ scratchReason: e.target.value })}
                 placeholder="Reason for scratching..."
               />
-            </div>
+            </FormField>
           )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Handler Change (Optional)</label>
+          <FormField label="Handler Change (Optional)" fieldId="handler-change">
             <Input
+              id="handler-change"
               value={formState.handlerChange}
               onChange={e => onFormStateChange({ handlerChange: e.target.value })}
               placeholder="New handler name..."
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Special Requests (Optional)</label>
+          <FormField label="Special Requests (Optional)" fieldId="special-requests">
             <Textarea
+              id="special-requests"
               value={formState.specialRequests}
               onChange={e => onFormStateChange({ specialRequests: e.target.value })}
               placeholder="Any special requests..."
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Notes (Optional)</label>
+          <FormField label="Notes (Optional)" fieldId="checkin-notes">
             <Textarea
+              id="checkin-notes"
               value={formState.notes}
               onChange={e => onFormStateChange({ notes: e.target.value })}
               placeholder="Additional notes..."
             />
-          </div>
+          </FormField>
         </div>
 
         <DialogFooter>

@@ -29,6 +29,7 @@ import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -136,26 +137,26 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 
     // Required fields
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = 'Please enter a first name';
     }
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'Please enter a last name';
     }
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Please enter an email address';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
 
     // Role validation
     if (formData.roles.length === 0) {
-      newErrors.roles = 'At least one role must be assigned';
+      newErrors.roles = 'Please select at least one role';
     }
 
     // Password validation (if custom password is used)
     if (!formData.generatePassword) {
       if (!formData.customPassword.trim()) {
-        newErrors.customPassword = 'Password is required when not auto-generating';
+        newErrors.customPassword = 'Please enter a password';
       } else if (formData.customPassword.length < 8) {
         newErrors.customPassword = 'Password must be at least 8 characters long';
       }
@@ -263,43 +264,36 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">First Name *</Label>
+                  <FormField label="First Name" fieldId="firstName" required error={errors.firstName}>
                     <Input
                       id="firstName"
                       value={formData.firstName}
                       onChange={e => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                      className={errors.firstName ? 'border-destructive' : ''}
+                      aria-invalid={!!errors.firstName}
+                      aria-describedby={errors.firstName ? 'firstName-error' : undefined}
                       placeholder="Enter first name"
                     />
-                    {errors.firstName && (
-                      <p className="text-xs text-destructive mt-1">{errors.firstName}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name *</Label>
+                  </FormField>
+                  <FormField label="Last Name" fieldId="lastName" required error={errors.lastName}>
                     <Input
                       id="lastName"
                       value={formData.lastName}
                       onChange={e => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                      className={errors.lastName ? 'border-destructive' : ''}
+                      aria-invalid={!!errors.lastName}
+                      aria-describedby={errors.lastName ? 'lastName-error' : undefined}
                       placeholder="Enter last name"
                     />
-                    {errors.lastName && (
-                      <p className="text-xs text-destructive mt-1">{errors.lastName}</p>
-                    )}
-                  </div>
+                  </FormField>
                 </div>
 
-                <div>
-                  <Label htmlFor="membershipId">Membership ID</Label>
+                <FormField label="Membership ID" fieldId="membershipId">
                   <Input
                     id="membershipId"
                     value={formData.membershipId}
                     onChange={e => setFormData(prev => ({ ...prev, membershipId: e.target.value }))}
                     placeholder="Optional membership identifier"
                   />
-                </div>
+                </FormField>
               </CardContent>
             </Card>
 
@@ -312,21 +306,19 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="email">Email Address *</Label>
+                <FormField label="Email Address" fieldId="email" required error={errors.email}>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className={errors.email ? 'border-destructive' : ''}
+                    aria-invalid={!!errors.email}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
                     placeholder="Enter email address"
                   />
-                  {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
-                </div>
+                </FormField>
 
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
+                <FormField label="Phone Number" fieldId="phone">
                   <Input
                     id="phone"
                     type="tel"
@@ -334,7 +326,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="Optional phone number"
                   />
-                </div>
+                </FormField>
               </CardContent>
             </Card>
 
@@ -347,55 +339,50 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="address">Street Address</Label>
+                <FormField label="Street Address" fieldId="address">
                   <Input
                     id="address"
                     value={formData.address}
                     onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
                     placeholder="Street address"
                   />
-                </div>
+                </FormField>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="city">City</Label>
+                  <FormField label="City" fieldId="city">
                     <Input
                       id="city"
                       value={formData.city}
                       onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
                       placeholder="City"
                     />
-                  </div>
-                  <div>
-                    <Label htmlFor="state">State/Province</Label>
+                  </FormField>
+                  <FormField label="State/Province" fieldId="state">
                     <Input
                       id="state"
                       value={formData.state}
                       onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
                       placeholder="State or province"
                     />
-                  </div>
-                  <div>
-                    <Label htmlFor="zipCode">ZIP/Postal Code</Label>
+                  </FormField>
+                  <FormField label="ZIP/Postal Code" fieldId="zipCode">
                     <Input
                       id="zipCode"
                       value={formData.zipCode}
                       onChange={e => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
                       placeholder="ZIP or postal code"
                     />
-                  </div>
+                  </FormField>
                 </div>
 
-                <div>
-                  <Label htmlFor="country">Country</Label>
+                <FormField label="Country" fieldId="country">
                   <Input
                     id="country"
                     value={formData.country}
                     onChange={e => setFormData(prev => ({ ...prev, country: e.target.value }))}
                     placeholder="Country"
                   />
-                </div>
+                </FormField>
               </CardContent>
             </Card>
 
@@ -518,8 +505,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 </div>
 
                 {!formData.generatePassword && (
-                  <div>
-                    <Label htmlFor="customPassword">Custom Password *</Label>
+                  <FormField label="Custom Password" fieldId="customPassword" required error={errors.customPassword}>
                     <div className="relative">
                       <Input
                         id="customPassword"
@@ -528,7 +514,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                         onChange={e =>
                           setFormData(prev => ({ ...prev, customPassword: e.target.value }))
                         }
-                        className={errors.customPassword ? 'border-destructive pr-10' : 'pr-10'}
+                        className="pr-10"
+                        aria-invalid={!!errors.customPassword}
+                        aria-describedby={errors.customPassword ? 'customPassword-error' : undefined}
                         placeholder="Enter secure password"
                       />
                       <Button
@@ -545,10 +533,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                         )}
                       </Button>
                     </div>
-                    {errors.customPassword && (
-                      <p className="text-xs text-destructive mt-1">{errors.customPassword}</p>
-                    )}
-                  </div>
+                  </FormField>
                 )}
 
                 <div className="flex items-center justify-between p-3 border rounded">

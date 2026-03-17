@@ -9,7 +9,7 @@ import {
 } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { FormField } from '@/components/common/FormField';
 import { useUserStore } from '@/store/userStore';
 import { useClubStore } from '@/store/clubStore';
 import { Club } from '@/types/club-types';
@@ -97,8 +97,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                <Label htmlFor="person-select">Select User</Label>
+              <FormField label="Select User" fieldId="person-select">
                 <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
                   <SelectTrigger id="person-select">
                     <SelectValue placeholder="Choose a person to add as member" />
@@ -120,7 +119,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             )}
           </div>
         </SheetBody>

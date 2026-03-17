@@ -60,7 +60,10 @@ export function useFormValidation<T extends Record<string, unknown>>(
     return visible;
   }, [validationErrors, touched, submitted]);
 
-  const hasChanges = JSON.stringify(data) !== JSON.stringify(initialDataRef.current);
+  const hasChanges = useMemo(
+    () => JSON.stringify(data) !== JSON.stringify(initialDataRef.current),
+    [data]
+  );
 
   const setValue = useCallback((field: keyof T, value: unknown) => {
     setData(prev => ({ ...prev, [field]: value }));

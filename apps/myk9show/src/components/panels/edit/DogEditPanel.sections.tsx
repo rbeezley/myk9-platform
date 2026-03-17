@@ -17,14 +17,9 @@ import {
 import { Dog, FileText, Camera, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
+import { findFieldError } from '@/lib/validation';
 import type { DogFormData } from './DogEditPanel.types';
 import { DogEditContext } from './DogEditPanel';
-
-/** Extract the error message for a specific field from the errors array. */
-function getFieldError(errors: string[], fieldKey: string): string | undefined {
-  const match = errors.find(e => e.toLowerCase().includes(fieldKey.toLowerCase()));
-  return match || undefined;
-}
 
 // ── Owner Selection Field (admin only) ──────────────────────────────
 
@@ -102,6 +97,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 }) => {
   const { data, updateData, errors } = useEditPanel<DogFormData>();
 
+  const callNameError = findFieldError(errors, 'call name');
+  const registeredNameError = findFieldError(errors, 'registered name');
+  const genderError = findFieldError(errors, 'gender');
+  const dobError = findFieldError(errors, 'date of birth');
+
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
       <CardHeader>
@@ -154,16 +154,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             label="Call Name"
             fieldId="callName"
             required
-            error={getFieldError(errors, 'call name')}
+            error={callNameError}
           >
             <Input
               id="callName"
               value={data.callName}
               onChange={handleInputChange('callName')}
               placeholder="Enter call name"
-              aria-invalid={!!getFieldError(errors, 'call name')}
-              aria-describedby={getFieldError(errors, 'call name') ? 'callName-error' : undefined}
-              className={cn(getFieldError(errors, 'call name') && 'border-destructive')}
+              aria-invalid={!!callNameError}
+              aria-describedby={callNameError ? 'callName-error' : undefined}
+              className={cn(callNameError && 'border-destructive')}
             />
           </FormField>
 
@@ -171,18 +171,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             label="Registered Name"
             fieldId="registeredName"
             required
-            error={getFieldError(errors, 'registered name')}
+            error={registeredNameError}
           >
             <Input
               id="registeredName"
               value={data.registeredName}
               onChange={handleInputChange('registeredName')}
               placeholder="Enter registered name"
-              aria-invalid={!!getFieldError(errors, 'registered name')}
-              aria-describedby={
-                getFieldError(errors, 'registered name') ? 'registeredName-error' : undefined
-              }
-              className={cn(getFieldError(errors, 'registered name') && 'border-destructive')}
+              aria-invalid={!!registeredNameError}
+              aria-describedby={registeredNameError ? 'registeredName-error' : undefined}
+              className={cn(registeredNameError && 'border-destructive')}
             />
           </FormField>
         </div>
@@ -192,13 +190,13 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             label="Gender"
             fieldId="gender"
             required
-            error={getFieldError(errors, 'gender')}
+            error={genderError}
           >
             <Select value={data.gender} onValueChange={handleSelectChange('gender')}>
               <SelectTrigger
-                aria-invalid={!!getFieldError(errors, 'gender')}
-                aria-describedby={getFieldError(errors, 'gender') ? 'gender-error' : undefined}
-                className={cn(getFieldError(errors, 'gender') && 'border-destructive')}
+                aria-invalid={!!genderError}
+                aria-describedby={genderError ? 'gender-error' : undefined}
+                className={cn(genderError && 'border-destructive')}
               >
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
@@ -213,18 +211,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             label="Date of Birth"
             fieldId="dateOfBirth"
             required
-            error={getFieldError(errors, 'date of birth')}
+            error={dobError}
           >
             <Input
               id="dateOfBirth"
               type="date"
               value={data.dateOfBirth}
               onChange={handleInputChange('dateOfBirth')}
-              aria-invalid={!!getFieldError(errors, 'date of birth')}
-              aria-describedby={
-                getFieldError(errors, 'date of birth') ? 'dateOfBirth-error' : undefined
-              }
-              className={cn(getFieldError(errors, 'date of birth') && 'border-destructive')}
+              aria-invalid={!!dobError}
+              aria-describedby={dobError ? 'dateOfBirth-error' : undefined}
+              className={cn(dobError && 'border-destructive')}
             />
           </FormField>
         </div>

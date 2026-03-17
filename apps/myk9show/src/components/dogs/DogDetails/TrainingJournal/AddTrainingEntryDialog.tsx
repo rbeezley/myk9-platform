@@ -121,7 +121,7 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({
             required
             aria-invalid={!!errors.title}
             aria-describedby={errors.title ? 'trainingTitle-error' : undefined}
-            className={errors.title ? 'border-red-500 focus-visible:ring-red-500' : ''}
+            className={errors.title ? 'border-destructive focus-visible:ring-destructive' : ''}
           />
         </FormField>
         <FormField label="Notes" fieldId="trainingNotes" required error={errors.notes}>
@@ -132,7 +132,7 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({
             required
             aria-invalid={!!errors.notes}
             aria-describedby={errors.notes ? 'trainingNotes-error' : undefined}
-            className={errors.notes ? 'border-red-500 focus-visible:ring-red-500' : ''}
+            className={errors.notes ? 'border-destructive focus-visible:ring-destructive' : ''}
           />
         </FormField>
         <FormField label="Date" fieldId="trainingDate" required error={errors.date}>

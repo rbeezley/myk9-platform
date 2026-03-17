@@ -57,7 +57,7 @@ const AddVaccinationDialog: React.FC<AddVaccinationDialogProps> = ({ open, onClo
       <form id="add-vaccination-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <RequiredLabel required>Vaccination</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setVaccination(e.target.value)} required className={formErrors.vaccination ? 'border-red-500' : ''} />
+          <Input type="text" value={""} onChange={e => setVaccination(e.target.value)} required className={formErrors.vaccination ? 'border-destructive' : ''} />
           {formErrors.vaccination && <div className="text-red-500 text-xs mt-1">{formErrors.vaccination}</div>}
         </div>
         <div>
@@ -82,7 +82,7 @@ const AddVaccinationDialog: React.FC<AddVaccinationDialogProps> = ({ open, onClo
         </div>
         <div>
           <RequiredLabel required>Veterinarian</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setVeterinarian(e.target.value)} required className={formErrors.vetName ? 'border-red-500' : ''} />
+          <Input type="text" value={""} onChange={e => setVeterinarian(e.target.value)} required className={formErrors.vetName ? 'border-destructive' : ''} />
           {formErrors.vetName && <div className="text-red-500 text-xs mt-1">{formErrors.vetName}</div>}
         </div>
       </form>

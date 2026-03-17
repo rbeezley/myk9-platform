@@ -200,6 +200,14 @@ export type ShowBasicInput = z.infer<typeof showSchemas.basic>;
 export type ShowTrialInput = z.infer<typeof showSchemas.trial>;
 export type ClubBasicInput = z.infer<typeof clubSchemas.basic>;
 
+/**
+ * Find the first error in a string[] that matches any of the given keywords (case-insensitive).
+ * Used by legacy EditPanelWrapper consumers that receive errors as string[].
+ */
+export function findFieldError(errors: string[], ...keywords: string[]): string | undefined {
+  return errors.find((e) => keywords.some((k) => e.toLowerCase().includes(k.toLowerCase())));
+}
+
 // Validation helper function
 export function validateField<T>(
   schema: z.ZodSchema<T>,

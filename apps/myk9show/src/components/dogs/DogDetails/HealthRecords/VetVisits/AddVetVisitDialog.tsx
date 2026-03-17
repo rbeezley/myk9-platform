@@ -62,7 +62,7 @@ const AddVetVisitDialog: React.FC<AddVetVisitDialogProps> = ({ open, onClose, on
       <form id="add-vet-visit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <RequiredLabel required>Title</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setTitle(e.target.value)} required className={formErrors.title ? 'border-red-500' : ''} />
+          <Input type="text" value={""} onChange={e => setTitle(e.target.value)} required className={formErrors.title ? 'border-destructive' : ''} />
           {formErrors.title && <div className="text-red-500 text-xs mt-1">{formErrors.title}</div>}
         </div>
         <div>
@@ -76,17 +76,17 @@ const AddVetVisitDialog: React.FC<AddVetVisitDialogProps> = ({ open, onClose, on
         </div>
         <div>
           <RequiredLabel required>Vet Name</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setVetName(e.target.value)} required className={formErrors.vetName ? 'border-red-500' : ''} />
+          <Input type="text" value={""} onChange={e => setVetName(e.target.value)} required className={formErrors.vetName ? 'border-destructive' : ''} />
           {formErrors.vetName && <div className="text-red-500 text-xs mt-1">{formErrors.vetName}</div>}
         </div>
         <div>
           <RequiredLabel required>Clinic Name</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setClinicName(e.target.value)} required className={formErrors.clinicName ? 'border-red-500' : ''} />
+          <Input type="text" value={""} onChange={e => setClinicName(e.target.value)} required className={formErrors.clinicName ? 'border-destructive' : ''} />
           {formErrors.clinicName && <div className="text-red-500 text-xs mt-1">{formErrors.clinicName}</div>}
         </div>
         <div>
           <RequiredLabel required>Notes</RequiredLabel>
-          <Textarea value={""} onChange={e => setNotes(e.target.value)} required className={formErrors.notes ? 'border-red-500' : ''} />
+          <Textarea value={""} onChange={e => setNotes(e.target.value)} required className={formErrors.notes ? 'border-destructive' : ''} />
           {formErrors.notes && <div className="text-red-500 text-xs mt-1">{formErrors.notes}</div>}
         </div>
       </form>

@@ -17,10 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Building, MapPin, Phone, Camera } from 'lucide-react';
-
-/** Extract the first validation error that matches any of the given keywords. */
-const findFieldError = (errors: string[], ...keywords: string[]): string | undefined =>
-  errors.find(e => keywords.some(k => e.toLowerCase().includes(k.toLowerCase())));
+import { findFieldError } from '@/lib/validation';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
@@ -156,6 +153,17 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
 // Form content component
 const ClubEditForm: React.FC = () => {
   const { data, updateData, errors } = useEditPanel<ClubEditFormData>();
+
+  // Pre-compute field errors
+  const clubNameError = findFieldError(errors, 'club name');
+  const emailError = findFieldError(errors, 'email');
+  const phoneError = findFieldError(errors, 'phone');
+  const websiteError = findFieldError(errors, 'website', 'URL');
+  const streetError = findFieldError(errors, 'street');
+  const cityError = findFieldError(errors, 'city');
+  const stateError = findFieldError(errors, 'state');
+  const zipError = findFieldError(errors, 'zip');
+  const countryError = findFieldError(errors, 'country');
 
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -310,15 +318,15 @@ const ClubEditForm: React.FC = () => {
                   label="Club Name"
                   fieldId="name"
                   required
-                  error={findFieldError(errors, 'club name')}
+                  error={clubNameError}
                 >
                   <Input
                     id="name"
                     value={data.name}
                     onChange={handleInputChange('name')}
                     placeholder="Enter club name"
-                    aria-invalid={!!findFieldError(errors, 'club name')}
-                    aria-describedby="name-error"
+                    aria-invalid={!!clubNameError}
+                    aria-describedby={clubNameError ? 'name-error' : undefined}
                   />
                 </FormField>
 
@@ -401,7 +409,7 @@ const ClubEditForm: React.FC = () => {
                   label="Email Address"
                   fieldId="email"
                   required
-                  error={findFieldError(errors, 'email')}
+                  error={emailError}
                 >
                   <Input
                     id="email"
@@ -409,8 +417,8 @@ const ClubEditForm: React.FC = () => {
                     value={data.email}
                     onChange={handleInputChange('email')}
                     placeholder="Enter email address"
-                    aria-invalid={!!findFieldError(errors, 'email')}
-                    aria-describedby="email-error"
+                    aria-invalid={!!emailError}
+                    aria-describedby={emailError ? 'email-error' : undefined}
                   />
                 </FormField>
 
@@ -418,7 +426,7 @@ const ClubEditForm: React.FC = () => {
                   label="Phone Number"
                   fieldId="phone"
                   required
-                  error={findFieldError(errors, 'phone')}
+                  error={phoneError}
                 >
                   <Input
                     id="phone"
@@ -426,8 +434,8 @@ const ClubEditForm: React.FC = () => {
                     value={data.phone}
                     onChange={handleInputChange('phone')}
                     placeholder="Enter phone number"
-                    aria-invalid={!!findFieldError(errors, 'phone')}
-                    aria-describedby="phone-error"
+                    aria-invalid={!!phoneError}
+                    aria-describedby={phoneError ? 'phone-error' : undefined}
                   />
                 </FormField>
               </div>
@@ -435,7 +443,7 @@ const ClubEditForm: React.FC = () => {
               <FormField
                 label="Website"
                 fieldId="website"
-                error={findFieldError(errors, 'website', 'URL')}
+                error={websiteError}
               >
                 <Input
                   id="website"
@@ -443,8 +451,8 @@ const ClubEditForm: React.FC = () => {
                   value={data.website}
                   onChange={handleInputChange('website')}
                   placeholder="https://www.clubwebsite.com"
-                  aria-invalid={!!findFieldError(errors, 'website', 'URL')}
-                  aria-describedby="website-error"
+                  aria-invalid={!!websiteError}
+                  aria-describedby={websiteError ? 'website-error' : undefined}
                 />
               </FormField>
 
@@ -460,15 +468,15 @@ const ClubEditForm: React.FC = () => {
                   label="Street Address"
                   fieldId="street"
                   required
-                  error={findFieldError(errors, 'street')}
+                  error={streetError}
                 >
                   <Input
                     id="street"
                     value={data.street}
                     onChange={handleInputChange('street')}
                     placeholder="123 Main Street"
-                    aria-invalid={!!findFieldError(errors, 'street')}
-                    aria-describedby="street-error"
+                    aria-invalid={!!streetError}
+                    aria-describedby={streetError ? 'street-error' : undefined}
                   />
                 </FormField>
 
@@ -477,15 +485,15 @@ const ClubEditForm: React.FC = () => {
                     label="City"
                     fieldId="city"
                     required
-                    error={findFieldError(errors, 'city')}
+                    error={cityError}
                   >
                     <Input
                       id="city"
                       value={data.city}
                       onChange={handleInputChange('city')}
                       placeholder="Enter city"
-                      aria-invalid={!!findFieldError(errors, 'city')}
-                      aria-describedby="city-error"
+                      aria-invalid={!!cityError}
+                      aria-describedby={cityError ? 'city-error' : undefined}
                     />
                   </FormField>
 
@@ -493,15 +501,15 @@ const ClubEditForm: React.FC = () => {
                     label="State/Province"
                     fieldId="state"
                     required
-                    error={findFieldError(errors, 'state')}
+                    error={stateError}
                   >
                     <Input
                       id="state"
                       value={data.state}
                       onChange={handleInputChange('state')}
                       placeholder="Enter state"
-                      aria-invalid={!!findFieldError(errors, 'state')}
-                      aria-describedby="state-error"
+                      aria-invalid={!!stateError}
+                      aria-describedby={stateError ? 'state-error' : undefined}
                     />
                   </FormField>
 
@@ -509,15 +517,15 @@ const ClubEditForm: React.FC = () => {
                     label="ZIP Code"
                     fieldId="zipCode"
                     required
-                    error={findFieldError(errors, 'zip')}
+                    error={zipError}
                   >
                     <Input
                       id="zipCode"
                       value={data.zipCode}
                       onChange={handleInputChange('zipCode')}
                       placeholder="12345"
-                      aria-invalid={!!findFieldError(errors, 'zip')}
-                      aria-describedby="zipCode-error"
+                      aria-invalid={!!zipError}
+                      aria-describedby={zipError ? 'zipCode-error' : undefined}
                     />
                   </FormField>
                 </div>
@@ -526,13 +534,13 @@ const ClubEditForm: React.FC = () => {
                   label="Country"
                   fieldId="country"
                   required
-                  error={findFieldError(errors, 'country')}
+                  error={countryError}
                 >
                   <Select value={data.country} onValueChange={handleSelectChange('country')}>
                     <SelectTrigger
                       id="country"
-                      aria-invalid={!!findFieldError(errors, 'country')}
-                      aria-describedby="country-error"
+                      aria-invalid={!!countryError}
+                      aria-describedby={countryError ? 'country-error' : undefined}
                     >
                       <SelectValue placeholder="Select country" />
                     </SelectTrigger>

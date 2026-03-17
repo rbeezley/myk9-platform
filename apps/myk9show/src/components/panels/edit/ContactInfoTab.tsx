@@ -4,11 +4,8 @@ import { FormField } from '@/components/common/FormField';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Phone, MapPin } from 'lucide-react';
+import { findFieldError } from '@/lib/validation';
 import type { UserFormData } from './UserEditPanel.types';
-
-/** Extract the first validation error that matches any of the given keywords. */
-const findFieldError = (errors: string[], ...keywords: string[]): string | undefined =>
-  errors.find(e => keywords.some(k => e.toLowerCase().includes(k.toLowerCase())));
 
 interface ContactInfoTabProps {
   data: UserFormData;
@@ -30,6 +27,12 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
     [updateData]
   );
 
+  const phoneError = findFieldError(errors, 'phone');
+  const addressError = findFieldError(errors, 'address');
+  const cityError = findFieldError(errors, 'city');
+  const stateError = findFieldError(errors, 'state');
+  const zipError = findFieldError(errors, 'zip');
+
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
       <CardHeader>
@@ -39,15 +42,15 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <FormField label="Phone Number" fieldId="phone" error={findFieldError(errors, 'phone')}>
+        <FormField label="Phone Number" fieldId="phone" error={phoneError}>
           <Input
             id="phone"
             type="tel"
             value={data.phone}
             onChange={handleInputChange('phone')}
             placeholder="Enter phone number"
-            aria-invalid={!!findFieldError(errors, 'phone')}
-            aria-describedby="phone-error"
+            aria-invalid={!!phoneError}
+            aria-describedby={phoneError ? 'phone-error' : undefined}
           />
         </FormField>
 
@@ -62,49 +65,49 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
           <FormField
             label="Street Address"
             fieldId="address"
-            error={findFieldError(errors, 'address')}
+            error={addressError}
           >
             <Input
               id="address"
               value={data.address}
               onChange={handleInputChange('address')}
               placeholder="Enter street address"
-              aria-invalid={!!findFieldError(errors, 'address')}
-              aria-describedby="address-error"
+              aria-invalid={!!addressError}
+              aria-describedby={addressError ? 'address-error' : undefined}
             />
           </FormField>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormField label="City" fieldId="city" error={findFieldError(errors, 'city')}>
+            <FormField label="City" fieldId="city" error={cityError}>
               <Input
                 id="city"
                 value={data.city}
                 onChange={handleInputChange('city')}
                 placeholder="Enter city"
-                aria-invalid={!!findFieldError(errors, 'city')}
-                aria-describedby="city-error"
+                aria-invalid={!!cityError}
+                aria-describedby={cityError ? 'city-error' : undefined}
               />
             </FormField>
 
-            <FormField label="State" fieldId="state" error={findFieldError(errors, 'state')}>
+            <FormField label="State" fieldId="state" error={stateError}>
               <Input
                 id="state"
                 value={data.state}
                 onChange={handleInputChange('state')}
                 placeholder="Enter state"
-                aria-invalid={!!findFieldError(errors, 'state')}
-                aria-describedby="state-error"
+                aria-invalid={!!stateError}
+                aria-describedby={stateError ? 'state-error' : undefined}
               />
             </FormField>
 
-            <FormField label="ZIP Code" fieldId="zipCode" error={findFieldError(errors, 'zip')}>
+            <FormField label="ZIP Code" fieldId="zipCode" error={zipError}>
               <Input
                 id="zipCode"
                 value={data.zipCode}
                 onChange={handleInputChange('zipCode')}
                 placeholder="Enter ZIP code"
-                aria-invalid={!!findFieldError(errors, 'zip')}
-                aria-describedby="zipCode-error"
+                aria-invalid={!!zipError}
+                aria-describedby={zipError ? 'zipCode-error' : undefined}
               />
             </FormField>
           </div>

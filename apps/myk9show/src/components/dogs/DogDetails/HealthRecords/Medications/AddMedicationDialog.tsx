@@ -85,7 +85,7 @@ const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({ open, onClose
               required
               aria-invalid={!!formErrors.name}
               aria-describedby={formErrors.name ? 'medicationName-error' : undefined}
-              className={formErrors.name ? 'border-red-500' : ''}
+              className={formErrors.name ? 'border-destructive' : ''}
             />
           </FormField>
           <FormField label="Dosage" fieldId="dosage" required error={formErrors.dosage}>
@@ -96,7 +96,7 @@ const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({ open, onClose
               required
               aria-invalid={!!formErrors.dosage}
               aria-describedby={formErrors.dosage ? 'dosage-error' : undefined}
-              className={formErrors.dosage ? 'border-red-500' : ''}
+              className={formErrors.dosage ? 'border-destructive' : ''}
             />
           </FormField>
           <FormField label="Frequency" fieldId="frequency">

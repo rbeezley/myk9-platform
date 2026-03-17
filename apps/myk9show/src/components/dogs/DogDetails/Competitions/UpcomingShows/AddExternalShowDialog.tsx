@@ -110,6 +110,11 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
 
   if (!form) return null;
 
+  const nameError = getFieldError('name');
+  const dateError = getFieldError('date');
+  const locationError = getFieldError('location');
+  const statusError = getFieldError('status');
+
   return (
     <StandardDialog
       open={open}
@@ -128,7 +133,7 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
           label="Competition Name"
           fieldId="competitionName"
           required
-          error={getFieldError('name')}
+          error={nameError}
         >
           <Input
             id="competitionName"
@@ -137,13 +142,13 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
             onChange={handleChange}
             onBlur={handleBlur}
             required
-            aria-invalid={!!getFieldError('name')}
-            aria-describedby={getFieldError('name') ? 'competitionName-error' : undefined}
-            className={getFieldError('name') ? 'border-red-500 focus:ring-red-300' : ''}
+            aria-invalid={!!nameError}
+            aria-describedby={nameError ? 'competitionName-error' : undefined}
+            className={nameError ? 'border-destructive focus-visible:ring-destructive' : ''}
           />
         </FormField>
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="Date" fieldId="competitionDate" required error={getFieldError('date')}>
+          <FormField label="Date" fieldId="competitionDate" required error={dateError}>
             <Input
               id="competitionDate"
               name="date"
@@ -152,16 +157,16 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
               onChange={handleChange}
               onBlur={handleBlur}
               required
-              aria-invalid={!!getFieldError('date')}
-              aria-describedby={getFieldError('date') ? 'competitionDate-error' : undefined}
-              className={getFieldError('date') ? 'border-red-500 focus:ring-red-300' : ''}
+              aria-invalid={!!dateError}
+              aria-describedby={dateError ? 'competitionDate-error' : undefined}
+              className={dateError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
           </FormField>
           <FormField
             label="Location"
             fieldId="competitionLocation"
             required
-            error={getFieldError('location')}
+            error={locationError}
           >
             <Input
               id="competitionLocation"
@@ -170,9 +175,9 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
               onChange={handleChange}
               onBlur={handleBlur}
               required
-              aria-invalid={!!getFieldError('location')}
-              aria-describedby={getFieldError('location') ? 'competitionLocation-error' : undefined}
-              className={getFieldError('location') ? 'border-red-500 focus:ring-red-300' : ''}
+              aria-invalid={!!locationError}
+              aria-describedby={locationError ? 'competitionLocation-error' : undefined}
+              className={locationError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
           </FormField>
         </div>
@@ -180,7 +185,7 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
           label="Status"
           fieldId="competitionStatus"
           required
-          error={getFieldError('status')}
+          error={statusError}
         >
           <Select
             value={''}
@@ -191,9 +196,9 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
             required
           >
             <SelectTrigger
-              aria-invalid={!!getFieldError('status')}
-              aria-describedby={getFieldError('status') ? 'competitionStatus-error' : undefined}
-              className={getFieldError('status') ? 'border-red-500 focus:ring-red-300' : ''}
+              aria-invalid={!!statusError}
+              aria-describedby={statusError ? 'competitionStatus-error' : undefined}
+              className={statusError ? 'border-destructive focus-visible:ring-destructive' : ''}
             >
               <SelectValue placeholder="Select status" />
             </SelectTrigger>

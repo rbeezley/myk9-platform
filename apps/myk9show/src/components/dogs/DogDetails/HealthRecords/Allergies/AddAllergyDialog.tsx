@@ -49,12 +49,12 @@ const AddAllergyDialog: React.FC<AddAllergyDialogProps> = ({ open, onClose, onAd
       <form id="add-allergy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <RequiredLabel required>Allergy Name</RequiredLabel>
-          <Input type="text" value={""} onChange={e => setName(e.target.value)} required className={formErrors.name ? 'border-red-500' : ''} />
+          <Input type="text" value={""} onChange={e => setName(e.target.value)} required className={formErrors.name ? 'border-destructive' : ''} />
           {formErrors.name && <div className="text-red-500 text-xs mt-1">{formErrors.name}</div>}
         </div>
         <div>
           <RequiredLabel required>Description</RequiredLabel>
-          <Textarea value={""} onChange={e => setDescription(e.target.value)} required className={formErrors.description ? 'border-red-500' : ''} />
+          <Textarea value={""} onChange={e => setDescription(e.target.value)} required className={formErrors.description ? 'border-destructive' : ''} />
           {formErrors.description && <div className="text-red-500 text-xs mt-1">{formErrors.description}</div>}
         </div>
       </form>

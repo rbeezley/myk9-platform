@@ -10,11 +10,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/services/database/supabaseClient';
+import { findFieldError } from '@/lib/validation';
 import type { UserFormData } from './UserEditPanel.types';
-
-/** Extract the first validation error that matches any of the given keywords. */
-const findFieldError = (errors: string[], ...keywords: string[]): string | undefined =>
-  errors.find(e => keywords.some(k => e.toLowerCase().includes(k.toLowerCase())));
 
 /** Fetch role names for a person (people.id) from user_roles table */
 function usePersonRoleNames(personId?: string) {
@@ -73,6 +70,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     [updateData]
   );
 
+  const firstNameError = findFieldError(errors, 'first name');
+  const lastNameError = findFieldError(errors, 'last name');
+  const emailError = findFieldError(errors, 'email');
+
   return (
     <div className="space-y-6">
       {/* Profile Picture */}
@@ -110,7 +111,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           label="First Name"
           fieldId="firstName"
           required
-          error={findFieldError(errors, 'first name')}
+          error={firstNameError}
         >
           <Input
             id="firstName"
@@ -118,15 +119,15 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             onChange={handleInputChange('firstName')}
             placeholder="Enter first name"
             name="firstName"
-            aria-invalid={!!findFieldError(errors, 'first name')}
-            aria-describedby="firstName-error"
+            aria-invalid={!!firstNameError}
+            aria-describedby={firstNameError ? 'firstName-error' : undefined}
           />
         </FormField>
         <FormField
           label="Last Name"
           fieldId="lastName"
           required
-          error={findFieldError(errors, 'last name')}
+          error={lastNameError}
         >
           <Input
             id="lastName"
@@ -134,8 +135,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             onChange={handleInputChange('lastName')}
             placeholder="Enter last name"
             name="lastName"
-            aria-invalid={!!findFieldError(errors, 'last name')}
-            aria-describedby="lastName-error"
+            aria-invalid={!!lastNameError}
+            aria-describedby={lastNameError ? 'lastName-error' : undefined}
           />
         </FormField>
       </div>
@@ -145,7 +146,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         label="Email Address"
         fieldId="email"
         required
-        error={findFieldError(errors, 'email')}
+        error={emailError}
       >
         <Input
           id="email"
@@ -154,8 +155,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           onChange={handleInputChange('email')}
           placeholder="Enter email address"
           name="email"
-          aria-invalid={!!findFieldError(errors, 'email')}
-          aria-describedby="email-error"
+          aria-invalid={!!emailError}
+          aria-describedby={emailError ? 'email-error' : undefined}
         />
       </FormField>
 

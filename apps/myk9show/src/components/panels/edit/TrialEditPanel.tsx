@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +20,8 @@ import { format } from 'date-fns';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
+import { FormField } from '@/components/common/FormField';
+import { findFieldError } from '@/lib/validation';
 
 interface TrialEditPanelProps {
   open: boolean;
@@ -57,33 +58,33 @@ const validateTrialData = (data: TrialEditFormData): string[] | null => {
   const errors: string[] = [];
 
   if (!data.name?.trim()) {
-    errors.push('Trial name is required');
+    errors.push('Please enter a trial name');
   }
 
   if (!data.trialNumber?.trim()) {
-    errors.push('Trial number is required');
+    errors.push('Please enter a trial number');
   }
 
   if (!data.trialDate?.trim()) {
-    errors.push('Trial date is required');
+    errors.push('Please select a trial date');
   }
 
   if (!data.status?.trim()) {
-    errors.push('Status is required');
+    errors.push('Please select a status');
   }
 
   if (!data.eventNumber?.trim()) {
-    errors.push('Event number is required');
+    errors.push('Please enter an event number');
   }
 
   if (!data.plannedStartTime?.trim()) {
-    errors.push('Planned start time is required');
+    errors.push('Please enter a planned start time');
   }
 
   if (!data.order?.trim()) {
-    errors.push('Order is required');
+    errors.push('Please enter a display order');
   } else if (isNaN(parseInt(data.order))) {
-    errors.push('Order must be a valid number');
+    errors.push('Please enter a valid number for display order');
   }
 
   // Validate time format for planned start time (basic validation)
@@ -91,7 +92,7 @@ const validateTrialData = (data: TrialEditFormData): string[] | null => {
     data.plannedStartTime &&
     !/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i.test(data.plannedStartTime.trim())
   ) {
-    errors.push('Planned start time should be in format "9:00 AM" or "2:30 PM"');
+    errors.push('Please enter a valid start time (e.g., 9:00 AM or 2:30 PM)');
   }
 
   return errors.length > 0 ? errors : null;
@@ -172,6 +173,15 @@ const TrialEditForm: React.FC = () => {
     [updateData]
   );
 
+  // Pre-compute field errors
+  const nameError = findFieldError(errors, 'trial name');
+  const trialNumberError = findFieldError(errors, 'trial number');
+  const eventNumberError = findFieldError(errors, 'event number');
+  const statusError = findFieldError(errors, 'status');
+  const trialDateError = findFieldError(errors, 'trial date');
+  const orderError = findFieldError(errors, 'display order', 'valid number');
+  const startTimeError = findFieldError(errors, 'start time');
+
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
@@ -212,30 +222,25 @@ const TrialEditForm: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="name"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Trial Name *
-                </Label>
+              <FormField label="Trial Name" fieldId="name" required error={nameError}>
                 <Input
                   id="name"
                   value={data.name}
                   onChange={handleInputChange('name')}
                   placeholder="Enter trial name (e.g., Scent Work, Agility, Obedience)"
-                  className={cn(errors.some(e => e.includes('Trial name')) && 'border-destructive')}
+                  className={cn(nameError && 'border-destructive')}
+                  aria-invalid={!!nameError}
+                  aria-describedby={nameError ? 'name-error' : undefined}
                 />
-              </div>
+              </FormField>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="trialNumber"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Trial Number *
-                  </Label>
+                <FormField
+                  label="Trial Number"
+                  fieldId="trialNumber"
+                  required
+                  error={trialNumberError}
+                >
                   <Input
                     id="trialNumber"
                     type="number"
@@ -244,41 +249,32 @@ const TrialEditForm: React.FC = () => {
                     value={data.trialNumber}
                     onChange={handleInputChange('trialNumber')}
                     placeholder="1"
-                    className={cn(
-                      errors.some(e => e.includes('Trial number')) && 'border-destructive'
-                    )}
+                    className={cn(trialNumberError && 'border-destructive')}
+                    aria-invalid={!!trialNumberError}
+                    aria-describedby={trialNumberError ? 'trialNumber-error' : undefined}
                   />
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="eventNumber"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Event Number
-                  </Label>
+                <FormField label="Event Number" fieldId="eventNumber" error={eventNumberError}>
                   <Input
                     id="eventNumber"
                     value={data.eventNumber}
                     onChange={handleInputChange('eventNumber')}
                     placeholder="Assigned by organization"
+                    className={cn(eventNumberError && 'border-destructive')}
+                    aria-invalid={!!eventNumberError}
+                    aria-describedby={eventNumberError ? 'eventNumber-error' : undefined}
                   />
-                </div>
+                </FormField>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="type"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Trial Type
-                  </Label>
+                <FormField label="Trial Type" fieldId="trialType">
                   <Select
                     value={data.trialType || ''}
                     onValueChange={handleSelectChange('trialType')}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="trialType">
                       <SelectValue placeholder="Select trial type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -290,18 +286,15 @@ const TrialEditForm: React.FC = () => {
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="status"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Status *
-                  </Label>
+                <FormField label="Status" fieldId="status" required error={statusError}>
                   <Select value={data.status} onValueChange={handleSelectChange('status')}>
                     <SelectTrigger
-                      className={cn(errors.some(e => e.includes('Status')) && 'border-destructive')}
+                      id="status"
+                      className={cn(statusError && 'border-destructive')}
+                      aria-invalid={!!statusError}
+                      aria-describedby={statusError ? 'status-error' : undefined}
                     >
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -312,7 +305,7 @@ const TrialEditForm: React.FC = () => {
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
               </div>
             </CardContent>
           </Card>
@@ -332,22 +325,19 @@ const TrialEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="trialDate"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Trial Date *
-                  </Label>
+                <FormField label="Trial Date" fieldId="trialDate" required error={trialDateError}>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        id="trialDate"
                         variant="outline"
                         className={cn(
                           'w-full justify-start text-left font-normal',
                           !selectedDate && 'text-muted-foreground',
-                          errors.some(e => e.includes('Trial date')) && 'border-destructive'
+                          trialDateError && 'border-destructive'
                         )}
+                        aria-invalid={!!trialDateError}
+                        aria-describedby={trialDateError ? 'trialDate-error' : undefined}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {selectedDate ? format(selectedDate, 'PPP') : <span>Pick a date</span>}
@@ -362,15 +352,9 @@ const TrialEditForm: React.FC = () => {
                       />
                     </PopoverContent>
                   </Popover>
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="order"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Display Order *
-                  </Label>
+                <FormField label="Display Order" fieldId="order" required error={orderError}>
                   <Input
                     id="order"
                     type="number"
@@ -378,26 +362,29 @@ const TrialEditForm: React.FC = () => {
                     onChange={handleInputChange('order')}
                     placeholder="Display order"
                     min="1"
-                    className={cn(errors.some(e => e.includes('Order')) && 'border-destructive')}
+                    className={cn(orderError && 'border-destructive')}
+                    aria-invalid={!!orderError}
+                    aria-describedby={orderError ? 'order-error' : undefined}
                   />
-                </div>
+                </FormField>
               </div>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="plannedStartTime"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Planned Start Time *
-                </Label>
+              <FormField
+                label="Planned Start Time"
+                fieldId="plannedStartTime"
+                required
+                error={startTimeError}
+              >
                 <Input
                   id="plannedStartTime"
                   value={data.plannedStartTime}
                   onChange={handleInputChange('plannedStartTime')}
                   placeholder="e.g., 09:00 AM"
-                  className={cn(errors.some(e => e.includes('start time')) && 'border-destructive')}
+                  className={cn(startTimeError && 'border-destructive')}
+                  aria-invalid={!!startTimeError}
+                  aria-describedby={startTimeError ? 'plannedStartTime-error' : undefined}
                 />
-              </div>
+              </FormField>
 
               <Separator />
 
@@ -407,35 +394,23 @@ const TrialEditForm: React.FC = () => {
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="timeStarted"
-                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                    >
-                      Time Started
-                    </Label>
+                  <FormField label="Time Started" fieldId="timeStarted">
                     <Input
                       id="timeStarted"
                       value={data.timeStarted || ''}
                       onChange={handleInputChange('timeStarted')}
                       placeholder="e.g., 09:15 AM"
                     />
-                  </div>
+                  </FormField>
 
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="timeEnded"
-                      className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                    >
-                      Time Ended
-                    </Label>
+                  <FormField label="Time Ended" fieldId="timeEnded">
                     <Input
                       id="timeEnded"
                       value={data.timeEnded || ''}
                       onChange={handleInputChange('timeEnded')}
                       placeholder="e.g., 12:30 PM"
                     />
-                  </div>
+                  </FormField>
                 </div>
               </div>
             </CardContent>
@@ -455,46 +430,33 @@ const TrialEditForm: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="type"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Category
-                </Label>
+              <FormField label="Category" fieldId="type">
                 <Input
                   id="type"
                   value={data.type || ''}
                   onChange={handleInputChange('type')}
                   placeholder="Trial category or classification"
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="image"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Image URL
-                </Label>
+              <FormField
+                label="Image URL"
+                fieldId="image"
+                hint="Optional image to display with this trial"
+              >
                 <Input
                   id="image"
                   value={data.image || ''}
                   onChange={handleInputChange('image')}
                   placeholder="https://example.com/trial-image.jpg"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Optional image to display with this trial
-                </p>
-              </div>
+              </FormField>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="showId"
-                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                >
-                  Show ID
-                </Label>
+              <FormField
+                label="Show ID"
+                fieldId="showId"
+                hint="The show this trial belongs to (read-only)"
+              >
                 <Input
                   id="showId"
                   value={data.showId}
@@ -503,10 +465,7 @@ const TrialEditForm: React.FC = () => {
                   className="bg-muted text-muted-foreground"
                   disabled
                 />
-                <p className="text-xs text-muted-foreground">
-                  The show this trial belongs to (read-only)
-                </p>
-              </div>
+              </FormField>
             </CardContent>
           </Card>
         </TabsContent>

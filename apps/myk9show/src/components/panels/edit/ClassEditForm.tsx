@@ -18,6 +18,8 @@ import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
 import { useClassRequirements } from '@/hooks/useClassRequirements';
 import { cn } from '@/lib/utils';
+import { FormField } from '@/components/common/FormField';
+import { findFieldError } from '@/lib/validation';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
 import type { ClassEditFormData } from './ClassEditPanel.types';
 
@@ -60,6 +62,9 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
   const { data, updateData, errors } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
+
+  const preEntryFeeError = findFieldError(errors, 'pre-entry fee');
+  const dayOfShowFeeError = findFieldError(errors, 'day of show fee');
 
   const assignedJudges = useMemo(() => {
     if (!showId) return [];
@@ -134,43 +139,29 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Element *
-                  </Label>
-                  <Input value={data.element} className="bg-muted text-muted-foreground" readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Level *
-                  </Label>
-                  <Input value={data.level} className="bg-muted text-muted-foreground" readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Section
-                  </Label>
-                  <Input value={data.section} className="bg-muted text-muted-foreground" readOnly />
-                </div>
+                <FormField label="Element" fieldId="element" required>
+                  <Input id="element" value={data.element} className="bg-muted text-muted-foreground" readOnly />
+                </FormField>
+                <FormField label="Level" fieldId="level" required>
+                  <Input id="level" value={data.level} className="bg-muted text-muted-foreground" readOnly />
+                </FormField>
+                <FormField label="Section" fieldId="section">
+                  <Input id="section" value={data.section} className="bg-muted text-muted-foreground" readOnly />
+                </FormField>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Class Order
-                  </Label>
+                <FormField label="Class Order" fieldId="classOrder">
                   <Input
+                    id="classOrder"
                     value={data.classOrder}
                     onChange={handleInputChange('classOrder')}
                     placeholder="Enter order number"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Status
-                  </Label>
+                </FormField>
+                <FormField label="Status" fieldId="classStatus">
                   <Select value={data.status} onValueChange={handleSelectChange('status')}>
-                    <SelectTrigger>
+                    <SelectTrigger id="classStatus">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -180,7 +171,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                       <SelectItem value="Cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
               </div>
             </CardContent>
           </Card>
@@ -266,12 +257,9 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                    Judge
-                  </Label>
+                <FormField label="Judge" fieldId="judge">
                   <Select value={data.judge || ''} onValueChange={handleSelectChange('judge')}>
-                    <SelectTrigger>
+                    <SelectTrigger id="judge">
                       <SelectValue placeholder="Select a judge" />
                     </SelectTrigger>
                     <SelectContent>
@@ -289,7 +277,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                       <SelectItem value="TBD">TBD</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
 
                 {/* Steward positions */}
                 {[
@@ -300,15 +288,12 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   { field: 'ringSteward2', label: 'Ring Steward 2' },
                   { field: 'ringSteward3', label: 'Ring Steward 3' },
                 ].map(({ field, label }) => (
-                  <div key={field} className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                      {label}
-                    </Label>
+                  <FormField key={field} label={label} fieldId={field}>
                     <Select
                       value={((data as Record<string, unknown>)[field] as string) || 'none'}
                       onValueChange={handleSelectChange(field as keyof ClassEditFormData)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id={field}>
                         <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
                       </SelectTrigger>
                       <SelectContent>
@@ -323,7 +308,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
+                  </FormField>
                 ))}
               </div>
             </CardContent>
@@ -369,39 +354,43 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                      Pre Entry Fee ($)
-                    </Label>
+                  <FormField
+                    label="Pre Entry Fee ($)"
+                    fieldId="preEntryFee"
+                    error={preEntryFeeError}
+                  >
                     <Input
+                      id="preEntryFee"
                       type="number"
                       value={data.preEntryFee || ''}
                       onChange={handleInputChange('preEntryFee')}
                       placeholder="Enter pre entry fee"
                       min="0"
                       step="0.01"
-                      className={cn(
-                        errors.some(e => e.includes('Pre-entry fee')) && 'border-destructive'
-                      )}
+                      className={cn(preEntryFeeError && 'border-destructive')}
+                      aria-invalid={!!preEntryFeeError}
+                      aria-describedby={preEntryFeeError ? 'preEntryFee-error' : undefined}
                     />
-                  </div>
+                  </FormField>
 
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                      Day of Show Fee ($)
-                    </Label>
+                  <FormField
+                    label="Day of Show Fee ($)"
+                    fieldId="dayOfShowFee"
+                    error={dayOfShowFeeError}
+                  >
                     <Input
+                      id="dayOfShowFee"
                       type="number"
                       value={data.dayOfShowFee || ''}
                       onChange={handleInputChange('dayOfShowFee')}
                       placeholder="Enter day of show fee"
                       min="0"
                       step="0.01"
-                      className={cn(
-                        errors.some(e => e.includes('Day of show fee')) && 'border-destructive'
-                      )}
+                      className={cn(dayOfShowFeeError && 'border-destructive')}
+                      aria-invalid={!!dayOfShowFeeError}
+                      aria-describedby={dayOfShowFeeError ? 'dayOfShowFee-error' : undefined}
                     />
-                  </div>
+                  </FormField>
                 </div>
               </div>
             </CardContent>

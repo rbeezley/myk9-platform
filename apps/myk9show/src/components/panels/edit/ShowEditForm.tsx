@@ -7,7 +7,6 @@
 
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useEditPanel } from './useEditPanel';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -19,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Users, UserCheck, DollarSign } from 'lucide-react';
+import { FormField } from '@/components/common/FormField';
 import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -205,13 +205,7 @@ export const ShowEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="chairman"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Chairman
-                  </Label>
+                <FormField label="Chairman" fieldId="chairman">
                   <Select value={data.chairman} onValueChange={handleSelectChange('chairman')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select chairman">
@@ -238,15 +232,9 @@ export const ShowEditForm: React.FC = () => {
                       )}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="secretary"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Secretary
-                  </Label>
+                <FormField label="Secretary" fieldId="secretary">
                   <Select value={data.secretary} onValueChange={handleSelectChange('secretary')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select secretary">
@@ -273,15 +261,9 @@ export const ShowEditForm: React.FC = () => {
                       )}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="chiefSteward"
-                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
-                  >
-                    Chief Steward
-                  </Label>
+                <FormField label="Chief Steward" fieldId="chiefSteward">
                   <Select
                     value={data.chiefSteward}
                     onValueChange={handleSelectChange('chiefSteward')}
@@ -311,7 +293,7 @@ export const ShowEditForm: React.FC = () => {
                       )}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormField>
               </div>
             </CardContent>
           </Card>

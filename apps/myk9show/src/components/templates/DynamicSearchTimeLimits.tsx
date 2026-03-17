@@ -23,7 +23,7 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
   className = '',
   readOnly = false,
   minTime = 60000, // Default 1:00
-  maxTime = 900000 // Default 15:00
+  maxTime = 900000, // Default 15:00
 }) => {
   // Compute display times from props using useMemo (derived state)
   const computeDisplayTimes = (count: number, limits: number[]) => {
@@ -42,9 +42,7 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
   const [localTimeLimits, setLocalTimeLimits] = useState<string[]>(() =>
     computeDisplayTimes(searchAreasCount, timeLimits)
   );
-  const [errors, setErrors] = useState<string[]>(() =>
-    new Array(searchAreasCount).fill('')
-  );
+  const [errors, setErrors] = useState<string[]>(() => new Array(searchAreasCount).fill(''));
 
   // Sync local state when props change using render-time pattern
   if (propsKey !== prevPropsKey) {
@@ -57,9 +55,9 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
   const updateTimeLimit = (index: number, timeString: string) => {
     const newLocalTimes = [...localTimeLimits];
     const newErrors = [...errors];
-    
+
     newLocalTimes[index] = timeString;
-    
+
     // Validate the time format
     const parsed = parseTimeInput(timeString);
     if (!parsed.isValid) {
@@ -70,32 +68,33 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
       newErrors[index] = `Maximum time is ${msToDisplay(maxTime, 'seconds')}`;
     } else {
       newErrors[index] = '';
-      
+
       // Update the actual time limits array
       const newTimeLimits = [...timeLimits];
       newTimeLimits[index] = parsed.ms;
-      
+
       // Ensure array is the correct length
       while (newTimeLimits.length < searchAreasCount) {
         newTimeLimits.push(180000); // Default 3:00
       }
       newTimeLimits.length = searchAreasCount; // Trim if needed
-      
+
       onChange(newTimeLimits);
     }
-    
+
     setLocalTimeLimits(newLocalTimes);
     setErrors(newErrors);
   };
 
   // Add a new time limit (for manual control)
   const addTimeLimit = () => {
-    if (localTimeLimits.length < 5) { // Max 5 search areas
+    if (localTimeLimits.length < 5) {
+      // Max 5 search areas
       const newLocalTimes = [...localTimeLimits, '3:00'];
       const newErrors = [...errors, ''];
       setLocalTimeLimits(newLocalTimes);
       setErrors(newErrors);
-      
+
       const newTimeLimits = [...timeLimits, 180000]; // 3:00 default
       onChange(newTimeLimits);
     }
@@ -108,7 +107,7 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
       const newErrors = errors.filter((_, i) => i !== index);
       setLocalTimeLimits(newLocalTimes);
       setErrors(newErrors);
-      
+
       const newTimeLimits = timeLimits.filter((_, i) => i !== index);
       onChange(newTimeLimits);
     }
@@ -117,32 +116,26 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">
-          Search Time Limits per Area
-        </Label>
+        <Label className="text-sm font-medium">Search Time Limits per Area</Label>
         <Badge variant="outline" className="text-xs">
           {localTimeLimits.length} area{localTimeLimits.length !== 1 ? 's' : ''}
         </Badge>
       </div>
-      
+
       <div className="space-y-2">
         {localTimeLimits.map((timeString, index) => (
           <div key={index} className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground w-12">
-              Area {index + 1}:
-            </Label>
+            <Label className="text-xs text-muted-foreground w-12">Area {index + 1}:</Label>
             <div className="flex-1">
               <Input
                 type="text"
                 value={timeString}
-                onChange={(e) => updateTimeLimit(index, e.target.value)}
+                onChange={e => updateTimeLimit(index, e.target.value)}
                 placeholder="MM:SS (e.g., 3:00)"
-                className={`text-sm ${errors[index] ? 'border-red-500' : ''}`}
+                className={`text-sm ${errors[index] ? 'border-destructive' : ''}`}
                 readOnly={readOnly}
               />
-              {errors[index] && (
-                <p className="text-xs text-red-500 mt-1">{errors[index]}</p>
-              )}
+              {errors[index] && <p className="text-xs text-destructive mt-1">{errors[index]}</p>}
             </div>
             {!readOnly && localTimeLimits.length > 1 && (
               <Button
@@ -158,24 +151,20 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
           </div>
         ))}
       </div>
-      
+
       {!readOnly && localTimeLimits.length < 5 && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addTimeLimit}
-          className="w-full"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={addTimeLimit} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
           Add Search Area
         </Button>
       )}
-      
+
       <div className="text-xs text-muted-foreground">
         <p>• Enter times in MM:SS format (e.g., 1:30 for 1 minute 30 seconds)</p>
         <p>• Each search area can have its own time limit</p>
-        <p>• Range: {msToDisplay(minTime, 'seconds')} - {msToDisplay(maxTime, 'seconds')}</p>
+        <p>
+          • Range: {msToDisplay(minTime, 'seconds')} - {msToDisplay(maxTime, 'seconds')}
+        </p>
       </div>
     </div>
   );

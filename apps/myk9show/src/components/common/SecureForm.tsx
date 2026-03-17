@@ -23,17 +23,17 @@ function SecurityIndicator({ level, message, className }: SecurityIndicatorProps
   const icons = {
     secure: CheckCircle,
     warning: AlertTriangle,
-    danger: AlertTriangle
+    danger: AlertTriangle,
   };
-  
+
   const colors = {
     secure: 'text-green-600 border-green-200 bg-green-50',
     warning: 'text-yellow-600 border-yellow-200 bg-yellow-50',
-    danger: 'text-red-600 border-red-200 bg-red-50'
+    danger: 'text-red-600 border-red-200 bg-red-50',
   };
-  
+
   const Icon = icons[level];
-  
+
   return (
     <Alert className={cn(colors[level], className)}>
       <Icon className="h-4 w-4" />
@@ -85,73 +85,76 @@ export function SecureForm({
     message: string;
   }>({ level: 'secure', message: 'Form is secure' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Initialize form security on mount
   useEffect(() => {
     const security = initializeSecureForm();
     setFormSecurity(security);
   }, [initializeSecureForm]);
-  
+
   // Check for security warnings
   useEffect(() => {
     if (!formSecurity) return;
-    
+
     // Check if form is using HTTPS in production
     if (typeof window !== 'undefined') {
       const isHttps = window.location.protocol === 'https:';
       const isDev = window.location.hostname === 'localhost';
-      
+
       if (!isHttps && !isDev) {
         setSecurityStatus({
           level: 'danger',
-          message: 'Form is not using secure HTTPS connection'
+          message: 'Form is not using secure HTTPS connection',
         });
         return;
       }
     }
-    
+
     // Check autocomplete setting for sensitive forms
     if (autoComplete === 'on') {
       setSecurityStatus({
         level: 'warning',
-        message: 'Autocomplete is enabled - consider disabling for sensitive data'
+        message: 'Autocomplete is enabled - consider disabling for sensitive data',
       });
       return;
     }
-    
+
     setSecurityStatus({
       level: 'secure',
-      message: 'Form security active - CSRF protection enabled'
+      message: 'Form security active - CSRF protection enabled',
     });
   }, [formSecurity, autoComplete]);
-  
-  const handleSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    
-    if (!formSecurity || isSubmitting) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      const form = event.currentTarget;
-      const formData = new FormData(form);
-      
-      // Add CSRF token to form data
-      formData.append('_token', formSecurity.csrfToken);
-      
-      await onSubmit(formData, formSecurity.csrfToken);
-    } catch (error) {
-      logger.error('Form submission error:', 'components', {}, error as Error);
-      // Reset security token on error (may be expired)
-      const newSecurity = initializeSecureForm();
-      setFormSecurity(newSecurity);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [formSecurity, isSubmitting, onSubmit, initializeSecureForm]);
-  
+
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      if (!formSecurity || isSubmitting) {
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        const form = event.currentTarget;
+        const formData = new FormData(form);
+
+        // Add CSRF token to form data
+        formData.append('_token', formSecurity.csrfToken);
+
+        await onSubmit(formData, formSecurity.csrfToken);
+      } catch (error) {
+        logger.error('Form submission error:', 'components', {}, error as Error);
+        // Reset security token on error (may be expired)
+        const newSecurity = initializeSecureForm();
+        setFormSecurity(newSecurity);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [formSecurity, isSubmitting, onSubmit, initializeSecureForm]
+  );
+
   if (!formSecurity) {
     return (
       <div className="flex items-center justify-center p-4">
@@ -160,7 +163,7 @@ export function SecureForm({
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-4">
       {showSecurityIndicator && (
@@ -170,7 +173,7 @@ export function SecureForm({
           className="text-sm"
         />
       )}
-      
+
       <form
         id={id}
         data-testid={testId}
@@ -184,21 +187,20 @@ export function SecureForm({
       >
         {/* Hidden security fields */}
         {Object.entries(formSecurity.hiddenFields).map(([name, value]) => (
-          <input
-            key={name}
-            type="hidden"
-            name={name}
-            value={value}
-            readOnly
-          />
+          <input key={name} type="hidden" name={name} value={value} readOnly />
         ))}
-        
+
         {/* Form content */}
         {children}
-        
+
         {/* Security metadata */}
         <input type="hidden" name="_timestamp" value={Date.now().toString()} readOnly />
-        <input type="hidden" name="_userAgent" value={typeof navigator !== 'undefined' ? navigator.userAgent : ''} readOnly />
+        <input
+          type="hidden"
+          name="_userAgent"
+          value={typeof navigator !== 'undefined' ? navigator.userAgent : ''}
+          readOnly
+        />
       </form>
     </div>
   );
@@ -229,76 +231,82 @@ export function SecureInput({
   const [value, setValue] = useState(props.value || '');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [hasSecurity, setHasSecurity] = useState(true);
-  
-  const validateInput = useCallback((inputValue: string) => {
-    // Basic security checks
-    const hasScript = /<script[^>]*>.*?<\/script>/gi.test(inputValue);
-    const hasJavascript = /javascript:/gi.test(inputValue);
-    const hasSqlInjection = /(union|select|insert|update|delete|drop)/gi.test(inputValue);
-    
-    if (hasScript || hasJavascript || hasSqlInjection) {
-      setValidationError('Input contains potentially dangerous content');
-      setHasSecurity(false);
-      return false;
-    }
-    
-    // Pattern validation
-    if (validatePattern && !validatePattern.test(inputValue)) {
-      setValidationError('Input format is invalid');
-      return false;
-    }
-    
-    setValidationError(null);
-    setHasSecurity(true);
-    return true;
-  }, [validatePattern]);
-  
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    let newValue = event.target.value;
-    
-    // Sanitize input if enabled
-    if (sanitize) {
-      // Basic sanitization - remove potentially dangerous characters
-      newValue = newValue.replace(/<[^>]*>/g, ''); // Remove HTML tags
-      newValue = newValue.replace(/[<>"'&]/g, ''); // Remove dangerous characters
-    }
-    
-    setValue(newValue);
-    validateInput(newValue);
-    
-    // Call original onChange with sanitized value
-    if (onChange) {
-      const syntheticEvent = {
-        ...event,
-        target: { ...event.target, value: newValue }
-      };
-      onChange(syntheticEvent);
-    }
-  }, [sanitize, validateInput, onChange]);
-  
-  const handleBlur = useCallback((event: React.FocusEvent<HTMLInputElement>) => {
-    validateInput(event.target.value);
-    if (onBlur) {
-      onBlur(event);
-    }
-  }, [validateInput, onBlur]);
-  
+
+  const validateInput = useCallback(
+    (inputValue: string) => {
+      // Basic security checks
+      const hasScript = /<script[^>]*>.*?<\/script>/gi.test(inputValue);
+      const hasJavascript = /javascript:/gi.test(inputValue);
+      const hasSqlInjection = /(union|select|insert|update|delete|drop)/gi.test(inputValue);
+
+      if (hasScript || hasJavascript || hasSqlInjection) {
+        setValidationError('Input contains potentially dangerous content');
+        setHasSecurity(false);
+        return false;
+      }
+
+      // Pattern validation
+      if (validatePattern && !validatePattern.test(inputValue)) {
+        setValidationError('Input format is invalid');
+        return false;
+      }
+
+      setValidationError(null);
+      setHasSecurity(true);
+      return true;
+    },
+    [validatePattern]
+  );
+
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let newValue = event.target.value;
+
+      // Sanitize input if enabled
+      if (sanitize) {
+        // Basic sanitization - remove potentially dangerous characters
+        newValue = newValue.replace(/<[^>]*>/g, ''); // Remove HTML tags
+        newValue = newValue.replace(/[<>"'&]/g, ''); // Remove dangerous characters
+      }
+
+      setValue(newValue);
+      validateInput(newValue);
+
+      // Call original onChange with sanitized value
+      if (onChange) {
+        const syntheticEvent = {
+          ...event,
+          target: { ...event.target, value: newValue },
+        };
+        onChange(syntheticEvent);
+      }
+    },
+    [sanitize, validateInput, onChange]
+  );
+
+  const handleBlur = useCallback(
+    (event: React.FocusEvent<HTMLInputElement>) => {
+      validateInput(event.target.value);
+      if (onBlur) {
+        onBlur(event);
+      }
+    },
+    [validateInput, onBlur]
+  );
+
   const displayError = validationError || error;
-  
+
   return (
     <div className="space-y-2">
       {label && (
         <label className="text-sm font-medium flex items-center gap-2">
           {label}
           {securityLevel === 'high' && (
-            <Shield className={cn(
-              'h-3 w-3',
-              hasSecurity ? 'text-green-600' : 'text-red-600'
-            )} />
+            <Shield className={cn('h-3 w-3', hasSecurity ? 'text-green-600' : 'text-red-600')} />
           )}
         </label>
       )}
-      
+
       <input
         {...props}
         value={value}
@@ -306,14 +314,14 @@ export function SecureInput({
         onBlur={handleBlur}
         className={cn(
           'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
-          displayError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300',
-          !hasSecurity && 'border-red-500 bg-red-50',
+          displayError ? 'border-destructive focus-visible:ring-destructive' : 'border-gray-300',
+          !hasSecurity && 'border-destructive bg-destructive/5',
           className
         )}
       />
-      
+
       {displayError && (
-        <div className="flex items-center text-sm text-red-600">
+        <div className="flex items-center text-sm text-destructive">
           <AlertTriangle className="h-4 w-4 mr-1" />
           {displayError}
         </div>
@@ -343,60 +351,62 @@ export function SecureTextarea({
 }: SecureTextareaProps) {
   const [value, setValue] = useState(props.value || '');
   const [validationError, setValidationError] = useState<string | null>(null);
-  
-  const validateContent = useCallback((content: string) => {
-    // Check for potentially dangerous content
-    const hasScript = /<script[^>]*>.*?<\/script>/gi.test(content);
-    const hasJavascript = /javascript:/gi.test(content);
-    
-    if (hasScript || hasJavascript) {
-      setValidationError('Content contains potentially dangerous scripts');
-      return false;
-    }
-    
-    if (content.length > maxLength) {
-      setValidationError(`Content exceeds maximum length of ${maxLength} characters`);
-      return false;
-    }
-    
-    setValidationError(null);
-    return true;
-  }, [maxLength]);
-  
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    let newValue = event.target.value;
-    
-    // Basic sanitization if enabled
-    if (sanitize) {
-      // Remove script tags and dangerous attributes
-      newValue = newValue.replace(/<script[^>]*>.*?<\/script>/gi, '');
-      newValue = newValue.replace(/javascript:/gi, '');
-      newValue = newValue.replace(/on\w+="[^"]*"/gi, '');
-    }
-    
-    setValue(newValue);
-    validateContent(newValue);
-    
-    if (onChange) {
-      const syntheticEvent = {
-        ...event,
-        target: { ...event.target, value: newValue }
-      };
-      onChange(syntheticEvent);
-    }
-  }, [sanitize, validateContent, onChange]);
-  
+
+  const validateContent = useCallback(
+    (content: string) => {
+      // Check for potentially dangerous content
+      const hasScript = /<script[^>]*>.*?<\/script>/gi.test(content);
+      const hasJavascript = /javascript:/gi.test(content);
+
+      if (hasScript || hasJavascript) {
+        setValidationError('Content contains potentially dangerous scripts');
+        return false;
+      }
+
+      if (content.length > maxLength) {
+        setValidationError(`Content exceeds maximum length of ${maxLength} characters`);
+        return false;
+      }
+
+      setValidationError(null);
+      return true;
+    },
+    [maxLength]
+  );
+
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+      let newValue = event.target.value;
+
+      // Basic sanitization if enabled
+      if (sanitize) {
+        // Remove script tags and dangerous attributes
+        newValue = newValue.replace(/<script[^>]*>.*?<\/script>/gi, '');
+        newValue = newValue.replace(/javascript:/gi, '');
+        newValue = newValue.replace(/on\w+="[^"]*"/gi, '');
+      }
+
+      setValue(newValue);
+      validateContent(newValue);
+
+      if (onChange) {
+        const syntheticEvent = {
+          ...event,
+          target: { ...event.target, value: newValue },
+        };
+        onChange(syntheticEvent);
+      }
+    },
+    [sanitize, validateContent, onChange]
+  );
+
   const displayError = validationError || error;
   const remainingChars = maxLength - (typeof value === 'string' ? value.length : 0);
-  
+
   return (
     <div className="space-y-2">
-      {label && (
-        <label className="text-sm font-medium">
-          {label}
-        </label>
-      )}
-      
+      {label && <label className="text-sm font-medium">{label}</label>}
+
       <textarea
         {...props}
         value={value}
@@ -404,26 +414,28 @@ export function SecureTextarea({
         maxLength={maxLength}
         className={cn(
           'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical',
-          displayError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300',
+          displayError ? 'border-destructive focus-visible:ring-destructive' : 'border-gray-300',
           className
         )}
       />
-      
+
       <div className="flex justify-between items-center text-sm">
         <div>
           {displayError && (
-            <div className="flex items-center text-red-600">
+            <div className="flex items-center text-destructive">
               <AlertTriangle className="h-4 w-4 mr-1" />
               {displayError}
             </div>
           )}
         </div>
-        
-        <div className={cn(
-          'text-gray-500',
-          remainingChars < 100 && 'text-yellow-600',
-          remainingChars < 20 && 'text-red-600'
-        )}>
+
+        <div
+          className={cn(
+            'text-gray-500',
+            remainingChars < 100 && 'text-yellow-600',
+            remainingChars < 20 && 'text-red-600'
+          )}
+        >
           {remainingChars} characters remaining
         </div>
       </div>

@@ -202,8 +202,15 @@ describe('useFormValidation', () => {
       expect(props['aria-invalid']).toBe(true);
     });
 
-    it('returns aria-describedby with field-error id', () => {
+    it('returns aria-describedby undefined when no error visible', () => {
       const { result } = renderHook(() => useFormValidation(testSchema, initialData));
+      const props = result.current.getFieldProps('name');
+      expect(props['aria-describedby']).toBeUndefined();
+    });
+
+    it('returns aria-describedby with field-error id when error is visible', () => {
+      const { result } = renderHook(() => useFormValidation(testSchema, initialData));
+      act(() => result.current.touchField('name'));
       const props = result.current.getFieldProps('name');
       expect(props['aria-describedby']).toBe('name-error');
     });

@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export interface FormFieldInputProps {
   'aria-invalid': boolean;
-  'aria-describedby': string;
+  'aria-describedby': string | undefined;
   ref: React.RefCallback<HTMLElement>;
 }
 
@@ -92,7 +92,7 @@ export function useFormValidation<T extends Record<string, unknown>>(
       const hasError = !!errors[fieldStr];
       return {
         'aria-invalid': hasError,
-        'aria-describedby': `${fieldStr}-error`,
+        'aria-describedby': hasError ? `${fieldStr}-error` : undefined,
         ref: (el: HTMLElement | null) => {
           if (el) fieldRefs.current.set(fieldStr, el);
           else fieldRefs.current.delete(fieldStr);

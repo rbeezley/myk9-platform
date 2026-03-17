@@ -1,5 +1,6 @@
 import React from 'react';
 import { Label } from '@/components/ui/label/label';
+import { cn } from '@/lib/utils';
 
 interface FormFieldProps {
   label: string;
@@ -22,7 +23,7 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div
-      className={`form-field space-y-1.5 ${className ?? ''}`}
+      className={cn('form-field space-y-1.5', className)}
       {...(error ? { 'data-error': '' } : {})}
     >
       <Label htmlFor={fieldId}>

@@ -48,7 +48,9 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   onAutoSave?: (data: T) => Promise<void> | void;
 }
 
-// Dummy schema used when no schema is provided (satisfies rules of hooks)
+// Dummy schema used when no schema is provided (satisfies rules of hooks).
+// IMPORTANT: Do not read form.isValid/form.errors on the legacy path — the dummy
+// schema always validates as valid, which would be misleading. Use legacyIsValid instead.
 const DUMMY_SCHEMA = z.object({}) as z.ZodSchema<Record<string, unknown>>;
 
 export function EditPanelWrapper<T extends Record<string, unknown> = Record<string, unknown>>({

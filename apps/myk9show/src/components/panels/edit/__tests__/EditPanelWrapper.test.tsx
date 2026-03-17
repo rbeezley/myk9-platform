@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { EditPanelWrapper } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
 import { FormField } from '@/components/common/FormField';
-import { Input } from '@/components/ui/input/input';
+import { Input } from '@/components/ui/input';
 
 const testSchema = z.object({
   name: z.string().min(1, 'Please enter a name'),

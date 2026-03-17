@@ -3,7 +3,7 @@
  * Handles save, create, and publish operations
  */
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -76,6 +76,7 @@ export function useShowCreationWizardActions({
   editMode,
   setIsLoading,
 }: UseShowCreationWizardActionsOptions) {
+  const isSavingRef = useRef(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -130,7 +131,7 @@ export function useShowCreationWizardActions({
           status: 'Upcoming',
           eventNumber: wizardTrial.eventNumber || '',
           type: trialName,
-          trialType: showOrganization,
+          trialType: wizardTrial.trialType || showOrganization,
           plannedStartTime: wizardTrial.dateTime
             ? format(new Date(wizardTrial.dateTime), 'h:mm a')
             : '09:00 AM',
@@ -229,6 +230,10 @@ export function useShowCreationWizardActions({
    */
   const saveShow = useCallback(
     async (status: ShowStatus, shouldResetWizard: boolean) => {
+      // Prevent double submission
+      if (isSavingRef.current) return;
+      isSavingRef.current = true;
+
       try {
         setIsLoading(true);
 
@@ -332,6 +337,7 @@ export function useShowCreationWizardActions({
         );
       } finally {
         setIsLoading(false);
+        isSavingRef.current = false;
       }
     },
     [

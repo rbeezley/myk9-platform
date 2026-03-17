@@ -173,6 +173,7 @@ const ShowCreationWizardPage: React.FC = () => {
             name: trial.type || trial.name || 'Trial',
             dateTime: trial.trialDate,
             eventNumber: trial.eventNumber || '',
+            trialType: trial.trialType || undefined,
             classes: wizardClasses,
           };
         });

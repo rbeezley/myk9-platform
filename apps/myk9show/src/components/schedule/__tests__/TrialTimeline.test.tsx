@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { TrialTimeline } from '../TrialTimeline';
 import type { JudgeTimelineData } from '../schedule-timeline.types';

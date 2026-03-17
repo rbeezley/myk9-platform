@@ -1,4 +1,4 @@
-import { ScheduleTimeline } from '@/components/schedule/ScheduleTimeline';
+import { ScheduleTimeline } from '@/components/schedule';
 
 interface ScheduleSummaryProps {
   showId: string;

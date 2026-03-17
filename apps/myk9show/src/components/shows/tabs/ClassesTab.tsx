@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CLASS_STATUS_CONFIG } from '@/constants/live-status-config';
 import { parseLocalDateString } from '@/utils/dateLocal';
+import { compareLevels } from '@/utils/schedule-summary';
 
 interface ClassInfo {
   id: string;
@@ -56,6 +57,14 @@ export function ClassesTab({ classes, userHasEntries, hideRing = false }: Classe
         groups.set(key, { label: label || 'Unassigned', classes: [] });
       }
       groups.get(key)!.classes.push(cls);
+    }
+    // Sort classes within each group by element, then level progression
+    for (const group of groups.values()) {
+      group.classes.sort((a, b) => {
+        const elemCmp = a.element.localeCompare(b.element);
+        if (elemCmp !== 0) return elemCmp;
+        return compareLevels(a.level, b.level);
+      });
     }
     return Array.from(groups.values());
   }, [filteredClasses]);

@@ -1,30 +1,22 @@
 import { CLASS_STATUS } from '@myk9/core';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { ElementSummary } from './schedule-timeline.types';
+import { formatStartTime } from './schedule-timeline.utils';
 import { LevelRow } from './LevelRow';
 
 interface ElementAccordionProps {
   element: ElementSummary;
-  showId?: string;
-  trialId?: string;
   onNavigateToClass?: (classId: string) => void;
 }
 
 export function ElementAccordion({ element, onNavigateToClass }: ElementAccordionProps) {
   const isInProgress = element.status === CLASS_STATUS.IN_PROGRESS;
   const isComplete = element.status === CLASS_STATUS.COMPLETED;
-  const completedCount = element.levels.filter(l => l.status === CLASS_STATUS.COMPLETED).length;
-  const totalCount = element.levels.filter(l => l.status !== CLASS_STATUS.CANCELLED).length;
   const progressLabel = isComplete
-    ? `${totalCount}/${totalCount} ✓`
-    : `${completedCount}/${totalCount}`;
+    ? `${element.totalCount}/${element.totalCount} ✓`
+    : `${element.completedCount}/${element.totalCount}`;
 
-  const formattedTime = element.startTime
-    ? new Date(`1970-01-01T${element.startTime}`).toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : 'TBD';
+  const formattedTime = formatStartTime(element.startTime) ?? 'TBD';
 
   return (
     <Collapsible defaultOpen={isInProgress}>

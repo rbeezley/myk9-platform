@@ -5,8 +5,6 @@ import { ElementAccordion } from './ElementAccordion';
 
 interface JudgeSectionProps {
   judge: JudgeTimelineData;
-  showId: string;
-  trialId: string;
   onNavigateToClass?: (classId: string) => void;
 }
 
@@ -28,7 +26,7 @@ const JUDGE_COLORS = [
   'bg-emerald-500',
 ];
 
-export function JudgeSection({ judge, showId, trialId, onNavigateToClass }: JudgeSectionProps) {
+export function JudgeSection({ judge, onNavigateToClass }: JudgeSectionProps) {
   const colorIndex = judge.judgeId
     ? Math.abs(judge.judgeId.charCodeAt(0) + judge.judgeId.charCodeAt(1)) % JUDGE_COLORS.length
     : 0;
@@ -63,8 +61,6 @@ export function JudgeSection({ judge, showId, trialId, onNavigateToClass }: Judg
             <ElementAccordion
               key={el.element}
               element={el}
-              showId={showId}
-              trialId={trialId}
               {...(onNavigateToClass && { onNavigateToClass })}
             />
           ))}

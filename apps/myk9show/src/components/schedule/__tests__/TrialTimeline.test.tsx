@@ -20,6 +20,8 @@ const mockData: JudgeTimelineData[] = [
           { classId: 'c1', level: 'Novice', status: CLASS_STATUS.COMPLETED, entryCount: 12 },
           { classId: 'c2', level: 'Advanced', status: CLASS_STATUS.COMPLETED, entryCount: 8 },
         ],
+        completedCount: 2,
+        totalCount: 2,
       },
       {
         element: 'Buried',
@@ -30,6 +32,8 @@ const mockData: JudgeTimelineData[] = [
           { classId: 'c3', level: 'Novice', status: CLASS_STATUS.COMPLETED, entryCount: 10 },
           { classId: 'c4', level: 'Advanced', status: CLASS_STATUS.IN_PROGRESS, entryCount: 8 },
         ],
+        completedCount: 1,
+        totalCount: 2,
       },
     ],
   },

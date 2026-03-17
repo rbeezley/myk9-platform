@@ -23,9 +23,7 @@ export function LevelRow({ level, onClick }: LevelRowProps) {
       <span
         className={cn(
           'text-xs',
-          isInProgress && 'font-medium text-amber-500',
-          isComplete && 'text-muted-foreground',
-          !isInProgress && !isComplete && 'text-muted-foreground'
+          isInProgress ? 'font-medium text-amber-500' : 'text-muted-foreground'
         )}
       >
         {level.level}

@@ -21,6 +21,8 @@ const mockData: DayTimelineData[] = [
             levelRange: 'Nov–Mst',
             status: CLASS_STATUS.COMPLETED,
             levels: [],
+            completedCount: 0,
+            totalCount: 0,
           },
           {
             element: 'Buried',
@@ -28,6 +30,8 @@ const mockData: DayTimelineData[] = [
             levelRange: 'Nov–Mst',
             status: CLASS_STATUS.IN_PROGRESS,
             levels: [],
+            completedCount: 0,
+            totalCount: 0,
           },
         ],
       },

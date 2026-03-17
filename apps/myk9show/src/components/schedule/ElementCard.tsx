@@ -1,5 +1,6 @@
 import { getClassStatusBadgeClasses, getClassStatusDisplay } from '@myk9/core';
 import type { ElementSummary } from './schedule-timeline.types';
+import { formatStartTime } from './schedule-timeline.utils';
 
 interface ElementCardProps {
   element: ElementSummary;
@@ -8,12 +9,7 @@ interface ElementCardProps {
 
 export function ElementCard({ element, onClick }: ElementCardProps) {
   const badgeClasses = getClassStatusBadgeClasses(element.status);
-  const formattedTime = element.startTime
-    ? new Date(`1970-01-01T${element.startTime}`).toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : 'TBD';
+  const formattedTime = formatStartTime(element.startTime) ?? 'TBD';
 
   return (
     <button

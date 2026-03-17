@@ -58,8 +58,6 @@ export function TrialTimeline({ trialId, showId }: TrialTimelineProps) {
         <JudgeSection
           key={judge.judgeId ?? 'unassigned'}
           judge={judge}
-          showId={showId}
-          trialId={trialId}
           onNavigateToClass={handleNavigateToClass}
         />
       ))}

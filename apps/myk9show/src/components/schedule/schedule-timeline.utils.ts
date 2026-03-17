@@ -12,6 +12,27 @@ import type {
 } from './schedule-timeline.types';
 
 // ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+/** Format a time-only string (e.g. "08:00:00") for display. Returns null if input is null. */
+export function formatStartTime(time: string | null): string | null {
+  if (!time) return null;
+  return new Date(`1970-01-01T${time}`).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/** Compare elements by startTime, nulls last. */
+function compareByStartTime(a: { startTime: string | null }, b: { startTime: string | null }) {
+  if (a.startTime === null && b.startTime === null) return 0;
+  if (a.startTime === null) return 1;
+  if (b.startTime === null) return -1;
+  return a.startTime.localeCompare(b.startTime);
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -108,9 +129,15 @@ function buildElementSummary(elementName: string, classes: ClassRowLike[]): Elem
     }
   }
 
-  // Earliest start time
-  const startTimes = classes.map(c => c.startTime).filter((t): t is string => t !== null);
-  const earliestStartTime = startTimes.length > 0 ? startTimes.sort()[0]! : null;
+  // Earliest start time (O(n) reduce instead of sort)
+  const earliestStartTime = classes.reduce<string | null>(
+    (min, c) => (!c.startTime ? min : !min || c.startTime < min ? c.startTime : min),
+    null
+  );
+
+  // Pre-compute counts so components don't filter on every render
+  const completedCount = levelDetails.filter(l => l.status === CLASS_STATUS.COMPLETED).length;
+  const totalCount = levelDetails.filter(l => l.status !== CLASS_STATUS.CANCELLED).length;
 
   return {
     element: elementName,
@@ -118,6 +145,8 @@ function buildElementSummary(elementName: string, classes: ClassRowLike[]): Elem
     levelRange: formatLevelRange(uniqueLevels),
     status: deriveElementStatus(levelDetails),
     levels: levelDetails,
+    completedCount,
+    totalCount,
   };
 }
 
@@ -164,13 +193,7 @@ export function groupByDay(rows: TimelineClassRow[]): DayTimelineData[] {
           buildElementSummary(elementName, classes)
         );
 
-        // Sort elements by earliest start time
-        elements.sort((a, b) => {
-          if (a.startTime === null && b.startTime === null) return 0;
-          if (a.startTime === null) return 1;
-          if (b.startTime === null) return -1;
-          return a.startTime.localeCompare(b.startTime);
-        });
+        elements.sort(compareByStartTime);
 
         return {
           trialId,
@@ -244,13 +267,7 @@ export function groupByJudge(rows: TrialTimelineClassRow[]): JudgeTimelineData[]
       buildElementSummary(elementName, classes)
     );
 
-    // Sort elements by start time
-    elements.sort((a, b) => {
-      if (a.startTime === null && b.startTime === null) return 0;
-      if (a.startTime === null) return 1;
-      if (b.startTime === null) return -1;
-      return a.startTime.localeCompare(b.startTime);
-    });
+    elements.sort(compareByStartTime);
 
     return {
       judgeId: meta.judgeId,

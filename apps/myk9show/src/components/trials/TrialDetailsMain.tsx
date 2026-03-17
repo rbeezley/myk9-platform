@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import { TrialTimeline } from '@/components/schedule';
+import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import type { Show } from '@/types/show-types';
@@ -277,7 +278,9 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
           </div>
           <div className="myk9-show-info-item">
             <div className="myk9-show-info-label">Planned Start</div>
-            <div className="myk9-show-info-value">{trial.plannedStartTime || 'TBD'}</div>
+            <div className="myk9-show-info-value">
+              {formatStartTime(trial.plannedStartTime ?? null) || 'TBD'}
+            </div>
           </div>
           <div className="myk9-show-info-item">
             <div className="myk9-show-info-label">Total Classes</div>

@@ -15,13 +15,24 @@ import type {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-/** Format a time-only string (e.g. "08:00:00") for display. Returns null if input is null. */
+/** Format a time value for display. Handles display text ("9:00 AM"), ISO timestamps, and time-only ("09:00:00"). */
 export function formatStartTime(time: string | null): string | null {
   if (!time) return null;
-  return new Date(`1970-01-01T${time}`).toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+
+  // Already in display format (e.g., "9:00 AM", "09:00 AM")
+  if (/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i.test(time)) return time;
+
+  // Full ISO timestamp (e.g., "2026-04-04T09:00:00+00:00")
+  if (time.includes('T') || time.includes('-')) {
+    const d = new Date(time);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  // Time-only (e.g., "09:00:00")
+  const d = new Date(`1970-01-01T${time}`);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 /** Compare elements by startTime, nulls last. */

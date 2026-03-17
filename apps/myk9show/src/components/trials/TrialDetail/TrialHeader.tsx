@@ -1,13 +1,14 @@
 import { Button } from '@/components/ui/button';
 import { Trial } from '../types/trial.types';
 import { MoreVertical, Calendar, MapPin, Clock, User } from 'lucide-react';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import '@/styles/myk9-show-details.css';
 
 interface TrialHeaderProps {
@@ -17,19 +18,19 @@ interface TrialHeaderProps {
   onAddPhoto: () => void;
 }
 
-export const TrialHeader = ({
-  trial,
-  onEdit,
-  onDelete,
-  onAddPhoto,
-}: TrialHeaderProps) => {
+export const TrialHeader = ({ trial, onEdit, onDelete, onAddPhoto }: TrialHeaderProps) => {
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'upcoming': return 'myk9-show-status-upcoming';
-      case 'in progress': return 'myk9-show-status-in-progress';
-      case 'completed': return 'myk9-show-status-completed';
-      case 'cancelled': return 'myk9-show-status-cancelled';
-      default: return 'myk9-show-status-upcoming';
+      case 'upcoming':
+        return 'myk9-show-status-upcoming';
+      case 'in progress':
+        return 'myk9-show-status-in-progress';
+      case 'completed':
+        return 'myk9-show-status-completed';
+      case 'cancelled':
+        return 'myk9-show-status-cancelled';
+      default:
+        return 'myk9-show-status-upcoming';
     }
   };
 
@@ -39,9 +40,7 @@ export const TrialHeader = ({
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-semibold text-foreground">{trial.showName}</h1>
-          <span className={`myk9-show-status ${getStatusClass(trial.status)}`}>
-            {trial.status}
-          </span>
+          <span className={`myk9-show-status ${getStatusClass(trial.status)}`}>{trial.status}</span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -90,7 +89,7 @@ export const TrialHeader = ({
           <div className="myk9-show-info-label">Planned Start</div>
           <div className="myk9-show-info-value flex items-center gap-2">
             <Clock className="w-4 h-4 text-muted-foreground" />
-            {trial.plannedStartTime || '09:00 AM'}
+            {formatStartTime(trial.plannedStartTime ?? null) || 'TBD'}
           </div>
         </div>
         <div className="myk9-show-info-item">

@@ -58,6 +58,14 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         date: trialData.trialDate,
         trialNumber: trialData.trialNumber,
         status: trialData.status,
+        trialType: trialData.trialType,
+        plannedStartTime: trialData.plannedStartTime,
+        actualStartTime: trialData.timeStarted,
+        actualEndTime: trialData.timeEnded,
+        eventNumber: trialData.eventNumber,
+        displayOrder: trialData.order ? parseInt(trialData.order, 10) : 0,
+        category: trialData.type,
+        imageUrl: trialData.image,
         _version: 1,
         _lastModified: new Date(),
         _lastModifiedBy: userId,
@@ -67,15 +75,9 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
 
       const savedReplicated = await replicatedTrialsTable.createTrial(replicatedTrial);
 
-      // Create full SyncableTrial with local-only fields
       const newTrial: SyncableTrial = {
         ...replicatedToTrial(savedReplicated),
         showName: trialData.showName || '',
-        eventNumber: trialData.eventNumber || '',
-        type: trialData.type || '',
-        trialType: trialData.trialType || '',
-        plannedStartTime: trialData.plannedStartTime || '',
-        order: trialData.order || '',
       };
 
       // Optimistic update - add to store immediately
@@ -120,6 +122,17 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
       if (updates.trialDate !== undefined) replicatedUpdates.date = updates.trialDate;
       if (updates.trialNumber !== undefined) replicatedUpdates.trialNumber = updates.trialNumber;
       if (updates.status !== undefined) replicatedUpdates.status = updates.status;
+      if (updates.trialType !== undefined) replicatedUpdates.trialType = updates.trialType;
+      if (updates.plannedStartTime !== undefined)
+        replicatedUpdates.plannedStartTime = updates.plannedStartTime;
+      if (updates.timeStarted !== undefined)
+        replicatedUpdates.actualStartTime = updates.timeStarted;
+      if (updates.timeEnded !== undefined) replicatedUpdates.actualEndTime = updates.timeEnded;
+      if (updates.eventNumber !== undefined) replicatedUpdates.eventNumber = updates.eventNumber;
+      if (updates.order !== undefined)
+        replicatedUpdates.displayOrder = updates.order ? parseInt(updates.order, 10) : 0;
+      if (updates.type !== undefined) replicatedUpdates.category = updates.type;
+      if (updates.image !== undefined) replicatedUpdates.imageUrl = updates.image;
 
       if (currentReplicated) {
         await replicatedTrialsTable.updateTrial(id, {

@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, MapPin } from 'lucide-react';
+import {
+  CalendarDays,
+  MapPin,
+  LayoutDashboard,
+  Trophy,
+  ListChecks,
+  ClipboardList,
+  Medal,
+} from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
@@ -218,11 +226,13 @@ const ShowDetailsPage: React.FC = () => {
   // Define available tabs
   const isAuthenticated = !!user;
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'trials', label: 'Trials' },
-    { id: 'classes', label: 'Classes' },
-    ...(isAuthenticated ? [{ id: 'my-entries', label: 'My Entries' }] : []),
-    ...(isAuthenticated ? [{ id: 'results', label: 'Results' }] : []),
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
+    { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
+    ...(isAuthenticated
+      ? [{ id: 'my-entries', label: 'Entries', icon: ClipboardList, count: userEntries.length }]
+      : []),
+    ...(isAuthenticated ? [{ id: 'results', label: 'Results', icon: Medal, count: 0 }] : []),
   ];
 
   return (
@@ -269,9 +279,15 @@ const ShowDetailsPage: React.FC = () => {
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium"
+                className="group aria-selected:bg-primary/10 aria-selected:text-primary aria-selected:shadow-sm rounded-lg px-4 py-2 text-sm font-medium"
               >
+                <tab.icon className="h-4 w-4" />
                 {tab.label}
+                {'count' in tab && (
+                  <span className="ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold leading-none text-muted-foreground group-aria-selected:bg-primary/15 group-aria-selected:text-primary">
+                    {tab.count}
+                  </span>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>

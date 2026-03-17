@@ -31,7 +31,15 @@ import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatis
 import { useRememberedTab } from '@/hooks/useRememberedTab';
 import { RecordPageLayout } from '@/components/layout/record';
 import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
-import { Calendar, Info, Building2 } from 'lucide-react';
+import {
+  Calendar,
+  Info,
+  Building2,
+  LayoutDashboard,
+  ClipboardList,
+  Tag,
+  DollarSign,
+} from 'lucide-react';
 
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
@@ -525,10 +533,22 @@ const TrialDetailsPage: React.FC = () => {
           tabsContent={
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="mb-6">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="entries">Entries</TabsTrigger>
-                <TabsTrigger value="promo-codes">Promo Codes</TabsTrigger>
-                <TabsTrigger value="financials">Financials</TabsTrigger>
+                <TabsTrigger value="overview">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="entries">
+                  <ClipboardList className="h-4 w-4" />
+                  Entries
+                </TabsTrigger>
+                <TabsTrigger value="promo-codes">
+                  <Tag className="h-4 w-4" />
+                  Promo Codes
+                </TabsTrigger>
+                <TabsTrigger value="financials">
+                  <DollarSign className="h-4 w-4" />
+                  Financials
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview">

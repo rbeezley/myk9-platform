@@ -37,11 +37,14 @@ export const mapDatabaseToTrial = (dbTrial: DbTrialWithShow): Trial => {
     plannedStartTime: dbTrial.planned_start_time ?? undefined,
     timeStarted: dbTrial.actual_start_time ?? undefined,
     timeEnded: dbTrial.actual_end_time ?? undefined,
-    eventNumber: undefined, // Not in current database schema
-    type: undefined, // Not in current database schema
-    order: undefined, // Not in current database schema
+    eventNumber: dbTrial.event_number ?? undefined,
+    type: dbTrial.category ?? undefined,
+    order:
+      dbTrial.display_order !== undefined && dbTrial.display_order !== null
+        ? String(dbTrial.display_order)
+        : undefined,
     trialType: dbTrial.trial_type ?? undefined,
-    image: undefined, // Not in current database schema
+    image: dbTrial.image_url ?? undefined,
   };
 };
 
@@ -64,6 +67,12 @@ export const mapTrialInputToInsert = (trialInput: TrialInput): DbTrialInsert => 
     status: trialInput.status,
     planned_start_time: trialInput.plannedStartTime || null,
     trial_type: trialInput.trialType || null,
+    event_number: trialInput.eventNumber || null,
+    display_order: trialInput.order ? parseInt(trialInput.order, 10) : 0,
+    category: trialInput.type || null,
+    image_url: trialInput.image || null,
+    actual_start_time: trialInput.timeStarted || null,
+    actual_end_time: trialInput.timeEnded || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -98,6 +107,24 @@ export const mapTrialInputToUpdate = (updates: Partial<TrialInput>): DbTrialUpda
   if (updates.trialType !== undefined) {
     updateData.trial_type = updates.trialType;
   }
+  if (updates.eventNumber !== undefined) {
+    updateData.event_number = updates.eventNumber;
+  }
+  if (updates.order !== undefined) {
+    updateData.display_order = updates.order ? parseInt(updates.order, 10) : 0;
+  }
+  if (updates.type !== undefined) {
+    updateData.category = updates.type;
+  }
+  if (updates.image !== undefined) {
+    updateData.image_url = updates.image;
+  }
+  if (updates.timeStarted !== undefined) {
+    updateData.actual_start_time = updates.timeStarted;
+  }
+  if (updates.timeEnded !== undefined) {
+    updateData.actual_end_time = updates.timeEnded;
+  }
 
   return updateData;
 };
@@ -118,5 +145,8 @@ export const mapTrialToTrialInput = (trial: Trial): TrialInput => {
     trialType: trial.trialType,
     plannedStartTime: trial.plannedStartTime,
     order: trial.order,
+    image: trial.image,
+    timeStarted: trial.timeStarted,
+    timeEnded: trial.timeEnded,
   };
 };

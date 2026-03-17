@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/card';
+import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { Trial } from '../types/trial.types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
@@ -78,7 +79,7 @@ export const TrialInfo = ({ trial, onEdit, onDelete, onAddPhoto }: TrialInfoProp
         </div>
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Planned Start</h3>
-          <p className="mt-1">{trial.plannedStartTime || 'Not set'}</p>
+          <p className="mt-1">{formatStartTime(trial.plannedStartTime ?? null) || 'Not set'}</p>
         </div>
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Time Started</h3>

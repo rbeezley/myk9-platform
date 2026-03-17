@@ -43,7 +43,10 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
 }
 
 /** Merge replicated class data with existing local class data, preserving local-only fields */
-export function mergeTrialClassData(replicated: ReplicatedClass, existing: SyncableTrialClass | undefined): SyncableTrialClass {
+export function mergeTrialClassData(
+  replicated: ReplicatedClass,
+  existing: SyncableTrialClass | undefined
+): SyncableTrialClass {
   const base = replicatedToTrialClass(replicated);
   if (!existing) return base;
 
@@ -57,22 +60,24 @@ export function mergeTrialClassData(replicated: ReplicatedClass, existing: Synca
 
 /**
  * Convert ReplicatedTrial (database schema) to SyncableTrial (app schema)
- * Local-only fields are initialized to defaults
  */
 export function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
   return {
     id: replicated.id,
     showId: replicated.showId || '',
-    showName: '', // Local-only: derived from show
+    showName: '', // Derived from show join, not stored on trials table
     name: replicated.name,
     trialDate: replicated.date,
     trialNumber: replicated.trialNumber || '',
     status: (replicated.status as SyncableTrial['status']) || 'Upcoming',
-    eventNumber: '', // Local-only
-    type: '', // Local-only
-    trialType: '', // Local-only
-    plannedStartTime: '', // Local-only
-    order: '', // Local-only
+    eventNumber: replicated.eventNumber || '',
+    type: replicated.category || '',
+    trialType: replicated.trialType || '',
+    plannedStartTime: replicated.plannedStartTime || '',
+    timeStarted: replicated.actualStartTime || '',
+    timeEnded: replicated.actualEndTime || '',
+    order: replicated.displayOrder !== undefined ? String(replicated.displayOrder) : '',
+    image: replicated.imageUrl || '',
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),
@@ -84,21 +89,18 @@ export function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
 
 /**
  * Merge replicated trial data with existing local trial data
- * Preserves local-only fields
  */
-export function mergeTrialData(replicated: ReplicatedTrial, existing: SyncableTrial | undefined): SyncableTrial {
+export function mergeTrialData(
+  replicated: ReplicatedTrial,
+  existing: SyncableTrial | undefined
+): SyncableTrial {
   const base = replicatedToTrial(replicated);
   if (!existing) return base;
 
   return {
     ...base,
-    // Preserve local-only fields from existing
+    // showName is derived from a join, not stored on the trials table
     showName: existing.showName || '',
-    eventNumber: existing.eventNumber || '',
-    type: existing.type || '',
-    trialType: existing.trialType || '',
-    plannedStartTime: existing.plannedStartTime || '',
-    order: existing.order || '',
   };
 }
 
@@ -125,7 +127,7 @@ export const mockTrials: SyncableTrial[] = [
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
+    _localOnly: false,
   },
   {
     id: '2',
@@ -144,7 +146,7 @@ export const mockTrials: SyncableTrial[] = [
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
+    _localOnly: false,
   },
   {
     id: '3',
@@ -163,7 +165,7 @@ export const mockTrials: SyncableTrial[] = [
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
+    _localOnly: false,
   },
   {
     id: '4',
@@ -182,7 +184,7 @@ export const mockTrials: SyncableTrial[] = [
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
+    _localOnly: false,
   },
   {
     id: '5',
@@ -201,6 +203,6 @@ export const mockTrials: SyncableTrial[] = [
     _lastModified: new Date('2025-01-01T00:00:00Z'),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
-    _localOnly: false
-  }
+    _localOnly: false,
+  },
 ];

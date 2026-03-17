@@ -30,6 +30,13 @@ export interface ReplicatedTrial {
   maxEntriesPerHandler?: number | undefined;
   sportType?: string | undefined;
   trialType?: string | undefined;
+  plannedStartTime?: string | undefined;
+  actualStartTime?: string | undefined;
+  actualEndTime?: string | undefined;
+  eventNumber?: string | undefined;
+  displayOrder?: number | undefined;
+  category?: string | undefined;
+  imageUrl?: string | undefined;
 
   // Extra fields for scoring
   trial_date?: string | undefined;
@@ -59,6 +66,13 @@ function rowToTrial(row: TrialRow): ReplicatedTrial {
     maxEntriesPerHandler: row.max_entries_per_handler ?? undefined,
     sportType: row.sport_type ?? undefined,
     trialType: row.trial_type ?? undefined,
+    plannedStartTime: row.planned_start_time ?? undefined,
+    actualStartTime: row.actual_start_time ?? undefined,
+    actualEndTime: row.actual_end_time ?? undefined,
+    eventNumber: row.event_number ?? undefined,
+    displayOrder: row.display_order ?? undefined,
+    category: row.category ?? undefined,
+    imageUrl: row.image_url ?? undefined,
 
     // Map additional fields (from any as they might be missing in older types)
     trial_date: row.date,
@@ -112,6 +126,13 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
       sport_type: trial.sportType ?? null,
       trial_type: trial.trialType ?? null,
+      planned_start_time: trial.plannedStartTime ?? null,
+      actual_start_time: trial.actualStartTime ?? null,
+      actual_end_time: trial.actualEndTime ?? null,
+      event_number: trial.eventNumber ?? null,
+      display_order: trial.displayOrder ?? null,
+      category: trial.category ?? null,
+      image_url: trial.imageUrl ?? null,
       updated_at: new Date().toISOString(),
     };
   }

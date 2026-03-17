@@ -87,3 +87,15 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 - [ ] **CI-gated Vercel deploys** — Disable Vercel auto-deploy for production branch. Add a deploy step at the end of the GitHub Actions CI workflow that only runs after all tests pass (`vercel deploy --prod`). Keep auto-deploy for PR preview URLs. Requires `VERCEL_TOKEN` secret and Vercel CLI in CI.
 - [ ] **Require PRs to merge into main** — Enable branch protection on `main` with CI as a required status check. No direct pushes to main in production.
+
+---
+
+## Add Icons to Show Details Tab Titles - 2026-03-17 10:53
+
+- [x] **Add icons to tab titles on ShowDetailsPage** - Enhance tab navigation with icons alongside text labels. **Problem:** Tab titles are text-only, missing visual affordance that helps users quickly identify sections. **Files:** `apps/myk9show/src/pages/ShowDetailsPage.tsx:220-226` (tab config array), `apps/myk9show/src/pages/TrialDetailsPage.tsx:527-532` (trial detail tabs — same pattern). **Solution:** Add `icon` property to each tab config object and render Lucide icons inside `TabsTrigger`. The shared `TabsTrigger` component already has `gap-1.5` and `items-center` styling that supports icon + text layout. Suggested icons: Overview → `LayoutDashboard`, Trials → `Trophy`, Classes → `ListChecks`, My Entries → `ClipboardList`, Results → `Medal`.
+
+---
+
+## Investigate Remotion for User Explainer Videos (2026-03-17)
+
+- **Evaluate Remotion for programmatic video generation** — Investigate using [Remotion](https://remotion.dev) to create user explainer/tutorial videos for myK9Show. **Problem:** Need onboarding and feature walkthrough content for exhibitors, secretaries, and judges. Manually producing videos is time-intensive and hard to keep current as the UI evolves. **Files:** N/A (research task). **Solution:** Evaluate Remotion's React-based video composition for generating explainer videos programmatically — could use actual component screenshots/recordings, overlay narration, and regenerate when UI changes.

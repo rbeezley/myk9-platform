@@ -68,6 +68,21 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   }),
 }));
 
+// Mock replicated judge assignments table (used by showStore subscription)
+vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => ({
+  replicatedJudgeAssignmentsTable: {
+    getAll: vi.fn().mockResolvedValue([]),
+    subscribe: vi.fn().mockReturnValue(() => {}),
+  },
+}));
+
+// Mock userStore (used by showStore for judge name resolution)
+vi.mock('@/store/userStore', () => ({
+  useUserStore: {
+    getState: vi.fn().mockReturnValue({ people: [] }),
+  },
+}));
+
 // Mock the mappers
 vi.mock('@/services/mappers/showMappers', () => ({
   mapShowInputToInsert: vi.fn(input => ({ ...input, id: `db-${Date.now()}` })),

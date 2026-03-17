@@ -297,11 +297,7 @@ const ShowDetailsPage: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="trials">
-            <TrialsTab
-              trials={associatedTrials}
-              showId={actualCurrentShow.id}
-              showName={actualCurrentShow.name || ''}
-            />
+            <TrialsTab trials={associatedTrials} showId={actualCurrentShow.id} />
           </TabsContent>
 
           <TabsContent value="classes">

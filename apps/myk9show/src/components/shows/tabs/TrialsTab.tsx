@@ -1,23 +1,16 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Hash, Plus } from 'lucide-react';
 import type { Trial } from '@/components/trials/types/trial.types';
-import AddTrialDialog from '@/components/trials/AddTrialDialog';
-import { useTrialStore } from '@/store/trialStore';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
-import { notifications } from '@/lib/notifications';
 import { getClassStatusBadgeClasses, getClassStatusDisplay } from '@myk9/core';
-import type { ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 
 interface TrialsTabProps {
   trials: Trial[];
   showId: string;
-  showName: string;
 }
 
 function formatDate(dateStr: string): string {
@@ -32,54 +25,21 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export function TrialsTab({ trials, showId, showName }: TrialsTabProps) {
+export function TrialsTab({ trials, showId }: TrialsTabProps) {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
   const { hasPermission } = useRBAC();
-  const { addTrial } = useTrialStore();
-  const [addTrialOpen, setAddTrialOpen] = useState(false);
 
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
-  const handleAddTrial = async (trialData: {
-    name: string;
-    date: string;
-    trialNumber: string;
-    status: string;
-    eventNumber: string;
-    plannedStartTime: string;
-    order: string;
-    showName: string;
-    description: string;
-  }) => {
-    try {
-      await addTrial(
-        {
-          showId,
-          showName,
-          name: trialData.name,
-          trialDate: trialData.date,
-          trialNumber: trialData.trialNumber,
-          status: (trialData.status || 'Upcoming') as ClassStatusValue,
-          eventNumber: trialData.eventNumber,
-          plannedStartTime: trialData.plannedStartTime,
-          order: trialData.order,
-        },
-        user?.id || ''
-      );
-      notifications.success('Trial added successfully');
-      setAddTrialOpen(false);
-    } catch {
-      notifications.error('Failed to add trial');
-    }
-  };
+  const openWizard = () =>
+    navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-trials`);
 
   return (
     <div className="space-y-4">
       {/* Header with Add button */}
       {canManage && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => setAddTrialOpen(true)} className="gap-1.5">
+          <Button size="sm" onClick={() => openWizard()} className="gap-1.5">
             <Plus className="h-4 w-4" />
             Add Trial
           </Button>
@@ -94,11 +54,7 @@ export function TrialsTab({ trials, showId, showName }: TrialsTabProps) {
             No trials have been created for this show yet.
           </p>
           {canManage && (
-            <Button
-              variant="outline"
-              className="mt-4 gap-1.5"
-              onClick={() => setAddTrialOpen(true)}
-            >
+            <Button variant="outline" className="mt-4 gap-1.5" onClick={() => openWizard()}>
               <Plus className="h-4 w-4" />
               Add Trial
             </Button>
@@ -162,15 +118,6 @@ export function TrialsTab({ trials, showId, showName }: TrialsTabProps) {
           ))}
         </div>
       )}
-
-      {/* Add Trial Dialog */}
-      <AddTrialDialog
-        open={addTrialOpen}
-        onOpenChange={setAddTrialOpen}
-        onSave={handleAddTrial}
-        currentShowName={showName}
-        existingTrialCount={trials.length}
-      />
     </div>
   );
 }

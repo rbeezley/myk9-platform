@@ -47,6 +47,13 @@ export {
   type ReplicatedDog,
 } from './ReplicatedDogsTable';
 
+// Judge Assignments
+export {
+  ReplicatedJudgeAssignmentsTable,
+  replicatedJudgeAssignmentsTable,
+  type ReplicatedJudgeAssignment,
+} from './ReplicatedJudgeAssignmentsTable';
+
 // Re-export core types from @myk9/replication
 export type {
   ReplicatedRow,

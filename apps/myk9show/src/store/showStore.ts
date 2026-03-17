@@ -9,6 +9,10 @@ import {
   type CascadingDeletePreview,
 } from '@/utils/cascadingDelete';
 import { replicatedShowsTable, type ReplicatedShow } from '@/services/replication';
+import {
+  replicatedJudgeAssignmentsTable,
+  type ReplicatedJudgeAssignment,
+} from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { supabase } from '@/services/database/supabaseClient';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import {
@@ -18,6 +22,8 @@ import {
   reportDebug,
 } from '@/utils/standardizedErrorHandler';
 import { useClubStore } from './clubStore';
+import { useUserStore } from './userStore';
+import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
 
 /**
  * Convert ReplicatedShow (database schema) to Show (app schema)
@@ -48,7 +54,7 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     chairman: replicated.chairman || '',
     secretary: replicated.secretary || '',
     chiefSteward: replicated.chiefSteward || '',
-    assignedJudges: [], // Local-only: managed separately
+    assignedJudges: [], // Populated by judge_assignments subscription
     trials: [], // Local-only: managed by trialStore
     stats: [], // Local-only: calculated
     // Sync metadata
@@ -76,7 +82,7 @@ function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): 
     clubName: existing.clubName || '',
     clubAddress: existing.clubAddress || '',
     clubEmail: existing.clubEmail || '',
-    assignedJudges: existing.assignedJudges || [],
+    // assignedJudges populated by judge_assignments subscription — don't preserve stale local data
     trials: existing.trials || [],
     stats: existing.stats || [],
   };
@@ -523,13 +529,17 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
     reportDebug('store', 'Initializing replicated table subscription for shows');
 
     // Subscribe to replicated table changes
-    const unsubscribe = replicatedShowsTable.subscribe(shows => {
+    const unsubShows = replicatedShowsTable.subscribe(async shows => {
       const currentShows = get().shows;
+      const allAssignments = await replicatedJudgeAssignmentsTable.getAll();
+      const { people } = useUserStore.getState();
 
       // Merge replicated data with existing local-only fields
       const mergedShows = shows.map(replicated => {
         const existing = currentShows.find(s => s.id === replicated.id);
-        return mergeShowData(replicated, existing);
+        const show = mergeShowData(replicated, existing);
+        show.assignedJudges = buildAssignedJudges(allAssignments, show.id, people);
+        return show;
       });
 
       set({ shows: mergedShows });
@@ -537,7 +547,27 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       reportDebug('store', 'Shows updated from replicated table', { count: mergedShows.length });
     });
 
-    set({ _unsubscribe: unsubscribe });
+    // Subscribe to judge assignment changes — re-compute assignedJudges for all shows
+    const unsubJudgeAssignments = replicatedJudgeAssignmentsTable.subscribe(
+      (assignments: ReplicatedJudgeAssignment[]) => {
+        const { people } = useUserStore.getState();
+        const currentShows = get().shows;
+
+        const updatedShows = currentShows.map(show => ({
+          ...show,
+          assignedJudges: buildAssignedJudges(assignments, show.id, people),
+        }));
+
+        set({ shows: updatedShows });
+      }
+    );
+
+    set({
+      _unsubscribe: () => {
+        unsubShows();
+        unsubJudgeAssignments();
+      },
+    });
 
     // Load initial data
     get().loadShows();

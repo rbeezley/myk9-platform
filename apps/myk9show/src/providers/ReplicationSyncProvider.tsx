@@ -30,6 +30,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
+import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -56,6 +57,7 @@ const REPLICATED_TABLES = [
   { name: 'entries', table: replicatedEntriesTable },
   { name: 'dogs', table: replicatedDogsTable },
   { name: 'clubs', table: replicatedClubsTable },
+  { name: 'judge_assignments', table: replicatedJudgeAssignmentsTable },
 ] as const;
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
@@ -237,6 +239,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       queryClient.invalidateQueries({ queryKey: ['entries'] });
       queryClient.invalidateQueries({ queryKey: ['dogs'] });
       queryClient.invalidateQueries({ queryKey: ['clubs'] });
+      queryClient.invalidateQueries({ queryKey: ['judge_assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['shows'] }); // refresh shows with updated judge join
 
       logger.info('Full sync complete', 'replication');
     } catch (error) {

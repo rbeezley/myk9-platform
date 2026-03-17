@@ -295,6 +295,9 @@ export function useShowCreationWizardActions({
           });
         }
 
+        // Invalidate schedule timeline cache so the overview page shows new trials/classes
+        queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'schedule-timeline'] });
+
         // Save progress to wizard store if draft
         if (status === 'draft') {
           saveProgress();

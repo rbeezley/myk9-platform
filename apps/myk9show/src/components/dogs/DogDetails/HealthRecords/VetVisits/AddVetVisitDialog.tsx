@@ -44,9 +44,10 @@ interface AddVetVisitDialogProps {
 const AddVetVisitDialog: React.FC<AddVetVisitDialogProps> = ({ open, onClose, onAdd }) => {
   const form = useFormValidation(vetVisitSchema, initialData);
 
+  const resetForm = form.reset;
   useEffect(() => {
-    if (open) form.reset(initialData);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (open) resetForm(initialData);
+  }, [open, resetForm]);
 
   const handleSave = form.handleSubmit(data => {
     onAdd(data);

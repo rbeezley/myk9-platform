@@ -41,6 +41,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { User } from '@/types/user-types';
 import { useCreateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { useFormValidation } from '@/hooks/useFormValidation';
+import { commonValidations } from '@/lib/validation';
 import { z } from 'zod';
 
 interface CreateUserDialogProps {
@@ -53,10 +54,7 @@ const createUserSchema = z
   .object({
     firstName: z.string().min(1, 'Please enter a first name'),
     lastName: z.string().min(1, 'Please enter a last name'),
-    email: z
-      .string()
-      .min(1, 'Please enter an email address')
-      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+    email: commonValidations.emailRequired,
     phone: z.string(),
     address: z.string(),
     city: z.string(),
@@ -133,13 +131,14 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   });
 
   // Reset form when dialog opens/closes
+  const resetForm = form.reset;
   React.useEffect(() => {
     if (!open) {
-      form.reset(INITIAL_FORM_DATA);
+      resetForm(INITIAL_FORM_DATA);
       setGeneralError(null);
       setNewClub('');
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, resetForm]);
 
   // Handle form submission
   const handleCreate = form.handleSubmit(async (validatedData: CreateUserFormData) => {
@@ -203,6 +202,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     );
   };
 
+  // Pre-compute errors for fields referenced multiple times
+  const rolesError = form.getError('roles');
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent size="xl">
@@ -242,10 +244,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <Input
                       id="firstName"
                       value={form.data.firstName}
-                      onChange={e => {
-                        form.setValue('firstName', e.target.value);
-                        form.touchField('firstName');
-                      }}
+                      onChange={e => form.setValue('firstName', e.target.value)}
+                      onBlur={() => form.touchField('firstName')}
                       {...form.getFieldProps('firstName')}
                       placeholder="Enter first name"
                     />
@@ -259,10 +259,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     <Input
                       id="lastName"
                       value={form.data.lastName}
-                      onChange={e => {
-                        form.setValue('lastName', e.target.value);
-                        form.touchField('lastName');
-                      }}
+                      onChange={e => form.setValue('lastName', e.target.value)}
+                      onBlur={() => form.touchField('lastName')}
                       {...form.getFieldProps('lastName')}
                       placeholder="Enter last name"
                     />
@@ -299,10 +297,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     id="email"
                     type="email"
                     value={form.data.email}
-                    onChange={e => {
-                      form.setValue('email', e.target.value);
-                      form.touchField('email');
-                    }}
+                    onChange={e => form.setValue('email', e.target.value)}
+                    onBlur={() => form.touchField('email')}
                     {...form.getFieldProps('email')}
                     placeholder="Enter email address"
                   />
@@ -422,10 +418,10 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {form.getError('roles') && (
+                {rolesError && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{form.getError('roles')}</AlertDescription>
+                    <AlertDescription>{rolesError}</AlertDescription>
                   </Alert>
                 )}
 
@@ -505,10 +501,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                         id="customPassword"
                         type={showPassword ? 'text' : 'password'}
                         value={form.data.customPassword}
-                        onChange={e => {
-                          form.setValue('customPassword', e.target.value);
-                          form.touchField('customPassword');
-                        }}
+                        onChange={e => form.setValue('customPassword', e.target.value)}
+                        onBlur={() => form.touchField('customPassword')}
                         className="pr-10"
                         {...form.getFieldProps('customPassword')}
                         placeholder="Enter secure password"

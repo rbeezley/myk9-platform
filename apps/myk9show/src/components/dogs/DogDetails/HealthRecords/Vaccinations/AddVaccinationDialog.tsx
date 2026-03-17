@@ -40,9 +40,10 @@ interface AddVaccinationDialogProps {
 const AddVaccinationDialog: React.FC<AddVaccinationDialogProps> = ({ open, onClose, onAdd }) => {
   const form = useFormValidation(vaccinationSchema, initialData);
 
+  const resetForm = form.reset;
   useEffect(() => {
-    if (open) form.reset(initialData);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (open) resetForm(initialData);
+  }, [open, resetForm]);
 
   const handleSave = form.handleSubmit(data => {
     onAdd(data);

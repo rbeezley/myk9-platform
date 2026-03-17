@@ -11,6 +11,7 @@ import { User as UserIcon, AlertTriangle, CheckCircle } from 'lucide-react';
 import { User } from '@/types/dog-types';
 import { logger } from '@/services/LoggingService';
 import { useFormValidation } from '@/hooks/useFormValidation';
+import { commonValidations } from '@/lib/validation';
 import { z } from 'zod';
 
 interface CreateExhibitorDialogProps {
@@ -30,10 +31,7 @@ interface DuplicateCandidate {
 const exhibitorFormSchema = z.object({
   firstName: z.string().min(1, 'Please enter a first name'),
   lastName: z.string().min(1, 'Please enter a last name'),
-  email: z
-    .string()
-    .min(1, 'Please enter an email address')
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+  email: commonValidations.emailRequired,
   phone: z.string().min(1, 'Please enter a phone number'),
   streetAddress: z.string(),
   city: z.string(),

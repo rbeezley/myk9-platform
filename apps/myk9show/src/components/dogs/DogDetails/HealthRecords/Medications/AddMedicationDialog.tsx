@@ -44,9 +44,10 @@ interface AddMedicationDialogProps {
 const AddMedicationDialog: React.FC<AddMedicationDialogProps> = ({ open, onClose, onAdd }) => {
   const form = useFormValidation(medicationSchema, initialData);
 
+  const resetForm = form.reset;
   useEffect(() => {
-    if (open) form.reset(initialData);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (open) resetForm(initialData);
+  }, [open, resetForm]);
 
   const handleSave = form.handleSubmit(data => {
     onAdd(data);

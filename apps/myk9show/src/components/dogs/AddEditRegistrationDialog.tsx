@@ -79,6 +79,10 @@ const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
   status: 'Active',
 };
 
+function generateRegistrationId(): string {
+  return `reg-${Date.now()}`;
+}
+
 export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps> = ({
   open,
   onOpenChange,
@@ -148,31 +152,34 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     form.touchField('breed');
   };
 
-  const handleSubmit = async () => {
-    await form.handleSubmit((validatedData: RegistrationFormData) => {
-      const registration: Registration = {
-        id: validatedData.id || `reg-${Date.now()}`,
-        organization: validatedData.organization,
-        registeredName: validatedData.registeredName,
-        breed: validatedData.breed,
-        registrationNumber: validatedData.registrationNumber,
-        status: validatedData.status,
-        ...(validatedData.variety != null && { variety: validatedData.variety }),
-        ...(validatedData.applicationNumber != null && {
-          applicationNumber: validatedData.applicationNumber,
-        }),
-        ...(validatedData.submissionDate != null && {
-          submissionDate: validatedData.submissionDate,
-        }),
-        ...(validatedData.registrationDate != null && {
-          registrationDate: validatedData.registrationDate,
-        }),
-        ...(validatedData.certificate != null && { certificate: validatedData.certificate }),
-      };
-      onSave(registration);
-      onOpenChange(false);
-    })();
+  const onSubmitValid = (validatedData: RegistrationFormData) => {
+    const registration: Registration = {
+      id: validatedData.id || generateRegistrationId(),
+      organization: validatedData.organization,
+      registeredName: validatedData.registeredName,
+      breed: validatedData.breed,
+      registrationNumber: validatedData.registrationNumber,
+      status: validatedData.status,
+      ...(validatedData.variety != null && { variety: validatedData.variety }),
+      ...(validatedData.applicationNumber != null && {
+        applicationNumber: validatedData.applicationNumber,
+      }),
+      ...(validatedData.submissionDate != null && {
+        submissionDate: validatedData.submissionDate,
+      }),
+      ...(validatedData.registrationDate != null && {
+        registrationDate: validatedData.registrationDate,
+      }),
+      ...(validatedData.certificate != null && { certificate: validatedData.certificate }),
+    };
+    onSave(registration);
+    onOpenChange(false);
   };
+  const handleSubmit = form.handleSubmit(onSubmitValid);
+
+  // Pre-compute errors for fields referenced multiple times
+  const organizationError = form.getError('organization');
+  const breedError = form.getError('breed');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -186,13 +193,13 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
             label="Registration Organization"
             fieldId="organization"
             required
-            error={form.getError('organization')}
+            error={organizationError}
           >
             <Select value={form.data.organization} onValueChange={handleOrganizationChange}>
               <SelectTrigger
                 id="organization"
-                aria-invalid={!!form.getError('organization')}
-                aria-describedby={form.getError('organization') ? 'organization-error' : undefined}
+                aria-invalid={!!organizationError}
+                aria-describedby={organizationError ? 'organization-error' : undefined}
               >
                 <SelectValue placeholder="Select organization" />
               </SelectTrigger>
@@ -226,7 +233,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
               label="Registered Breed"
               fieldId="breed"
               required
-              error={form.getError('breed')}
+              error={breedError}
             >
               <Select
                 value={form.data.breed}
@@ -235,8 +242,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
               >
                 <SelectTrigger
                   id="breed"
-                  aria-invalid={!!form.getError('breed')}
-                  aria-describedby={form.getError('breed') ? 'breed-error' : undefined}
+                  aria-invalid={!!breedError}
+                  aria-describedby={breedError ? 'breed-error' : undefined}
                 >
                   <SelectValue
                     placeholder={

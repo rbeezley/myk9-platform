@@ -45,6 +45,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { User } from '@/types/user-types';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { useFormValidation } from '@/hooks/useFormValidation';
+import { commonValidations } from '@/lib/validation';
 import { z } from 'zod';
 import { format } from 'date-fns';
 
@@ -58,10 +59,7 @@ interface UserDetailsDialogProps {
 const userDetailsSchema = z.object({
   firstName: z.string().min(1, 'Please enter a first name'),
   lastName: z.string().min(1, 'Please enter a last name'),
-  email: z
-    .string()
-    .min(1, 'Please enter an email address')
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+  email: commonValidations.emailRequired,
   phone: z.string(),
   address: z.string(),
   city: z.string(),
@@ -247,6 +245,9 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
     return `${firstName} ${lastName}`.trim() || 'Unnamed User';
   };
 
+  // Pre-compute errors for fields referenced multiple times
+  const rolesError = form.getError('roles');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
@@ -328,10 +329,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         <Input
                           id="firstName"
                           value={form.data.firstName}
-                          onChange={e => {
-                            form.setValue('firstName', e.target.value);
-                            form.touchField('firstName');
-                          }}
+                          onChange={e => form.setValue('firstName', e.target.value)}
+                          onBlur={() => form.touchField('firstName')}
                           disabled={!isEditing}
                           {...form.getFieldProps('firstName')}
                         />
@@ -345,10 +344,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         <Input
                           id="lastName"
                           value={form.data.lastName}
-                          onChange={e => {
-                            form.setValue('lastName', e.target.value);
-                            form.touchField('lastName');
-                          }}
+                          onChange={e => form.setValue('lastName', e.target.value)}
+                          onBlur={() => form.touchField('lastName')}
                           disabled={!isEditing}
                           {...form.getFieldProps('lastName')}
                         />
@@ -383,10 +380,8 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                         id="email"
                         type="email"
                         value={form.data.email}
-                        onChange={e => {
-                          form.setValue('email', e.target.value);
-                          form.touchField('email');
-                        }}
+                        onChange={e => form.setValue('email', e.target.value)}
+                        onBlur={() => form.touchField('email')}
                         disabled={!isEditing}
                         {...form.getFieldProps('email')}
                       />
@@ -514,10 +509,10 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
                     Role Assignments
                   </h3>
 
-                  {form.getError('roles') && (
+                  {rolesError && (
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{form.getError('roles')}</AlertDescription>
+                      <AlertDescription>{rolesError}</AlertDescription>
                     </Alert>
                   )}
 

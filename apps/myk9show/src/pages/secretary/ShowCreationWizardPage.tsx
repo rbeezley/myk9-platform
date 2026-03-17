@@ -140,43 +140,48 @@ const ShowCreationWizardPage: React.FC = () => {
 
       if (existingShow) {
         editModeInitializedRef.current = editMode.showId;
-        // Transform existing trials to wizard format
-        const wizardTrials = showTrials.map(trial => {
-          const trialClasses = existingClasses.filter(c => c.trialId === trial.id);
 
-          const wizardClasses = trialClasses.map(classData => {
-            let judgeId = '';
-            if (classData.judge && classData.judge !== 'TBD') {
-              const matchingJudge = existingShow.assignedJudges?.find(
-                j => j.judgeName === classData.judge
-              );
-              if (matchingJudge) {
-                judgeId = matchingJudge.judgeId;
-              }
-            }
+        // In add-trials mode, don't load existing trials — start fresh.
+        // Existing trials should be edited via Edit Trial on the trial detail page.
+        const wizardTrials =
+          editMode.mode === 'add-trials'
+            ? []
+            : showTrials.map(trial => {
+                const trialClasses = existingClasses.filter(c => c.trialId === trial.id);
 
-            return {
-              templateId: classData.templateId || '',
-              customizations: {
-                className: classData.className,
-                element: classData.element,
-                level: classData.level,
-                section: classData.section,
-                fieldOverrides: {},
-              },
-              judgeId: judgeId,
-            };
-          });
+                const wizardClasses = trialClasses.map(classData => {
+                  let judgeId = '';
+                  if (classData.judge && classData.judge !== 'TBD') {
+                    const matchingJudge = existingShow.assignedJudges?.find(
+                      j => j.judgeName === classData.judge
+                    );
+                    if (matchingJudge) {
+                      judgeId = matchingJudge.judgeId;
+                    }
+                  }
 
-          return {
-            id: trial.id,
-            name: trial.type || trial.name || 'Trial',
-            dateTime: trial.trialDate,
-            eventNumber: trial.eventNumber || '',
-            trialType: trial.trialType || undefined,
-            classes: wizardClasses,
-          };
-        });
+                  return {
+                    templateId: classData.templateId || '',
+                    customizations: {
+                      className: classData.className,
+                      element: classData.element,
+                      level: classData.level,
+                      section: classData.section,
+                      fieldOverrides: {},
+                    },
+                    judgeId: judgeId,
+                  };
+                });
+
+                return {
+                  id: trial.id,
+                  name: trial.type || trial.name || 'Trial',
+                  dateTime: trial.trialDate,
+                  eventNumber: trial.eventNumber || '',
+                  trialType: trial.trialType || undefined,
+                  classes: wizardClasses,
+                };
+              });
 
         // Build judge details from assigned judges and people store
         const judgeDetailsMap: Record<
@@ -297,14 +302,19 @@ const ShowCreationWizardPage: React.FC = () => {
     switch (currentStep) {
       case 0:
         return <ShowDetailsStep {...stepProps} />;
-      case 1:
-        return <TrialConfigurationStep {...stepProps} />;
+      case 1: {
+        const existingTrialCount =
+          editMode?.mode === 'add-trials'
+            ? existingTrials.filter(t => t.showId === editMode.showId).length
+            : 0;
+        return <TrialConfigurationStep {...stepProps} existingTrialCount={existingTrialCount} />;
+      }
       case 2:
         return (
           <ClassSelectionStep
             {...stepProps}
             existingDBClasses={
-              editMode?.mode === 'add-classes'
+              editMode?.mode === 'add-classes' || editMode?.mode === 'add-trials'
                 ? existingClasses.map(c => ({
                     trialId: c.trialId,
                     className: c.className || '',

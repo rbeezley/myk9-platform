@@ -29,9 +29,14 @@ function safeParseDateString(str: string | undefined): Date | undefined {
 
 interface TrialConfigurationStepProps {
   className?: string;
+  /** Number of existing trials already in the show (for add-trials mode info banner). */
+  existingTrialCount?: number;
 }
 
-export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ className }) => {
+export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
+  className,
+  existingTrialCount = 0,
+}) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
   const { templates } = useTemplates();
 
@@ -151,6 +156,16 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
               Add Trial
             </Button>
           </div>
+
+          {/* Existing trials info banner */}
+          {existingTrialCount > 0 && (
+            <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {existingTrialCount} existing {existingTrialCount === 1 ? 'trial' : 'trials'}
+              </span>{' '}
+              — use Edit Trial on the trial detail page to make changes to them.
+            </div>
+          )}
 
           {/* Trial List */}
           {trials.length === 0 ? (

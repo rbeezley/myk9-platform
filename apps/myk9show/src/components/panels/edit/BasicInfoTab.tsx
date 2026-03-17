@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/services/database/supabaseClient';
-import { findFieldError } from '@/lib/validation';
+import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
 
 /** Fetch role names for a person (people.id) from user_roles table */
@@ -35,44 +35,31 @@ function usePersonRoleNames(personId?: string) {
 }
 
 interface BasicInfoTabProps {
-  data: UserFormData;
   personId?: string;
-  errors: string[];
-  updateData: (updates: Partial<UserFormData>) => void;
   hasAdminPermission: boolean;
   canEditAdvancedFields: boolean;
   onOpenPhotoModal: () => void;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
-  data,
   personId,
-  errors,
-  updateData,
   hasAdminPermission,
   canEditAdvancedFields,
   onOpenPhotoModal,
 }) => {
+  const { data, form } = useEditPanel<UserFormData>();
   const { data: dbRoles = [] } = usePersonRoleNames(personId);
 
   // Seed form roles from DB on initial load
   useEffect(() => {
     if (dbRoles.length > 0 && data.roles.length === 0) {
-      updateData({ roles: dbRoles.map(r => (r === 'site_admin' ? 'admin' : r)) });
+      form?.setValue('roles', dbRoles.map(r => (r === 'site_admin' ? 'admin' : r)));
     }
   }, [dbRoles]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleInputChange = useCallback(
-    (field: keyof UserFormData) =>
-      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        updateData({ [field]: e.target.value });
-      },
-    [updateData]
-  );
-
-  const firstNameError = findFieldError(errors, 'first name');
-  const lastNameError = findFieldError(errors, 'last name');
-  const emailError = findFieldError(errors, 'email');
+  const firstNameError = form?.getError('firstName');
+  const lastNameError = form?.getError('lastName');
+  const emailError = form?.getError('email');
 
   return (
     <div className="space-y-6">
@@ -116,11 +103,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <Input
             id="firstName"
             value={data.firstName}
-            onChange={handleInputChange('firstName')}
+            onChange={e => form?.setValue('firstName', e.target.value)}
+            onBlur={() => form?.touchField('firstName')}
             placeholder="Enter first name"
             name="firstName"
-            aria-invalid={!!firstNameError}
-            aria-describedby={firstNameError ? 'firstName-error' : undefined}
+            {...form?.getFieldProps('firstName')}
           />
         </FormField>
         <FormField
@@ -132,11 +119,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <Input
             id="lastName"
             value={data.lastName}
-            onChange={handleInputChange('lastName')}
+            onChange={e => form?.setValue('lastName', e.target.value)}
+            onBlur={() => form?.touchField('lastName')}
             placeholder="Enter last name"
             name="lastName"
-            aria-invalid={!!lastNameError}
-            aria-describedby={lastNameError ? 'lastName-error' : undefined}
+            {...form?.getFieldProps('lastName')}
           />
         </FormField>
       </div>
@@ -152,11 +139,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           id="email"
           type="email"
           value={data.email}
-          onChange={handleInputChange('email')}
+          onChange={e => form?.setValue('email', e.target.value)}
+          onBlur={() => form?.touchField('email')}
           placeholder="Enter email address"
           name="email"
-          aria-invalid={!!emailError}
-          aria-describedby={emailError ? 'email-error' : undefined}
+          {...form?.getFieldProps('email')}
         />
       </FormField>
 
@@ -194,7 +181,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         const newRoles = isSelected
                           ? data.roles.filter(r => r !== role)
                           : [...data.roles, role];
-                        updateData({ roles: newRoles });
+                        form?.setValue('roles', newRoles);
                       }}
                       className={cn(
                         'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200',
@@ -230,7 +217,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               <Input
                 id="bio"
                 value={data.bio || ''}
-                onChange={handleInputChange('bio')}
+                onChange={e => form?.setValue('bio', e.target.value)}
+                onBlur={() => form?.touchField('bio')}
                 placeholder="Enter bio or description"
                 name="bio"
               />

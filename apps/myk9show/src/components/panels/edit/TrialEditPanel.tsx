@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,6 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
-import { findFieldError } from '@/lib/validation';
 
 interface TrialEditPanelProps {
   open: boolean;
@@ -53,50 +53,31 @@ interface TrialEditFormData extends Record<string, unknown> {
   image?: string;
 }
 
-// Form validation
-const validateTrialData = (data: TrialEditFormData): string[] | null => {
-  const errors: string[] = [];
-
-  if (!data.name?.trim()) {
-    errors.push('Please enter a trial name');
-  }
-
-  if (!data.trialNumber?.trim()) {
-    errors.push('Please enter a trial number');
-  }
-
-  if (!data.trialDate?.trim()) {
-    errors.push('Please select a trial date');
-  }
-
-  if (!data.status?.trim()) {
-    errors.push('Please select a status');
-  }
-
-  if (!data.eventNumber?.trim()) {
-    errors.push('Please enter an event number');
-  }
-
-  if (!data.plannedStartTime?.trim()) {
-    errors.push('Please enter a planned start time');
-  }
-
-  if (!data.order?.trim()) {
-    errors.push('Please enter a display order');
-  } else if (isNaN(parseInt(data.order))) {
-    errors.push('Please enter a valid number for display order');
-  }
-
-  // Validate time format for planned start time (basic validation)
-  if (
-    data.plannedStartTime &&
-    !/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i.test(data.plannedStartTime.trim())
-  ) {
-    errors.push('Please enter a valid start time (e.g., 9:00 AM or 2:30 PM)');
-  }
-
-  return errors.length > 0 ? errors : null;
-};
+// Zod schema for trial edit form validation
+const trialEditSchema = z.object({
+  name: z.string().min(1, 'Please enter a trial name'),
+  trialNumber: z.string().min(1, 'Please enter a trial number'),
+  trialDate: z.string().min(1, 'Please select a trial date'),
+  eventNumber: z.string().min(1, 'Please enter an event number'),
+  status: z.string().min(1, 'Please select a status'),
+  plannedStartTime: z
+    .string()
+    .regex(/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i, 'Please enter a valid time (e.g., 9:00 AM)'),
+  order: z.string().refine(
+    val => {
+      const n = parseInt(val, 10);
+      return !isNaN(n) && n > 0;
+    },
+    { message: 'Order must be a positive number' }
+  ),
+  showId: z.string().optional().or(z.literal('')),
+  showName: z.string().optional().or(z.literal('')),
+  type: z.string().optional().or(z.literal('')),
+  trialType: z.string().optional().or(z.literal('')),
+  image: z.string().optional().or(z.literal('')),
+  timeStarted: z.string().optional().or(z.literal('')),
+  timeEnded: z.string().optional().or(z.literal('')),
+}) as z.ZodSchema<TrialEditFormData>;
 
 // Convert Trial to form data
 const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
@@ -138,28 +119,28 @@ const formDataToTrial = (formData: TrialEditFormData): Partial<Trial> => ({
 
 // Form content component
 const TrialEditForm: React.FC = () => {
-  const { data, updateData, errors } = useEditPanel<TrialEditFormData>();
+  const { form } = useEditPanel<TrialEditFormData>();
 
   // Date picker state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    data.trialDate ? new Date(data.trialDate) : undefined
+    form!.data.trialDate ? new Date(form!.data.trialDate) : undefined
   );
 
   // Handle input changes
   const handleInputChange = useCallback(
     (field: keyof TrialEditFormData) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        updateData({ [field]: e.target.value });
+        form!.setValue(field, e.target.value);
       },
-    [updateData]
+    [form]
   );
 
   // Handle select changes
   const handleSelectChange = useCallback(
     (field: keyof TrialEditFormData) => (value: string) => {
-      updateData({ [field]: value });
+      form!.setValue(field, value);
     },
-    [updateData]
+    [form]
   );
 
   // Handle date changes
@@ -167,20 +148,11 @@ const TrialEditForm: React.FC = () => {
     (date: Date | undefined) => {
       setSelectedDate(date);
       if (date) {
-        updateData({ trialDate: format(date, 'yyyy-MM-dd') });
+        form!.setValue('trialDate', format(date, 'yyyy-MM-dd'));
       }
     },
-    [updateData]
+    [form]
   );
-
-  // Pre-compute field errors
-  const nameError = findFieldError(errors, 'trial name');
-  const trialNumberError = findFieldError(errors, 'trial number');
-  const eventNumberError = findFieldError(errors, 'event number');
-  const statusError = findFieldError(errors, 'status');
-  const trialDateError = findFieldError(errors, 'trial date');
-  const orderError = findFieldError(errors, 'display order', 'valid number');
-  const startTimeError = findFieldError(errors, 'start time');
 
   return (
     <div className="space-y-6 p-6">
@@ -222,15 +194,15 @@ const TrialEditForm: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField label="Trial Name" fieldId="name" required error={nameError}>
+              <FormField label="Trial Name" fieldId="name" required error={form!.getError('name')}>
                 <Input
                   id="name"
-                  value={data.name}
+                  value={form!.data.name}
                   onChange={handleInputChange('name')}
+                  onBlur={() => form!.touchField('name')}
                   placeholder="Enter trial name (e.g., Scent Work, Agility, Obedience)"
-                  className={cn(nameError && 'border-destructive')}
-                  aria-invalid={!!nameError}
-                  aria-describedby={nameError ? 'name-error' : undefined}
+                  className={cn(form!.getError('name') && 'border-destructive')}
+                  {...form!.getFieldProps('name')}
                 />
               </FormField>
 
@@ -239,31 +211,35 @@ const TrialEditForm: React.FC = () => {
                   label="Trial Number"
                   fieldId="trialNumber"
                   required
-                  error={trialNumberError}
+                  error={form!.getError('trialNumber')}
                 >
                   <Input
                     id="trialNumber"
                     type="number"
                     min={1}
                     max={10}
-                    value={data.trialNumber}
+                    value={form!.data.trialNumber}
                     onChange={handleInputChange('trialNumber')}
+                    onBlur={() => form!.touchField('trialNumber')}
                     placeholder="1"
-                    className={cn(trialNumberError && 'border-destructive')}
-                    aria-invalid={!!trialNumberError}
-                    aria-describedby={trialNumberError ? 'trialNumber-error' : undefined}
+                    className={cn(form!.getError('trialNumber') && 'border-destructive')}
+                    {...form!.getFieldProps('trialNumber')}
                   />
                 </FormField>
 
-                <FormField label="Event Number" fieldId="eventNumber" error={eventNumberError}>
+                <FormField
+                  label="Event Number"
+                  fieldId="eventNumber"
+                  error={form!.getError('eventNumber')}
+                >
                   <Input
                     id="eventNumber"
-                    value={data.eventNumber}
+                    value={form!.data.eventNumber}
                     onChange={handleInputChange('eventNumber')}
+                    onBlur={() => form!.touchField('eventNumber')}
                     placeholder="Assigned by organization"
-                    className={cn(eventNumberError && 'border-destructive')}
-                    aria-invalid={!!eventNumberError}
-                    aria-describedby={eventNumberError ? 'eventNumber-error' : undefined}
+                    className={cn(form!.getError('eventNumber') && 'border-destructive')}
+                    {...form!.getFieldProps('eventNumber')}
                   />
                 </FormField>
               </div>
@@ -271,7 +247,7 @@ const TrialEditForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="Trial Type" fieldId="trialType">
                   <Select
-                    value={data.trialType || ''}
+                    value={form!.data.trialType || ''}
                     onValueChange={handleSelectChange('trialType')}
                   >
                     <SelectTrigger id="trialType">
@@ -288,13 +264,18 @@ const TrialEditForm: React.FC = () => {
                   </Select>
                 </FormField>
 
-                <FormField label="Status" fieldId="status" required error={statusError}>
-                  <Select value={data.status} onValueChange={handleSelectChange('status')}>
+                <FormField
+                  label="Status"
+                  fieldId="status"
+                  required
+                  error={form!.getError('status')}
+                >
+                  <Select value={form!.data.status} onValueChange={handleSelectChange('status')}>
                     <SelectTrigger
                       id="status"
-                      className={cn(statusError && 'border-destructive')}
-                      aria-invalid={!!statusError}
-                      aria-describedby={statusError ? 'status-error' : undefined}
+                      className={cn(form!.getError('status') && 'border-destructive')}
+                      {...form!.getFieldProps('status')}
+                      onBlur={() => form!.touchField('status')}
                     >
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -325,7 +306,12 @@ const TrialEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField label="Trial Date" fieldId="trialDate" required error={trialDateError}>
+                <FormField
+                  label="Trial Date"
+                  fieldId="trialDate"
+                  required
+                  error={form!.getError('trialDate')}
+                >
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -334,10 +320,10 @@ const TrialEditForm: React.FC = () => {
                         className={cn(
                           'w-full justify-start text-left font-normal',
                           !selectedDate && 'text-muted-foreground',
-                          trialDateError && 'border-destructive'
+                          form!.getError('trialDate') && 'border-destructive'
                         )}
-                        aria-invalid={!!trialDateError}
-                        aria-describedby={trialDateError ? 'trialDate-error' : undefined}
+                        {...form!.getFieldProps('trialDate')}
+                        onBlur={() => form!.touchField('trialDate')}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {selectedDate ? format(selectedDate, 'PPP') : <span>Pick a date</span>}
@@ -354,17 +340,22 @@ const TrialEditForm: React.FC = () => {
                   </Popover>
                 </FormField>
 
-                <FormField label="Display Order" fieldId="order" required error={orderError}>
+                <FormField
+                  label="Display Order"
+                  fieldId="order"
+                  required
+                  error={form!.getError('order')}
+                >
                   <Input
                     id="order"
                     type="number"
-                    value={data.order}
+                    value={form!.data.order}
                     onChange={handleInputChange('order')}
+                    onBlur={() => form!.touchField('order')}
                     placeholder="Display order"
                     min="1"
-                    className={cn(orderError && 'border-destructive')}
-                    aria-invalid={!!orderError}
-                    aria-describedby={orderError ? 'order-error' : undefined}
+                    className={cn(form!.getError('order') && 'border-destructive')}
+                    {...form!.getFieldProps('order')}
                   />
                 </FormField>
               </div>
@@ -373,16 +364,16 @@ const TrialEditForm: React.FC = () => {
                 label="Planned Start Time"
                 fieldId="plannedStartTime"
                 required
-                error={startTimeError}
+                error={form!.getError('plannedStartTime')}
               >
                 <Input
                   id="plannedStartTime"
-                  value={data.plannedStartTime}
+                  value={form!.data.plannedStartTime}
                   onChange={handleInputChange('plannedStartTime')}
+                  onBlur={() => form!.touchField('plannedStartTime')}
                   placeholder="e.g., 09:00 AM"
-                  className={cn(startTimeError && 'border-destructive')}
-                  aria-invalid={!!startTimeError}
-                  aria-describedby={startTimeError ? 'plannedStartTime-error' : undefined}
+                  className={cn(form!.getError('plannedStartTime') && 'border-destructive')}
+                  {...form!.getFieldProps('plannedStartTime')}
                 />
               </FormField>
 
@@ -397,7 +388,7 @@ const TrialEditForm: React.FC = () => {
                   <FormField label="Time Started" fieldId="timeStarted">
                     <Input
                       id="timeStarted"
-                      value={data.timeStarted || ''}
+                      value={form!.data.timeStarted || ''}
                       onChange={handleInputChange('timeStarted')}
                       placeholder="e.g., 09:15 AM"
                     />
@@ -406,7 +397,7 @@ const TrialEditForm: React.FC = () => {
                   <FormField label="Time Ended" fieldId="timeEnded">
                     <Input
                       id="timeEnded"
-                      value={data.timeEnded || ''}
+                      value={form!.data.timeEnded || ''}
                       onChange={handleInputChange('timeEnded')}
                       placeholder="e.g., 12:30 PM"
                     />
@@ -433,7 +424,7 @@ const TrialEditForm: React.FC = () => {
               <FormField label="Category" fieldId="type">
                 <Input
                   id="type"
-                  value={data.type || ''}
+                  value={form!.data.type || ''}
                   onChange={handleInputChange('type')}
                   placeholder="Trial category or classification"
                 />
@@ -446,7 +437,7 @@ const TrialEditForm: React.FC = () => {
               >
                 <Input
                   id="image"
-                  value={data.image || ''}
+                  value={form!.data.image || ''}
                   onChange={handleInputChange('image')}
                   placeholder="https://example.com/trial-image.jpg"
                 />
@@ -459,7 +450,7 @@ const TrialEditForm: React.FC = () => {
               >
                 <Input
                   id="showId"
-                  value={data.showId}
+                  value={form!.data.showId}
                   onChange={handleInputChange('showId')}
                   placeholder="Associated show identifier"
                   className="bg-muted text-muted-foreground"
@@ -506,7 +497,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      validateData={validateTrialData}
+      schema={trialEditSchema}
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"

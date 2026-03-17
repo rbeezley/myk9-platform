@@ -12,12 +12,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { DollarSign } from 'lucide-react';
 import { FormField } from '@/components/common/FormField';
-import { findFieldError } from '@/lib/validation';
+import type { FormValidation } from '@/hooks/useFormValidation';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditFeesTabProps {
   data: ShowEditFormData;
-  errors: string[];
+  form?: FormValidation<ShowEditFormData> | undefined;
   handleInputChange: (
     field: keyof ShowEditFormData
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
@@ -26,16 +26,16 @@ interface ShowEditFeesTabProps {
 
 export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   data,
-  errors,
+  form,
   handleInputChange,
   handleCheckboxChange,
 }) => {
-  const preEntryFeeError = findFieldError(errors, 'pre-entry fee');
-  const dayOfShowFeeError = findFieldError(errors, 'day of show fee');
+  const preEntryFeeError = form?.getError('preEntryFee');
+  const dayOfShowFeeError = form?.getError('dayOfShowFee');
 
   const handleFeeChange = (field: keyof ShowEditFormData) => (value: number) => {
-    const handler = handleInputChange(field);
-    handler({ target: { value: String(value) } } as React.ChangeEvent<HTMLInputElement>);
+    form?.setValue(field, String(value));
+    form?.touchField(field);
   };
 
   return (
@@ -59,8 +59,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                 onChange={handleFeeChange('preEntryFee')}
                 placeholder="0.00"
                 className={preEntryFeeError ? 'border-destructive' : ''}
-                aria-invalid={!!preEntryFeeError}
-                aria-describedby={preEntryFeeError ? 'preEntryFee-error' : undefined}
+                {...form?.getFieldProps('preEntryFee')}
               />
             </FormField>
 
@@ -71,8 +70,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                 onChange={handleFeeChange('dayOfShowFee')}
                 placeholder="0.00"
                 className={dayOfShowFeeError ? 'border-destructive' : ''}
-                aria-invalid={!!dayOfShowFeeError}
-                aria-describedby={dayOfShowFeeError ? 'dayOfShowFee-error' : undefined}
+                {...form?.getFieldProps('dayOfShowFee')}
               />
             </FormField>
           </div>
@@ -96,6 +94,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                   type="number"
                   value={data.maxEntriesPerDog || ''}
                   onChange={handleInputChange('maxEntriesPerDog')}
+                  onBlur={() => form?.touchField('maxEntriesPerDog')}
                   placeholder="Unlimited"
                   min="1"
                 />
@@ -107,6 +106,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                   type="number"
                   value={data.maxTotalEntries || ''}
                   onChange={handleInputChange('maxTotalEntries')}
+                  onBlur={() => form?.touchField('maxTotalEntries')}
                   placeholder="Unlimited"
                   min="1"
                 />

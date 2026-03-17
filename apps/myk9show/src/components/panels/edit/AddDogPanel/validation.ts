@@ -1,60 +1,68 @@
+import { z } from 'zod';
+import type { Registration } from '@/types/dog-types';
 import type { DogFormData } from './types';
 
 /**
- * Validates a DogFormData object and returns a record of field-level error messages.
- * An empty record means the form is valid.
+ * Zod schema for AddDogPanel form data.
+ * Replaces the legacy validateDogData function.
  */
-export const validateDogData = (data: DogFormData): Record<string, string> => {
-  const errors: Record<string, string> = {};
-
-  // Basic information validation
-  if (!data.callName.trim()) errors.callName = 'Please enter a call name';
-  if (!data.gender) errors.gender = 'Please select a gender';
-  if (!data.dateOfBirth) errors.dateOfBirth = 'Please enter a date of birth';
-  if (!data.ownerId) errors.ownerId = 'Please select an owner';
-
-  // Date validation
-  if (data.dateOfBirth) {
-    const birthDate = new Date(data.dateOfBirth);
-    const now = new Date();
-    if (birthDate > now) {
-      errors.dateOfBirth = 'Date of birth cannot be in the future';
-    }
-    if (birthDate < new Date(now.getFullYear() - 30, 0, 1)) {
-      errors.dateOfBirth = 'Date of birth seems too far in the past';
-    }
-  }
-
-  // Registration validation
-  data.registrations.forEach((reg, index) => {
-    if (!reg.organization.trim())
-      errors[`registration-${index}-organization`] = 'Please select an organization';
-    if (!reg.registeredName.trim())
-      errors[`registration-${index}-registeredName`] = 'Please enter a registered name';
-    if (!reg.breed.trim()) errors[`registration-${index}-breed`] = 'Please enter a breed';
-    if (!reg.registrationNumber.trim())
-      errors[`registration-${index}-registrationNumber`] = 'Please enter a registration number';
-  });
-
-  return errors;
-};
+export const addDogSchema = z.object({
+  callName: z.string().min(1, 'Please enter a call name'),
+  gender: z
+    .enum(['Male', 'Female', ''] as const, { message: 'Please select a gender' })
+    .refine(v => v !== '', 'Please select a gender'),
+  dateOfBirth: z
+    .string()
+    .min(1, 'Please enter a date of birth')
+    .refine(
+      val => {
+        if (!val) return true;
+        const d = new Date(val);
+        return d <= new Date();
+      },
+      'Date of birth cannot be in the future'
+    )
+    .refine(
+      val => {
+        if (!val) return true;
+        const d = new Date(val);
+        return d >= new Date(new Date().getFullYear() - 30, 0, 1);
+      },
+      'Date of birth seems too far in the past'
+    ),
+  ownerId: z.string().min(1, 'Please select an owner'),
+  color: z.string(),
+  height: z.string(),
+  weight: z.string(),
+  microchip: z.string(),
+  spayedNeutered: z.boolean(),
+  imageUrl: z.string(),
+  registrations: z.custom<Registration[]>(val => Array.isArray(val), {
+    message: 'Invalid registrations',
+  }),
+});
 
 /**
- * Check whether a specific tab's fields are all valid.
+ * Check whether a specific tab's required fields have been filled in.
+ * Works with the form's data directly — does NOT re-run Zod validation.
  */
 export const isTabValid = (tab: string, formData: DogFormData): boolean => {
-  const errors = validateDogData(formData);
   switch (tab) {
     case 'basic':
-      return !errors.callName && !errors.gender && !errors.dateOfBirth && !errors.ownerId;
+      return !!(
+        formData.callName?.trim() &&
+        formData.gender &&
+        formData.dateOfBirth &&
+        formData.ownerId
+      );
     case 'registration':
       if (formData.registrations.length === 0) return true;
       return formData.registrations.every(
-        (_, index) =>
-          !errors[`registration-${index}-organization`] &&
-          !errors[`registration-${index}-registeredName`] &&
-          !errors[`registration-${index}-breed`] &&
-          !errors[`registration-${index}-registrationNumber`]
+        reg =>
+          reg.organization?.trim() &&
+          reg.registeredName?.trim() &&
+          reg.breed?.trim() &&
+          reg.registrationNumber?.trim()
       );
     case 'optional':
       return true;

@@ -1,8 +1,15 @@
 import React, { useCallback, useMemo } from 'react';
+import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
-import { validateShowData, showToFormData, formDataToShow } from './ShowEditPanel.helpers';
+import { showToFormData, formDataToShow } from './ShowEditPanel.helpers';
+import { showSchemas } from '@/lib/validation';
 import { ShowEditForm } from './ShowEditForm';
+
+// Cast needed: Zod's .optional() outputs `T | undefined` in its _output type,
+// but exactOptionalPropertyTypes treats `field?: T` as "T when present, absent otherwise".
+// The runtime behavior is identical — this just bridges the type-level gap.
+const showEditSchema = showSchemas.edit as unknown as z.ZodSchema<ShowEditFormData>;
 
 // Main component
 export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
@@ -36,7 +43,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      validateData={validateShowData}
+      schema={showEditSchema}
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"

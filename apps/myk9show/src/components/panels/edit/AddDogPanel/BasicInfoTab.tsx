@@ -13,24 +13,27 @@ import { Heart, User, Camera, Edit } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { UserRole } from '@/types/auth-types';
 import { FormField } from '@/components/common/FormField';
+import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
-import type { TabSectionProps } from './types';
+import type { DogFormData } from './types';
 
-interface BasicInfoTabProps extends TabSectionProps {
+interface BasicInfoTabProps {
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
   onPhotoOpen: () => void;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
-  formData,
-  validationErrors,
-  onFieldChange,
   userRole,
   currentUserPersonId,
   onPhotoOpen,
 }) => {
+  const { form } = useEditPanel<DogFormData>();
   const people = useUserStore(state => state.people);
+
+  if (!form) return null;
+
+  const { data: formData } = form;
 
   return (
     <Card className="group relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80 border border-border/30 rounded-2xl backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1">
@@ -79,15 +82,15 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               label="Call Name"
               fieldId="callName"
               required
-              error={validationErrors.callName}
+              error={form.getError('callName')}
             >
               <Input
                 id="callName"
                 value={formData.callName}
-                onChange={e => onFieldChange('callName', e.target.value)}
+                onChange={e => form.setValue('callName', e.target.value)}
+                onBlur={() => form.touchField('callName')}
                 placeholder="Everyday name your dog goes by"
-                aria-invalid={!!validationErrors.callName}
-                aria-describedby={validationErrors.callName ? 'callName-error' : undefined}
+                {...form.getFieldProps('callName')}
               />
             </FormField>
             {formData.callName && (
@@ -100,11 +103,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
         {/* Form Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField label="Gender" fieldId="gender" required error={validationErrors.gender}>
-            <Select value={formData.gender} onValueChange={value => onFieldChange('gender', value)}>
+          <FormField label="Gender" fieldId="gender" required error={form.getError('gender')}>
+            <Select
+              value={formData.gender}
+              onValueChange={value => {
+                form.setValue('gender', value);
+                form.touchField('gender');
+              }}
+            >
               <SelectTrigger
-                aria-invalid={!!validationErrors.gender}
-                aria-describedby={validationErrors.gender ? 'gender-error' : undefined}
+                {...form.getFieldProps('gender')}
+                onBlur={() => form.touchField('gender')}
               >
                 <SelectValue placeholder="Choose gender" />
               </SelectTrigger>
@@ -129,17 +138,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             label="Date of Birth"
             fieldId="dateOfBirth"
             required
-            error={validationErrors.dateOfBirth}
+            error={form.getError('dateOfBirth')}
           >
             <Input
               id="dateOfBirth"
               type="date"
               value={formData.dateOfBirth}
-              onChange={e => onFieldChange('dateOfBirth', e.target.value)}
-              aria-invalid={!!validationErrors.dateOfBirth}
-              aria-describedby={validationErrors.dateOfBirth ? 'dateOfBirth-error' : undefined}
+              onChange={e => form.setValue('dateOfBirth', e.target.value)}
+              onBlur={() => form.touchField('dateOfBirth')}
+              {...form.getFieldProps('dateOfBirth')}
             />
-            {formData.dateOfBirth && !validationErrors.dateOfBirth && (
+            {formData.dateOfBirth && !form.getError('dateOfBirth') && (
               <div className="text-xs text-muted-foreground/70 bg-muted/30 px-3 py-2 rounded-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
                 Age: {calculateAge(formData.dateOfBirth)}
               </div>
@@ -155,7 +164,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <Input
               id="color"
               value={formData.color}
-              onChange={e => onFieldChange('color', e.target.value)}
+              onChange={e => form.setValue('color', e.target.value)}
               placeholder="e.g., Black & White, Red, Blue Merle"
             />
           </FormField>
@@ -170,14 +179,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         {(userRole === UserRole.SECRETARY ||
           userRole === UserRole.CLUB_ADMIN ||
           userRole === UserRole.SITE_ADMIN) && (
-          <FormField label="Owner" fieldId="owner" required error={validationErrors.ownerId}>
+          <FormField label="Owner" fieldId="owner" required error={form.getError('ownerId')}>
             <Select
               value={formData.ownerId}
-              onValueChange={value => onFieldChange('ownerId', value)}
+              onValueChange={value => {
+                form.setValue('ownerId', value);
+                form.touchField('ownerId');
+              }}
             >
               <SelectTrigger
-                aria-invalid={!!validationErrors.ownerId}
-                aria-describedby={validationErrors.ownerId ? 'owner-error' : undefined}
+                {...form.getFieldProps('ownerId')}
+                onBlur={() => form.touchField('ownerId')}
               >
                 <SelectValue placeholder="Choose dog owner">
                   {formData.ownerId

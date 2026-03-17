@@ -2,62 +2,6 @@ import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { ClassEditFormData, TrialClassEditFormData } from './ClassEditPanel.types';
 
-// Form validation for ClassData
-export const validateClassData = (data: ClassEditFormData): string[] | null => {
-  const errors: string[] = [];
-
-  if (!data.element?.trim()) {
-    errors.push('Please enter an element');
-  }
-
-  if (!data.level?.trim()) {
-    errors.push('Please enter a level');
-  }
-
-  // Validate time limits if provided
-  if (data.timeLimit1 && isNaN(parseInt(data.timeLimit1))) {
-    errors.push('Please enter a valid time limit 1');
-  }
-
-  if (data.timeLimit2 && isNaN(parseInt(data.timeLimit2))) {
-    errors.push('Please enter a valid time limit 2');
-  }
-
-  if (data.timeLimit3 && isNaN(parseInt(data.timeLimit3))) {
-    errors.push('Please enter a valid time limit 3');
-  }
-
-  // Validate fees if provided
-  if (data.preEntryFee && (isNaN(data.preEntryFee) || data.preEntryFee < 0)) {
-    errors.push('Please enter a valid pre-entry fee');
-  }
-
-  if (data.dayOfShowFee && (isNaN(data.dayOfShowFee) || data.dayOfShowFee < 0)) {
-    errors.push('Please enter a valid day of show fee');
-  }
-
-  return errors.length > 0 ? errors : null;
-};
-
-// Form validation for TrialClass
-export const validateTrialClassData = (data: TrialClassEditFormData): string[] | null => {
-  const errors: string[] = [];
-
-  if (!data.judgeId?.trim()) {
-    errors.push('Please select a judge');
-  }
-
-  if (!data.startTime?.trim()) {
-    errors.push('Please enter a start time');
-  }
-
-  if (!data.status?.trim()) {
-    errors.push('Please select a status');
-  }
-
-  return errors.length > 0 ? errors : null;
-};
-
 // Convert ClassData to form data
 export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormData => {
   return {

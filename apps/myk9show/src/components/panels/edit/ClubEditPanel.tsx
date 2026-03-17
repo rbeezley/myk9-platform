@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Building, MapPin, Phone, Camera } from 'lucide-react';
-import { findFieldError } from '@/lib/validation';
+import { z } from 'zod';
+import { clubSchemas } from '@/lib/validation';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
@@ -37,76 +38,11 @@ interface ClubEditPanelProps {
   mode?: 'create' | 'edit';
 }
 
-// Form data interface extending ClubFormData for edit panel needs
-interface ClubEditFormData extends Record<string, unknown> {
-  name: string;
-  clubNumber: string;
-  email: string;
-  phone: string;
-  website: string;
-  description: string;
-  logo: string;
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  founded?: string; // ISO date string for forms
-  clubType?: string;
-  accentColor?: string;
-}
+// Zod schema for club edit form
+const clubEditSchema = clubSchemas.basic;
 
-// Form validation
-const validateClubData = (data: ClubEditFormData): string[] | null => {
-  const errors: string[] = [];
-
-  if (!data.name?.trim()) {
-    errors.push('Please enter a club name');
-  }
-
-  if (!data.email?.trim()) {
-    errors.push('Please enter an email address');
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.push('Please enter a valid email address');
-  }
-
-  if (!data.phone?.trim()) {
-    errors.push('Please enter a phone number');
-  } else if (!/^[\d\s\-().+]+$/.test(data.phone.trim())) {
-    errors.push('Please enter a valid phone number');
-  }
-
-  if (!data.street?.trim()) {
-    errors.push('Please enter a street address');
-  }
-
-  if (!data.city?.trim()) {
-    errors.push('Please enter a city');
-  }
-
-  if (!data.state?.trim()) {
-    errors.push('Please enter a state or province');
-  }
-
-  if (!data.zipCode?.trim()) {
-    errors.push('Please enter a ZIP or postal code');
-  }
-
-  if (!data.country?.trim()) {
-    errors.push('Please select a country');
-  }
-
-  // Website validation if provided
-  if (data.website && data.website.trim()) {
-    try {
-      new URL(data.website);
-    } catch {
-      errors.push('Please enter a valid website URL');
-    }
-  }
-
-  return errors.length > 0 ? errors : null;
-};
+// Form data type derived from the Zod schema
+type ClubEditFormData = z.infer<typeof clubEditSchema> & Record<string, unknown>;
 
 // Convert Club to form data
 const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
@@ -132,12 +68,12 @@ const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
 // Convert form data back to Club
 const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
   name: formData.name,
-  clubNumber: formData.clubNumber,
+  clubNumber: formData.clubNumber ?? '',
   email: formData.email,
   phone: formData.phone,
   website: formData.website || undefined,
-  description: formData.description,
-  logo: formData.logo,
+  description: formData.description ?? '',
+  logo: formData.logo ?? '',
   address: {
     street: formData.street,
     city: formData.city,
@@ -147,23 +83,12 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
   },
   founded: formData.founded ? new Date(formData.founded) : undefined,
   clubType: (formData.clubType as Club['clubType']) || undefined,
-  accentColor: formData.accentColor || '',
+  accentColor: formData.accentColor ?? '',
 });
 
 // Form content component
 const ClubEditForm: React.FC = () => {
-  const { data, updateData, errors } = useEditPanel<ClubEditFormData>();
-
-  // Pre-compute field errors
-  const clubNameError = findFieldError(errors, 'club name');
-  const emailError = findFieldError(errors, 'email');
-  const phoneError = findFieldError(errors, 'phone');
-  const websiteError = findFieldError(errors, 'website', 'URL');
-  const streetError = findFieldError(errors, 'street');
-  const cityError = findFieldError(errors, 'city');
-  const stateError = findFieldError(errors, 'state');
-  const zipError = findFieldError(errors, 'zip');
-  const countryError = findFieldError(errors, 'country');
+  const { data, form } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -174,17 +99,26 @@ const ClubEditForm: React.FC = () => {
   const handleInputChange = useCallback(
     (field: keyof ClubEditFormData) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        updateData({ [field]: e.target.value });
+        form?.setValue(field, e.target.value);
       },
-    [updateData]
+    [form]
+  );
+
+  // Handle blur to touch field for validation
+  const handleBlur = useCallback(
+    (field: keyof ClubEditFormData) => () => {
+      form?.touchField(field);
+    },
+    [form]
   );
 
   // Handle select changes
   const handleSelectChange = useCallback(
     (field: keyof ClubEditFormData) => (value: string) => {
-      updateData({ [field]: value });
+      form?.setValue(field, value);
+      form?.touchField(field);
     },
-    [updateData]
+    [form]
   );
 
   // Handle file upload (shared logic for drag & drop and file input)
@@ -234,12 +168,12 @@ const ClubEditForm: React.FC = () => {
   const handlePhotoSave = useCallback(
     (savedImage: string | null) => {
       if (savedImage) {
-        updateData({ logo: savedImage });
+        form?.setValue('logo', savedImage);
       }
       setIsPhotoModalOpen(false);
       setPreviewImage(null);
     },
-    [updateData]
+    [form]
   );
 
   return (
@@ -303,7 +237,7 @@ const ClubEditForm: React.FC = () => {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => updateData({ logo: '' })}
+                        onClick={() => form?.setValue('logo', '')}
                         className="gap-2 text-muted-foreground hover:text-destructive"
                       >
                         Remove
@@ -314,19 +248,14 @@ const ClubEditForm: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  label="Club Name"
-                  fieldId="name"
-                  required
-                  error={clubNameError}
-                >
+                <FormField label="Club Name" fieldId="name" required error={form?.getError('name')}>
                   <Input
                     id="name"
                     value={data.name}
                     onChange={handleInputChange('name')}
+                    onBlur={handleBlur('name')}
                     placeholder="Enter club name"
-                    aria-invalid={!!clubNameError}
-                    aria-describedby={clubNameError ? 'name-error' : undefined}
+                    {...form?.getFieldProps('name')}
                   />
                 </FormField>
 
@@ -335,6 +264,7 @@ const ClubEditForm: React.FC = () => {
                     id="clubNumber"
                     value={data.clubNumber}
                     onChange={handleInputChange('clubNumber')}
+                    onBlur={handleBlur('clubNumber')}
                     placeholder="Enter club number"
                   />
                 </FormField>
@@ -345,6 +275,7 @@ const ClubEditForm: React.FC = () => {
                   id="description"
                   value={data.description || ''}
                   onChange={handleInputChange('description')}
+                  onBlur={handleBlur('description')}
                   placeholder="Enter club description"
                   className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                 />
@@ -353,7 +284,7 @@ const ClubEditForm: React.FC = () => {
               <div className="space-y-2">
                 <AccentColorPicker
                   value={data.accentColor || null}
-                  onChange={color => updateData({ accentColor: color ?? '' })}
+                  onChange={color => form?.setValue('accentColor', color ?? '')}
                 />
               </div>
 
@@ -378,12 +309,14 @@ const ClubEditForm: React.FC = () => {
                   </Select>
                 </FormField>
 
-                <FormField label="Founded" fieldId="founded">
+                <FormField label="Founded" fieldId="founded" error={form?.getError('founded')}>
                   <Input
                     id="founded"
                     type="date"
                     value={data.founded || ''}
                     onChange={handleInputChange('founded')}
+                    onBlur={handleBlur('founded')}
+                    {...form?.getFieldProps('founded')}
                   />
                 </FormField>
               </div>
@@ -409,16 +342,16 @@ const ClubEditForm: React.FC = () => {
                   label="Email Address"
                   fieldId="email"
                   required
-                  error={emailError}
+                  error={form?.getError('email')}
                 >
                   <Input
                     id="email"
                     type="email"
                     value={data.email}
                     onChange={handleInputChange('email')}
+                    onBlur={handleBlur('email')}
                     placeholder="Enter email address"
-                    aria-invalid={!!emailError}
-                    aria-describedby={emailError ? 'email-error' : undefined}
+                    {...form?.getFieldProps('email')}
                   />
                 </FormField>
 
@@ -426,33 +359,29 @@ const ClubEditForm: React.FC = () => {
                   label="Phone Number"
                   fieldId="phone"
                   required
-                  error={phoneError}
+                  error={form?.getError('phone')}
                 >
                   <Input
                     id="phone"
                     type="tel"
                     value={data.phone}
                     onChange={handleInputChange('phone')}
+                    onBlur={handleBlur('phone')}
                     placeholder="Enter phone number"
-                    aria-invalid={!!phoneError}
-                    aria-describedby={phoneError ? 'phone-error' : undefined}
+                    {...form?.getFieldProps('phone')}
                   />
                 </FormField>
               </div>
 
-              <FormField
-                label="Website"
-                fieldId="website"
-                error={websiteError}
-              >
+              <FormField label="Website" fieldId="website" error={form?.getError('website')}>
                 <Input
                   id="website"
                   type="url"
                   value={data.website}
                   onChange={handleInputChange('website')}
+                  onBlur={handleBlur('website')}
                   placeholder="https://www.clubwebsite.com"
-                  aria-invalid={!!websiteError}
-                  aria-describedby={websiteError ? 'website-error' : undefined}
+                  {...form?.getFieldProps('website')}
                 />
               </FormField>
 
@@ -468,32 +397,27 @@ const ClubEditForm: React.FC = () => {
                   label="Street Address"
                   fieldId="street"
                   required
-                  error={streetError}
+                  error={form?.getError('street')}
                 >
                   <Input
                     id="street"
                     value={data.street}
                     onChange={handleInputChange('street')}
+                    onBlur={handleBlur('street')}
                     placeholder="123 Main Street"
-                    aria-invalid={!!streetError}
-                    aria-describedby={streetError ? 'street-error' : undefined}
+                    {...form?.getFieldProps('street')}
                   />
                 </FormField>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    label="City"
-                    fieldId="city"
-                    required
-                    error={cityError}
-                  >
+                  <FormField label="City" fieldId="city" required error={form?.getError('city')}>
                     <Input
                       id="city"
                       value={data.city}
                       onChange={handleInputChange('city')}
+                      onBlur={handleBlur('city')}
                       placeholder="Enter city"
-                      aria-invalid={!!cityError}
-                      aria-describedby={cityError ? 'city-error' : undefined}
+                      {...form?.getFieldProps('city')}
                     />
                   </FormField>
 
@@ -501,15 +425,15 @@ const ClubEditForm: React.FC = () => {
                     label="State/Province"
                     fieldId="state"
                     required
-                    error={stateError}
+                    error={form?.getError('state')}
                   >
                     <Input
                       id="state"
                       value={data.state}
                       onChange={handleInputChange('state')}
+                      onBlur={handleBlur('state')}
                       placeholder="Enter state"
-                      aria-invalid={!!stateError}
-                      aria-describedby={stateError ? 'state-error' : undefined}
+                      {...form?.getFieldProps('state')}
                     />
                   </FormField>
 
@@ -517,15 +441,15 @@ const ClubEditForm: React.FC = () => {
                     label="ZIP Code"
                     fieldId="zipCode"
                     required
-                    error={zipError}
+                    error={form?.getError('zipCode')}
                   >
                     <Input
                       id="zipCode"
                       value={data.zipCode}
                       onChange={handleInputChange('zipCode')}
+                      onBlur={handleBlur('zipCode')}
                       placeholder="12345"
-                      aria-invalid={!!zipError}
-                      aria-describedby={zipError ? 'zipCode-error' : undefined}
+                      {...form?.getFieldProps('zipCode')}
                     />
                   </FormField>
                 </div>
@@ -534,14 +458,10 @@ const ClubEditForm: React.FC = () => {
                   label="Country"
                   fieldId="country"
                   required
-                  error={countryError}
+                  error={form?.getError('country')}
                 >
                   <Select value={data.country} onValueChange={handleSelectChange('country')}>
-                    <SelectTrigger
-                      id="country"
-                      aria-invalid={!!countryError}
-                      aria-describedby={countryError ? 'country-error' : undefined}
-                    >
+                    <SelectTrigger id="country" {...form?.getFieldProps('country')}>
                       <SelectValue placeholder="Select country" />
                     </SelectTrigger>
                     <SelectContent>
@@ -619,7 +539,7 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      validateData={validateClubData}
+      schema={clubEditSchema}
       enableAutoSave={enableAutoSave}
       saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"

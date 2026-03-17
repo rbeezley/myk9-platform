@@ -144,6 +144,84 @@ export const showSchemas = {
       }
     ),
 
+  /** Zod schema for ShowEditPanel (ShowEditFormData). */
+  edit: z
+    .object({
+      name: z.string().min(1, 'Please enter a show name'),
+      status: z.string(),
+      organization: z.string(),
+      clubId: z.string().min(1, 'Please select a hosting club'),
+      startDate: z.string().min(1, 'Please select a start date'),
+      endDate: z.string().min(1, 'Please select an end date'),
+      location: z.string(),
+      chairman: z.string(),
+      secretary: z.string(),
+      chiefSteward: z.string(),
+      entryOpenDate: z.string(),
+      entryCloseDate: z.string(),
+      preEntryFee: z
+        .string()
+        .refine(
+          val => {
+            if (!val) return true;
+            return !isNaN(parseFloat(val.replace(/[$,]/g, '')));
+          },
+          { message: 'Please enter a valid pre-entry fee amount' }
+        ),
+      dayOfShowFee: z
+        .string()
+        .refine(
+          val => {
+            if (!val) return true;
+            return !isNaN(parseFloat(val.replace(/[$,]/g, '')));
+          },
+          { message: 'Please enter a valid day of show fee amount' }
+        ),
+      assignedJudges: z.custom<import('@/types/judge-types').ShowJudgeAssignment[]>(
+        val => Array.isArray(val),
+        { message: 'Invalid judge assignments' }
+      ),
+      maxEntriesPerDog: z.number().optional(),
+      maxTotalEntries: z.number().optional(),
+      allowNonOwnerHandlers: z.boolean().optional(),
+    })
+    .refine(
+      data => {
+        if (data.startDate && data.endDate) {
+          return new Date(data.endDate) >= new Date(data.startDate);
+        }
+        return true;
+      },
+      {
+        message: 'End date must be after start date',
+        path: ['endDate'],
+      }
+    )
+    .refine(
+      data => {
+        if (data.entryOpenDate && data.entryCloseDate) {
+          return new Date(data.entryCloseDate) >= new Date(data.entryOpenDate);
+        }
+        return true;
+      },
+      {
+        message: 'Entry close date must be after entry open date',
+        path: ['entryCloseDate'],
+      }
+    )
+    .refine(
+      data => {
+        if (data.entryCloseDate && data.startDate) {
+          return new Date(data.entryCloseDate) <= new Date(data.startDate);
+        }
+        return true;
+      },
+      {
+        message: 'Entry close date must be before show start date',
+        path: ['entryCloseDate'],
+      }
+    ),
+
   trial: z.object({
     name: commonValidations.name,
     date: commonValidations.date,
@@ -188,6 +266,62 @@ export const clubSchemas = {
       })
       .optional()
       .or(z.literal('')),
+    accentColor: commonValidations.optionalString,
+  }),
+};
+
+// Zod helper: string that allows empty but never undefined (for required string fields with no min-length)
+const requiredString = z.string();
+
+// Zod helper: time-limit field — optional string, must parse as int if non-empty
+const timeLimitField = (label: string) =>
+  z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(v => !v || !isNaN(parseInt(v)), { message: `Please enter a valid ${label}` });
+
+// Class validation schemas
+export const classSchemas = {
+  /** Full mode — ClassData editing (element/level read-only but required) */
+  full: z.object({
+    element: z.string().min(1, 'Please enter an element'),
+    level: z.string().min(1, 'Please enter a level'),
+    section: requiredString,
+    classOrder: requiredString,
+    status: z.string().min(1, 'Please select a status'),
+    estimatedJudgingTime: commonValidations.optionalString,
+    timeLimit1: timeLimitField('time limit 1'),
+    timeLimit2: timeLimitField('time limit 2'),
+    timeLimit3: timeLimitField('time limit 3'),
+    judge: commonValidations.optionalString,
+    gateSteward: commonValidations.optionalString,
+    tableSteward: commonValidations.optionalString,
+    timerSteward: commonValidations.optionalString,
+    ringSteward1: commonValidations.optionalString,
+    ringSteward2: commonValidations.optionalString,
+    ringSteward3: commonValidations.optionalString,
+    hidesUsed: commonValidations.optionalString,
+    distractionsUsed: commonValidations.optionalString,
+    itemsUsed: commonValidations.optionalString,
+    preEntryFee: z.number().min(0, 'Please enter a valid pre-entry fee').optional().or(z.literal(0)),
+    dayOfShowFee: z
+      .number()
+      .min(0, 'Please enter a valid day of show fee')
+      .optional()
+      .or(z.literal(0)),
+  }),
+
+  /** Simple mode — TrialClass editing */
+  simple: z.object({
+    element: requiredString,
+    level: requiredString,
+    section: requiredString,
+    judgeId: z.string().min(1, 'Please select a judge'),
+    judgeName: commonValidations.optionalString,
+    startTime: z.string().min(1, 'Please enter a start time'),
+    status: z.string().min(1, 'Please select a status'),
+    entries: z.number(),
   }),
 };
 
@@ -197,15 +331,18 @@ export type DogRegistrationInput = z.infer<typeof dogSchemas.registration>;
 export type DogHealthInput = z.infer<typeof dogSchemas.health>;
 export type PersonBasicInput = z.infer<typeof personSchemas.basic>;
 export type ShowBasicInput = z.infer<typeof showSchemas.basic>;
+export type ShowEditInput = z.infer<typeof showSchemas.edit>;
 export type ShowTrialInput = z.infer<typeof showSchemas.trial>;
 export type ClubBasicInput = z.infer<typeof clubSchemas.basic>;
+export type ClassFullInput = z.infer<typeof classSchemas.full>;
+export type ClassSimpleInput = z.infer<typeof classSchemas.simple>;
 
 /**
  * Find the first error in a string[] that matches any of the given keywords (case-insensitive).
  * Used by legacy EditPanelWrapper consumers that receive errors as string[].
  */
 export function findFieldError(errors: string[], ...keywords: string[]): string | undefined {
-  return errors.find((e) => keywords.some((k) => e.toLowerCase().includes(k.toLowerCase())));
+  return errors.find(e => keywords.some(k => e.toLowerCase().includes(k.toLowerCase())));
 }
 
 // Validation helper function

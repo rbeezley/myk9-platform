@@ -27,7 +27,7 @@ import { useUserStore } from '@/store/userStore';
 import AvailabilityFormFields from '@/components/judges/AvailabilityFormFields';
 
 import type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
-import { validateUserData, userToFormData, formDataToUser } from './UserEditPanel.helpers';
+import { userFormSchema, userToFormData, formDataToUser } from './UserEditPanel.helpers';
 import { BasicInfoTab } from './BasicInfoTab';
 import { ContactInfoTab } from './ContactInfoTab';
 import { QualificationsTab } from './QualificationsTab';
@@ -40,7 +40,7 @@ const TAB_TRIGGER_CLASS =
 
 // Form content component
 const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
-  const { data, updateData, errors } = useEditPanel<UserFormData>();
+  const { data, form } = useEditPanel<UserFormData>();
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   const queryClient = useQueryClient();
@@ -213,10 +213,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
           className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
           <BasicInfoTab
-            data={data}
             personId={userId}
-            errors={errors}
-            updateData={updateData}
             hasAdminPermission={hasPermission('admin:manage')}
             canEditAdvancedFields={canEditAdvancedFields}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
@@ -237,7 +234,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
                     );
                     if (!confirmed) return;
                   }
-                  updateData({ status: value as 'active' | 'suspended' });
+                  form?.setValue('status', value as 'active' | 'suspended');
                 }}
                 disabled={userId === currentUser?.id}
               >
@@ -258,12 +255,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
           value="contact"
           className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <ContactInfoTab
-            data={data}
-            errors={errors}
-            updateData={updateData}
-            canEditAdvancedFields={canEditAdvancedFields}
-          />
+          <ContactInfoTab canEditAdvancedFields={canEditAdvancedFields} />
         </TabsContent>
 
         {/* Qualifications Tab - Only for Judges */}
@@ -341,7 +333,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
         }}
         onSave={() => {
           if (previewImage) {
-            updateData({ profileImage: previewImage });
+            form?.setValue('profileImage', previewImage);
           }
           setIsPhotoModalOpen(false);
           setPreviewImage(null);
@@ -395,7 +387,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      validateData={validateUserData}
+      schema={userFormSchema}
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"

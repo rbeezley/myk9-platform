@@ -5,9 +5,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Settings } from 'lucide-react';
 import { FormField } from '@/components/common/FormField';
-import type { TabSectionProps } from './types';
+import { useEditPanel } from '@/components/panels/edit/useEditPanel';
+import type { DogFormData } from './types';
 
-export const AdditionalInfoTab: React.FC<TabSectionProps> = ({ formData, onFieldChange }) => {
+export const AdditionalInfoTab: React.FC = () => {
+  const { form } = useEditPanel<DogFormData>();
+
+  if (!form) return null;
+
+  const { data: formData } = form;
+
   return (
     <Card>
       <CardHeader>
@@ -22,7 +29,7 @@ export const AdditionalInfoTab: React.FC<TabSectionProps> = ({ formData, onField
             <Input
               id="height"
               value={formData.height}
-              onChange={e => onFieldChange('height', e.target.value)}
+              onChange={e => form.setValue('height', e.target.value)}
               placeholder="e.g., 24"
               type="number"
               step="0.1"
@@ -33,7 +40,7 @@ export const AdditionalInfoTab: React.FC<TabSectionProps> = ({ formData, onField
             <Input
               id="weight"
               value={formData.weight}
-              onChange={e => onFieldChange('weight', e.target.value)}
+              onChange={e => form.setValue('weight', e.target.value)}
               placeholder="e.g., 55"
               type="number"
               step="0.1"
@@ -44,7 +51,7 @@ export const AdditionalInfoTab: React.FC<TabSectionProps> = ({ formData, onField
             <Input
               id="microchip"
               value={formData.microchip}
-              onChange={e => onFieldChange('microchip', e.target.value)}
+              onChange={e => form.setValue('microchip', e.target.value)}
               placeholder="15-digit microchip number"
             />
           </FormField>
@@ -54,7 +61,7 @@ export const AdditionalInfoTab: React.FC<TabSectionProps> = ({ formData, onField
           <Checkbox
             id="spayedNeutered"
             checked={formData.spayedNeutered}
-            onCheckedChange={checked => onFieldChange('spayedNeutered', checked === true)}
+            onCheckedChange={checked => form.setValue('spayedNeutered', checked === true)}
           />
           <Label htmlFor="spayedNeutered" className="text-sm font-medium cursor-pointer">
             Spayed/Neutered

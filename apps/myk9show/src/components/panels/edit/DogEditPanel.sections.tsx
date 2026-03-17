@@ -17,7 +17,6 @@ import {
 import { Dog, FileText, Camera, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
-import { findFieldError } from '@/lib/validation';
 import type { DogFormData } from './DogEditPanel.types';
 import { DogEditContext } from './DogEditPanel';
 
@@ -95,12 +94,12 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   handleSelectChange,
   onOpenPhotoModal,
 }) => {
-  const { data, updateData, errors } = useEditPanel<DogFormData>();
+  const { data, updateData, form } = useEditPanel<DogFormData>();
 
-  const callNameError = findFieldError(errors, 'call name');
-  const registeredNameError = findFieldError(errors, 'registered name');
-  const genderError = findFieldError(errors, 'gender');
-  const dobError = findFieldError(errors, 'date of birth');
+  const callNameError = form?.getError('callName');
+  const registeredNameError = form?.getError('registeredName');
+  const genderError = form?.getError('gender');
+  const dobError = form?.getError('dateOfBirth');
 
   return (
     <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
@@ -160,10 +159,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               id="callName"
               value={data.callName}
               onChange={handleInputChange('callName')}
+              onBlur={() => form?.touchField('callName')}
               placeholder="Enter call name"
-              aria-invalid={!!callNameError}
-              aria-describedby={callNameError ? 'callName-error' : undefined}
               className={cn(callNameError && 'border-destructive')}
+              {...form?.getFieldProps('callName')}
             />
           </FormField>
 
@@ -177,10 +176,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               id="registeredName"
               value={data.registeredName}
               onChange={handleInputChange('registeredName')}
+              onBlur={() => form?.touchField('registeredName')}
               placeholder="Enter registered name"
-              aria-invalid={!!registeredNameError}
-              aria-describedby={registeredNameError ? 'registeredName-error' : undefined}
               className={cn(registeredNameError && 'border-destructive')}
+              {...form?.getFieldProps('registeredName')}
             />
           </FormField>
         </div>
@@ -192,11 +191,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             required
             error={genderError}
           >
-            <Select value={data.gender} onValueChange={handleSelectChange('gender')}>
+            <Select
+              value={data.gender}
+              onValueChange={v => {
+                handleSelectChange('gender')(v);
+                form?.touchField('gender');
+              }}
+            >
               <SelectTrigger
-                aria-invalid={!!genderError}
-                aria-describedby={genderError ? 'gender-error' : undefined}
                 className={cn(genderError && 'border-destructive')}
+                {...form?.getFieldProps('gender')}
               >
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
@@ -218,9 +222,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               type="date"
               value={data.dateOfBirth}
               onChange={handleInputChange('dateOfBirth')}
-              aria-invalid={!!dobError}
-              aria-describedby={dobError ? 'dateOfBirth-error' : undefined}
+              onBlur={() => form?.touchField('dateOfBirth')}
               className={cn(dobError && 'border-destructive')}
+              {...form?.getFieldProps('dateOfBirth')}
             />
           </FormField>
         </div>

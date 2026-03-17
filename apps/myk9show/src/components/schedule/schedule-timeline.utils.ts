@@ -37,12 +37,12 @@ function compareByStartTime(a: { startTime: string | null }, b: { startTime: str
 // ---------------------------------------------------------------------------
 
 const LEVEL_ABBREVIATIONS: Record<string, string> = {
-  Novice: 'Nov',
+  Novice: 'Novice',
   Advanced: 'Adv',
   Open: 'Open',
   Excellent: 'Exc',
   Utility: 'Util',
-  Master: 'Mst',
+  Master: 'Master',
 };
 
 // ---------------------------------------------------------------------------

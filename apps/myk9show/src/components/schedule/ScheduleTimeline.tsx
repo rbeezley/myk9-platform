@@ -1,4 +1,5 @@
 import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
+import { Card } from '@/components/ui/card';
 import { DaySection } from './DaySection';
 
 interface ScheduleTimelineProps {
@@ -10,7 +11,7 @@ export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <Card className="space-y-4 p-6">
         <h2 className="text-lg font-semibold">Schedule</h2>
         <div className="animate-pulse space-y-3">
           <div className="h-4 w-40 rounded bg-muted" />
@@ -29,13 +30,13 @@ export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-4">
+      <Card className="space-y-4 p-6">
         <h2 className="text-lg font-semibold">Schedule</h2>
         <div className="flex items-center gap-2">
           <p className="text-sm text-destructive">Failed to load schedule.</p>
@@ -47,21 +48,21 @@ export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
             Try again
           </button>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="space-y-4">
+      <Card className="space-y-4 p-6">
         <h2 className="text-lg font-semibold">Schedule</h2>
         <p className="text-sm text-muted-foreground">No schedule available</p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <Card className="space-y-4 p-6">
       <h2 className="text-lg font-semibold">Schedule</h2>
       <div className="space-y-6">
         {data.map((day, i) => (
@@ -71,6 +72,6 @@ export function ScheduleTimeline({ showId }: ScheduleTimelineProps) {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

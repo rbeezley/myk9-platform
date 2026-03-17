@@ -144,7 +144,7 @@ export const TrialPipelineDetail: React.FC = () => {
             {trial.name ?? `Trial ${trial.trialNumber}`}
           </h1>
           <p className="text-muted-foreground">
-            {new Date(trial.trialDate).toLocaleDateString()} &mdash; {stageMeta.label}
+            {new Date(trial.trialDate + 'T00:00:00').toLocaleDateString()} &mdash; {stageMeta.label}
           </p>
         </div>
 

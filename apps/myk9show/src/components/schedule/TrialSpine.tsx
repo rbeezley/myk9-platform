@@ -14,7 +14,11 @@ export function TrialSpine({ trial, showId }: TrialSpineProps) {
   const navigate = useNavigate();
   const formattedStartTime = formatStartTime(trial.plannedStartTime);
 
-  const trialLabel = trial.trialNumber ? `Trial ${trial.trialNumber}` : 'Trial';
+  const trialLabel = trial.trialNumber
+    ? /^\d+$/.test(trial.trialNumber)
+      ? `Trial ${trial.trialNumber}`
+      : trial.trialNumber
+    : 'Trial';
 
   return (
     <div>

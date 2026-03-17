@@ -14,7 +14,7 @@ const mockData: JudgeTimelineData[] = [
       {
         element: 'Container',
         startTime: '08:00:00',
-        levelRange: 'Nov–Mst',
+        levelRange: 'Novice–Master',
         status: CLASS_STATUS.COMPLETED,
         levels: [
           { classId: 'c1', level: 'Novice', status: CLASS_STATUS.COMPLETED, entryCount: 12 },

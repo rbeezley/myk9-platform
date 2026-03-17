@@ -215,7 +215,7 @@ const ClassDetailsPage: React.FC = () => {
           {
             label: 'Trial Date',
             value: currentClass.trialDate
-              ? new Date(currentClass.trialDate).toLocaleDateString()
+              ? new Date(currentClass.trialDate + 'T00:00:00').toLocaleDateString()
               : null,
           },
         ],
@@ -234,7 +234,7 @@ const ClassDetailsPage: React.FC = () => {
         href: `/trials/${parentTrial.id}`,
       };
       if (parentTrial.trialDate)
-        trialAssoc.subtitle = new Date(parentTrial.trialDate).toLocaleDateString();
+        trialAssoc.subtitle = new Date(parentTrial.trialDate + 'T00:00:00').toLocaleDateString();
       items.push(trialAssoc);
     }
     if (parentShow) {

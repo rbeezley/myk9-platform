@@ -123,9 +123,9 @@ describe('deriveElementStatus', () => {
 // ---------------------------------------------------------------------------
 
 describe('formatLevelRange', () => {
-  it('formats full range "Nov–Mst"', () => {
+  it('formats full range "Novice–Master"', () => {
     expect(formatLevelRange(['Novice', 'Advanced', 'Open', 'Excellent', 'Utility', 'Master'])).toBe(
-      'Nov–Mst'
+      'Novice–Master'
     );
   });
 
@@ -133,12 +133,12 @@ describe('formatLevelRange', () => {
     expect(formatLevelRange(['Advanced', 'Open', 'Excellent'])).toBe('Adv–Exc');
   });
 
-  it('formats single level "Nov"', () => {
-    expect(formatLevelRange(['Novice'])).toBe('Nov');
+  it('formats single level "Novice"', () => {
+    expect(formatLevelRange(['Novice'])).toBe('Novice');
   });
 
   it('sorts by progression order', () => {
-    expect(formatLevelRange(['Master', 'Novice'])).toBe('Nov–Mst');
+    expect(formatLevelRange(['Master', 'Novice'])).toBe('Novice–Master');
   });
 
   it('handles Utility → "Util"', () => {

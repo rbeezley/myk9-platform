@@ -2,7 +2,13 @@ import React from 'react';
 import { Calendar, User, Camera, ArrowLeft } from 'lucide-react';
 import { ClassData } from './types/classTypes';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
 
 interface ClassInfoProps {
@@ -13,12 +19,12 @@ interface ClassInfoProps {
   onViewTrial?: () => void;
 }
 
-const ClassInfo: React.FC<ClassInfoProps> = ({ 
-  classData, 
-  onEditPhoto, 
-  onEdit, 
+const ClassInfo: React.FC<ClassInfoProps> = ({
+  classData,
+  onEditPhoto,
+  onEdit,
   onDelete,
-  onViewTrial 
+  onViewTrial,
 }) => {
   if (!classData) {
     return (
@@ -72,14 +78,10 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
             {classData.status}
           </div>
         </div>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-8 w-8 p-0"
-            >
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -108,20 +110,17 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
       <div className="myk9-class-photo-section">
         <div className="myk9-class-photo">
           {classData.photoUrl ? (
-            <img 
-              src={classData.photoUrl} 
-              alt="Class" 
-              className="w-full h-full object-cover rounded-[18px]" 
+            <img
+              src={classData.photoUrl}
+              alt="Class"
+              className="w-full h-full object-cover rounded-[18px]"
             />
           ) : (
             <Camera className="h-8 w-8" />
           )}
         </div>
         {onEditPhoto && (
-          <button
-            className="myk9-class-photo-button"
-            onClick={onEditPhoto}
-          >
+          <button className="myk9-class-photo-button" onClick={onEditPhoto}>
             {classData.photoUrl ? 'Change Photo' : 'Add Photo'}
           </button>
         )}
@@ -145,7 +144,7 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
             Trial Date
           </div>
           <div className="myk9-class-info-value">
-            {new Date(classData.trialDate).toLocaleDateString()}
+            {new Date(classData.trialDate + 'T00:00:00').toLocaleDateString()}
           </div>
         </div>
 

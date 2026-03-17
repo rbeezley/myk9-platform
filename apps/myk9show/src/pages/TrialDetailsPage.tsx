@@ -267,7 +267,7 @@ const TrialDetailsPage: React.FC = () => {
           {
             label: 'Date',
             value: currentTrial.trialDate
-              ? new Date(currentTrial.trialDate).toLocaleDateString()
+              ? new Date(currentTrial.trialDate + 'T00:00:00').toLocaleDateString()
               : null,
           },
           { label: 'Status', value: currentTrial.status || null },

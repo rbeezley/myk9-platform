@@ -16,7 +16,7 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
   selectedId,
   onSelect,
   searchTerm,
-  onSearchChange
+  onSearchChange,
 }) => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(['upcoming', 'inprogress'])
@@ -29,7 +29,7 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
 
     trials.forEach(trial => {
       const status = (trial.status || 'Upcoming').toLowerCase();
-      
+
       if (status === 'completed') {
         completed.push(trial);
       } else if (status === 'in progress') {
@@ -45,7 +45,7 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
     completed.sort((a, b) => new Date(b.trialDate).getTime() - new Date(a.trialDate).getTime());
 
     const groups: SidebarGroup<Trial>[] = [];
-    
+
     if (upcoming.length > 0) {
       groups.push({
         id: 'upcoming',
@@ -53,10 +53,10 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
         icon: Clock,
         count: upcoming.length,
         items: upcoming,
-        isExpanded: expandedGroups.has('upcoming')
+        isExpanded: expandedGroups.has('upcoming'),
       });
     }
-    
+
     if (inProgress.length > 0) {
       groups.push({
         id: 'inprogress',
@@ -64,10 +64,10 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
         icon: Trophy,
         count: inProgress.length,
         items: inProgress,
-        isExpanded: expandedGroups.has('inprogress')
+        isExpanded: expandedGroups.has('inprogress'),
       });
     }
-    
+
     if (completed.length > 0) {
       groups.push({
         id: 'completed',
@@ -75,7 +75,7 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
         icon: Archive,
         count: completed.length,
         items: completed,
-        isExpanded: expandedGroups.has('completed')
+        isExpanded: expandedGroups.has('completed'),
       });
     }
 
@@ -97,14 +97,10 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
   const renderTrialItem = (trial: Trial, _isSelected: boolean) => {
     return (
       <div className="px-3 py-2">
-        <div className="font-medium text-sm truncate">
-          {trial.type || 'Trial'}
-        </div>
+        <div className="font-medium text-sm truncate">{trial.type || 'Trial'}</div>
+        <div className="text-xs text-muted-foreground">{trial.trialNumber}</div>
         <div className="text-xs text-muted-foreground">
-          {trial.trialNumber}
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {new Date(trial.trialDate).toLocaleDateString()}
+          {new Date(trial.trialDate + 'T00:00:00').toLocaleDateString()}
         </div>
       </div>
     );
@@ -117,10 +113,12 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
       onSelect={onSelect}
       onGroupToggle={handleGroupToggle}
       renderItem={renderTrialItem}
-      getItemId={(trial) => trial.id}
+      getItemId={trial => trial.id}
       enableSearch={true}
       searchPlaceholder="Search trials..."
-      getSearchText={(trial) => `${trial.type || ''} ${trial.trialNumber || ''} ${trial.showName || ''}`}
+      getSearchText={trial =>
+        `${trial.type || ''} ${trial.trialNumber || ''} ${trial.showName || ''}`
+      }
       searchTerm={searchTerm}
       onSearchChange={onSearchChange}
       title="Trials"

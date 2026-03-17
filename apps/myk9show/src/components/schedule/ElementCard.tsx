@@ -9,7 +9,7 @@ interface ElementCardProps {
 
 export function ElementCard({ element, onClick }: ElementCardProps) {
   const badgeClasses = getClassStatusBadgeClasses(element.status);
-  const formattedTime = formatStartTime(element.startTime) ?? 'TBD';
+  const formattedTime = formatStartTime(element.startTime) ?? 'Start Time: TBD';
 
   return (
     <button

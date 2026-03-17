@@ -249,7 +249,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
           <div className="myk9-show-info-item">
             <div className="myk9-show-info-label">Trial Date</div>
             <div className="myk9-show-info-value">
-              {new Date(trial.trialDate).toLocaleDateString()}
+              {new Date(trial.trialDate + 'T00:00:00').toLocaleDateString()}
             </div>
           </div>
           <div className="myk9-show-info-item">

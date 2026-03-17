@@ -18,7 +18,7 @@ const mockData: DayTimelineData[] = [
           {
             element: 'Container',
             startTime: '08:00:00',
-            levelRange: 'Nov–Mst',
+            levelRange: 'Novice–Master',
             status: CLASS_STATUS.COMPLETED,
             levels: [],
             completedCount: 0,
@@ -27,7 +27,7 @@ const mockData: DayTimelineData[] = [
           {
             element: 'Buried',
             startTime: '09:30:00',
-            levelRange: 'Nov–Mst',
+            levelRange: 'Novice–Master',
             status: CLASS_STATUS.IN_PROGRESS,
             levels: [],
             completedCount: 0,
@@ -78,7 +78,7 @@ describe('ScheduleTimeline', () => {
 
   it('renders level ranges', () => {
     renderWithRouter(<ScheduleTimeline showId="show-1" />);
-    const levelTexts = screen.getAllByText(/Nov–Mst/);
+    const levelTexts = screen.getAllByText(/Novice–Master/);
     expect(levelTexts.length).toBeGreaterThanOrEqual(2);
   });
 

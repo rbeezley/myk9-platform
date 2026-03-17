@@ -10,12 +10,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
-import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
+import { addDays, format, isWithinInterval } from 'date-fns';
+import { parseLocalDateString } from '@/utils/dateLocal';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { TrialType, getTrialTypesForOrganization } from '@/types/template.types';
+
+/** Parse a date string safely — handles both YYYY-MM-DD and ISO datetime */
+function safeParseDateString(str: string | undefined): Date | undefined {
+  if (!str) return undefined;
+  // YYYY-MM-DD (no time) → use parseLocalDateString to avoid UTC shift
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return parseLocalDateString(str);
+  // ISO datetime with time component → new Date() is safe
+  return new Date(str);
+}
 
 interface TrialConfigurationStepProps {
   className?: string;
@@ -63,9 +73,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
         newErrors[`${prefix}-dateTime`] = 'Trial date and time is required';
       } else if (show.startDate && show.endDate) {
         // Check if trial date is within show date range
-        const trialDate = parseISO(trial.dateTime);
-        const showStart = parseISO(show.startDate);
-        const showEnd = parseISO(show.endDate);
+        const trialDate = parseLocalDateString(trial.dateTime) || new Date(trial.dateTime);
+        const showStart = parseLocalDateString(show.startDate) || new Date();
+        const showEnd = parseLocalDateString(show.endDate) || new Date();
 
         if (!isWithinInterval(trialDate, { start: showStart, end: showEnd })) {
           newErrors[`${prefix}-dateTime`] = 'Trial date must be within show dates';
@@ -100,12 +110,12 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
     const trialNumber = trials.length + 1;
     const trialIndex = trials.length;
     // Default 2 trials per day: trials 0-1 → startDate, 2-3 → startDate+1, etc.
-    const startDate = show.startDate ? new Date(show.startDate) : new Date();
+    const startDate = (show.startDate && parseLocalDateString(show.startDate)) || new Date();
     const daysOffset = Math.floor(trialIndex / 2);
     let baseDate = addDays(startDate, daysOffset);
     // Cap at show end date if set
     if (show.endDate) {
-      const endDate = new Date(show.endDate);
+      const endDate = parseLocalDateString(show.endDate) || new Date();
       if (baseDate > endDate) {
         baseDate = endDate;
       }
@@ -259,12 +269,12 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                       Trial Date & Time <span className="text-destructive">*</span>
                     </Label>
                     <DateTimePicker
-                      value={trial.dateTime ? new Date(trial.dateTime) : undefined}
+                      value={safeParseDateString(trial.dateTime)}
                       onChange={date => handleTrialDateTimeChange(trial.id, date)}
                       placeholder="Pick trial date and time"
                       className="h-10"
-                      minDate={show.startDate ? new Date(show.startDate) : new Date()}
-                      maxDate={show.endDate ? new Date(show.endDate) : undefined}
+                      minDate={safeParseDateString(show.startDate) || new Date()}
+                      maxDate={safeParseDateString(show.endDate)}
                       showTime={true}
                       timeFormat="12h"
                     />

@@ -154,11 +154,12 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
   const [isCreating, setIsCreating] = useState(false);
 
   // Initialize form with prefilled data
+  const resetForm = form.reset;
   React.useEffect(() => {
     if (prefilledData && open) {
-      form.reset({ ...INITIAL_FORM_DATA, ...prefilledData });
+      resetForm({ ...INITIAL_FORM_DATA, ...prefilledData });
     }
-  }, [prefilledData, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [prefilledData, open, resetForm]);
 
   // Handle form field changes
   const handleFieldChange = (field: keyof DogFormData, value: string | boolean) => {
@@ -254,28 +255,27 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
   });
 
   const handleSubmit = async () => {
-    // Before calling the form's submit handler, check which tab has errors
-    // and switch to it. We need to do this before handleSubmit because
-    // handleSubmit will mark all fields as touched.
-    await doSubmit();
-
-    // After submit attempt, if there are errors, switch to the relevant tab
-    const errors = form.errors;
-    if (Object.keys(errors).length > 0) {
+    // Check for validation errors directly from schema (not form.errors, which
+    // is stale until React re-renders after state updates)
+    const result = dogFormSchema.safeParse(form.data);
+    if (!result.success) {
+      const errorFields = new Set(result.error.issues.map(i => i.path[0] as string));
       if (
-        errors.registeredName ||
-        errors.callName ||
-        errors.breed ||
-        errors.gender ||
-        errors.dateOfBirth
+        errorFields.has('registeredName') ||
+        errorFields.has('callName') ||
+        errorFields.has('breed') ||
+        errorFields.has('gender') ||
+        errorFields.has('dateOfBirth')
       ) {
         setActiveTab('basic');
-      } else if (errors.registrationOrg || errors.registrationNumber) {
+      } else if (errorFields.has('registrationOrg') || errorFields.has('registrationNumber')) {
         setActiveTab('registration');
-      } else if (errors.weight || errors.height) {
+      } else if (errorFields.has('weight') || errorFields.has('height')) {
         setActiveTab('optional');
       }
     }
+    // Call the form's submit handler (marks all fields touched, shows errors, calls onSave if valid)
+    await doSubmit();
   };
 
   // Handle dialog close

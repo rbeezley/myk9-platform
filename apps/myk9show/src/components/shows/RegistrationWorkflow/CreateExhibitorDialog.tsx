@@ -82,24 +82,25 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   ];
 
   // Initialize form with search query if provided
+  const resetForm = form.reset;
   React.useEffect(() => {
     if (searchQuery && open) {
       // Try to parse search query for name parts
       const parts = searchQuery.split(' ');
       if (parts.length >= 2) {
-        form.reset({
+        resetForm({
           ...INITIAL_FORM_DATA,
           firstName: parts[0],
           lastName: parts.slice(1).join(' '),
         });
       } else {
-        form.reset({
+        resetForm({
           ...INITIAL_FORM_DATA,
           lastName: searchQuery,
         });
       }
     }
-  }, [searchQuery, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchQuery, open, resetForm]);
 
   // Duplicate detection logic
   const detectDuplicates = (data: ExhibitorFormData): DuplicateCandidate[] => {

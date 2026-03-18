@@ -84,7 +84,7 @@ export function useShowCreationWizardActions({
   const { show, trials, judgeDetails, saveProgress, resetWizard } = useWizardStore();
   const { addShow, updateShow } = useShowStore();
   const { clubs } = useClubStore();
-  const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
+  const { addTrial: addTrialToStore, trials: existingTrials, loadTrialClasses } = useTrialStore();
   const { classes: existingDBClasses } = useClassStoreCompat();
   const { user } = useAuthContext();
   const { triggerSync } = useReplicationSync();
@@ -314,6 +314,9 @@ export function useShowCreationWizardActions({
             error: syncError instanceof Error ? syncError.message : String(syncError),
           });
         }
+
+        // Reload trial classes so the show detail page has them immediately
+        await loadTrialClasses();
 
         // Invalidate schedule timeline cache so the overview page shows new trials/classes
         queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'schedule-timeline'] });

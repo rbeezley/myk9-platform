@@ -1,11 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -96,7 +95,6 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       if (range.to) {
         onEndDateChange(applyTime(range.to, endTime));
       } else if (range.from && !range.to) {
-        // Single date selected — clear end
         onEndDateChange(undefined);
       }
     },
@@ -106,16 +104,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setStartTime(e.target.value);
     if (startDate) {
-      const updated = applyTime(startDate, e.target.value);
-      onStartDateChange(updated);
+      onStartDateChange(applyTime(startDate, e.target.value));
     }
   };
 
   const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEndTime(e.target.value);
     if (endDate) {
-      const updated = applyTime(endDate, e.target.value);
-      onEndDateChange(updated);
+      onEndDateChange(applyTime(endDate, e.target.value));
     }
   };
 
@@ -139,69 +135,91 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const displayText = formatDisplay();
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            'w-full justify-start text-left font-normal',
-            !displayText && 'text-muted-foreground',
-            className
-          )}
-          disabled={disabled}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {displayText || placeholder}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-auto max-h-[80vh] overflow-y-auto p-0"
-        align="start"
-        side="bottom"
-        sideOffset={8}
+    <>
+      <Button
+        variant="outline"
+        className={cn(
+          'w-full justify-start text-left font-normal',
+          !displayText && 'text-muted-foreground',
+          className
+        )}
+        disabled={disabled}
+        onClick={() => setOpen(true)}
       >
-        <div className="p-3">
-          <Calendar
-            mode="range"
-            selected={{ from: startDate, to: endDate }}
-            defaultMonth={startDate as Date}
-            onSelect={handleRangeSelect}
-            disabled={date => (minDate && date < minDate) || false}
-            numberOfMonths={2}
-            initialFocus
-          />
-          {showTime && (
-            <div className="border-t mt-3 pt-3 grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{startLabel} time</Label>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    value={startTime}
-                    onChange={handleStartTimeChange}
-                    placeholder="8:00 AM"
-                    className="flex-1"
-                  />
+        <CalendarIcon className="mr-2 h-4 w-4" />
+        {displayText || placeholder}
+      </Button>
+
+      {/* Modal overlay — centered on screen */}
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setOpen(false)}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50" />
+
+          {/* Calendar panel */}
+          <div
+            className="relative z-10 rounded-xl border bg-popover p-4 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              className="absolute top-2 right-2 p-1 rounded-md hover:bg-muted text-muted-foreground"
+              onClick={() => setOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <Calendar
+              mode="range"
+              selected={{ from: startDate, to: endDate }}
+              defaultMonth={startDate as Date}
+              onSelect={handleRangeSelect}
+              disabled={date => (minDate && date < minDate) || false}
+              numberOfMonths={2}
+              initialFocus
+            />
+
+            {showTime && (
+              <div className="border-t mt-3 pt-3 grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">{startLabel} time</Label>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      value={startTime}
+                      onChange={handleStartTimeChange}
+                      placeholder="8:00 AM"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">{endLabel} time</Label>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      value={endTime}
+                      onChange={handleEndTimeChange}
+                      placeholder="5:00 PM"
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{endLabel} time</Label>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    value={endTime}
-                    onChange={handleEndTimeChange}
-                    placeholder="5:00 PM"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
+            )}
+
+            <div className="border-t mt-3 pt-3 flex justify-end">
+              <Button size="sm" onClick={() => setOpen(false)}>
+                Done
+              </Button>
             </div>
-          )}
+          </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      )}
+    </>
   );
 };

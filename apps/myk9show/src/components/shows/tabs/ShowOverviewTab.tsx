@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import type { Show } from '@/types/show-types';
-import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ScheduleSummary } from '@/components/shows/overview/ScheduleSummary';
 import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
@@ -13,17 +12,11 @@ const baseUrl =
   (import.meta.env.VITE_PUBLIC_URL as string | undefined) ??
   (typeof window !== 'undefined' ? window.location.origin : '');
 
-interface ClassInfo {
-  judgeName?: string;
-}
-
 interface ShowOverviewTabProps {
   show: Show;
-  /** Classes from the show — used to derive judges when judge_assignments is empty */
-  showClasses?: ClassInfo[];
 }
 
-export function ShowOverviewTab({ show, showClasses }: ShowOverviewTabProps) {
+export function ShowOverviewTab({ show }: ShowOverviewTabProps) {
   const shareData = useMemo(
     () => ({
       title: show.name,
@@ -32,28 +25,6 @@ export function ShowOverviewTab({ show, showClasses }: ShowOverviewTabProps) {
     }),
     [show.id, show.name, show.organization, show.location, show.clubName]
   );
-
-  // Derive judges from classes when judge_assignments table is empty
-  const judges = useMemo((): ShowJudgeAssignment[] => {
-    if (show.assignedJudges && show.assignedJudges.length > 0) {
-      return show.assignedJudges;
-    }
-    if (!showClasses || showClasses.length === 0) return [];
-
-    // Extract unique judge names from classes
-    const uniqueNames = new Set<string>();
-    for (const cls of showClasses) {
-      if (cls.judgeName && cls.judgeName !== 'TBD') {
-        uniqueNames.add(cls.judgeName);
-      }
-    }
-
-    return Array.from(uniqueNames).map(name => ({
-      judgeId: '',
-      judgeName: name,
-      assignedDate: '',
-    }));
-  }, [show.assignedJudges, showClasses]);
 
   return (
     <div className="space-y-6">
@@ -75,7 +46,7 @@ export function ShowOverviewTab({ show, showClasses }: ShowOverviewTabProps) {
             secretaryId={show.secretary}
             chiefStewardId={show.chiefSteward}
           />
-          <JudgesList judges={judges} />
+          <JudgesList judges={show.assignedJudges} />
           <ShareEvent shareData={shareData} />
         </div>
       </div>

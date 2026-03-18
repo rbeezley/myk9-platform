@@ -29,6 +29,24 @@ export const getAllShows = async () => {
           max_entries_per_dog,
           max_total_entries,
           max_entries_per_handler
+        ),
+        judge_assignments(
+          id,
+          person_id,
+          show_id,
+          trial_id,
+          class_id,
+          status,
+          invited_at,
+          confirmed_at,
+          fee,
+          notes,
+          judge:people(
+            id,
+            first_name,
+            last_name,
+            email
+          )
         )
       `
       )

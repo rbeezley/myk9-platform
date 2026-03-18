@@ -183,29 +183,8 @@ const ShowCreationWizardPage: React.FC = () => {
                 };
               });
 
-        // Build judge details from assigned judges and people store.
-        // When judge_assignments is empty (shows created before the sync fix),
-        // derive judges from class judgeName fields so the wizard dropdown works.
-        let showJudges = existingShow.assignedJudges || [];
-        if (showJudges.length === 0) {
-          const showTrialClasses = existingClasses.filter(c =>
-            showTrials.some(t => t.id === c.trialId)
-          );
-          const uniqueJudgeNames = new Set<string>();
-          for (const cls of showTrialClasses) {
-            if (cls.judge && cls.judge !== 'TBD') uniqueJudgeNames.add(cls.judge);
-          }
-          // Match judge names to people records
-          showJudges = Array.from(uniqueJudgeNames).map(name => {
-            const person = people.find(p => `${p.firstName} ${p.lastName}` === name);
-            return {
-              judgeId: person?.id || name,
-              judgeName: name,
-              assignedDate: '',
-            };
-          });
-        }
-
+        // Build judge details from show's assigned judges
+        const showJudges = existingShow.assignedJudges || [];
         const judgeDetailsMap: Record<
           string,
           {

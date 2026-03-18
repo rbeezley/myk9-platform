@@ -323,7 +323,7 @@ const ShowDetailsPage: React.FC = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <ShowOverviewTab show={actualCurrentShow} showClasses={showClasses} />
+            <ShowOverviewTab show={actualCurrentShow} />
           </TabsContent>
 
           <TabsContent value="trials">

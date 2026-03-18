@@ -227,9 +227,9 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     <div className="space-y-6">
       {/* Success Message */}
       <div className="text-center py-6">
-        <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+        <CheckCircle className="h-16 w-16 text-green-600 dark:text-green-400 mx-auto mb-4" />
         <h2 className="text-2xl font-bold mb-2">Registration Confirmed!</h2>
-        <p className="text-gray-600">Your registration has been successfully submitted.</p>
+        <p className="text-muted-foreground">Your registration has been successfully submitted.</p>
         <Badge variant="default" className="mt-3 text-lg py-1 px-4">
           Confirmation #: {registrationNumber}
         </Badge>
@@ -247,17 +247,17 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           <div className="space-y-2">
             <div>
               <h3 className="font-semibold">{show?.name}</h3>
-              <p className="text-sm text-gray-600">{show?.clubName}</p>
+              <p className="text-sm text-muted-foreground">{show?.clubName}</p>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-gray-400" />
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               <span>{show && formatDateMMDDYYYY(show.startDate)}</span>
               {show?.endDate && show.endDate !== show.startDate && (
                 <span>- {formatDateMMDDYYYY(show.endDate)}</span>
               )}
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-gray-400" />
+              <MapPin className="h-4 w-4 text-muted-foreground" />
               <span>{show?.location}</span>
             </div>
           </div>
@@ -289,7 +289,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                         {details.dog.registrations?.[0]?.registeredName &&
                           ` "${details.dog.registrations[0].registeredName}"`}
                       </h4>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {details.dog.registrations?.[0]?.breed || 'No breed specified'} &bull;{' '}
                         {details.dog.gender} &bull;{' '}
                         {details.dog.dateOfBirth &&
@@ -313,13 +313,13 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                       <h5 className="font-medium text-sm mb-2">Classes:</h5>
                       <div className="space-y-1">
                         {details.classes.map((cls, idx) => (
-                          <div key={idx} className="text-sm bg-gray-50 rounded p-2">
+                          <div key={idx} className="text-sm bg-muted/50 rounded p-2">
                             <div className="font-medium">
                               {cls.className} (#{cls.classNumber})
                             </div>
-                            <div className="text-gray-600">{cls.trialName}</div>
+                            <div className="text-muted-foreground">{cls.trialName}</div>
                             {cls.jumpHeight && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-muted-foreground">
                                 Jump Height: {cls.jumpHeight}&quot;
                               </div>
                             )}
@@ -337,14 +337,14 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                           Armband
                         </h6>
                         {armband ? (
-                          <div className="text-sm bg-blue-50 rounded p-2">
-                            <div className="font-semibold text-blue-900">#{armband.armband}</div>
+                          <div className="text-sm bg-primary/10 rounded p-2">
+                            <div className="font-semibold text-primary">#{armband.armband}</div>
                             {armband.ring && (
-                              <div className="text-blue-700 text-xs">Ring {armband.ring}</div>
+                              <div className="text-primary/70 text-xs">Ring {armband.ring}</div>
                             )}
                           </div>
                         ) : (
-                          <div className="text-sm text-gray-500 italic">
+                          <div className="text-sm text-muted-foreground italic">
                             Will be assigned closer to show date
                           </div>
                         )}
@@ -357,14 +357,16 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                           Handler
                         </h6>
                         {handler ? (
-                          <div className="text-sm bg-green-50 rounded p-2">
-                            <div className="font-medium text-green-900">{handler.handlerName}</div>
-                            <div className="text-green-700 text-xs">
+                          <div className="text-sm bg-green-500/10 rounded p-2">
+                            <div className="font-medium text-green-600 dark:text-green-400">
+                              {handler.handlerName}
+                            </div>
+                            <div className="text-green-600/70 dark:text-green-400/70 text-xs">
                               {handler.isOwner ? 'Owner handling' : 'Professional handler'}
                             </div>
                           </div>
                         ) : (
-                          <div className="text-sm text-gray-500 italic">
+                          <div className="text-sm text-muted-foreground italic">
                             Owner handling (default)
                           </div>
                         )}
@@ -452,7 +454,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           <CardContent>
             <div className="space-y-1">
               {documents.map((doc, idx) => (
-                <div key={idx} className="text-sm text-gray-600">
+                <div key={idx} className="text-sm text-muted-foreground">
                   &bull; {doc.name}
                 </div>
               ))}

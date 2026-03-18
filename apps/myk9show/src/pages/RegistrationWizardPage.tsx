@@ -128,7 +128,8 @@ function RegistrationWizardContent() {
 
   // Draft persistence
   const userId = user?.id || 'anonymous';
-  const currentStepId: StepId = currentWorkflowConfig.steps[currentStep] ?? 'dog-selection';
+  const clampedStep = Math.min(currentStep, currentWorkflowConfig.steps.length - 1);
+  const currentStepId: StepId = currentWorkflowConfig.steps[clampedStep];
 
   useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
@@ -312,6 +313,15 @@ function RegistrationWizardContent() {
   // Navigation handlers
   const handleNext = async () => {
     if (!canProceed()) return;
+
+    // On the last step, complete registration and navigate away
+    if (isLastStep) {
+      markStepComplete(currentStep);
+      notifications.success('Registration completed successfully');
+      navigate(`/shows/${showId}`);
+      return;
+    }
+
     markStepComplete(currentStep);
 
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
@@ -345,12 +355,7 @@ function RegistrationWizardContent() {
       }
     }
 
-    if (!isLastStep) {
-      setCurrentStep(prev => prev + 1);
-    } else {
-      notifications.success('Registration completed successfully');
-      navigate(`/shows/${showId}`);
-    }
+    setCurrentStep(prev => prev + 1);
   };
 
   const handleBack = () => {

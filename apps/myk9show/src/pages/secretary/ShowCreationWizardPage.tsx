@@ -183,7 +183,29 @@ const ShowCreationWizardPage: React.FC = () => {
                 };
               });
 
-        // Build judge details from assigned judges and people store
+        // Build judge details from assigned judges and people store.
+        // When judge_assignments is empty (shows created before the sync fix),
+        // derive judges from class judgeName fields so the wizard dropdown works.
+        let showJudges = existingShow.assignedJudges || [];
+        if (showJudges.length === 0) {
+          const showTrialClasses = existingClasses.filter(c =>
+            showTrials.some(t => t.id === c.trialId)
+          );
+          const uniqueJudgeNames = new Set<string>();
+          for (const cls of showTrialClasses) {
+            if (cls.judge && cls.judge !== 'TBD') uniqueJudgeNames.add(cls.judge);
+          }
+          // Match judge names to people records
+          showJudges = Array.from(uniqueJudgeNames).map(name => {
+            const person = people.find(p => `${p.firstName} ${p.lastName}` === name);
+            return {
+              judgeId: person?.id || name,
+              judgeName: name,
+              assignedDate: '',
+            };
+          });
+        }
+
         const judgeDetailsMap: Record<
           string,
           {
@@ -194,7 +216,7 @@ const ShowCreationWizardPage: React.FC = () => {
             notes: string;
           }
         > = {};
-        existingShow.assignedJudges?.forEach(judge => {
+        showJudges.forEach(judge => {
           const personInfo = people.find(p => p.id === judge.judgeId);
 
           judgeDetailsMap[judge.judgeId] = {
@@ -220,7 +242,7 @@ const ShowCreationWizardPage: React.FC = () => {
             dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
             chairman: existingShow.chairman,
             secretary: existingShow.secretary,
-            judgeIds: existingShow.assignedJudges?.map(j => j.judgeId) || [],
+            judgeIds: showJudges.map(j => j.judgeId),
           },
           trials: wizardTrials,
           judgeDetails: judgeDetailsMap,

@@ -13,7 +13,6 @@ import {
 import { AlertTriangle, FileText, Layers, ArrowLeft } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
-import { useUserStore } from '@/store/userStore';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
@@ -178,30 +177,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // Get total classes across all trials
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
 
-  // Prepare available judges: use show's assigned judges, fall back to all
-  // people with judge roles so the dropdown is always visible.
-  const allPeople = useUserStore(s => s.users);
-  const availableJudges = useMemo(() => {
-    if (show.judgeIds.length > 0) {
-      return show.judgeIds.map(judgeId => ({
-        judgeId,
-        judgeName: judgeDetails[judgeId]?.name || 'Unknown Judge',
-        assignedDate: new Date().toISOString().split('T')[0],
-        email: judgeDetails[judgeId]?.email || '',
-        phone: judgeDetails[judgeId]?.phone || '',
-      }));
-    }
-    // Fallback: any person with 'judge' in their roles
-    return allPeople
-      .filter(p => p.roles?.some(r => r.toLowerCase().includes('judge')))
-      .map(p => ({
-        judgeId: p.id,
-        judgeName: `${p.firstName} ${p.lastName}`,
-        assignedDate: new Date().toISOString().split('T')[0],
-        email: p.email || '',
-        phone: p.phone || '',
-      }));
-  }, [show.judgeIds, judgeDetails, allPeople]);
+  // Prepare available judges from show's assigned judges
+  const availableJudges = show.judgeIds.map(judgeId => ({
+    judgeId,
+    judgeName: judgeDetails[judgeId]?.name || 'Unknown Judge',
+    assignedDate: new Date().toISOString().split('T')[0],
+    email: judgeDetails[judgeId]?.email || '',
+    phone: judgeDetails[judgeId]?.phone || '',
+  }));
 
   useEffect(() => {
     if (show.judgeIds.length !== 1) return;

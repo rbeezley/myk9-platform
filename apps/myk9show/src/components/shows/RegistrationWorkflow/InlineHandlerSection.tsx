@@ -49,7 +49,7 @@ export const InlineHandlerSection: React.FC<InlineHandlerSectionProps> = ({
             classId: cls.classId,
             className: classData?.className || classData?.element || 'Unknown Class',
             handler,
-            hasHandler: !!handler?.handlerId,
+            hasHandler: !!handler?.handlerName,
           };
         })
       );

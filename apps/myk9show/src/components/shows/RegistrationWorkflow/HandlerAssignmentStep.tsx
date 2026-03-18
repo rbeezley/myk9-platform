@@ -52,7 +52,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
               classId: cls.classId,
               className: classData?.className || classData?.element || 'Unknown Class',
               handler,
-              hasHandler: !!handler?.handlerId,
+              hasHandler: !!handler?.handlerName,
             };
           })
         );

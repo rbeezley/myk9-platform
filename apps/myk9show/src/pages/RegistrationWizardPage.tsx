@@ -288,14 +288,14 @@ function RegistrationWizardContent() {
         const allKeys = classSelections.flatMap(s =>
           s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
         );
-        return allKeys.every(key => handlerAssignments[key]?.handlerId);
+        return allKeys.every(key => handlerAssignments[key]?.handlerName);
       }
       case 'handler-assignment': {
         const allEntryKeys = classSelections.flatMap(s =>
           s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
         );
         return (
-          allEntryKeys.length > 0 && allEntryKeys.every(key => handlerAssignments[key]?.handlerId)
+          allEntryKeys.length > 0 && allEntryKeys.every(key => handlerAssignments[key]?.handlerName)
         );
       }
       case 'payment':

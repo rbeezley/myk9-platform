@@ -10,9 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { HelpCircle } from 'lucide-react';
-import { subDays } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { useWizardStore } from '@/store/wizardStore';
@@ -214,15 +213,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     setJudgeSearchTerm('');
   };
 
-  // Smart default: Auto-suggest Entry Close Date (3 days before Start Date)
-  useEffect(() => {
-    if (show.startDate && !show.entryCloseDate) {
-      const suggestedCloseDate = subDays(new Date(show.startDate), 3);
-      if (suggestedCloseDate > new Date()) {
-        updateShowData({ entryCloseDate: suggestedCloseDate.toISOString() });
-      }
-    }
-  }, [show.startDate, show.entryCloseDate, updateShowData]);
+  // Entry close date is set manually by the secretary — no auto-populate.
 
   const dateRangeValid = isValidDateRange(show.startDate, show.endDate);
   const entryDatesValid = isValidEntryDates(show.entryOpenDate, show.entryCloseDate);
@@ -277,68 +268,52 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 col-span-2">
                 <Label>
-                  Start Date <span className="text-destructive">*</span>
+                  Show Dates <span className="text-destructive">*</span>
                 </Label>
-                <DateTimePicker
-                  value={show.startDate ? new Date(show.startDate) : undefined}
-                  onChange={date => {
-                    if (date) updateShowData({ startDate: date.toISOString() });
-                  }}
-                  placeholder="Select start date"
-                  showTime={true}
+                <DateRangePicker
+                  startDate={show.startDate ? new Date(show.startDate) : undefined}
+                  endDate={show.endDate ? new Date(show.endDate) : undefined}
+                  onStartDateChange={date =>
+                    updateShowData({ startDate: date?.toISOString() || '' })
+                  }
+                  onEndDateChange={date => updateShowData({ endDate: date?.toISOString() || '' })}
+                  startLabel="Start"
+                  endLabel="End"
+                  placeholder="Select show start and end dates"
+                  startDefaultTime="8:00 AM"
+                  endDefaultTime="5:00 PM"
                 />
                 {!dateRangeValid && (
                   <p className="text-sm text-red-500 mt-1">Start date must be before end date</p>
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 col-span-2">
                 <Label>
-                  End Date <span className="text-destructive">*</span>
+                  Entry Period <span className="text-destructive">*</span>
                 </Label>
-                <DateTimePicker
-                  value={show.endDate ? new Date(show.endDate) : undefined}
-                  onChange={date => {
-                    if (date) updateShowData({ endDate: date.toISOString() });
-                  }}
-                  placeholder="Select end date"
-                  showTime={true}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Entry Opens <span className="text-destructive">*</span>
-                </Label>
-                <DateTimePicker
-                  value={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
-                  onChange={date => {
-                    if (date) updateShowData({ entryOpenDate: date.toISOString() });
-                  }}
-                  placeholder="Select entry open date"
-                  showTime={true}
+                <DateRangePicker
+                  startDate={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
+                  endDate={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
+                  onStartDateChange={date =>
+                    updateShowData({ entryOpenDate: date?.toISOString() || '' })
+                  }
+                  onEndDateChange={date =>
+                    updateShowData({ entryCloseDate: date?.toISOString() || '' })
+                  }
+                  startLabel="Opens"
+                  endLabel="Closes"
+                  placeholder="Select entry open and close dates"
+                  startDefaultTime="8:00 AM"
+                  endDefaultTime="11:59 PM"
                 />
                 {!entryDatesValid && (
                   <p className="text-sm text-red-500 mt-1">
                     Entry open date must be before close date
                   </p>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Entry Closes <span className="text-destructive">*</span>
-                </Label>
-                <DateTimePicker
-                  value={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
-                  onChange={date => {
-                    if (date) updateShowData({ entryCloseDate: date.toISOString() });
-                  }}
-                  placeholder="Select entry close date"
-                  showTime={true}
-                />
               </div>
 
               <FeeField

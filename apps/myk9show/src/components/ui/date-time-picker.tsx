@@ -17,6 +17,10 @@ interface DateTimePickerProps {
   disabled?: boolean | undefined;
   showTime?: boolean | undefined;
   timeFormat?: '12h' | '24h' | undefined;
+  /** Default time shown when no value is set (e.g. "5:00 PM"). Defaults to "8:00 AM". */
+  defaultTime?: string | undefined;
+  /** Month the calendar opens to when no value is selected. */
+  defaultMonth?: Date | undefined;
 }
 
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({
@@ -29,11 +33,13 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   disabled = false,
   showTime = true,
   timeFormat = '12h',
+  defaultTime = '8:00 AM',
+  defaultMonth,
 }) => {
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(value);
   const [timeValue, setTimeValue] = useState(
-    value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : '08:00 AM'
+    value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : defaultTime
   );
 
   // Sync internal state when value prop changes using render-time sync
@@ -42,7 +48,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   if (valueKey !== prevValueKey) {
     setPrevValueKey(valueKey);
     setSelectedDate(value);
-    setTimeValue(value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : '08:00 AM');
+    setTimeValue(value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : defaultTime);
   }
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -137,12 +143,9 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
           <Calendar
             mode="single"
             selected={selectedDate}
+            defaultMonth={(selectedDate ?? defaultMonth) as Date}
             onSelect={handleDateSelect}
-            disabled={(date) =>
-              (minDate && date < minDate) ||
-              (maxDate && date > maxDate) ||
-              false
-            }
+            disabled={date => (minDate && date < minDate) || (maxDate && date > maxDate) || false}
             initialFocus
           />
           {showTime && (

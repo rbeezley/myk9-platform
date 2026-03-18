@@ -47,12 +47,12 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       isFocusedRef.current = false;
       const num = parseFloat(displayValue) || 0;
       onChange(num);
-      // useEffect will sync displayValue from the updated prop
+      setDisplayValue(num > 0 ? num.toFixed(2) : '');
     };
 
     return (
       <div className="relative">
-        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground pointer-events-none">
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 z-10 text-sm font-medium text-muted-foreground pointer-events-none">
           $
         </span>
         <Input

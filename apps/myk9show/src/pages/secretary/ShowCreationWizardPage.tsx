@@ -73,6 +73,16 @@ const ShowCreationWizardPage: React.FC = () => {
       setIsLoading,
     });
 
+  // Reset wizard state when entering fresh create mode (not edit mode)
+  // so stale drafts from previous sessions don't persist.
+  const hasResetRef = React.useRef(false);
+  useEffect(() => {
+    if (!editMode && !hasResetRef.current) {
+      hasResetRef.current = true;
+      resetWizard();
+    }
+  }, [editMode, resetWizard]);
+
   // Pre-select club when navigating from a club details page
   const preselectedClubId = searchParams.get('clubId');
   const { updateShowData } = useWizardStore();

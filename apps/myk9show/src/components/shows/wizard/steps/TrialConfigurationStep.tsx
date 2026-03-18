@@ -87,9 +87,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         }
       }
 
-      if (!trial.eventNumber.trim()) {
-        newErrors[`${prefix}-eventNumber`] = 'Event number is required';
-      }
+      // Event number is optional — assigned by the sanctioning org, may not be known yet
     });
 
     // Check for duplicate trial names
@@ -112,7 +110,6 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   }, [trials, show.startDate, show.endDate]);
 
   const handleAddTrial = () => {
-    const trialNumber = trials.length + 1;
     const trialIndex = trials.length;
     // Default 2 trials per day: trials 0-1 → startDate, 2-3 → startDate+1, etc.
     const startDate = (show.startDate && parseLocalDateString(show.startDate)) || new Date();
@@ -128,10 +125,15 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     baseDate.setHours(8, 0, 0, 0); // Set to 8:00 AM
     const defaultDateTime = format(baseDate, "yyyy-MM-dd'T'HH:mm:ss");
 
+    // Count how many existing trials fall on the same date to get the per-day number
+    const baseDateStr = format(baseDate, 'yyyy-MM-dd');
+    const sameDayCount = trials.filter(t => t.dateTime?.startsWith(baseDateStr)).length;
+    const dayName = format(baseDate, 'EEEE'); // e.g. "Saturday"
+
     addTrial({
-      name: `Trial ${trialNumber}`,
+      name: `${dayName} Trial ${sameDayCount + 1}`,
       dateTime: defaultDateTime,
-      eventNumber: trialNumber.toString(),
+      eventNumber: '',
       classes: [],
     });
   };
@@ -250,7 +252,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
                     <div className="space-y-2">
                       <Label className="flex items-center gap-1.5">
-                        Event Number <span className="text-destructive">*</span>
+                        Event Number
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -258,8 +260,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-xs">
                               <p>
-                                A unique identifier for this trial, often assigned by the
-                                sanctioning organization (e.g., "2024-001" for AKC events).
+                                The number assigned to this trial by the sanctioning organization
+                                (e.g., AKC or UKC). Can be added later if not yet assigned.
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -268,7 +270,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       <Input
                         value={trial.eventNumber}
                         onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
-                        placeholder="e.g., 1, 2024-001"
+                        placeholder="Assigned by AKC/UKC"
                         className="h-10"
                       />
                       {errors[`trial-${index}-eventNumber`] && (

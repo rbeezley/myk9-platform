@@ -24,6 +24,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { rbacService } from '@/services/rbac';
 import { UserRole } from '@/types/auth-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { persistShowJudgeAssignments } from '@/services/database/queries/judgeQueries';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import type { ClassData } from '@/components/classes/types/classTypes';
@@ -263,6 +264,20 @@ export function useShowCreationWizardActions({
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
         await createClasses(realShowId, trialIdMap);
+
+        // Persist judge assignments to judge_assignments table
+        const judges = wizardShow.assignedJudges || [];
+        if (judges.length > 0) {
+          try {
+            await persistShowJudgeAssignments(realShowId, judges, {
+              skipDelete: !editMode?.showId,
+            });
+          } catch (judgeError) {
+            logger.warn('Failed to persist judge assignments', 'wizard', {
+              error: judgeError instanceof Error ? judgeError.message : String(judgeError),
+            });
+          }
+        }
 
         // Auto-grant secretary role to the assigned secretary (fire-and-forget)
         if (show.secretary && show.clubId) {

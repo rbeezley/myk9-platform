@@ -222,10 +222,38 @@ export const judgeQualificationQueries = {
 };
 
 // =============================================================================
-// Judge Analytics Queries (read-only over existing tables)
+// Judge Assignment Persistence
 // =============================================================================
 
 const assignmentsTable = () => untypedFrom('judge_assignments');
+
+/**
+ * Replace all judge assignments for a show (delete + insert).
+ * Used by both the show creation wizard and the show edit form.
+ */
+export async function persistShowJudgeAssignments(
+  showId: string,
+  judges: Array<{ judgeId: string }>,
+  options?: { skipDelete?: boolean }
+): Promise<void> {
+  if (!options?.skipDelete) {
+    await assignmentsTable().delete().eq('show_id', showId);
+  }
+  if (judges.length > 0) {
+    await assignmentsTable().insert(
+      judges.map(j => ({
+        person_id: j.judgeId,
+        show_id: showId,
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+      }))
+    );
+  }
+}
+
+// =============================================================================
+// Judge Analytics Queries (read-only over existing tables)
+// =============================================================================
 
 export interface JudgeUtilizationFilters {
   dateRange?: { start: string; end: string };

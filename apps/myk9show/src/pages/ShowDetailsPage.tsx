@@ -23,7 +23,7 @@ import {
   useUpdateShowMutation,
   showQueryKeys,
 } from '@/hooks/queries/useShowsDatabase';
-import { untypedFrom } from '@/services/database/queries/search-query-helpers';
+import { persistShowJudgeAssignments } from '@/services/database/queries/judgeQueries';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -323,7 +323,7 @@ const ShowDetailsPage: React.FC = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <ShowOverviewTab show={actualCurrentShow} />
+            <ShowOverviewTab show={actualCurrentShow} showClasses={showClasses} />
           </TabsContent>
 
           <TabsContent value="trials">
@@ -377,18 +377,7 @@ const ShowDetailsPage: React.FC = () => {
             });
 
             // Persist judge assignments to judge_assignments table
-            const judges = showData.assignedJudges || [];
-            await untypedFrom('judge_assignments').delete().eq('show_id', showId);
-            if (judges.length > 0) {
-              await untypedFrom('judge_assignments').insert(
-                judges.map((j: { judgeId: string; judgeName?: string }) => ({
-                  person_id: j.judgeId,
-                  show_id: showId,
-                  status: 'confirmed',
-                  confirmed_at: new Date().toISOString(),
-                }))
-              );
-            }
+            await persistShowJudgeAssignments(showId, showData.assignedJudges || []);
 
             // Re-invalidate show cache after judge assignments are saved
             queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });

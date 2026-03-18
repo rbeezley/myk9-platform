@@ -114,6 +114,7 @@ export const useUserStore = create<UserStore>()(
           //   : undefined;
 
           // Prepare data for database insertion
+          // Note: roles are managed via user_roles table (people.roles column was dropped in migration 066)
           const dbUserData = {
             first_name: userData.firstName,
             last_name: userData.lastName,
@@ -123,7 +124,6 @@ export const useUserStore = create<UserStore>()(
             city: userData.address?.city || null,
             state: userData.address?.state || null,
             zip_code: userData.address?.zipCode || null,
-            roles: userData.roles || [],
           };
 
           // Save to database first
@@ -136,9 +136,25 @@ export const useUserStore = create<UserStore>()(
             throw new Error(dbError?.message || 'Failed to create user in database');
           }
 
+          const newPersonId = (dbUser as Record<string, unknown>).id as string;
+
+          // Assign roles via user_roles table (best-effort — person record is the critical entity)
+          if (userData.roles && userData.roles.length > 0) {
+            try {
+              const { savePersonRoles } =
+                await import('@/components/panels/edit/personRolesService');
+              await savePersonRoles(newPersonId, userData.roles);
+            } catch (roleError) {
+              logger.warn('Failed to assign roles during user creation:', 'store', {
+                personId: newPersonId,
+                roles: userData.roles,
+                error: roleError,
+              });
+            }
+          }
+
           // Persist judge-specific data (best-effort — person record is the critical entity)
           if (userData.judgeInfo) {
-            const newPersonId = (dbUser as Record<string, unknown>).id as string;
             try {
               const {
                 judgeQualificationQueries,

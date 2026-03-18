@@ -111,7 +111,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   onStateChange,
   showActions = true, // Default to showing actions for standalone use
 }) => {
-  const { addUser, updateUser, people } = useUserStore();
+  const { addUser, people } = useUserStore();
 
   const [formData, setFormData] = useState<PersonFormData>({
     firstName: '',
@@ -327,18 +327,16 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Get existing roles and add the new one if not present
-      const currentRoles = existingPerson.roles || [];
+      // Add the new role via user_roles table
       const newRole = formData.role;
+      const currentRoles = existingPerson.roles || [];
 
       if (!currentRoles.includes(newRole)) {
-        // Update the person with the new role added
-        const updatedRoles = [...currentRoles, newRole];
-        await updateUser(existingPerson.id, { roles: updatedRoles });
+        const { savePersonRoles } = await import('@/components/panels/edit/personRolesService');
+        await savePersonRoles(existingPerson.id, [...currentRoles, newRole]);
         logger.debug('✅ Added role to existing person:', 'panels', {
           person: `${existingPerson.firstName} ${existingPerson.lastName}`,
           newRole,
-          updatedRoles,
         });
       } else {
         logger.debug('ℹ️ Person already has role:', 'panels', {

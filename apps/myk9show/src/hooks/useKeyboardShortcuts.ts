@@ -88,7 +88,7 @@ export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
         if (parsed.type === 'modifier') {
           const metaMatch = parsed.meta ? e.metaKey : true;
           const ctrlMatch = parsed.ctrl ? e.ctrlKey : true;
-          if (e.key.toLowerCase() === parsed.key && metaMatch && ctrlMatch) {
+          if (e.key?.toLowerCase() === parsed.key && metaMatch && ctrlMatch) {
             e.preventDefault();
             shortcut.action();
             resetChord();
@@ -110,6 +110,7 @@ export function useKeyboardShortcuts(shortcuts: ShortcutDefinition[]) {
       // Chord handling — skip if input focused or modal open, or if modifier keys held
       if (inputFocused || modalOpen || e.metaKey || e.ctrlKey || e.altKey) return;
 
+      if (!e.key) return;
       const key = e.key.toLowerCase();
       if (key.length !== 1) return;
 

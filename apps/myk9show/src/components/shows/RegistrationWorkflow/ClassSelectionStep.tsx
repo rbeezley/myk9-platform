@@ -7,8 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
+import { compareLevels } from '@/utils/schedule-summary';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useCartStore, useCartItems } from '@/stores/cartStore';
 import { useEntryEligibility } from '@/hooks/useEntryEligibility';
@@ -18,9 +18,9 @@ import { joinWaitlist } from '@/services/database/queries/waitlistQueries';
 import { toast } from 'sonner';
 import { InlineHandlerSection } from './InlineHandlerSection';
 import type { ClassSelectionStepProps } from './ClassSelectionStep.types';
+import type { SyncableTrialClass } from '@/store/trial-store-types';
 import {
   buildAvailabilityMap,
-  buildClassesWithTrials,
   getDogById,
   getSelectionForDog,
   isClassSelected,
@@ -55,8 +55,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 }) => {
   const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
-  const { trials = [] } = useTrialStore();
-  const { classes = [] } = useClassStoreCompat();
+  const trials = useTrialStore(s => s.trials);
+  const trialClasses = useTrialStore(s => s.trialClasses);
   const { user } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
 
@@ -80,14 +80,67 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   const show = shows.find(s => s.id === showId);
   const showTrials = useMemo(
-    () => (trials || []).filter(t => t.showId === showId),
+    () =>
+      (trials || [])
+        .filter(t => t.showId === showId)
+        .sort((a, b) => {
+          const orderA = a.order ? parseInt(a.order, 10) : Infinity;
+          const orderB = b.order ? parseInt(b.order, 10) : Infinity;
+          if (orderA !== orderB) return orderA - orderB;
+          return (a.trialDate || '').localeCompare(b.trialDate || '');
+        }),
     [trials, showId]
   );
 
-  const classesWithTrials = useMemo(
-    () => buildClassesWithTrials(showTrials, classes, show?.startDate),
-    [showTrials, classes, show?.startDate]
-  );
+  // Build classesWithTrials from the trial store's trialClasses (same source ShowDetailsPage uses).
+  // This avoids a data-source mismatch where useClassStoreCompat() (Supabase direct) could
+  // return stale/incomplete data if mutations hadn't been fully synced.
+  const classesWithTrials = useMemo(() => {
+    return showTrials.flatMap(trial => {
+      const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
+
+      // Determine which element+level combos have multiple classes (need section to distinguish)
+      const elLevelCounts = new Map<string, number>();
+      for (const cls of classes) {
+        const key = `${cls.element}|${cls.level}`;
+        elLevelCounts.set(key, (elLevelCounts.get(key) || 0) + 1);
+      }
+
+      return classes
+        .slice()
+        .sort((a, b) => {
+          const elemCmp = a.element.localeCompare(b.element);
+          if (elemCmp !== 0) return elemCmp;
+          return compareLevels(a.level, b.level);
+        })
+        .map(cls => {
+          // Only show section suffix when multiple sections exist for this element+level
+          const key = `${cls.element}|${cls.level}`;
+          const showSection = cls.section && (elLevelCounts.get(key) || 0) > 1;
+          const sectionSuffix = showSection ? ` ${cls.section}` : '';
+          const displayName =
+            `${cls.element} ${cls.level}${sectionSuffix}`.trim() || 'Unnamed Class';
+          return {
+            classData: {
+              id: cls.id,
+              name: displayName,
+              className: displayName,
+              element: cls.element,
+              level: cls.level,
+              section: cls.section,
+              entryFee: undefined as number | undefined,
+              requiresJumpHeight: false,
+              description: undefined as string | undefined,
+            },
+            trial: {
+              id: trial.id,
+              name: trial.name || '',
+              date: trial.trialDate || show?.startDate || '',
+            },
+          };
+        });
+    });
+  }, [showTrials, trialClasses, show?.startDate]);
 
   const allClassIds = useMemo(
     () => classesWithTrials.map(c => c.classData.id),
@@ -235,20 +288,20 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                         <NoClassesAlert trialCount={showTrials.length} />
                       ) : (
                         showTrials.map(trial => {
-                          const trialClasses = classesWithTrials.filter(
+                          const trialClassItems = classesWithTrials.filter(
                             c => c.trial.id === trial.id
                           );
-                          if (trialClasses.length === 0) return null;
+                          if (trialClassItems.length === 0) return null;
 
                           return (
                             <div key={`${trial.id}-${dogId}`} className="space-y-3">
                               <TrialSectionHeader
                                 trialName={trial.name || 'Unnamed Trial'}
                                 trialType={trial.trialType}
-                                classCount={trialClasses.length}
+                                classCount={trialClassItems.length}
                               />
                               <div className="space-y-2 pl-6">
-                                {trialClasses.map(({ classData }) => {
+                                {trialClassItems.map(({ classData }) => {
                                   const availability = availabilityMap.get(classData.id);
                                   const isFull = availability?.isFull ?? false;
                                   const spotsAvailable = availability?.spotsAvailable ?? 0;

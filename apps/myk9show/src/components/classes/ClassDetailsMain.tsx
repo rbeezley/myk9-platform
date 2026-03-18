@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Users, Calendar, Trophy, Edit, Trash2, MoreVertical } from 'lucide-react';
+import { Users, Calendar, Trophy, Trash2, MoreVertical } from 'lucide-react';
 import { CLASS_STATUS, getNextClassStatus, type ClassStatusValue } from '@myk9/core';
 import { type EntryData } from './types/classTypes';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ClassResultsTable } from './ClassResultsTable';
@@ -223,24 +222,24 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             </div>
           </div>
           {!isResultsView && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEditClass}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Class
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDeleteClass} className="text-red-600">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Class
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={onEditClass}>
+                Edit
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onDeleteClass} className="text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Class
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
 

@@ -9,6 +9,7 @@ import {
   ListChecks,
   ClipboardList,
   Medal,
+  Trash2,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -38,6 +39,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
 import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
+import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
 
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -256,12 +258,24 @@ const ShowDetailsPage: React.FC = () => {
           title={actualCurrentShow.name || 'Show Details'}
           actions={
             canManageShow ? (
-              <button
-                onClick={() => setShowEditPanel(true)}
-                className="h-10 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
-              >
-                Edit
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowEditPanel(true)}
+                  className="h-10 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+                >
+                  Edit
+                </button>
+                <ThreeDotMenu
+                  items={[
+                    {
+                      label: 'Delete Show',
+                      icon: <Trash2 className="h-4 w-4" />,
+                      onClick: () => setShowDeleteDialog(true),
+                      className: 'text-destructive',
+                    },
+                  ]}
+                />
+              </div>
             ) : undefined
           }
         />

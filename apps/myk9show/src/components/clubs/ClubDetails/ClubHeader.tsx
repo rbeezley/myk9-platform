@@ -7,7 +7,6 @@ import {
   Award,
   Shield,
   MoreVertical,
-  Edit,
   Trash2,
   Camera,
 } from 'lucide-react';
@@ -62,8 +61,16 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
 
   return (
     <div className="mb-10 bg-card border border-border rounded-2xl relative overflow-hidden">
-      {/* 3-dot menu positioned absolutely in top-right corner (above cover) */}
-      <div className="absolute top-4 right-4 z-20">
+      {/* Actions positioned absolutely in top-right corner (above cover) */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="bg-black/30 hover:bg-black/50 text-white"
+          onClick={onEditClub}
+        >
+          Edit
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -76,10 +83,6 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEditClub}>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Club
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={onEditPhoto}>
               <Camera className="mr-2 h-4 w-4" />
               Change Photo

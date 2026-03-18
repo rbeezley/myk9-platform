@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CommonDialog } from './CommonDialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { AlertTriangle, Calendar, Trophy, Users, Trash2 } from 'lucide-react';
 import { CascadingDeletePreview } from '@/utils/cascadingDelete';
 import { format, parseISO } from 'date-fns';
@@ -40,10 +42,12 @@ interface CascadingDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preview: CascadingDeletePreview | null;
-  onConfirm: () => void;
+  onConfirm: (permanent?: boolean) => void;
   entityType?: string;
   titleIcon?: React.ReactNode;
   isDeleting?: boolean;
+  /** Show permanent delete option (site admin only) */
+  allowPermanentDelete?: boolean;
 }
 
 export function CascadingDeleteDialog({
@@ -54,7 +58,10 @@ export function CascadingDeleteDialog({
   entityType = 'show',
   titleIcon,
   isDeleting = false,
+  allowPermanentDelete = false,
 }: CascadingDeleteDialogProps) {
+  const [permanent, setPermanent] = useState(false);
+
   // Don't render anything if not open or no preview
   if (!open || !preview) {
     return null;
@@ -71,20 +78,36 @@ export function CascadingDeleteDialog({
       titleIcon={defaultTitleIcon}
       maxWidth="max-w-2xl"
       footer={
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="min-w-24"
-          >
-            {isDeleting
-              ? 'Deleting...'
-              : `Delete ${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`}
-          </Button>
+        <div className="space-y-3">
+          {allowPermanentDelete && (
+            <div className="flex items-center gap-2 px-1">
+              <Checkbox
+                id="permanent-delete"
+                checked={permanent}
+                onCheckedChange={checked => setPermanent(checked === true)}
+              />
+              <Label htmlFor="permanent-delete" className="text-sm text-destructive cursor-pointer">
+                Permanently delete (cannot be restored)
+              </Label>
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => onConfirm(permanent)}
+              disabled={isDeleting}
+              className="min-w-24"
+            >
+              {isDeleting
+                ? 'Deleting...'
+                : permanent
+                  ? `Permanently Delete`
+                  : `Delete ${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`}
+            </Button>
+          </div>
         </div>
       }
     >

@@ -32,21 +32,29 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   onDelete,
 }) => {
   return (
-    <Card className="relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80
+    <Card
+      className="relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80
                      myk9-subtle-card-border rounded-2xl p-8 shadow-lg backdrop-blur-xl
                      transition-all duration-500 hover:shadow-2xl hover:-translate-y-1
-                     hover:border-primary/20">
+                     hover:border-primary/20"
+    >
       {/* Background glass effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent
-                      opacity-0 hover:opacity-100 transition-opacity duration-700" />
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent
+                      opacity-0 hover:opacity-100 transition-opacity duration-700"
+      />
 
-      {/* Three dot menu */}
-      <div className="absolute top-6 right-6 z-10">
+      {/* Actions */}
+      <div className="absolute top-6 right-6 z-10 flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={onEdit}>
+          Edit
+        </Button>
         <ThreeDotMenu
           onEdit={onEdit}
           onDelete={onDelete}
           onEditPhoto={onEditPhoto}
           editLabel="Edit Person"
+          hideEdit
         />
       </div>
 
@@ -62,27 +70,37 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
               aria-label="Edit profile photo"
             >
               {/* Glow effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-600/20
+              <div
+                className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-600/20
                              rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500
-                             blur-sm" />
+                             blur-sm"
+              />
 
-              <Avatar className="relative w-28 h-28 border-2 border-white/20 shadow-2xl
-                               group-hover:scale-105 transition-all duration-300">
+              <Avatar
+                className="relative w-28 h-28 border-2 border-white/20 shadow-2xl
+                               group-hover:scale-105 transition-all duration-300"
+              >
                 {photo && photo.trim() !== '' ? (
                   <AvatarImage src={photo} alt="Profile photo" className="object-cover" />
                 ) : (
-                  <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5
-                                           text-2xl font-semibold text-primary backdrop-blur-sm">
+                  <AvatarFallback
+                    className="bg-gradient-to-br from-primary/10 to-primary/5
+                                           text-2xl font-semibold text-primary backdrop-blur-sm"
+                  >
                     {getInitials(firstName, lastName)}
                   </AvatarFallback>
                 )}
               </Avatar>
 
               {/* Camera overlay */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/0
-                             group-hover:bg-black/40 transition-all duration-300 rounded-full">
-                <div className="p-3 bg-white/90 rounded-full opacity-0 group-hover:opacity-100
-                               transform scale-75 group-hover:scale-100 transition-all duration-300">
+              <div
+                className="absolute inset-0 flex items-center justify-center bg-black/0
+                             group-hover:bg-black/40 transition-all duration-300 rounded-full"
+              >
+                <div
+                  className="p-3 bg-white/90 rounded-full opacity-0 group-hover:opacity-100
+                               transform scale-75 group-hover:scale-100 transition-all duration-300"
+                >
                   <Camera className="w-5 h-5 text-gray-800" />
                 </div>
               </div>
@@ -92,9 +110,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
           {/* Enhanced User Info */}
           <div className="flex-1 space-y-4">
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">
-                {fullName}
-              </h1>
+              <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">{fullName}</h1>
               <p className="text-lg text-muted-foreground/90 font-medium tracking-wide">
                 {person.email}
               </p>
@@ -103,20 +119,25 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
             {/* Role badges with glass effect */}
             <div className="flex flex-wrap gap-3">
               {person.roles && person.roles.length > 0 ? (
-                person.roles.map((role) => (
-                  <Badge key={role} className="px-4 py-2 text-sm font-medium
+                person.roles.map(role => (
+                  <Badge
+                    key={role}
+                    className="px-4 py-2 text-sm font-medium
                                               bg-gradient-to-r from-primary/10 to-primary/5
                                               text-primary border border-primary/20
                                               backdrop-blur-sm hover:scale-105
-                                              transition-all duration-200">
+                                              transition-all duration-200"
+                  >
                     {role.charAt(0).toUpperCase() + role.slice(1)}
                   </Badge>
                 ))
               ) : (
-                <Badge className="px-4 py-2 text-sm font-medium
+                <Badge
+                  className="px-4 py-2 text-sm font-medium
                                 bg-gradient-to-r from-muted/50 to-muted/30
                                 text-muted-foreground myk9-subtle-card-border
-                                backdrop-blur-sm">
+                                backdrop-blur-sm"
+                >
                   Member
                 </Badge>
               )}
@@ -155,10 +176,14 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
                 </Button>
               )}
               {person.dogs && person.dogs.length > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg
-                              bg-gradient-to-r from-muted/30 to-muted/20 text-sm text-muted-foreground">
+                <div
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg
+                              bg-gradient-to-r from-muted/30 to-muted/20 text-sm text-muted-foreground"
+                >
                   <Dog className="w-4 h-4" />
-                  <span>{person.dogs.length} dog{person.dogs.length !== 1 ? 's' : ''}</span>
+                  <span>
+                    {person.dogs.length} dog{person.dogs.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
               )}
             </div>

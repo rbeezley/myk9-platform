@@ -11,6 +11,7 @@ import {
   PawPrint,
 } from 'lucide-react';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -41,14 +42,18 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
                       opacity-0 hover:opacity-100 transition-opacity duration-700"
       />
 
-      {/* Three dot menu */}
-      <div className="absolute top-6 right-6 z-10">
+      {/* Actions */}
+      <div className="absolute top-6 right-6 z-10 flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={onEditPanelOpen}>
+          Edit
+        </Button>
         <ThreeDotMenu
           onEdit={onEditPanelOpen}
           onEditPhoto={onPhotoDialogOpen}
           onChangeStatus={onStatusDialogOpen}
           onDelete={onDeleteDialogOpen}
           editLabel="Edit Dog"
+          hideEdit
         />
       </div>
 

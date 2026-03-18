@@ -7,13 +7,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   Users,
   Trophy,
-  Edit,
   Trash2,
   MoreVertical,
   Play,
@@ -213,18 +211,9 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
               </div>
             )}
 
-            {/* Visible Edit button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onEdit}
-              title="Edit Trial"
-              className="h-8 w-8 p-0"
-            >
-              <Edit className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              Edit
             </Button>
-
-            {/* Dropdown for less common actions */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -232,11 +221,6 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Trial
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onDelete} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Trial

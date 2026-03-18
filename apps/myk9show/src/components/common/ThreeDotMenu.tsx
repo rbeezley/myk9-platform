@@ -19,6 +19,8 @@ interface ThreeDotMenuProps {
   viewLabel?: string | undefined;
   editLabel?: string | undefined;
   showManageQualifications?: boolean | undefined;
+  /** Hide the Edit item (use when a separate Edit button is rendered alongside) */
+  hideEdit?: boolean | undefined;
 }
 
 const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
@@ -31,6 +33,7 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   viewLabel = 'View',
   editLabel = 'Edit Profile',
   showManageQualifications = false,
+  hideEdit = false,
 }) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
@@ -45,7 +48,7 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
           {viewLabel}
         </DropdownMenuItem>
       )}
-      {onEdit && (
+      {onEdit && !hideEdit && (
         <DropdownMenuItem onClick={onEdit} className="min-h-[44px] cursor-pointer">
           <Pencil size={18} className="mr-2" />
           {editLabel}

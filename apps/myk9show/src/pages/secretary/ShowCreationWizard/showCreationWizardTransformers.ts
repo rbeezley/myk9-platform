@@ -138,7 +138,7 @@ export function createClassDataFromWizard(
           judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
           element: element,
           level: level,
-          section: (cls.customizations?.section as string) || 'A',
+          section: (cls.customizations?.section as string) || '',
           hidesUsed: '0',
           distractionsUsed: '0',
           itemsUsed: '',

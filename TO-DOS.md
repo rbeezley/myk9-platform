@@ -76,6 +76,12 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
+## Site Admin: Trash / Recycle Bin (2026-03-17)
+
+- [ ] **Trash view for soft-deleted records** — Site admins need a way to see, restore, or permanently delete soft-deleted records. Currently soft-deleted shows/trials/classes/entries disappear from the UI with no way to access them. **Solution:** Add a "Trash" page (site admin only) that queries records where `deleted_at IS NOT NULL`, with options to restore (clear `deleted_at`) or permanently delete (call `hard_delete_show` RPC or equivalent per entity). Could be a single page with tabs per entity type, or accessible from each browse page via a "View Trash" toggle.
+
+---
+
 ## Outstanding from Code Quality Sprint (2026-02-15)
 
 - [ ] **~28 files in 700-750 line range** — address when naturally touched
@@ -99,3 +105,11 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 ## Investigate Remotion for User Explainer Videos (2026-03-17)
 
 - **Evaluate Remotion for programmatic video generation** — Investigate using [Remotion](https://remotion.dev) to create user explainer/tutorial videos for myK9Show. **Problem:** Need onboarding and feature walkthrough content for exhibitors, secretaries, and judges. Manually producing videos is time-intensive and hard to keep current as the UI evolves. **Files:** N/A (research task). **Solution:** Evaluate Remotion's React-based video composition for generating explainer videos programmatically — could use actual component screenshots/recordings, overlay narration, and regenerate when UI changes.
+
+---
+
+## Classes Tab Improvements - 2026-03-17 15:51
+
+- **Group classes by trial date/trial number** — Add trial date and trial number columns to the classes table, or group rows visually by trial. **Problem:** The Classes tab shows a flat list of all classes across all trials. The same element+level combination can appear in multiple trials, making the list ambiguous — users can't tell which trial a class belongs to. **Files:** `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx`, `apps/myk9show/src/pages/ShowDetailsPage.tsx:111-127` (showClasses memo that flattens trial classes). **Solution:** Either add trial date/number columns to the table, or group rows under trial headers (collapsible sections). The data already includes `trialId` per class — join with trial data to get date/number for display.
+
+- **Remove Ring column for scent work trials** — Hide the "Ring" column when the show type is scent work. **Problem:** Scent work trials don't use ring numbers — the column is irrelevant and adds clutter. **Files:** `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx` (table column definitions). **Solution:** Conditionally hide the Ring column based on the show's organization or trial type. Check `show.organization` or trial-level `trialType` to determine if Ring applies.

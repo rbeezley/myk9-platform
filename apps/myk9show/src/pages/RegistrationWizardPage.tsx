@@ -22,6 +22,7 @@ import {
 } from '@/types/show-registration-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
@@ -58,6 +59,17 @@ function RegistrationWizardContent() {
     useRegistrationPermissions();
   const { mode } = useRegistrationContext();
   const { user } = useAuthContext();
+  const { triggerSync } = useReplicationSync();
+
+  // Trigger a sync on mount so any pending local mutations are uploaded
+  // before the user interacts with the cart (which requires server-side records).
+  const hasSynced = useRef(false);
+  useEffect(() => {
+    if (!hasSynced.current) {
+      hasSynced.current = true;
+      triggerSync();
+    }
+  }, [triggerSync]);
 
   // Data stores
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();

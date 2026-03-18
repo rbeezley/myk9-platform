@@ -149,15 +149,19 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   private mapClassStatusToDb(uiStatus: string | undefined): string {
     switch (uiStatus) {
       case 'In Progress':
-        return 'in-progress';
+      case 'in_progress':
+        return 'in_progress';
       case 'Completed':
+      case 'completed':
         return 'completed';
       case 'Cancelled':
+      case 'cancelled':
         return 'cancelled';
       case 'Scheduled':
       case 'Upcoming':
+      case 'upcoming':
       default:
-        return 'no-status';
+        return 'upcoming';
     }
   }
 
@@ -366,6 +370,28 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new class ${classData.id}`);
     return newClass;
+  }
+
+  /**
+   * Re-queue INSERT mutations for local-only classes whose mutations were
+   * permanently deleted (e.g. due to a schema mismatch that has since been fixed).
+   */
+  async repairUnsynced(): Promise<number> {
+    const allLocal = await this.getAll();
+    let repaired = 0;
+
+    for (const cls of allLocal) {
+      if (!cls._localOnly) continue;
+
+      // Re-queue with corrected payload (fixes status mapping, etc.)
+      await this.queueMutation('INSERT', cls.id, this.toSupabaseRow(cls));
+      repaired++;
+    }
+
+    if (repaired > 0) {
+      logger.log(`[${this.getTableName()}] Re-queued ${repaired} unsynced class mutations`);
+    }
+    return repaired;
   }
 
   /**

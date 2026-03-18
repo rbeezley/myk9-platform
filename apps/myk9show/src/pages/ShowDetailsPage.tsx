@@ -129,6 +129,9 @@ const ShowDetailsPage: React.FC = () => {
         name: `${cls.element} ${cls.level}`,
         element: cls.element,
         level: cls.level,
+        section: cls.section || '',
+        judgeName: cls.judgeName || '',
+        trialId: trial.id,
         time: cls.startTime || '',
         ring: 0,
         status: String(cls.status || 'not_started'),
@@ -330,6 +333,7 @@ const ShowDetailsPage: React.FC = () => {
           <TabsContent value="classes">
             <ClassesTab
               classes={showClasses}
+              showId={actualCurrentShow.id}
               userHasEntries={hasUserEntries}
               hideRing={associatedTrials.some(
                 t =>

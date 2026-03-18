@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MineToggle } from '@/components/common/MineToggle';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Search } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CLASS_STATUS_CONFIG } from '@/constants/live-status-config';
 import { parseLocalDateString } from '@/utils/dateLocal';
@@ -12,6 +13,9 @@ interface ClassInfo {
   name: string;
   element: string;
   level: string;
+  section: string;
+  judgeName: string;
+  trialId: string;
   time: string;
   ring: number;
   status: string;
@@ -24,6 +28,7 @@ interface ClassInfo {
 
 interface ClassesTabProps {
   classes: ClassInfo[];
+  showId: string;
   userHasEntries: boolean;
   hideRing?: boolean;
 }
@@ -39,7 +44,8 @@ function formatTrialDate(dateStr: string): string {
   });
 }
 
-export function ClassesTab({ classes, userHasEntries, hideRing = false }: ClassesTabProps) {
+export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
+  const navigate = useNavigate();
   const [isMine, setIsMine] = useState(userHasEntries);
 
   const filteredClasses = isMine ? classes.filter(c => c.userHasEntry) : classes;
@@ -71,6 +77,10 @@ export function ClassesTab({ classes, userHasEntries, hideRing = false }: Classe
 
   const hasMultipleTrials = groupedByTrial.length > 1;
 
+  // Compute column count dynamically so colSpan stays in sync
+  // Base: Element, Level, Judge, Time, Status, Entries, Chevron = 7
+  const totalColumns = 7 + (hideRing ? 0 : 1);
+
   if (classes.length === 0) {
     return (
       <EmptyState
@@ -99,6 +109,9 @@ export function ClassesTab({ classes, userHasEntries, hideRing = false }: Classe
             <tr className="bg-muted/30 border-b border-border/30">
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Element</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Level</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                Judge
+              </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
                 Time
               </th>
@@ -109,6 +122,7 @@ export function ClassesTab({ classes, userHasEntries, hideRing = false }: Classe
               )}
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
               <th className="text-right px-4 py-3 font-medium text-muted-foreground">Entries</th>
+              <th className="w-8" />
             </tr>
           </thead>
           <tbody>
@@ -117,7 +131,7 @@ export function ClassesTab({ classes, userHasEntries, hideRing = false }: Classe
                 {hasMultipleTrials && (
                   <tr key={`header-${group.label}`} className="bg-muted/20">
                     <td
-                      colSpan={hideRing ? 5 : 6}
+                      colSpan={totalColumns}
                       className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide"
                     >
                       {group.label}
@@ -127,10 +141,27 @@ export function ClassesTab({ classes, userHasEntries, hideRing = false }: Classe
                 {group.classes.map(cls => (
                   <tr
                     key={cls.id}
-                    className="border-b border-border/20 hover:bg-muted/10 transition-colors"
+                    role="link"
+                    tabIndex={0}
+                    className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
+                    onClick={() =>
+                      navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
+                    }
+                    onKeyDown={e => {
+                      if (e.key === 'Enter')
+                        navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`);
+                    }}
                   >
                     <td className="px-4 py-3 font-medium">{cls.element}</td>
-                    <td className="px-4 py-3">{cls.level}</td>
+                    <td className="px-4 py-3">
+                      {cls.level}
+                      {cls.section && (
+                        <span className="ml-1 text-muted-foreground">{cls.section}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                      {cls.judgeName || 'TBD'}
+                    </td>
                     <td className="px-4 py-3 hidden sm:table-cell">{cls.time}</td>
                     {!hideRing && <td className="px-4 py-3 hidden sm:table-cell">{cls.ring}</td>}
                     <td className="px-4 py-3">
@@ -152,6 +183,9 @@ export function ClassesTab({ classes, userHasEntries, hideRing = false }: Classe
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">{cls.entryCount}</td>
+                    <td className="px-2 py-3 text-muted-foreground/50">
+                      <ChevronRight className="h-4 w-4" />
+                    </td>
                   </tr>
                 ))}
               </>

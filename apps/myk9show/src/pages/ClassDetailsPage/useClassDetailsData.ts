@@ -73,11 +73,24 @@ export function useClassDetailsData() {
   const { updateResult } = useEntryStore();
   const { dogs } = useDogStore();
   const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
-  const { trials } = useTrialStore();
+  const { trials, trialClasses: replicatedTrialClasses } = useTrialStore();
   const { shows } = useShowStore();
 
-  // Get current class from URL parameter
-  const currentClass = classId ? classes.find(cls => cls.id === classId) : null;
+  // Get current class from URL parameter.
+  // Fall back to the replication layer (trialStore.trialClasses) when the React
+  // Query cache for getAllClasses hasn't loaded yet — classes created by the
+  // wizard exist in IndexedDB before they've synced to Supabase.
+  const currentClass = useMemo(() => {
+    if (!classId) return null;
+    const fromQuery = classes.find(cls => cls.id === classId);
+    if (fromQuery) return fromQuery;
+    // Search replication-layer classes grouped by trial
+    for (const trialCls of Object.values(replicatedTrialClasses)) {
+      const found = trialCls.find(cls => cls.id === classId);
+      if (found) return found as unknown as (typeof classes)[number];
+    }
+    return null;
+  }, [classId, classes, replicatedTrialClasses]);
 
   // Filter classes to only show classes from the same trial
   const trialClasses = currentClass

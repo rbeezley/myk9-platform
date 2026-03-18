@@ -93,19 +93,24 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     return this._lastMutationId;
   }
 
-  /** Map UI trial status to DB CHECK constraint values */
+  /** Map UI trial status to DB CHECK constraint values.
+   *  Allowed: 'upcoming', 'in_progress', 'completed', 'cancelled' (migration 071). */
   private mapTrialStatusToDb(uiStatus: string | undefined): string {
     switch (uiStatus) {
       case 'In Progress':
+      case 'in_progress':
         return 'in_progress';
       case 'Completed':
+      case 'completed':
         return 'completed';
       case 'Cancelled':
+      case 'cancelled':
         return 'cancelled';
       case 'Scheduled':
       case 'Upcoming':
+      case 'upcoming':
       default:
-        return 'planned';
+        return 'upcoming';
     }
   }
 

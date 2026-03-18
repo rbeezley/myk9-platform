@@ -217,6 +217,12 @@ export function buildUnifiedSidebarConfig(
           description: 'Manage show entries',
         },
         {
+          title: 'Day-of Ops',
+          href: '/secretary/day-of',
+          icon: ClipboardCheck,
+          description: 'Walk-ins, scratches, move-ups',
+        },
+        {
           title: 'Run Orders',
           href: '/secretary/run-order',
           icon: List,

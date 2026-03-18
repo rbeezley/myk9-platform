@@ -57,7 +57,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const { shows = [] } = useShowStore();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
-  const { user } = useAuthContext();
+  const { user, isSecretary, isAdmin } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
@@ -176,12 +176,28 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     [cartItems]
   );
 
+  // Skip cart for secretary/admin workflows. The cart requires classes to exist
+  // in Supabase (FK on entry_cart_items.class_id), but wizard-created classes
+  // may only be in the replication layer (IndexedDB). Local selection state is
+  // sufficient — the cart is only needed for exhibitor self-service persistence.
+  const useCartFlow = !!exhibitorId && !isSecretary && !isAdmin;
+
   const handleClassToggle = async (
     dogId: string,
     trialId: string,
     classId: string,
     entryFee: number
   ) => {
+    if (!useCartFlow) {
+      // Local-only toggle for secretary/admin mode
+      if (isClassSelected(dogId, classId, cartItems, classSelections)) {
+        onSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
+      } else {
+        onSelectionChange(addClassToSelections(classSelections, dogId, trialId, classId));
+      }
+      return;
+    }
+
     const cartItem = isInCart(dogId, classId);
     const itemKey = `${dogId}-${classId}`;
 

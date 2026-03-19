@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getShowCardStatus, computeShowProgress } from '@/utils/showCardUtils';
+import { getShowCardStatus, computeShowProgress, countUserEntries } from '@/utils/showCardUtils';
 import type { Show } from '@/types/show-types';
 
 function makeShow(overrides: Partial<Show> = {}): Show {
@@ -100,5 +100,26 @@ describe('computeShowProgress', () => {
     const show = makeShow();
     (show as any).trials = undefined;
     expect(computeShowProgress(show)).toEqual({ totalTrials: 0, scoredTrials: 0 });
+  });
+});
+
+describe('countUserEntries', () => {
+  it('counts entries matching by showId field', () => {
+    const entries = [{ showId: 'show-1' }, { showId: 'show-1' }, { showId: 'show-2' }];
+    expect(countUserEntries('show-1', entries)).toBe(2);
+  });
+
+  it('counts entries matching by show_id field', () => {
+    const entries = [{ show_id: 'show-1' }, { show_id: 'show-2' }, { show_id: 'show-1' }];
+    expect(countUserEntries('show-1', entries)).toBe(2);
+  });
+
+  it('returns 0 when no entries match', () => {
+    const entries = [{ showId: 'show-2' }, { show_id: 'show-3' }];
+    expect(countUserEntries('show-1', entries)).toBe(0);
+  });
+
+  it('returns 0 for empty entries array', () => {
+    expect(countUserEntries('show-1', [])).toBe(0);
   });
 });

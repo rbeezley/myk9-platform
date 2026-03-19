@@ -145,6 +145,23 @@ const ShowDetailsPage: React.FC = () => {
     });
   }, [associatedTrials, trialClasses, userEntries]);
 
+  // Trial statistics for card display (class counts, entry counts, scoring progress)
+  const trialStats = useMemo(() => {
+    const stats: Record<
+      string,
+      { classCount: number; entryCount: number; completedClasses: number }
+    > = {};
+    for (const trial of associatedTrials) {
+      const classes = trialClasses[trial.id] || [];
+      stats[trial.id] = {
+        classCount: classes.length,
+        entryCount: classes.reduce((sum, cls) => sum + (cls.entries ?? 0), 0),
+        completedClasses: classes.filter(cls => cls.status === CLASS_STATUS.COMPLETED).length,
+      };
+    }
+    return stats;
+  }, [associatedTrials, trialClasses]);
+
   // Tab management via URL search params
   const defaultTab = hasUserEntries ? 'my-entries' : 'overview';
   const activeTab = searchParams.get('tab') || defaultTab;
@@ -328,7 +345,11 @@ const ShowDetailsPage: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="trials">
-            <TrialsTab trials={associatedTrials} showId={actualCurrentShow.id} />
+            <TrialsTab
+              trials={associatedTrials}
+              showId={actualCurrentShow.id}
+              trialStats={trialStats}
+            />
           </TabsContent>
 
           <TabsContent value="classes">

@@ -35,6 +35,7 @@ interface WizardState {
     entryCloseDate: string; // ISO datetime string
     preEntryFee: number;
     dayOfShowFee: number;
+    startingArmbandNumber: number;
     chairman: string;
     secretary: string;
     judgeIds: string[]; // Judges assigned to the show
@@ -114,6 +115,7 @@ const initialState: WizardState = {
     entryCloseDate: '',
     preEntryFee: 0,
     dayOfShowFee: 0,
+    startingArmbandNumber: 100,
     chairman: '',
     secretary: '',
     judgeIds: [],

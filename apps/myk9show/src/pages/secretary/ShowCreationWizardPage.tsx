@@ -229,6 +229,7 @@ const ShowCreationWizardPage: React.FC = () => {
             entryCloseDate: existingShow.entryCloseDate,
             preEntryFee: parseFloat(existingShow.preEntryFee) || 0,
             dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
+            startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
             chairman: existingShow.chairman,
             secretary: existingShow.secretary,
             judgeIds: showJudges.map(j => j.judgeId),

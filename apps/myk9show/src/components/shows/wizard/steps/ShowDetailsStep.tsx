@@ -334,6 +334,23 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 }}
               />
 
+              <div className="space-y-2">
+                <Label htmlFor="startingArmbandNumber">Starting Armband Number</Label>
+                <Input
+                  id="startingArmbandNumber"
+                  type="number"
+                  min={1}
+                  value={show.startingArmbandNumber ?? 100}
+                  onChange={e =>
+                    updateShowData({ startingArmbandNumber: parseInt(e.target.value, 10) || 1 })
+                  }
+                  className="border border-border bg-secondary rounded-md"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  First dog registered will receive this armband number
+                </p>
+              </div>
+
               <div className="space-y-2 col-span-2">
                 <Label>
                   Location <span className="text-destructive">*</span>

@@ -109,6 +109,7 @@ export interface ShowInput {
   chairman: string;
   secretary: string;
   chiefSteward: string;
+  startingArmbandNumber?: number | undefined;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?:
     | Array<{

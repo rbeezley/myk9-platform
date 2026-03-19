@@ -564,6 +564,7 @@ const BrowseShowsPage: React.FC = () => {
                       disabled={isTabSwitching}
                     >
                       <span className="flex items-center gap-2">
+                        {tab.icon && <tab.icon className="h-4 w-4" />}
                         {tab.label}
                         <Badge
                           variant={selectedTab === tab.id ? 'default' : 'secondary'}

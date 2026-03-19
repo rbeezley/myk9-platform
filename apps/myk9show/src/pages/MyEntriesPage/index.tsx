@@ -16,7 +16,18 @@ import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
-import { Calendar, RefreshCw, Plus } from 'lucide-react';
+import {
+  Calendar,
+  RefreshCw,
+  Plus,
+  List,
+  Clock,
+  CheckCircle,
+  Users,
+  CalendarDays,
+  CircleCheck,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
 import {
   useMyEntriesData,
@@ -147,13 +158,23 @@ const MyEntriesPage: React.FC = () => {
             className="space-y-6"
           >
             <TabsList className="flex w-full overflow-x-auto scrollbar-hide bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto gap-1">
-              {['all', 'pending', 'accepted', 'waitlist', 'upcoming', 'completed'].map(tab => (
+              {(
+                [
+                  { key: 'all', label: 'All', icon: List },
+                  { key: 'pending', label: 'Pending', icon: Clock },
+                  { key: 'accepted', label: 'Accepted', icon: CheckCircle },
+                  { key: 'waitlist', label: 'Waitlist', icon: Users },
+                  { key: 'upcoming', label: 'Upcoming', icon: CalendarDays },
+                  { key: 'completed', label: 'Completed', icon: CircleCheck },
+                ] as { key: string; label: string; icon: LucideIcon }[]
+              ).map(tab => (
                 <TabsTrigger
-                  key={tab}
-                  value={tab}
-                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4 capitalize"
+                  key={tab.key}
+                  value={tab.key}
+                  className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4"
                 >
-                  {tab}
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>

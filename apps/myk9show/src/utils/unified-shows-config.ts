@@ -17,6 +17,7 @@ import {
   getAdminManagedShows,
 } from './show-relationships';
 import { ShowPermissionValidator } from './permissionValidation';
+import { Globe, History, ClipboardList, Settings, Gavel } from 'lucide-react';
 
 /**
  * Generate tab configuration based on user roles and permissions
@@ -32,6 +33,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         {
           id: 'all',
           label: 'Browse All',
+          icon: Globe,
           description: 'Browse all available shows',
           getCount: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)).length,
           filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)),
@@ -39,6 +41,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         {
           id: 'past',
           label: 'Past Shows',
+          icon: History,
           description: 'Historical shows for reference',
           getCount: shows =>
             shows.filter(
@@ -71,6 +74,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       tabs.push({
         id: 'managing',
         label: 'Managing',
+        icon: Settings,
         description: 'Global administrative view of all shows',
         requiredRoles: [UserRole.SITE_ADMIN],
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
@@ -85,6 +89,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       tabs.push({
         id: 'managing',
         label: 'Managing',
+        icon: Settings,
         description: 'Shows you are secretary or administrator for',
         requiredRoles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN],
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
@@ -105,6 +110,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     tabs.push({
       id: 'all',
       label: 'Browse All',
+      icon: Globe,
       description: 'Browse and register for available shows',
       getCount: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)).length,
       filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)),
@@ -116,6 +122,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     tabs.push({
       id: 'past',
       label: 'Past Shows',
+      icon: History,
       description: 'Historical shows for reference',
       getCount: shows =>
         shows.filter(
@@ -133,6 +140,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     tabs.push({
       id: 'entries',
       label: 'My Entries',
+      icon: ClipboardList,
       description: 'Shows you have entered as an exhibitor',
       getCount: (shows, entries, userId) => {
         if (!userId || !entries) return 0;
@@ -152,6 +160,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     tabs.push({
       id: 'assignments',
       label: 'My Assignments',
+      icon: Gavel,
       description: 'Shows you are assigned to judge',
       requiredRoles: [UserRole.JUDGE],
       requiredPermissions: [PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS],

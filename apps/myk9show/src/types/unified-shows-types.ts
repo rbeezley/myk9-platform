@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react';
 import { UserRole, Permission } from './auth-types';
 import { Show } from './show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
@@ -8,6 +9,7 @@ import { SyncableShowEntry } from '@/store/entryStore';
 export interface ShowTab {
   id: string;
   label: string;
+  icon?: LucideIcon;
   description?: string;
   requiredRoles?: UserRole[];
   requiredPermissions?: Permission[];
@@ -18,12 +20,12 @@ export interface ShowTab {
 /**
  * Show relationship types for filtering
  */
-export type ShowRelationship = 
-  | 'all'           // All available shows
-  | 'past'          // Historical shows
-  | 'entries'       // Shows user has entered
-  | 'managing'      // Shows user is secretary/admin for
-  | 'assignments'   // Shows user is judging
+export type ShowRelationship =
+  | 'all' // All available shows
+  | 'past' // Historical shows
+  | 'entries' // Shows user has entered
+  | 'managing' // Shows user is secretary/admin for
+  | 'assignments'; // Shows user is judging
 
 /**
  * Tab-specific actions available to users
@@ -53,9 +55,9 @@ export interface UserShowContext {
   userId: string;
   roles: UserRole[];
   permissions: Permission[];
-  managedShows: string[];     // Show IDs user manages
+  managedShows: string[]; // Show IDs user manages
   judgeAssignments: string[]; // Show IDs user is judging
-  entries: string[];          // Show IDs user has entered
+  entries: string[]; // Show IDs user has entered
 }
 
 /**

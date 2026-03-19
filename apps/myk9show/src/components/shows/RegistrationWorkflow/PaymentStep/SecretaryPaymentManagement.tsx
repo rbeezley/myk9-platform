@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { Check, DollarSign, AlertTriangle, Calendar, Receipt } from 'lucide-react';
+import {
+  Check,
+  DollarSign,
+  AlertTriangle,
+  Calendar,
+  Receipt,
+  CreditCard,
+  ClipboardList,
+  SlidersHorizontal,
+  Scale,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -87,10 +97,22 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="payment">Payment</TabsTrigger>
-              <TabsTrigger value="entry-status">Entry Status</TabsTrigger>
-              <TabsTrigger value="fees">Fee Override</TabsTrigger>
-              <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
+              <TabsTrigger value="payment">
+                <CreditCard className="h-4 w-4" />
+                Payment
+              </TabsTrigger>
+              <TabsTrigger value="entry-status">
+                <ClipboardList className="h-4 w-4" />
+                Entry Status
+              </TabsTrigger>
+              <TabsTrigger value="fees">
+                <SlidersHorizontal className="h-4 w-4" />
+                Fee Override
+              </TabsTrigger>
+              <TabsTrigger value="reconciliation">
+                <Scale className="h-4 w-4" />
+                Reconciliation
+              </TabsTrigger>
             </TabsList>
 
             {/* Payment Tab */}

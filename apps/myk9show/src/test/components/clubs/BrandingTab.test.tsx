@@ -20,8 +20,8 @@ vi.mock('@/components/ui/accent-color-picker', () => ({
 vi.mock('@/components/ui/cover-image-upload', () => ({
   CoverImageUpload: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
-vi.mock('@/components/shows/ShowCard', () => ({
-  ShowCard: () => <div data-testid="show-card-preview">Preview</div>,
+vi.mock('@/components/shows/ShowCardVertical', () => ({
+  ShowCardVertical: () => <div data-testid="show-card-preview">Preview</div>,
 }));
 vi.mock('@/lib/branding', () => ({
   generatePalette: () => ({

@@ -1,16 +1,15 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { LandingShow } from '@/types';
-import { accentBorderStyle } from '@/lib/branding';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShowCardVertical } from '@/components/shows/ShowCardVertical';
+import type { Show } from '@/types/show-types';
 
 interface UpcomingShowsSectionProps {
-  shows: LandingShow[];
+  shows: Show[];
   onAddShow: () => void;
 }
 
-const CARD_WIDTH = 340; // px, approximate card width including gap
+const CARD_WIDTH = 300; // px, approximate card width (280px card + 20px gap)
 const AUTO_SCROLL_INTERVAL = 5000; // ms
 
 const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({ shows, onAddShow }) => {
@@ -100,39 +99,15 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({ shows, onAd
         </div>
         <div
           ref={scrollRef}
-          className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar scroll-smooth snap-x snap-mandatory"
+          className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth snap-x snap-mandatory"
           style={{ scrollBehavior: 'smooth' }}
           onMouseDown={handleUserScroll}
           onTouchStart={handleUserScroll}
         >
           {shows.map(show => (
-            <Card
-              key={show.id}
-              className="min-w-[320px] max-w-[340px] flex-shrink-0 shadow-md relative snap-start transition-transform duration-300 hover:scale-105 hover:shadow-xl bg-card border-border text-card-foreground"
-              style={accentBorderStyle(show.accentColor)}
-            >
-              {/* Date badge */}
-              <span className="absolute top-4 left-4 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-md z-10 shadow">
-                {show.date}
-              </span>
-              <CardHeader className="pb-0">
-                <img
-                  src={show.imageUrl}
-                  alt={show.title}
-                  className="rounded-lg w-full h-40 object-cover mb-4"
-                />
-                <h3 className="text-xl font-semibold mb-2">{show.title}</h3>
-                <div className="flex items-center text-muted-foreground text-sm mb-2">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  {show.location}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <button className="mt-2 px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground rounded-lg transition-colors w-full">
-                  View Details
-                </button>
-              </CardContent>
-            </Card>
+            <div key={show.id} className="snap-start flex-shrink-0">
+              <ShowCardVertical show={show} />
+            </div>
           ))}
         </div>
         {/* Scroll indicators */}

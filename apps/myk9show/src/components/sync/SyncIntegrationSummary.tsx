@@ -19,8 +19,8 @@ interface IntegrationPoint {
 export const SyncIntegrationSummary: React.FC = () => {
   const integrations: IntegrationPoint[] = [
     {
-      component: 'ShowCard',
-      location: '/src/components/shows/ShowCard.tsx',
+      component: 'ShowCardVertical',
+      location: '/src/components/shows/ShowCardVertical.tsx',
       syncType: 'Entity Status',
       description: 'Compact sync indicator in top-left corner of show cards',
       implemented: true,

@@ -1,4 +1,5 @@
-export { default as ShowCard } from './ShowCard';
+export { ShowCardVertical } from './ShowCardVertical';
+export { DateCircle } from './DateCircle';
+export { ShowProgressBar } from './ShowProgressBar';
 export { default as UpcomingShows } from './UpcomingShows';
-export type { ShowCardProps } from './ShowCard';
 export type { UpcomingShowsVariant, UpcomingShowsProps } from './UpcomingShows';

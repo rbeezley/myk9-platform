@@ -3,9 +3,46 @@ import { Camera, Palette, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import { CoverImageUpload } from '@/components/ui/cover-image-upload';
-import { ShowCard } from '@/components/shows/ShowCard';
+import { ShowCardVertical } from '@/components/shows/ShowCardVertical';
 import { generatePalette } from '@/lib/branding';
 import type { Club } from '@/types/club-types';
+import type { Show } from '@/types/show-types';
+
+/** Build a minimal Show object for the branding preview card */
+function buildPreviewShow(club: Club, draftColor: string | null): Show {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+  return {
+    id: 'preview',
+    name: `${club.name} Spring Trial`,
+    organization: 'AKC',
+    startDate: fmt(today),
+    endDate: fmt(tomorrow),
+    location: 'City, State',
+    status: 'upcoming',
+    events: ['Agility'],
+    source: 'myK9Show',
+    entryOpenDate: fmt(today),
+    entryCloseDate: fmt(tomorrow),
+    preEntryFee: '30',
+    clubId: club.id || '',
+    clubName: club.name,
+    clubAddress: '',
+    clubEmail: '',
+    logoUrl: club.logo || '',
+    coverImageUrl: club.coverImage || '',
+    accentColor: draftColor || '',
+    chairman: '',
+    secretary: '',
+    chiefSteward: '',
+    assignedJudges: [],
+    stats: [],
+    trials: [],
+  };
+}
 
 interface BrandingTabProps {
   club: Club;
@@ -139,16 +176,7 @@ export function BrandingTab({
           How your club&apos;s shows will appear on browse pages:
         </p>
         <div className="max-w-[340px]">
-          <ShowCard
-            id="preview"
-            title={`${club.name} Spring Trial`}
-            date="Mar 15 - Mar 16, 2026"
-            location="City, State"
-            imageUrl=""
-            coverImageUrl={club.coverImage || undefined}
-            accentColor={draftColor}
-            organization=""
-          />
+          <ShowCardVertical show={buildPreviewShow(club, draftColor)} />
         </div>
       </section>
     </div>

@@ -211,15 +211,6 @@ export type {
 export { AuditAction, NotificationType } from './audit-types';
 
 // UI and Component Types
-export interface LandingShow {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  imageUrl: string;
-  accentColor?: string | null;
-}
-
 export interface Feature {
   icon: React.ReactNode;
   label: string;

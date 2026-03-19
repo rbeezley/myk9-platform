@@ -19,6 +19,7 @@ import { logger } from '@/services/LoggingService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
+import type { ArmbandAssignment } from './ConfirmationStep.types';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -37,6 +38,7 @@ interface WorkflowStepContentProps {
   registrationId: string | undefined;
   registrationNumber: string | undefined;
   currentRegistrationTotalFees: number;
+  armbandAssignments?: ArmbandAssignment[];
   onDogSelectionChange: (dogs: string[]) => Promise<void>;
   onClassSelectionChange: (selections: ClassSelectionData[]) => Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => Promise<void>;
@@ -62,6 +64,7 @@ export function WorkflowStepContent({
   registrationId,
   registrationNumber,
   currentRegistrationTotalFees,
+  armbandAssignments,
   onDogSelectionChange,
   onClassSelectionChange,
   onHandlerAssignmentChange,
@@ -186,6 +189,7 @@ export function WorkflowStepContent({
           entryStatus={optimisticState.entryStatus}
           totalFees={currentRegistrationTotalFees}
           showId={showId}
+          armbandAssignments={armbandAssignments}
           onDownloadReceipt={undefined}
           onSendEmail={undefined}
           onStatusChange={async (_dogId: string, status: EntryStatus) => {

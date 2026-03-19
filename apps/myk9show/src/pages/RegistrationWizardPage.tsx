@@ -9,8 +9,9 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useMatch } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getErrorMessage } from '@myk9/core';
+import { getErrorMessage, logger } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
+import { supabase } from '@/services/database/supabaseClient';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import {
   ClassSelectionData,
@@ -42,6 +43,7 @@ import type {
   WorkflowMode,
   StepId,
 } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
+import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import {
   WORKFLOW_CONFIGS,
   ALL_STEP_DEFINITIONS,
@@ -75,7 +77,7 @@ function RegistrationWizardContent() {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
-  const { createMultipleEntries } = useEntryStore();
+  const { createMultipleEntries, updateRegistration } = useEntryStore();
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
   // Determine workflow mode
@@ -116,6 +118,7 @@ function RegistrationWizardContent() {
   const [isCreatingRegistration, setIsCreatingRegistration] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
+  const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
   const hasAutoSelectedDogs = useRef(false);
 
   const {
@@ -350,9 +353,64 @@ function RegistrationWizardContent() {
         dbRegistrationId = result.dbRegistrationId;
       }
 
+      let createdEntries: Awaited<ReturnType<typeof createMultipleEntries>> = [];
       if (entryInputs.length > 0) {
-        await createMultipleEntries(entryInputs, userId, 'submitted', dbRegistrationId);
+        createdEntries = await createMultipleEntries(
+          entryInputs,
+          userId,
+          'submitted',
+          dbRegistrationId
+        );
       }
+
+      // Assign armbands — one per unique dog, non-blocking on failure
+      const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
+      const armbandResults: Array<{ dogId: string; armband: number }> = [];
+
+      await Promise.all(
+        uniqueDogIds.map(async dogId => {
+          try {
+            const { data, error } = await supabase.rpc(
+              'assign_armband' as never,
+              {
+                p_show_id: showId,
+                p_dog_id: dogId,
+              } as never
+            );
+            if (!error && data != null) {
+              armbandResults.push({ dogId, armband: data as number });
+            } else if (error) {
+              logger.warn(
+                `Armband assignment failed for dog ${dogId}: ${error.message}`,
+                'registration'
+              );
+            }
+          } catch {
+            // Armband assignment failure is non-blocking — entry still saved
+            logger.warn(`Armband RPC exception for dog ${dogId}`, 'registration');
+          }
+        })
+      );
+
+      // Write armband numbers back to created entries via replication layer
+      for (const { dogId, armband } of armbandResults) {
+        const dogEntries = createdEntries.filter(e => e.dogId === dogId);
+        for (const entry of dogEntries) {
+          try {
+            await updateRegistration(entry.id, { armband: String(armband) }, userId);
+          } catch {
+            // Non-blocking — armband display still works via state
+          }
+        }
+      }
+
+      // Store assignments for the confirmation step display
+      setArmbandAssignments(
+        armbandResults.map(({ dogId, armband }) => ({
+          dogId,
+          armband: String(armband),
+        }))
+      );
     }
 
     setCurrentStep(prev => prev + 1);
@@ -548,6 +606,7 @@ function RegistrationWizardContent() {
                     registrationId={registrationId}
                     registrationNumber={registrationNumber}
                     currentRegistrationTotalFees={currentRegistration?.totalFees || 0}
+                    armbandAssignments={armbandAssignments}
                     onDogSelectionChange={handleDogSelectionChange}
                     onClassSelectionChange={handleClassSelectionChange}
                     onHandlerAssignmentChange={handleHandlerAssignmentChange}

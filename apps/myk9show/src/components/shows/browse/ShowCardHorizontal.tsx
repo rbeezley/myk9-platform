@@ -24,7 +24,6 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { DateCircle } from '@/components/shows/DateCircle';
-import { ShowProgressBar } from '@/components/shows/ShowProgressBar';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getShowActions } from '@/utils/show-actions';
 import { getEntryStatus, userHasEntriesForShow } from '@/utils/entryStatusUtils';
@@ -81,7 +80,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
   const entryCount = countUserEntries(show.id, entries);
   const entryStatus = getEntryStatus(show, hasUserEntries);
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
-  const { totalTrials, scoredTrials } = computeShowProgress(show);
+  const { totalTrials } = computeShowProgress(show);
   const canEnterShow = entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
 
   const showActions = getShowActions(show, selectedTab, user);
@@ -182,8 +181,6 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
           {/* Counts */}
           <span className="text-xs text-muted-foreground text-right">
             <span className="font-semibold text-foreground/75">{totalTrials}</span> trials
-            <span className="mx-1.5 text-border">&middot;</span>
-            <span className="font-semibold text-foreground/75">{entryCount}</span> entries
           </span>
 
           {/* Action buttons */}

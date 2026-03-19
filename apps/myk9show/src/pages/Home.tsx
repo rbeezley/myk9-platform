@@ -22,31 +22,7 @@ const Home: React.FC = () => {
   const memoizedFaqs = useMemo(() => faqs, []);
 
   const { data: dbShows, isLoading: showsLoading } = useUpcomingShowsQuery(5);
-
-  const mappedShows = useMemo(
-    () =>
-      (dbShows || []).map(show => ({
-        id: show.id,
-        title: show.name,
-        date:
-          show.startDate && show.endDate
-            ? `${new Date(show.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(show.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-            : show.startDate
-              ? new Date(show.startDate).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-              : 'TBD',
-        location: show.location || 'Location TBD',
-        imageUrl: '',
-        organization: show.organization,
-        status: show.status,
-        coverImageUrl: show.coverImageUrl || undefined,
-        accentColor: show.accentColor || null,
-      })),
-    [dbShows]
-  );
+  const shows = dbShows || [];
 
   // Show the same beautiful landing page for everyone
   return (
@@ -59,11 +35,11 @@ const Home: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Suspense fallback={<DelightfulLoading variant="carousel" />}>
               <UpcomingShows
-                shows={mappedShows}
+                shows={shows}
                 variant="carousel"
                 className="mt-8"
                 isLoading={showsLoading}
-                isEmpty={!showsLoading && mappedShows.length === 0}
+                isEmpty={!showsLoading && shows.length === 0}
               />
             </Suspense>
           </div>

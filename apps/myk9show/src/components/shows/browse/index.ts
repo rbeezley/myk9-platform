@@ -4,5 +4,6 @@
  */
 
 export { ShowCardGrid } from './ShowCardGrid';
+export { ShowCardHorizontal } from './ShowCardHorizontal';
 export { ShowsTableView } from './ShowsTableView';
 export { ShowBulkActionsBar } from './ShowBulkActionsBar';

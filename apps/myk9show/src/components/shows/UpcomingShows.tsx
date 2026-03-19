@@ -1,20 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { ShowCard } from './ShowCard';
-
-// Define the Show type to match the data structure from upcomingShows.ts
-export interface Show {
-  id: number | string;
-  title: string;
-  date: string;
-  location: string;
-  imageUrl: string;
-  organization?: string | undefined;
-  status?: string | undefined;
-  coverImageUrl?: string | undefined;
-  accentColor?: string | null | undefined;
-}
+import { ShowCardVertical, ShowCardVerticalSkeleton } from './ShowCardVertical';
+import type { Show } from '@/types/show-types';
 
 export type UpcomingShowsVariant = 'carousel' | 'grid';
 
@@ -38,13 +26,13 @@ const LoadingSkeleton = ({ variant }: LoadingSkeletonProps) => (
     {variant === 'grid' ? (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="h-64 bg-muted rounded-lg"></div>
+          <ShowCardVerticalSkeleton key={i} />
         ))}
       </div>
     ) : (
       <div className="flex gap-6 overflow-hidden">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="min-w-[320px] h-64 bg-muted rounded-lg flex-shrink-0"></div>
+          <ShowCardVerticalSkeleton key={i} />
         ))}
       </div>
     )}
@@ -76,7 +64,7 @@ const EmptyState = ({ onAddShow }: EmptyStateProps) => (
   </div>
 );
 
-const CARD_WIDTH = 340; // px, approximate card width including gap
+const CARD_WIDTH = 300; // px, approximate card width (280px card + 20px gap)
 const AUTO_SCROLL_INTERVAL = 5000; // ms
 
 export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
@@ -149,8 +137,8 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
   }, [autoScrollPaused, canScrollRight, variant, scroll]);
 
   const handleUserScroll = () => setAutoScrollPaused(true);
-  const handleViewDetails = (showId: string | number) => {
-    onViewDetails?.(String(showId));
+  const handleViewDetails = (showId: string) => {
+    onViewDetails?.(showId);
   };
 
   // Handle loading and empty states
@@ -167,11 +155,10 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
     return (
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
         {shows.map(show => (
-          <ShowCard
+          <ShowCardVertical
             key={show.id}
-            {...show}
+            show={show}
             onViewDetails={() => handleViewDetails(show.id)}
-            className="h-full"
           />
         ))}
       </div>
@@ -212,14 +199,14 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
 
       <div
         ref={scrollRef}
-        className="flex gap-6 overflow-x-auto pb-4 hide-scrollbar scroll-smooth snap-x snap-mandatory"
+        className="flex gap-5 overflow-x-auto pb-4 hide-scrollbar scroll-smooth snap-x snap-mandatory"
         style={{ scrollBehavior: 'smooth' }}
         onMouseDown={handleUserScroll}
         onTouchStart={handleUserScroll}
       >
         {shows.map(show => (
-          <div key={show.id} className="min-w-[320px] max-w-[340px] flex-shrink-0 snap-start">
-            <ShowCard {...show} onViewDetails={() => handleViewDetails(show.id)} />
+          <div key={show.id} className="snap-start flex-shrink-0">
+            <ShowCardVertical show={show} onViewDetails={() => handleViewDetails(show.id)} />
           </div>
         ))}
       </div>

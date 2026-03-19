@@ -75,16 +75,11 @@ export const ShowCardVertical: React.FC<ShowCardVerticalProps> = ({
           </div>
         )}
 
-        {/* Tags: org badge + discipline tags */}
+        {/* Tags: org badge + trial type badges */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {getTypeBadge(show.organization)}
           {disciplineTags.map(tag => (
-            <span
-              key={tag}
-              className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium"
-            >
-              {tag}
-            </span>
+            <React.Fragment key={tag}>{getTypeBadge(tag)}</React.Fragment>
           ))}
         </div>
 

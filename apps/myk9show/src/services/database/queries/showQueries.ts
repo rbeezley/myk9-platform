@@ -26,6 +26,7 @@ export const getAllShows = async () => {
           trial_number,
           status,
           sport_type,
+          trial_type,
           max_entries_per_dog,
           max_total_entries,
           max_entries_per_handler
@@ -97,6 +98,7 @@ export const getShowById = async (id: string) => {
           trial_number,
           status,
           sport_type,
+          trial_type,
           max_entries_per_dog,
           max_total_entries,
           max_entries_per_handler

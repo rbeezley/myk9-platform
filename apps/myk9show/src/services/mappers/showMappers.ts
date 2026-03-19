@@ -175,17 +175,17 @@ export const mapDatabaseToShow = (
     endDate: dbShow.end_date,
     location: dbShow.location || '',
     status: dbShow.status || 'upcoming',
-    // Extract unique sport types from trials (e.g., "Scent Work", "Agility")
-    // Falls back to organization if no trials have sport_type set
+    // Extract unique trial types (e.g., "Scent Work", "Agility")
+    // Prefers trial_type (user-friendly), falls back to sport_type, then organization
     events: (() => {
-      const sportTypes = [
+      const trialTypes = [
         ...new Set(
           (rawTrials as Array<Record<string, unknown>>)
-            .map(t => t.sport_type as string | null)
+            .map(t => (t.trial_type || t.sport_type) as string | null)
             .filter((s): s is string => !!s)
         ),
       ];
-      return sportTypes.length > 0 ? sportTypes : [dbShow.organization];
+      return trialTypes.length > 0 ? trialTypes : [dbShow.organization];
     })(),
     source: ((dbShow as Record<string, unknown>).source as 'myK9Show' | 'external') || 'myK9Show', // Use source from database or default
     entryOpenDate: dbShow.entry_open_date || '',

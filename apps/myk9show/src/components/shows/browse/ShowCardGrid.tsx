@@ -16,9 +16,6 @@ interface ShowCardGridProps {
 
 export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
   shows,
-  entries,
-  selectedTab,
-  user,
   isSelected,
   onToggleSelect,
 }) => (
@@ -30,9 +27,6 @@ export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
         <ShowCardHorizontal
           key={show.id}
           show={show}
-          entries={entries}
-          selectedTab={selectedTab}
-          user={user}
           isSelected={isSelected?.(show) ?? false}
           {...toggleProps}
         />

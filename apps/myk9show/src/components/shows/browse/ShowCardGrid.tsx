@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShowCardHorizontal } from './ShowCardHorizontal';
+import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import type { UserWithRoles } from '@/types/auth-types';
@@ -21,7 +22,7 @@ export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
   isSelected,
   onToggleSelect,
 }) => (
-  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+  <StaggeredGrid className="grid grid-cols-1 xl:grid-cols-2 gap-3">
     {shows.map(show => {
       const toggleProps = onToggleSelect ? { onToggleSelect: () => onToggleSelect(show) } : {};
 
@@ -37,7 +38,7 @@ export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
         />
       );
     })}
-  </div>
+  </StaggeredGrid>
 );
 
 export default ShowCardGrid;

@@ -26,6 +26,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     preEntryFee: show.preEntryFee || '',
     dayOfShowFee: show.dayOfShowFee || '',
     assignedJudges: show.assignedJudges || [],
+    startingArmbandNumber: show.startingArmbandNumber ?? 100,
     ...(show.maxEntriesPerDog !== undefined && { maxEntriesPerDog: show.maxEntriesPerDog }),
     ...(show.maxTotalEntries !== undefined && { maxTotalEntries: show.maxTotalEntries }),
     ...(show.allowNonOwnerHandlers !== undefined && {
@@ -45,6 +46,7 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   startDate: formData.startDate,
   endDate: formData.endDate,
   assignedJudges: formData.assignedJudges,
+  startingArmbandNumber: formData.startingArmbandNumber ?? 100,
   maxEntriesPerDog: formData.maxEntriesPerDog,
   maxTotalEntries: formData.maxTotalEntries,
   allowNonOwnerHandlers: formData.allowNonOwnerHandlers,

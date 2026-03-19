@@ -84,6 +84,37 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
 
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Armband Settings
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
+              <FormField label="Starting Armband Number" fieldId="startingArmbandNumber">
+                <Input
+                  id="startingArmbandNumber"
+                  type="number"
+                  value={data.startingArmbandNumber ?? 100}
+                  onChange={e => {
+                    const parsed = parseInt(e.target.value, 10);
+                    form?.setValue(
+                      'startingArmbandNumber',
+                      isNaN(parsed) || parsed < 1 ? 100 : parsed
+                    );
+                    form?.touchField('startingArmbandNumber');
+                  }}
+                  onBlur={() => form?.touchField('startingArmbandNumber')}
+                  min="1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  First dog registered will receive this armband number
+                </p>
+              </FormField>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Entry Limits (Optional)
             </h4>
 

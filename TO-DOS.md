@@ -158,17 +158,13 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
-## Icon Consistency for Buttons and Tabs - 2026-03-18 19:24
-
----
-
 ## Trial Card Enhancements - 2026-03-18 19:25
 
 - [x] **Add class and entry counts to trial cards** — Done: commit 5b4d3020 rewrote trial cards with date element, counts, and progress bar. Show how many classes and total entries each trial has. **Problem:** Trial cards on ShowDetailsPage only display name, status, date, type, and start time. Users can't see at a glance how many classes or entries a trial contains without clicking into it. **Files:** `apps/myk9show/src/components/shows/tabs/TrialsTab.tsx:74-116` (card content area), `apps/myk9show/src/pages/ShowDetailsPage.tsx:122-145` (showClasses memo — has per-trial class/entry data available). **Solution:** Pass class and entry counts per trial to TrialsTab. Add count badges or a footer row to the trial card (e.g., "5 classes · 42 entries"). Data is already available — `trialClasses[trial.id]` has class arrays with `entries` counts.
 
 - [x] **Add progress bar to trial cards** — Done: included in commit 5b4d3020. Port myK9Q's class card progress bar to trial cards. **Problem:** No visual indicator of trial completion progress. myK9Q class cards show a progress bar (scored/total entries) that gives instant status feedback. **Files:** `apps/myk9show/src/components/shows/tabs/TrialsTab.tsx:74-116` (card content), `apps/myk9q/src/pages/ClassList/ClassCard.tsx` (reference: progress bar showing scored vs total). **Solution:** Add a thin progress bar at the bottom of each trial card showing completed classes / total classes (or scored entries / total entries). Compute from class status data already available via `trialClasses`. Only show when trial is in-progress or completed.
 
-- **Establish icon policy for buttons and tabs** — Decide whether buttons and tabs should consistently include icons, and audit current usage. **Problem:** No consistent pattern for when icons appear alongside button text or tab labels. Some buttons have icons, some don't; tabs on ShowDetailsPage have icons (added recently) but other tab groups may not. Inconsistency makes the UI feel unpolished. **Files:** `apps/myk9show/src/components/ui/button.tsx` (Button component), `apps/myk9show/src/pages/ShowDetailsPage.tsx:220-226` (tab config with icons), `apps/myk9show/src/pages/TrialDetailsPage.tsx:527-532` (trial tabs). **Solution:** Audit all button and tab usage across myK9Show. Decide on a rule (e.g., primary actions always get icons, secondary/inline buttons text-only; all top-level tab groups get icons). Document the decision and apply consistently.
+- [x] **Establish icon policy for buttons and tabs** — Done: Moderate coverage policy established and applied. All tab group triggers get Lucide icons (h-4 w-4) before labels; all standalone action buttons get icons. Dialog footer dismissals, inline links, and filter chips stay text-only. Applied to 6 tab groups (ClubDetails, JudgeDashboard, TrialManagementTabs, CompetitionsTabs, SyncMonitoringDashboard, DogDetailsTabs), 4 button locations (CartPage, CheckoutCancelPage, TrialManagementTabs, JudgeDashboard), plus aria-label fix on TrialHeader and dead code cleanup of unused ClubTabs.tsx. Spec: `docs/superpowers/specs/2026-03-19-icon-consistency-policy-design.md`.
 
 ---
 

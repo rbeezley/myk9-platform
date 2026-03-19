@@ -79,10 +79,11 @@ END;
 $$;
 ```
 
-- [ ] **Step 2: Apply migration locally**
+- [ ] **Step 2: Apply migration locally and to remote**
 
-Run: `cd supabase && supabase db push`
-Expected: Migration applies successfully, no errors.
+Run locally: `cd supabase && supabase db push`
+Run to staging: `cd supabase && supabase db push --linked`
+Expected: Migration applies successfully on both, no errors.
 
 - [ ] **Step 3: Verify function works**
 
@@ -330,9 +331,11 @@ await Promise.all(
 );
 ```
 
-- [ ] **Step 3: Write armband back to entries**
+- [ ] **Step 3: Write armband back to entries** [EXPANDED]
 
-After getting armband numbers, update each entry's `armband` field. Check the actual `updateEntry` signature in entryStore — it likely requires `userId` as a third parameter:
+After getting armband numbers, update each entry's `armband` field. Check the actual `updateEntry` signature in entryStore — it likely requires `userId` as a third parameter.
+
+**Important:** Verify that the replication layer maps `registrationData.armband` to the `entries.armband` column in the database. Check `ReplicatedEntriesTable` or the entry store's persistence logic to confirm this mapping exists. If it doesn't, write directly to `entries.armband` via a Supabase update instead.
 
 ```typescript
 for (const { dogId, armband } of armbandResults) {

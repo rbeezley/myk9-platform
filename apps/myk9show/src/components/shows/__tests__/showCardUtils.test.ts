@@ -88,17 +88,18 @@ describe('computeShowProgress', () => {
   it('counts completed trials case-insensitively', () => {
     const show = makeShow({
       trials: [
-        { id: '1', status: 'completed' },
-        { id: '2', status: 'Completed' },
-        { id: '3', status: 'in_progress' },
-      ] as any,
+        { id: '1', name: 'Trial 1', date: '2026-06-01', trialNumber: '1', status: 'completed' },
+        { id: '2', name: 'Trial 2', date: '2026-06-02', trialNumber: '2', status: 'Completed' },
+        { id: '3', name: 'Trial 3', date: '2026-06-03', trialNumber: '3', status: 'in_progress' },
+      ],
     });
     expect(computeShowProgress(show)).toEqual({ totalTrials: 3, scoredTrials: 2 });
   });
 
   it('handles undefined trials array', () => {
     const show = makeShow();
-    (show as any).trials = undefined;
+    // Force undefined to test defensive handling
+    Object.defineProperty(show, 'trials', { value: undefined, writable: true });
     expect(computeShowProgress(show)).toEqual({ totalTrials: 0, scoredTrials: 0 });
   });
 });

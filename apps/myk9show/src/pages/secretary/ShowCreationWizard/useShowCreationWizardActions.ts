@@ -374,6 +374,7 @@ export function useShowCreationWizardActions({
       queryClient,
       triggerSync,
       setIsLoading,
+      loadTrialClasses,
     ]
   );
 

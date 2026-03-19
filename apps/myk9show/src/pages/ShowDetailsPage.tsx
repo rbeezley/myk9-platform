@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
-import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
+import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import {
@@ -147,10 +147,7 @@ const ShowDetailsPage: React.FC = () => {
 
   // Trial statistics for card display (class counts, entry counts, scoring progress)
   const trialStats = useMemo(() => {
-    const stats: Record<
-      string,
-      { classCount: number; entryCount: number; completedClasses: number }
-    > = {};
+    const stats: Record<string, TrialStats> = {};
     for (const trial of associatedTrials) {
       const classes = trialClasses[trial.id] || [];
       stats[trial.id] = {

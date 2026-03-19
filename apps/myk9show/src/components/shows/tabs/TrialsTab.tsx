@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Plus } from 'lucide-react';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import { getClassStatusBadgeClasses, getClassStatusDisplay } from '@myk9/core';
+import { getClassStatusBadgeClasses, getClassStatusDisplay, CLASS_STATUS } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 
-interface TrialStats {
+export interface TrialStats {
   classCount: number;
   entryCount: number;
   completedClasses: number;
@@ -29,21 +29,20 @@ function getDateParts(dateStr: string): { month: string; day: string } | null {
   };
 }
 
-function getTrialStatusColor(status: string): { border: string; text: string } {
-  const normalized = getClassStatusDisplay(status).label;
-  if (normalized === 'Complete') {
-    return { border: 'border-green-600', text: 'text-green-600' };
-  }
-  if (normalized === 'In Progress') {
-    return { border: 'border-blue-500', text: 'text-blue-500' };
-  }
-  return { border: 'border-border', text: 'text-blue-500' };
-}
+const EMPTY_STATS: TrialStats = { classCount: 0, entryCount: 0, completedClasses: 0 };
 
-function getProgressBarColor(status: string): string {
-  const normalized = getClassStatusDisplay(status).label;
-  if (normalized === 'Complete') return 'bg-green-600';
-  return 'bg-blue-500';
+function getTrialStatusTokens(status: string): {
+  border: string;
+  text: string;
+  bar: string;
+} {
+  if (status === CLASS_STATUS.COMPLETED) {
+    return { border: 'border-green-600', text: 'text-green-600', bar: 'bg-green-600' };
+  }
+  if (status === CLASS_STATUS.IN_PROGRESS) {
+    return { border: 'border-blue-500', text: 'text-blue-500', bar: 'bg-blue-500' };
+  }
+  return { border: 'border-border', text: 'text-blue-500', bar: 'bg-blue-500' };
 }
 
 export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
@@ -59,7 +58,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
     <div className="space-y-4">
       {canManage && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={() => openWizard()} className="gap-1.5">
+          <Button size="sm" onClick={openWizard} className="gap-1.5">
             <Plus className="h-4 w-4" />
             Add Trial
           </Button>
@@ -74,7 +73,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             No trials have been created for this show yet.
           </p>
           {canManage && (
-            <Button variant="outline" className="mt-4 gap-1.5" onClick={() => openWizard()}>
+            <Button variant="outline" className="mt-4 gap-1.5" onClick={openWizard}>
               <Plus className="h-4 w-4" />
               Add Trial
             </Button>
@@ -84,12 +83,8 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {trials.map(trial => {
             const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
-            const stats = trialStats[trial.id] || {
-              classCount: 0,
-              entryCount: 0,
-              completedClasses: 0,
-            };
-            const statusColor = getTrialStatusColor(trial.status);
+            const stats = trialStats[trial.id] || EMPTY_STATS;
+            const tokens = getTrialStatusTokens(trial.status);
             const progressPct =
               stats.classCount > 0 ? (stats.completedClasses / stats.classCount) * 100 : 0;
             const showScored = stats.completedClasses > 0;
@@ -114,10 +109,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                     {/* Date element */}
                     {dateParts && (
                       <div
-                        className={`flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border-2 bg-background ${statusColor.border}`}
+                        className={`flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border-2 bg-background ${tokens.border}`}
                       >
                         <span
-                          className={`text-[10px] font-semibold uppercase leading-none tracking-wide ${statusColor.text}`}
+                          className={`text-[10px] font-semibold uppercase leading-none tracking-wide ${tokens.text}`}
                         >
                           {dateParts.month}
                         </span>
@@ -150,7 +145,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                       <div className="h-[3px] rounded-full bg-border overflow-hidden mb-2">
                         {progressPct > 0 && (
                           <div
-                            className={`h-full rounded-full ${getProgressBarColor(trial.status)}`}
+                            className={`h-full rounded-full ${tokens.bar}`}
                             style={{ width: `${progressPct}%` }}
                           />
                         )}
@@ -169,7 +164,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                           </span>
                         </div>
                         {showScored && (
-                          <span className={`text-[11px] ${statusColor.text}`}>
+                          <span className={`text-[11px] ${tokens.text}`}>
                             {stats.completedClasses}/{stats.classCount} scored
                           </span>
                         )}

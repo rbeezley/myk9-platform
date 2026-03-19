@@ -19,6 +19,9 @@ import {
   Calendar,
   ArrowRight,
   Timer,
+  CalendarDays,
+  CheckCircle,
+  Eye,
 } from 'lucide-react';
 import { StaggeredGrid } from '@/components/layout/StaggeredGrid';
 import { FadeIn } from '@/components/layout/FadeIn';
@@ -273,18 +276,21 @@ const JudgeDashboard: React.FC = () => {
                     value="today"
                     className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
                   >
+                    <CalendarDays className="h-4 w-4" />
                     Today
                   </TabsTrigger>
                   <TabsTrigger
                     value="upcoming"
                     className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
                   >
+                    <Calendar className="h-4 w-4" />
                     Upcoming
                   </TabsTrigger>
                   <TabsTrigger
                     value="completed"
                     className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
                   >
+                    <CheckCircle className="h-4 w-4" />
                     Completed
                   </TabsTrigger>
                 </TabsList>
@@ -391,6 +397,7 @@ const JudgeDashboard: React.FC = () => {
                             size="sm"
                             className="relative border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
                           >
+                            <Eye className="h-4 w-4 mr-2" />
                             View Results
                           </Button>
                         </div>

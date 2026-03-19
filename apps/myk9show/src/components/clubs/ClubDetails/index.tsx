@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Calendar, History, Info, Users, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Breadcrumb from '@/components/common/Breadcrumb';
@@ -90,24 +90,28 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                 value="upcoming"
                 className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
               >
+                <Calendar className="h-4 w-4" />
                 Upcoming Shows ({upcomingShows.length})
               </TabsTrigger>
               <TabsTrigger
                 value="past"
                 className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
               >
+                <History className="h-4 w-4" />
                 Past Shows ({pastShows.length})
               </TabsTrigger>
               <TabsTrigger
                 value="about"
                 className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
               >
+                <Info className="h-4 w-4" />
                 About
               </TabsTrigger>
               <TabsTrigger
                 value="members"
                 className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
               >
+                <Users className="h-4 w-4" />
                 Members ({selectedClub.memberIds?.length || 0})
               </TabsTrigger>
               {state.canEditBranding && (
@@ -115,6 +119,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                   value="branding"
                   className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
                 >
+                  <Palette className="h-4 w-4" />
                   Branding
                 </TabsTrigger>
               )}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus } from 'lucide-react';
+import { Plus, Calendar, History, Award } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import UpcomingShowsSection from './UpcomingShows/UpcomingShowsSection';
 import PastResultsSection from './PastResults/PastResultsSection';
 import AchievementsSection from './Achievements/AchievementsSection';
@@ -10,10 +11,10 @@ interface CompetitionsTabsProps {
   isPremium: boolean;
 }
 
-const tabs = [
-  { label: 'Upcoming Shows', key: 'upcoming' },
-  { label: 'Past Results', key: 'past' },
-  { label: 'Achievements', key: 'achievements' },
+const tabs: { label: string; key: string; icon: LucideIcon }[] = [
+  { label: 'Upcoming Shows', key: 'upcoming', icon: Calendar },
+  { label: 'Past Results', key: 'past', icon: History },
+  { label: 'Achievements', key: 'achievements', icon: Award },
 ];
 
 const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium }) => {
@@ -53,6 +54,7 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium })
         <TabsList className="myk9-sub-tabs">
           {tabs.map(tab => (
             <TabsTrigger key={tab.key} value={tab.key} className="myk9-sub-tab">
+              <tab.icon className="h-4 w-4" />
               {tab.label}
             </TabsTrigger>
           ))}
@@ -64,7 +66,12 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium })
           />
         </TabsContent>
         <TabsContent value="past">
-          <PastResultsSection dogId={dogId} isPremium={isPremium} addDialogOpen={false} setAddDialogOpen={() => {}} />
+          <PastResultsSection
+            dogId={dogId}
+            isPremium={isPremium}
+            addDialogOpen={false}
+            setAddDialogOpen={() => {}}
+          />
         </TabsContent>
         <TabsContent value="achievements">
           <AchievementsSection dogId={dogId} />

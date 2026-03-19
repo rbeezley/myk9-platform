@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Activity, Crown, FileText } from 'lucide-react';
+import { Activity, Crown, FileText, Trophy } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useRememberedTab } from '@/hooks/useRememberedTab';
@@ -49,7 +49,10 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
               <FileText className="w-4 h-4" />
               Registrations
             </TabsTrigger>
-            <TabsTrigger value="competitions">Competitions</TabsTrigger>
+            <TabsTrigger value="competitions">
+              <Trophy className="h-4 w-4" />
+              Competitions
+            </TabsTrigger>
             <Tooltip>
               <TooltipTrigger asChild>
                 <TabsTrigger

@@ -21,6 +21,11 @@ import {
   ChevronRight,
   PlayCircle,
   FolderOpen,
+  Play,
+  CheckCircle,
+  Eye,
+  Download,
+  Zap,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { TrialOverview } from './secretary-dashboard-types';
@@ -60,18 +65,21 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
               value="active"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
             >
+              <Play className="h-4 w-4" />
               Active
             </TabsTrigger>
             <TabsTrigger
               value="upcoming"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
             >
+              <Calendar className="h-4 w-4" />
               Upcoming
             </TabsTrigger>
             <TabsTrigger
               value="completed"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
             >
+              <CheckCircle className="h-4 w-4" />
               Completed
             </TabsTrigger>
           </TabsList>
@@ -196,6 +204,7 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                         variant="outline"
                         className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
                       >
+                        <Zap className="h-4 w-4 mr-2" />
                         Quick Actions
                       </Button>
                     </div>
@@ -329,12 +338,14 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                       variant="outline"
                       className="border-success-green/20 text-success-green hover:bg-success-green/5 hover:border-success-green/40"
                     >
+                      <Eye className="h-4 w-4 mr-2" />
                       View Results
                     </Button>
                     <Button
                       variant="outline"
                       className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
                     >
+                      <Download className="h-4 w-4 mr-2" />
                       Export Report
                     </Button>
                   </div>

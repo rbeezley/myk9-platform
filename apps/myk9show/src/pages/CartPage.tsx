@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Trash2, AlertCircle } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -109,6 +109,7 @@ export default function CartPage() {
               Browse upcoming shows and add entries to your cart to get started.
             </p>
             <Button onClick={() => navigate('/shows')} size="lg">
+              <Eye className="h-4 w-4 mr-2" />
               Browse Shows
             </Button>
           </div>

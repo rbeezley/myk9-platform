@@ -4,6 +4,9 @@ import {
   Clock,
   Wifi,
   GitBranch,
+  LayoutDashboard,
+  Gauge,
+  AlertTriangle,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { cn } from '../../../lib/utils';
@@ -89,12 +92,12 @@ const SyncMonitoringDashboard: React.FC = () => {
         totalConflicts: metrics.totalConflicts,
         offlineUsageTime: metrics.offlineUsageTime,
         bandwidthUsed: metrics.bandwidthUsed,
-        compressionRatio: metrics.compressionRatio
-      }
+        compressionRatio: metrics.compressionRatio,
+      },
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json'
+      type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -136,7 +139,7 @@ const SyncMonitoringDashboard: React.FC = () => {
           value={metrics.totalSyncs.toLocaleString()}
           subtitle={`${metrics.successfulSyncs.toLocaleString()} successful`}
           icon={<RefreshCw className="h-5 w-5" />}
-          status={metrics.failedSyncs === 0 ? "success" : "warning"}
+          status={metrics.failedSyncs === 0 ? 'success' : 'warning'}
           trend={15}
         />
         <MetricCard
@@ -144,7 +147,7 @@ const SyncMonitoringDashboard: React.FC = () => {
           value={`${metrics.averageSyncTime.toFixed(1)}s`}
           subtitle="Per operation"
           icon={<Clock className="h-5 w-5" />}
-          status={metrics.averageSyncTime < 5 ? "success" : "warning"}
+          status={metrics.averageSyncTime < 5 ? 'success' : 'warning'}
           trend={-8}
         />
         <MetricCard
@@ -152,7 +155,7 @@ const SyncMonitoringDashboard: React.FC = () => {
           value={`${metrics.conflictRate}%`}
           subtitle={`${metrics.totalConflicts} total conflicts`}
           icon={<GitBranch className="h-5 w-5" />}
-          status={metrics.conflictRate < 5 ? "success" : "error"}
+          status={metrics.conflictRate < 5 ? 'success' : 'error'}
           trend={-12}
         />
         <MetricCard
@@ -167,11 +170,23 @@ const SyncMonitoringDashboard: React.FC = () => {
 
       {/* Detailed Tabs */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
-        <TabsList className={cn("grid w-full grid-cols-4")}>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="conflicts">Conflicts</TabsTrigger>
-          <TabsTrigger value="network">Network</TabsTrigger>
+        <TabsList className={cn('grid w-full grid-cols-4')}>
+          <TabsTrigger value="overview">
+            <LayoutDashboard className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="performance">
+            <Gauge className="h-4 w-4" />
+            Performance
+          </TabsTrigger>
+          <TabsTrigger value="conflicts">
+            <AlertTriangle className="h-4 w-4" />
+            Conflicts
+          </TabsTrigger>
+          <TabsTrigger value="network">
+            <Wifi className="h-4 w-4" />
+            Network
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">

@@ -6,7 +6,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { XCircle, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { XCircle, ShoppingCart, ArrowLeft, ArrowRight, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useCartStore, useCartItems } from '@/stores/cartStore';
@@ -69,12 +69,14 @@ export default function CheckoutCancelPage() {
                     className="w-full"
                     onClick={() => navigate(`/shows/${cart.show_id}`)}
                   >
+                    <ArrowRight className="h-4 w-4 mr-2" />
                     Continue Shopping
                   </Button>
                 )}
               </>
             ) : (
               <Button className="w-full" onClick={() => navigate('/shows')}>
+                <Eye className="h-4 w-4 mr-2" />
                 Browse Shows
               </Button>
             )}

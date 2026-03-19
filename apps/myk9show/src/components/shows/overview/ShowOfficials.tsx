@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { Mail, Phone } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { useResolvePerson, type ResolvedPerson } from '@/hooks/useResolvePerson';
 import { getUserById } from '@/services/database/queries/userQueries';
@@ -19,26 +19,15 @@ function OfficialCard({ person, role }: OfficialCardProps) {
         <div className="font-semibold text-foreground">{person.name}</div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">{role}</div>
       </div>
-      {(person.email || person.phone) && (
+      {person.email && (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-          {person.email && (
-            <a
-              href={`mailto:${person.email}`}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
-              <Mail className="h-3 w-3" />
-              {person.email}
-            </a>
-          )}
-          {person.phone && (
-            <a
-              href={`tel:${person.phone}`}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
-              <Phone className="h-3 w-3" />
-              {person.phone}
-            </a>
-          )}
+          <a
+            href={`mailto:${person.email}`}
+            className="flex items-center gap-1.5 hover:text-foreground"
+          >
+            <Mail className="h-3 w-3" />
+            {person.email}
+          </a>
         </div>
       )}
     </div>

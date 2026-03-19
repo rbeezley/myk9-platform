@@ -29,6 +29,7 @@ import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
+import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
@@ -134,7 +135,7 @@ const ShowDetailsPage: React.FC = () => {
         trialId: trial.id,
         time: cls.startTime || '',
         ring: 0,
-        status: String(cls.status || 'not_started'),
+        status: cls.status || CLASS_STATUS.SCHEDULED,
         entryCount: cls.entries || 0,
         userHasEntry: userEntryClassIds.has(cls.id),
         trialDate: trial.trialDate || '',

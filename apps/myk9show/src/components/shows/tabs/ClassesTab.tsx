@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MineToggle } from '@/components/common/MineToggle';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Search, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CLASS_STATUS_CONFIG } from '@/constants/live-status-config';
+import { getClassStatusDisplay, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { compareLevels } from '@/utils/schedule-summary';
 
@@ -18,7 +18,7 @@ interface ClassInfo {
   trialId: string;
   time: string;
   ring: number;
-  status: string;
+  status: ClassStatusValue;
   entryCount: number;
   userHasEntry: boolean;
   trialDate?: string;
@@ -48,8 +48,11 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   const navigate = useNavigate();
   const [isMine, setIsMine] = useState(userHasEntries);
 
-  const filteredClasses = isMine ? classes.filter(c => c.userHasEntry) : classes;
-  const mineCount = classes.filter(c => c.userHasEntry).length;
+  const mineCount = useMemo(() => classes.filter(c => c.userHasEntry).length, [classes]);
+  const filteredClasses = useMemo(
+    () => (isMine ? classes.filter(c => c.userHasEntry) : classes),
+    [classes, isMine]
+  );
 
   // Group classes by trial (date + number)
   const groupedByTrial = useMemo(() => {
@@ -127,9 +130,9 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           </thead>
           <tbody>
             {groupedByTrial.map(group => (
-              <>
+              <React.Fragment key={group.label}>
                 {hasMultipleTrials && (
-                  <tr key={`header-${group.label}`} className="bg-muted/20">
+                  <tr className="bg-muted/20">
                     <td
                       colSpan={totalColumns}
                       className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide"
@@ -138,57 +141,54 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                     </td>
                   </tr>
                 )}
-                {group.classes.map(cls => (
-                  <tr
-                    key={cls.id}
-                    role="link"
-                    tabIndex={0}
-                    className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
-                    onClick={() =>
-                      navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
-                    }
-                    onKeyDown={e => {
-                      if (e.key === 'Enter')
-                        navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`);
-                    }}
-                  >
-                    <td className="px-4 py-3 font-medium">{cls.element}</td>
-                    <td className="px-4 py-3">
-                      {cls.level}
-                      {cls.section && (
-                        <span className="ml-1 text-muted-foreground">{cls.section}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                      {cls.judgeName || 'TBD'}
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">{cls.time}</td>
-                    {!hideRing && <td className="px-4 py-3 hidden sm:table-cell">{cls.ring}</td>}
-                    <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          'px-2 py-0.5 rounded text-xs font-medium',
-                          (
-                            CLASS_STATUS_CONFIG[cls.status as keyof typeof CLASS_STATUS_CONFIG] ??
-                            CLASS_STATUS_CONFIG.not_started
-                          ).style
+                {group.classes.map(cls => {
+                  const statusDisplay = getClassStatusDisplay(cls.status);
+                  return (
+                    <tr
+                      key={cls.id}
+                      role="link"
+                      tabIndex={0}
+                      className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
+                      onClick={() =>
+                        navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
+                      }
+                      onKeyDown={e => {
+                        if (e.key === 'Enter')
+                          navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`);
+                      }}
+                    >
+                      <td className="px-4 py-3 font-medium">{cls.element}</td>
+                      <td className="px-4 py-3">
+                        {cls.level}
+                        {cls.section && (
+                          <span className="ml-1 text-muted-foreground">{cls.section}</span>
                         )}
-                      >
-                        {
-                          (
-                            CLASS_STATUS_CONFIG[cls.status as keyof typeof CLASS_STATUS_CONFIG] ??
-                            CLASS_STATUS_CONFIG.not_started
-                          ).label
-                        }
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{cls.entryCount}</td>
-                    <td className="px-2 py-3 text-muted-foreground/50">
-                      <ChevronRight className="h-4 w-4" />
-                    </td>
-                  </tr>
-                ))}
-              </>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                        {cls.judgeName || 'TBD'}
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">{cls.time}</td>
+                      {!hideRing && <td className="px-4 py-3 hidden sm:table-cell">{cls.ring}</td>}
+                      <td className="px-4 py-3">
+                        <span
+                          className={cn(
+                            'px-2 py-0.5 rounded text-xs font-medium',
+                            `${statusDisplay.bgClass} ${statusDisplay.textClass} ${statusDisplay.darkBgClass} ${statusDisplay.darkTextClass}`
+                          )}
+                        >
+                          {statusDisplay.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">
+                        {cls.entryCount}
+                      </td>
+                      <td className="px-2 py-3 text-muted-foreground/50">
+                        <ChevronRight className="h-4 w-4" />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

@@ -60,10 +60,15 @@ const LEVEL_ABBREVIATIONS: Record<string, string> = {
 // deriveElementStatus
 // ---------------------------------------------------------------------------
 
+/** Returns true when the status means "not yet started" (Scheduled OR Upcoming). */
+function isScheduledOrUpcoming(status: ClassStatusValue): boolean {
+  return status === CLASS_STATUS.SCHEDULED || status === CLASS_STATUS.UPCOMING;
+}
+
 /**
  * Derives an aggregate status from child level statuses.
  *
- * Logic: filter out cancelled → all completed → all scheduled → else in progress.
+ * Logic: filter out cancelled → all completed → all scheduled/upcoming → else in progress.
  * If every level is cancelled, returns Cancelled. Empty array returns Scheduled.
  */
 export function deriveElementStatus(levels: LevelDetail[]): ClassStatusValue {
@@ -77,7 +82,7 @@ export function deriveElementStatus(levels: LevelDetail[]): ClassStatusValue {
     return CLASS_STATUS.COMPLETED;
   }
 
-  if (active.every(l => l.status === CLASS_STATUS.SCHEDULED)) {
+  if (active.every(l => isScheduledOrUpcoming(l.status))) {
     return CLASS_STATUS.SCHEDULED;
   }
 

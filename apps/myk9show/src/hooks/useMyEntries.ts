@@ -46,13 +46,13 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
   const canSeeAll = isAdmin || isSecretary || hasRole('club_admin');
 
   return useMemo(() => {
-    if (!showId) return EMPTY_RESULT;
+    if (!showId) return { ...EMPTY_RESULT };
 
     // Get ALL entries for the show (needed for dogsAhead computation)
     const allShowEntries = storeEntries.filter(e => e.showId === showId);
 
     // Build lookup maps
-    const classMap = new Map(classes.map(c => [c.id, c.className || '']));
+    const classMap = new Map(classes.map(c => [c.id, c.className ?? 'Unknown Class']));
     const dogMap = new Map(
       dogs.map(d => [d.id, { callName: d.callName, name: d.name, ownerId: d.ownerId }])
     );
@@ -90,7 +90,7 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
 
       return {
         classId: entry.classId,
-        className: classMap.get(entry.classId) || 'Unknown Class',
+        className: classMap.get(entry.classId) ?? 'Unknown Class',
         dogName: dogInfo?.callName || dogInfo?.name || 'Unknown Dog',
         armband: entry.registrationData.armband ?? '',
         runOrder,

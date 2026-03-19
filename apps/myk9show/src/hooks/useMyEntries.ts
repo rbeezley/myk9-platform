@@ -3,6 +3,8 @@ import { useEntryStore } from '@/store/entryStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { getDogDisplayName } from '@/types/dog-types';
+import { UserRole } from '@/types/auth-types';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 interface MyEntryByClass {
@@ -43,7 +45,7 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
   const { dogs } = useDogStoreCompat();
 
   const databaseUserId = userWithRoles?.databaseUserId;
-  const canSeeAll = isAdmin || isSecretary || hasRole('club_admin');
+  const canSeeAll = isAdmin || isSecretary || hasRole(UserRole.CLUB_ADMIN);
 
   return useMemo(() => {
     if (!showId) return { ...EMPTY_RESULT };
@@ -70,16 +72,24 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
     // Build entries list
     const entries = filteredEntries.map(e => ({ id: e.id, showId: e.showId }));
 
+    // Pre-group all show entries by classId for O(N) dogsAhead computation
+    const entriesByClassId = new Map<string, SyncableShowEntry[]>();
+    for (const e of allShowEntries) {
+      const bucket = entriesByClassId.get(e.classId);
+      if (bucket) bucket.push(e);
+      else entriesByClassId.set(e.classId, [e]);
+    }
+
     // Build enriched per-class data
     const entriesByClass: MyEntryByClass[] = filteredEntries.map(entry => {
       const runOrder = entry.registrationData.runOrder ?? 0;
 
-      // dogsAhead: count entries in same class with lower runOrder that are not scored
+      // dogsAhead: count unscored entries in same class with lower runOrder
+      // Uses allShowEntries (via entriesByClassId), not filteredEntries — intentional
       const dogsAhead =
         runOrder > 0
-          ? allShowEntries.filter(
+          ? (entriesByClassId.get(entry.classId) ?? []).filter(
               e =>
-                e.classId === entry.classId &&
                 (e.registrationData.runOrder ?? 0) > 0 &&
                 (e.registrationData.runOrder ?? 0) < runOrder &&
                 !isScored(e)
@@ -91,7 +101,7 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
       return {
         classId: entry.classId,
         className: classMap.get(entry.classId) ?? 'Unknown Class',
-        dogName: dogInfo?.callName || dogInfo?.name || 'Unknown Dog',
+        dogName: dogInfo ? getDogDisplayName(dogInfo) || 'Unknown Dog' : 'Unknown Dog',
         armband: entry.registrationData.armband ?? '',
         runOrder,
         dogsAhead,

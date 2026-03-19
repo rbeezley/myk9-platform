@@ -110,6 +110,68 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Classes Tab Improvements - 2026-03-17 15:51
 
-- **Group classes by trial date/trial number** — Add trial date and trial number columns to the classes table, or group rows visually by trial. **Problem:** The Classes tab shows a flat list of all classes across all trials. The same element+level combination can appear in multiple trials, making the list ambiguous — users can't tell which trial a class belongs to. **Files:** `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx`, `apps/myk9show/src/pages/ShowDetailsPage.tsx:111-127` (showClasses memo that flattens trial classes). **Solution:** Either add trial date/number columns to the table, or group rows under trial headers (collapsible sections). The data already includes `trialId` per class — join with trial data to get date/number for display.
+- [x] **Group classes by trial date/trial number** — Done: `ClassesTab` groups classes via `groupedByTrial` memo (keyed by trialDate+trialNumber), renders trial group headers when multiple trials exist, sorts within groups by element then level. `ShowDetailsPage` passes `trialDate`, `trialNumber`, `trialName` from trial data.
 
-- **Remove Ring column for scent work trials** — Hide the "Ring" column when the show type is scent work. **Problem:** Scent work trials don't use ring numbers — the column is irrelevant and adds clutter. **Files:** `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx` (table column definitions). **Solution:** Conditionally hide the Ring column based on the show's organization or trial type. Check `show.organization` or trial-level `trialType` to determine if Ring applies.
+- [x] **Remove Ring column for scent work trials** — Done: `ClassesTab` has `hideRing` prop; `ShowDetailsPage` passes it when any trial is Scent Work/Nosework/Scent Detection. Ring column header, data cell, and colSpan all conditional on `hideRing`.
+
+---
+
+## Registration Entries Not Syncing to Supabase - 2026-03-18 16:11
+
+- [x] **Investigate entry sync pipeline from wizard to Supabase** — Root cause: `useMyEntries` queries Supabase directly, bypassing the local Zustand entry store. Entries DO exist locally (the write path works via replication layer) but the read path skips them. **Fix:** Rewrite `useMyEntries` to read from local stores (entry store + class store + dog store). Design spec: `docs/superpowers/specs/2026-03-18-use-my-entries-offline-first-design.md`.
+
+---
+
+## Card and Table View for Child Lists - 2026-03-18 19:27
+
+- **Add card/table view toggle to all child list tabs** — Every child list in the show hierarchy (trials, classes, entries, results) should offer both a card view and a table view, with a toggle to switch between them. **Problem:** Currently TrialsTab uses cards only, ClassesTab uses a table only, and other tabs have their own fixed layouts. There's no consistent pattern, and users can't choose the view that suits their context (cards for scanning on mobile, tables for dense data on desktop). **Files:** `apps/myk9show/src/components/shows/tabs/TrialsTab.tsx` (card-only), `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx` (table-only), `apps/myk9q/src/pages/ClassList/ClassCard.tsx` (reference card design), `apps/myk9q/src/pages/ClassList/ClassCardGrid.tsx` (responsive grid). **Solution:** Build a reusable `ViewToggle` component (card/table icon buttons). For each child list tab: (1) keep existing view as one mode, (2) build the alternate mode, (3) wire toggle with localStorage persistence. Port myK9Q's ClassCard design for the class card view. Prioritize ClassesTab first (most data-dense), then TrialsTab table view, then entries/results as needed.
+
+---
+
+## Classes Defaulting to In Progress - 2026-03-18 19:29
+
+- **Fix class status defaulting to In Progress for future shows** — Classes for a show in May 2026 display "In Progress" badges instead of "Upcoming" or "Scheduled". **Problem:** Two separate status systems exist: (1) `@myk9/core` canonical statuses (`Scheduled`, `Upcoming`, `In Progress`, `Completed`, `Cancelled`) used by TrialsTab/TrialDetailsPage via `getClassStatusDisplay()`, and (2) `live-status-config.ts` statuses (`not_started`, `in_progress`, `completed`, `paused`) used by ClassesTab via `CLASS_STATUS_CONFIG`. Classes are created with `status: 'Scheduled'` in `classCreationStore.ts:380`, but somewhere in the sync/display pipeline the status is being mapped or defaulted to "In Progress". **Files:** `apps/myk9show/src/store/classCreationStore.ts:380` (class creation default status), `packages/core/src/constants/class-status.ts` (canonical statuses + `normalizeClassStatus()`), `apps/myk9show/src/constants/live-status-config.ts` (ClassesTab status config — no `Scheduled` or `Upcoming` keys), `apps/myk9show/src/pages/ShowDetailsPage.tsx:137` (maps `cls.status || 'not_started'`), `apps/myk9show/src/store/trial-store-helpers.ts:35` (defaults to `'Scheduled'` on read). **Solution:** Investigate what status value is actually stored after creation/sync. Likely need to (1) unify on a single status system (prefer `@myk9/core` canonical values), (2) ensure `CLASS_STATUS_CONFIG` in `live-status-config.ts` handles canonical values, or (3) normalize status at the display boundary. Check Supabase `trial_classes` table column default.
+
+---
+
+## Spine Dot Vertical Alignment - 2026-03-18 19:32
+
+- **Center spine dots vertically with each element card** — The timeline spine dots should be vertically centered relative to their corresponding ElementCard, not pinned to the top. **Problem:** In the ScheduleSummary/TrialSpine component, the spine dots and element cards are rendered in two parallel flex columns. Each dot aligns to the top of its row, but the visual expectation is that the dot sits at the vertical midpoint of its card. With the current layout (`pt-1.5` on the dot column), the dot only appears centered on the first card by coincidence — on taller cards or when card heights vary, the misalignment is visible. **Files:** `apps/myk9show/src/components/schedule/TrialSpine.tsx:33-41` (dot column with `flex flex-col items-center pt-1.5`), `apps/myk9show/src/components/schedule/StatusDot.tsx` (dot component), `apps/myk9show/src/components/schedule/ElementCard.tsx` (card component). **Solution:** Pair each dot+line segment with its card in a single row container using `items-center` so the dot naturally centers vertically against the card height. Alternatively, wrap each dot in a container that matches the card's height and uses `justify-center`.
+
+---
+
+## Armband Number Assignment - 2026-03-18
+
+- **Implement armband number assignment during registration** — Entries created by the registration wizard have no armband number assigned.
+
+---
+
+## Redesign Show Cards with Date Circle - 2026-03-18 19:35
+
+- **Restyle upcoming show cards with circular date graphic** — Redesign show cards to feature a prominent date circle on the left, inspired by the mockup saved in `docs/design-inspiration/show-card-date-circle.md`. **Problem:** Current show cards lack a strong visual date anchor — users must scan text to find when a show is. The inspiration design uses a rounded date graphic (month abbreviation + day number) that makes dates instantly scannable, plus inline status badges, location/time row, and discipline tag chips. **Files:** `apps/myk9show/src/components/shows/ShowCard.tsx` (main show card), `apps/myk9show/src/components/shows/browse/ShowCardGrid.tsx` (grid container), `apps/myk9show/src/components/shows/UpcomingShows.tsx` (dashboard upcoming list), `apps/myk9show/src/components/landing/UpcomingShowsSection.tsx` (landing page). **Solution:** Build a `DateCircle` component (month abbreviation top, day number bottom, subtle border/bg). Restructure ShowCard layout as: `[DateCircle] [Title + StatusBadge / Location · Time / DisciplineTags] [Action]`. Apply to all show listing contexts. See design reference doc for full layout details and sidebar "Next Event Spotlight" concept.
+
+---
+
+## Hide Phone Numbers on Public Show Page - 2026-03-18 19:33
+
+- **Hide phone numbers from Show Officials section** — Remove phone number display from the public-facing show details page. Emails are acceptable to show. **Problem:** The Show Officials sidebar on ShowDetailsPage displays secretary phone numbers (e.g., "19187067590") on a public-facing page. This is a privacy concern — phone numbers should not be visible to unauthenticated or general users. **Files:** `apps/myk9show/src/components/shows/overview/ShowOfficials.tsx:33-39` (phone rendering with `tel:` link), `apps/myk9show/src/components/shows/overview/ShowOfficials.tsx:22` (conditional that shows contact block when email or phone exists). **Solution:** Remove the phone number rendering from ShowOfficials. Keep email display. The phone conditional on line 22 should check only `person.email`. Consider whether phone should be visible to authenticated/admin users only (future enhancement) or removed entirely from this component.
+
+---
+
+## Icon Consistency for Buttons and Tabs - 2026-03-18 19:24
+
+---
+
+## Trial Card Enhancements - 2026-03-18 19:25
+
+- **Add class and entry counts to trial cards** — Show how many classes and total entries each trial has. **Problem:** Trial cards on ShowDetailsPage only display name, status, date, type, and start time. Users can't see at a glance how many classes or entries a trial contains without clicking into it. **Files:** `apps/myk9show/src/components/shows/tabs/TrialsTab.tsx:74-116` (card content area), `apps/myk9show/src/pages/ShowDetailsPage.tsx:122-145` (showClasses memo — has per-trial class/entry data available). **Solution:** Pass class and entry counts per trial to TrialsTab. Add count badges or a footer row to the trial card (e.g., "5 classes · 42 entries"). Data is already available — `trialClasses[trial.id]` has class arrays with `entries` counts.
+
+- **Add progress bar to trial cards** — Port myK9Q's class card progress bar to trial cards. **Problem:** No visual indicator of trial completion progress. myK9Q class cards show a progress bar (scored/total entries) that gives instant status feedback. **Files:** `apps/myk9show/src/components/shows/tabs/TrialsTab.tsx:74-116` (card content), `apps/myk9q/src/pages/ClassList/ClassCard.tsx` (reference: progress bar showing scored vs total). **Solution:** Add a thin progress bar at the bottom of each trial card showing completed classes / total classes (or scored entries / total entries). Compute from class status data already available via `trialClasses`. Only show when trial is in-progress or completed.
+
+- **Establish icon policy for buttons and tabs** — Decide whether buttons and tabs should consistently include icons, and audit current usage. **Problem:** No consistent pattern for when icons appear alongside button text or tab labels. Some buttons have icons, some don't; tabs on ShowDetailsPage have icons (added recently) but other tab groups may not. Inconsistency makes the UI feel unpolished. **Files:** `apps/myk9show/src/components/ui/button.tsx` (Button component), `apps/myk9show/src/pages/ShowDetailsPage.tsx:220-226` (tab config with icons), `apps/myk9show/src/pages/TrialDetailsPage.tsx:527-532` (trial tabs). **Solution:** Audit all button and tab usage across myK9Show. Decide on a rule (e.g., primary actions always get icons, secondary/inline buttons text-only; all top-level tab groups get icons). Document the decision and apply consistently.
+
+---
+
+## Standardize All List/Detail Pages - 2026-03-18 19:38
+
+- **Apply unified list/detail design system across all entity pages** — Use the Show list and Show detail pages as the golden template, then roll out the same structure to Trials, Classes, Entries, Clubs, Dogs, and People pages. **Problem:** Each page currently rolls its own header, spacing, empty states, loading skeletons, and error handling — resulting in inconsistent UX across the app. The existing design spec (`docs/superpowers/specs/2026-03-15-unified-list-detail-system-design.md`) established the pattern for the Shows→Trials→Classes→Entries hierarchy (Phase 1), but Phase 2 entities (Dogs, Clubs, People) are still ad-hoc. **Files:** `docs/superpowers/specs/2026-03-15-unified-list-detail-system-design.md` (design spec — Phase 1 exhibitor-facing), `apps/myk9show/src/pages/BrowseShowsPage.tsx` (golden list template), `apps/myk9show/src/pages/ShowDetailsPage.tsx` (golden detail template), `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx`, `apps/myk9show/src/pages/BrowseDogsPage.tsx`, `apps/myk9show/src/pages/clubs/BrowseClubsPage.tsx`, `apps/myk9show/src/pages/admin/UserListPage.tsx` (people). **Solution:** (1) Finalize shared primitives extracted from Show pages (page header, filter bar, view picker, detail layout, tab structure, empty states, skeletons). (2) Apply to remaining Phase 1 entities (Trials, Classes, Entries) if not yet done. (3) Extend to Phase 2 entities: Dogs list/detail, Clubs list/detail, People list/detail. Each page should use the same layout shell, consistent spacing, and role-appropriate defaults (exhibitor = simple cards, secretary/admin = table with bulk actions). See design spec for view mode defaults per entity.

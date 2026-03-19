@@ -17,18 +17,26 @@ function computeDays(startDate: string, endDate?: string): number | null {
   return diff > 1 ? diff : null;
 }
 
+/** Parse date string, handling both ISO datetime and date-only formats */
+function parseDate(dateStr: string): Date {
+  // If it already contains 'T' (ISO datetime), parse directly
+  if (dateStr.includes('T')) return new Date(dateStr);
+  // Date-only: append T00:00:00 to avoid UTC offset issues
+  return new Date(dateStr + 'T00:00:00');
+}
+
 function formatMonth(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+  const date = parseDate(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
 }
 
 function formatDay(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+  const date = parseDate(dateStr);
   return String(date.getDate());
 }
 
 function formatMonthLong(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
+  const date = parseDate(dateStr);
   return date.toLocaleDateString('en-US', { month: 'long' });
 }
 

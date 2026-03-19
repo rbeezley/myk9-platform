@@ -21,7 +21,7 @@ export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
   isSelected,
   onToggleSelect,
 }) => (
-  <div className="flex flex-col gap-3">
+  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
     {shows.map(show => {
       const toggleProps = onToggleSelect ? { onToggleSelect: () => onToggleSelect(show) } : {};
 

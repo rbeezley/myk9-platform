@@ -179,17 +179,15 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
             )}
           </div>
 
-          {/* Progress bar */}
-          <div className="w-full md:w-[180px]">
-            <ShowProgressBar
-              scoredTrials={scoredTrials}
-              totalTrials={totalTrials}
-              totalEntries={entryCount}
-            />
-          </div>
+          {/* Counts */}
+          <span className="text-xs text-muted-foreground text-right">
+            <span className="font-semibold text-foreground/75">{totalTrials}</span> trials
+            <span className="mx-1.5 text-border">&middot;</span>
+            <span className="font-semibold text-foreground/75">{entryCount}</span> entries
+          </span>
 
           {/* Action buttons */}
-          <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+          <div className="flex gap-2 justify-end" onClick={e => e.stopPropagation()}>
             {canEnterShow && user && (
               <Button
                 variant="default"

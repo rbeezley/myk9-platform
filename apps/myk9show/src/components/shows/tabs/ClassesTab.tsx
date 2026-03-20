@@ -47,10 +47,7 @@ function formatTrialDate(dateStr: string): string {
   });
 }
 
-const VIEW_MODES = [
-  { key: 'cards', label: 'Cards', icon: 'grid' as const },
-  { key: 'table', label: 'Table', icon: 'table' as const },
-] as const;
+import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
   const navigate = useNavigate();
@@ -116,7 +113,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           hidden={!userHasEntries}
         />
         <ViewToggle
-          modes={VIEW_MODES}
+          modes={CARD_TABLE_MODES}
           active={viewMode}
           onChange={(k) => setViewMode(k as 'cards' | 'table')}
         />
@@ -231,7 +228,6 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                 <ClassCard
                   key={cls.id}
                   classInfo={cls}
-                  showId={showId}
                   hideRing={hideRing}
                   onClick={() =>
                     navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)

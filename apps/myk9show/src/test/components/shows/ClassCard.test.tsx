@@ -86,8 +86,7 @@ describe('ClassCard', () => {
     render(
       <ClassCard
         classInfo={liveClass}
-        showId="s1"
-        liveData={{
+                liveData={{
           totalEntries: 28,
           completedEntries: 12,
           inRingArmband: '205',
@@ -104,8 +103,7 @@ describe('ClassCard', () => {
     render(
       <ClassCard
         classInfo={baseClass}
-        showId="s1"
-        liveData={{
+                liveData={{
           totalEntries: 28,
           completedEntries: 0,
           inRingArmband: '100',

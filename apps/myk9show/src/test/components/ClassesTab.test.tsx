@@ -13,6 +13,10 @@ const mockSetViewMode = vi.fn((m: string) => {
 });
 vi.mock('@/hooks/useViewPreference', () => ({
   useViewPreference: () => [mockViewMode, mockSetViewMode],
+  CARD_TABLE_MODES: [
+    { key: 'cards', label: 'Cards', icon: 'grid' },
+    { key: 'table', label: 'Table', icon: 'table' },
+  ],
 }));
 
 vi.mock('@/components/common/ViewToggle', () => ({

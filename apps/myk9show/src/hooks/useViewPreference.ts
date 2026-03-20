@@ -1,8 +1,13 @@
 import { useState, useCallback } from 'react';
 
-type ViewMode = 'cards' | 'table';
+export type ViewMode = 'cards' | 'table';
 
 const VALID_MODES: ReadonlySet<string> = new Set(['cards', 'table']);
+
+export const CARD_TABLE_MODES = [
+  { key: 'cards', label: 'Cards', icon: 'grid' as const },
+  { key: 'table', label: 'Table', icon: 'table' as const },
+] as const;
 
 function readPreference(key: string, defaultMode: ViewMode): ViewMode {
   try {

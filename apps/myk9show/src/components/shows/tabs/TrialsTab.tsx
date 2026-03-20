@@ -33,10 +33,7 @@ function getDateParts(dateStr: string): { month: string; day: string } | null {
 
 const EMPTY_STATS: TrialStats = { classCount: 0, entryCount: 0, completedClasses: 0 };
 
-const VIEW_MODES = [
-  { key: 'cards', label: 'Cards', icon: 'grid' as const },
-  { key: 'table', label: 'Table', icon: 'table' as const },
-] as const;
+import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 function getTrialStatusTokens(status: string): {
   border: string;
@@ -75,7 +72,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
       <div className="flex justify-end">
         <ViewToggle
-          modes={VIEW_MODES}
+          modes={CARD_TABLE_MODES}
           active={viewMode}
           onChange={(k) => setViewMode(k as 'cards' | 'table')}
         />

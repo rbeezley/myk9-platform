@@ -4,17 +4,14 @@ import { LiveClassCard } from '@/components/live/LiveClassCard';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
-import { ChevronRight, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MyEntriesTabProps {
   showId: string;
 }
 
-const VIEW_MODES = [
-  { key: 'cards', label: 'Cards', icon: 'grid' as const },
-  { key: 'table', label: 'Table', icon: 'table' as const },
-] as const;
+import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 export function MyEntriesTab({ showId }: MyEntriesTabProps) {
   const { entriesByClass, isLoading, isError } = useMyEntries(showId);
@@ -50,7 +47,7 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
           {entriesByClass.length} class{entriesByClass.length !== 1 ? 'es' : ''}
         </p>
         <ViewToggle
-          modes={VIEW_MODES}
+          modes={CARD_TABLE_MODES}
           active={viewMode}
           onChange={(k) => setViewMode(k as 'cards' | 'table')}
         />
@@ -80,7 +77,6 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
                 </th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">My Dog</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Position</th>
-                <th className="w-8" />
               </tr>
             </thead>
             <tbody>
@@ -115,9 +111,6 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
                       : entry.dogsAhead === 0
                         ? 'Next up'
                         : `${entry.dogsAhead} ahead`}
-                  </td>
-                  <td className="px-2 py-3 text-muted-foreground/50">
-                    <ChevronRight className="h-4 w-4" />
                   </td>
                 </tr>
               ))}

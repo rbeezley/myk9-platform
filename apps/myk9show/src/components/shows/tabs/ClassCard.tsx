@@ -23,7 +23,6 @@ interface LiveData {
 
 interface ClassCardProps {
   classInfo: ClassInfo;
-  showId: string;
   hideRing?: boolean;
   liveData?: LiveData;
   onClick?: () => void;
@@ -33,7 +32,6 @@ const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
 
 export function ClassCard({
   classInfo,
-  showId: _showId,
   hideRing,
   liveData,
   onClick,

@@ -5,6 +5,10 @@ import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 let mockViewMode = 'cards';
 vi.mock('@/hooks/useViewPreference', () => ({
   useViewPreference: () => [mockViewMode, (m: string) => { mockViewMode = m; }],
+  CARD_TABLE_MODES: [
+    { key: 'cards', label: 'Cards', icon: 'grid' },
+    { key: 'table', label: 'Table', icon: 'table' },
+  ],
 }));
 
 vi.mock('@/components/common/ViewToggle', () => ({

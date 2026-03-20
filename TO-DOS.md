@@ -78,7 +78,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Site Admin: Trash / Recycle Bin (2026-03-17)
 
-- [ ] **Trash view for soft-deleted records** — Site admins need a way to see, restore, or permanently delete soft-deleted records. Currently soft-deleted shows/trials/classes/entries disappear from the UI with no way to access them. **Solution:** Add a "Trash" page (site admin only) that queries records where `deleted_at IS NOT NULL`, with options to restore (clear `deleted_at`) or permanently delete (call `hard_delete_show` RPC or equivalent per entity). Could be a single page with tabs per entity type, or accessible from each browse page via a "View Trash" toggle.
+- [x] **Trash view for soft-deleted records** — Done: Extended existing `DeletedEntitiesTab` at `/admin/data-lifecycle` to cover all 7 soft-delete entity types (shows, trials, classes, entries, dogs, clubs, people). Collapsible sections with badge counts, lazy data loading on expand, restore and permanent delete actions with confirmation dialogs. Self-contained component manages its own data fetching. 14 unit tests. Enhanced `getDeletedTrials` query with show/deleted_by joins. Added Collapsible component to `@myk9/ui`.
 
 ---
 

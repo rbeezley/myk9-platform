@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -30,6 +30,25 @@ vi.mock('@myk9/core', () => ({
   },
 }));
 
+let mockViewMode = 'cards';
+vi.mock('@/hooks/useViewPreference', () => ({
+  useViewPreference: () => [mockViewMode, (m: string) => { mockViewMode = m; }],
+  CARD_TABLE_MODES: [
+    { key: 'cards', label: 'Cards', icon: 'grid' },
+    { key: 'table', label: 'Table', icon: 'table' },
+  ],
+}));
+
+vi.mock('@/components/common/ViewToggle', () => ({
+  ViewToggle: ({ active, onChange }: { active: string; onChange: (k: string) => void }) => (
+    <div data-testid="view-toggle">
+      <button data-testid="toggle-cards" onClick={() => onChange('cards')}>Cards</button>
+      <button data-testid="toggle-table" onClick={() => onChange('table')}>Table</button>
+      <span data-testid="active-view">{active}</span>
+    </div>
+  ),
+}));
+
 vi.mock('@/utils/dateLocal', () => ({
   parseLocalDateString: (dateStr: string) => {
     const d = new Date(dateStr + 'T12:00:00');
@@ -52,6 +71,7 @@ describe('TrialsTab', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     mockHasPermission = () => false;
+    mockViewMode = 'cards';
   });
 
   it('renders date element with month and day', () => {
@@ -157,5 +177,30 @@ describe('TrialsTab', () => {
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
     expect(screen.queryByText('Add Trial')).not.toBeInTheDocument();
+  });
+
+  it('renders ViewToggle', () => {
+    const trials = [makeTrial({ id: 't1' })];
+    const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 0 } };
+    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+    expect(screen.getByTestId('view-toggle')).toBeInTheDocument();
+  });
+
+  it('renders table view with column headers when mode is table', () => {
+    mockViewMode = 'table';
+    const trials = [makeTrial({ id: 't1', trialType: 'Scent Work', plannedStartTime: '8:00 AM' })];
+    const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 3 } };
+    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+    expect(screen.getByText('Trial Name')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
+  });
+
+  it('navigates on table row click', () => {
+    mockViewMode = 'table';
+    const trials = [makeTrial({ id: 't1' })];
+    const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 0 } };
+    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+    fireEvent.click(screen.getByText('Trial 1'));
+    expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/trials/t1');
   });
 });

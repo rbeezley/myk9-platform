@@ -1,6 +1,20 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
+
+let mockViewMode = 'cards';
+vi.mock('@/hooks/useViewPreference', () => ({
+  useViewPreference: () => [mockViewMode, (m: string) => { mockViewMode = m; }],
+}));
+
+vi.mock('@/components/common/ViewToggle', () => ({
+  ViewToggle: ({ active, onChange }: { active: string; onChange: (k: string) => void }) => (
+    <div data-testid="view-toggle">
+      <button data-testid="toggle-cards" onClick={() => onChange('cards')}>Cards</button>
+      <button data-testid="toggle-table" onClick={() => onChange('table')}>Table</button>
+    </div>
+  ),
+}));
 
 vi.mock('@/hooks/useMyEntries', () => ({
   useMyEntries: vi.fn().mockReturnValue({
@@ -54,6 +68,10 @@ vi.mock('@/components/common/LoadingSkeleton', () => ({
 }));
 
 describe('MyEntriesTab', () => {
+  beforeEach(() => {
+    mockViewMode = 'cards';
+  });
+
   it('renders a LiveClassCard for each class entry', () => {
     render(<MyEntriesTab showId="show-1" />);
     expect(screen.getByText('Novice JWW')).toBeInTheDocument();
@@ -64,5 +82,26 @@ describe('MyEntriesTab', () => {
     render(<MyEntriesTab showId="show-1" />);
     expect(screen.getByText('3 dogs ahead')).toBeInTheDocument();
     expect(screen.getByText('8 dogs ahead')).toBeInTheDocument();
+  });
+
+  it('renders ViewToggle', () => {
+    render(<MyEntriesTab showId="show-1" />);
+    expect(screen.getByTestId('view-toggle')).toBeInTheDocument();
+  });
+
+  it('renders table view with entry data when mode is table', () => {
+    mockViewMode = 'table';
+    render(<MyEntriesTab showId="show-1" />);
+    expect(screen.getByText('Class')).toBeInTheDocument();
+    expect(screen.getByText('My Dog')).toBeInTheDocument();
+    expect(screen.getByText('Novice JWW')).toBeInTheDocument();
+    expect(screen.getAllByText('Bella')).toHaveLength(2);
+    expect(screen.getByText('3 ahead')).toBeInTheDocument();
+  });
+
+  it('shows Pending status for unscored entries in table', () => {
+    mockViewMode = 'table';
+    render(<MyEntriesTab showId="show-1" />);
+    expect(screen.getAllByText('Pending')).toHaveLength(2);
   });
 });

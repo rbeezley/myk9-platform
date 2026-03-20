@@ -31,7 +31,7 @@ export type EntityType = 'show' | 'trial' | 'class' | 'entry' | 'dog' | 'club' |
 export interface DeletedEntity {
   id: string;
   name: string;
-  context?: string;
+  context?: string | undefined;
   deleted_at: string | null;
   deleted_by_email?: string | null;
 }

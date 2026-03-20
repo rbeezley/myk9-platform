@@ -19,6 +19,7 @@ import { logger } from '@/services/LoggingService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
+import type { ArmbandAssignment } from './ConfirmationStep.types';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -51,6 +52,8 @@ interface WorkflowStepContentProps {
   setEntryStatus: (status: EntryStatus) => void;
   /** True while dogs are loading (used for auto-select loading state) */
   dogsLoading?: boolean;
+  /** Armband assignments from the RPC call */
+  armbandAssignments?: ArmbandAssignment[];
 }
 
 export function WorkflowStepContent({
@@ -71,6 +74,7 @@ export function WorkflowStepContent({
   setPaymentStatus,
   setEntryStatus,
   dogsLoading,
+  armbandAssignments,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
@@ -186,6 +190,7 @@ export function WorkflowStepContent({
           entryStatus={optimisticState.entryStatus}
           totalFees={currentRegistrationTotalFees}
           showId={showId}
+          armbandAssignments={armbandAssignments}
           onDownloadReceipt={undefined}
           onSendEmail={undefined}
           onStatusChange={async (_dogId: string, status: EntryStatus) => {

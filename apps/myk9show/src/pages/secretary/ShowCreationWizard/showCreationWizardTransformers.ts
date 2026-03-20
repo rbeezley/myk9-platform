@@ -18,6 +18,7 @@ interface WizardShowData {
   entryCloseDate: string;
   preEntryFee: number;
   dayOfShowFee: number;
+  startingArmbandNumber: number;
   chairman: string;
   secretary: string;
   judgeIds: string[];
@@ -188,6 +189,7 @@ export function showToShowInput(show: Show): ShowInput {
     chiefSteward: show.chiefSteward,
     assignedJudges: show.assignedJudges,
     trials: show.trials,
+    startingArmbandNumber: show.startingArmbandNumber,
   };
 }
 
@@ -249,6 +251,7 @@ export function transformWizardDataToShow(
     entryCloseDate: show.entryCloseDate,
     preEntryFee: show.preEntryFee.toString(),
     dayOfShowFee: show.dayOfShowFee.toString(),
+    startingArmbandNumber: show.startingArmbandNumber,
     clubId: show.clubId,
     clubName: selectedClub?.name || 'Unknown Club',
     clubAddress: selectedClub

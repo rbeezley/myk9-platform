@@ -334,6 +334,36 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 }}
               />
 
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  Starting Armband Number
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p>
+                          First dog registered will receive this armband number. Subsequent dogs get
+                          sequential numbers.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={show.startingArmbandNumber ?? 100}
+                  onChange={e =>
+                    updateShowData({
+                      startingArmbandNumber: parseInt(e.target.value, 10) || 100,
+                    })
+                  }
+                  className="border border-border bg-secondary rounded-md"
+                />
+              </div>
+
               <div className="space-y-2 col-span-2">
                 <Label>
                   Location <span className="text-destructive">*</span>

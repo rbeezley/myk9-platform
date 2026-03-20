@@ -35,6 +35,7 @@ export interface ShowFormData {
   preEntryFee: string;
   dayOfShowFee: string; // Fee for registrations made on the day of the show (typically higher)
   confirmationMessage?: string; // Optional message included in registration confirmation emails
+  startingArmbandNumber?: number; // Starting armband number for auto-assignment
   assignedJudges: ShowJudgeAssignment[];
 }
 
@@ -582,6 +583,24 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
               These fees will be used as defaults for each class and can be adjusted per class as
               needed.
             </p>
+            <div className="mt-4 max-w-[200px]">
+              <FormField label="Starting Armband Number" fieldId="startingArmbandNumber">
+                <Input
+                  id="startingArmbandNumber"
+                  type="number"
+                  value={formData.startingArmbandNumber ?? 100}
+                  onChange={e =>
+                    handleInputChange('startingArmbandNumber', e.target.value)
+                  }
+                  placeholder="100"
+                  min={1}
+                  className="form-input h-10"
+                />
+              </FormField>
+              <p className="text-xs text-muted-foreground mt-1">
+                First dog registered will receive this armband number.
+              </p>
+            </div>
           </div>
 
           {/* Confirmation Message Section */}

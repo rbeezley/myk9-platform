@@ -203,6 +203,7 @@ export function DeletedEntitiesTab() {
   });
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionVersion, setActionVersion] = useState(0);
 
   // Confirmation dialog state
   const [restoreTarget, setRestoreTarget] = useState<SelectedEntity | null>(null);
@@ -317,15 +318,15 @@ export function DeletedEntitiesTab() {
   /* ---- Dialog handlers ------------------------------------------- */
 
   const handleShowRestore = useCallback(
-    (entityId: string, entityName: string, entityType: string) => {
-      setRestoreTarget({ id: entityId, name: entityName, type: entityType as EntityType });
+    (entityId: string, entityName: string, entityType: EntityType) => {
+      setRestoreTarget({ id: entityId, name: entityName, type: entityType });
     },
     []
   );
 
   const handleShowDelete = useCallback(
-    (entityId: string, entityName: string, entityType: string) => {
-      setDeleteTarget({ id: entityId, name: entityName, type: entityType as EntityType });
+    (entityId: string, entityName: string, entityType: EntityType) => {
+      setDeleteTarget({ id: entityId, name: entityName, type: entityType });
     },
     []
   );
@@ -338,13 +339,14 @@ export function DeletedEntitiesTab() {
       if (config) {
         await config.restore(restoreTarget.id, user?.id);
         logger.info('Entity restored', 'trash', { type: restoreTarget.type, id: restoreTarget.id });
+        await fetchCounts();
+        setActionVersion((v) => v + 1);
       }
     } catch (_err) {
       logger.error('Failed to restore entity', 'trash', { target: restoreTarget });
     } finally {
       setRestoreTarget(null);
       setIsActionLoading(false);
-      fetchCounts();
     }
   }, [restoreTarget, sections, user?.id, fetchCounts]);
 
@@ -356,13 +358,14 @@ export function DeletedEntitiesTab() {
       if (config) {
         await config.hardDelete(deleteTarget.id);
         logger.info('Entity permanently deleted', 'trash', { type: deleteTarget.type, id: deleteTarget.id });
+        await fetchCounts();
+        setActionVersion((v) => v + 1);
       }
     } catch (_err) {
       logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
     } finally {
       setDeleteTarget(null);
       setIsActionLoading(false);
-      fetchCounts();
     }
   }, [deleteTarget, sections, fetchCounts]);
 
@@ -407,6 +410,7 @@ export function DeletedEntitiesTab() {
               key={config.type}
               config={config}
               count={counts[config.type]}
+              actionVersion={actionVersion}
               isActionLoading={isActionLoading}
               onRestore={handleShowRestore}
               onDelete={handleShowDelete}

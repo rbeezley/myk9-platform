@@ -3,25 +3,28 @@
  * Lazily loads full records on first expand.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronRight, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
-import type { DeletedEntity, EntitySectionConfig } from './types';
+import { formatRelativeTime } from '@/lib/timeUtils';
+import type { DeletedEntity, EntitySectionConfig, EntityType } from './types';
 import { cn } from '@/lib/utils';
 
 interface DeletedEntitySectionProps {
   config: EntitySectionConfig;
   count: number;
+  actionVersion: number;
   isActionLoading: boolean;
-  onRestore: (entityId: string, entityName: string, entityType: string) => void;
-  onDelete: (entityId: string, entityName: string, entityType: string) => void;
+  onRestore: (entityId: string, entityName: string, entityType: EntityType) => void;
+  onDelete: (entityId: string, entityName: string, entityType: EntityType) => void;
 }
 
 export function DeletedEntitySection({
   config,
   count,
+  actionVersion,
   isActionLoading,
   onRestore,
   onDelete,
@@ -32,17 +35,18 @@ export function DeletedEntitySection({
   const [hasFetched, setHasFetched] = useState(false);
 
   const Icon = config.icon;
+  const { fetchDeleted } = config;
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await config.fetchDeleted();
+      const data = await fetchDeleted();
       setItems(data);
       setHasFetched(true);
     } finally {
       setIsLoading(false);
     }
-  }, [config]);
+  }, [fetchDeleted]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -54,19 +58,15 @@ export function DeletedEntitySection({
     [hasFetched, loadItems]
   );
 
-  if (count === 0 && !isOpen) return null;
+  // Re-fetch items when the parent signals an action completed
+  useEffect(() => {
+    if (actionVersion > 0 && hasFetched) {
+      loadItems();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actionVersion]);
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Unknown';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 30) return `${diffDays} days ago`;
-    return date.toLocaleDateString();
-  };
+  if (count === 0 && !isOpen) return null;
 
   return (
     <Collapsible open={isOpen} onOpenChange={handleOpenChange}>
@@ -104,7 +104,12 @@ export function DeletedEntitySection({
                           <span>·</span>
                         </>
                       )}
-                      <span>Deleted {formatDate(item.deleted_at)}</span>
+                      <span>
+                        Deleted{' '}
+                        {item.deleted_at
+                          ? formatRelativeTime(new Date(item.deleted_at))
+                          : 'Unknown'}
+                      </span>
                       {item.deleted_by_email && (
                         <>
                           <span>by</span>

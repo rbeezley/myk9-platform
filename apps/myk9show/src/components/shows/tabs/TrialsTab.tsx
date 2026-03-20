@@ -2,7 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Plus } from 'lucide-react';
+import { Calendar, ChevronRight, Plus } from 'lucide-react';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { ViewToggle } from '@/components/common/ViewToggle';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
 import { getClassStatusBadgeClasses, getClassStatusDisplay, CLASS_STATUS } from '@myk9/core';
@@ -31,6 +33,11 @@ function getDateParts(dateStr: string): { month: string; day: string } | null {
 
 const EMPTY_STATS: TrialStats = { classCount: 0, entryCount: 0, completedClasses: 0 };
 
+const VIEW_MODES = [
+  { key: 'cards', label: 'Cards', icon: 'grid' as const },
+  { key: 'table', label: 'Table', icon: 'table' as const },
+] as const;
+
 function getTrialStatusTokens(status: string): {
   border: string;
   text: string;
@@ -49,6 +56,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const navigate = useNavigate();
   const { hasPermission } = useRBAC();
 
+  const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
   const openWizard = () =>
@@ -65,6 +73,14 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         </div>
       )}
 
+      <div className="flex justify-end">
+        <ViewToggle
+          modes={VIEW_MODES}
+          active={viewMode}
+          onChange={(k) => setViewMode(k as 'cards' | 'table')}
+        />
+      </div>
+
       {trials.length === 0 ? (
         <div className="py-16 text-center">
           <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
@@ -79,7 +95,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             </Button>
           )}
         </div>
-      ) : (
+      ) : viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {trials.map(trial => {
             const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
@@ -175,6 +191,79 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               </Card>
             );
           })}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/50 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/30 border-b border-border/30">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Trial Name
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                  Type
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                  Time
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Classes</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Entries</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
+                  Scored
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                <th className="w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {trials.map(trial => {
+                const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
+                const stats = trialStats[trial.id] || EMPTY_STATS;
+                const statusDisplay = getClassStatusDisplay(trial.status);
+                return (
+                  <tr
+                    key={trial.id}
+                    role="link"
+                    tabIndex={0}
+                    className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/shows/${showId}/trials/${trial.id}`)}
+                    onKeyDown={e =>
+                      e.key === 'Enter' && navigate(`/shows/${showId}/trials/${trial.id}`)
+                    }
+                  >
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {dateParts ? `${dateParts.month} ${dateParts.day}` : '\u2014'}
+                    </td>
+                    <td className="px-4 py-3 font-medium">
+                      {trial.name || `Trial ${trial.trialNumber}`}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                      {trial.trialType}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">{trial.plannedStartTime}</td>
+                    <td className="px-4 py-3 text-right">{stats.classCount}</td>
+                    <td className="px-4 py-3 text-right">{stats.entryCount}</td>
+                    <td className="px-4 py-3 text-right hidden sm:table-cell text-muted-foreground">
+                      {stats.completedClasses > 0
+                        ? `${stats.completedClasses}/${stats.classCount}`
+                        : '\u2014'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        className={`text-[10px] ${getClassStatusBadgeClasses(trial.status)}`}
+                      >
+                        {statusDisplay.label}
+                      </Badge>
+                    </td>
+                    <td className="px-2 py-3 text-muted-foreground/50">
+                      <ChevronRight className="h-4 w-4" />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

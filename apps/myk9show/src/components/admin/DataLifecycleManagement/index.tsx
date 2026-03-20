@@ -23,16 +23,8 @@ import {
 } from '@/services/data-lifecycle/OrphanedRecordsCleaner';
 import { getDataExportImportService } from '@/services/data-lifecycle/DataExportImport';
 
-import {
-  getDeletedClubs,
-  restoreClub,
-  hardDeleteClub,
-} from '@/services/database/queries/clubQueries';
-import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/queries/dogQueries';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 
-import type { DeletedClub, DeletedDog, SelectedEntity } from './types';
 import { OverviewCards } from './OverviewCards';
 import { OverviewTab } from './OverviewTab';
 import { ArchivingTab } from './ArchivingTab';
@@ -40,7 +32,6 @@ import { PoliciesTab } from './PoliciesTab';
 import { CleanupTab } from './CleanupTab';
 import { ExportImportTab } from './ExportImportTab';
 import { DeletedEntitiesTab } from './DeletedEntitiesTab';
-import { ConfirmationDialogs } from './ConfirmationDialogs';
 
 const TAB_TRIGGER_CLASS =
   'data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300';
@@ -51,17 +42,6 @@ export function DataLifecycleManagement() {
   const [lastCleanupReport, setLastCleanupReport] = useState<CleanupReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Soft delete management state
-  const [deletedClubs, setDeletedClubs] = useState<DeletedClub[]>([]);
-  const [deletedDogs, setDeletedDogs] = useState<DeletedDog[]>([]);
-  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
-  const { userWithRoles } = useAuthContext();
-
-  // Confirmation dialog state
-  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
 
   const archiveService = getArchiveService();
   const scheduler = getArchiveScheduler();
@@ -87,47 +67,9 @@ export function DataLifecycleManagement() {
     }
   }, [archiveService, scheduler]);
 
-  const loadDeletedEntities = useCallback(async () => {
-    setIsLoadingDeleted(true);
-    try {
-      const [clubsResult, dogsResult] = await Promise.all([getDeletedClubs(), getDeletedDogs()]);
-
-      if (clubsResult.error) {
-        logger.error(
-          'Failed to load deleted clubs',
-          'data-lifecycle',
-          {},
-          new Error(clubsResult.error.message)
-        );
-      } else {
-        setDeletedClubs(clubsResult.data as DeletedClub[]);
-      }
-
-      if (dogsResult.error) {
-        logger.error(
-          'Failed to load deleted dogs',
-          'data-lifecycle',
-          {},
-          new Error(dogsResult.error.message)
-        );
-      } else {
-        setDeletedDogs(dogsResult.data as DeletedDog[]);
-      }
-    } catch (error) {
-      logger.error('Failed to load deleted entities', 'data-lifecycle', {}, error as Error);
-    } finally {
-      setIsLoadingDeleted(false);
-    }
-  }, []);
-
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  useEffect(() => {
-    loadDeletedEntities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
 
   // ---- Scheduler handlers ----
 
@@ -189,115 +131,6 @@ export function DataLifecycleManagement() {
     }
   };
 
-  // ---- Soft-delete restore/delete handlers ----
-
-  const handleShowRestoreDialog = (
-    entityId: string,
-    entityName: string,
-    entityType: 'club' | 'dog'
-  ) => {
-    setSelectedEntity({ id: entityId, name: entityName, type: entityType });
-    setShowRestoreDialog(true);
-  };
-
-  const handleConfirmRestore = async () => {
-    if (!selectedEntity || !userWithRoles?.databaseUserId) {
-      logger.error(
-        'No entity selected or user context available for restoration',
-        'data-lifecycle'
-      );
-      return;
-    }
-
-    setIsLoadingDeleted(true);
-    try {
-      let result;
-      if (selectedEntity.type === 'club') {
-        result = await restoreClub(selectedEntity.id, userWithRoles.databaseUserId);
-      } else {
-        result = await restoreDog(selectedEntity.id, userWithRoles.databaseUserId);
-      }
-
-      if (result.error) {
-        logger.error(
-          `Failed to restore ${selectedEntity.type}`,
-          'data-lifecycle',
-          { entityId: selectedEntity.id },
-          result.error
-        );
-      } else {
-        logger.info(
-          `${selectedEntity.type === 'club' ? 'Club' : 'Dog'} restored successfully`,
-          'data-lifecycle',
-          { entityId: selectedEntity.id }
-        );
-        await loadDeletedEntities();
-      }
-    } catch (error) {
-      logger.error(
-        `Exception while restoring ${selectedEntity.type}`,
-        'data-lifecycle',
-        { entityId: selectedEntity.id },
-        error as Error
-      );
-    } finally {
-      setIsLoadingDeleted(false);
-      setSelectedEntity(null);
-    }
-  };
-
-  const handleShowDeleteDialog = (
-    entityId: string,
-    entityName: string,
-    entityType: 'club' | 'dog'
-  ) => {
-    setSelectedEntity({ id: entityId, name: entityName, type: entityType });
-    setShowDeleteDialog(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!selectedEntity) {
-      logger.error('No entity selected for deletion', 'data-lifecycle');
-      return;
-    }
-
-    setIsLoadingDeleted(true);
-    try {
-      let result;
-      if (selectedEntity.type === 'club') {
-        result = await hardDeleteClub(selectedEntity.id);
-      } else {
-        result = await hardDeleteDog(selectedEntity.id);
-      }
-
-      if (result.error) {
-        logger.error(
-          `Failed to permanently delete ${selectedEntity.type}`,
-          'data-lifecycle',
-          { entityId: selectedEntity.id },
-          result.error
-        );
-      } else {
-        logger.info(
-          `${selectedEntity.type === 'club' ? 'Club' : 'Dog'} permanently deleted`,
-          'data-lifecycle',
-          { entityId: selectedEntity.id }
-        );
-        await loadDeletedEntities();
-      }
-    } catch (error) {
-      logger.error(
-        `Exception while permanently deleting ${selectedEntity.type}`,
-        'data-lifecycle',
-        { entityId: selectedEntity.id },
-        error as Error
-      );
-    } finally {
-      setIsLoadingDeleted(false);
-      setSelectedEntity(null);
-    }
-  };
-
   // ---- Render ----
 
   const policies = policyManager.exportPolicies();
@@ -323,8 +156,6 @@ export function DataLifecycleManagement() {
           archiveStats={archiveStats}
           schedulerStatus={schedulerStatus}
           policyCount={policies.length}
-          deletedClubsCount={deletedClubs.length}
-          deletedDogsCount={deletedDogs.length}
         />
 
         {/* Main Content Tabs */}
@@ -386,14 +217,7 @@ export function DataLifecycleManagement() {
           </TabsContent>
 
           <TabsContent value="deleted">
-            <DeletedEntitiesTab
-              deletedClubs={deletedClubs}
-              deletedDogs={deletedDogs}
-              isLoadingDeleted={isLoadingDeleted}
-              onShowRestoreDialog={handleShowRestoreDialog}
-              onShowDeleteDialog={handleShowDeleteDialog}
-              onRefreshDeletedEntities={loadDeletedEntities}
-            />
+            <DeletedEntitiesTab />
           </TabsContent>
         </Tabs>
 
@@ -408,16 +232,6 @@ export function DataLifecycleManagement() {
           </div>
         )}
 
-        <ConfirmationDialogs
-          showRestoreDialog={showRestoreDialog}
-          onRestoreDialogChange={setShowRestoreDialog}
-          showDeleteDialog={showDeleteDialog}
-          onDeleteDialogChange={setShowDeleteDialog}
-          selectedEntity={selectedEntity}
-          isLoadingDeleted={isLoadingDeleted}
-          onConfirmRestore={handleConfirmRestore}
-          onConfirmDelete={handleConfirmDelete}
-        />
       </div>
     </div>
   );

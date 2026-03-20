@@ -7,23 +7,6 @@ import type React from 'react';
 import type { ArchiveStats } from '@/services/data-lifecycle/DataArchiveService';
 import type { CleanupReport } from '@/services/data-lifecycle/OrphanedRecordsCleaner';
 
-/** Shape of a soft-deleted club record */
-export interface DeletedClub {
-  id: string;
-  name: string | null;
-  deleted_at: string | null;
-  deleted_by_user?: { email?: string } | null;
-}
-
-/** Shape of a soft-deleted dog record */
-export interface DeletedDog {
-  id: string;
-  name: string;
-  breed: string;
-  deleted_at: string | null;
-  deleted_by_user?: { email?: string } | null;
-}
-
 /** All entity types that support soft delete */
 export type EntityType = 'show' | 'trial' | 'class' | 'entry' | 'dog' | 'club' | 'person';
 
@@ -59,8 +42,6 @@ export interface OverviewCardsProps {
   archiveStats: ArchiveStats | null;
   schedulerStatus: Record<string, unknown> | null;
   policyCount: number;
-  deletedClubsCount: number;
-  deletedDogsCount: number;
 }
 
 /** Props for the Overview tab panel */
@@ -105,24 +86,3 @@ export interface ExportImportTabProps {
   onExportData: () => Promise<void>;
 }
 
-/** Props for the Deleted Entities tab panel */
-export interface DeletedEntitiesTabProps {
-  deletedClubs: DeletedClub[];
-  deletedDogs: DeletedDog[];
-  isLoadingDeleted: boolean;
-  onShowRestoreDialog: (entityId: string, entityName: string, entityType: 'club' | 'dog') => void;
-  onShowDeleteDialog: (entityId: string, entityName: string, entityType: 'club' | 'dog') => void;
-  onRefreshDeletedEntities: () => Promise<void>;
-}
-
-/** Props for the confirmation dialogs */
-export interface ConfirmationDialogsProps {
-  showRestoreDialog: boolean;
-  onRestoreDialogChange: (open: boolean) => void;
-  showDeleteDialog: boolean;
-  onDeleteDialogChange: (open: boolean) => void;
-  selectedEntity: SelectedEntity | null;
-  isLoadingDeleted: boolean;
-  onConfirmRestore: () => Promise<void>;
-  onConfirmDelete: () => Promise<void>;
-}

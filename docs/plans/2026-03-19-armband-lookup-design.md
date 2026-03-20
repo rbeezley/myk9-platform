@@ -31,7 +31,8 @@ Two query functions:
 - Queries `armbands` table where `show_id` and `armband_number` match
 - Joins `dogs` (name, breed, sex, id) via `dog_id` FK
 - Joins `people` via `dogs.owner` FK (first_name, last_name) for owner name
-- Also fetches that dog's entries at this show: `entries` where `dog_id` and `show_id` match, joined to `classes` (name, level, status)
+- Also fetches that dog's entries at this show: `entries` where `dog_id` and `show_id` match, joined to `classes` (name, level, status). [EXPANDED] Only includes non-deleted entries (`.is('deleted_at', null)`)
+- [ADDED] Includes `entries.handler` field (handler may differ from owner at shows)
 - Returns a single result object or null
 
 ### Return shape
@@ -52,6 +53,7 @@ interface ArmbandLookupResult {
   entries: Array<{
     id: string;
     entry_status: string | null;
+    handler: string | null; // [ADDED] handler may differ from owner
     class_name: string;
     class_level: string | null;
   }>;
@@ -85,6 +87,8 @@ interface ArmbandLookupResult {
 - Not found: popover shows "No dog found with armband #X"
 - Dismiss: click outside, Escape, or clear input
 - Auto-selects input content on focus for rapid re-entry
+- [ADDED] Input trimmed on submit. Empty/whitespace-only input ignored (no query fired)
+- [ADDED] Query error state: popover shows "Lookup failed — try again" with muted styling. `isError` from React Query handles network failures and RLS denials
 
 ### Result card (inside popover)
 
@@ -92,7 +96,7 @@ interface ArmbandLookupResult {
 - Armband number badge (prominent)
 - Dog name (bold)
 - Breed and sex
-- Owner name
+- Owner name (and handler name if different from owner) [EXPANDED]
 - "View profile" link → `/dogs/:id`
 
 **Class entries section (bottom):**
@@ -123,6 +127,11 @@ interface ArmbandLookupResult {
 
 ## Testing
 
-- Unit tests for `ArmbandLookup` component: renders input when count > 0, hides when count = 0, shows popover on submit, shows "not found" state, shows dog info + entries on success, dismisses popover
+- Unit tests for `ArmbandLookup` component: renders input when count > 0, hides when count = 0, shows popover on submit, shows "not found" state, shows dog info + entries on success, dismisses popover, shows error state on query failure [EXPANDED]
 - Unit tests for query functions (mocked supabase)
 - Unit tests for hooks (mocked queries)
+- [ADDED] Edge case tests: empty/whitespace input ignored, dog with multiple entries at same show, handler displayed when differs from owner
+
+## RLS Verification [ADDED]
+
+Before implementation, verify that the `armbands` table has a SELECT policy allowing all authenticated users to read. Check migration 076 or earlier for RLS policies on `armbands`. If missing, the count and lookup queries will return empty results for non-admin users. The `armbands` table was created in migration 076 — confirm it has `ENABLE ROW LEVEL SECURITY` and an appropriate SELECT policy. If not, add one (all authenticated users can SELECT armbands).

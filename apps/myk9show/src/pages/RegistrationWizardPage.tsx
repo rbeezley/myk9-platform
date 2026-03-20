@@ -77,7 +77,7 @@ function RegistrationWizardContent() {
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { classes = [] } = useClassStoreCompat();
-  const { createMultipleEntries } = useEntryStore();
+  const { createMultipleEntries, updateRegistration } = useEntryStore();
   const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
   // Determine workflow mode
@@ -354,7 +354,12 @@ function RegistrationWizardContent() {
       }
 
       if (entryInputs.length > 0) {
-        await createMultipleEntries(entryInputs, userId, 'submitted', dbRegistrationId);
+        const createdEntries = await createMultipleEntries(
+          entryInputs,
+          userId,
+          'submitted',
+          dbRegistrationId
+        );
 
         // Assign armbands — one per unique dog (non-blocking on failure)
         const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
@@ -379,6 +384,17 @@ function RegistrationWizardContent() {
 
         if (results.length > 0) {
           setArmbandAssignments(results);
+
+          // Write armband back to each entry so confirmation email includes it
+          const armbandByDog = new Map(results.map(r => [r.dogId, r.armband]));
+          await Promise.all(
+            createdEntries
+              .filter(entry => armbandByDog.has(entry.dogId))
+              .map(entry =>
+                updateRegistration(entry.id, { armband: armbandByDog.get(entry.dogId) }, userId)
+                  .catch(() => {}) // Non-blocking — armband display still works via state
+              )
+          );
         }
       }
     }

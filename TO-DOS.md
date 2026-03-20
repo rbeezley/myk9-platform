@@ -142,7 +142,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Armband Number Assignment - 2026-03-18
 
-- [x] **Implement armband number assignment during registration** — Done: Postgres `assign_armband()` function atomically assigns sequential armband numbers per dog per show. `starting_armband_number` column added to `shows` (default 100), configurable in both Show Creation Wizard and Edit Show Dialog. Registration wizard calls RPC after entry creation and displays armband on confirmation step. Email template already handles armband display conditionally. 13 tests passing. Follow-up: write armband back to `entries.armband` so confirmation email includes it.
+- [x] **Implement armband number assignment during registration** — Done: Postgres `assign_armband()` function atomically assigns sequential armband numbers per dog per show. `starting_armband_number` column added to `shows` (default 100), configurable in both Show Creation Wizard and Edit Show Dialog. Registration wizard calls RPC after entry creation, writes armband back to `entries.registrationData.armband` via replication layer (so confirmation email includes it), and displays armband on confirmation step. 13 tests passing.
 
 ---
 

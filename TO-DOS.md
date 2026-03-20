@@ -40,7 +40,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ### UX / Quality of Life
 
-- [ ] **Armband-based dog lookup** — myK9Q has `/dog/:armband` for quick lookup by armband number at shows. myK9Show only has ID-based routes.
+- [x] **Armband-based dog lookup** — Done: Added `ArmbandLookup` component to ShowDetailsPage header. Compact input field appears when armbands exist for the show. User types armband number, presses Enter, popover shows dog info (name, breed, sex, owner), class entries with status badges, handler info, and "View profile" link. Self-contained component with `armbandQueries.ts` (count + lookup), React Query hooks, error/not-found/loading states. 10 unit tests.
 - [ ] **Settings pages (comprehensive)** — myK9Q has scoring settings, voice settings, privacy, data management, developer tools, install app prompts. myK9Show only has basic PreferencesPage.
 - [ ] **PWA / app install prompts** — myK9Q has device detection and mobile app install prompts. myK9Show has no equivalent.
 

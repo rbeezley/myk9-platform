@@ -27,6 +27,7 @@ import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
+import { supabase } from '@/services/database/supabaseClient';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { registrationToEntries } from '@/utils/registrationToEntries';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -42,6 +43,7 @@ import type {
   WorkflowMode,
   StepId,
 } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
+import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
 import {
   WORKFLOW_CONFIGS,
   ALL_STEP_DEFINITIONS,
@@ -116,6 +118,7 @@ function RegistrationWizardContent() {
   const [isCreatingRegistration, setIsCreatingRegistration] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
+  const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
   const hasAutoSelectedDogs = useRef(false);
 
   const {
@@ -352,6 +355,31 @@ function RegistrationWizardContent() {
 
       if (entryInputs.length > 0) {
         await createMultipleEntries(entryInputs, userId, 'submitted', dbRegistrationId);
+
+        // Assign armbands — one per unique dog (non-blocking on failure)
+        const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
+        const results = (
+          await Promise.all(
+            uniqueDogIds.map(async dogId => {
+              try {
+                const { data, error } = await supabase.rpc('assign_armband' as never, {
+                  p_show_id: showId,
+                  p_dog_id: dogId,
+                } as never);
+                if (!error && data != null) {
+                  return { dogId, armband: String(data) };
+                }
+              } catch {
+                // Armband assignment failure is non-blocking — entry still saved
+              }
+              return null;
+            })
+          )
+        ).filter((r): r is ArmbandAssignment => r !== null);
+
+        if (results.length > 0) {
+          setArmbandAssignments(results);
+        }
       }
     }
 
@@ -562,6 +590,7 @@ function RegistrationWizardContent() {
                     setPaymentStatus={setPaymentStatus}
                     setEntryStatus={setEntryStatus}
                     dogsLoading={dogsLoading}
+                    armbandAssignments={armbandAssignments}
                   />
                 </div>
 

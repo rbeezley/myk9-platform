@@ -29,6 +29,7 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     cover_image_url: input.coverImageUrl || null,
     accent_color: input.accentColor || null,
     confirmation_message: input.confirmationMessage || null,
+    starting_armband_number: input.startingArmbandNumber ?? 100,
 
     // Note: events, source, club_name, club_address, club_email do NOT exist in the
     // database schema. These are app-only fields derived from the club relation or
@@ -64,6 +65,8 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.accentColor !== undefined) update.accent_color = input.accentColor || null;
   if (input.confirmationMessage !== undefined)
     update.confirmation_message = input.confirmationMessage || null;
+  if (input.startingArmbandNumber !== undefined)
+    update.starting_armband_number = input.startingArmbandNumber;
 
   // Note: events, source, club_name, club_address, club_email do NOT exist in the
   // database schema. These are app-only fields derived from the club relation or
@@ -231,6 +234,8 @@ export const mapDatabaseToShow = (
     // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
+    startingArmbandNumber:
+      ((dbShow as Record<string, unknown>).starting_armband_number as number) ?? 100,
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version
@@ -283,6 +288,7 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
     assignedJudges: show.assignedJudges,
     trials: show.trials,
     confirmationMessage: show.confirmationMessage,
+    startingArmbandNumber: show.startingArmbandNumber,
   };
 };
 

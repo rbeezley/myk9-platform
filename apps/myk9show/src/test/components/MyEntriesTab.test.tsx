@@ -12,7 +12,7 @@ vi.mock('@/hooks/useViewPreference', () => ({
 }));
 
 vi.mock('@/components/common/ViewToggle', () => ({
-  ViewToggle: ({ active, onChange }: { active: string; onChange: (k: string) => void }) => (
+  ViewToggle: ({ onChange }: { active: string; onChange: (k: string) => void }) => (
     <div data-testid="view-toggle">
       <button data-testid="toggle-cards" onClick={() => onChange('cards')}>Cards</button>
       <button data-testid="toggle-table" onClick={() => onChange('table')}>Table</button>

@@ -28,3 +28,6 @@ export {
 
 // Export entry queries (these take precedence for entry operations)
 export * from './entryQueries';
+
+// Export armband queries
+export * from './armbandQueries';

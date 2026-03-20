@@ -10,6 +10,26 @@ import { Search, Loader2, Dog, User, ClipboardList } from 'lucide-react';
 import { useArmbandLookup } from '@/hooks/queries/useArmbandLookup';
 import { Link } from 'react-router-dom';
 
+/** Display labels for entry_status DB values */
+const ENTRY_STATUS_LABEL: Record<string, string> = {
+  'no-status': 'No Status',
+  draft: 'Draft',
+  submitted: 'Submitted',
+  paid: 'Paid',
+  confirmed: 'Confirmed',
+  'checked-in': 'Checked In',
+  competing: 'Competing',
+  completed: 'Completed',
+  withdrawn: 'Withdrawn',
+  scratched: 'Scratched',
+  absent: 'Absent',
+};
+
+function formatEntryStatus(status: string | null): string {
+  if (!status) return 'Registered';
+  return ENTRY_STATUS_LABEL[status] ?? status;
+}
+
 interface ArmbandLookupProps {
   showId: string;
 }
@@ -137,7 +157,7 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
                           variant="outline"
                           className="text-[10px] ml-2 shrink-0"
                         >
-                          {entry.entry_status}
+                          {formatEntryStatus(entry.entry_status)}
                         </Badge>
                       </div>
                       {entry.handler && (

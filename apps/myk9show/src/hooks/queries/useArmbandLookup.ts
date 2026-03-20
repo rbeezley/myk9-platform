@@ -33,7 +33,6 @@ export function useArmbandLookup(showId: string | undefined, armbandNumber: stri
       return data;
     },
     enabled: !!showId && !!armbandNumber,
-    staleTime: 0,
-    gcTime: 1000 * 60 * 2,
+    ...cacheStrategies.dynamic,
   });
 }

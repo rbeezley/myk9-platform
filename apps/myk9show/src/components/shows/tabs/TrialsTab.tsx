@@ -109,7 +109,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                 key={trial.id}
                 className="cursor-pointer overflow-hidden border border-border bg-card shadow-sm transition-all hover:shadow-md hover:border-primary/30"
                 onClick={() => navigate(`/shows/${showId}/trials/${trial.id}`)}
-                role="link"
+                role="button"
                 tabIndex={0}
                 onKeyDown={e =>
                   e.key === 'Enter' && navigate(`/shows/${showId}/trials/${trial.id}`)
@@ -219,7 +219,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                 return (
                   <tr
                     key={trial.id}
-                    role="link"
+                    role="button"
                     tabIndex={0}
                     className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
                     onClick={() => navigate(`/shows/${showId}/trials/${trial.id}`)}

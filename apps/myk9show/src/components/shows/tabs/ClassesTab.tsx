@@ -156,10 +156,11 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                     </tr>
                   )}
                   {group.classes.map(cls => {
+                    const statusDisplay = getClassStatusDisplay(cls.status);
                     return (
                       <tr
                         key={cls.id}
-                        role="link"
+                        role="button"
                         tabIndex={0}
                         className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
                         onClick={() =>
@@ -191,7 +192,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                               getClassStatusBadgeClasses(cls.status),
                             )}
                           >
-                            {getClassStatusDisplay(cls.status).label}
+                            {statusDisplay.label}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">

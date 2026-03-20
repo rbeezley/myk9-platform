@@ -39,41 +39,41 @@ const baseClass = {
 
 describe('ClassCard', () => {
   it('renders element and level as title', () => {
-    render(<ClassCard classInfo={baseClass} showId="s1" />);
+    render(<ClassCard classInfo={baseClass} />);
     expect(screen.getByText('Containers')).toBeInTheDocument();
     expect(screen.getByText('Novice')).toBeInTheDocument();
   });
 
   it('renders judge name', () => {
-    render(<ClassCard classInfo={baseClass} showId="s1" />);
+    render(<ClassCard classInfo={baseClass} />);
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 
   it('renders status badge', () => {
-    render(<ClassCard classInfo={baseClass} showId="s1" />);
+    render(<ClassCard classInfo={baseClass} />);
     expect(screen.getByText('Scheduled')).toBeInTheDocument();
   });
 
   it('renders entry count', () => {
-    render(<ClassCard classInfo={baseClass} showId="s1" />);
+    render(<ClassCard classInfo={baseClass} />);
     expect(screen.getByText('28')).toBeInTheDocument();
     expect(screen.getByText('entries')).toBeInTheDocument();
   });
 
   it('renders time and ring', () => {
-    render(<ClassCard classInfo={baseClass} showId="s1" />);
+    render(<ClassCard classInfo={baseClass} />);
     expect(screen.getByText('9:00 AM')).toBeInTheDocument();
     expect(screen.getByText(/Ring 1/)).toBeInTheDocument();
   });
 
   it('hides ring when hideRing is true', () => {
-    render(<ClassCard classInfo={baseClass} showId="s1" hideRing />);
+    render(<ClassCard classInfo={baseClass} hideRing />);
     expect(screen.queryByText(/Ring/)).not.toBeInTheDocument();
   });
 
   it('calls onClick when clicked', () => {
     const onClick = vi.fn();
-    render(<ClassCard classInfo={baseClass} showId="s1" onClick={onClick} />);
+    render(<ClassCard classInfo={baseClass} onClick={onClick} />);
     fireEvent.click(screen.getByText('Containers'));
     expect(onClick).toHaveBeenCalled();
   });
@@ -86,7 +86,7 @@ describe('ClassCard', () => {
     render(
       <ClassCard
         classInfo={liveClass}
-                liveData={{
+        liveData={{
           totalEntries: 28,
           completedEntries: 12,
           inRingArmband: '205',
@@ -103,7 +103,7 @@ describe('ClassCard', () => {
     render(
       <ClassCard
         classInfo={baseClass}
-                liveData={{
+        liveData={{
           totalEntries: 28,
           completedEntries: 0,
           inRingArmband: '100',

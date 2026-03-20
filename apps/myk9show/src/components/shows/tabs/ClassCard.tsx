@@ -51,7 +51,7 @@ export function ClassCard({
         onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30',
       )}
       onClick={onClick}
-      role={onClick ? 'link' : undefined}
+      role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
     >

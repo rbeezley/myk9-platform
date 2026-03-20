@@ -213,7 +213,11 @@ export const restoreTrial = async (id: string, restoredBy?: string) => {
 export const getDeletedTrials = async () => {
   return await supabase
     .from('trials')
-    .select('*')
+    .select(`
+      *,
+      show:shows (id, name),
+      deleted_by_user:deleted_by (id, first_name, last_name, email)
+    `)
     .not('deleted_at', 'is', null)
     .order('deleted_at', { ascending: false });
 };

@@ -257,12 +257,6 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
     [inputValue]
   );
 
-  const handleClear = useCallback(() => {
-    setInputValue('');
-    setSearchNumber(null);
-    setIsOpen(false);
-  }, []);
-
   const handleOpenChange = useCallback(
     (open: boolean) => {
       setIsOpen(open);

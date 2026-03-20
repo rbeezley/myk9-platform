@@ -1,5 +1,5 @@
 import { useMyEntries } from '@/hooks/useMyEntries';
-import { useViewPreference } from '@/hooks/useViewPreference';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { LiveClassCard } from '@/components/live/LiveClassCard';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -10,8 +10,6 @@ import { cn } from '@/lib/utils';
 interface MyEntriesTabProps {
   showId: string;
 }
-
-import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 export function MyEntriesTab({ showId }: MyEntriesTabProps) {
   const { entriesByClass, isLoading, isError } = useMyEntries(showId);
@@ -49,7 +47,7 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
         <ViewToggle
           modes={CARD_TABLE_MODES}
           active={viewMode}
-          onChange={(k) => setViewMode(k as 'cards' | 'table')}
+          onChange={setViewMode as (key: string) => void}
         />
       </div>
 

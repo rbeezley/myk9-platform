@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MineToggle } from '@/components/common/MineToggle';
 import { EmptyState } from '@/components/common/EmptyState';
-import { useViewPreference } from '@/hooks/useViewPreference';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
 import { Search, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getClassStatusDisplay, type ClassStatusValue } from '@myk9/core';
+import { getClassStatusDisplay, getClassStatusBadgeClasses, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { compareLevels } from '@/utils/schedule-summary';
 
@@ -46,8 +46,6 @@ function formatTrialDate(dateStr: string): string {
     year: 'numeric',
   });
 }
-
-import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
   const navigate = useNavigate();
@@ -115,7 +113,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         <ViewToggle
           modes={CARD_TABLE_MODES}
           active={viewMode}
-          onChange={(k) => setViewMode(k as 'cards' | 'table')}
+          onChange={setViewMode as (key: string) => void}
         />
       </div>
 
@@ -158,7 +156,6 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                     </tr>
                   )}
                   {group.classes.map(cls => {
-                    const statusDisplay = getClassStatusDisplay(cls.status);
                     return (
                       <tr
                         key={cls.id}
@@ -191,10 +188,10 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                           <span
                             className={cn(
                               'px-2 py-0.5 rounded text-xs font-medium',
-                              `${statusDisplay.bgClass} ${statusDisplay.textClass} ${statusDisplay.darkBgClass} ${statusDisplay.darkTextClass}`
+                              getClassStatusBadgeClasses(cls.status),
                             )}
                           >
-                            {statusDisplay.label}
+                            {getClassStatusDisplay(cls.status).label}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">

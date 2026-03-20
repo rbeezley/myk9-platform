@@ -27,12 +27,15 @@ export function useViewPreference(
 
   const setMode = useCallback(
     (newMode: ViewMode) => {
-      setModeState(newMode);
-      try {
-        localStorage.setItem(`view-pref-${tabKey}`, newMode);
-      } catch {
-        // localStorage full or unavailable
-      }
+      setModeState((prev) => {
+        if (prev === newMode) return prev;
+        try {
+          localStorage.setItem(`view-pref-${tabKey}`, newMode);
+        } catch {
+          // localStorage full or unavailable
+        }
+        return newMode;
+      });
     },
     [tabKey],
   );

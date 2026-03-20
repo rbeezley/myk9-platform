@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, ChevronRight, Plus } from 'lucide-react';
-import { useViewPreference } from '@/hooks/useViewPreference';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
@@ -32,8 +32,6 @@ function getDateParts(dateStr: string): { month: string; day: string } | null {
 }
 
 const EMPTY_STATS: TrialStats = { classCount: 0, entryCount: 0, completedClasses: 0 };
-
-import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 function getTrialStatusTokens(status: string): {
   border: string;
@@ -74,7 +72,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         <ViewToggle
           modes={CARD_TABLE_MODES}
           active={viewMode}
-          onChange={(k) => setViewMode(k as 'cards' | 'table')}
+          onChange={setViewMode as (key: string) => void}
         />
       </div>
 

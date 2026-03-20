@@ -124,7 +124,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Card and Table View for Child Lists - 2026-03-18 19:27
 
-- **Add card/table view toggle to all child list tabs** — Every child list in the show hierarchy (trials, classes, entries, results) should offer both a card view and a table view, with a toggle to switch between them. **Problem:** Currently TrialsTab uses cards only, ClassesTab uses a table only, and other tabs have their own fixed layouts. There's no consistent pattern, and users can't choose the view that suits their context (cards for scanning on mobile, tables for dense data on desktop). **Files:** `apps/myk9show/src/components/shows/tabs/TrialsTab.tsx` (card-only), `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx` (table-only), `apps/myk9q/src/pages/ClassList/ClassCard.tsx` (reference card design), `apps/myk9q/src/pages/ClassList/ClassCardGrid.tsx` (responsive grid). **Solution:** Build a reusable `ViewToggle` component (card/table icon buttons). For each child list tab: (1) keep existing view as one mode, (2) build the alternate mode, (3) wire toggle with localStorage persistence. Port myK9Q's ClassCard design for the class card view. Prioritize ClassesTab first (most data-dense), then TrialsTab table view, then entries/results as needed.
+- [x] **Add card/table view toggle to all child list tabs** — Done: Added `useViewPreference` hook (localStorage per-tab persistence), `ClassCard` component (contextual live data for in-progress classes), and card/table toggle to ClassesTab (default: table), TrialsTab (default: cards), and MyEntriesTab (default: cards). Shared `CARD_TABLE_MODES` constant and existing `ViewToggle` component. 41 tests across 5 files. PR #18, merged as `f31e6352`.
 
 ---
 

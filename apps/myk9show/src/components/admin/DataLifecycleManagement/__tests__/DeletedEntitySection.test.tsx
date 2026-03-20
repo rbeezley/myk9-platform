@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { EntitySectionConfig, DeletedEntity } from '../types';
 
 // --- Mocks ---
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 vi.mock('@/components/ui/collapsible', () => ({
   Collapsible: ({ children, open, onOpenChange }: any) => (
@@ -48,6 +49,8 @@ vi.mock('lucide-react', () => ({
   RotateCcw: ({ className }: any) => <span className={className}>rotate</span>,
   Trash2: ({ className }: any) => <span className={className}>trash</span>,
 }));
+
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 const { DeletedEntitySection } = await import('../DeletedEntitySection');
 

@@ -232,7 +232,7 @@ export function DeletedEntitiesTab() {
         next[type] = count;
       }
       setCounts(next);
-    } catch (err) {
+    } catch (_err) {
       logger.error('Failed to fetch deleted entity counts', 'trash');
     } finally {
       setIsLoadingCounts(false);
@@ -339,7 +339,7 @@ export function DeletedEntitiesTab() {
         await config.restore(restoreTarget.id, user?.id);
         logger.info('Entity restored', 'trash', { type: restoreTarget.type, id: restoreTarget.id });
       }
-    } catch (err) {
+    } catch (_err) {
       logger.error('Failed to restore entity', 'trash', { target: restoreTarget });
     } finally {
       setRestoreTarget(null);
@@ -357,7 +357,7 @@ export function DeletedEntitiesTab() {
         await config.hardDelete(deleteTarget.id);
         logger.info('Entity permanently deleted', 'trash', { type: deleteTarget.type, id: deleteTarget.id });
       }
-    } catch (err) {
+    } catch (_err) {
       logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
     } finally {
       setDeleteTarget(null);

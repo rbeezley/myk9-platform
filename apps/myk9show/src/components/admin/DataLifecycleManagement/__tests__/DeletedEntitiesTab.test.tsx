@@ -6,11 +6,10 @@ import { DeletedEntitiesTab } from '../DeletedEntitiesTab';
 /*  Mocks                                                              */
 /* ------------------------------------------------------------------ */
 
-const { mockNot, mockSelect, mockFrom } = vi.hoisted(() => {
+const { mockNot, mockFrom } = vi.hoisted(() => {
   const mockNot = vi.fn();
-  const mockSelect = vi.fn().mockReturnValue({ not: mockNot });
-  const mockFrom = vi.fn().mockReturnValue({ select: mockSelect });
-  return { mockNot, mockSelect, mockFrom };
+  const mockFrom = vi.fn().mockReturnValue({ select: () => ({ not: mockNot }) });
+  return { mockNot, mockFrom };
 });
 
 vi.mock('@/services/database/supabaseClient', () => ({

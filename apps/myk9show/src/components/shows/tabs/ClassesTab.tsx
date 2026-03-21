@@ -7,7 +7,13 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
 import { Search, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getClassStatusDisplay, getClassStatusBadgeClasses, type ClassStatusValue, getClassDisplayStatus, type ClassDisplayStatus } from '@myk9/core';
+import {
+  getClassStatusDisplay,
+  getClassStatusBadgeClasses,
+  getClassDisplayStatus,
+  type ClassStatusValue,
+  type ClassDisplayStatus,
+} from '@myk9/core';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { compareLevels } from '@/utils/schedule-summary';
@@ -91,7 +97,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   const filteredClasses = useMemo(() => {
     if (statusFilter === 'all') return mineFilteredClasses;
     return mineFilteredClasses.filter(cls => {
-      const ds = classDisplayStatuses.get(cls.id)!;
+      const ds = classDisplayStatuses.get(cls.id) ?? 'not-started';
       if (statusFilter === 'completed') return ds === 'completed';
       return ds !== 'completed'; // pending = not-started + in-progress
     });

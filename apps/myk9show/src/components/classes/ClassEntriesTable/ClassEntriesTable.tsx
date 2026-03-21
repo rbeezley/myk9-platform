@@ -18,6 +18,7 @@ import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { useTableConfiguration } from '@/hooks/useTableConfiguration';
 import { cn } from '@/lib/utils';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
+import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 
 // Types
 import { ClassEntriesTableProps, DEFAULT_PERMISSIONS } from './types';
@@ -438,20 +439,13 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
             {filteredUnifiedEntries.length === 0 && entries.length > 0 && (
               <TableRow>
                 <TableCell colSpan={columns.length + 1} className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">
-                    {statusFilter === 'pending'
-                      ? 'All entries have results!'
-                      : statusFilter === 'completed'
-                        ? 'No entries have results yet.'
-                        : 'No entries match the current filter.'}
-                  </p>
-                  <button
-                    type="button"
-                    className="mt-2 text-primary hover:underline text-sm"
-                    onClick={() => setStatusFilter('all')}
-                  >
-                    Show all entries
-                  </button>
+                  <FilterEmptyState
+                    noun="entries"
+                    statusFilter={statusFilter}
+                    onReset={() => setStatusFilter('all')}
+                    allDoneMessage="All entries have results!"
+                    noneDoneMessage="No entries have results yet."
+                  />
                 </TableCell>
               </TableRow>
             )}

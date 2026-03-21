@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar, ChevronRight, Plus } from 'lucide-react';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
+import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
+import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
 import { getClassStatusBadgeClasses, getClassStatusDisplay, CLASS_STATUS } from '@myk9/core';
@@ -52,7 +55,24 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const { hasPermission } = useRBAC();
 
   const [viewMode, setViewMode] = useViewPreference('trials', 'cards');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
+
+  const statusCounts = useMemo(() => {
+    let completed = 0;
+    for (const trial of trials) {
+      if (trial.status === CLASS_STATUS.COMPLETED) completed++;
+    }
+    return { all: trials.length, pending: trials.length - completed, completed };
+  }, [trials]);
+
+  const filteredTrials = useMemo(() => {
+    if (statusFilter === 'all') return trials;
+    return trials.filter(trial => {
+      const isCompleted = trial.status === CLASS_STATUS.COMPLETED;
+      return statusFilter === 'completed' ? isCompleted : !isCompleted;
+    });
+  }, [trials, statusFilter]);
 
   const openWizard = () =>
     navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-trials`);
@@ -68,7 +88,12 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         </div>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-4">
+        <StatusFilter
+          filter={statusFilter}
+          onFilterChange={setStatusFilter}
+          counts={statusCounts}
+        />
         <ViewToggle
           modes={CARD_TABLE_MODES}
           active={viewMode}
@@ -90,9 +115,15 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             </Button>
           )}
         </div>
+      ) : filteredTrials.length === 0 && trials.length > 0 ? (
+        <FilterEmptyState
+          noun="trials"
+          statusFilter={statusFilter}
+          onReset={() => setStatusFilter('all')}
+        />
       ) : viewMode === 'cards' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {trials.map(trial => {
+          {filteredTrials.map(trial => {
             const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
             const stats = trialStats[trial.id] || EMPTY_STATS;
             const tokens = getTrialStatusTokens(trial.status);
@@ -212,7 +243,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               </tr>
             </thead>
             <tbody>
-              {trials.map(trial => {
+              {filteredTrials.map(trial => {
                 const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
                 const stats = trialStats[trial.id] || EMPTY_STATS;
                 const statusDisplay = getClassStatusDisplay(trial.status);

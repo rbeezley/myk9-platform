@@ -15,6 +15,7 @@ import {
   type ClassDisplayStatus,
 } from '@myk9/core';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
+import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { compareLevels } from '@/utils/schedule-summary';
 
@@ -170,22 +171,11 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       </div>
 
       {filteredClasses.length === 0 && classes.length > 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          <p>
-            {statusFilter === 'pending'
-              ? 'All classes completed!'
-              : statusFilter === 'completed'
-                ? 'No classes completed yet.'
-                : 'No classes match the current filter.'}
-          </p>
-          <button
-            type="button"
-            className="mt-2 text-primary hover:underline text-sm"
-            onClick={() => setStatusFilter('all')}
-          >
-            Show all classes
-          </button>
-        </div>
+        <FilterEmptyState
+          noun="classes"
+          statusFilter={statusFilter}
+          onReset={() => setStatusFilter('all')}
+        />
       ) : viewMode === 'table' ? (
         <div className="rounded-xl border border-border/50 overflow-hidden">
           <table className="w-full text-sm">

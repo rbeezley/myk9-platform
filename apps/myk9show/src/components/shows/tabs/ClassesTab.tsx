@@ -63,7 +63,6 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     [classes, isMine],
   );
 
-  // Compute display status per class
   const classDisplayStatuses = useMemo(() => {
     const map = new Map<string, ClassDisplayStatus>();
     for (const cls of mineFilteredClasses) {
@@ -79,7 +78,6 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     return map;
   }, [mineFilteredClasses]);
 
-  // Compute filter counts (post-mine-filter)
   const statusCounts = useMemo(() => {
     let pending = 0;
     let completed = 0;
@@ -90,7 +88,6 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     return { all: mineFilteredClasses.length, pending, completed };
   }, [mineFilteredClasses, classDisplayStatuses]);
 
-  // Apply status filter
   const filteredClasses = useMemo(() => {
     if (statusFilter === 'all') return mineFilteredClasses;
     return mineFilteredClasses.filter(cls => {

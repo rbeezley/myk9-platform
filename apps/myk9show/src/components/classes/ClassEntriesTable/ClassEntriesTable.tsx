@@ -141,9 +141,11 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
 
   const filteredUnifiedEntries = useMemo(() => {
     if (statusFilter === 'all') return unifiedEntries;
-    const filteredIds = new Set(filteredEntries.map(e => e.id));
-    return unifiedEntries.filter(e => filteredIds.has(e.id));
-  }, [unifiedEntries, statusFilter, filteredEntries]);
+    return unifiedEntries.filter(e => {
+      const isCompleted = COMPLETED_STATUSES.has(e.status);
+      return statusFilter === 'completed' ? isCompleted : !isCompleted;
+    });
+  }, [unifiedEntries, statusFilter]);
 
   // Delete handlers
   const handleDeleteClick = useCallback((entry: EntryData) => {

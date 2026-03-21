@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getClassDisplayStatus, type ClassDisplayStatus } from '../../index';
+import { getClassDisplayStatus } from '../../index';
 
 describe('getClassDisplayStatus', () => {
   it('returns "completed" when is_scoring_finalized is true', () => {

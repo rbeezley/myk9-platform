@@ -7,7 +7,8 @@ import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
 import { Search, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getClassStatusDisplay, getClassStatusBadgeClasses, type ClassStatusValue } from '@myk9/core';
+import { getClassStatusDisplay, getClassStatusBadgeClasses, type ClassStatusValue, getClassDisplayStatus, type ClassDisplayStatus } from '@myk9/core';
+import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { compareLevels } from '@/utils/schedule-summary';
 
@@ -23,6 +24,9 @@ interface ClassInfo {
   ring: number;
   status: ClassStatusValue;
   entryCount: number;
+  scoredCount?: number;
+  isScoringFinalized?: boolean;
+  hasActiveEntries?: boolean;
   userHasEntry: boolean;
   trialDate?: string;
   trialNumber?: string;
@@ -51,12 +55,50 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useViewPreference('classes', 'table');
   const [isMine, setIsMine] = useState(userHasEntries);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
 
   const mineCount = useMemo(() => classes.filter(c => c.userHasEntry).length, [classes]);
-  const filteredClasses = useMemo(
+  const mineFilteredClasses = useMemo(
     () => (isMine ? classes.filter(c => c.userHasEntry) : classes),
-    [classes, isMine]
+    [classes, isMine],
   );
+
+  // Compute display status per class
+  const classDisplayStatuses = useMemo(() => {
+    const map = new Map<string, ClassDisplayStatus>();
+    for (const cls of mineFilteredClasses) {
+      const input: Parameters<typeof getClassDisplayStatus>[0] = {
+        status: cls.status,
+        entry_count: cls.entryCount,
+        scored_count: cls.scoredCount ?? 0,
+      };
+      if (cls.isScoringFinalized !== undefined) input.is_scoring_finalized = cls.isScoringFinalized;
+      if (cls.hasActiveEntries !== undefined) input.has_active_entries = cls.hasActiveEntries;
+      map.set(cls.id, getClassDisplayStatus(input));
+    }
+    return map;
+  }, [mineFilteredClasses]);
+
+  // Compute filter counts (post-mine-filter)
+  const statusCounts = useMemo(() => {
+    let pending = 0;
+    let completed = 0;
+    for (const ds of classDisplayStatuses.values()) {
+      if (ds === 'completed') completed++;
+      else pending++;
+    }
+    return { all: mineFilteredClasses.length, pending, completed };
+  }, [mineFilteredClasses, classDisplayStatuses]);
+
+  // Apply status filter
+  const filteredClasses = useMemo(() => {
+    if (statusFilter === 'all') return mineFilteredClasses;
+    return mineFilteredClasses.filter(cls => {
+      const ds = classDisplayStatuses.get(cls.id)!;
+      if (statusFilter === 'completed') return ds === 'completed';
+      return ds !== 'completed'; // pending = not-started + in-progress
+    });
+  }, [mineFilteredClasses, statusFilter, classDisplayStatuses]);
 
   // Group classes by trial (date + number)
   const groupedByTrial = useMemo(() => {
@@ -101,15 +143,22 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <MineToggle
-          isMine={isMine}
-          onToggle={() => setIsMine(!isMine)}
-          allLabel="All Classes"
-          mineLabel="My Classes"
-          allCount={classes.length}
-          mineCount={mineCount}
-          hidden={!userHasEntries}
-        />
+        <div className="flex items-center gap-2">
+          <StatusFilter
+            filter={statusFilter}
+            onFilterChange={setStatusFilter}
+            counts={statusCounts}
+          />
+          <MineToggle
+            isMine={isMine}
+            onToggle={() => setIsMine(!isMine)}
+            allLabel="All Classes"
+            mineLabel="My Classes"
+            allCount={classes.length}
+            mineCount={mineCount}
+            hidden={!userHasEntries}
+          />
+        </div>
         <ViewToggle
           modes={CARD_TABLE_MODES}
           active={viewMode}
@@ -117,7 +166,24 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
         />
       </div>
 
-      {viewMode === 'table' ? (
+      {filteredClasses.length === 0 && classes.length > 0 ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          <p>
+            {statusFilter === 'pending'
+              ? 'All classes completed!'
+              : statusFilter === 'completed'
+                ? 'No classes completed yet.'
+                : 'No classes match the current filter.'}
+          </p>
+          <button
+            type="button"
+            className="mt-2 text-primary hover:underline text-sm"
+            onClick={() => setStatusFilter('all')}
+          >
+            Show all classes
+          </button>
+        </div>
+      ) : viewMode === 'table' ? (
         <div className="rounded-xl border border-border/50 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -209,10 +275,6 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
             </tbody>
           </table>
         </div>
-      ) : filteredClasses.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No classes match the current filter.
-        </p>
       ) : (
         groupedByTrial.map(group => (
           <div key={group.label} className="space-y-3">

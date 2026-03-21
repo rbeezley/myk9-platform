@@ -25,6 +25,7 @@ export function StatusFilter({ filter, onFilterChange, counts, className }: Stat
     <div className={cn('flex bg-muted/50 rounded-lg p-1 gap-0.5', className)}>
       {SEGMENTS.map(({ key, label, shortLabel }) => (
         <button
+          type="button"
           key={key}
           className={cn(
             'h-10 rounded-md px-3 text-sm font-medium transition-colors',

@@ -60,6 +60,13 @@ export {
   type ClassStatusValue,
 } from './constants/class-status';
 
+// Class display status helper
+export {
+  getClassDisplayStatus,
+  type ClassDisplayStatus,
+  type ClassDisplayStatusInput,
+} from './helpers/class-display-status';
+
 // Time formatting utilities
 export {
   formatMilliseconds,

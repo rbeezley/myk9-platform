@@ -141,6 +141,7 @@ const ShowDetailsPage: React.FC = () => {
         ring: 0,
         status: cls.status || CLASS_STATUS.SCHEDULED,
         entryCount: cls.entries || 0,
+        scoredCount: cls.completedEntries ?? 0,
         userHasEntry: userEntryClassIds.has(cls.id),
         trialDate: trial.trialDate || '',
         trialNumber: trial.trialNumber || '',

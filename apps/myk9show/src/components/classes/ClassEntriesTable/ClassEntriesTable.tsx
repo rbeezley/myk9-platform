@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { useTableConfiguration } from '@/hooks/useTableConfiguration';
 import { cn } from '@/lib/utils';
+import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
 
 // Types
 import { ClassEntriesTableProps, DEFAULT_PERMISSIONS } from './types';
@@ -45,6 +46,15 @@ import { EntriesStatisticsPanel } from '../EntriesStatisticsPanel';
 // styles
 import '@/styles/myk9-show-details.css';
 
+const COMPLETED_STATUSES = new Set([
+  'Qualified',
+  'Not Qualified',
+  'Absent',
+  'Excused',
+  'Withdrawn',
+  'Eliminated',
+]);
+
 const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   entries,
   trialType,
@@ -63,6 +73,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<EntryData | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
 
   // Default permissions if none provided
   const permissions = userPermissions || DEFAULT_PERMISSIONS;
@@ -111,6 +122,28 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
       return unified;
     });
   }, [entries, trialType]);
+
+  const statusCounts = useMemo(() => {
+    let completed = 0;
+    for (const entry of entries) {
+      if (COMPLETED_STATUSES.has(entry.status)) completed++;
+    }
+    return { all: entries.length, pending: entries.length - completed, completed };
+  }, [entries]);
+
+  const filteredEntries = useMemo(() => {
+    if (statusFilter === 'all') return entries;
+    return entries.filter(entry => {
+      const isCompleted = COMPLETED_STATUSES.has(entry.status);
+      return statusFilter === 'completed' ? isCompleted : !isCompleted;
+    });
+  }, [entries, statusFilter]);
+
+  const filteredUnifiedEntries = useMemo(() => {
+    if (statusFilter === 'all') return unifiedEntries;
+    const filteredIds = new Set(filteredEntries.map(e => e.id));
+    return unifiedEntries.filter(e => filteredIds.has(e.id));
+  }, [unifiedEntries, statusFilter, filteredEntries]);
 
   // Delete handlers
   const handleDeleteClick = useCallback((entry: EntryData) => {
@@ -231,6 +264,13 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         onAddEntry={onAddEntry}
       />
 
+      {/* Status Filter */}
+      <StatusFilter
+        filter={statusFilter}
+        onFilterChange={setStatusFilter}
+        counts={statusCounts}
+      />
+
       {/* Inline Editing Toolbar */}
       <InlineEditingToolbar
         enableInlineEditing={enableInlineEditing}
@@ -273,9 +313,9 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {unifiedEntries.map((entry, index) => {
+            {filteredUnifiedEntries.map((entry, index) => {
               const transformedEntry = transformEntry(entry);
-              const originalEntry = entries[index];
+              const originalEntry = filteredEntries[index];
               const editData = getEditData(originalEntry);
 
               // Initialize edit data if inline editing is enabled

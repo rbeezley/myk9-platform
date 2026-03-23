@@ -17,6 +17,8 @@ export interface BrowseClubsData {
   clubs: Club[];
   filteredClubs: Club[];
   isLoading: boolean;
+  hasError: boolean;
+  handleRetry: () => void;
   filters: ClubFilters;
   setFilters: React.Dispatch<React.SetStateAction<ClubFilters>>;
   hasActiveFilters: boolean;
@@ -28,8 +30,14 @@ export interface BrowseClubsData {
 export function useBrowseClubsData(): BrowseClubsData {
   const clubs = useClubStore(state => state.clubs);
   const isLoading = useClubStore(state => state.isLoading);
+  const error = useClubStore(state => state.error);
   const loadClubs = useClubStore(state => state.loadClubs);
   const shows = useShowStore(state => state.shows);
+
+  const hasError = !!error;
+  const handleRetry = useCallback(() => {
+    loadClubs();
+  }, [loadClubs]);
 
   const [filters, setFilters] = useState<ClubFilters>(INITIAL_FILTERS);
 
@@ -84,6 +92,8 @@ export function useBrowseClubsData(): BrowseClubsData {
     clubs,
     filteredClubs,
     isLoading,
+    hasError,
+    handleRetry,
     filters,
     setFilters,
     hasActiveFilters,

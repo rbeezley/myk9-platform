@@ -430,7 +430,6 @@ const TrialDetailsPage: React.FC = () => {
         className={selectedClassForEdit?.element || ''}
         initialClassData={selectedClassForEdit || {}}
         {...(parentShow?.id !== undefined && { showId: parentShow.id })}
-        mode="simple"
         onSave={async classData => {
           if (selectedClassForEdit?.id && classData.id) {
             updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });

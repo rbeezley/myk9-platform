@@ -1,6 +1,5 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
-import type { TrialClass } from '@/components/trials/types/trial.types';
-import type { ClassEditFormData, TrialClassEditFormData } from './ClassEditPanel.types';
+import type { ClassEditFormData } from './ClassEditPanel.types';
 
 // Convert ClassData to form data
 export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormData => {
@@ -31,20 +30,6 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
   };
 };
 
-// Convert TrialClass to form data
-export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClassEditFormData => {
-  return {
-    element: trialClass.element || '',
-    level: trialClass.level || '',
-    section: trialClass.section || '',
-    judgeId: trialClass.judgeId || '',
-    judgeName: trialClass.judgeName || '',
-    startTime: trialClass.startTime || '',
-    status: trialClass.status || 'Upcoming',
-    entries: trialClass.entries || 0,
-  };
-};
-
 // Convert form data back to ClassData
 // Use conditional spread to satisfy exactOptionalPropertyTypes
 export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData> => ({
@@ -71,17 +56,4 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.itemsUsed !== undefined && { itemsUsed: formData.itemsUsed }),
   ...(formData.preEntryFee !== undefined && { preEntryFee: formData.preEntryFee }),
   ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
-});
-
-// Convert form data back to TrialClass
-// Use conditional spread to satisfy exactOptionalPropertyTypes
-export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<TrialClass> => ({
-  element: formData.element,
-  level: formData.level,
-  section: formData.section,
-  judgeId: formData.judgeId,
-  ...(formData.judgeName !== undefined && { judgeName: formData.judgeName }),
-  startTime: formData.startTime,
-  status: formData.status,
-  entries: formData.entries,
 });

@@ -300,6 +300,7 @@ const ClassDetailsPage: React.FC = () => {
         classId={currentClass?.id || ''}
         className={currentClass?.element || ''}
         initialClassData={currentClass || {}}
+        {...(parentShow?.id !== undefined && { showId: parentShow.id })}
         mode="full"
         onSave={async classData => {
           if (currentClass?.id && classData.id) {

@@ -272,6 +272,9 @@ export async function upsertClassJudgeAssignment(
       confirmed_at: new Date().toISOString(),
     });
   }
+
+  // Touch class updated_at so the replication sync picks up the judge change
+  await untypedFrom('classes').update({ updated_at: new Date().toISOString() }).eq('id', classId);
 }
 
 // =============================================================================

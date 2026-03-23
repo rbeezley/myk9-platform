@@ -198,6 +198,50 @@ const TrialDetailsPage: React.FC = () => {
     };
   }, [currentTrial?.status]);
 
+  // Metadata for DetailHero — must be before early returns (rules of hooks)
+  const heroMetadata = useMemo(() => {
+    const items = [];
+    if (currentTrial?.trialDate) {
+      items.push({
+        label: new Date(currentTrial.trialDate + 'T00:00:00').toLocaleDateString(),
+        icon: <Calendar className="h-4 w-4" />,
+      });
+    }
+    if (classCount > 0) {
+      items.push({
+        label: `${classCount} class${classCount !== 1 ? 'es' : ''}`,
+      });
+    }
+    return items;
+  }, [currentTrial?.trialDate, classCount]);
+
+  // Prev/next navigation for hero
+  const prevNextNav = (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!prevTrialId}
+        onClick={handlePrevTrial}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-xs text-muted-foreground px-1">
+        {currentTrialIndex + 1}/{showTrials.length}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!nextTrialId}
+        onClick={handleNextTrial}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
   // Not found state
   if (trialId && !currentTrial && trials.length > 0) {
     return (
@@ -256,50 +300,6 @@ const TrialDetailsPage: React.FC = () => {
     setDeleteClassDialogOpen(false);
     setSelectedClassForDelete(null);
   };
-
-  // Metadata for DetailHero
-  const heroMetadata = useMemo(() => {
-    const items = [];
-    if (currentTrial?.trialDate) {
-      items.push({
-        label: new Date(currentTrial.trialDate + 'T00:00:00').toLocaleDateString(),
-        icon: <Calendar className="h-4 w-4" />,
-      });
-    }
-    if (classCount > 0) {
-      items.push({
-        label: `${classCount} class${classCount !== 1 ? 'es' : ''}`,
-      });
-    }
-    return items;
-  }, [currentTrial?.trialDate, classCount]);
-
-  // Prev/next navigation for hero
-  const prevNextNav = (
-    <div className="flex items-center gap-1">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!prevTrialId}
-        onClick={handlePrevTrial}
-        className="h-8 w-8 p-0"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <span className="text-xs text-muted-foreground px-1">
-        {currentTrialIndex + 1}/{showTrials.length}
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!nextTrialId}
-        onClick={handleNextTrial}
-        className="h-8 w-8 p-0"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
 
   return (
     <PageShell>

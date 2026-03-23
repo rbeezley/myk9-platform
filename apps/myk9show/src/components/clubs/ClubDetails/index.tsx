@@ -34,18 +34,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
     [state]
   );
 
-  if (!selectedClub) {
-    return <div className="flex items-center justify-center text-gray-500">No club selected.</div>;
-  }
-
-  if (!selectedClub.id || !selectedClub.name) {
-    logger.error('Invalid club data', 'clubs', { selectedClub });
-    return <div className="flex items-center justify-center text-gray-500">Invalid club data.</div>;
-  }
-
+  // Build tab definitions — must be before early returns (rules of hooks)
   const { upcomingShows, pastShows } = state;
-
-  // Build tab definitions dynamically based on branding permission
   const tabDefs: PrimaryTabDef[] = useMemo(() => {
     const tabs: PrimaryTabDef[] = [
       { id: 'upcoming', label: 'Upcoming Shows', icon: Calendar, count: upcomingShows.length },
@@ -55,14 +45,23 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         id: 'members',
         label: 'Members',
         icon: Users,
-        count: selectedClub.memberIds?.length || 0,
+        count: selectedClub?.memberIds?.length || 0,
       },
     ];
     if (state.canEditBranding) {
       tabs.push({ id: 'branding', label: 'Branding', icon: Palette });
     }
     return tabs;
-  }, [upcomingShows.length, pastShows.length, selectedClub.memberIds, state.canEditBranding]);
+  }, [upcomingShows.length, pastShows.length, selectedClub?.memberIds, state.canEditBranding]);
+
+  if (!selectedClub) {
+    return <div className="flex items-center justify-center text-gray-500">No club selected.</div>;
+  }
+
+  if (!selectedClub.id || !selectedClub.name) {
+    logger.error('Invalid club data', 'clubs', { selectedClub });
+    return <div className="flex items-center justify-center text-gray-500">Invalid club data.</div>;
+  }
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 py-20">

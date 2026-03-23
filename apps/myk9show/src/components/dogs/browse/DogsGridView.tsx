@@ -83,6 +83,18 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
                 )}
               </div>
             )}
+            {dog.registrations && dog.registrations.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {dog.registrations.map(reg => (
+                  <span
+                    key={reg.id}
+                    className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground"
+                  >
+                    {reg.organization} {reg.registrationNumber}
+                  </span>
+                ))}
+              </div>
+            )}
           </BrowseCard>
         );
       })}

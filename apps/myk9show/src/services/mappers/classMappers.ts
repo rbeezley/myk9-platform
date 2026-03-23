@@ -144,7 +144,15 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
     updateData.level = updates.level;
   }
   if (updates.status !== undefined) {
-    updateData.status = updates.status;
+    // Map UI status (title case) to DB status (lowercase with underscores)
+    const statusMap: Record<string, string> = {
+      Scheduled: 'upcoming',
+      Upcoming: 'upcoming',
+      'In Progress': 'in_progress',
+      Completed: 'completed',
+      Cancelled: 'cancelled',
+    };
+    updateData.status = statusMap[updates.status] || updates.status;
   }
   if (updates.entryFee !== undefined) {
     updateData.entry_fee = updates.entryFee;

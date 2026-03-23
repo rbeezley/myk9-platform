@@ -35,6 +35,31 @@ export const getArmbandCountForShow = async (showId: string) => {
 };
 
 /**
+ * Assign an armband number to a dog for a given show via the assign_armband RPC.
+ * Returns the assigned armband number string, or null if assignment failed.
+ */
+export const assignArmband = async (
+  showId: string,
+  dogId: string
+): Promise<{ armband: string | null; error: unknown }> => {
+  try {
+    const { data, error } = await supabase.rpc(
+      'assign_armband' as never,
+      {
+        p_show_id: showId,
+        p_dog_id: dogId,
+      } as never
+    );
+    if (!error && data != null) {
+      return { armband: String(data), error: null };
+    }
+    return { armband: null, error: error ?? null };
+  } catch (error) {
+    return { armband: null, error };
+  }
+};
+
+/**
  * Look up a dog by armband number within a show.
  * Returns dog info, owner, and all entries for that dog in the show.
  */
@@ -124,7 +149,7 @@ export const lookupDogByArmband = async (showId: string, armbandNumber: string) 
     }
 
     // Map entries to extract class_name and class_level from the joined class object
-    const entries = (entriesData ?? []).map((entry) => {
+    const entries = (entriesData ?? []).map(entry => {
       const classData = entry.class as unknown as {
         name: string;
         level: string | null;

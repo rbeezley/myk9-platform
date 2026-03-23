@@ -27,7 +27,7 @@ import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
-import { supabase } from '@/services/database/supabaseClient';
+import { assignArmband } from '@/services/database/queries/armbandQueries';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { registrationToEntries } from '@/utils/registrationToEntries';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -366,18 +366,8 @@ function RegistrationWizardContent() {
         const results = (
           await Promise.all(
             uniqueDogIds.map(async dogId => {
-              try {
-                const { data, error } = await supabase.rpc('assign_armband' as never, {
-                  p_show_id: showId,
-                  p_dog_id: dogId,
-                } as never);
-                if (!error && data != null) {
-                  return { dogId, armband: String(data) };
-                }
-              } catch {
-                // Armband assignment failure is non-blocking — entry still saved
-              }
-              return null;
+              const { armband } = await assignArmband(showId, dogId);
+              return armband ? { dogId, armband } : null;
             })
           )
         ).filter((r): r is ArmbandAssignment => r !== null);
@@ -390,9 +380,13 @@ function RegistrationWizardContent() {
           await Promise.all(
             createdEntries
               .filter(entry => armbandByDog.has(entry.dogId))
-              .map(entry =>
-                updateRegistration(entry.id, { armband: armbandByDog.get(entry.dogId) }, userId)
-                  .catch(() => {}) // Non-blocking — armband display still works via state
+              .map(
+                entry =>
+                  updateRegistration(
+                    entry.id,
+                    { armband: armbandByDog.get(entry.dogId) },
+                    userId
+                  ).catch(() => {}) // Non-blocking — armband display still works via state
               )
           );
         }

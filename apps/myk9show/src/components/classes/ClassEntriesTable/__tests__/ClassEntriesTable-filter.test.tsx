@@ -1,14 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-// Test the filtering logic in isolation (no full component render needed)
-const COMPLETED_STATUSES = new Set([
-  'Qualified',
-  'Not Qualified',
-  'Absent',
-  'Excused',
-  'Withdrawn',
-  'Eliminated',
-]);
+import { COMPLETED_STATUSES } from '../ClassEntriesTable';
 
 function computeStatusCounts(entries: { status: string }[]) {
   let completed = 0;
@@ -18,10 +9,7 @@ function computeStatusCounts(entries: { status: string }[]) {
   return { all: entries.length, pending: entries.length - completed, completed };
 }
 
-function filterEntries(
-  entries: { status: string }[],
-  filter: 'all' | 'pending' | 'completed'
-) {
+function filterEntries(entries: { status: string }[], filter: 'all' | 'pending' | 'completed') {
   if (filter === 'all') return entries;
   return entries.filter(entry => {
     const isCompleted = COMPLETED_STATUSES.has(entry.status);

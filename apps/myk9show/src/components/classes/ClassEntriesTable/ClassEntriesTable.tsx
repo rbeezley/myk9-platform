@@ -47,7 +47,7 @@ import { EntriesStatisticsPanel } from '../EntriesStatisticsPanel';
 // styles
 import '@/styles/myk9-show-details.css';
 
-const COMPLETED_STATUSES = new Set([
+export const COMPLETED_STATUSES = new Set([
   'Qualified',
   'Not Qualified',
   'Absent',
@@ -147,6 +147,12 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
       return statusFilter === 'completed' ? isCompleted : !isCompleted;
     });
   }, [unifiedEntries, statusFilter]);
+
+  const entryById = useMemo(() => {
+    const map = new Map<string, EntryData>();
+    for (const entry of filteredEntries) map.set(entry.id, entry);
+    return map;
+  }, [filteredEntries]);
 
   // Delete handlers
   const handleDeleteClick = useCallback((entry: EntryData) => {
@@ -268,11 +274,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
       />
 
       {/* Status Filter */}
-      <StatusFilter
-        filter={statusFilter}
-        onFilterChange={setStatusFilter}
-        counts={statusCounts}
-      />
+      <StatusFilter filter={statusFilter} onFilterChange={setStatusFilter} counts={statusCounts} />
 
       {/* Inline Editing Toolbar */}
       <InlineEditingToolbar
@@ -318,7 +320,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
           <TableBody>
             {filteredUnifiedEntries.map((entry, index) => {
               const transformedEntry = transformEntry(entry);
-              const originalEntry = filteredEntries[index];
+              const originalEntry = entryById.get(entry.id)!;
               const editData = getEditData(originalEntry);
 
               // Initialize edit data if inline editing is enabled

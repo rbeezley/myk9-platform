@@ -21,23 +21,25 @@ function readPreference(key: string, defaultMode: ViewMode): ViewMode {
 
 export function useViewPreference(
   tabKey: string,
-  defaultMode: ViewMode,
-): [ViewMode, (mode: ViewMode) => void] {
+  defaultMode: ViewMode
+): [ViewMode, (mode: string) => void] {
   const [mode, setModeState] = useState<ViewMode>(() => readPreference(tabKey, defaultMode));
 
   const setMode = useCallback(
-    (newMode: ViewMode) => {
-      setModeState((prev) => {
-        if (prev === newMode) return prev;
+    (newMode: string) => {
+      if (!VALID_MODES.has(newMode)) return;
+      const validated = newMode as ViewMode;
+      setModeState(prev => {
+        if (prev === validated) return prev;
         try {
-          localStorage.setItem(`view-pref-${tabKey}`, newMode);
+          localStorage.setItem(`view-pref-${tabKey}`, validated);
         } catch {
           // localStorage full or unavailable
         }
-        return newMode;
+        return validated;
       });
     },
-    [tabKey],
+    [tabKey]
   );
 
   return [mode, setMode];

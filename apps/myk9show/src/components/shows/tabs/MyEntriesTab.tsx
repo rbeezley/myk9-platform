@@ -44,16 +44,12 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
         <p className="text-sm text-muted-foreground">
           {entriesByClass.length} class{entriesByClass.length !== 1 ? 'es' : ''}
         </p>
-        <ViewToggle
-          modes={CARD_TABLE_MODES}
-          active={viewMode}
-          onChange={setViewMode as (key: string) => void}
-        />
+        <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
       </div>
 
       {viewMode === 'cards' ? (
         <div className="grid gap-4">
-          {entriesByClass.map((entry) => (
+          {entriesByClass.map(entry => (
             <LiveClassCard
               key={entry.classId}
               classTitle={entry.className}
@@ -78,7 +74,7 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
               </tr>
             </thead>
             <tbody>
-              {entriesByClass.map((entry) => (
+              {entriesByClass.map(entry => (
                 <tr
                   key={entry.classId}
                   className="border-b border-border/20 hover:bg-muted/10 transition-colors"
@@ -90,7 +86,7 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
                         'px-2 py-0.5 rounded text-xs font-medium',
                         entry.scored
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                       )}
                     >
                       {entry.scored ? 'Scored' : 'Pending'}

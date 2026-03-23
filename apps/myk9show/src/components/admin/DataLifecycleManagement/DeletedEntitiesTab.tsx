@@ -52,11 +52,7 @@ import {
   restoreEntry,
   hardDeleteEntry,
 } from '@/services/database/queries/classQueries';
-import {
-  getDeletedDogs,
-  restoreDog,
-  hardDeleteDog,
-} from '@/services/database/queries/dogQueries';
+import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/queries/dogQueries';
 import {
   getDeletedClubs,
   restoreClub,
@@ -69,12 +65,7 @@ import {
 } from '@/services/database/queries/userQueries';
 
 import { DeletedEntitySection } from './DeletedEntitySection';
-import type {
-  DeletedEntity,
-  EntityType,
-  EntitySectionConfig,
-  SelectedEntity,
-} from './types';
+import type { DeletedEntity, EntityType, EntitySectionConfig, SelectedEntity } from './types';
 
 /* ------------------------------------------------------------------ */
 /*  Table name lookup for count queries                                */
@@ -204,6 +195,7 @@ export function DeletedEntitiesTab() {
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionVersion, setActionVersion] = useState(0);
+  const [lastActionType, setLastActionType] = useState<EntityType | null>(null);
 
   // Confirmation dialog state
   const [restoreTarget, setRestoreTarget] = useState<SelectedEntity | null>(null);
@@ -216,7 +208,7 @@ export function DeletedEntitiesTab() {
     try {
       const types = Object.keys(TABLE_FOR_TYPE) as EntityType[];
       const results = await Promise.all(
-        types.map(async (type) => {
+        types.map(async type => {
           const { count, error } = await supabase
             .from(TABLE_FOR_TYPE[type])
             .select('id', { count: 'exact', head: true })
@@ -228,7 +220,15 @@ export function DeletedEntitiesTab() {
         })
       );
 
-      const next: Record<EntityType, number> = { show: 0, trial: 0, class: 0, entry: 0, dog: 0, club: 0, person: 0 };
+      const next: Record<EntityType, number> = {
+        show: 0,
+        trial: 0,
+        class: 0,
+        entry: 0,
+        dog: 0,
+        club: 0,
+        person: 0,
+      };
       for (const { type, count } of results) {
         next[type] = count;
       }
@@ -335,12 +335,16 @@ export function DeletedEntitiesTab() {
     if (!restoreTarget) return;
     setIsActionLoading(true);
     try {
-      const config = sections.find((s) => s.type === restoreTarget.type);
+      const config = sections.find(s => s.type === restoreTarget.type);
       if (config) {
         await config.restore(restoreTarget.id, user?.id);
         logger.info('Entity restored', 'trash', { type: restoreTarget.type, id: restoreTarget.id });
-        await fetchCounts();
-        setActionVersion((v) => v + 1);
+        setCounts(prev => ({
+          ...prev,
+          [restoreTarget.type]: Math.max(0, prev[restoreTarget.type] - 1),
+        }));
+        setLastActionType(restoreTarget.type);
+        setActionVersion(v => v + 1);
       }
     } catch (_err) {
       logger.error('Failed to restore entity', 'trash', { target: restoreTarget });
@@ -348,18 +352,25 @@ export function DeletedEntitiesTab() {
       setRestoreTarget(null);
       setIsActionLoading(false);
     }
-  }, [restoreTarget, sections, user?.id, fetchCounts]);
+  }, [restoreTarget, sections, user?.id]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     setIsActionLoading(true);
     try {
-      const config = sections.find((s) => s.type === deleteTarget.type);
+      const config = sections.find(s => s.type === deleteTarget.type);
       if (config) {
         await config.hardDelete(deleteTarget.id);
-        logger.info('Entity permanently deleted', 'trash', { type: deleteTarget.type, id: deleteTarget.id });
-        await fetchCounts();
-        setActionVersion((v) => v + 1);
+        logger.info('Entity permanently deleted', 'trash', {
+          type: deleteTarget.type,
+          id: deleteTarget.id,
+        });
+        setCounts(prev => ({
+          ...prev,
+          [deleteTarget.type]: Math.max(0, prev[deleteTarget.type] - 1),
+        }));
+        setLastActionType(deleteTarget.type);
+        setActionVersion(v => v + 1);
       }
     } catch (_err) {
       logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
@@ -367,7 +378,7 @@ export function DeletedEntitiesTab() {
       setDeleteTarget(null);
       setIsActionLoading(false);
     }
-  }, [deleteTarget, sections, fetchCounts]);
+  }, [deleteTarget, sections]);
 
   /* ---- Derived --------------------------------------------------- */
 
@@ -405,11 +416,12 @@ export function DeletedEntitiesTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-1">
-          {sections.map((config) => (
+          {sections.map(config => (
             <DeletedEntitySection
               key={config.type}
               config={config}
               count={counts[config.type]}
+              lastActionType={lastActionType}
               actionVersion={actionVersion}
               isActionLoading={isActionLoading}
               onRestore={handleShowRestore}
@@ -445,7 +457,7 @@ export function DeletedEntitiesTab() {
       {/* Restore Confirmation Dialog */}
       <AlertDialog
         open={restoreTarget !== null}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open) setRestoreTarget(null);
         }}
       >
@@ -475,7 +487,7 @@ export function DeletedEntitiesTab() {
       {/* Permanent Delete Confirmation Dialog */}
       <AlertDialog
         open={deleteTarget !== null}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open) setDeleteTarget(null);
         }}
       >

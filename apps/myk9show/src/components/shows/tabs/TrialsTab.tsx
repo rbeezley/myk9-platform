@@ -94,11 +94,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           onFilterChange={setStatusFilter}
           counts={statusCounts}
         />
-        <ViewToggle
-          modes={CARD_TABLE_MODES}
-          active={viewMode}
-          onChange={setViewMode as (key: string) => void}
-        />
+        <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
       </div>
 
       {trials.length === 0 ? (
@@ -276,9 +272,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                         : '\u2014'}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge
-                        className={`text-[10px] ${getClassStatusBadgeClasses(trial.status)}`}
-                      >
+                      <Badge className={`text-[10px] ${getClassStatusBadgeClasses(trial.status)}`}>
                         {statusDisplay.label}
                       </Badge>
                     </td>

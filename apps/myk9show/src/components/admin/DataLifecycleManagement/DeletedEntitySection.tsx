@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 interface DeletedEntitySectionProps {
   config: EntitySectionConfig;
   count: number;
+  lastActionType: EntityType | null;
   actionVersion: number;
   isActionLoading: boolean;
   onRestore: (entityId: string, entityName: string, entityType: EntityType) => void;
@@ -24,6 +25,7 @@ interface DeletedEntitySectionProps {
 export function DeletedEntitySection({
   config,
   count,
+  lastActionType,
   actionVersion,
   isActionLoading,
   onRestore,
@@ -58,9 +60,9 @@ export function DeletedEntitySection({
     [hasFetched, loadItems]
   );
 
-  // Re-fetch items when the parent signals an action completed
+  // Re-fetch items only when this section's entity type was affected
   useEffect(() => {
-    if (actionVersion > 0 && hasFetched) {
+    if (actionVersion > 0 && hasFetched && lastActionType === config.type) {
       loadItems();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,7 +75,10 @@ export function DeletedEntitySection({
       <CollapsibleTrigger asChild>
         <button className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-muted/50 transition-colors text-left">
           <ChevronRight
-            className={cn('h-4 w-4 text-muted-foreground transition-transform', isOpen && 'rotate-90')}
+            className={cn(
+              'h-4 w-4 text-muted-foreground transition-transform',
+              isOpen && 'rotate-90'
+            )}
           />
           <Icon className={cn('h-5 w-5', config.iconColor)} />
           <span className="font-medium">{config.label}</span>
@@ -87,10 +92,12 @@ export function DeletedEntitySection({
           {isLoading ? (
             <p className="text-sm text-muted-foreground py-2">Loading...</p>
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">No deleted {config.label.toLowerCase()} found.</p>
+            <p className="text-sm text-muted-foreground py-2">
+              No deleted {config.label.toLowerCase()} found.
+            </p>
           ) : (
             <>
-              {items.map((item) => (
+              {items.map(item => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border"

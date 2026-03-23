@@ -67,7 +67,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
   const mineCount = useMemo(() => classes.filter(c => c.userHasEntry).length, [classes]);
   const mineFilteredClasses = useMemo(
     () => (isMine ? classes.filter(c => c.userHasEntry) : classes),
-    [classes, isMine],
+    [classes, isMine]
   );
 
   const classDisplayStatuses = useMemo(() => {
@@ -163,11 +163,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
             hidden={!userHasEntries}
           />
         </div>
-        <ViewToggle
-          modes={CARD_TABLE_MODES}
-          active={viewMode}
-          onChange={setViewMode as (key: string) => void}
-        />
+        <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
       </div>
 
       {filteredClasses.length === 0 && classes.length > 0 ? (
@@ -195,9 +191,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                   </th>
                 )}
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
-                  Entries
-                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Entries</th>
                 <th className="w-8" />
               </tr>
             </thead>
@@ -248,7 +242,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                           <span
                             className={cn(
                               'px-2 py-0.5 rounded text-xs font-medium',
-                              getClassStatusBadgeClasses(cls.status),
+                              getClassStatusBadgeClasses(cls.status)
                             )}
                           >
                             {statusDisplay.label}

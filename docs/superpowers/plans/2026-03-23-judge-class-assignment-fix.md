@@ -195,21 +195,19 @@ Then update the return object to use the new variables:
 
 - [ ] **Step 3: Update sync query to join `judge_assignments`**
 
-In `sync()` method (line 221-224), change:
-
-```typescript
-let query = supabase.from('classes').select('*');
-```
-
-to:
+In `sync()` method (line 221-224), change **only** the `.select('*')` argument. Keep the `.gt()` and `.order()` chains intact:
 
 ```typescript
 let query = supabase
   .from('classes')
   .select(
     '*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
-  );
+  )
+  .gt('updated_at', new Date(lastSync).toISOString())
+  .order('updated_at', { ascending: true });
 ```
+
+**Important:** Do NOT remove the `.gt()` or `.order()` — they are required for incremental sync.
 
 - [ ] **Step 4: Run typecheck**
 
@@ -481,16 +479,34 @@ In `classMappers.ts`, replace line 174 (`judge: 'TBD'`) with:
 Add a helper function before `mapDatabaseToClass`:
 
 ```typescript
-/** Extract judge name from joined judge_assignments data */
-function extractJudgeName(dbClass: DbClassWithRelations): string | null {
+/** Joined judge assignment shape from the query */
+interface JoinedJudgeAssignment {
+  person_id: string;
+  people: { first_name: string; last_name: string };
+}
+
+/** Extract judge info from joined judge_assignments data */
+function extractJudgeFromJoin(dbClass: DbClassWithRelations): { name: string; id: string } | null {
   const assignments = (dbClass as Record<string, unknown>).judge_assignments as
-    | Array<{ person_id: string; people: { first_name: string; last_name: string } }>
+    | JoinedJudgeAssignment[]
     | undefined;
   const first = assignments?.[0];
   if (!first) return null;
-  return `${first.people.first_name} ${first.people.last_name}`.trim();
+  return {
+    name: `${first.people.first_name} ${first.people.last_name}`.trim(),
+    id: first.person_id,
+  };
 }
 ```
+
+Then update the `mapDatabaseToClass` return to use both name and ID:
+
+```typescript
+    judge: extractJudgeFromJoin(dbClass)?.name || 'TBD',
+    judgeId: extractJudgeFromJoin(dbClass)?.id || '',
+```
+
+Note: `SyncableClassData` doesn't have `judgeId` in its interface, but the extra property will pass through when the object is spread. This is needed by `TrialDetailsPage` (Task 7).
 
 - [ ] **Step 3: Run typecheck**
 
@@ -570,30 +586,15 @@ Before the `for` loop (line 207), add:
 const classJudgePairs: Array<{ classId: string; judgeId: string }> = [];
 ```
 
-Inside the `for` loop, after `await replicatedClassesTable.createClass(replicatedClass)` (line 221), add:
-
-```typescript
-// Track judge assignment for post-creation persistence
-if (classData.judgeId) {
-  classJudgePairs.push({ classId: replicatedClass.id, judgeId: classData.judgeId });
-}
-```
-
-Note: `classData` is a `ClassData` which doesn't have `judgeId`. We need to look it up from the wizard trials. Change the approach — instead of reading from `classData`, look up from the wizard trial data.
-
-Actually, a cleaner approach: extract the `judgeId` from the wizard trial data that `createClassDataFromWizard` consumed. The wizard `trials` array has `cls.judgeId` on each class. We can correlate by matching the generated class name/element/level to the wizard class.
-
-Simpler approach: modify `createClassDataFromWizard` in `showCreationWizardTransformers.ts` to also output `judgeId` on the `ClassData`. Add it as an ad-hoc property since `ClassData.judge` is already the name string.
-
-In `showCreationWizardTransformers.ts`, at line 139, after `judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',`, add inside the returned class object:
+First, in `showCreationWizardTransformers.ts`, at line 139, after `judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',`, add to the returned class object:
 
 ```typescript
         judgeId: cls.judgeId || '',
 ```
 
-(This extends the `ClassData` object with an extra property. TypeScript won't complain about extra properties on object literals when they're spread/assigned.)
+This adds `judgeId` as an ad-hoc property on the `ClassData` object so it's available in `createClasses`.
 
-Back in `useShowCreationWizardActions.ts`, inside the `for` loop after `createClass`:
+Then in `useShowCreationWizardActions.ts`, inside the `for` loop after `await replicatedClassesTable.createClass(replicatedClass)` (line 221), add:
 
 ```typescript
 const classJudgeId = (classData as Record<string, unknown>).judgeId as string;
@@ -642,20 +643,12 @@ if (classJudgePairs.length > 0) {
 }
 ```
 
-- [ ] **Step 4: Also add `judgeId` to `createClassDataFromWizard` output**
-
-In `showCreationWizardTransformers.ts`, at line 139, in the returned class object, add:
-
-```typescript
-        judgeId: cls.judgeId || '',
-```
-
-- [ ] **Step 5: Run typecheck**
+- [ ] **Step 4: Run typecheck**
 
 Run: `pnpm typecheck`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```
 git add apps/myk9show/src/pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts apps/myk9show/src/pages/secretary/ShowCreationWizard/showCreationWizardTransformers.ts

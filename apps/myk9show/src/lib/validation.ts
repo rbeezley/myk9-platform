@@ -163,24 +163,20 @@ export const showSchemas = {
       chiefSteward: z.string(),
       entryOpenDate: z.string(),
       entryCloseDate: z.string(),
-      preEntryFee: z
-        .string()
-        .refine(
-          val => {
-            if (!val) return true;
-            return !isNaN(parseFloat(val.replace(/[$,]/g, '')));
-          },
-          { message: 'Please enter a valid pre-entry fee amount' }
-        ),
-      dayOfShowFee: z
-        .string()
-        .refine(
-          val => {
-            if (!val) return true;
-            return !isNaN(parseFloat(val.replace(/[$,]/g, '')));
-          },
-          { message: 'Please enter a valid day of show fee amount' }
-        ),
+      preEntryFee: z.string().refine(
+        val => {
+          if (!val) return true;
+          return !isNaN(parseFloat(val.replace(/[$,]/g, '')));
+        },
+        { message: 'Please enter a valid pre-entry fee amount' }
+      ),
+      dayOfShowFee: z.string().refine(
+        val => {
+          if (!val) return true;
+          return !isNaN(parseFloat(val.replace(/[$,]/g, '')));
+        },
+        { message: 'Please enter a valid day of show fee amount' }
+      ),
       assignedJudges: z.custom<import('@/types/judge-types').ShowJudgeAssignment[]>(
         val => Array.isArray(val),
         { message: 'Invalid judge assignments' }
@@ -299,6 +295,7 @@ export const classSchemas = {
     timeLimit2: timeLimitField('time limit 2'),
     timeLimit3: timeLimitField('time limit 3'),
     judge: commonValidations.optionalString,
+    judgeId: commonValidations.optionalString,
     gateSteward: commonValidations.optionalString,
     tableSteward: commonValidations.optionalString,
     timerSteward: commonValidations.optionalString,
@@ -308,7 +305,11 @@ export const classSchemas = {
     hidesUsed: commonValidations.optionalString,
     distractionsUsed: commonValidations.optionalString,
     itemsUsed: commonValidations.optionalString,
-    preEntryFee: z.number().min(0, 'Please enter a valid pre-entry fee').optional().or(z.literal(0)),
+    preEntryFee: z
+      .number()
+      .min(0, 'Please enter a valid pre-entry fee')
+      .optional()
+      .or(z.literal(0)),
     dayOfShowFee: z
       .number()
       .min(0, 'Please enter a valid day of show fee')

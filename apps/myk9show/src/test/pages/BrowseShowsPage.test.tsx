@@ -102,6 +102,19 @@ vi.mock('@/hooks/useMineToggle', () => ({
   useMineToggle: () => ({ isMine: false, toggle: vi.fn(), setMine: vi.fn() }),
 }));
 
+// Mock useAuthContext — needed since BrowseShowsPage now calls it directly
+const mockAuthUser = { current: null as UserWithRoles | null };
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    userWithRoles: mockAuthUser.current,
+    user: mockAuthUser.current,
+    getUserRoles: () => mockAuthUser.current?.roles || [],
+    isAuthenticated: !!mockAuthUser.current,
+    isSecretary: false,
+    isAdmin: false,
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Test data
 // ---------------------------------------------------------------------------
@@ -214,6 +227,9 @@ function setupMocks(options: {
     showsError = null,
     enhancedShows,
   } = options;
+
+  // Set the auth user for useAuthContext mock
+  mockAuthUser.current = user;
 
   const tabConfig = getTabsForUser(user);
   const tabQuickActions = getTabQuickActions('all', user);

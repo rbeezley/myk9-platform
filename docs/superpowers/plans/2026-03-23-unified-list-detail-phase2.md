@@ -96,6 +96,8 @@ Run: `cd apps/myk9show && pnpm vitest run src/test/hooks/useUrlTab.test.ts --rep
 
 - [ ] **Step 3: Implement useUrlTab**
 
+Note: `allowedTabs` should reflect only the currently visible tabs. Pages that conditionally hide tabs (e.g., ShowDetailsPage hides "My Entries" for unauthenticated users) must pass a dynamic `allowedTabs` array so `useUrlTab` falls back to the default when a hidden tab is in the URL. [ADDED]
+
 ```typescript
 // src/hooks/useUrlTab.ts
 import { useCallback } from 'react';

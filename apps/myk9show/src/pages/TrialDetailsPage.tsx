@@ -432,7 +432,7 @@ const TrialDetailsPage: React.FC = () => {
         initialClassData={selectedClassForEdit || {}}
         {...(parentShow?.id !== undefined && { showId: parentShow.id })}
         onSave={async classData => {
-          if (selectedClassForEdit?.id && classData.id) {
+          if (selectedClassForEdit?.id) {
             updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });
 
             // Save judge assignment separately via judge_assignments table

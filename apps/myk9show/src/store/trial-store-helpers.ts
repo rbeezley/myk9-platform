@@ -12,6 +12,7 @@ export function trialClassToReplicated(tc: SyncableTrialClass, trialId: string):
     level: tc.level,
     section: tc.section,
     judgeName: tc.judgeName,
+    judgeId: tc.judgeId,
     startTime: tc.startTime,
     classStatus: tc.status,
     _version: tc._version,
@@ -29,7 +30,7 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
     element: replicated.element || '',
     level: replicated.level || '',
     section: replicated.section || '',
-    judgeId: '', // Local-only field (not stored in ReplicatedClass)
+    judgeId: replicated.judgeId || '',
     judgeName: replicated.judgeName || '',
     startTime: replicated.startTime || '',
     status: (replicated.classStatus as SyncableTrialClass['status']) || 'Scheduled',
@@ -53,7 +54,7 @@ export function mergeTrialClassData(
   return {
     ...base,
     // Preserve local-only fields from existing
-    judgeId: existing.judgeId || '',
+    judgeId: base.judgeId || existing.judgeId || '',
     entries: existing.entries || 0,
   };
 }

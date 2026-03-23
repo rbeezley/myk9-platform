@@ -9,6 +9,7 @@ import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
 import { AddClassesToTrialPanel } from '@/components/classes/AddClassesToTrialPanel';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
+import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import StandardDialog from '@/components/common/StandardDialog';
 import {
   AlertDialog,
@@ -147,7 +148,7 @@ const TrialDetailsPage: React.FC = () => {
           classData.status === 'Scheduled'
             ? 'Upcoming'
             : (classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled'),
-        judgeId: classData.judge || 'TBD',
+        judgeId: ((classData as unknown as Record<string, unknown>).judgeId as string) || 'TBD',
         judgeName: classData.judge || 'TBD',
         startTime,
         entries: classEntryCount,
@@ -433,6 +434,17 @@ const TrialDetailsPage: React.FC = () => {
         onSave={async classData => {
           if (selectedClassForEdit?.id && classData.id) {
             updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });
+
+            // Save judge assignment separately via judge_assignments table
+            const judgeId = (classData as Record<string, unknown>).judgeId as string | undefined;
+            if (judgeId !== undefined && parentShow?.id) {
+              try {
+                await upsertClassJudgeAssignment(parentShow.id, selectedClassForEdit.id, judgeId);
+              } catch (err) {
+                // Non-blocking — class data already saved
+              }
+            }
+
             setEditClassPanelOpen(false);
             setSelectedClassForEdit(null);
           }

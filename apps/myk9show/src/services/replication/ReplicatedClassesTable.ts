@@ -47,6 +47,7 @@ export interface ReplicatedClass {
   timeLimitArea2Seconds?: number | undefined;
   timeLimitArea3Seconds?: number | undefined;
   judgeName?: string | undefined;
+  judgeId?: string | undefined;
   classStatus?: string | undefined;
   classOrder?: number | undefined;
   isCompleted?: boolean | undefined;
@@ -109,7 +110,19 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
     timeLimitArea3Seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,
-    judgeName: (dbRow.judge_name as string | undefined) ?? undefined,
+    judgeName: (() => {
+      const ja =
+        (dbRow.judge_assignments as Array<{
+          person_id: string;
+          people: { first_name: string; last_name: string };
+        }>) || [];
+      const first = ja[0];
+      return first ? `${first.people.first_name} ${first.people.last_name}`.trim() : undefined;
+    })(),
+    judgeId: (() => {
+      const ja = (dbRow.judge_assignments as Array<{ person_id: string }>) || [];
+      return ja[0]?.person_id;
+    })(),
     classStatus: (dbRow.class_status as string | undefined) ?? undefined,
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
     isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,
@@ -220,7 +233,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       // Filter by trial_id if provided as license key
       let query = supabase
         .from('classes')
-        .select('*')
+        .select(
+          '*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
+        )
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });
 

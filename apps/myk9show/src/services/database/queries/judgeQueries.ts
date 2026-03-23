@@ -237,7 +237,7 @@ export async function persistShowJudgeAssignments(
   options?: { skipDelete?: boolean }
 ): Promise<void> {
   if (!options?.skipDelete) {
-    await assignmentsTable().delete().eq('show_id', showId);
+    await assignmentsTable().delete().eq('show_id', showId).is('class_id', null);
   }
   if (judges.length > 0) {
     await assignmentsTable().insert(
@@ -248,6 +248,29 @@ export async function persistShowJudgeAssignments(
         confirmed_at: new Date().toISOString(),
       }))
     );
+  }
+}
+
+/**
+ * Upsert a judge assignment for a specific class.
+ * Removes any existing class-level assignment, then inserts the new one.
+ * Pass empty string or 'TBD' as judgeId to remove the assignment.
+ */
+export async function upsertClassJudgeAssignment(
+  showId: string,
+  classId: string,
+  judgeId: string
+): Promise<void> {
+  await assignmentsTable().delete().eq('class_id', classId);
+
+  if (judgeId && judgeId !== 'TBD') {
+    await assignmentsTable().insert({
+      person_id: judgeId,
+      show_id: showId,
+      class_id: classId,
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+    });
   }
 }
 

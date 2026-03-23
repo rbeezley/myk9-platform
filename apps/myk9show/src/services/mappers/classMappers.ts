@@ -1,8 +1,20 @@
 // Class Data Mappers - Phase 2.5: Class Store Integration
 // Handles type conversion between classStore types and database types
 
-import type { DbClass, DbClassInsert, DbClassUpdate, DbEntry, DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
-import type { ClassInput, EntryInput, SyncableClassData, SyncableEntryData } from '@/store/classStore';
+import type {
+  DbClass,
+  DbClassInsert,
+  DbClassUpdate,
+  DbEntry,
+  DbEntryInsert,
+  DbEntryUpdate,
+} from '@/types/database-mappings';
+import type {
+  ClassInput,
+  EntryInput,
+  SyncableClassData,
+  SyncableEntryData,
+} from '@/store/classStore';
 
 // ===== JOINED DATA TYPES =====
 
@@ -59,7 +71,11 @@ function extractResult(value: JoinedResult | null | undefined): JoinedResult | n
 }
 
 const VALID_CLASS_STATUSES = new Set<ClassInput['status']>([
-  'Scheduled', 'In Progress', 'Completed', 'Cancelled', 'Upcoming',
+  'Scheduled',
+  'In Progress',
+  'Completed',
+  'Cancelled',
+  'Upcoming',
 ]);
 
 /** Map a database status string to a valid ClassInput status */
@@ -171,7 +187,13 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     trialNumber: trial?.trial_number || 'TBD',
     classOrder: dbClass.start_time ? extractClassOrder(dbClass.start_time) : '1',
     status: mapClassStatus(dbClass.status),
-    judge: 'TBD',
+    judge: (() => {
+      const ja = (dbClass as unknown as Record<string, unknown>).judge_assignments as
+        | Array<{ person_id: string; people: { first_name: string; last_name: string } }>
+        | undefined;
+      const first = ja?.[0];
+      return first ? `${first.people.first_name} ${first.people.last_name}`.trim() : 'TBD';
+    })(),
 
     // Class details
     className: dbClass.name,
@@ -307,11 +329,11 @@ const extractElement = (description: string | null): string => {
  */
 const mapEntryStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
-    'Qualified': 'qualified',
+    Qualified: 'qualified',
     'Not Qualified': 'not_qualified',
-    'Absent': 'absent',
-    'Excused': 'excused',
-    'Withdrawn': 'withdrawn',
+    Absent: 'absent',
+    Excused: 'excused',
+    Withdrawn: 'withdrawn',
   };
   return statusMap[status] || 'pending';
 };
@@ -319,16 +341,21 @@ const mapEntryStatus = (status: string): string => {
 /**
  * Map entry status from database format to classStore format
  */
-const mapDatabaseEntryStatus = (status: string | null): 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated' => {
+const mapDatabaseEntryStatus = (
+  status: string | null
+): 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated' => {
   if (!status) return 'Not Qualified';
 
-  const statusMap: Record<string, 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated'> = {
-    'qualified': 'Qualified',
-    'not_qualified': 'Not Qualified',
-    'absent': 'Absent',
-    'excused': 'Excused',
-    'withdrawn': 'Withdrawn',
-    'pending': 'Not Qualified',
+  const statusMap: Record<
+    string,
+    'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated'
+  > = {
+    qualified: 'Qualified',
+    not_qualified: 'Not Qualified',
+    absent: 'Absent',
+    excused: 'Excused',
+    withdrawn: 'Withdrawn',
+    pending: 'Not Qualified',
   };
   return statusMap[status] || 'Not Qualified';
 };

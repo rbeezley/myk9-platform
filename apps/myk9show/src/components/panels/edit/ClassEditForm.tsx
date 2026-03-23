@@ -280,23 +280,27 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField label="Judge" fieldId="judge">
+                <FormField label="Judge" fieldId="judgeId">
                   <Select
-                    value={data.judge || ''}
-                    onValueChange={handleSelectChange('judge')}
+                    value={data.judgeId || ''}
+                    onValueChange={value => {
+                      const finalValue = value === 'none' ? '' : value;
+                      form?.setValue('judgeId', finalValue);
+                      const selectedJudge = assignedJudges.find(j => j.judgeId === finalValue);
+                      form?.setValue('judge', selectedJudge?.judgeName || 'TBD');
+                      form?.touchField('judgeId');
+                    }}
                   >
-                    <SelectTrigger id="judge">
+                    <SelectTrigger id="judgeId">
                       <SelectValue placeholder="Select a judge" />
                     </SelectTrigger>
                     <SelectContent>
                       {assignedJudges.length > 0 ? (
-                        assignedJudges.map(
-                          (judge: { judgeId: string; judgeName: string }) => (
-                            <SelectItem key={judge.judgeId} value={judge.judgeName}>
-                              {judge.judgeName}
-                            </SelectItem>
-                          )
-                        )
+                        assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
+                          <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                            {judge.judgeName}
+                          </SelectItem>
+                        ))
                       ) : (
                         <SelectItem value="TBD" disabled>
                           No judges assigned to this show
@@ -318,9 +322,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 ].map(({ field, label }) => (
                   <FormField key={field} label={label} fieldId={field}>
                     <Select
-                      value={
-                        ((data as Record<string, unknown>)[field] as string) || 'none'
-                      }
+                      value={((data as Record<string, unknown>)[field] as string) || 'none'}
                       onValueChange={handleSelectChange(field as keyof ClassEditFormData)}
                     >
                       <SelectTrigger id={field}>

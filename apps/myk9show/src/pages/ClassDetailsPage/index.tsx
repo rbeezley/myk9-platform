@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Calendar, Pencil, ClipboardEdit } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
+import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
@@ -112,6 +113,21 @@ const ClassDetailsPage: React.FC = () => {
     if (classId && currentClass) {
       try {
         await updateClass(classId, data as Partial<ClassData>);
+
+        // Save judge assignment separately via judge_assignments table
+        const judgeId = (data as Record<string, unknown>).judgeId as string | undefined;
+        if (judgeId !== undefined && parentShow?.id) {
+          try {
+            await upsertClassJudgeAssignment(parentShow.id, classId, judgeId);
+          } catch (judgeError) {
+            logger.warn('Failed to save judge assignment', 'classes', {
+              classId,
+              error: judgeError instanceof Error ? judgeError.message : String(judgeError),
+            });
+            toast.warning('Class saved, but judge assignment could not be saved');
+          }
+        }
+
         toast.success('Class updated successfully');
       } catch (error) {
         logger.error('Failed to update class', 'classes', { classId }, error as Error);

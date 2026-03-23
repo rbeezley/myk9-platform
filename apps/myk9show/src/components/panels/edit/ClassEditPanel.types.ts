@@ -30,6 +30,7 @@ export interface ClassEditFormData extends Record<string, unknown> {
 
   // Officials
   judge?: string;
+  judgeId?: string;
   gateSteward?: string;
   tableSteward?: string;
   timerSteward?: string;

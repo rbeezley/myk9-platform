@@ -1,5 +1,14 @@
 import React, { lazy, Suspense } from 'react';
-import { Activity, Crown, FileText, Trophy, Stethoscope, BookOpen, GitBranch } from 'lucide-react';
+import {
+  Activity,
+  BarChart3,
+  Crown,
+  FileText,
+  Trophy,
+  Stethoscope,
+  BookOpen,
+  GitBranch,
+} from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -43,7 +52,7 @@ const DOG_TAB_DEFS: PrimaryTabDef[] = [
   { id: 'registrations', label: 'Registrations', icon: FileText },
   { id: 'competitions', label: 'Competitions', icon: Trophy },
   { id: 'title-progress', label: 'Title Progress', icon: Crown },
-  { id: 'statistics', label: 'Statistics', icon: Crown },
+  { id: 'statistics', label: 'Statistics', icon: BarChart3 },
   { id: 'health-records', label: 'Health Records', icon: Stethoscope },
   { id: 'training-journal', label: 'Training Journal', icon: BookOpen },
   { id: 'pedigree', label: 'Pedigree', icon: GitBranch },

@@ -3,77 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Filter, SortAsc } from 'lucide-react';
 
-// Mock the Base UI Tabs with lightweight HTML equivalents.
-vi.mock('@/components/ui/tabs', async () => {
-  const { createContext, useContext } = await import('react');
-
-  const TabsCtx = createContext<{
-    value: string;
-    onValueChange?: (v: string) => void;
-  }>({ value: '' });
-
-  return {
-    Tabs: ({
-      children,
-      className,
-      value,
-      onValueChange,
-    }: {
-      children: React.ReactNode;
-      className?: string;
-      value: string;
-      onValueChange?: (v: string) => void;
-    }) => (
-      <TabsCtx.Provider value={{ value, onValueChange }}>
-        <div data-testid="tabs-root" data-value={value} className={className}>
-          {children}
-        </div>
-      </TabsCtx.Provider>
-    ),
-    TabsList: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-      <div role="tablist" className={className}>
-        {children}
-      </div>
-    ),
-    TabsTrigger: ({
-      children,
-      className,
-      value: triggerValue,
-    }: {
-      children: React.ReactNode;
-      className?: string;
-      value: string;
-    }) => {
-      const ctx = useContext(TabsCtx);
-      const isActive = ctx.value === triggerValue;
-      return (
-        <button
-          role="tab"
-          className={className}
-          data-value={triggerValue}
-          data-state={isActive ? 'active' : 'inactive'}
-          aria-selected={isActive}
-          onClick={() => ctx.onValueChange?.(triggerValue)}
-        >
-          {children}
-        </button>
-      );
-    },
-    TabsContent: ({
-      children,
-      value,
-      className,
-    }: {
-      children: React.ReactNode;
-      value: string;
-      className?: string;
-    }) => (
-      <div role="tabpanel" data-value={value} className={className}>
-        {children}
-      </div>
-    ),
-  };
-});
+vi.mock('@/components/ui/tabs', () => import('./mockTabs'));
 
 import { SubTabs, SubTabsContent } from '../SubTabs';
 import type { SubTabDef } from '../SubTabs';

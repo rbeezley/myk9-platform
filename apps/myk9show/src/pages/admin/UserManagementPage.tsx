@@ -128,21 +128,17 @@ const UserManagementPage: React.FC = () => {
     []
   );
 
-  // Action buttons
-  const actionButtons = useMemo(
-    () => (
-      <>
-        <Button variant="outline" onClick={() => exportUsersCSV(filteredUsers)}>
-          <Download className="h-4 w-4 mr-2" />
-          Export Users
-        </Button>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create User
-        </Button>
-      </>
-    ),
-    [filteredUsers]
+  const actionButtons = (
+    <>
+      <Button variant="outline" onClick={() => exportUsersCSV(filteredUsers)}>
+        <Download className="h-4 w-4 mr-2" />
+        Export Users
+      </Button>
+      <Button onClick={() => setShowCreateDialog(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        Create User
+      </Button>
+    </>
   );
 
   return (

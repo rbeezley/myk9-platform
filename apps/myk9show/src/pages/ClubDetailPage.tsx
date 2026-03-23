@@ -5,7 +5,7 @@ import { ClubDetails } from '@/components/clubs/ClubDetails';
 
 /**
  * ClubDetailPage is a thin wrapper around ClubDetails for the /clubs/:id route.
- * Loads the club from the store, constructs breadcrumbs, and renders ClubDetails.
+ * Loads the club from the store and renders ClubDetails.
  */
 const ClubDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,11 +39,6 @@ const ClubDetailPage: React.FC = () => {
     }
   }, [isLoading, clubs, id, navigate]);
 
-  const breadcrumbItems = useMemo(
-    () => [{ label: 'Clubs', href: '/clubs' }, ...(club ? [{ label: club.name }] : [])],
-    [club]
-  );
-
   if (isLoading || (clubs.length === 0 && !club)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -52,7 +47,7 @@ const ClubDetailPage: React.FC = () => {
     );
   }
 
-  return <ClubDetails selectedClub={club} breadcrumbItems={breadcrumbItems} />;
+  return <ClubDetails selectedClub={club} />;
 };
 
 export default ClubDetailPage;

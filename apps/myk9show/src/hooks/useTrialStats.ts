@@ -57,7 +57,7 @@ export function useTrialStats(
         : 0;
 
     // Count qualified entries from actual competition results
-    const classIdSet = new Set(trial.classes!.map((c: TrialClass) => c.id));
+    const classIdSet = new Set(trial.classes.map((c: TrialClass) => c.id));
     const trialEntries = allEntries.filter(e => classIdSet.has(e.classId));
     const qualifiedEntries = trialEntries.filter(e => e.status === 'Qualified').length;
     const scoredEntries = trialEntries.filter(

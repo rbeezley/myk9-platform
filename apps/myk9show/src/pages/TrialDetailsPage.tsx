@@ -32,10 +32,18 @@ import {
   Tag,
   DollarSign,
   Pencil,
+  Trash2,
+  MoreVertical,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -298,10 +306,25 @@ const TrialDetailsPage: React.FC = () => {
             breadcrumbs={breadcrumbs}
             title={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
             actions={
-              <Button variant="outline" size="sm" onClick={handleEditTrial}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleEditTrial}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleDeleteTrial} className="text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Trial
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             }
           />
 
@@ -322,26 +345,9 @@ const TrialDetailsPage: React.FC = () => {
               <TrialDetailsMain
                 trial={trialWithClasses}
                 statistics={trialStatistics}
-                parentShow={
-                  parentShow
-                    ? {
-                        id: parentShow.id,
-                        name: parentShow.name,
-                        organization: parentShow.organization,
-                      }
-                    : undefined
-                }
-                onEdit={handleEditTrial}
-                onDelete={handleDeleteTrial}
                 onAddClassesFromTemplate={handleAddClassesFromTemplate}
                 onEditClass={handleEditClass}
                 onDeleteClass={handleDeleteClass}
-                onPrevTrial={handlePrevTrial}
-                onNextTrial={handleNextTrial}
-                prevTrialId={prevTrialId}
-                nextTrialId={nextTrialId}
-                currentTrialIndex={currentTrialIndex}
-                totalTrials={showTrials.length}
               />
             </TabsContent>
 

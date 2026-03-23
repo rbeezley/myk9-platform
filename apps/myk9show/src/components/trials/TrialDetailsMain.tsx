@@ -1,109 +1,27 @@
-import React, { startTransition } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import { Trial, TrialClass } from './types/trial.types';
 import { TrialStatisticsData } from './TrialDetail/TrialStatistics';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Users,
-  Trophy,
-  Trash2,
-  MoreVertical,
-  Play,
-  Check,
-  Clock,
-  Gavel,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { Users, Trophy, Gavel } from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import { TrialTimeline } from '@/components/schedule';
-import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
-import Breadcrumb from '@/components/common/Breadcrumb';
-import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import type { Show } from '@/types/show-types';
 import '@/styles/myk9-show-details.css';
 
 interface TrialDetailsMainProps {
   trial: Trial & { classes?: TrialClass[] };
   statistics: TrialStatisticsData;
-  parentShow?:
-    | ({ id: string; name: string; organization: string } & Record<string, unknown>)
-    | undefined;
-  onEdit: () => void;
-  onDelete: () => void;
   onAddClassesFromTemplate?: () => void;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
-  // Navigation props
-  onPrevTrial?: () => void;
-  onNextTrial?: () => void;
-  prevTrialId?: string | null;
-  nextTrialId?: string | null;
-  currentTrialIndex?: number;
-  totalTrials?: number;
 }
 
 const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
   trial,
   statistics,
-  parentShow,
-  onEdit,
-  onDelete,
   onAddClassesFromTemplate,
   onEditClass,
   onDeleteClass,
-  onPrevTrial,
-  onNextTrial,
-  prevTrialId,
-  nextTrialId,
-  currentTrialIndex,
-  totalTrials,
 }) => {
-  const navigate = useNavigate();
-
-  // Generate breadcrumb items
-  const breadcrumbItems = useBreadcrumb({
-    currentPage: 'trial',
-    show: parentShow as unknown as Show | undefined,
-    trial: trial,
-  });
-  const getStatusClass = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'upcoming':
-      case 'scheduled':
-        return 'myk9-show-status-upcoming';
-      case 'in progress':
-        return 'myk9-show-status-in-progress';
-      case 'completed':
-        return 'myk9-show-status-completed';
-      case 'cancelled':
-        return 'myk9-show-status-cancelled';
-      default:
-        return 'myk9-show-status-upcoming';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'upcoming':
-      case 'scheduled':
-        return <Clock className="w-3 h-3" />;
-      case 'in progress':
-        return <Play className="w-3 h-3" />;
-      case 'completed':
-        return <Check className="w-3 h-3" />;
-      default:
-        return <Clock className="w-3 h-3" />;
-    }
-  };
-
-  // Build stats array with contextual subtitles (not misleading percent changes)
+  // Build stats array with contextual subtitles
   const baseStats = [
     {
       title: 'Judges',
@@ -165,114 +83,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
       : baseStats;
 
   return (
-    <div className="myk9-show-container">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="mb-6" />
-
-      {/* Trial Information Card */}
-      <div className="myk9-show-info-card">
-        <div className="myk9-show-info-header">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="myk9-show-info-title">{trial.type || 'Trial'}</div>
-              <div className={`myk9-show-status ${getStatusClass(trial.status)}`}>
-                {getStatusIcon(trial.status)}
-                {trial.status || 'Upcoming'}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Trial Navigation */}
-            {totalTrials && totalTrials > 1 && (
-              <div className="flex items-center gap-1 mr-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onPrevTrial}
-                  disabled={!prevTrialId}
-                  title="Previous Trial"
-                  className="h-8 w-8 p-0"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-xs text-muted-foreground min-w-[4rem] text-center">
-                  {(currentTrialIndex ?? 0) + 1} of {totalTrials}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onNextTrial}
-                  disabled={!nextTrialId}
-                  title="Next Trial"
-                  className="h-8 w-8 p-0"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-
-            <Button variant="outline" size="sm" onClick={onEdit}>
-              Edit
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Trial
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        <div className="myk9-show-info-grid">
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Trial Date</div>
-            <div className="myk9-show-info-value">
-              {new Date(trial.trialDate + 'T00:00:00').toLocaleDateString()}
-            </div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Trial Number</div>
-            <div className="myk9-show-info-value">{trial.trialNumber}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Event Number</div>
-            <div className="myk9-show-info-value">{trial.eventNumber}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Show Name</div>
-            <div className="myk9-show-info-value">
-              {trial.showId ? (
-                <button
-                  onClick={() => startTransition(() => navigate(`/shows/${trial.showId}`))}
-                  className="text-inherit hover:text-blue-600 dark:hover:text-blue-400 transition-colors underline decoration-dotted underline-offset-2"
-                >
-                  {parentShow?.name || trial.showName || 'Unknown Show'}
-                </button>
-              ) : (
-                parentShow?.name || trial.showName || 'Unknown Show'
-              )}
-            </div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Planned Start</div>
-            <div className="myk9-show-info-value">
-              {formatStartTime(trial.plannedStartTime ?? null) || 'TBD'}
-            </div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Total Classes</div>
-            <div className="myk9-show-info-value">{trial.classes?.length || 0}</div>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* Statistics Cards */}
       <div className="myk9-show-stats-section">
         <div className="myk9-show-stats-grid grid-cols-1 md:grid-cols-4">
@@ -304,7 +115,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
                 <div
                   className={`myk9-show-stat-progress-bar ${stat.type}`}
                   style={{ width: `${stat.progress}%` }}
-                ></div>
+                />
               </div>
             </div>
           ))}
@@ -312,7 +123,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
       </div>
 
       {/* Timeline */}
-      <div className="mb-6">
+      <div>
         <h3 className="mb-3 text-base font-semibold">Timeline</h3>
         <TrialTimeline trialId={trial.id} showId={trial.showId} />
       </div>

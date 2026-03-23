@@ -19,6 +19,8 @@ export interface BrowseDogsData {
   dogs: Dog[];
   filteredDogs: Dog[];
   isLoading: boolean;
+  hasError: boolean;
+  handleRetry: () => void;
   filters: DogFilters;
   setFilters: React.Dispatch<React.SetStateAction<DogFilters>>;
   hasActiveFilters: boolean;
@@ -28,7 +30,12 @@ export interface BrowseDogsData {
 
 export function useBrowseDogsData(): BrowseDogsData {
   const dogs = useRoleBasedDogs();
-  const { isLoading } = useDogStoreCompat();
+  const { isLoading, error, refetch } = useDogStoreCompat();
+
+  const hasError = !!error;
+  const handleRetry = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const [filters, setFilters] = useState<DogFilters>(INITIAL_FILTERS);
 
@@ -84,6 +91,8 @@ export function useBrowseDogsData(): BrowseDogsData {
     dogs,
     filteredDogs,
     isLoading,
+    hasError,
+    handleRetry,
     filters,
     setFilters,
     hasActiveFilters,

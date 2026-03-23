@@ -7,16 +7,15 @@
 import { startTransition, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Info, Calendar, Building2, Trophy, ClipboardEdit } from 'lucide-react';
+import { Calendar, Pencil, ClipboardEdit } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
-import { RecordPageLayout } from '@/components/layout/record';
-import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
 import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
 import type { ClassStatusValue } from '@myk9/core';
+import { Button } from '@/components/ui/button';
 
 import { useClassDetailsData } from './useClassDetailsData';
 import { useClassDetailsDialogs } from './useClassDetailsDialogs';
@@ -24,6 +23,11 @@ import { ClassNotFoundState, EmptyClassState, LoadingClassState } from './ClassS
 import { DeleteClassDialog } from './DeleteClassDialog';
 import { EditEntryDialog } from './EditEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
+
+// Shared primitives
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { DetailHero, getStatusBadge } from '@/components/common/DetailHero';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -155,8 +159,6 @@ const ClassDetailsPage: React.FC = () => {
 
   const handleResultUpdate = async (entryId: string, result: Partial<CompetitionResult>) => {
     try {
-      logger.debug('handleResultUpdate called', 'classes', { entryId, result });
-
       const qualified =
         result.status === 'Qualified'
           ? true
@@ -175,101 +177,76 @@ const ClassDetailsPage: React.FC = () => {
       };
 
       await updateResult(entryId, storeUpdate, user?.id || 'unknown');
-      logger.debug('updateResult called successfully', 'classes', { entryId });
     } catch (error) {
       logger.error('Failed to update result', 'classes', { entryId }, error as Error);
       throw error;
     }
   };
 
-  // Left sidebar: class properties
-  const classProperties: PropertySectionConfig[] = useMemo(() => {
-    if (!currentClass) return [];
-    return [
-      {
-        key: 'details',
-        title: 'Class Details',
-        icon: Info,
-        iconGradient: 'from-blue-500/10 to-indigo-500/5',
-        iconColor: 'text-blue-600 dark:text-blue-400',
-        fields: [
-          { label: 'Element', value: currentClass.element || null },
-          { label: 'Level', value: currentClass.level || null },
-          { label: 'Section', value: currentClass.section || null },
-          { label: 'Judge', value: currentClass.judge || null },
-          {
-            label: 'Class Order',
-            value: currentClass.classOrder ? `#${currentClass.classOrder}` : null,
-          },
-          { label: 'Status', value: currentClass.status || null },
-        ],
-      },
-      {
-        key: 'timing',
-        title: 'Timing',
-        icon: Calendar,
-        iconGradient: 'from-amber-500/10 to-orange-500/5',
-        iconColor: 'text-amber-600 dark:text-amber-400',
-        fields: [
-          { label: 'Time Limit', value: currentClass.timeLimit1 || null },
-          {
-            label: 'Trial Date',
-            value: currentClass.trialDate
-              ? new Date(currentClass.trialDate + 'T00:00:00').toLocaleDateString()
-              : null,
-          },
-        ],
-      },
-    ];
-  }, [currentClass]);
-
-  // Right sidebar: associations
-  const classAssociations: AssociationConfig[] = useMemo(() => {
-    const items: AssociationConfig[] = [];
-    if (parentTrial) {
-      const trialAssoc: AssociationConfig = {
-        key: 'trial',
-        title: parentTrial.type || parentTrial.trialNumber || 'Trial',
-        icon: Trophy,
-        href: `/trials/${parentTrial.id}`,
-      };
-      if (parentTrial.trialDate)
-        trialAssoc.subtitle = new Date(parentTrial.trialDate + 'T00:00:00').toLocaleDateString();
-      items.push(trialAssoc);
-    }
+  // Breadcrumbs
+  const breadcrumbs = useMemo(() => {
+    const crumbs = [{ label: 'Shows', href: '/shows' }];
     if (parentShow) {
-      const showAssoc: AssociationConfig = {
-        key: 'show',
-        title: parentShow.name,
-        icon: Building2,
-        href: `/shows/${parentShow.id}`,
-      };
-      if (parentShow.organization) showAssoc.subtitle = parentShow.organization;
-      items.push(showAssoc);
+      crumbs.push({ label: parentShow.name, href: `/shows/${parentShow.id}` });
     }
-    const entryCount = classEntries.length;
-    if (entryCount > 0) {
-      items.push({
-        key: 'entries',
-        title: 'Entries',
-        subtitle: `${entryCount} entr${entryCount !== 1 ? 'ies' : 'y'}`,
-        icon: Calendar,
-        badge: String(entryCount),
-      });
+    if (parentTrial) {
+      const trialLabel = parentTrial.type || parentTrial.trialNumber || 'Trial';
+      crumbs.push({ label: trialLabel, href: `/trials/${parentTrial.id}` });
+    }
+    const classLabel = currentClass
+      ? `${currentClass.element || ''} ${currentClass.level || ''}`.trim() || 'Class'
+      : 'Class';
+    crumbs.push({ label: classLabel, href: `/classes/${classId}` });
+    return crumbs;
+  }, [parentShow, parentTrial, currentClass, classId]);
 
-      // Secretary/admin: quick link to enter scores
-      if ((isSecretary || isAdmin) && classId) {
-        items.push({
-          key: 'enter-scores',
-          title: 'Enter Scores',
-          subtitle: 'Open scoring flow',
-          icon: ClipboardEdit,
-          href: `/scoring/secretary/classes/${classId}`,
-        });
-      }
+  // Status badge
+  const statusBadge = useMemo(() => getStatusBadge(currentClass?.status), [currentClass?.status]);
+
+  // Hero metadata
+  const heroMetadata = useMemo(() => {
+    const items = [];
+    if (currentClass?.judge) {
+      items.push({ label: `Judge: ${currentClass.judge}` });
+    }
+    if (currentClass?.trialDate) {
+      items.push({
+        label: new Date(currentClass.trialDate + 'T00:00:00').toLocaleDateString(),
+        icon: <Calendar className="h-4 w-4" />,
+      });
+    }
+    if (classEntries.length > 0) {
+      items.push({
+        label: `${classEntries.length} entr${classEntries.length !== 1 ? 'ies' : 'y'}`,
+      });
     }
     return items;
-  }, [parentTrial, parentShow, classEntries.length, isSecretary, isAdmin, classId]);
+  }, [currentClass?.judge, currentClass?.trialDate, classEntries.length]);
+
+  // Action buttons
+  const actionButtons = useMemo(() => {
+    const buttons = [];
+    if ((isSecretary || isAdmin) && classId) {
+      buttons.push(
+        <Button
+          key="scores"
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(`/scoring/secretary/classes/${classId}`)}
+        >
+          <ClipboardEdit className="h-4 w-4 mr-2" />
+          Enter Scores
+        </Button>
+      );
+    }
+    buttons.push(
+      <Button key="edit" variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
+        <Pencil className="h-4 w-4 mr-2" />
+        Edit
+      </Button>
+    );
+    return <>{buttons}</>;
+  }, [isSecretary, isAdmin, classId, navigate, dialogs]);
 
   // Early returns for different states
   if (classId && !currentClass && trialClasses.length > 0) {
@@ -283,34 +260,37 @@ const ClassDetailsPage: React.FC = () => {
     return <LoadingClassState />;
   }
 
+  const className = `${currentClass.element || ''} ${currentClass.level || ''}`.trim() || 'Class';
+
   return (
-    <div className="min-h-screen bg-background">
-      <RecordPageLayout
-        className="py-6"
-        storageKey="myk9:class"
-        properties={classProperties}
-        associations={classAssociations}
-        tabsContent={
-          <ClassDetailsMain
-            classData={currentClass}
-            classEntries={classEntries}
-            {...(parentShow !== undefined && { parentShow })}
-            {...(parentTrial !== undefined && { parentTrial })}
-            isResultsView={isResultsView}
-            onEditClass={dialogs.openEditClassPanel}
-            onDeleteClass={dialogs.openDeleteDialog}
-            onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
-            onViewTrial={handleViewTrial}
-            onAddEntry={() => {
-              if (parentShow?.id) {
-                navigate(`/shows/${parentShow.id}/register`);
-              }
-            }}
-            onDeleteEntry={handleDeleteEntry}
-            onStatusChange={handleStatusChange}
-            onResultUpdate={handleResultUpdate}
-          />
-        }
+    <PageShell>
+      <PageHeader breadcrumbs={breadcrumbs} title={className} actions={actionButtons} />
+
+      <DetailHero
+        name={className}
+        subtitle={currentClass.section ? `Section ${currentClass.section}` : undefined}
+        metadata={heroMetadata}
+        badge={statusBadge}
+      />
+
+      <ClassDetailsMain
+        classData={currentClass}
+        classEntries={classEntries}
+        {...(parentShow !== undefined && { parentShow })}
+        {...(parentTrial !== undefined && { parentTrial })}
+        isResultsView={isResultsView}
+        onEditClass={dialogs.openEditClassPanel}
+        onDeleteClass={dialogs.openDeleteDialog}
+        onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
+        onViewTrial={handleViewTrial}
+        onAddEntry={() => {
+          if (parentShow?.id) {
+            navigate(`/shows/${parentShow.id}/register`);
+          }
+        }}
+        onDeleteEntry={handleDeleteEntry}
+        onStatusChange={handleStatusChange}
+        onResultUpdate={handleResultUpdate}
       />
 
       {/* Dialogs */}
@@ -353,7 +333,7 @@ const ClassDetailsPage: React.FC = () => {
         dogs={dogs}
         onConfirm={handleConfirmDeleteEntry}
       />
-    </div>
+    </PageShell>
   );
 };
 

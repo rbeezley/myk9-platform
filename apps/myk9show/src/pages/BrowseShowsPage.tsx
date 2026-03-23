@@ -3,8 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
@@ -44,6 +45,8 @@ import { MineToggle } from '@/components/common/MineToggle';
 import { useMineToggle } from '@/hooks/useMineToggle';
 
 // Extracted hooks and components
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { getTabsForUser } from '@/utils/unified-shows-config';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
@@ -62,12 +65,15 @@ const VIEW_MODES = [
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { userWithRoles: authUser } = useAuthContext();
 
-  // Get initial values from URL params
-  const initialTab = searchParams.get('tab') || 'all';
+  // Compute allowed tabs from user roles (needed before useUrlTab)
+  const tabConfig = useMemo(() => getTabsForUser(authUser), [authUser]);
+  const allowedTabIds = useMemo(() => tabConfig.tabs.map(t => t.id), [tabConfig.tabs]);
+  const [selectedTab, setSelectedTab] = useUrlTab(allowedTabIds, tabConfig.defaultTab);
+
+  // View mode state (still URL-synced manually — useUrlTab only manages ?tab=)
   const initialViewMode = (searchParams.get('view') as ViewMode) || 'cards';
-
-  const [selectedTab, setSelectedTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [isViewModeChanging, setIsViewModeChanging] = useState(false);
@@ -83,7 +89,6 @@ const BrowseShowsPage: React.FC = () => {
     shows,
     entries,
     enhancedShows: allEnhancedShows,
-    tabConfig,
     userContext,
     tabQuickActions,
     handleRetry,
@@ -126,7 +131,7 @@ const BrowseShowsPage: React.FC = () => {
         if (view.config.tab) setSelectedTab(view.config.tab);
       }
     },
-    [savedViewsList, applyView, setFilters]
+    [savedViewsList, applyView, setFilters, setSelectedTab]
   );
 
   // Build club filter options from available shows
@@ -231,43 +236,29 @@ const BrowseShowsPage: React.FC = () => {
     handleRetry(); // Refresh data after bulk action
   }, [bulkSelection, handleRetry]);
 
-  // Update selected tab if current tab is not available for this user
-  useEffect(() => {
-    if (!tabConfig.tabs.some(tab => tab.id === selectedTab)) {
-      queueMicrotask(() => setSelectedTab(tabConfig.defaultTab));
-    }
-  }, [tabConfig, selectedTab]);
-
   // Real-time updates
   useRealTimeUpdates();
 
-  // Update URL params when tab or view mode changes
-  const updateUrlParams = useCallback(
-    (newTab?: string, newViewMode?: ViewMode) => {
-      const params = new URLSearchParams(searchParams);
-
-      if (newTab !== undefined) {
-        if (newTab === 'all') {
-          params.delete('tab');
-        } else {
-          params.set('tab', newTab);
-        }
-      }
-
-      if (newViewMode !== undefined) {
-        if (newViewMode === 'cards') {
-          params.delete('view');
-        } else {
-          params.set('view', newViewMode);
-        }
-      }
-
-      setSearchParams(params, { replace: true });
+  // Update view mode URL param (tab is handled by useUrlTab)
+  const updateViewModeParam = useCallback(
+    (newViewMode: ViewMode) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (newViewMode === 'cards') {
+            next.delete('view');
+          } else {
+            next.set('view', newViewMode);
+          }
+          return next;
+        },
+        { replace: true }
+      );
     },
-    [searchParams, setSearchParams]
+    [setSearchParams]
   );
 
-  // Handle tab change with URL update and loading state
+  // Handle tab change with permission check and loading state
   const handleTabChange = useCallback(
     (newTab: string) => {
       if (newTab === selectedTab) return;
@@ -279,10 +270,9 @@ const BrowseShowsPage: React.FC = () => {
 
       setIsTabSwitching(true);
       setSelectedTab(newTab);
-      updateUrlParams(newTab, undefined);
       setTimeout(() => setIsTabSwitching(false), 300);
     },
-    [updateUrlParams, selectedTab, user]
+    [selectedTab, setSelectedTab, user]
   );
 
   // Handle view mode change with URL update and loading state
@@ -293,21 +283,15 @@ const BrowseShowsPage: React.FC = () => {
 
       setIsViewModeChanging(true);
       setViewMode(newViewMode);
-      updateUrlParams(undefined, newViewMode);
+      updateViewModeParam(newViewMode);
       setTimeout(() => setIsViewModeChanging(false), 200);
     },
-    [updateUrlParams, viewMode]
+    [updateViewModeParam, viewMode]
   );
 
-  // Sync state with URL params on mount and param changes
+  // Sync view mode and club filter from URL on mount and param changes
   useEffect(() => {
-    const rawTab = searchParams.get('tab') || tabConfig.defaultTab;
-    const tabFromUrl = tabConfig.tabs.some(t => t.id === rawTab) ? rawTab : tabConfig.defaultTab;
     const viewFromUrl = (searchParams.get('view') as ViewMode) || 'cards';
-
-    if (tabFromUrl !== selectedTab) {
-      queueMicrotask(() => setSelectedTab(tabFromUrl));
-    }
     if (viewFromUrl !== viewMode) {
       queueMicrotask(() => setViewMode(viewFromUrl));
     }
@@ -315,7 +299,7 @@ const BrowseShowsPage: React.FC = () => {
     if (clubFromUrl && clubFromUrl !== (filters.club === 'all' ? null : filters.club)) {
       queueMicrotask(() => setFilters(prev => ({ ...prev, club: clubFromUrl })));
     }
-  }, [searchParams, tabConfig]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Breadcrumb items for PageHeader
   const breadcrumbs = useMemo(() => {
@@ -402,15 +386,17 @@ const BrowseShowsPage: React.FC = () => {
     });
   }, [user]);
 
-  // Validate tab access on initial load
-  useEffect(() => {
-    if (selectedTab && !ShowPermissionValidator.canAccessTab(user, selectedTab)) {
-      const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(user);
-      if (accessibleTabs.length > 0) {
-        queueMicrotask(() => handleTabChange(accessibleTabs[0]));
-      }
-    }
-  }, [selectedTab, user, handleTabChange]);
+  // Map ShowTab[] → PrimaryTabDef[] with computed counts
+  const tabDefs: PrimaryTabDef[] = useMemo(
+    () =>
+      tabConfig.tabs.map(tab => {
+        const def: PrimaryTabDef = { id: tab.id, label: tab.label };
+        if (tab.icon) def.icon = tab.icon;
+        if (tab.getCount) def.count = tab.getCount(shows, entries, user?.id);
+        return def;
+      }),
+    [tabConfig.tabs, shows, entries, user?.id]
+  );
 
   // Render shows in different view modes
   const renderShowsView = () => {
@@ -545,40 +531,7 @@ const BrowseShowsPage: React.FC = () => {
           />
 
           {/* Tabs */}
-          <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6">
-            <div className="overflow-x-auto">
-              <TabsList
-                className="grid w-full bg-muted/50 border border-border/30 rounded-xl p-1 h-auto min-w-max"
-                style={{
-                  gridTemplateColumns: `repeat(${tabConfig.tabs.length}, minmax(0, 1fr))`,
-                }}
-              >
-                {tabConfig.tabs.map(tab => {
-                  const count = tab.getCount ? tab.getCount(shows, entries, user?.id) : 0;
-                  return (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap"
-                      title={tab.description}
-                      disabled={isTabSwitching}
-                    >
-                      <span className="flex items-center gap-2">
-                        {tab.icon && <tab.icon className="h-4 w-4" />}
-                        {tab.label}
-                        <Badge
-                          variant={selectedTab === tab.id ? 'default' : 'secondary'}
-                          className="text-sm px-1.5 py-0.5 min-w-[20px] justify-center"
-                        >
-                          {count}
-                        </Badge>
-                      </span>
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-            </div>
-
+          <PrimaryTabs tabs={tabDefs} value={selectedTab} onValueChange={handleTabChange}>
             <TabsContent value={selectedTab}>
               {isTabSwitching || isViewModeChanging ? (
                 <TabContentSkeleton viewMode={viewMode} count={4} />
@@ -586,7 +539,7 @@ const BrowseShowsPage: React.FC = () => {
                 renderShowsView()
               )}
             </TabsContent>
-          </Tabs>
+          </PrimaryTabs>
         </>
       )}
     </PageShell>

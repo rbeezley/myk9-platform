@@ -1,6 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { EyeOff, Eye } from 'lucide-react';
-import { useRememberedTab } from '@/hooks/useRememberedTab';
 
 export interface FieldDefinition {
   label: string;
@@ -40,9 +39,23 @@ export const FilterableFieldGrid: React.FC<FilterableFieldGridProps> = ({
   fields,
   columns = 2,
 }) => {
-  // Reuse remembered-tab hook for simple string persistence ("show" | "hide")
-  const [hideEmpty, setHideEmpty] = useRememberedTab(`fields:${sectionKey}`, 'show');
-  const isHiding = hideEmpty === 'hide';
+  const storageKey = `myk9:field-grid:${sectionKey}`;
+  const [isHiding, setIsHiding] = useState(() => {
+    try {
+      return localStorage.getItem(storageKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleHideEmpty = () => {
+    const next = !isHiding;
+    setIsHiding(next);
+    try {
+      localStorage.setItem(storageKey, String(next));
+    } catch {
+      /* noop */
+    }
+  };
 
   const { visible, filledCount, totalCount } = useMemo(() => {
     const filled = fields.filter(f => !isEmpty(f.value));
@@ -62,7 +75,7 @@ export const FilterableFieldGrid: React.FC<FilterableFieldGridProps> = ({
         <div className="flex items-center justify-end mb-3">
           <button
             type="button"
-            onClick={() => setHideEmpty(isHiding ? 'show' : 'hide')}
+            onClick={toggleHideEmpty}
             className="flex items-center gap-1.5 text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors duration-200"
           >
             {isHiding ? (

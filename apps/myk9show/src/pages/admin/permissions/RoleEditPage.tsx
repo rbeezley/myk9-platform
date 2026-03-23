@@ -11,7 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import {
   ArrowLeft,
   Shield,
@@ -23,6 +25,8 @@ import {
   Users,
   History,
   TreePine,
+  Grid3X3,
+  ClipboardList,
 } from 'lucide-react';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
@@ -39,9 +43,19 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+const ROLE_TAB_IDS = ['editor', 'grid', 'inheritance', 'summary'] as const;
+
+const ROLE_TAB_DEFS: PrimaryTabDef[] = [
+  { id: 'editor', label: 'Permission Editor', icon: Settings },
+  { id: 'grid', label: 'Permission Grid', icon: Grid3X3 },
+  { id: 'inheritance', label: 'Inheritance', icon: TreePine },
+  { id: 'summary', label: 'Summary', icon: ClipboardList },
+];
+
 const RoleEditPage: React.FC = () => {
   const { roleId } = useParams<{ roleId: string }>();
   // const navigate = useNavigate(); // Not used
+  const [activeTab, setTab] = useUrlTab(ROLE_TAB_IDS, 'editor');
 
   const [role, setRole] = useState<Role | null>(null);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -266,14 +280,12 @@ const RoleEditPage: React.FC = () => {
       </Card>
 
       {/* Permission Management Tabs */}
-      <Tabs defaultValue="editor" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="editor">Permission Editor</TabsTrigger>
-          <TabsTrigger value="grid">Permission Grid</TabsTrigger>
-          <TabsTrigger value="inheritance">Inheritance</TabsTrigger>
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-        </TabsList>
-
+      <PrimaryTabs
+        tabs={ROLE_TAB_DEFS}
+        value={activeTab}
+        onValueChange={setTab}
+        className="space-y-4"
+      >
         <TabsContent value="editor" className="space-y-4">
           <RolePermissionsEditor
             role={role}
@@ -435,7 +447,7 @@ const RoleEditPage: React.FC = () => {
             </Card>
           </div>
         </TabsContent>
-      </Tabs>
+      </PrimaryTabs>
 
       {/* Reset Confirmation Dialog */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>

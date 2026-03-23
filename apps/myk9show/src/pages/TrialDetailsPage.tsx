@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { logger } from '@/services/LoggingService';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -21,25 +20,36 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
 import { PromoCodesSection } from '@/components/secretary/PromoCodesSection';
 import { FinancialSummary } from '@/components/secretary/FinancialSummary';
 import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesTable';
-import { Trial, TrialClass } from '@/components/trials/types/trial.types';
-import { ClassTemplate, ClassDefinition } from '@/types/template.types';
-import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
-import { useRememberedTab } from '@/hooks/useRememberedTab';
-import { RecordPageLayout } from '@/components/layout/record';
-import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
+import { TrialClass } from '@/components/trials/types/trial.types';
 import {
   Calendar,
-  Info,
-  Building2,
   LayoutDashboard,
   ClipboardList,
   Tag,
   DollarSign,
+  Pencil,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+// Shared primitives
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { DetailHero, getStatusBadge } from '@/components/common/DetailHero';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { ErrorState } from '@/components/common/ErrorState';
+import { useUrlTab } from '@/hooks/useUrlTab';
+
+// Extracted hooks
+import { useTrialStats } from '@/hooks/useTrialStats';
+import { useTrialTemplates } from '@/hooks/useTrialTemplates';
+
+const TAB_IDS = ['overview', 'entries', 'promo-codes', 'financials'] as const;
 
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
@@ -55,11 +65,8 @@ const TrialDetailsPage: React.FC = () => {
   const { templates } = useTemplateStore();
   const { shows } = useShowStore();
 
-  // Templates will be automatically initialized by the store on app start
-  // No need to initialize here to avoid duplicates
-
-  // Tab state
-  const [activeTab, setActiveTab] = useRememberedTab('trial-details', 'overview');
+  // Tab state — URL-synced
+  const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'overview');
 
   // Panel state
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(false);
@@ -81,81 +88,48 @@ const TrialDetailsPage: React.FC = () => {
 
   // Set selected trial based on URL parameter
   useEffect(() => {
-    logger.debug('TrialDetailsPage useEffect - trialId from URL', 'trials', { trialId });
-    if (trialId) {
-      logger.debug('TrialDetailsPage - Selecting trial', 'trials', { trialId });
-      // Always select the trial from URL, regardless of current state
-      selectTrial(trialId);
-    }
+    if (trialId) selectTrial(trialId);
   }, [trialId, selectTrial]);
 
-  // Get current trial with proper type
+  // Get current trial
   const currentTrial = trials.find(trial => trial.id === selectedTrialId) as
-    | (Trial & { classes?: TrialClass[] })
+    | (import('@/components/trials/types/trial.types').Trial & { classes?: TrialClass[] })
     | undefined;
 
-  // Debug logging
-  useEffect(() => {
-    logger.debug('TrialDetailsPage - state update', 'trials', {
-      trialIdFromUrl: trialId,
-      selectedTrialId,
-      currentTrialId: currentTrial?.id,
-      availableTrials: trials.map(t => ({ id: t.id, type: t.type })),
-    });
-  }, [trialId, selectedTrialId, currentTrial, trials]);
-
-  // Get the parent show's organization
+  // Get the parent show
   const parentShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
   const showOrganization = parentShow?.organization;
 
-  // Filter trials to only show trials from the same show
+  // Sibling trials for prev/next navigation
   const showTrials = currentTrial
     ? trials.filter(trial => trial.showId === currentTrial.showId)
     : [];
-
-  // Calculate navigation indices for prev/next trial
   const currentTrialIndex = showTrials.findIndex(t => t.id === selectedTrialId);
   const prevTrialId = currentTrialIndex > 0 ? showTrials[currentTrialIndex - 1]?.id : null;
   const nextTrialId =
     currentTrialIndex < showTrials.length - 1 ? showTrials[currentTrialIndex + 1]?.id : null;
 
-  // Navigation handlers
   const handlePrevTrial = () => {
     if (prevTrialId) {
-      const url = showId ? `/shows/${showId}/trials/${prevTrialId}` : `/trials/${prevTrialId}`;
-      navigate(url);
+      navigate(showId ? `/shows/${showId}/trials/${prevTrialId}` : `/trials/${prevTrialId}`);
     }
   };
 
   const handleNextTrial = () => {
     if (nextTrialId) {
-      const url = showId ? `/shows/${showId}/trials/${nextTrialId}` : `/trials/${nextTrialId}`;
-      navigate(url);
+      navigate(showId ? `/shows/${showId}/trials/${nextTrialId}` : `/trials/${nextTrialId}`);
     }
   };
 
-  // Debug logging for show type inheritance
-  if (currentTrial) {
-    logger.debug('TrialDetailsPage - show type inheritance', 'trials', {
-      currentTrialId: currentTrial.id,
-      parentShowId: parentShow?.id,
-      showOrganization,
-    });
-  }
-
-  // Compute trial with classes using useMemo instead of mutating the store object
-  // This ensures we don't modify the original store data during render
+  // Compute trial with classes
   const trialWithClasses = useMemo(() => {
     if (!currentTrial) return undefined;
-
     const trialClasses = classes.filter(c => c.trialId === currentTrial.id);
-
     const convertedClasses = trialClasses.map(classData => {
       const classEntryCount = allEntries.filter(e => e.classId === classData.id).length;
       const startTime =
         classData.startTime ||
         (classData.trialDate ? `${classData.trialDate}T09:00:00` : new Date().toISOString());
-
       return {
         id: classData.id,
         element: classData.element || 'Unknown',
@@ -171,193 +145,119 @@ const TrialDetailsPage: React.FC = () => {
         entries: classEntryCount,
       };
     });
-
-    // Return a new object with classes merged in, without mutating the original
     return {
       ...currentTrial,
       classes: convertedClasses.length > 0 ? convertedClasses : currentTrial.classes || [],
     };
   }, [currentTrial, classes, allEntries]);
 
-  // Generate statistics for the trial
-  const trialStatistics: TrialStatisticsData = useMemo(() => {
-    if (!trialWithClasses || !trialWithClasses.classes) {
-      return {
-        judges: { total: 0, active: 0, onBreak: 0, percentChange: 0 },
-        classes: { total: 0, upcoming: 0, completed: 0, percentChange: 0 },
-        entries: { total: 0, upcoming: 0, completed: 0, percentChange: 0 },
-        qualifiedRate: { percent: 0, qualified: 0, total: 0, percentChange: 0 },
-      };
-    }
+  // Extracted hooks
+  const trialStatistics = useTrialStats(trialWithClasses, allEntries);
+  const { handleSaveClassesFromTemplate } = useTrialTemplates({
+    currentTrial,
+    updateTrial,
+    addClass,
+    userId: user?.id || 'unknown',
+  });
 
-    const totalClasses = trialWithClasses.classes.length;
-    const completedClasses = trialWithClasses.classes.filter(
-      (c: TrialClass) => c.status === 'Completed'
-    ).length;
-    const upcomingClasses = totalClasses - completedClasses;
+  // Tab definitions with icons and counts
+  const classCount = trialWithClasses?.classes?.length ?? 0;
+  const entryCount = trialStatistics.entries.total;
+  const tabDefs: PrimaryTabDef[] = useMemo(
+    () => [
+      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+      { id: 'entries', label: 'Entries', icon: ClipboardList, count: entryCount },
+      { id: 'promo-codes', label: 'Promo Codes', icon: Tag },
+      { id: 'financials', label: 'Financials', icon: DollarSign },
+    ],
+    [entryCount]
+  );
 
-    const totalEntries = trialWithClasses.classes.reduce(
-      (sum: number, c: TrialClass) => sum + (c.entries || 0),
-      0
-    );
-    const completedEntries = trialWithClasses.classes
-      .filter((c: TrialClass) => c.status === 'Completed')
-      .reduce((sum: number, c: TrialClass) => sum + (c.entries || 0), 0);
-    const upcomingEntries = totalEntries - completedEntries;
-
-    // Count unique judges from class assignments
-    const uniqueJudges = new Set(
-      trialWithClasses.classes
-        .map((c: TrialClass) => c.judgeId)
-        .filter((id: string) => id && id !== 'TBD')
-    );
-    const totalJudges = uniqueJudges.size;
-    const activeJudges =
-      trialWithClasses.status === 'In Progress'
-        ? trialWithClasses.classes
-            .filter((c: TrialClass) => c.status === 'In Progress')
-            .reduce((judges: Set<string>, c: TrialClass) => {
-              if (c.judgeId && c.judgeId !== 'TBD') judges.add(c.judgeId);
-              return judges;
-            }, new Set<string>()).size
-        : 0;
-
-    // Count qualified entries from actual competition results
-    const trialEntries = allEntries.filter(e =>
-      trialWithClasses.classes.some((c: TrialClass) => c.id === e.classId)
-    );
-    const qualifiedEntries = trialEntries.filter(e => e.status === 'Qualified').length;
-    const scoredEntries = trialEntries.filter(
-      e => e.status === 'Qualified' || e.status === 'Not Qualified'
-    ).length;
-
-    return {
-      judges: {
-        total: totalJudges,
-        active: activeJudges,
-        onBreak: 0,
-        percentChange: totalJudges > 0 ? Math.round((activeJudges / totalJudges) * 100) : 0,
-      },
-      classes: {
-        total: totalClasses,
-        upcoming: upcomingClasses,
-        completed: completedClasses,
-        percentChange: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0,
-      },
-      entries: {
-        total: totalEntries,
-        upcoming: upcomingEntries,
-        completed: completedEntries,
-        percentChange: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0,
-      },
-      qualifiedRate: {
-        percent: scoredEntries > 0 ? Math.round((qualifiedEntries / scoredEntries) * 100) : 0,
-        qualified: qualifiedEntries,
-        total: scoredEntries,
-        percentChange: scoredEntries > 0 ? Math.round((qualifiedEntries / scoredEntries) * 100) : 0,
-      },
-    };
-  }, [trialWithClasses, allEntries]);
-
-  // Left sidebar: trial properties
-  const trialProperties: PropertySectionConfig[] = useMemo(() => {
-    if (!currentTrial) return [];
-    return [
-      {
-        key: 'details',
-        title: 'Trial Details',
-        icon: Info,
-        iconGradient: 'from-blue-500/10 to-indigo-500/5',
-        iconColor: 'text-blue-600 dark:text-blue-400',
-        fields: [
-          { label: 'Type', value: currentTrial.type || null },
-          { label: 'Trial Number', value: currentTrial.trialNumber || null },
-          {
-            label: 'Date',
-            value: currentTrial.trialDate
-              ? new Date(currentTrial.trialDate + 'T00:00:00').toLocaleDateString()
-              : null,
-          },
-          { label: 'Status', value: currentTrial.status || null },
-          { label: 'Event Number', value: currentTrial.eventNumber || null },
-        ],
-      },
-    ];
-  }, [currentTrial]);
-
-  // Right sidebar: associations
-  const trialAssociations: AssociationConfig[] = useMemo(() => {
-    const items: AssociationConfig[] = [];
+  // Breadcrumbs
+  const breadcrumbs = useMemo(() => {
+    const crumbs = [{ label: 'Shows', href: '/shows' }];
     if (parentShow) {
-      const showAssoc: AssociationConfig = {
-        key: 'show',
-        title: parentShow.name,
-        icon: Building2,
-        href: `/shows/${parentShow.id}`,
-      };
-      if (parentShow.organization) showAssoc.subtitle = parentShow.organization;
-      items.push(showAssoc);
+      crumbs.push({ label: parentShow.name, href: `/shows/${parentShow.id}` });
     }
-    const classCount = trialWithClasses?.classes?.length ?? 0;
+    const trialLabel = currentTrial?.type || currentTrial?.trialNumber || 'Trial';
+    const trialHref = showId ? `/shows/${showId}/trials/${trialId}` : `/trials/${trialId}`;
+    crumbs.push({ label: trialLabel, href: trialHref });
+    return crumbs;
+  }, [parentShow, currentTrial, showId, trialId]);
+
+  const statusBadge = useMemo(() => getStatusBadge(currentTrial?.status), [currentTrial?.status]);
+
+  // Metadata for DetailHero — must be before early returns (rules of hooks)
+  const heroMetadata = useMemo(() => {
+    const items = [];
+    if (currentTrial?.trialDate) {
+      items.push({
+        label: new Date(currentTrial.trialDate + 'T00:00:00').toLocaleDateString(),
+        icon: <Calendar className="h-4 w-4" />,
+      });
+    }
     if (classCount > 0) {
       items.push({
-        key: 'classes',
-        title: 'Classes',
-        subtitle: `${classCount} class${classCount !== 1 ? 'es' : ''}`,
-        icon: Calendar,
-        badge: String(classCount),
+        label: `${classCount} class${classCount !== 1 ? 'es' : ''}`,
       });
     }
     return items;
-  }, [parentShow, trialWithClasses]);
+  }, [currentTrial?.trialDate, classCount]);
 
-  // Handle case where trial doesn't exist - moved after hooks
+  // Prev/next navigation for hero
+  const prevNextNav = (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!prevTrialId}
+        onClick={handlePrevTrial}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-xs text-muted-foreground px-1">
+        {currentTrialIndex + 1}/{showTrials.length}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!nextTrialId}
+        onClick={handleNextTrial}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
+  // Not found state
   if (trialId && !currentTrial && trials.length > 0) {
     return (
-      <div className="myk9-show-page flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Trial Not Found</h1>
-          <p className="text-muted-foreground mb-4">The trial you're looking for doesn't exist.</p>
-          <button
-            onClick={() => {
-              const url = showId ? `/shows/${showId}` : '/trials';
-              navigate(url);
-            }}
-            className="myk9-action-button myk9-action-button-primary"
-          >
-            {showId ? 'Back to Show' : 'Back to Trials'}
-          </button>
-        </div>
-      </div>
+      <PageShell>
+        <ErrorState
+          message="The trial you're looking for doesn't exist."
+          onRetry={() => navigate(showId ? `/shows/${showId}` : '/shows')}
+        />
+      </PageShell>
     );
   }
 
-  // Handler for editing a trial
-  const handleEditTrial = () => {
-    setEditTrialPanelOpen(true);
-  };
-
-  // Handler for deleting a trial
-  const handleDeleteTrial = () => {
-    setDeleteTrialDialogOpen(true);
-  };
+  // Handler wrappers
+  const handleEditTrial = () => setEditTrialPanelOpen(true);
+  const handleDeleteTrial = () => setDeleteTrialDialogOpen(true);
+  const handleAddClassesFromTemplate = () => setAddClassesFromTemplateDialogOpen(true);
 
   const handleConfirmDeleteTrial = async () => {
     if (currentTrial) {
       await deleteTrialAsync(currentTrial.id);
-
-      // Navigate based on context and remaining trials
       if (showId && currentTrial.showId) {
-        // We came from a show context, go back to the show
         navigate(`/shows/${currentTrial.showId}`);
       } else {
-        // Standalone trial route - navigate to remaining trials or shows list
         const remainingTrials = trials.filter(t => t.id !== currentTrial.id);
         if (remainingTrials.length > 0) {
-          // Navigate to first remaining trial
           navigate(`/trials/${remainingTrials[0].id}`, { replace: true });
         } else {
-          // No trials left, navigate to shows list
           navigate('/shows', { replace: true });
         }
       }
@@ -365,128 +265,7 @@ const TrialDetailsPage: React.FC = () => {
     setDeleteTrialDialogOpen(false);
   };
 
-  const handleAddClassesFromTemplate = () => {
-    setAddClassesFromTemplateDialogOpen(true);
-  };
-
-  const handleSaveClassesFromTemplate = (
-    selectedClasses: ClassDefinition[],
-    template: ClassTemplate,
-    judgeAssignments: Array<{ classId: string; judgeId: string; judgeName: string }> = []
-  ) => {
-    if (!currentTrial) return;
-
-    const existingClasses = currentTrial.classes || [];
-
-    // Check for duplicates and filter out classes that already exist
-    const isClassDuplicate = (classDef: ClassDefinition) => {
-      return existingClasses.some(
-        existingClass =>
-          existingClass.element === classDef.element &&
-          existingClass.level === (classDef.level || '') &&
-          existingClass.section === (classDef.section || '')
-      );
-    };
-
-    // Separate new classes from duplicates
-    const newClasses = selectedClasses.filter(classDef => !isClassDuplicate(classDef));
-    const duplicateClasses = selectedClasses.filter(classDef => isClassDuplicate(classDef));
-
-    // Create class IDs that will be shared between TrialClass and ClassData
-    const classIds = newClasses.map((_, index) => `class-${Date.now()}-${index}`);
-
-    // Convert new ClassDefinitions to TrialClasses
-    const newTrialClasses: TrialClass[] = newClasses.map((classDef, index) => {
-      // Calculate start time for each class (assuming 15-minute intervals starting at 9:00 AM)
-      const baseTime = new Date(`${currentTrial.trialDate}T09:00:00`);
-      const classStartTime = new Date(
-        baseTime.getTime() + (existingClasses.length + index) * 15 * 60 * 1000
-      );
-
-      // Find judge assignment for this class
-      const judgeAssignment = judgeAssignments.find(ja => ja.classId === classDef.className);
-      const judgeId = judgeAssignment?.judgeId || 'TBD';
-      const judgeName = judgeAssignment?.judgeName || 'TBD';
-
-      return {
-        id: classIds[index],
-        element: classDef.element,
-        level: classDef.level || '',
-        section: classDef.section || '',
-        judgeId: judgeId,
-        judgeName: judgeName,
-        startTime: classStartTime.toISOString(),
-        status: 'Upcoming' as const,
-        entries: 0,
-      };
-    });
-
-    // Also add classes to the classStore so they can be viewed in ClassDetailsPage
-    const newClassDataItems = newClasses.map((classDef, index) => {
-      // Find judge assignment for this class
-      const judgeAssignment = judgeAssignments.find(ja => ja.classId === classDef.className);
-      const judgeName = judgeAssignment?.judgeName || 'TBD';
-
-      return {
-        id: classIds[index],
-        trialId: currentTrial.id,
-        trial: currentTrial.name || currentTrial.type || 'Trial',
-        trialDate: currentTrial.trialDate,
-        trialNumber: currentTrial.trialNumber || '',
-        classOrder: (existingClasses.length + index + 1).toString(),
-        status: 'Scheduled' as const,
-        judge: judgeName,
-        className: classDef.className,
-        classNumber: classDef.classNumber || '',
-        element: classDef.element,
-        level: classDef.level || '',
-        section: classDef.section || '',
-        hidesUsed: '',
-        distractionsUsed: '',
-        itemsUsed: '',
-        timeLimit1: '3:00',
-        timeLimit2: '',
-        timeLimit3: '',
-        photoUrl: '',
-        entryFee: 30,
-        maxEntries: 40,
-        requiresJumpHeight: false,
-      };
-    });
-
-    // Add classes to classStore
-    newClassDataItems.forEach(classData => {
-      addClass(classData);
-    });
-
-    // Add only new classes to current trial
-    const updatedTrial = {
-      ...currentTrial,
-      classes: [...existingClasses, ...newTrialClasses],
-    };
-
-    updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
-
-    // Provide feedback about duplicates
-    if (duplicateClasses.length > 0) {
-      logger.debug('Skipped duplicate classes', 'trials', {
-        count: duplicateClasses.length,
-        classes: duplicateClasses.map(cls => `${cls.element} ${cls.level} ${cls.section}`),
-      });
-    }
-
-    if (newClasses.length > 0) {
-      logger.info('Added classes from template', 'trials', {
-        count: newClasses.length,
-        templateName: template.templateName,
-      });
-    } else {
-      logger.debug('No new classes added - all selected classes already exist', 'trials');
-    }
-  };
-
   const handleEditClass = (classItem: TrialClass) => {
-    logger.debug('Edit class', 'trials', { classId: classItem.id, element: classItem.element });
     setSelectedClassForEdit(classItem);
     setEditClassPanelOpen(true);
   };
@@ -498,111 +277,97 @@ const TrialDetailsPage: React.FC = () => {
 
   const handleConfirmDeleteClass = () => {
     if (selectedClassForDelete && currentTrial) {
-      logger.debug('Delete class', 'trials', {
-        classId: selectedClassForDelete.id,
-        element: selectedClassForDelete.element,
-      });
-
-      // Remove the class from the trial's classes array
       const updatedClasses =
         currentTrial.classes?.filter(cls => cls.id !== selectedClassForDelete.id) || [];
-
-      const updatedTrial = {
-        ...currentTrial,
-        classes: updatedClasses,
-      };
-
-      updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
-
-      // Also remove the class from the classStore
+      updateTrial(
+        currentTrial.id,
+        { ...currentTrial, classes: updatedClasses } as Partial<TrialInput>,
+        user?.id || 'unknown'
+      );
       deleteClass(selectedClassForDelete.id);
     }
     setDeleteClassDialogOpen(false);
     setSelectedClassForDelete(null);
   };
 
-  // Layout assembly only
   return (
-    <div className="min-h-screen bg-background">
+    <PageShell>
       {trialWithClasses ? (
-        <RecordPageLayout
-          className="py-6"
-          storageKey="myk9:trial"
-          properties={trialProperties}
-          associations={trialAssociations}
-          tabsContent={
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="mb-6">
-                <TabsTrigger value="overview">
-                  <LayoutDashboard className="h-4 w-4" />
-                  Overview
-                </TabsTrigger>
-                <TabsTrigger value="entries">
-                  <ClipboardList className="h-4 w-4" />
-                  Entries
-                </TabsTrigger>
-                <TabsTrigger value="promo-codes">
-                  <Tag className="h-4 w-4" />
-                  Promo Codes
-                </TabsTrigger>
-                <TabsTrigger value="financials">
-                  <DollarSign className="h-4 w-4" />
-                  Financials
-                </TabsTrigger>
-              </TabsList>
+        <>
+          <PageHeader
+            breadcrumbs={breadcrumbs}
+            title={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
+            actions={
+              <Button variant="outline" size="sm" onClick={handleEditTrial}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            }
+          />
 
-              <TabsContent value="overview">
-                <TrialDetailsMain
-                  trial={trialWithClasses}
-                  statistics={trialStatistics}
-                  parentShow={
-                    parentShow
-                      ? {
-                          id: parentShow.id,
-                          name: parentShow.name,
-                          organization: parentShow.organization,
-                        }
-                      : undefined
-                  }
-                  onEdit={handleEditTrial}
-                  onDelete={handleDeleteTrial}
-                  onAddClassesFromTemplate={handleAddClassesFromTemplate}
-                  onEditClass={handleEditClass}
-                  onDeleteClass={handleDeleteClass}
-                  onPrevTrial={handlePrevTrial}
-                  onNextTrial={handleNextTrial}
-                  prevTrialId={prevTrialId}
-                  nextTrialId={nextTrialId}
-                  currentTrialIndex={currentTrialIndex}
-                  totalTrials={showTrials.length}
-                />
-              </TabsContent>
+          <DetailHero
+            name={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
+            subtitle={
+              currentTrial?.type !== currentTrial?.trialNumber
+                ? currentTrial?.trialNumber
+                : undefined
+            }
+            metadata={heroMetadata}
+            badge={statusBadge}
+            secondaryActions={showTrials.length > 1 ? prevNextNav : undefined}
+          />
 
-              <TabsContent value="entries">
-                <TrialEntriesTable trialId={trialWithClasses.id} />
-              </TabsContent>
+          <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
+            <TabsContent value="overview">
+              <TrialDetailsMain
+                trial={trialWithClasses}
+                statistics={trialStatistics}
+                parentShow={
+                  parentShow
+                    ? {
+                        id: parentShow.id,
+                        name: parentShow.name,
+                        organization: parentShow.organization,
+                      }
+                    : undefined
+                }
+                onEdit={handleEditTrial}
+                onDelete={handleDeleteTrial}
+                onAddClassesFromTemplate={handleAddClassesFromTemplate}
+                onEditClass={handleEditClass}
+                onDeleteClass={handleDeleteClass}
+                onPrevTrial={handlePrevTrial}
+                onNextTrial={handleNextTrial}
+                prevTrialId={prevTrialId}
+                nextTrialId={nextTrialId}
+                currentTrialIndex={currentTrialIndex}
+                totalTrials={showTrials.length}
+              />
+            </TabsContent>
 
-              <TabsContent value="promo-codes">
-                <PromoCodesSection trialId={trialWithClasses.id} />
-              </TabsContent>
+            <TabsContent value="entries">
+              <TrialEntriesTable trialId={trialWithClasses.id} />
+            </TabsContent>
 
-              <TabsContent value="financials">
-                <FinancialSummary trialId={trialWithClasses.id} />
-              </TabsContent>
-            </Tabs>
-          }
-        />
+            <TabsContent value="promo-codes">
+              <PromoCodesSection trialId={trialWithClasses.id} />
+            </TabsContent>
+
+            <TabsContent value="financials">
+              <FinancialSummary trialId={trialWithClasses.id} />
+            </TabsContent>
+          </PrimaryTabs>
+        </>
       ) : (
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
             <p className="text-muted-foreground text-lg">Loading trial...</p>
           </div>
         </div>
       )}
 
       {/* Dialogs */}
-
       <AddClassesToTrialPanel
         open={addClassesFromTemplateDialogOpen}
         onClose={() => setAddClassesFromTemplateDialogOpen(false)}
@@ -622,10 +387,9 @@ const TrialDetailsPage: React.FC = () => {
         initialTrialData={currentTrial || {}}
         onSave={async trialData => {
           if (currentTrial?.id) {
-            const updatedTrial = { ...currentTrial, ...trialData };
             updateTrial(
               currentTrial.id,
-              updatedTrial as Partial<TrialInput>,
+              { ...currentTrial, ...trialData } as Partial<TrialInput>,
               user?.id || 'unknown'
             );
             setEditTrialPanelOpen(false);
@@ -641,10 +405,7 @@ const TrialDetailsPage: React.FC = () => {
         description={null}
         saveLabel="Delete"
         cancelLabel="Cancel"
-        saveButtonProps={{
-          variant: 'destructive',
-          className: 'myk9-action-button myk9-action-button-danger',
-        }}
+        saveButtonProps={{ variant: 'destructive' }}
         hideSave={false}
       >
         <div className="py-2 text-foreground">
@@ -665,8 +426,7 @@ const TrialDetailsPage: React.FC = () => {
         mode="simple"
         onSave={async classData => {
           if (selectedClassForEdit?.id && classData.id) {
-            const updatedClass = { ...selectedClassForEdit, ...classData };
-            updateClass(selectedClassForEdit.id, updatedClass);
+            updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });
             setEditClassPanelOpen(false);
             setSelectedClassForEdit(null);
           }
@@ -699,7 +459,7 @@ const TrialDetailsPage: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageShell>
   );
 };
 

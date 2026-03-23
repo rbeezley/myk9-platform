@@ -1,16 +1,10 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Search, Grid3X3, List, Plus, X } from 'lucide-react';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { FilterBar } from '@/components/common/FilterBar';
-import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
+import { Plus, Search, Building2 } from 'lucide-react';
 import { PanelProvider, PanelStack } from '@/components/panels';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { useClubStore } from '@/store/clubStore';
-import '@/styles/myk9-show-details.css';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
@@ -18,15 +12,23 @@ import { CLUB_TYPES } from '@/types/club-types';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
-type ViewMode = 'grid' | 'list';
+// Shared primitives
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { SearchBar } from '@/components/common/SearchBar';
+import { FilterChips } from '@/components/common/FilterChips';
+import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
+import { ViewToggle } from '@/components/common/ViewToggle';
+import { ResultsCount } from '@/components/common/ResultsCount';
+import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
 
 const BrowseClubsPage: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
-  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
+  const [viewMode, setViewMode] = useViewPreference('clubs', 'cards');
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
 
   const addClub = useClubStore(state => state.addClub);
@@ -36,6 +38,8 @@ const BrowseClubsPage: React.FC = () => {
     clubs,
     filteredClubs,
     isLoading,
+    hasError,
+    handleRetry,
     filters,
     setFilters,
     hasActiveFilters,
@@ -43,53 +47,34 @@ const BrowseClubsPage: React.FC = () => {
     clubShowCounts,
   } = useBrowseClubsData();
 
-  // Update URL when view mode changes
-  const handleViewModeChange = useCallback(
-    (newViewMode: ViewMode) => {
-      if (newViewMode === viewMode) return;
-      setViewMode(newViewMode);
-      const params = new URLSearchParams(searchParams);
-      if (newViewMode === 'grid') {
-        params.delete('view');
-      } else {
-        params.set('view', newViewMode);
-      }
-      setSearchParams(params, { replace: true });
-    },
-    [searchParams, setSearchParams, viewMode]
-  );
-
-  const breadcrumbItems = useMemo(() => [{ label: 'Clubs' }], []);
-
-  // FilterBar definitions
-  const filterDefs: FilterDefinition[] = useMemo(
+  // FilterChips definitions
+  const chipFilters: ChipFilterDefinition[] = useMemo(
     () => [
       {
         key: 'clubType',
         label: 'Club Type',
-        type: 'select',
         options: CLUB_TYPES.map(type => ({ label: type.label, value: type.value })),
       },
     ],
     []
   );
 
-  // Bridge existing filters to FilterBarState
-  const filterBarState: FilterBarState = useMemo(() => {
-    const filterState: Record<string, string | string[] | boolean> = {};
-    if (filters.clubType !== 'all') filterState.clubType = filters.clubType;
-    return { filters: filterState, sortKey: null, sortDirection: 'asc' };
+  // Bridge chip filter values from existing filters state
+  const chipFilterValues = useMemo(() => {
+    const values: Record<string, string> = {};
+    if (filters.clubType !== 'all') values.clubType = filters.clubType;
+    return values;
   }, [filters.clubType]);
 
-  const handleFilterBarChange = useCallback(
-    (newState: FilterBarState) => {
-      setFilters(prev => ({
-        ...prev,
-        clubType: (newState.filters.clubType as string) || 'all',
-      }));
+  const handleChipFilterChange = useCallback(
+    (key: string, value: string | null) => {
+      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
     },
     [setFilters]
   );
+
+  // Breadcrumbs for PageHeader
+  const breadcrumbs = useMemo(() => [{ label: 'Clubs', href: '/clubs' }], []);
 
   // Handle club creation
   const handleClubCreated = useCallback(
@@ -139,132 +124,98 @@ const BrowseClubsPage: React.FC = () => {
     [addClub, selectClub, navigate]
   );
 
-  // Render view content
+  // Action button for PageHeader
+  const actionButton = useMemo(
+    () => (
+      <Button onClick={() => setShowCreateClubPanel(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        Add Club
+      </Button>
+    ),
+    []
+  );
+
   const renderContent = () => {
     if (filteredClubs.length === 0 && !hasActiveFilters) {
       return (
-        <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <h3 className="text-lg font-semibold mb-2">No clubs yet</h3>
-            <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-              Get started by creating your first club to manage organizations and events.
-            </p>
-            <Button onClick={() => setShowCreateClubPanel(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Club
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Building2}
+          title="No clubs yet"
+          description="Get started by creating your first club to manage organizations and events."
+          action={{ label: 'Add Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }}
+        />
       );
     }
 
     if (filteredClubs.length === 0 && hasActiveFilters) {
       return (
-        <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <h3 className="text-lg font-semibold mb-2">No clubs match your filters</h3>
-            <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-              Try adjusting your search or filter criteria.
-            </p>
-            <Button variant="outline" onClick={clearAllFilters}>
-              <X className="h-4 w-4 mr-2" />
-              Clear Filters
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Search}
+          title="No clubs match your filters"
+          description="Try adjusting your search or filter criteria."
+          action={{ label: 'Clear Filters', onClick: clearAllFilters }}
+        />
       );
     }
 
     switch (viewMode) {
-      case 'list':
+      case 'table':
         return <ClubsListView clubs={filteredClubs} clubShowCounts={clubShowCounts} />;
-      case 'grid':
+      case 'cards':
       default:
         return <ClubsGridView clubs={filteredClubs} clubShowCounts={clubShowCounts} />;
     }
   };
 
   return (
-    <div className="bg-background">
-      <div className="container mx-auto px-6 py-6 max-w-7xl">
-        <div className="space-y-8">
-          {/* Loading state */}
-          {isLoading && clubs.length === 0 && <BrowseClubsSkeleton viewMode={viewMode} />}
+    <PageShell>
+      {/* Loading state */}
+      {isLoading && clubs.length === 0 && (
+        <BrowseClubsSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'list'} />
+      )}
 
-          {/* Normal content */}
-          {(!isLoading || clubs.length > 0) && (
-            <>
-              <h1 className="sr-only">Clubs</h1>
-              <div className="flex items-center justify-between">
-                <Breadcrumb
-                  items={breadcrumbItems}
-                  showHomeIcon={true}
-                  className="text-sm text-muted-foreground"
-                />
+      {/* Error state */}
+      {hasError && !isLoading && (
+        <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
+      )}
 
-                <Button onClick={() => setShowCreateClubPanel(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Club
-                </Button>
-              </div>
+      {/* Normal content */}
+      {!isLoading && !hasError && (
+        <>
+          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} />
 
-              {/* Search & Filters */}
-              <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
-                <CardContent className="p-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search clubs by name, city, or state..."
-                      value={filters.search}
-                      onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                      className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                    />
-                  </div>
-                  <FilterBar
-                    filterDefs={filterDefs}
-                    state={filterBarState}
-                    onStateChange={handleFilterBarChange}
-                    className="mt-3"
-                  />
-                </CardContent>
-              </Card>
+          {/* Filter toolbar */}
+          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
+            <SearchBar
+              value={filters.search}
+              onChange={value => setFilters(prev => ({ ...prev, search: value }))}
+              placeholder="Search clubs by name, city, or state..."
+            />
 
-              {/* View Mode Toggle + Result Count */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-muted-foreground">View:</span>
-                  <div className="flex bg-muted/50 rounded-lg p-1">
-                    {(['grid', 'list'] as const).map(mode => {
-                      const Icon = { grid: Grid3X3, list: List }[mode];
-                      const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-                      return (
-                        <Button
-                          key={mode}
-                          variant={viewMode === mode ? 'default' : 'ghost'}
-                          size="default"
-                          onClick={() => handleViewModeChange(mode)}
-                          className="h-10 px-3 transition-all duration-200"
-                        >
-                          <Icon className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">{label}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterChips
+                filters={chipFilters}
+                values={chipFilterValues}
+                onChange={handleChipFilterChange}
+              />
+            </div>
 
-                <span className="text-sm text-muted-foreground">
-                  {filteredClubs.length} of {clubs.length} club{clubs.length !== 1 ? 's' : ''}
-                  {hasActiveFilters && ' (filtered)'}
-                </span>
-              </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
+              <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
 
-              {/* Club Cards */}
-              {renderContent()}
-            </>
-          )}
-        </div>
-      </div>
+              <ResultsCount
+                showing={filteredClubs.length}
+                total={clubs.length}
+                filtered={hasActiveFilters}
+                entityName={clubs.length === 1 ? 'club' : 'clubs'}
+              />
+            </div>
+          </div>
+
+          {/* Club Cards / Table */}
+          {renderContent()}
+        </>
+      )}
 
       {/* Create Club Panel */}
       {showCreateClubPanel && (
@@ -285,7 +236,7 @@ const BrowseClubsPage: React.FC = () => {
           <PanelStack maxPanels={3} />
         </PanelProvider>
       )}
-    </div>
+    </PageShell>
   );
 };
 

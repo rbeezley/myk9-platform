@@ -4,15 +4,15 @@ import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
-import type { TabConfiguration, UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
-import { getTabsForUser, getUserShowContext, enhanceShowsWithRelationships } from '@/utils/unified-shows-config';
+import type { UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
+import { getUserShowContext, enhanceShowsWithRelationships } from '@/utils/unified-shows-config';
 import { getTabQuickActions } from '@/utils/show-actions';
 import { showRelationshipCache } from '@/utils/show-relationships';
 import {
   showManagementTracker,
   syncShowRelationships,
   getEnhancedShowContext,
-  RelationshipPerformanceMonitor
+  RelationshipPerformanceMonitor,
 } from '@/utils/show-management-tracking';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { userHasEntriesForShow } from '@/utils/entryStatusUtils';
@@ -59,7 +59,6 @@ interface UseBrowseShowsDataReturn {
   enhancedShows: EnhancedShow[];
 
   // Computed
-  tabConfig: TabConfiguration;
   userContext: UserShowContext | null;
   tabQuickActions: ReturnType<typeof getTabQuickActions>;
   quickStats: QuickStats;
@@ -75,7 +74,7 @@ interface UseBrowseShowsDataReturn {
  */
 export function useBrowseShowsData({
   filteredShows,
-  selectedTab
+  selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const { userWithRoles: user, loading: authLoading } = useAuthContext();
   const { data: shows = [], isLoading: showsLoading, error: showsError } = useShowsQuery();
@@ -84,11 +83,6 @@ export function useBrowseShowsData({
   // Consolidated loading and error states
   const isLoading = authLoading || showsLoading || entriesLoading;
   const hasError = !!(showsError || entriesError);
-
-  // Generate tab configuration based on user roles
-  const tabConfig: TabConfiguration = useMemo(() => {
-    return getTabsForUser(user);
-  }, [user]);
 
   // Get user show context for filtering with caching
   const userContext = useMemo(() => {
@@ -106,7 +100,10 @@ export function useBrowseShowsData({
       // Monitor performance only in development
       if (import.meta.env.DEV) {
         const duration = performance.now() - startTime;
-        RelationshipPerformanceMonitor.getInstance().recordOperation('syncShowRelationships', duration);
+        RelationshipPerformanceMonitor.getInstance().recordOperation(
+          'syncShowRelationships',
+          duration
+        );
       }
 
       // Clear old cache when switching users
@@ -131,7 +128,6 @@ export function useBrowseShowsData({
           const duration = performance.now() - startTime;
           RelationshipPerformanceMonitor.getInstance().recordOperation('loadInitialData', duration);
         }
-
       } catch (error) {
         logger.error('Failed to load data', 'shows', {}, error as Error);
       }
@@ -175,7 +171,7 @@ export function useBrowseShowsData({
         relationship: ['all' as ShowRelationship],
         userCanManage: false,
         userIsJudging: false,
-        userHasEntries: false
+        userHasEntries: false,
       }));
     }
 
@@ -189,7 +185,7 @@ export function useBrowseShowsData({
         enhancedContext,
         userCanEdit: enhancedContext?.canEdit || false,
         userCanDelete: enhancedContext?.canDelete || false,
-        userCanViewPrivateData: enhancedContext?.canViewPrivateData || false
+        userCanViewPrivateData: enhancedContext?.canViewPrivateData || false,
       };
     });
   }, [filteredShows, userContext, user, entries]);
@@ -216,7 +212,9 @@ export function useBrowseShowsData({
       }
 
       // Closing soon (within 7 days)
-      const daysUntilClose = Math.ceil((closeDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilClose = Math.ceil(
+        (closeDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      );
       if (daysUntilClose >= 0 && daysUntilClose <= 7) {
         closingSoon++;
       }
@@ -247,7 +245,6 @@ export function useBrowseShowsData({
         const duration = performance.now() - startTime;
         RelationshipPerformanceMonitor.getInstance().recordOperation('retryDataLoad', duration);
       }
-
     } catch (error) {
       logger.error('Retry failed', 'shows', {}, error as Error);
     }
@@ -262,11 +259,10 @@ export function useBrowseShowsData({
     shows,
     entries,
     enhancedShows,
-    tabConfig,
     userContext,
     tabQuickActions,
     quickStats,
     handleRetry,
-    loadEntries
+    loadEntries,
   };
 }

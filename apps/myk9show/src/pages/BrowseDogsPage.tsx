@@ -1,39 +1,35 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Search, Grid3X3, List, Table2, Plus, X, Dog } from 'lucide-react';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { FilterBar } from '@/components/common/FilterBar';
-import type {
-  FilterDefinition,
-  FilterBarState,
-  SortDefinition,
-} from '@/components/common/FilterBar';
+import { Plus, Search, PawPrint } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
-import { DogsGridView, DogsListView, DogsTableView } from '@/components/dogs/browse';
+import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+
+// Shared primitives
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { SearchBar } from '@/components/common/SearchBar';
+import { FilterChips } from '@/components/common/FilterChips';
+import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
+import { ViewToggle } from '@/components/common/ViewToggle';
+import { ResultsCount } from '@/components/common/ResultsCount';
+import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
+
 import '@/styles/myk9-show-details.css';
 
-type ViewMode = 'grid' | 'list' | 'table';
-
-const SORT_DEFS: SortDefinition[] = [
-  { key: 'name', label: 'Name' },
-  { key: 'breed', label: 'Breed' },
-];
-
 const BrowseDogsPage: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
-  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
+  const [viewMode, setViewMode] = useViewPreference('dogs', 'cards');
   const [showCreateDogPanel, setShowCreateDogPanel] = useState(
     () => searchParams.get('add') === 'true'
   );
@@ -46,6 +42,8 @@ const BrowseDogsPage: React.FC = () => {
     dogs,
     filteredDogs,
     isLoading,
+    hasError,
+    handleRetry,
     filters,
     setFilters,
     hasActiveFilters,
@@ -55,20 +53,17 @@ const BrowseDogsPage: React.FC = () => {
 
   const canCreateDogs = !rbacLoading && hasPermission('dog:create');
 
-  // Build filter definitions from available data
-  const filterDefs: FilterDefinition[] = useMemo(
+  // FilterChips definitions
+  const chipFilters: ChipFilterDefinition[] = useMemo(
     () => [
       {
         key: 'breed',
         label: 'Breed',
-        type: 'select',
-        icon: Dog,
         options: availableBreeds.map(b => ({ label: b, value: b })),
       },
       {
         key: 'sex',
-        label: 'Sex',
-        type: 'select',
+        label: 'Gender',
         options: [
           { label: 'Male', value: 'male' },
           { label: 'Female', value: 'female' },
@@ -78,42 +73,23 @@ const BrowseDogsPage: React.FC = () => {
     [availableBreeds]
   );
 
-  // Bridge FilterBar state to useBrowseDogsData filters
-  const filterBarState: FilterBarState = useMemo(() => {
-    const filterState: Record<string, string | string[] | boolean> = {};
-    if (filters.breed !== 'all') filterState.breed = filters.breed;
-    if (filters.sex !== 'all') filterState.sex = filters.sex;
-    return { filters: filterState, sortKey: null, sortDirection: 'asc' };
+  // Bridge chip filter values from existing filters state
+  const chipFilterValues = useMemo(() => {
+    const values: Record<string, string> = {};
+    if (filters.breed !== 'all') values.breed = filters.breed;
+    if (filters.sex !== 'all') values.sex = filters.sex;
+    return values;
   }, [filters.breed, filters.sex]);
 
-  const handleFilterBarChange = useCallback(
-    (newState: FilterBarState) => {
-      setFilters(prev => ({
-        ...prev,
-        breed: (newState.filters.breed as string) || 'all',
-        sex: (newState.filters.sex as string) || 'all',
-      }));
+  const handleChipFilterChange = useCallback(
+    (key: string, value: string | null) => {
+      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
     },
     [setFilters]
   );
 
-  // Update URL when view mode changes
-  const handleViewModeChange = useCallback(
-    (newViewMode: ViewMode) => {
-      if (newViewMode === viewMode) return;
-      setViewMode(newViewMode);
-      const params = new URLSearchParams(searchParams);
-      if (newViewMode === 'grid') {
-        params.delete('view');
-      } else {
-        params.set('view', newViewMode);
-      }
-      setSearchParams(params, { replace: true });
-    },
-    [searchParams, setSearchParams, viewMode]
-  );
-
-  const breadcrumbItems = useMemo(() => [{ label: 'Dogs' }], []);
+  // Breadcrumbs for PageHeader
+  const breadcrumbs = useMemo(() => [{ label: 'Dogs', href: '/dogs' }], []);
 
   const handleDogCreated = useCallback(
     (newDog: DogType) => {
@@ -123,136 +99,103 @@ const BrowseDogsPage: React.FC = () => {
     [navigate]
   );
 
+  // Action buttons for PageHeader
+  const actionButtons = useMemo(
+    () =>
+      canCreateDogs ? (
+        <Button onClick={() => setShowCreateDogPanel(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Dog
+        </Button>
+      ) : undefined,
+    [canCreateDogs]
+  );
+
   const renderContent = () => {
     if (filteredDogs.length === 0 && !hasActiveFilters) {
       return (
-        <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <h3 className="text-lg font-semibold mb-2">No dogs yet</h3>
-            <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-              Add your first dog to track health records, registrations, and competitions.
-            </p>
-            {canCreateDogs && (
-              <Button onClick={() => setShowCreateDogPanel(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Dog
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={PawPrint}
+          title="No dogs yet"
+          description="Add your first dog to track health records, registrations, and competitions."
+          action={
+            canCreateDogs
+              ? { label: 'Add Dog', onClick: () => setShowCreateDogPanel(true), icon: Plus }
+              : undefined
+          }
+        />
       );
     }
 
     if (filteredDogs.length === 0 && hasActiveFilters) {
       return (
-        <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <h3 className="text-lg font-semibold mb-2">No dogs match your filters</h3>
-            <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-              Try adjusting your search or filter criteria.
-            </p>
-            <Button variant="outline" onClick={clearAllFilters}>
-              <X className="h-4 w-4 mr-2" />
-              Clear Filters
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Search}
+          title="No dogs match your filters"
+          description="Try adjusting your search or filter criteria."
+          action={{ label: 'Clear Filters', onClick: clearAllFilters }}
+        />
       );
     }
 
     switch (viewMode) {
-      case 'list':
-        return <DogsListView dogs={filteredDogs} />;
       case 'table':
         return <DogsTableView dogs={filteredDogs} />;
-      case 'grid':
+      case 'cards':
       default:
         return <DogsGridView dogs={filteredDogs} />;
     }
   };
 
   return (
-    <div className="bg-background">
-      <div className="container mx-auto px-6 py-6 max-w-7xl">
-        <div className="space-y-6">
-          {/* Loading state */}
-          {isLoading && dogs.length === 0 && <BrowseDogsSkeleton viewMode={viewMode} />}
+    <PageShell>
+      {/* Loading state */}
+      {isLoading && dogs.length === 0 && (
+        <BrowseDogsSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'table'} />
+      )}
 
-          {/* Normal content */}
-          {(!isLoading || dogs.length > 0) && (
-            <>
-              <h1 className="sr-only">Dogs</h1>
-              <div className="flex items-center justify-between">
-                <Breadcrumb
-                  items={breadcrumbItems}
-                  showHomeIcon={true}
-                  className="text-sm text-muted-foreground"
-                />
+      {/* Error state */}
+      {hasError && !isLoading && (
+        <ErrorState message="We couldn't load your dogs." onRetry={handleRetry} />
+      )}
 
-                {canCreateDogs && (
-                  <Button onClick={() => setShowCreateDogPanel(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Dog
-                  </Button>
-                )}
-              </div>
+      {/* Normal content */}
+      {!isLoading && !hasError && (
+        <>
+          <PageHeader breadcrumbs={breadcrumbs} title="Dogs" actions={actionButtons} />
 
-              {/* Search + Filter Bar */}
-              <div className="space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search dogs by name, breed, or owner..."
-                    value={filters.search}
-                    onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                    className="pl-9 h-10 bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
-                  />
-                </div>
+          {/* Filter toolbar */}
+          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
+            <SearchBar
+              value={filters.search}
+              onChange={value => setFilters(prev => ({ ...prev, search: value }))}
+              placeholder="Search dogs by name, breed, or owner..."
+            />
 
-                <FilterBar
-                  filterDefs={filterDefs}
-                  sortDefs={SORT_DEFS}
-                  state={filterBarState}
-                  onStateChange={handleFilterBarChange}
-                />
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterChips
+                filters={chipFilters}
+                values={chipFilterValues}
+                onChange={handleChipFilterChange}
+              />
+            </div>
 
-              {/* View Mode Toggle + Result Count */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-muted-foreground">View:</span>
-                  <div className="flex bg-muted/50 rounded-lg p-1">
-                    {(['grid', 'list', 'table'] as const).map(mode => {
-                      const Icon = { grid: Grid3X3, list: List, table: Table2 }[mode];
-                      const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-                      return (
-                        <Button
-                          key={mode}
-                          variant={viewMode === mode ? 'default' : 'ghost'}
-                          size="default"
-                          onClick={() => handleViewModeChange(mode)}
-                          className="h-10 px-3 transition-all duration-200"
-                        >
-                          <Icon className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">{label}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
-                </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-border/20">
+              <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
 
-                <span className="text-sm text-muted-foreground">
-                  {filteredDogs.length} of {dogs.length} dog{dogs.length !== 1 ? 's' : ''}
-                  {hasActiveFilters && ' (filtered)'}
-                </span>
-              </div>
+              <ResultsCount
+                showing={filteredDogs.length}
+                total={dogs.length}
+                filtered={hasActiveFilters}
+                entityName={dogs.length === 1 ? 'dog' : 'dogs'}
+              />
+            </div>
+          </div>
 
-              {/* Dog Cards */}
-              {renderContent()}
-            </>
-          )}
-        </div>
-      </div>
+          {/* Dog Cards / Table */}
+          {renderContent()}
+        </>
+      )}
 
       {/* Create Dog Panel */}
       <AddDogPanel
@@ -262,7 +205,7 @@ const BrowseDogsPage: React.FC = () => {
         userRole={getUserRoles()[0]}
         currentUserPersonId={currentUserPersonId || undefined}
       />
-    </div>
+    </PageShell>
   );
 };
 

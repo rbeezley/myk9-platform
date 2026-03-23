@@ -2,7 +2,6 @@ import { Club } from '@/types/club-types';
 
 export interface ClubDetailsProps {
   selectedClub: Club | null;
-  breadcrumbItems: Array<{ label: string; href?: string }>;
 }
 
 export type ClubTab = 'upcoming' | 'past' | 'about' | 'members' | 'branding';

@@ -22,7 +22,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import {
   Users,
   ArrowLeft,
@@ -34,6 +36,7 @@ import {
   Shield,
   MoreHorizontal,
   Trash2,
+  ClipboardList,
 } from 'lucide-react';
 import {
   Table,
@@ -54,7 +57,15 @@ import { UserRole, Role } from '@/types/rbac-types';
 import { UserRoleAssignmentDialog } from '@/components/admin/permissions/UserRoleAssignmentDialog';
 import { notifications } from '@/lib/notifications';
 
+const USER_ROLE_TAB_IDS = ['assignments', 'roles'] as const;
+
+const USER_ROLE_TAB_DEFS: PrimaryTabDef[] = [
+  { id: 'assignments', label: 'User Assignments', icon: UserCheck },
+  { id: 'roles', label: 'Role Summary', icon: ClipboardList },
+];
+
 const UserRoleManagementPage: React.FC = () => {
+  const [activeTab, setTab] = useUrlTab(USER_ROLE_TAB_IDS, 'assignments');
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -254,12 +265,12 @@ const UserRoleManagementPage: React.FC = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="assignments" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="assignments">User Assignments</TabsTrigger>
-          <TabsTrigger value="roles">Role Summary</TabsTrigger>
-        </TabsList>
-
+      <PrimaryTabs
+        tabs={USER_ROLE_TAB_DEFS}
+        value={activeTab}
+        onValueChange={setTab}
+        className="space-y-4"
+      >
         {/* User Assignments Tab */}
         <TabsContent value="assignments" className="space-y-4">
           {/* Search */}
@@ -428,7 +439,7 @@ const UserRoleManagementPage: React.FC = () => {
             ))}
           </div>
         </TabsContent>
-      </Tabs>
+      </PrimaryTabs>
 
       {/* Revoke Confirmation Dialog */}
       <AlertDialog open={!!pendingRevoke} onOpenChange={open => !open && setPendingRevoke(null)}>

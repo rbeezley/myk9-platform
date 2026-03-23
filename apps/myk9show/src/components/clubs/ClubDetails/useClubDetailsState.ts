@@ -1,5 +1,5 @@
 import { useState, startTransition, useMemo, useCallback } from 'react';
-import { useRememberedTab } from '@/hooks/useRememberedTab';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
@@ -39,8 +39,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const { updateClub, removeClub } = useClubStore();
   const shows = useShowStore(s => s.shows);
 
-  // Tab state — remembered across navigation
-  const [activeTab, setActiveTabRaw] = useRememberedTab('club-details', 'upcoming');
+  // Tab state — URL-synced
+  const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as const;
+  const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
   const setActiveTab = setActiveTabRaw as (tab: ClubTab) => void;
 
   // Edit panel state

@@ -1,8 +1,8 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { Plus, Calendar, History, Info, Users, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import Breadcrumb from '@/components/common/Breadcrumb';
+import { TabsContent } from '@/components/ui/tabs';
+import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { logger } from '@/services/LoggingService';
 import type { ClubDetailsProps, ClubTab } from './types';
 import { ClubHeader } from './ClubHeader';
@@ -17,18 +17,7 @@ import { useClubDetailsState } from './useClubDetailsState';
 
 export type { ClubDetailsProps };
 
-/**
- * ClubDetails component displays information about a club.
- * This component should be used within the following hierarchy:
- * <EntityPageLayout>
- *   <EntityCardContainer>
- *     <ClubDetails selectedClub={selectedClub} />
- *   </EntityCardContainer>
- * </EntityPageLayout>
- *
- * CACHE_BUST_2025_01_08_20_05 - Fixed undefined array access
- */
-const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems }) => {
+const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
   logger.debug('ClubDetails render start', 'clubs', {
     selectedClub,
     selectedClubType: typeof selectedClub,
@@ -49,7 +38,6 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
     return <div className="flex items-center justify-center text-gray-500">No club selected.</div>;
   }
 
-  // Additional safety check for club data integrity
   if (!selectedClub.id || !selectedClub.name) {
     logger.error('Invalid club data', 'clubs', { selectedClub });
     return <div className="flex items-center justify-center text-gray-500">Invalid club data.</div>;
@@ -57,11 +45,27 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
   const { upcomingShows, pastShows } = state;
 
+  // Build tab definitions dynamically based on branding permission
+  const tabDefs: PrimaryTabDef[] = useMemo(() => {
+    const tabs: PrimaryTabDef[] = [
+      { id: 'upcoming', label: 'Upcoming Shows', icon: Calendar, count: upcomingShows.length },
+      { id: 'past', label: 'Past Shows', icon: History, count: pastShows.length },
+      { id: 'about', label: 'About', icon: Info },
+      {
+        id: 'members',
+        label: 'Members',
+        icon: Users,
+        count: selectedClub.memberIds?.length || 0,
+      },
+    ];
+    if (state.canEditBranding) {
+      tabs.push({ id: 'branding', label: 'Branding', icon: Palette });
+    }
+    return tabs;
+  }, [upcomingShows.length, pastShows.length, selectedClub.memberIds, state.canEditBranding]);
+
   return (
     <div className="max-w-[1440px] mx-auto px-6 py-20">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="mb-6" />
-
       {/* Enhanced Header with logo and club info */}
       <ClubHeader
         club={selectedClub}
@@ -79,76 +83,30 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
       {/* Tabs Section */}
       <div ref={tabsRef} className="mb-6">
-        <Tabs
+        <PrimaryTabs
+          tabs={tabDefs}
           value={state.activeTab}
           onValueChange={value => state.setActiveTab(value as ClubTab)}
-          className="w-full"
         >
-          <div className="flex items-center justify-between border-b border-border">
-            <TabsList className="bg-transparent border-0 rounded-none p-0 h-auto gap-6 justify-start">
-              <TabsTrigger
-                value="upcoming"
-                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-              >
-                <Calendar className="h-4 w-4" />
-                Upcoming Shows ({upcomingShows.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="past"
-                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-              >
-                <History className="h-4 w-4" />
-                Past Shows ({pastShows.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="about"
-                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-              >
-                <Info className="h-4 w-4" />
-                About
-              </TabsTrigger>
-              <TabsTrigger
-                value="members"
-                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-              >
-                <Users className="h-4 w-4" />
-                Members ({selectedClub.memberIds?.length || 0})
-              </TabsTrigger>
-              {state.canEditBranding && (
-                <TabsTrigger
-                  value="branding"
-                  className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
-                >
-                  <Palette className="h-4 w-4" />
-                  Branding
-                </TabsTrigger>
-              )}
-            </TabsList>
-
-            {/* Add Show Button - only shown on upcoming shows tab when shows exist */}
-            {state.activeTab === 'upcoming' && upcomingShows.length > 0 && (
-              <Button onClick={state.handleAddShow} className="mb-3 min-h-[44px]">
-                <Plus className="w-5 h-5 mr-2" />
-                Add Show
-              </Button>
-            )}
-          </div>
-
           <TabsContent value="upcoming" className="pt-6">
-            <div>
-              <UpcomingShowsTab
-                shows={upcomingShows}
-                onViewShowDetails={state.handleViewShowDetails}
-                onRegisterForShow={state.handleRegisterForShow}
-                onAddShow={state.handleAddShow}
-              />
+            <div className="flex justify-end mb-4">
+              {upcomingShows.length > 0 && (
+                <Button onClick={state.handleAddShow} className="min-h-[44px]">
+                  <Plus className="w-5 h-5 mr-2" />
+                  Add Show
+                </Button>
+              )}
             </div>
+            <UpcomingShowsTab
+              shows={upcomingShows}
+              onViewShowDetails={state.handleViewShowDetails}
+              onRegisterForShow={state.handleRegisterForShow}
+              onAddShow={state.handleAddShow}
+            />
           </TabsContent>
 
           <TabsContent value="past" className="pt-6">
-            <div>
-              <PastShowsTab shows={pastShows} onViewShowDetails={state.handleViewShowDetails} />
-            </div>
+            <PastShowsTab shows={pastShows} onViewShowDetails={state.handleViewShowDetails} />
           </TabsContent>
 
           <TabsContent value="about" className="pt-6">
@@ -175,7 +133,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               />
             </TabsContent>
           )}
-        </Tabs>
+        </PrimaryTabs>
       </div>
 
       {/* All Dialogs and Panels */}

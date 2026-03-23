@@ -433,35 +433,20 @@ const TrialDetailsPage: React.FC = () => {
         initialClassData={selectedClassForEdit || {}}
         {...(parentShow?.id !== undefined && { showId: parentShow.id })}
         onSave={async classData => {
-          console.log('[JudgeSave] onSave called', {
-            classData,
-            selectedClassForEdit: selectedClassForEdit?.id,
-            parentShowId: parentShow?.id,
-          });
           if (selectedClassForEdit?.id) {
             updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });
 
             // Save judge assignment separately via judge_assignments table
             const judgeId = (classData as Record<string, unknown>).judgeId as string | undefined;
-            console.log('[JudgeSave] judgeId from classData:', judgeId);
             if (judgeId !== undefined && parentShow?.id) {
               try {
-                console.log('[JudgeSave] calling upsertClassJudgeAssignment', {
-                  showId: parentShow.id,
-                  classId: selectedClassForEdit.id,
-                  judgeId,
-                });
                 await upsertClassJudgeAssignment(parentShow.id, selectedClassForEdit.id, judgeId);
-                console.log('[JudgeSave] upsert succeeded, syncing...');
+                // Re-sync classes so UI reflects the new judge
                 await replicatedClassesTable.sync('');
-                console.log('[JudgeSave] sync done, reloading trial classes...');
                 useTrialStore.getState().loadTrialClasses();
-                console.log('[JudgeSave] reload done');
               } catch (err) {
-                console.error('[JudgeSave] error:', err);
+                // Non-blocking — class data already saved
               }
-            } else {
-              console.log('[JudgeSave] skipped — judgeId undefined or no parentShow');
             }
 
             setEditClassPanelOpen(false);

@@ -11,6 +11,7 @@ import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { replicatedClassesTable } from '@/services/replication';
+import { queryClient } from '@/lib/queryClient';
 import StandardDialog from '@/components/common/StandardDialog';
 import {
   AlertDialog,
@@ -441,9 +442,10 @@ const TrialDetailsPage: React.FC = () => {
             if (judgeId !== undefined && parentShow?.id) {
               try {
                 await upsertClassJudgeAssignment(parentShow.id, selectedClassForEdit.id, judgeId);
-                // Re-sync classes so UI reflects the new judge
+                // Refresh both data layers so UI reflects the new judge
                 await replicatedClassesTable.sync('');
                 useTrialStore.getState().loadTrialClasses();
+                queryClient.invalidateQueries({ queryKey: ['classes'] });
               } catch (err) {
                 // Non-blocking — class data already saved
               }

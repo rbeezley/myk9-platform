@@ -12,6 +12,7 @@ import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { replicatedClassesTable } from '@/services/replication';
 import { useTrialStore } from '@/store/trialStore';
+import { queryClient } from '@/lib/queryClient';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
@@ -121,9 +122,10 @@ const ClassDetailsPage: React.FC = () => {
         if (judgeId !== undefined && parentShow?.id) {
           try {
             await upsertClassJudgeAssignment(parentShow.id, classId, judgeId);
-            // Re-sync classes so UI reflects the new judge
+            // Refresh both data layers so UI reflects the new judge
             await replicatedClassesTable.sync('');
             useTrialStore.getState().loadTrialClasses();
+            queryClient.invalidateQueries({ queryKey: ['classes'] });
           } catch (judgeError) {
             logger.warn('Failed to save judge assignment', 'classes', {
               classId,

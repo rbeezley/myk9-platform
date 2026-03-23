@@ -52,7 +52,12 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
       tabs.push({ id: 'branding', label: 'Branding', icon: Palette });
     }
     return tabs;
-  }, [upcomingShows.length, pastShows.length, selectedClub?.memberIds, state.canEditBranding]);
+  }, [
+    upcomingShows.length,
+    pastShows.length,
+    selectedClub?.memberIds?.length,
+    state.canEditBranding,
+  ]);
 
   if (!selectedClub) {
     return <div className="flex items-center justify-center text-gray-500">No club selected.</div>;

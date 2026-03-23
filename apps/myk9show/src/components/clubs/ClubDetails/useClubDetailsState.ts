@@ -34,13 +34,14 @@ function processPhotoFile(file: File, onResult: (dataUrl: string) => void): void
   reader.readAsDataURL(file);
 }
 
+const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as const;
+
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
   const { updateClub, removeClub } = useClubStore();
   const shows = useShowStore(s => s.shows);
 
   // Tab state — URL-synced
-  const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as const;
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
   const setActiveTab = setActiveTabRaw as (tab: ClubTab) => void;
 

@@ -135,8 +135,7 @@ const ShowDetailsPage: React.FC = () => {
         : ['overview', 'trials', 'classes'],
     [isAuthenticated]
   );
-  const defaultTab = hasUserEntries ? 'my-entries' : 'overview';
-  const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
+  const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
 
   // Flatten trial classes into ClassInfo for ClassesTab
   const showClasses = useMemo(() => {

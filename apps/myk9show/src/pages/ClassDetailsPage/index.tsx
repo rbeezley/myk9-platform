@@ -27,7 +27,7 @@ import { DeleteEntryDialog } from './DeleteEntryDialog';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { DetailHero } from '@/components/common/DetailHero';
+import { DetailHero, getStatusBadge } from '@/components/common/DetailHero';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -201,17 +201,7 @@ const ClassDetailsPage: React.FC = () => {
   }, [parentShow, parentTrial, currentClass, classId]);
 
   // Status badge
-  const statusBadge = useMemo(() => {
-    if (!currentClass?.status) return undefined;
-    const variantMap: Record<string, 'success' | 'warning' | 'default'> = {
-      'In Progress': 'warning',
-      Completed: 'success',
-    };
-    return {
-      label: currentClass.status,
-      variant: variantMap[currentClass.status] || ('default' as const),
-    };
-  }, [currentClass?.status]);
+  const statusBadge = useMemo(() => getStatusBadge(currentClass?.status), [currentClass?.status]);
 
   // Hero metadata
   const heroMetadata = useMemo(() => {

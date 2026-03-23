@@ -8,7 +8,6 @@ import type { UserWithRoles } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { EnhancedShow, QuickStats } from '@/hooks/useBrowseShowsData';
 import type { ShowFilters } from '@/hooks/useBrowseShowsFilters';
-import { getTabsForUser } from '@/utils/unified-shows-config';
 import { getTabQuickActions } from '@/utils/show-actions';
 
 // ---------------------------------------------------------------------------
@@ -231,7 +230,6 @@ function setupMocks(options: {
   // Set the auth user for useAuthContext mock
   mockAuthUser.current = user;
 
-  const tabConfig = getTabsForUser(user);
   const tabQuickActions = getTabQuickActions('all', user);
 
   // Build default enhanced shows from the shows
@@ -252,7 +250,6 @@ function setupMocks(options: {
     shows,
     entries: [],
     enhancedShows: enhancedShows ?? defaultEnhanced,
-    tabConfig,
     userContext: user
       ? {
           userId: user.id,

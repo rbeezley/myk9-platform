@@ -40,7 +40,7 @@ import { Button } from '@/components/ui/button';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { DetailHero } from '@/components/common/DetailHero';
+import { DetailHero, getStatusBadge } from '@/components/common/DetailHero';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useUrlTab } from '@/hooks/useUrlTab';
@@ -185,18 +185,7 @@ const TrialDetailsPage: React.FC = () => {
     return crumbs;
   }, [parentShow, currentTrial, showId, trialId]);
 
-  // Status badge
-  const statusBadge = useMemo(() => {
-    if (!currentTrial?.status) return undefined;
-    const variantMap: Record<string, 'success' | 'warning' | 'default'> = {
-      'In Progress': 'warning',
-      Completed: 'success',
-    };
-    return {
-      label: currentTrial.status,
-      variant: variantMap[currentTrial.status] || ('default' as const),
-    };
-  }, [currentTrial?.status]);
+  const statusBadge = useMemo(() => getStatusBadge(currentTrial?.status), [currentTrial?.status]);
 
   // Metadata for DetailHero — must be before early returns (rules of hooks)
   const heroMetadata = useMemo(() => {

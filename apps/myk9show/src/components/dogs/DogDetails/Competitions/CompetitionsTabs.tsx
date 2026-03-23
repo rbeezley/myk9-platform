@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { SubTabs, SubTabsContent } from '@/components/common/SubTabs';
+import type { SubTabDef } from '@/components/common/SubTabs';
 import { Plus, Calendar, History, Award } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import UpcomingShowsSection from './UpcomingShows/UpcomingShowsSection';
 import PastResultsSection from './PastResults/PastResultsSection';
 import AchievementsSection from './Achievements/AchievementsSection';
@@ -11,10 +11,10 @@ interface CompetitionsTabsProps {
   isPremium: boolean;
 }
 
-const tabs: { label: string; key: string; icon: LucideIcon }[] = [
-  { label: 'Upcoming Shows', key: 'upcoming', icon: Calendar },
-  { label: 'Past Results', key: 'past', icon: History },
-  { label: 'Achievements', key: 'achievements', icon: Award },
+const tabs: SubTabDef[] = [
+  { id: 'upcoming', label: 'Upcoming Shows', icon: Calendar },
+  { id: 'past', label: 'Past Results', icon: History },
+  { id: 'achievements', label: 'Achievements', icon: Award },
 ];
 
 const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium }) => {
@@ -45,38 +45,25 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium })
           </button>
         )}
       </div>
-      <Tabs
-        defaultValue="upcoming"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
-        <TabsList className="myk9-sub-tabs">
-          {tabs.map(tab => (
-            <TabsTrigger key={tab.key} value={tab.key} className="myk9-sub-tab">
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <TabsContent value="upcoming">
+      <SubTabs tabs={tabs} value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <SubTabsContent value="upcoming">
           <UpcomingShowsSection
             showAddDialog={showAddDialog}
             onAddDialogClose={() => setShowAddDialog(false)}
           />
-        </TabsContent>
-        <TabsContent value="past">
+        </SubTabsContent>
+        <SubTabsContent value="past">
           <PastResultsSection
             dogId={dogId}
             isPremium={isPremium}
             addDialogOpen={false}
             setAddDialogOpen={() => {}}
           />
-        </TabsContent>
-        <TabsContent value="achievements">
+        </SubTabsContent>
+        <SubTabsContent value="achievements">
           <AchievementsSection dogId={dogId} />
-        </TabsContent>
-      </Tabs>
+        </SubTabsContent>
+      </SubTabs>
     </div>
   );
 };

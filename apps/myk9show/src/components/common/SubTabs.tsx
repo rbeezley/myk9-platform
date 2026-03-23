@@ -7,6 +7,8 @@ export interface SubTabDef {
   id: string;
   label: string;
   icon?: LucideIcon;
+  /** Optional numeric badge shown after the label (e.g. alert count). */
+  badge?: number;
 }
 
 interface SubTabsProps {
@@ -58,6 +60,11 @@ export function SubTabs({
             >
               {Icon && <Icon className="h-4 w-4" />}
               {tab.label}
+              {tab.badge != null && tab.badge > 0 && (
+                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                  {tab.badge}
+                </span>
+              )}
             </TabsTrigger>
           );
         })}

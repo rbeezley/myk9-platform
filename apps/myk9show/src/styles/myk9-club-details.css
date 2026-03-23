@@ -166,58 +166,14 @@
 }
 
 /* Tab Navigation - myK9 Style with ShadCN Override */
-.myk9-club-tabs-section {
-  margin-bottom: 24px;
-}
 
 /* Override ShadCN TabsList default styling */
-.myk9-club-tabs {
-  background: transparent !important;
-  border-radius: 0 !important;
-  border-bottom: 1px solid var(--border);
-  padding: 0 !important;
-  height: auto !important;
-  display: flex;
-  gap: 24px;
-  justify-content: flex-start;
-}
 
 /* Override ShadCN TabsTrigger default styling */
-.myk9-club-tab {
-  background: transparent !important;
-  border-radius: 0 !important;
-  border-bottom: 2px solid transparent;
-  padding: 12px 0 !important;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  box-shadow: none !important;
-}
-
-.myk9-club-tab:hover {
-  color: var(--foreground);
-  background: transparent !important;
-}
 
 /* Active state styling with data-state attribute */
-.myk9-club-tab[data-state="active"] {
-  color: #007AFF !important;
-  border-bottom-color: #007AFF;
-  font-weight: 590;
-  background: transparent !important;
-}
 
 /* Focus state for accessibility */
-.myk9-club-tab:focus-visible {
-  outline: 2px solid #007AFF;
-  outline-offset: 2px;
-  background: transparent !important;
-}
 
 /* Content Cards */
 .myk9-club-content {
@@ -601,18 +557,7 @@
     font-size: 28px;
   }
   
-  .myk9-club-tabs {
-    gap: 12px !important;
-    padding: 0 4px !important;
-  }
   
-  .myk9-club-tab {
-    font-size: 14px;
-    padding: 10px 0 !important;
-    min-width: 0;
-    flex: 1;
-    text-align: center;
-  }
   
   .myk9-club-show-card {
     padding: 16px;
@@ -864,7 +809,3 @@
 }
 
 /* Focus styles for accessibility */
-.myk9-club-tab:focus {
-  outline: 2px solid #007AFF;
-  outline-offset: 2px;
-}

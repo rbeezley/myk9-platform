@@ -48,16 +48,34 @@ When the user saves a class with a judge selected:
    - Deletes any existing `judge_assignments` rows where `class_id = classId`.
    - If `judgeId` is not empty/TBD, inserts: `{ person_id: judgeId, show_id: showId, class_id: classId, status: 'confirmed', confirmed_at: now() }`.
 4. The normal class field update continues unchanged — `mapClassInputToUpdate` handles non-judge fields only.
+5. After saving, invalidate the replication layer cache so the UI updates immediately (trigger a sync or manually update the local `ReplicatedClass`).
+
+The `showId` for the save handler comes from `parentShow.id` (already resolved via `useClassDetailsData`), not from URL params which may be undefined.
 
 #### Show Creation Wizard
 
 After `createClasses()` completes in `saveShow()`:
 
-1. Iterate over the created classes.
-2. For each class that has a `judgeId` (not empty/TBD), call `upsertClassJudgeAssignment(showId, classId, judgeId)`.
-3. This happens alongside the existing `persistShowJudgeAssignments()` call for show-level pool records.
+1. Access the original wizard trial data (available via `trials` in the callback scope), which contains `cls.judgeId` on each wizard class.
+2. Build a mapping from the wizard class data to the real class IDs created by `createClasses()`. The `createClassDataFromWizard()` transformer produces `ClassData[]` with deterministic IDs (via `crypto.randomUUID()` in `classDataToReplicatedClass`). The wizard trial's `classes[].judgeId` field (from `showCreationWizardValidation.ts`) carries the judge's person ID.
+3. For each class that has a non-empty `judgeId`, call `upsertClassJudgeAssignment(realShowId, classId, judgeId)`.
+4. This happens alongside the existing `persistShowJudgeAssignments()` call for show-level pool records.
 
-The wizard's `classDataToReplicatedClass()` function maps `classData.judge` (a name string). The wizard step that assigns judges needs to also capture the `judgeId` — this may already be available via `judgeDetails` map and `classData.judgeId` from the wizard validation types.
+Note: Between class creation and the first sync, the local `ReplicatedClass` will have `judgeName` set from `classDataToReplicatedClass()` (line 54), so the UI shows the name immediately. The sync will then overwrite with the joined data from the database, which should match.
+
+#### Protect Class-Level Assignments from Show-Level Deletes
+
+**Critical:** `persistShowJudgeAssignments()` currently deletes ALL `judge_assignments` for a show:
+
+```typescript
+await assignmentsTable().delete().eq('show_id', showId);
+```
+
+This will destroy class-level assignments when a user edits the show's judge pool. Scope the delete to pool-level records only:
+
+```typescript
+await assignmentsTable().delete().eq('show_id', showId).is('class_id', null);
+```
 
 ### Read Path
 
@@ -69,31 +87,34 @@ The wizard's `classDataToReplicatedClass()` function maps `classData.judge` (a n
 select('*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))')
 ```
 
-This is the same pattern `useTrialTimeline` already uses successfully.
+This is the same pattern `useTrialTimeline` already uses. The FK name `judge_assignments_class_id_fkey` is confirmed in the generated Supabase types.
 
-**`rowToClass()`:** Extract the judge name from the joined data instead of reading a nonexistent `judge_name` column:
+The joined data won't match the `ClassRow` TypeScript type. Use `as` casting on the raw response to access the nested `judge_assignments` array, consistent with how `rowToClass()` already casts `dbRow` to `Record<string, unknown>`.
+
+**`rowToClass()`:** Extract judge name and ID from the joined data instead of reading a nonexistent `judge_name` column:
 
 ```typescript
-const judgeAssignment = dbRow.judge_assignments?.[0];
-const person = judgeAssignment?.people;
-const judgeName = person ? `${person.first_name} ${person.last_name}`.trim() : undefined;
+const assignments =
+  (dbRow.judge_assignments as Array<{
+    person_id: string;
+    people: { first_name: string; last_name: string };
+  }>) || [];
+const judgeAssignment = assignments[0];
+const judgeName = judgeAssignment
+  ? `${judgeAssignment.people.first_name} ${judgeAssignment.people.last_name}`.trim()
+  : undefined;
+const judgeId = judgeAssignment?.person_id;
 ```
 
-This populates `ReplicatedClass.judgeName`, which flows through:
+Add `judgeId` to the `ReplicatedClass` interface. This populates both `judgeName` and `judgeId`, which flow through:
 
-- `replicatedToTrialClass()` → `SyncableTrialClass.judgeName`
+- `replicatedToTrialClass()` → `SyncableTrialClass.judgeName` + `SyncableTrialClass.judgeId`
 - `ShowDetailsPage.showClasses` → `ClassInfo.judgeName`
 - `ClassesTab` table/cards → display
 
 #### Class Edit Form (pre-populating the dropdown)
 
-The class edit form needs to know the currently assigned `judgeId` to pre-select the dropdown.
-
-**Option:** Resolve it from the show's `assignedJudges` data. The `buildAssignedJudges()` utility already extracts `assignedClasses` from `judge_assignments` records. The form can find which judge has `classId` in their `assignedClasses` array and pre-select that `judgeId`.
-
-Alternatively, the `ReplicatedClass` can carry a `judgeId` field (extracted from the join) so it's available when the edit form opens.
-
-**Recommended:** Add `judgeId` to `ReplicatedClass` and populate it from the join. This is the simplest path since the data is already being fetched.
+The `judgeId` will be available on `ReplicatedClass` → `SyncableTrialClass` → the class data passed to `ClassEditPanel`. The `classToFormData()` helper maps it to `ClassEditFormData.judgeId`, which pre-selects the dropdown.
 
 ### Form Changes
 
@@ -109,12 +130,38 @@ Add `judgeId?: string` field.
 
 #### `ClassEditPanel.helpers.ts`
 
-- `classToFormData()`: populate `judgeId` from the class data (will be available once the replication layer provides it).
+- `classToFormData()`: populate `judgeId` from the class data (available once the replication layer provides it).
 - `formDataToClass()`: include `judgeId` in the output so the save handler can read it.
 
 #### `TrialClassEditForm` (simple mode)
 
 Already uses `judgeId` correctly. No changes needed.
+
+#### `OfficialsSection.tsx` (used by `EditClassDialog`)
+
+This component also has a judge select using name strings (`classData.judge` as value, `judge.judgeName` as item value). `EditClassDialog` is currently only used by `AddClassDialog`, which is not imported anywhere — making it effectively dead code. Note this as a known issue but do not fix it in this scope. If `EditClassDialog` is revived later, it will need the same `judgeId` treatment.
+
+### `ClassData.judge` Field Plan
+
+The `ClassData` interface has `judge: string` as a required field. After this fix:
+
+- `mapDatabaseToClass()` will populate `judge` from the join (same name string as `judgeName`) instead of hardcoding `'TBD'`. This maintains backward compatibility with any code that reads `classData.judge` for display.
+- The field remains a display-only name string. All write operations use `judgeId` via `judge_assignments`.
+- `classStoreCompatHelpers.ts` `validateClassInput` checks `!classData.judge` — this will continue to pass since `judge` will be populated from the join (or default to `'TBD'` if no assignment exists).
+
+### Additional Files Requiring Updates
+
+#### `TrialDetailsPage.tsx`
+
+Lines 150-151 set `judgeId: classData.judge` and `judgeName: classData.judge`, using the name string where a UUID is expected for `judgeId`. Once `mapDatabaseToClass` populates `judge` from the join, `judgeName` will be correct, but `judgeId` will still be wrong (name instead of UUID). Fix: also populate a `judgeId` field on `SyncableClassData` / `ClassData` from the join, or look up the judge from `assignedJudges` by name.
+
+#### `showCreationWizardTransformers.ts`
+
+`createClassDataFromWizard` (line 139) converts `cls.judgeId` to a name string: `judge: judgeDetails[cls.judgeId]?.name || 'TBD'`. This is fine for `ClassData.judge` display, but the original `cls.judgeId` must be preserved for the post-`createClasses()` assignment step. The wizard's `saveShow()` can read `judgeId` directly from the wizard trial data rather than from the transformed `ClassData`.
+
+#### `persistShowJudgeAssignments` in `judgeQueries.ts`
+
+Scope the delete to pool-level records: add `.is('class_id', null)` to prevent destroying class-level assignments when the show's judge pool is edited.
 
 ### Trial Timeline
 
@@ -122,32 +169,43 @@ Already joins `judge_assignments` to resolve judge names. No changes needed.
 
 ### Files Changed
 
-| File                                                                 | Change                                                                   |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `services/database/queries/judgeQueries.ts`                          | Add `upsertClassJudgeAssignment()`                                       |
-| `services/replication/ReplicatedClassesTable.ts`                     | Join `judge_assignments` in sync query; update `rowToClass()`            |
-| `services/replication/ReplicatedClassesTable.ts`                     | Add `judgeId` to `ReplicatedClass` interface                             |
-| `store/trial-store-helpers.ts`                                       | Map `judgeId` through `replicatedToTrialClass()`                         |
-| `components/panels/edit/ClassEditPanel.types.ts`                     | Add `judgeId` to `ClassEditFormData`                                     |
-| `components/panels/edit/ClassEditPanel.helpers.ts`                   | Map `judgeId` in `classToFormData()` and `formDataToClass()`             |
-| `components/panels/edit/ClassEditForm.tsx`                           | Switch judge select from name to ID                                      |
-| `pages/ClassDetailsPage/index.tsx`                                   | Pass `showId` to panel (done); call `upsertClassJudgeAssignment` on save |
-| `pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts` | Create class-level judge assignments after `createClasses()`             |
-| `services/mappers/classMappers.ts`                                   | Remove hardcoded `judge: 'TBD'` in `mapDatabaseToClass()`                |
+| File                                                                 | Change                                                                                            |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `services/database/queries/judgeQueries.ts`                          | Add `upsertClassJudgeAssignment()`; scope delete in `persistShowJudgeAssignments`                 |
+| `services/replication/ReplicatedClassesTable.ts`                     | Join `judge_assignments` in sync query; update `rowToClass()`; add `judgeId` to `ReplicatedClass` |
+| `store/trial-store-helpers.ts`                                       | Map `judgeId` through `replicatedToTrialClass()`                                                  |
+| `store/trial-store-types.ts`                                         | Add `judgeId` to `SyncableTrialClass` if not already present                                      |
+| `components/panels/edit/ClassEditPanel.types.ts`                     | Add `judgeId` to `ClassEditFormData`                                                              |
+| `components/panels/edit/ClassEditPanel.helpers.ts`                   | Map `judgeId` in `classToFormData()` and `formDataToClass()`                                      |
+| `components/panels/edit/ClassEditForm.tsx`                           | Switch judge select from name to ID                                                               |
+| `pages/ClassDetailsPage/index.tsx`                                   | Pass `showId` to panel (done); call `upsertClassJudgeAssignment` on save                          |
+| `pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts` | Create class-level judge assignments after `createClasses()`                                      |
+| `services/mappers/classMappers.ts`                                   | Populate `judge` from join data instead of hardcoding `'TBD'`                                     |
+| `pages/TrialDetailsPage.tsx`                                         | Fix `judgeId` assignment (lines 150-151)                                                          |
 
 ### What This Does NOT Change
 
-- `persistShowJudgeAssignments()` — show-level pool management unchanged.
 - `EditShowDialog` Judges tab — unchanged.
 - `OfficialsSection` steward selects — unchanged (stewards use name strings from `people`, not `judge_assignments`).
+- `EditClassDialog` / `AddClassDialog` — effectively dead code, noted as known issue.
 - `useTrialTimeline` — already correct.
 - Database schema — no migration.
 
 ### Testing
 
+#### Unit Tests
+
+- `upsertClassJudgeAssignment()`: test insert, update (different judge), and removal (TBD/empty).
+- `rowToClass()`: test with joined judge data present, absent, and with multiple assignments (takes first).
+- `classToFormData()` / `formDataToClass()`: test `judgeId` round-trip.
+- `persistShowJudgeAssignments()`: verify the scoped delete does not remove class-level records.
+
+#### Manual / Integration Tests
+
 - Edit a class, select a judge, save. Reload page — judge still shown.
 - Edit the same class, change to a different judge. Verify update.
 - Edit a class, set judge to TBD. Verify the old assignment is removed.
+- Edit show judge pool (Edit Show > Judges) — verify class-level assignments are preserved.
 - Create a show via wizard with judges assigned to classes. Verify classes show judges after creation.
 - Show details Classes tab displays judge names in both table and card views.
 - Trial timeline continues showing correct judge groupings.

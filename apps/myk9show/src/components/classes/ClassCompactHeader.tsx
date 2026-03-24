@@ -51,7 +51,7 @@ function formatClassDate(dateStr: string | undefined): string {
 
 interface ClassCompactHeaderProps {
   classData: ClassData;
-  parentTrial?: Trial;
+  parentTrial?: Trial | undefined;
   actions?: React.ReactNode;
   className?: string;
 }

@@ -119,6 +119,7 @@ export function NotificationCenter() {
 
   const storeAnnouncements = useAnnouncementStore(s => s.announcements);
   const announcementUnread = useAnnouncementStore(s => s.unreadCount);
+  const currentShowIds = useAnnouncementStore(s => s.currentShowIds);
   const annMarkRead = useAnnouncementStore(s => s.markRead);
   const annMarkAllRead = useAnnouncementStore(s => s.markAllRead);
   const { userWithRoles } = useAuthContext();
@@ -323,7 +324,9 @@ export function NotificationCenter() {
                 <div className="border-b border-border/50 p-2">
                   <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/50 py-2 text-xs font-medium text-muted-foreground hover:border-border hover:text-foreground"
+                    disabled={currentShowIds.length === 0}
+                    title={currentShowIds.length === 0 ? 'No active show context' : undefined}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/50 py-2 text-xs font-medium text-muted-foreground hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border/50 disabled:hover:text-muted-foreground"
                   >
                     <Plus className="h-3 w-3" />
                     New Announcement
@@ -352,11 +355,11 @@ export function NotificationCenter() {
         </div>
       </div>
 
-      {isCreateOpen && userWithRoles && (
+      {isCreateOpen && userWithRoles && currentShowIds.length > 0 && (
         <CreateAnnouncementDialog
           isOpen={isCreateOpen}
           onClose={() => setIsCreateOpen(false)}
-          showId={storeAnnouncements[0]?.show_id ?? ''}
+          showId={currentShowIds[0]}
           authorId={authorId}
           authorRole={authorRole}
           authorName={authorName}

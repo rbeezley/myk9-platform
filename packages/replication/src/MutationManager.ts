@@ -319,10 +319,21 @@ export class MutationManager {
         await this.backupMutationsToLocalStorage();
       }
 
+      const successCount = results.filter(r => r.success).length;
       const duration = Date.now() - startTime;
       this.logger.log(
-        `[MutationManager] Uploaded ${results.filter(r => r.success).length}/${pending.length} mutations in ${duration}ms`
+        `[MutationManager] Uploaded ${successCount}/${pending.length} mutations in ${duration}ms`
       );
+
+      // Notify listeners of successful uploads so caches can be invalidated
+      if (successCount > 0 && typeof window !== 'undefined') {
+        const affectedTables = [...new Set(results.filter(r => r.success).map(r => r.tableName))];
+        window.dispatchEvent(
+          new CustomEvent('replication:upload-complete', {
+            detail: { tables: affectedTables, count: successCount },
+          })
+        );
+      }
 
       return results;
     } catch (error) {
@@ -343,18 +354,37 @@ export class MutationManager {
     const { tableName, operation, data } = mutation;
 
     switch (operation) {
-      case 'INSERT':
-      case 'UPDATE': {
+      case 'INSERT': {
         const { data: rows, error } = await withTimeout(
-          this.supabase.from(tableName).upsert(data).select('id'),
+          this.supabase.from(tableName).insert(data).select('id'),
           TIMEOUT_PRESETS.standard,
-          `${tableName} upsert`
+          `${tableName} insert`
         );
         if (error) throw error;
         if (!rows || rows.length === 0) {
           throw new Error(
-            `RLS policy blocked ${operation} on ${tableName} for row ${mutation.rowId}. ` +
-              `Check that the authenticated user has the required role (e.g., club_admin, platform_admin).`
+            `RLS policy blocked INSERT on ${tableName} for row ${mutation.rowId}. ` +
+              `Check that the authenticated user has the required role.`
+          );
+        }
+        break;
+      }
+
+      case 'UPDATE': {
+        const { data: rows, error } = await withTimeout(
+          this.supabase
+            .from(tableName)
+            .update(data)
+            .eq('id', data.id as string)
+            .select('id'),
+          TIMEOUT_PRESETS.standard,
+          `${tableName} update`
+        );
+        if (error) throw error;
+        if (!rows || rows.length === 0) {
+          throw new Error(
+            `RLS policy blocked UPDATE on ${tableName} for row ${mutation.rowId}. ` +
+              `Check that the authenticated user has the required role.`
           );
         }
         break;

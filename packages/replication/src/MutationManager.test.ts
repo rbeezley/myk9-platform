@@ -33,8 +33,13 @@ const TEST_DB_NAME = 'test-mutation-manager-db';
 function createMockSupabaseClient() {
   const mockClient = {
     from: vi.fn(() => ({
-      upsert: vi.fn(() => ({
+      insert: vi.fn(() => ({
         select: vi.fn(() => Promise.resolve({ data: [{ id: 'mock-id' }], error: null })),
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => Promise.resolve({ data: [{ id: 'mock-id' }], error: null })),
+        })),
       })),
       delete: vi.fn(() => ({
         eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
@@ -342,6 +347,42 @@ describe('MutationManager', () => {
       expect(remaining).toHaveLength(0);
     });
 
+    it('should dispatch upload-complete event with affected table names', async () => {
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-evt-1', tableName: 'entries', operation: 'INSERT' })
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-evt-2', tableName: 'entries', operation: 'UPDATE' })
+      );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({ id: 'mut-evt-3', tableName: 'dogs', operation: 'INSERT' })
+      );
+
+      await manager.uploadPendingMutations();
+
+      expect(window.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'replication:upload-complete',
+          detail: expect.objectContaining({
+            tables: expect.arrayContaining(['entries', 'dogs']),
+            count: 3,
+          }),
+        })
+      );
+    });
+
+    it('should not dispatch upload-complete event when no mutations succeed', async () => {
+      // Empty queue — no uploads to dispatch about
+      await manager.uploadPendingMutations();
+
+      expect(window.dispatchEvent).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'replication:upload-complete' })
+      );
+    });
+
     it('should return empty array when no pending mutations', async () => {
       const results = await manager.uploadPendingMutations();
 
@@ -351,7 +392,7 @@ describe('MutationManager', () => {
       );
     });
 
-    it('should handle INSERT operation via upsert().select()', async () => {
+    it('should handle INSERT operation via insert().select()', async () => {
       await mockDb.put(
         REPLICATION_STORES.PENDING_MUTATIONS,
         makeMutation({ id: 'mut-ins', tableName: 'classes', operation: 'INSERT' })
@@ -384,8 +425,10 @@ describe('MutationManager', () => {
 
     it('should detect RLS rejection (0 rows returned)', async () => {
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
@@ -409,8 +452,10 @@ describe('MutationManager', () => {
 
       // Mock network error (retryable)
       vi.mocked(mockSupabase.from).mockReturnValueOnce({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.reject(new Error('Network timeout'))),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(new Error('Network timeout'))),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
@@ -535,14 +580,18 @@ describe('MutationManager', () => {
       }
 
       const executionOrder: string[] = [];
+      const trackingChain = (data: Record<string, unknown>) => ({
+        select: vi.fn(() => {
+          executionOrder.push(data.id as string);
+          return Promise.resolve({ data: [{ id: data.id }], error: null });
+        }),
+      });
       vi.mocked(mockSupabase.from).mockImplementation(
         () =>
           ({
-            upsert: vi.fn((data: Record<string, unknown>) => ({
-              select: vi.fn(() => {
-                executionOrder.push(data.id as string);
-                return Promise.resolve({ data: [{ id: data.id }], error: null });
-              }),
+            insert: vi.fn(trackingChain),
+            update: vi.fn((data: Record<string, unknown>) => ({
+              eq: vi.fn(() => trackingChain(data)),
             })),
           }) as unknown as ReturnType<typeof mockSupabase.from>
       );

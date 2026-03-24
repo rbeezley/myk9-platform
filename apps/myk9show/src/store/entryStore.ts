@@ -119,9 +119,9 @@ export const useEntryStore = create<EntryStoreState>()(
           _syncStatus: 'pending',
         };
 
-        // Save to replicated table
+        // Save to replicated table and queue UPDATE mutation for Supabase sync
         const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
 
         // Update local state
         set(state => ({
@@ -186,9 +186,9 @@ export const useEntryStore = create<EntryStoreState>()(
           _syncStatus: 'pending',
         };
 
-        // Save to replicated table
+        // Save to replicated table and queue UPDATE mutation for Supabase sync
         const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
 
         // Update local state
         set(state => ({
@@ -232,9 +232,9 @@ export const useEntryStore = create<EntryStoreState>()(
           _syncStatus: 'pending',
         };
 
-        // Save to replicated table
+        // Save to replicated table and queue UPDATE mutation for Supabase sync
         const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
 
         // Update local state
         set(state => ({
@@ -282,9 +282,9 @@ export const useEntryStore = create<EntryStoreState>()(
           _syncStatus: 'pending',
         };
 
-        // Save to replicated table
+        // Save to replicated table and queue UPDATE mutation for Supabase sync
         const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
 
         // Update local state
         set(state => ({
@@ -324,9 +324,9 @@ export const useEntryStore = create<EntryStoreState>()(
           _syncStatus: 'pending',
         };
 
-        // Save to replicated table
+        // Save to replicated table and queue UPDATE mutation for Supabase sync
         const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
 
         // Update local state
         set(state => ({
@@ -404,11 +404,11 @@ export const useEntryStore = create<EntryStoreState>()(
           return entry;
         });
 
-        // Save to replicated table
+        // Save to replicated table and queue UPDATE mutations for Supabase sync
         for (const entry of updatedEntries) {
           if (entryIds.includes(entry.id)) {
             const replicatedEntry = entryToReplicated(entry);
-            await replicatedEntriesTable.set(entry.id, replicatedEntry, true);
+            await replicatedEntriesTable.updateEntry(entry.id, replicatedEntry);
           }
         }
 

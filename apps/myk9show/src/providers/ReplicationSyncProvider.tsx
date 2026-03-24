@@ -325,6 +325,32 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     return () => window.removeEventListener('replication:sync-requested', handleSyncRequest);
   }, []);
 
+  // Invalidate React Query caches when auto-upload completes
+  useEffect(() => {
+    const handleUploadComplete = (event: Event) => {
+      const { tables } = (event as CustomEvent<{ tables: string[]; count: number }>).detail;
+      logger.info('Auto-upload complete, invalidating queries', 'replication', { tables });
+      for (const table of tables) {
+        queryClient.invalidateQueries({ queryKey: [table] });
+      }
+    };
+    window.addEventListener('replication:upload-complete', handleUploadComplete);
+    return () => window.removeEventListener('replication:upload-complete', handleUploadComplete);
+  }, [queryClient]);
+
+  // Expose diagnostic helpers on window for browser console debugging
+  useEffect(() => {
+    const diag = {
+      getPendingCount: () => mutationManager.getPendingCount(),
+      uploadNow: () => mutationManager.uploadPendingMutations(),
+      triggerSync: () => triggerSyncRef.current?.(),
+    };
+    (window as unknown as Record<string, unknown>).__replicationDiag = diag;
+    return () => {
+      delete (window as unknown as Record<string, unknown>).__replicationDiag;
+    };
+  }, []);
+
   const contextValue: ReplicationSyncContextValue = {
     status,
     triggerSync,

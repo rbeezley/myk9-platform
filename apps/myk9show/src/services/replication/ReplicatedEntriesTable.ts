@@ -158,6 +158,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
 
+  /**
+   * IDs deleted locally this session. The download sync skips these
+   * so it doesn't resurrect entries the user just deleted.
+   */
+  private _deletedIds: Set<string> = new Set();
+
   constructor() {
     super('entries', undefined, { logger });
   }
@@ -175,10 +181,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   private toSupabaseRow(entry: ReplicatedEntry): Record<string, unknown> {
     return {
       id: entry.id,
-      class_id: entry.classId ?? null,
-      show_id: entry.showId ?? null,
-      dog_id: entry.dogId ?? null,
-      handler_id: entry.handlerId ?? null,
+      class_id: entry.classId || null,
+      show_id: entry.showId || null,
+      dog_id: entry.dogId || null,
+      handler_id: entry.handlerId || null,
       armband: entry.armband ?? null,
       handler: entry.handler ?? null,
       entry_status: entry.entryStatus ?? null,
@@ -190,7 +196,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       preferred_judge: entry.preferredJudge ?? null,
       special_requests: entry.specialRequests ?? null,
       submitted_at: entry.submittedAt ?? null,
-      registration_id: entry.registrationId ?? null,
+      registration_id: entry.registrationId || null,
       is_scored: entry.isScored ?? null,
       result_status: entry.resultStatus ?? null,
       search_time_seconds: entry.searchTimeSeconds ?? null,
@@ -246,8 +252,18 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         };
       }
 
+      const remoteIds = new Set<string>();
+
       for (const remoteRow of remoteEntries) {
         const entryId = String(remoteRow.id);
+        remoteIds.add(entryId);
+
+        // Skip entries the user deleted locally this session
+        if (this._deletedIds.has(entryId)) {
+          logger.log(`[${this.getTableName()}] Skipping deleted entry ${entryId} during sync`);
+          continue;
+        }
+
         const remoteEntry = rowToEntry(remoteRow);
         const localEntry = await this.get(entryId);
 
@@ -260,6 +276,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         }
 
         rowsSynced++;
+      }
+
+      // Clean up orphan local-only entries that aren't in Supabase and
+      // whose INSERT mutations have already been processed (no longer pending).
+      const allLocal = await this.getAll();
+      for (const local of allLocal) {
+        if (local._localOnly && !remoteIds.has(local.id)) {
+          logger.log(`[${this.getTableName()}] Removing orphan local entry ${local.id}`);
+          await this.delete(local.id);
+        }
       }
 
       await this.updateSyncMetadata({
@@ -407,9 +433,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Delete an entry locally and queue DELETE mutation for Supabase sync
+   * Delete an entry locally and queue DELETE mutation for Supabase sync.
+   * Also marks the ID so the download sync won't resurrect it this session.
    */
   async deleteEntry(entryId: string): Promise<string | null> {
+    this._deletedIds.add(entryId);
     await this.delete(entryId);
     const mutationId = await this.queueMutation('DELETE', entryId, { id: entryId });
     this._lastMutationId = mutationId;

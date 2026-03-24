@@ -139,36 +139,32 @@ export const mapDatabaseToShow = (
     };
   });
 
-  // Map judge assignments from judge_assignments table
+  // Map judge assignments from judge_assignments table, grouped by person
   const rawJudgeAssignments = dbShow.judge_assignments || dbShow.judge_assignment || [];
-  const assignedJudges = (rawJudgeAssignments as Array<Record<string, unknown>>).map(
-    assignmentObj => {
-      // The join uses alias "judge:people(...)" so data is under "judge" key
-      const person = (assignmentObj.judge || assignmentObj.people) as
-        | Record<string, unknown>
-        | undefined;
+  const judgesByPerson = new Map<string, Record<string, unknown>[]>();
+  for (const row of rawJudgeAssignments as Array<Record<string, unknown>>) {
+    const personId = (row.person_id as string) || '';
+    const group = judgesByPerson.get(personId) || [];
+    group.push(row);
+    judgesByPerson.set(personId, group);
+  }
+  const assignedJudges = Array.from(judgesByPerson.entries()).map(([personId, rows]) => {
+    const firstRow = rows[0];
+    // The join uses alias "judge:people(...)" so data is under "judge" key
+    const person = (firstRow.judge || firstRow.people) as Record<string, unknown> | undefined;
 
-      return {
-        judgeId: (assignmentObj.person_id as string) || '',
-        judgeName: person ? `${person.first_name || ''} ${person.last_name || ''}`.trim() : '',
-        assignedDate:
-          (assignmentObj.confirmed_at as string)?.split('T')[0] ||
-          (assignmentObj.created_at as string)?.split('T')[0] ||
-          new Date().toISOString().split('T')[0],
-        availableStartTime: 'Full Day',
-        availableEndTime: 'Full Day',
-        // Additional fields from judge_assignment table
-        assignmentStatus: (assignmentObj.assignment_status as string) || 'confirmed',
-        compensationAmount: (assignmentObj.compensation_amount as number) || undefined,
-        expensesCovered: (assignmentObj.expenses_covered as boolean) || false,
-        travelProvided: (assignmentObj.travel_provided as boolean) || false,
-        specialRequirements: (assignmentObj.special_requirements as string) || undefined,
-        notes: (assignmentObj.notes as string) || undefined,
-        confirmedBy: (assignmentObj.confirmed_by as string) || undefined,
-        confirmedAt: (assignmentObj.confirmed_at as string) || undefined,
-      };
-    }
-  );
+    return {
+      judgeId: personId,
+      judgeName: person ? `${person.first_name || ''} ${person.last_name || ''}`.trim() : '',
+      assignedDate:
+        (firstRow.confirmed_at as string)?.split('T')[0] ||
+        (firstRow.created_at as string)?.split('T')[0] ||
+        new Date().toISOString().split('T')[0],
+      assignedClasses: rows
+        .map(r => r.class_id as string | null)
+        .filter((id): id is string => id !== null),
+    };
+  });
 
   return {
     id: dbShow.id,

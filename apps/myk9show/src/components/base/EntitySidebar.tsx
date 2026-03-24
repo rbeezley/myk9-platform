@@ -44,12 +44,7 @@ export function EntitySidebar<T extends EntitySidebarItem>({
   defaultWidth = 240,
   storageKey = 'entity-sidebar',
 }: EntitySidebarProps<T>) {
-  const {
-    width,
-    isCollapsed,
-    toggleCollapsed,
-    startResizing,
-  } = useResizableSidebar({
+  const { width, isCollapsed, toggleCollapsed, startResizing } = useResizableSidebar({
     storageKey,
     minWidth,
     maxWidth,
@@ -58,36 +53,40 @@ export function EntitySidebar<T extends EntitySidebarItem>({
 
   const filteredItems = useMemo(() => {
     if (!searchValue.trim()) return items;
-    
+
     const search = searchValue.toLowerCase();
-    return items.filter(item => 
-      item.primaryText.toLowerCase().includes(search) ||
-      item.secondaryText?.toLowerCase().includes(search)
+    return items.filter(
+      item =>
+        item.primaryText.toLowerCase().includes(search) ||
+        item.secondaryText?.toLowerCase().includes(search)
     );
   }, [items, searchValue]);
 
-  const Row = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const item = filteredItems[index];
-    const isSelected = item.id === selectedId;
+  const Row = useCallback(
+    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const item = filteredItems[index];
+      const isSelected = item.id === selectedId;
 
-    return (
-      <div
-        style={style}
-        onClick={() => onSelectItem(item)}
-        className={cn(
-          'px-3 py-2 cursor-pointer transition-colors',
-          'hover:bg-gray-100 dark:hover:bg-gray-800',
-          isSelected && 'bg-blue-50 dark:bg-blue-900/20'
-        )}
-      >
-        {renderItem(item, isSelected, isCollapsed)}
-      </div>
-    );
-  }, [filteredItems, selectedId, onSelectItem, renderItem, isCollapsed]);
+      return (
+        <div
+          style={style}
+          onClick={() => onSelectItem(item)}
+          className={cn(
+            'px-3 py-2 cursor-pointer transition-colors',
+            'hover:bg-gray-100 dark:hover:bg-gray-800',
+            isSelected && 'bg-blue-50 dark:bg-blue-900/20'
+          )}
+        >
+          {renderItem(item, isSelected, isCollapsed)}
+        </div>
+      );
+    },
+    [filteredItems, selectedId, onSelectItem, renderItem, isCollapsed]
+  );
 
   return (
     <div
-      className="relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full"
+      className="relative bg-background dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full"
       style={{ width: `${width}px` }}
     >
       {/* Header */}
@@ -98,8 +97,8 @@ export function EntitySidebar<T extends EntitySidebarItem>({
             <Input
               type="text"
               placeholder={searchPlaceholder}
-              value={""}
-              onChange={(e) => onSearchChange(e.target.value)}
+              value={''}
+              onChange={e => onSearchChange(e.target.value)}
               className="pl-9 pr-3 py-2 w-full"
             />
           </div>
@@ -119,9 +118,7 @@ export function EntitySidebar<T extends EntitySidebarItem>({
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {filteredItems.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-            {emptyMessage}
-          </div>
+          <div className="p-4 text-center text-gray-500 dark:text-gray-400">{emptyMessage}</div>
         ) : (
           <List
             height={window.innerHeight - 120}

@@ -49,7 +49,7 @@ const SecretaryDashboard: React.FC = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -top-1 -right-1 h-4 w-4 bg-success-green rounded-full border-2 border-background flex items-center justify-center">
-                  <div className="h-2 w-2 bg-white rounded-full" />
+                  <div className="h-2 w-2 bg-card rounded-full" />
                 </div>
               </div>
               <div>

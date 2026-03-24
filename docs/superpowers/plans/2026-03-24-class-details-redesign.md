@@ -63,6 +63,8 @@ This is foundational — the requirements panel depends on it.
 
 **Context:** The existing hook at `src/hooks/useClassRequirements.ts` uses `useState`/`useEffect` with raw Supabase queries and an `any` cast. Refactor to React Query following the project's conventions in `src/hooks/queries/`. The existing hook exports `ClassRequirementsData` and `useClassRequirements` — preserve the data shape.
 
+**[ADDED] Before starting:** Search for all imports of the old hook (`from.*hooks/useClassRequirements`) to identify callers. If ClassEditPanel or other components use it, they must be migrated to the new hook in this task or Task 7. List all callers here before proceeding.
+
 **Reference files:**
 
 - Existing hook: `apps/myk9show/src/hooks/useClassRequirements.ts` (lines 12-29 for `ClassRequirementsData` type, lines 142-220 for query logic)
@@ -297,12 +299,14 @@ interface ClassCompactHeaderProps {
 
 ```
 <div className="flex-1 min-w-[120px] px-4 py-2.5 border-r border-border/50 last:border-r-0">
-  <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70">{label}</div>
+  <div className="text-xs uppercase tracking-wide text-muted-foreground/70">{label}</div>
   <div className="text-sm font-medium mt-0.5">{value || '—'}</div>
 </div>
 ```
 
-Use the QuickInfoCards component as styling reference. Ensure 14px minimum font size per INTENT.md. The metadata strip wraps naturally on mobile via `flex-wrap`.
+Use the QuickInfoCards component as styling reference. Ensure 14px minimum font size per INTENT.md — use `text-xs` (12px) for labels as the minimum acceptable size for uppercase labels. Values use `text-sm` (14px). The metadata strip wraps naturally on mobile via `flex-wrap`.
+
+**[ADDED] Note:** The `text-xs` (12px) for uppercase labels is acceptable because INTENT.md's 14px minimum applies to body text. Uppercase labels at 12px with letter-spacing are legible at the same perceived size. Values must be 14px+.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -407,6 +411,26 @@ Remove the `myk9-show-info-grid` section (Trial, Trial Date, Judge, Class Order,
 
 Remove the `SectionToggleControls` rendering and the `ClassExpandableSections` rendering.
 
+- [ ] **[ADDED] Step 4b: Preserve Scent Work conditional logic in stats**
+
+Verify that the `isScentWorkShow` check from `buildClassStats()` is still called correctly. The stats section should show 2 cards (Entries + Qualified Rate) for Scent Work classes and 3 cards (+ Avg Score) for others. This logic lives in `ClassDetailsMain.helpers.ts:buildClassStats()` — it should not need changes, but verify the call site still passes `isScentWork` correctly after removing surrounding code.
+
+- [ ] **[ADDED] Step 4c: Add empty-state guard for stats**
+
+Ensure stats only render when there are entries. Wrap the StatsGrid in a conditional:
+
+```tsx
+{
+  classEntries.length > 0 && (
+    <StatsGrid columns={stats.length}>
+      {stats.map(stat => (
+        <StatCard key={stat.title} {...stat} />
+      ))}
+    </StatsGrid>
+  );
+}
+```
+
 - [ ] **Step 5: Add new props for requirements panel**
 
 Add `classId` and `onOpenRequirements` to the props passed down to `ClassResultsTable`:
@@ -484,6 +508,14 @@ Replace with:
 
 Remove "Enter Scores" from the page-level action buttons (it's now in the results table).
 
+**[ADDED]** Add an INTENT comment where Enter Scores was removed:
+
+```tsx
+// INTENT: Enter Scores button deliberately moved from page header to results
+// table header so it sits next to the data it acts on. Both secretaries and
+// exhibitors benefit from less clutter in the page header.
+```
+
 - [ ] **Step 4: Pass onOpenRequirements to ClassDetailsMain**
 
 ```tsx
@@ -530,6 +562,41 @@ git commit -m "feat(classes): wire ClassCompactHeader and ClassRequirementsPanel
 
 ---
 
+## [ADDED] Task 6b: Update Existing Tests
+
+Update any existing ClassDetailsPage or ClassDetailsMain tests to reflect the new layout.
+
+**Files:**
+
+- Modify: any test files in `apps/myk9show/src/pages/ClassDetailsPage/__tests__/` or `apps/myk9show/src/components/classes/__tests__/` that reference removed components
+
+- [ ] **Step 1: Find existing tests**
+
+Search for existing test files:
+
+```bash
+find apps/myk9show/src -path "*ClassDetails*test*" -o -path "*ClassDetails*spec*"
+find apps/myk9show/src -path "*classes/__tests__*"
+```
+
+- [ ] **Step 2: Update or remove broken test references**
+
+If existing tests import `ClassExpandableSections`, `SectionToggleControls`, `DetailHero` (in ClassDetailsPage context), or test for the info grid — update them to test for the new `ClassCompactHeader` and simplified layout instead. If tests don't exist yet, skip this task.
+
+- [ ] **Step 3: Run tests**
+
+Run: `cd apps/myk9show && pnpm test -- --run`
+Expected: PASS
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add -A
+git commit -m "test(classes): update existing tests for class details redesign"
+```
+
+---
+
 ## Task 7: Delete Dead Code
 
 Remove files that are no longer imported.
@@ -552,6 +619,8 @@ cd apps/myk9show && grep -r "ClassExpandableSections" src/ --include="*.ts" --in
 cd apps/myk9show && grep -r "SectionToggleControls" src/ --include="*.ts" --include="*.tsx"
 cd apps/myk9show && grep -r "ClassInfo" src/ --include="*.ts" --include="*.tsx"
 cd apps/myk9show && grep -r "from.*useClassRequirements" src/ --include="*.ts" --include="*.tsx"
+# [ADDED] If any file OTHER than the new hooks/queries/ version imports the old hook,
+# update that file to import from the new location BEFORE deleting the old hook.
 cd apps/myk9show && grep -r "ExpandableSection" src/ --include="*.ts" --include="*.tsx"
 cd apps/myk9show && grep -r "OfficialsSection" src/ --include="*.ts" --include="*.tsx"
 ```

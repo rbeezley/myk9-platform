@@ -84,8 +84,17 @@ vi.mock('@/components/shows/tabs/MyEntriesTab', () => ({
 vi.mock('@/components/shows/tabs/ClassesTab', () => ({
   ClassesTab: () => <div data-testid="classes-tab">ClassesTab</div>,
 }));
+vi.mock('@/components/shows/tabs/TrialsTab', () => ({
+  TrialsTab: () => <div data-testid="trials-tab">TrialsTab</div>,
+}));
 vi.mock('@/components/shows/EntryList', () => ({
   EntryList: () => <div data-testid="entry-list">EntryList</div>,
+}));
+vi.mock('@/components/shows/ArmbandLookup', () => ({
+  ArmbandLookup: () => null,
+}));
+vi.mock('@/hooks/queries/useArmbandLookup', () => ({
+  useArmbandCount: () => ({ data: 0 }),
 }));
 
 // Mock shared primitives to pass through
@@ -144,19 +153,20 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByText('Bluegrass Classic')).toBeInTheDocument();
   });
 
-  it('renders tabs: Overview, Classes, My Entries, Results', () => {
+  it('renders tabs: Overview, Trials, Classes, Entries, Results', () => {
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
-    expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Classes' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'My Entries' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Results' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Trials/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Entries/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
   });
 
-  it('defaults to My Entries tab when user has entries', () => {
+  it('defaults to Overview tab when user has entries', () => {
     mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
     renderPage();
-    const tab = screen.getByRole('tab', { name: 'My Entries' });
+    const tab = screen.getByRole('tab', { name: /Overview/ });
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
   });
 
@@ -167,13 +177,13 @@ describe('ShowDetailsPage', () => {
     expect(tab.closest('[data-state="active"], [aria-selected="true"]')).toBeTruthy();
   });
 
-  it('hides My Entries and Results tabs for unauthenticated users', () => {
+  it('hides Entries and Results tabs for unauthenticated users', () => {
     mockAuthContext.user = null;
     renderPage();
-    expect(screen.getByText('Overview')).toBeInTheDocument();
-    expect(screen.getByText('Classes')).toBeInTheDocument();
-    expect(screen.queryByText('My Entries')).toBeNull();
-    expect(screen.queryByText('Results')).toBeNull();
+    expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Entries/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /Results/ })).toBeNull();
   });
 
   it('renders NotFoundState when show does not exist', () => {

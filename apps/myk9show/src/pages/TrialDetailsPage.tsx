@@ -446,7 +446,7 @@ const TrialDetailsPage: React.FC = () => {
                 await replicatedClassesTable.sync('');
                 useTrialStore.getState().loadTrialClasses();
                 queryClient.invalidateQueries({ queryKey: ['classes'] });
-              } catch (err) {
+              } catch {
                 // Non-blocking — class data already saved
               }
             }

@@ -1,146 +1,225 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { ScheduleSummary } from '@/components/shows/overview/ScheduleSummary';
-import type { DaySummary } from '@/utils/schedule-summary';
+import type { DayTimelineData } from '@/components/schedule/schedule-timeline.types';
+import { CLASS_STATUS } from '@myk9/core';
 
-// Mock useScheduleSummary
-let mockSchedule: DaySummary[] | null = null;
+let mockData: DayTimelineData[] | null = null;
 
-vi.mock('@/hooks/queries/useScheduleSummary', () => ({
-  useScheduleSummary: () => ({ data: mockSchedule }),
+vi.mock('@/hooks/queries/useScheduleTimeline', () => ({
+  useScheduleTimeline: () => ({
+    data: mockData,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
 }));
 
-/** Helper to build a DaySummary with a single trial */
-function dayWithTrial(
+/** Helper to build a DayTimelineData with a single trial containing the given elements */
+function dayWithElements(
   date: string,
   trialNumber: string | null,
-  disciplines: DaySummary['disciplines']
-): DaySummary {
+  elements: DayTimelineData['trials'][number]['elements']
+): DayTimelineData {
   return {
     date,
-    trials: [{ trialNumber, disciplines }],
-    disciplines,
+    trials: [
+      {
+        trialId: `trial-${date}-${trialNumber ?? '0'}`,
+        trialNumber,
+        plannedStartTime: null,
+        elements,
+      },
+    ],
   };
 }
 
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 describe('ScheduleSummary', () => {
-  it('returns null when no schedule data', () => {
-    mockSchedule = null;
-    const { container } = render(<ScheduleSummary showId="show-1" />);
-    expect(container.firstElementChild).toBeNull();
+  it('renders empty state when no schedule data', () => {
+    mockData = null;
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
+    expect(screen.getByText('No schedule available')).toBeInTheDocument();
   });
 
-  it('returns null when schedule is empty', () => {
-    mockSchedule = [];
-    const { container } = render(<ScheduleSummary showId="show-1" />);
-    expect(container.firstElementChild).toBeNull();
+  it('renders empty state when schedule is empty', () => {
+    mockData = [];
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
+    expect(screen.getByText('No schedule available')).toBeInTheDocument();
   });
 
-  it('renders day dates and discipline names', () => {
-    mockSchedule = [
-      dayWithTrial('2026-03-21', null, [
+  it('renders day dates and element names', () => {
+    mockData = [
+      dayWithElements('2026-03-21', null, [
         {
-          name: 'Agility',
-          elements: ['Standard', 'JWW'],
-          levels: ['Novice', 'Open'],
-          classNames: [],
+          element: 'Standard',
+          startTime: null,
+          levelRange: 'Novice–Open',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
+        },
+        {
+          element: 'JWW',
+          startTime: null,
+          levelRange: 'Novice–Open',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
         },
       ]),
     ];
-    render(<ScheduleSummary showId="show-1" />);
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
     expect(screen.getByText('Schedule')).toBeInTheDocument();
-    expect(screen.getByText(/March 21/)).toBeInTheDocument();
-    expect(screen.getByText('Agility')).toBeInTheDocument();
+    expect(screen.getByText(/March 21, 2026/)).toBeInTheDocument();
+    expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText('JWW')).toBeInTheDocument();
   });
 
-  it('renders elements and levels in parentheses', () => {
-    mockSchedule = [
-      dayWithTrial('2026-03-21', null, [
+  it('renders level ranges on element cards', () => {
+    mockData = [
+      dayWithElements('2026-03-21', null, [
         {
-          name: 'Agility',
-          elements: ['Standard', 'JWW'],
-          levels: ['Novice'],
-          classNames: [],
+          element: 'Standard',
+          startTime: null,
+          levelRange: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
         },
       ]),
     ];
-    render(<ScheduleSummary showId="show-1" />);
-    expect(screen.getByText(/Standard, JWW/)).toBeInTheDocument();
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
     expect(screen.getByText(/Novice/)).toBeInTheDocument();
   });
 
-  it('formats level range when more than 2 levels', () => {
-    mockSchedule = [
-      dayWithTrial('2026-03-21', null, [
+  it('renders abbreviated level range for multiple levels', () => {
+    mockData = [
+      dayWithElements('2026-03-21', null, [
         {
-          name: 'Agility',
-          elements: [],
-          levels: ['Novice', 'Open', 'Excellent', 'Master'],
-          classNames: [],
+          element: 'Standard',
+          startTime: null,
+          levelRange: 'Novice–Master',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
         },
       ]),
     ];
-    render(<ScheduleSummary showId="show-1" />);
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
     expect(screen.getByText(/Novice–Master/)).toBeInTheDocument();
   });
 
-  it('renders class names for Other discipline', () => {
-    mockSchedule = [
-      dayWithTrial('2026-03-21', null, [
-        { name: 'Other', elements: [], levels: [], classNames: ['FAST', 'T2B'] },
+  it('renders element names for non-discipline classes', () => {
+    mockData = [
+      dayWithElements('2026-03-21', null, [
+        {
+          element: 'FAST',
+          startTime: null,
+          levelRange: '',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
+        },
+        {
+          element: 'T2B',
+          startTime: null,
+          levelRange: '',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
+        },
       ]),
     ];
-    render(<ScheduleSummary showId="show-1" />);
-    expect(screen.getByText('Other')).toBeInTheDocument();
-    expect(screen.getByText('FAST, T2B')).toBeInTheDocument();
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
+    expect(screen.getByText('FAST')).toBeInTheDocument();
+    expect(screen.getByText('T2B')).toBeInTheDocument();
   });
 
   it('renders multiple days', () => {
-    mockSchedule = [
-      dayWithTrial('2026-03-21', null, [
-        { name: 'Agility', elements: [], levels: ['Novice'], classNames: [] },
+    mockData = [
+      dayWithElements('2026-03-21', null, [
+        {
+          element: 'Standard',
+          startTime: null,
+          levelRange: 'Novice',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
+        },
       ]),
-      dayWithTrial('2026-03-22', null, [
-        { name: 'Obedience', elements: [], levels: ['Open'], classNames: [] },
+      dayWithElements('2026-03-22', null, [
+        {
+          element: 'Container',
+          startTime: null,
+          levelRange: 'Open',
+          status: CLASS_STATUS.SCHEDULED,
+          levels: [],
+          completedCount: 0,
+          totalCount: 0,
+        },
       ]),
     ];
-    render(<ScheduleSummary showId="show-1" />);
-    expect(screen.getByText(/March 21/)).toBeInTheDocument();
-    expect(screen.getByText(/March 22/)).toBeInTheDocument();
-    expect(screen.getByText('Agility')).toBeInTheDocument();
-    expect(screen.getByText('Obedience')).toBeInTheDocument();
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
+    expect(screen.getByText(/March 21, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/March 22, 2026/)).toBeInTheDocument();
+    expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText('Container')).toBeInTheDocument();
   });
 
   it('renders trial numbers when present', () => {
-    mockSchedule = [
+    mockData = [
       {
         date: '2026-03-21',
         trials: [
           {
+            trialId: 'trial-1',
             trialNumber: '1',
-            disciplines: [
-              { name: 'Container', elements: [], levels: ['Novice', 'Master'], classNames: [] },
+            plannedStartTime: null,
+            elements: [
+              {
+                element: 'Container',
+                startTime: null,
+                levelRange: 'Novice–Master',
+                status: CLASS_STATUS.SCHEDULED,
+                levels: [],
+                completedCount: 0,
+                totalCount: 0,
+              },
             ],
           },
           {
+            trialId: 'trial-2',
             trialNumber: '2',
-            disciplines: [
-              { name: 'Container', elements: [], levels: ['Advanced'], classNames: [] },
+            plannedStartTime: null,
+            elements: [
+              {
+                element: 'Container',
+                startTime: null,
+                levelRange: 'Adv',
+                status: CLASS_STATUS.SCHEDULED,
+                levels: [],
+                completedCount: 0,
+                totalCount: 0,
+              },
             ],
-          },
-        ],
-        disciplines: [
-          {
-            name: 'Container',
-            elements: [],
-            levels: ['Novice', 'Advanced', 'Master'],
-            classNames: [],
           },
         ],
       },
     ];
-    render(<ScheduleSummary showId="show-1" />);
-    expect(screen.getByText('Trial 1')).toBeInTheDocument();
-    expect(screen.getByText('Trial 2')).toBeInTheDocument();
+    renderWithRouter(<ScheduleSummary showId="show-1" />);
+    expect(screen.getByText(/Trial 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Trial 2/)).toBeInTheDocument();
   });
 });

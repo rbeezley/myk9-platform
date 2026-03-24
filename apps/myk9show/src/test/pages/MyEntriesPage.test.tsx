@@ -158,11 +158,13 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByRole('heading', { name: 'My Entries' });
 
-      // Tabs should have simple labels without counts (rendered as lowercase values)
-      expect(screen.getByRole('tab', { name: 'all' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'pending' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'waitlist' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'upcoming' })).toBeInTheDocument();
+      // Tabs should have simple labels without counts
+      expect(screen.getByRole('tab', { name: /All/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Pending/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Accepted/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Upcoming/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Completed/i })).toBeInTheDocument();
     });
 
     it('should have scrollable tab container for mobile', async () => {

@@ -87,8 +87,9 @@ describe('ShowCardVertical', () => {
         show={createMockShow({ organization: 'AKC', events: ['AKC', 'Conformation', 'Obedience'] })}
       />
     );
-    expect(screen.getByText('Conformation')).toBeInTheDocument();
-    expect(screen.getByText('Obedience')).toBeInTheDocument();
+    // getTypeBadge renders text via type.toUpperCase()
+    expect(screen.getByText('CONFORMATION')).toBeInTheDocument();
+    expect(screen.getByText('OBEDIENCE')).toBeInTheDocument();
   });
 
   it('does not render duplicate organization tag in discipline tags', () => {

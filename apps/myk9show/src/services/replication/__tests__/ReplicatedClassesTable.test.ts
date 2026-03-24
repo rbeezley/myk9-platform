@@ -194,7 +194,9 @@ describe('ReplicatedClassesTable', () => {
         await classesTable.sync('trial-1');
 
         expect(mockSupabaseFrom).toHaveBeenCalledWith('classes');
-        expect(mockSupabaseSelect).toHaveBeenCalledWith('*');
+        expect(mockSupabaseSelect).toHaveBeenCalledWith(
+          '*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
+        );
         expect(mockSupabaseGt).toHaveBeenCalledWith('updated_at', expect.any(String));
         expect(mockSupabaseOrder).toHaveBeenCalledWith('updated_at', { ascending: true });
       });

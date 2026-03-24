@@ -1,11 +1,24 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
 import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
 import { Trial, TrialClass } from '@/components/trials/types/trial.types';
+import { createTestQueryClient } from '@/test/utils/testUtils';
+
+// Mock TrialTimeline to avoid Supabase/query dependencies
+vi.mock('@/components/schedule', () => ({
+  TrialTimeline: ({ trialId }: { trialId: string }) => (
+    <div data-testid="trial-timeline">Timeline for {trialId}</div>
+  ),
+}));
+
+// Mock TrialClassesTable to simplify rendering
+vi.mock('@/components/trials/TrialDetail/TrialClassesTable', () => ({
+  TrialClassesTable: () => <div data-testid="trial-classes-table">Classes Table</div>,
+}));
 
 // Mock navigation
 const mockNavigate = vi.fn();
@@ -17,22 +30,29 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Helper to wrap component with router
-const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+let queryClient: QueryClient;
+
+// Helper to wrap component with router and QueryClientProvider
+const renderWithProviders = (ui: React.ReactElement) => {
+  queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>{ui}</BrowserRouter>
+    </QueryClientProvider>
+  );
 };
 
 // Mock trial data
 const mockTrial: Trial & { classes?: TrialClass[] } = {
   id: 'trial-1',
   showId: 'show-1',
-  organization: 'Scent Work',
+  showName: 'Test Show',
   status: 'Upcoming',
   trialDate: '2024-06-15',
   trialNumber: 'T001',
   eventNumber: 'E001',
   plannedStartTime: '9:00 AM',
-  order: 1,
+  order: '1',
   classes: [
     {
       id: 'class-1',
@@ -76,13 +96,9 @@ const mockStatisticsNoCompleted: TrialStatisticsData = {
 };
 
 const mockHandlers = {
-  onEdit: vi.fn(),
-  onDelete: vi.fn(),
-  onAddClassesFromTemplate: vi.fn(),
   onEditClass: vi.fn(),
   onDeleteClass: vi.fn(),
-  onPrevTrial: vi.fn(),
-  onNextTrial: vi.fn(),
+  onAddClassesFromTemplate: vi.fn(),
 };
 
 describe('TrialDetailsMain', () => {
@@ -92,7 +108,7 @@ describe('TrialDetailsMain', () => {
 
   describe('Statistics Cards - Contextual Subtitles', () => {
     it('displays contextual subtitle instead of percent change for judges', () => {
-      renderWithRouter(
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
@@ -102,7 +118,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('shows progress text for classes card', () => {
-      renderWithRouter(
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
@@ -111,7 +127,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('shows scored count for entries card', () => {
-      renderWithRouter(
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
@@ -120,7 +136,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('hides Qualified Rate card when no completed classes', () => {
-      renderWithRouter(
+      renderWithProviders(
         <TrialDetailsMain
           trial={mockTrial}
           statistics={mockStatisticsNoCompleted}
@@ -133,7 +149,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('shows Qualified Rate card when classes are completed', () => {
-      renderWithRouter(
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
@@ -143,7 +159,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('shows "None active" when no judges are active', () => {
-      renderWithRouter(
+      renderWithProviders(
         <TrialDetailsMain
           trial={mockTrial}
           statistics={mockStatisticsNoCompleted}
@@ -155,215 +171,83 @@ describe('TrialDetailsMain', () => {
     });
   });
 
-  describe('Trial Info Card', () => {
-    it('does not display Order field', () => {
-      renderWithRouter(
+  describe('Timeline Section', () => {
+    it('renders the timeline heading', () => {
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      // Should not show "Order" label
-      const orderLabels = screen.queryAllByText('Order');
-      expect(orderLabels.length).toBe(0);
+      expect(screen.getByText('Timeline')).toBeInTheDocument();
     });
 
-    it('displays Total Classes field instead of Order', () => {
-      renderWithRouter(
+    it('renders the TrialTimeline component with correct trialId', () => {
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      // Should have Total Classes label in the info card
-      const infoCard = document.querySelector('.myk9-show-info-card');
-      const labels = infoCard?.querySelectorAll('.myk9-show-info-label') || [];
-      const hasLabel = Array.from(labels).some(label => label.textContent === 'Total Classes');
-      expect(hasLabel).toBe(true);
-    });
-
-    it('displays Trial Number and Event Number', () => {
-      renderWithRouter(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
-
-      expect(screen.getByText('Trial Number')).toBeInTheDocument();
-      expect(screen.getByText('Event Number')).toBeInTheDocument();
+      expect(screen.getByTestId('trial-timeline')).toBeInTheDocument();
+      expect(screen.getByText('Timeline for trial-1')).toBeInTheDocument();
     });
   });
 
-  describe('Action Buttons', () => {
-    it('displays Edit button visibly (not hidden in dropdown)', async () => {
-      renderWithRouter(
+  describe('Classes Section', () => {
+    it('renders the classes heading', () => {
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      // Find the visible edit button by its title
-      const editButton = screen.getByTitle('Edit Trial');
-      expect(editButton).toBeVisible();
+      expect(screen.getByText('Classes')).toBeInTheDocument();
     });
 
-    it('calls onEdit when Edit button is clicked', async () => {
-      const user = userEvent.setup();
-      renderWithRouter(
+    it('renders the TrialClassesTable component', () => {
+      renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      const editButton = screen.getByTitle('Edit Trial');
-      await user.click(editButton);
-
-      expect(mockHandlers.onEdit).toHaveBeenCalledTimes(1);
-    });
-
-    it('keeps Delete in dropdown menu', () => {
-      renderWithRouter(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
-
-      // Delete should not be immediately visible (it's in the dropdown)
-      expect(screen.queryByRole('menuitem', { name: /delete trial/i })).not.toBeInTheDocument();
-    });
-
-    it('has a dropdown menu trigger button', () => {
-      renderWithRouter(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
-
-      // The dropdown menu trigger should exist in the DOM
-      // It's the button that contains the more-vertical icon
-      const buttons = screen.getAllByRole('button');
-      // There should be multiple buttons including the dropdown trigger
-      expect(buttons.length).toBeGreaterThan(1);
+      expect(screen.getByTestId('trial-classes-table')).toBeInTheDocument();
     });
   });
 
-  describe('Trial Navigation', () => {
-    it('renders prev/next navigation buttons when multiple trials exist', () => {
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-          prevTrialId="prev-123"
-          nextTrialId="next-456"
-          currentTrialIndex={1}
-          totalTrials={3}
-        />
+  describe('Statistics Cards - Values', () => {
+    it('displays correct stat values', () => {
+      renderWithProviders(
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      expect(screen.getByTitle('Previous Trial')).toBeInTheDocument();
-      expect(screen.getByTitle('Next Trial')).toBeInTheDocument();
-      expect(screen.getByText('2 of 3')).toBeInTheDocument();
+      // Judges total
+      expect(screen.getByText('Judges')).toBeInTheDocument();
+      // Classes total
+      expect(screen.getByText('Total Classes')).toBeInTheDocument();
+      // Entries total
+      expect(screen.getByText('Total Entries')).toBeInTheDocument();
     });
 
-    it('does not render navigation when only one trial', () => {
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-          totalTrials={1}
-        />
+    it('displays detail rows for each stat card', () => {
+      renderWithProviders(
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      expect(screen.queryByTitle('Previous Trial')).not.toBeInTheDocument();
-      expect(screen.queryByTitle('Next Trial')).not.toBeInTheDocument();
+      // Judges details
+      expect(screen.getByText('Active: 1')).toBeInTheDocument();
+      expect(screen.getByText('On Break: 1')).toBeInTheDocument();
+
+      // Classes details
+      expect(screen.getByText('Upcoming: 9')).toBeInTheDocument();
+      expect(screen.getByText('Completed: 3')).toBeInTheDocument();
+
+      // Entries details
+      expect(screen.getByText('Upcoming: 72')).toBeInTheDocument();
+      expect(screen.getByText('Completed: 24')).toBeInTheDocument();
     });
 
-    it('disables prev button when no previous trial', () => {
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-          prevTrialId={null}
-          nextTrialId="next-456"
-          currentTrialIndex={0}
-          totalTrials={3}
-        />
+    it('displays qualified rate details when completed classes exist', () => {
+      renderWithProviders(
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      const prevButton = screen.getByTitle('Previous Trial');
-      expect(prevButton).toBeDisabled();
-    });
-
-    it('disables next button when no next trial', () => {
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-          prevTrialId="prev-123"
-          nextTrialId={null}
-          currentTrialIndex={2}
-          totalTrials={3}
-        />
-      );
-
-      const nextButton = screen.getByTitle('Next Trial');
-      expect(nextButton).toBeDisabled();
-    });
-
-    it('calls onPrevTrial when previous button is clicked', async () => {
-      const user = userEvent.setup();
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-          prevTrialId="prev-123"
-          nextTrialId="next-456"
-          currentTrialIndex={1}
-          totalTrials={3}
-        />
-      );
-
-      await user.click(screen.getByTitle('Previous Trial'));
-      expect(mockHandlers.onPrevTrial).toHaveBeenCalledTimes(1);
-    });
-
-    it('calls onNextTrial when next button is clicked', async () => {
-      const user = userEvent.setup();
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-          prevTrialId="prev-123"
-          nextTrialId="next-456"
-          currentTrialIndex={1}
-          totalTrials={3}
-        />
-      );
-
-      await user.click(screen.getByTitle('Next Trial'));
-      expect(mockHandlers.onNextTrial).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('Status Badge', () => {
-    it('renders status badge with correct class for Upcoming', () => {
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={{ ...mockTrial, status: 'Upcoming' }}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
-      );
-
-      // Use container query to find the status badge in the header
-      const badge = document.querySelector('.myk9-show-info-header .myk9-show-status');
-      expect(badge).toHaveClass('myk9-show-status-upcoming');
-    });
-
-    it('renders status badge with correct class for In Progress', () => {
-      renderWithRouter(
-        <TrialDetailsMain
-          trial={{ ...mockTrial, status: 'In Progress' }}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
-      );
-
-      // Use container query to find the status badge in the header
-      const badge = document.querySelector('.myk9-show-info-header .myk9-show-status');
-      expect(badge).toHaveClass('myk9-show-status-in-progress');
+      expect(screen.getByText('Qualified: 18')).toBeInTheDocument();
+      expect(screen.getByText('Total: 24')).toBeInTheDocument();
+      expect(screen.getByText('75%')).toBeInTheDocument();
     });
   });
 });

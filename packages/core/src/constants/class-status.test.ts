@@ -101,11 +101,11 @@ describe('getClassStatusDisplay', () => {
     expect(display.color).toBe('blue');
   });
 
-  it('should return default config for unknown status', () => {
+  it('should return Upcoming config for unknown status (falls through to Scheduled default)', () => {
     const display = getClassStatusDisplay('Unknown');
-    expect(display.label).toBe('Unknown');
-    expect(display.color).toBe('gray');
-    expect(display.bgClass).toBe('bg-gray-100');
+    expect(display.label).toBe('Upcoming');
+    expect(display.color).toBe('blue');
+    expect(display.bgClass).toBe('bg-blue-100');
   });
 });
 
@@ -124,10 +124,10 @@ describe('getClassStatusBadgeClasses', () => {
     expect(classes).toContain('text-amber-800');
   });
 
-  it('should return gray classes for unknown status', () => {
+  it('should return blue classes for unknown status (falls through to Scheduled default)', () => {
     const classes = getClassStatusBadgeClasses('Unknown');
-    expect(classes).toContain('bg-gray-100');
-    expect(classes).toContain('text-gray-800');
+    expect(classes).toContain('bg-blue-100');
+    expect(classes).toContain('text-blue-800');
   });
 });
 

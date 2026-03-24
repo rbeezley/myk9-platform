@@ -345,7 +345,15 @@ Start `pnpm dev:show` and check these pages in light mode:
 
 Then switch to dark mode and confirm it looks unchanged. Check that `bg-accent` surfaces still look intentional against the warm backgrounds.
 
-- [ ] **Step 7: Commit verification results (if any fixes needed)**
+- [ ] **Step 7: Verify accent color override classes don't conflict** `[ADDED]`
+
+```bash
+grep -rn "\-\-card\|\-\-background\|\-\-popover" apps/myk9show/src --include="*.css" | grep "accent-"
+```
+
+Expected: No accent color classes override `--card`, `--background`, or `--popover`. If any do, they need to be warmed too.
+
+- [ ] **Step 8: Commit verification results (if any fixes needed)**
 
 ---
 
@@ -354,3 +362,13 @@ Then switch to dark mode and confirm it looks unchanged. Check that `bg-accent` 
 - [ ] **Step 1: Mark the "Soften Light Mode Backgrounds" todo as complete in `TO-DOS.md`**
 
 Replace the todo item with a `[x]` completion entry summarizing what was done.
+
+---
+
+## Rollback `[ADDED]`
+
+Each task commits separately. If the warm palette looks wrong after deployment:
+
+- Revert individual commits to isolate which batch caused the issue
+- Or revert all commits back to the pre-warmth state with `git revert`
+- Vercel auto-deploys from `main`, so a revert commit deploys immediately

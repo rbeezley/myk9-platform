@@ -1,6 +1,6 @@
 export const STAT_COLORS = {
   primary: {
-    iconBg: 'bg-indigo-500/12 dark:bg-indigo-500/12',
+    iconBg: 'bg-indigo-500/8 dark:bg-indigo-500/12',
     iconStroke: 'text-indigo-500',
     progressFill: 'bg-indigo-500',
   },

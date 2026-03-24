@@ -35,6 +35,7 @@ interface ShowStatisticsProps {
 
 /**
  * Map a Font Awesome icon class to a Lucide icon component.
+ * TODO: Remove once upstream Stat data source provides LucideIcon directly.
  */
 function mapFaIconToLucide(iconClass: string): LucideIcon {
   const lc = iconClass.toLowerCase();
@@ -54,6 +55,7 @@ function mapFaIconToLucide(iconClass: string): LucideIcon {
 /**
  * Map a stat's color classes to a StatColor token.
  * Uses the icon background / progress color as a heuristic.
+ * TODO: Remove once upstream Stat data source provides StatColor directly.
  */
 function mapStatColor(stat: Stat): StatColor {
   const combined = `${stat.iconBg} ${stat.iconColor} ${stat.progressColor}`.toLowerCase();

@@ -23,19 +23,22 @@ export const TrialList = ({
   searchTerm,
   onSearchChange,
 }: TrialListProps) => {
-  const filteredTrials = useMemo(() =>
-    trials.filter(
-      (trial) =>
-        trial.showName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        trial.trialNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
+  const filteredTrials = useMemo(
+    () =>
+      trials.filter(
+        trial =>
+          trial.showName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          trial.trialNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
     [trials, searchTerm]
   );
 
   return (
-    <div className={`bg-white border-r border-gray-200 transition-all duration-300 ${
-      isSidebarOpen ? 'w-80' : 'w-16'
-    }`}>
+    <div
+      className={`bg-card border-r border-gray-200 transition-all duration-300 ${
+        isSidebarOpen ? 'w-80' : 'w-16'
+      }`}
+    >
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           {isSidebarOpen && (
@@ -43,7 +46,7 @@ export const TrialList = ({
               type="text"
               placeholder="Search trials..."
               value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={e => onSearchChange(e.target.value)}
               className="flex-1 mr-2"
             />
           )}
@@ -60,7 +63,7 @@ export const TrialList = ({
       </div>
       <div className="overflow-y-auto h-[calc(100vh-73px)]">
         {isSidebarOpen &&
-          filteredTrials.map((trial) => (
+          filteredTrials.map(trial => (
             <TrialListItem
               key={trial.id}
               trial={trial}
@@ -71,4 +74,4 @@ export const TrialList = ({
       </div>
     </div>
   );
-}
+};

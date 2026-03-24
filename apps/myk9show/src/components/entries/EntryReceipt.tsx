@@ -304,7 +304,7 @@ export function EntryReceipt({
         </DialogHeader>
 
         {/* Printable Content */}
-        <div ref={printRef} className="bg-white p-6 rounded-lg">
+        <div ref={printRef} className="bg-card p-6 rounded-lg">
           {/* Header */}
           <div className="receipt-header text-center mb-6 pb-4 border-b-2">
             <h1 className="receipt-title text-2xl font-bold">Entry Confirmation</h1>

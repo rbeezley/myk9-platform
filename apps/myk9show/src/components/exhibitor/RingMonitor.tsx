@@ -1,14 +1,6 @@
 import React, { useEffect, useState, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Clock, 
-  ChevronRight, 
-  AlertCircle, 
-  Coffee, 
-  Users,
-  Timer,
-  Bell
-} from 'lucide-react';
+import { Clock, ChevronRight, AlertCircle, Coffee, Users, Timer, Bell } from 'lucide-react';
 import { RingStatus, ExhibitorEntry } from '@/types/exhibitor-types';
 
 interface RingMonitorProps {
@@ -17,11 +9,7 @@ interface RingMonitorProps {
   onRefresh?: () => void;
 }
 
-const RingMonitor: React.FC<RingMonitorProps> = ({
-  userEntry,
-  ringStatus,
-  onRefresh
-}) => {
+const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefresh }) => {
   const navigate = useNavigate();
   const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -43,15 +31,16 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
 
   // Calculate estimated time until user's turn
   const calculateEstimatedTime = () => {
-    if (!ringStatus.currentDog || !ringStatus.userPosition || ringStatus.userPosition <= 0) return null;
-    
+    if (!ringStatus.currentDog || !ringStatus.userPosition || ringStatus.userPosition <= 0)
+      return null;
+
     const avgTimePerDog = 120; // 2 minutes average
     const dogsAhead = ringStatus.userPosition - 1;
     const estimatedSeconds = dogsAhead * avgTimePerDog;
-    
+
     return {
       minutes: Math.floor(estimatedSeconds / 60),
-      formatted: formatTimeEstimate(estimatedSeconds)
+      formatted: formatTimeEstimate(estimatedSeconds),
     };
   };
 
@@ -76,7 +65,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
   return (
     <div className="max-w-lg mx-auto p-4 pb-20">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {ringStatus.className} - Ring {ringStatus.ringNumber}
@@ -99,9 +88,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
           <div className="flex items-center gap-3">
             <Coffee className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
             <div>
-              <div className="font-medium text-yellow-800 dark:text-yellow-200">
-                Ring Paused
-              </div>
+              <div className="font-medium text-yellow-800 dark:text-yellow-200">Ring Paused</div>
               <div className="text-sm text-yellow-600 dark:text-yellow-400">
                 {ringStatus.pauseReason || 'Judge break'}
               </div>
@@ -115,9 +102,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             <div>
-              <div className="font-medium text-orange-800 dark:text-orange-200">
-                Ring Delayed
-              </div>
+              <div className="font-medium text-orange-800 dark:text-orange-200">Ring Delayed</div>
               <div className="text-sm text-orange-600 dark:text-orange-400">
                 Running approximately {ringStatus.delayMinutes} minutes behind schedule
               </div>
@@ -127,7 +112,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
       )}
 
       {/* Now in Ring */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-4">
+      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm mb-4">
         <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-3">
           <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium">
             <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
@@ -159,7 +144,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
       </div>
 
       {/* On Deck */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-4">
+      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm mb-4">
         <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-3">
           <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
             <Users className="w-5 h-5" />
@@ -171,15 +156,19 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
             ringStatus.onDeck.slice(0, 3).map((entry, index) => {
               const isUser = entry.armband === userEntry.armband;
               return (
-                <div 
+                <div
                   key={entry.armband}
                   className={`p-4 ${isUser ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`text-2xl font-bold ${
-                        isUser ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
-                      }`}>
+                      <div
+                        className={`text-2xl font-bold ${
+                          isUser
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
                         #{entry.armband}
                       </div>
                       {isUser && (
@@ -189,9 +178,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
                       )}
                     </div>
                     {index === 0 && (
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Next up
-                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Next up</div>
                     )}
                   </div>
                   <div className="mt-1">
@@ -218,9 +205,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-4">
           <div className="flex items-center gap-3 mb-3">
             <Bell className="w-6 h-6 text-red-600 dark:text-red-400 animate-bounce" />
-            <div className="text-xl font-bold text-red-800 dark:text-red-200">
-              YOU'RE NEXT!
-            </div>
+            <div className="text-xl font-bold text-red-800 dark:text-red-200">YOU'RE NEXT!</div>
           </div>
           <div className="text-red-700 dark:text-red-300">
             Please proceed to Ring {ringStatus.ringNumber} immediately
@@ -232,9 +217,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-4">
           <div className="flex items-center gap-3 mb-3">
             <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-            <div className="text-xl font-bold text-amber-800 dark:text-amber-200">
-              GET READY!
-            </div>
+            <div className="text-xl font-bold text-amber-800 dark:text-amber-200">GET READY!</div>
           </div>
           <div className="text-amber-700 dark:text-amber-300">
             You're on deck. Head to Ring {ringStatus.ringNumber} now.
@@ -245,15 +228,17 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
       {/* Estimated Time */}
       {!isUserOnDeck && ringStatus.userPosition && ringStatus.userPosition > 0 && estimatedTime && (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 text-center">
-          <div className="text-gray-600 dark:text-gray-400 mb-2">
-            Your position in line
-          </div>
+          <div className="text-gray-600 dark:text-gray-400 mb-2">Your position in line</div>
           <div className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             {ringStatus.userPosition || 'TBD'}
             <span className="text-lg font-normal text-gray-600 dark:text-gray-400">
-              {ringStatus.userPosition === 1 ? 'st' : 
-               ringStatus.userPosition === 2 ? 'nd' :
-               ringStatus.userPosition === 3 ? 'rd' : 'th'}
+              {ringStatus.userPosition === 1
+                ? 'st'
+                : ringStatus.userPosition === 2
+                  ? 'nd'
+                  : ringStatus.userPosition === 3
+                    ? 'rd'
+                    : 'th'}
             </span>
           </div>
           <div className="text-gray-600 dark:text-gray-400">

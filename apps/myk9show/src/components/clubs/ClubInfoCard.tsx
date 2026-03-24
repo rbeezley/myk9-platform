@@ -22,7 +22,7 @@ const ClubInfoCard: React.FC<ClubInfoCardProps> = ({
   onEdit,
   onMenu,
 }) => (
-  <div className="bg-white rounded-xl shadow p-6 mb-6 flex flex-col gap-4 relative">
+  <div className="bg-card rounded-xl shadow p-6 mb-6 flex flex-col gap-4 relative">
     {/* Action Icons */}
     <div className="absolute top-4 right-4 flex gap-2">
       <button className="p-2 hover:bg-muted rounded-full" onClick={onEdit} title="Edit Club Info">

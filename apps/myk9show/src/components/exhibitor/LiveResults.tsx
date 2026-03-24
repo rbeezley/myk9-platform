@@ -189,7 +189,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
   return (
     <div className="max-w-lg mx-auto p-4 pb-20">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
@@ -223,7 +223,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
               className={cn(
                 'px-3 py-1 rounded text-sm font-medium transition-colors',
                 sortBy === 'placement'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                  ? 'bg-card dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
                   : 'text-gray-600 dark:text-gray-400'
               )}
             >
@@ -234,7 +234,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
               className={cn(
                 'px-3 py-1 rounded text-sm font-medium transition-colors',
                 sortBy === 'armband'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                  ? 'bg-card dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
                   : 'text-gray-600 dark:text-gray-400'
               )}
             >
@@ -294,7 +294,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
               <div
                 key={entry.id}
                 className={cn(
-                  'bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 transition-all',
+                  'bg-card dark:bg-gray-800 rounded-lg shadow-sm p-4 transition-all',
                   isUser && highlightUser && 'ring-2 ring-blue-500 dark:ring-blue-400'
                 )}
               >

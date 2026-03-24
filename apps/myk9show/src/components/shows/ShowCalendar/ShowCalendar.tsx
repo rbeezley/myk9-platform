@@ -201,7 +201,7 @@ function ShowCalendarComponent({
 
       {/* Event Details Dialog */}
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent className="max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+        <DialogContent className="max-w-md bg-card dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
           {selectedEvent && (
             <>
               <DialogHeader>

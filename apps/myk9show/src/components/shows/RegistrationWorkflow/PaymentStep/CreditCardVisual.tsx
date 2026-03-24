@@ -284,7 +284,7 @@ export const CreditCardVisual: React.FC<CreditCardVisualProps> = ({
 
             {/* Signature strip + CVV */}
             <div className="mt-6 flex items-center gap-3 px-6">
-              <div className="flex-1 rounded bg-white/90 px-3 py-2">
+              <div className="flex-1 rounded bg-card/90 px-3 py-2">
                 <div className="h-4 w-full bg-[repeating-linear-gradient(90deg,#E5E7EB_0px,#E5E7EB_4px,transparent_4px,transparent_8px)]" />
               </div>
               <div className="shrink-0">
@@ -301,7 +301,7 @@ export const CreditCardVisual: React.FC<CreditCardVisualProps> = ({
                   placeholder={displayCvv}
                   maxLength={4}
                   className={cn(
-                    'w-14 rounded bg-white px-2 py-1 text-center text-sm font-mono text-slate-900',
+                    'w-14 rounded bg-card px-2 py-1 text-center text-sm font-mono text-slate-900',
                     'border border-slate-300 outline-none',
                     'focus:ring-2 focus:ring-primary'
                   )}

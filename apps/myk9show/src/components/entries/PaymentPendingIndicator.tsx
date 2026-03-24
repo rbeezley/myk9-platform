@@ -3,19 +3,25 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { 
-  // CreditCard, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
+import {
+  // CreditCard,
+  Clock,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   RefreshCw,
   // DollarSign,
   Timer,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 
-export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled';
+export type PaymentStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
 
 interface PaymentPendingIndicatorProps {
   /** Current payment status */
@@ -48,7 +54,7 @@ interface PaymentPendingIndicatorProps {
 
 /**
  * PaymentPendingIndicator - Visual indicator for payment processing status with Premium design
- * 
+ *
  * Displays payment status with appropriate colors, icons, and optional actions.
  * Includes timeout handling and real-time status updates.
  */
@@ -65,7 +71,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
   className = '',
   onRetryPayment,
   onCancelPayment,
-  onTimeout
+  onTimeout,
 }) => {
   const [timeRemaining, setTimeRemaining] = useState<number>(timeoutSeconds);
   const [hasTimedOut, setHasTimedOut] = useState(false);
@@ -82,7 +88,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, Math.ceil((timeoutMs - elapsed) / 1000));
-      
+
       setTimeRemaining(remaining);
 
       if (remaining === 0 && !hasTimedOut) {
@@ -106,7 +112,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
       badgeVariant: 'secondary' as const,
       description: 'Awaiting payment confirmation',
       showProgress: false,
-      animate: false
+      animate: false,
     },
     processing: {
       icon: Loader2,
@@ -117,7 +123,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
       badgeVariant: 'secondary' as const,
       description: 'Payment is being processed',
       showProgress: true,
-      animate: true
+      animate: true,
     },
     completed: {
       icon: CheckCircle,
@@ -128,7 +134,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
       badgeVariant: 'default' as const,
       description: 'Payment successfully processed',
       showProgress: false,
-      animate: false
+      animate: false,
     },
     failed: {
       icon: XCircle,
@@ -139,7 +145,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
       badgeVariant: 'destructive' as const,
       description: 'Payment processing failed',
       showProgress: false,
-      animate: false
+      animate: false,
     },
     refunded: {
       icon: RefreshCw,
@@ -150,7 +156,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
       badgeVariant: 'secondary' as const,
       description: 'Payment has been refunded',
       showProgress: false,
-      animate: false
+      animate: false,
     },
     cancelled: {
       icon: XCircle,
@@ -161,17 +167,18 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
       badgeVariant: 'secondary' as const,
       description: 'Payment was cancelled',
       showProgress: false,
-      animate: false
-    }
+      animate: false,
+    },
   };
 
   const config = statusConfig[status];
   const IconComponent = config.icon;
 
   // Calculate progress for processing status
-  const progress = status === 'processing' && timeoutSeconds > 0
-    ? Math.max(0, ((timeoutSeconds - timeRemaining) / timeoutSeconds) * 100)
-    : 0;
+  const progress =
+    status === 'processing' && timeoutSeconds > 0
+      ? Math.max(0, ((timeoutSeconds - timeRemaining) / timeoutSeconds) * 100)
+      : 0;
 
   // Format amount
   const formatAmount = (amount: number): string => {
@@ -192,7 +199,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
         <Tooltip>
           <TooltipTrigger asChild>
             <div className={`inline-flex items-center gap-2 ${className}`}>
-              <IconComponent 
+              <IconComponent
                 className={`h-4 w-4 ${config.color} ${config.animate ? 'animate-spin' : ''}`}
                 aria-label={`Payment status: ${config.label}`}
               />
@@ -216,9 +223,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
               {showAmount && amount && (
                 <p className="text-sm font-medium">Amount: {formatAmount(amount)}</p>
               )}
-              {entryId && (
-                <p className="text-xs text-muted-foreground">Entry: {entryId}</p>
-              )}
+              {entryId && <p className="text-xs text-muted-foreground">Entry: {entryId}</p>}
             </div>
           </TooltipContent>
         </Tooltip>
@@ -228,13 +233,15 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
 
   // Full view with detailed information
   return (
-    <div className={`space-y-3 p-4 ${config.bgColor} border ${config.borderColor} 
-                     rounded-xl shadow-sm backdrop-blur-sm ${className}`}>
+    <div
+      className={`space-y-3 p-4 ${config.bgColor} border ${config.borderColor} 
+                     rounded-xl shadow-sm backdrop-blur-sm ${className}`}
+    >
       {/* Header with icon and status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`p-2 bg-white/80 rounded-lg border ${config.borderColor}`}>
-            <IconComponent 
+          <div className={`p-2 bg-card/80 rounded-lg border ${config.borderColor}`}>
+            <IconComponent
               className={`h-5 w-5 ${config.color} ${config.animate ? 'animate-spin' : ''}`}
             />
           </div>
@@ -245,7 +252,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
         </div>
 
         {/* Status badge */}
-        <Badge 
+        <Badge
           variant={config.badgeVariant}
           className={`${config.bgColor} ${config.color} ${config.borderColor}`}
         >
@@ -262,10 +269,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
               {formatTimeRemaining(timeRemaining)} remaining
             </span>
           </div>
-          <Progress 
-            value={progress} 
-            className="h-2 bg-white/60"
-          />
+          <Progress value={progress} className="h-2 bg-card/60" />
           {hasTimedOut && (
             <div className="flex items-center gap-2 text-orange-600">
               <AlertTriangle className="h-4 w-4" />
@@ -281,9 +285,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
           {amount && (
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Amount:</span>
-              <span className="text-sm font-semibold text-foreground">
-                {formatAmount(amount)}
-              </span>
+              <span className="text-sm font-semibold text-foreground">{formatAmount(amount)}</span>
             </div>
           )}
           {entryId && (
@@ -295,9 +297,7 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
           {lastUpdated && (
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Last Updated:</span>
-              <span className="text-xs text-foreground">
-                {lastUpdated.toLocaleTimeString()}
-              </span>
+              <span className="text-xs text-foreground">{lastUpdated.toLocaleTimeString()}</span>
             </div>
           )}
         </div>
@@ -334,14 +334,13 @@ export const PaymentPendingIndicator: React.FC<PaymentPendingIndicatorProps> = (
 };
 
 // Convenience components for common use cases
-export const EntryPaymentIndicator: React.FC<Omit<PaymentPendingIndicatorProps, 'entryId'> & { entryId: string }> = (props) => (
-  <PaymentPendingIndicator {...props} />
-);
+export const EntryPaymentIndicator: React.FC<
+  Omit<PaymentPendingIndicatorProps, 'entryId'> & { entryId: string }
+> = props => <PaymentPendingIndicator {...props} />;
 
-export const PaymentQueueIndicator: React.FC<PaymentPendingIndicatorProps & { queuePosition?: number }> = ({ 
-  queuePosition, 
-  ...props 
-}) => (
+export const PaymentQueueIndicator: React.FC<
+  PaymentPendingIndicatorProps & { queuePosition?: number }
+> = ({ queuePosition, ...props }) => (
   <div className="space-y-2">
     <PaymentPendingIndicator {...props} />
     {queuePosition && queuePosition > 1 && (

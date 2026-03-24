@@ -1,6 +1,6 @@
 /**
  * Multi-Area Scoresheet Component
- * 
+ *
  * Comprehensive scoring interface for Interior Excellent (2 areas) and Masters (3 areas) classes.
  * Manages sequential area timing, cumulative fault tracking, and multi-area result submission.
  */
@@ -25,15 +25,12 @@ import { useMultiAreaTiming } from '@/hooks/useMultiAreaTiming';
 // Types and utilities
 import { logger } from '@/services/LoggingService';
 import type {
-  ScentWorkEntry, 
+  ScentWorkEntry,
   MultiAreaScentWorkResult,
   AreaResult,
-  QualificationStatus
+  QualificationStatus,
 } from '@/types/scent-work-types';
-import { 
-  getAreaTimeLimits, 
-  validateMultiAreaScentWorkResult
-} from '@/types/scent-work-types';
+import { getAreaTimeLimits, validateMultiAreaScentWorkResult } from '@/types/scent-work-types';
 import { msToDisplay } from '@/lib/timeUtils';
 
 // Props interface
@@ -47,7 +44,7 @@ export interface MultiAreaScoresheetProps {
 
 /**
  * Multi-area Scent Work scoresheet component
- * 
+ *
  * Features:
  * - Sequential area timing with locked progression
  * - Individual area qualification tracking
@@ -61,7 +58,7 @@ export function MultiAreaScoresheet({
   onSave,
   onCancel,
   onNavigateBack,
-  className
+  className,
 }: MultiAreaScoresheetProps) {
   const { user } = useAuthContext();
 
@@ -70,22 +67,27 @@ export function MultiAreaScoresheet({
   const areaTimeLimits = getAreaTimeLimits(classConfig.element, classConfig.level);
   const areaCount = areaTimeLimits.length;
   const totalTimeLimit = areaTimeLimits.reduce((sum, time) => sum + time, 0);
-  
+
   // Initialize area results
   const [areaResults, setAreaResults] = useState<AreaResult[]>(() =>
-    Array(areaCount).fill(null).map((_, index) => ({
-      areaNumber: index + 1,
-      searchTime: 0,
-      faults: 0
-    }) as AreaResult)
+    Array(areaCount)
+      .fill(null)
+      .map(
+        (_, index) =>
+          ({
+            areaNumber: index + 1,
+            searchTime: 0,
+            faults: 0,
+          }) as AreaResult
+      )
   );
-  
+
   // UI state
   const [activeTab, setActiveTab] = useState('timing');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  
+
   // Multi-area timing hook
   const {
     currentAreaIndex,
@@ -98,7 +100,7 @@ export function MultiAreaScoresheet({
     completeCurrentArea,
     failCurrentArea,
     isComplete,
-    hasFailed
+    hasFailed,
   } = useMultiAreaTiming({
     totalTimeMs: totalTimeLimit,
     areaCount,
@@ -109,46 +111,53 @@ export function MultiAreaScoresheet({
         const newResults = [...prev];
         newResults[areaIndex] = {
           ...newResults[areaIndex],
-          searchTime: timeMs
+          searchTime: timeMs,
         };
         return newResults;
       });
     },
-    onAllAreasComplete: (totalTime) => {
-      logger.debug(`All areas complete. Total time: ${msToDisplay(totalTime, 'hundredths')}`, 'scoring', {});
+    onAllAreasComplete: totalTime => {
+      logger.debug(
+        `All areas complete. Total time: ${msToDisplay(totalTime, 'hundredths')}`,
+        'scoring',
+        {}
+      );
     },
     onTimeExpired: () => {
       // Mark current area as failed due to timeout
       if (currentAreaIndex >= 0) {
         handleAreaQualification(currentAreaIndex, 'Not Qualified');
       }
-    }
+    },
   });
-  
+
   // Handle area qualification changes
-  const handleAreaQualification = useCallback((areaIndex: number, qualification: QualificationStatus) => {
-    setAreaResults(prev => {
-      const newResults = [...prev];
-      const updatedArea: AreaResult = {
-        ...newResults[areaIndex],
-        qualification,
-        // Reset faults when changing qualification
-        faults: qualification === 'Qualified' ? newResults[areaIndex].faults : 0
-      };
-      // Set NQ reason if not qualified
-      if (qualification === 'Not Qualified') {
-        updatedArea.nqReason = 'noFind';
+  const handleAreaQualification = useCallback(
+    (areaIndex: number, qualification: QualificationStatus) => {
+      setAreaResults(prev => {
+        const newResults = [...prev];
+        const updatedArea: AreaResult = {
+          ...newResults[areaIndex],
+          qualification,
+          // Reset faults when changing qualification
+          faults: qualification === 'Qualified' ? newResults[areaIndex].faults : 0,
+        };
+        // Set NQ reason if not qualified
+        if (qualification === 'Not Qualified') {
+          updatedArea.nqReason = 'noFind';
+        }
+        newResults[areaIndex] = updatedArea;
+        return newResults;
+      });
+
+      // Auto-fail area if not qualified
+      if (qualification === 'Not Qualified' && areaStatuses[areaIndex] === 'active') {
+        failCurrentArea();
       }
-      newResults[areaIndex] = updatedArea;
-      return newResults;
-    });
-    
-    // Auto-fail area if not qualified
-    if (qualification === 'Not Qualified' && areaStatuses[areaIndex] === 'active') {
-      failCurrentArea();
-    }
-  }, [areaStatuses, failCurrentArea]);
-  
+    },
+    [areaStatuses, failCurrentArea]
+  );
+
   // Handle fault changes for an area
   const handleAreaFaultChange = useCallback((areaIndex: number, delta: number) => {
     setAreaResults(prev => {
@@ -156,12 +165,12 @@ export function MultiAreaScoresheet({
       const currentFaults = newResults[areaIndex].faults || 0;
       newResults[areaIndex] = {
         ...newResults[areaIndex],
-        faults: Math.max(0, Math.min(99, currentFaults + delta))
+        faults: Math.max(0, Math.min(99, currentFaults + delta)),
       };
       return newResults;
     });
   }, []);
-  
+
   // Calculate overall result
   const overallResult = useMemo((): Partial<MultiAreaScentWorkResult> => {
     // All areas must be qualified for overall qualification
@@ -175,11 +184,11 @@ export function MultiAreaScoresheet({
       totalSearchTime: totalElapsedTime,
       areaResults: areaResults.map((area, index) => ({
         ...area,
-        searchTime: areaTimes[index] || area.searchTime
+        searchTime: areaTimes[index] || area.searchTime,
       })),
       totalFaults,
       recordedBy: user?.id || 'unknown',
-      recordedAt: new Date()
+      recordedAt: new Date(),
     };
 
     // Set qualification only when determined
@@ -191,10 +200,10 @@ export function MultiAreaScoresheet({
 
     return result;
   }, [entry, areaResults, areaStatuses, areaTimes, totalElapsedTime, isComplete, hasFailed, user]);
-  
+
   // Validation
   const isResultComplete = validateMultiAreaScentWorkResult(overallResult);
-  
+
   // Save handlers
   const handleSaveClick = useCallback(() => {
     if (!isResultComplete) {
@@ -204,16 +213,16 @@ export function MultiAreaScoresheet({
     setShowConfirmation(true);
     setSaveError(null);
   }, [isResultComplete]);
-  
+
   const handleConfirmSave = useCallback(async () => {
     if (!validateMultiAreaScentWorkResult(overallResult)) {
       setSaveError('Invalid result data');
       return;
     }
-    
+
     setIsSaving(true);
     setSaveError(null);
-    
+
     try {
       await onSave(overallResult as MultiAreaScentWorkResult);
       setShowConfirmation(false);
@@ -223,47 +232,55 @@ export function MultiAreaScoresheet({
       setIsSaving(false);
     }
   }, [overallResult, onSave]);
-  
+
   // Render area scoresheet tab
   const renderAreaScoresheet = (areaIndex: number) => {
     const areaResult = areaResults[areaIndex];
     const areaStatus = areaStatuses[areaIndex];
     const isCurrentArea = currentAreaIndex === areaIndex;
     const areaTime = areaTimes[areaIndex];
-    
+
     return (
       <div className="space-y-6">
         {/* Area Status Header */}
-        <Card className={cn(
-          'border-2 transition-colors',
-          areaStatus === 'completed' ? 'border-green-500 bg-green-50 dark:bg-green-950' :
-          areaStatus === 'failed' ? 'border-red-500 bg-red-50 dark:bg-red-950' :
-          areaStatus === 'active' ? 'border-blue-500 bg-blue-50 dark:bg-blue-950' :
-          'border-gray-300'
-        )}>
+        <Card
+          className={cn(
+            'border-2 transition-colors',
+            areaStatus === 'completed'
+              ? 'border-green-500 bg-green-50 dark:bg-green-950'
+              : areaStatus === 'failed'
+                ? 'border-red-500 bg-red-50 dark:bg-red-950'
+                : areaStatus === 'active'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                  : 'border-gray-300'
+          )}
+        >
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center space-x-2">
                 <MapPin className="h-5 w-5" />
                 <span>Area {areaIndex + 1} Status</span>
               </span>
-              <Badge variant={
-                areaStatus === 'completed' ? 'default' :
-                areaStatus === 'failed' ? 'destructive' :
-                areaStatus === 'active' ? 'secondary' :
-                'outline'
-              }>
+              <Badge
+                variant={
+                  areaStatus === 'completed'
+                    ? 'default'
+                    : areaStatus === 'failed'
+                      ? 'destructive'
+                      : areaStatus === 'active'
+                        ? 'secondary'
+                        : 'outline'
+                }
+              >
                 {areaStatus || 'Not Started'}
               </Badge>
             </CardTitle>
             {areaTime > 0 && (
-              <CardDescription>
-                Time: {msToDisplay(areaTime, 'hundredths')}
-              </CardDescription>
+              <CardDescription>Time: {msToDisplay(areaTime, 'hundredths')}</CardDescription>
             )}
           </CardHeader>
         </Card>
-        
+
         {/* Area Controls */}
         {areaStatus === 'locked' && (
           <Alert>
@@ -273,11 +290,11 @@ export function MultiAreaScoresheet({
             </AlertDescription>
           </Alert>
         )}
-        
+
         {areaStatus === 'ready' && !isCurrentArea && (
           <Card>
             <CardContent className="pt-6">
-              <Button 
+              <Button
                 onClick={() => {
                   startArea(areaIndex);
                   setActiveTab('timing');
@@ -290,7 +307,7 @@ export function MultiAreaScoresheet({
             </CardContent>
           </Card>
         )}
-        
+
         {(areaStatus === 'active' || areaStatus === 'completed' || areaStatus === 'failed') && (
           <>
             {/* Qualification Selection */}
@@ -316,7 +333,9 @@ export function MultiAreaScoresheet({
                     Qualified
                   </Button>
                   <Button
-                    variant={areaResult.qualification === 'Not Qualified' ? 'destructive' : 'outline'}
+                    variant={
+                      areaResult.qualification === 'Not Qualified' ? 'destructive' : 'outline'
+                    }
                     size="lg"
                     onClick={() => handleAreaQualification(areaIndex, 'Not Qualified')}
                     disabled={false}
@@ -326,7 +345,7 @@ export function MultiAreaScoresheet({
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* Progressive Fault Counter */}
             {areaResult.qualification === 'Qualified' && (
               <Card>
@@ -344,7 +363,7 @@ export function MultiAreaScoresheet({
                     >
                       −
                     </Button>
-                    
+
                     <div className="text-center">
                       <div className="text-4xl font-bold text-gray-900 dark:text-white">
                         {areaResult.faults}
@@ -353,7 +372,7 @@ export function MultiAreaScoresheet({
                         fault{areaResult.faults !== 1 ? 's' : ''}
                       </div>
                     </div>
-                    
+
                     <Button
                       variant="outline"
                       size="lg"
@@ -366,10 +385,10 @@ export function MultiAreaScoresheet({
                 </CardContent>
               </Card>
             )}
-            
+
             {/* Complete Area Button */}
             {areaStatus === 'active' && isCurrentArea && areaResult.qualification && (
-              <Button 
+              <Button
                 onClick={() => {
                   completeCurrentArea();
                   // Auto-advance to next area tab if available
@@ -389,20 +408,15 @@ export function MultiAreaScoresheet({
       </div>
     );
   };
-  
+
   return (
     <div className={cn('min-h-screen bg-gray-50 dark:bg-gray-900', className)}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+      <div className="sticky top-0 z-10 bg-card dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {onNavigateBack && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onNavigateBack}
-                className="p-2"
-              >
+              <Button variant="ghost" size="sm" onClick={onNavigateBack} className="p-2">
                 <ChevronLeft className="h-5 w-5" />
               </Button>
             )}
@@ -420,17 +434,17 @@ export function MultiAreaScoresheet({
           </Badge>
         </div>
       </div>
-      
+
       <div className="max-w-5xl mx-auto p-4 space-y-6">
         {/* Dog Information Card */}
         <Card className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-6">
-                <div className="bg-white text-purple-700 rounded-lg p-4 min-w-[80px] text-center">
+                <div className="bg-card text-purple-700 rounded-lg p-4 min-w-[80px] text-center">
                   <div className="text-3xl font-bold">#{displayInfo.armband}</div>
                 </div>
-                
+
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
                     <Dog className="h-5 w-5" />
@@ -443,7 +457,7 @@ export function MultiAreaScoresheet({
                   </div>
                 </div>
               </div>
-              
+
               <div className="text-right space-y-2">
                 <div className="flex items-center space-x-2 text-purple-100">
                   <Clock className="h-4 w-4" />
@@ -453,14 +467,15 @@ export function MultiAreaScoresheet({
                 </div>
                 {(overallResult.totalFaults ?? 0) > 0 && (
                   <div className="text-yellow-200 text-sm">
-                    {overallResult.totalFaults} total fault{overallResult.totalFaults !== 1 ? 's' : ''}
+                    {overallResult.totalFaults} total fault
+                    {overallResult.totalFaults !== 1 ? 's' : ''}
                   </div>
                 )}
               </div>
             </div>
           </CardContent>
         </Card>
-        
+
         {/* Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-4 w-full">
@@ -469,7 +484,7 @@ export function MultiAreaScoresheet({
             <TabsTrigger value="area2">Area 2</TabsTrigger>
             {areaCount > 2 && <TabsTrigger value="area3">Area 3</TabsTrigger>}
           </TabsList>
-          
+
           <TabsContent value="timing" className="mt-6">
             <MultiAreaTimerDisplay
               areaCount={areaCount}
@@ -485,36 +500,30 @@ export function MultiAreaScoresheet({
               onFailArea={failCurrentArea}
             />
           </TabsContent>
-          
+
           <TabsContent value="area1" className="mt-6">
             {renderAreaScoresheet(0)}
           </TabsContent>
-          
+
           <TabsContent value="area2" className="mt-6">
             {renderAreaScoresheet(1)}
           </TabsContent>
-          
+
           {areaCount > 2 && (
             <TabsContent value="area3" className="mt-6">
               {renderAreaScoresheet(2)}
             </TabsContent>
           )}
         </Tabs>
-        
+
         {/* Save/Cancel Actions */}
         <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            disabled={isSaving}
-          >
+          <Button variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancel
           </Button>
-          
+
           <div className="flex items-center space-x-3">
-            {saveError && (
-              <span className="text-sm text-red-600">{saveError}</span>
-            )}
+            {saveError && <span className="text-sm text-red-600">{saveError}</span>}
             <Button
               onClick={handleSaveClick}
               disabled={!isResultComplete || isSaving}
@@ -525,7 +534,7 @@ export function MultiAreaScoresheet({
           </div>
         </div>
       </div>
-      
+
       {/* Save Confirmation Dialog */}
       {showConfirmation && (
         <MultiAreaSaveConfirmation
@@ -559,16 +568,14 @@ function MultiAreaSaveConfirmation({
   // areaCount, // Available but not used in this dialog
   onConfirm,
   onCancel,
-  isLoading
+  isLoading,
 }: MultiAreaSaveConfirmationProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <Card className="w-full max-w-lg mx-4">
         <CardHeader>
           <CardTitle>Confirm Multi-Area Result</CardTitle>
-          <CardDescription>
-            Please review the complete result before saving
-          </CardDescription>
+          <CardDescription>Please review the complete result before saving</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Summary */}
@@ -581,9 +588,9 @@ function MultiAreaSaveConfirmation({
               <span className="text-sm text-gray-600">Dog:</span>
               <span className="font-medium">{entry.displayInfo.dogName}</span>
             </div>
-            
+
             <Separator />
-            
+
             {/* Area Results */}
             {result.areaResults.map((area, index) => (
               <div key={index} className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800 rounded">
@@ -591,7 +598,10 @@ function MultiAreaSaveConfirmation({
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>Time: {msToDisplay(area.searchTime, 'hundredths')}</div>
                   <div>
-                    <Badge variant={area.qualification === 'Qualified' ? 'default' : 'secondary'} className="text-xs">
+                    <Badge
+                      variant={area.qualification === 'Qualified' ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
                       {area.qualification}
                     </Badge>
                   </div>
@@ -601,9 +611,9 @@ function MultiAreaSaveConfirmation({
                 </div>
               </div>
             ))}
-            
+
             <Separator />
-            
+
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Time:</span>
               <span className="font-mono font-medium">
@@ -623,20 +633,13 @@ function MultiAreaSaveConfirmation({
               </div>
             )}
           </div>
-          
+
           {/* Actions */}
           <div className="flex items-center justify-end space-x-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading}
-            >
+            <Button variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancel
             </Button>
-            <Button
-              onClick={onConfirm}
-              disabled={isLoading}
-            >
+            <Button onClick={onConfirm} disabled={isLoading}>
               {isLoading ? 'Saving...' : 'Confirm'}
             </Button>
           </div>

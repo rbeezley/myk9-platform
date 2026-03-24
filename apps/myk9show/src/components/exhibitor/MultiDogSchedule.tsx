@@ -1,16 +1,16 @@
 import React, { useState, useMemo, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Dog, 
-  Clock, 
-  AlertTriangle, 
+import {
+  Dog,
+  Clock,
+  AlertTriangle,
   Calendar,
   MapPin,
   Users,
   ChevronRight,
   Filter,
   CheckCircle,
-  XCircle
+  XCircle,
 } from 'lucide-react';
 import { ExhibitorEntry, CheckInStatus } from '@/types/exhibitor-types';
 import { cn } from '@/lib/utils';
@@ -31,9 +31,7 @@ interface DogGroup {
   entries: ExhibitorEntry[];
 }
 
-const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ 
-  entries
-}) => {
+const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'timeline' | 'by-dog'>('timeline');
   const [selectedDog, setSelectedDog] = useState<string | null>(null);
@@ -42,35 +40,33 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
   // Group entries by dog
   const dogGroups = useMemo(() => {
     const groups = new Map<string, DogGroup>();
-    
+
     entries.forEach(entry => {
       const dogId = entry.dogCallName; // Using call name as ID for demo
       if (!groups.has(dogId)) {
         groups.set(dogId, {
           dogId,
           dogName: entry.dogCallName,
-          entries: []
+          entries: [],
         });
       }
       groups.get(dogId)!.entries.push(entry);
     });
 
-    return Array.from(groups.values()).sort((a, b) => 
-      a.dogName.localeCompare(b.dogName)
-    );
+    return Array.from(groups.values()).sort((a, b) => a.dogName.localeCompare(b.dogName));
   }, [entries]);
 
   // Create timeline with conflict detection
   const timeline = useMemo(() => {
     const slots = new Map<string, TimeSlot>();
-    
+
     entries.forEach(entry => {
       const timeKey = entry.scheduledTime ? entry.scheduledTime.toISOString() : 'TBD';
       if (!slots.has(timeKey)) {
         slots.set(timeKey, {
           time: entry.scheduledTime ? new Date(entry.scheduledTime) : new Date(),
           entries: [],
-          hasConflict: false
+          hasConflict: false,
         });
       }
       slots.get(timeKey)!.entries.push(entry);
@@ -82,22 +78,18 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
       slot.hasConflict = uniqueDogs.size > 1;
     });
 
-    return Array.from(slots.values()).sort((a, b) => 
-      a.time.getTime() - b.time.getTime()
-    );
+    return Array.from(slots.values()).sort((a, b) => a.time.getTime() - b.time.getTime());
   }, [entries]);
 
   // Filter timeline if showing conflicts only
-  const displayTimeline = showConflictsOnly 
-    ? timeline.filter(slot => slot.hasConflict)
-    : timeline;
+  const displayTimeline = showConflictsOnly ? timeline.filter(slot => slot.hasConflict) : timeline;
 
   // Calculate statistics
   const stats = useMemo(() => {
     const completed = entries.filter(e => e.checkInStatus === 'completed').length;
     const checkedIn = entries.filter(e => e.checkInStatus === 'checked-in').length;
     const conflicts = timeline.filter(slot => slot.hasConflict).length;
-    
+
     return { completed, checkedIn, conflicts };
   }, [entries, timeline]);
 
@@ -119,21 +111,21 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
 
   // Format time
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: true 
+      hour12: true,
     });
   };
 
   return (
     <div className="max-w-2xl mx-auto p-4 pb-20">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Multi-Dog Schedule
         </h2>
-        
+
         {/* Statistics */}
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="text-center">
@@ -161,10 +153,10 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
           <button
             onClick={() => setViewMode('timeline')}
             className={cn(
-              "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors",
-              viewMode === 'timeline' 
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" 
-                : "text-gray-600 dark:text-gray-400"
+              'flex-1 px-3 py-2 rounded text-sm font-medium transition-colors',
+              viewMode === 'timeline'
+                ? 'bg-card dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400'
             )}
           >
             <Calendar className="w-4 h-4 inline mr-1" />
@@ -173,10 +165,10 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
           <button
             onClick={() => setViewMode('by-dog')}
             className={cn(
-              "flex-1 px-3 py-2 rounded text-sm font-medium transition-colors",
-              viewMode === 'by-dog' 
-                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm" 
-                : "text-gray-600 dark:text-gray-400"
+              'flex-1 px-3 py-2 rounded text-sm font-medium transition-colors',
+              viewMode === 'by-dog'
+                ? 'bg-card dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400'
             )}
           >
             <Dog className="w-4 h-4 inline mr-1" />
@@ -190,10 +182,10 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
         <button
           onClick={() => setShowConflictsOnly(!showConflictsOnly)}
           className={cn(
-            "w-full mb-4 px-4 py-3 rounded-lg flex items-center justify-between transition-colors",
+            'w-full mb-4 px-4 py-3 rounded-lg flex items-center justify-between transition-colors',
             showConflictsOnly
-              ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
-              : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
           )}
         >
           <div className="flex items-center gap-2">
@@ -226,15 +218,20 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
               </div>
 
               {/* Entries at this time */}
-              <div className={cn(
-                "ml-7 space-y-2",
-                slot.hasConflict && "p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800"
-              )}>
+              <div
+                className={cn(
+                  'ml-7 space-y-2',
+                  slot.hasConflict &&
+                    'p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800'
+                )}
+              >
                 {slot.entries.map(entry => (
                   <div
                     key={entry.id}
-                    onClick={() => startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() =>
+                      startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
+                    }
+                    className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -243,9 +240,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
                           <span className="font-medium text-gray-900 dark:text-gray-100">
                             {entry.dogCallName}
                           </span>
-                          <span className="text-gray-600 dark:text-gray-400">
-                            #{entry.armband}
-                          </span>
+                          <span className="text-gray-600 dark:text-gray-400">#{entry.armband}</span>
                         </div>
                         <div className="text-sm text-gray-700 dark:text-gray-300">
                           {entry.className}
@@ -262,12 +257,15 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
                         </div>
                       </div>
                       <div className="text-right">
-                        <span className={cn(
-                          "text-sm font-medium",
-                          getStatusColor(entry.checkInStatus)
-                        )}>
-                          {entry.checkInStatus === 'checked-in' && <CheckCircle className="w-4 h-4 inline" />}
-                          {entry.checkInStatus === 'scratched' && <XCircle className="w-4 h-4 inline" />}
+                        <span
+                          className={cn('text-sm font-medium', getStatusColor(entry.checkInStatus))}
+                        >
+                          {entry.checkInStatus === 'checked-in' && (
+                            <CheckCircle className="w-4 h-4 inline" />
+                          )}
+                          {entry.checkInStatus === 'scratched' && (
+                            <XCircle className="w-4 h-4 inline" />
+                          )}
                           {entry.checkInStatus.replace('-', ' ')}
                         </span>
                       </div>
@@ -290,12 +288,14 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
         <div className="space-y-4">
           {dogGroups.map(group => {
             const isSelected = selectedDog === group.dogId;
-            const completedCount = group.entries.filter(e => e.checkInStatus === 'completed').length;
-            
+            const completedCount = group.entries.filter(
+              e => e.checkInStatus === 'completed'
+            ).length;
+
             return (
               <div
                 key={group.dogId}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden"
+                className="bg-card dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden"
               >
                 <button
                   onClick={() => setSelectedDog(isSelected ? null : group.dogId)}
@@ -312,10 +312,12 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
                       </div>
                     </div>
                   </div>
-                  <ChevronRight className={cn(
-                    "w-5 h-5 text-gray-400 transition-transform",
-                    isSelected && "rotate-90"
-                  )} />
+                  <ChevronRight
+                    className={cn(
+                      'w-5 h-5 text-gray-400 transition-transform',
+                      isSelected && 'rotate-90'
+                    )}
+                  />
                 </button>
 
                 {isSelected && (
@@ -323,7 +325,9 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
                     {group.entries.map(entry => (
                       <div
                         key={entry.id}
-                        onClick={() => startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))}
+                        onClick={() =>
+                          startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
+                        }
                         className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
                         <div>
@@ -334,10 +338,9 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({
                             {formatTime(new Date(entry.scheduledTime!))} • Ring {entry.ringNumber}
                           </div>
                         </div>
-                        <span className={cn(
-                          "text-sm font-medium",
-                          getStatusColor(entry.checkInStatus)
-                        )}>
+                        <span
+                          className={cn('text-sm font-medium', getStatusColor(entry.checkInStatus))}
+                        >
                           {entry.checkInStatus.replace('-', ' ')}
                         </span>
                       </div>

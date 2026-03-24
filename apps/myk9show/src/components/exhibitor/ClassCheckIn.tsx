@@ -2,35 +2,45 @@ import React, { useState, startTransition } from 'react';
 import { format } from 'date-fns';
 import { logger } from '@/services/LoggingService';
 import {
-  CheckCircle2, 
-  XCircle, 
-  AlertTriangle, 
-  Clock, 
-  User, 
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Clock,
+  User,
   MessageSquare,
   ArrowLeft,
   Info,
   QrCode,
   Wifi,
-  WifiOff
+  WifiOff,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ExhibitorClassInfo, 
-  CheckInRequest
-} from '@/types/exhibitor-types';
+import { ExhibitorClassInfo, CheckInRequest } from '@/types/exhibitor-types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
 interface ClassCheckInProps {
   classInfo?: ExhibitorClassInfo;
-  availableHandlers?: { id: string; name: string; }[];
+  availableHandlers?: { id: string; name: string }[];
   onCheckIn?: (request: CheckInRequest) => Promise<void>;
   onBack?: () => void;
 }
@@ -47,7 +57,7 @@ const createMockClassInfo = (): ExhibitorClassInfo => ({
     maxEntries: 30,
     judgeName: 'Ellen Heavner',
     startTime: new Date(Date.now() + 30 * 60000).toISOString(),
-    ringNumber: 1
+    ringNumber: 1,
   },
   trial: {
     id: 'trial-1',
@@ -57,7 +67,7 @@ const createMockClassInfo = (): ExhibitorClassInfo => ({
     startTime: '08:00',
     endTime: '17:00',
     location: 'Main Building',
-    organization: 'AKC'
+    organization: 'AKC',
   },
   entry: {
     id: 'entry-1',
@@ -80,11 +90,11 @@ const createMockClassInfo = (): ExhibitorClassInfo => ({
       name: 'Sarah Johnson',
       email: 'sarah@example.com',
       phone: '555-0123',
-      role: 'exhibitor'
+      role: 'exhibitor',
     },
     dog: {
       id: 'dog-1',
-      name: 'Stormwind\'s Thunder Strike',
+      name: "Stormwind's Thunder Strike",
       breed: 'Border Collie', // Required field
       sex: 'male', // Required field
       callName: 'Storm',
@@ -93,15 +103,17 @@ const createMockClassInfo = (): ExhibitorClassInfo => ({
       description: 'Championship Border Collie',
       dateOfBirth: '2019-03-15',
       gender: 'Male',
-      registrations: [{
-        id: 'reg-1',
-        organization: 'AKC',
-        registeredName: 'Stormwind\'s Thunder Strike',
-        breed: 'Border Collie',
-        registrationNumber: 'AKC123456',
-        status: 'Active'
-      }]
-    }
+      registrations: [
+        {
+          id: 'reg-1',
+          organization: 'AKC',
+          registeredName: "Stormwind's Thunder Strike",
+          breed: 'Border Collie',
+          registrationNumber: 'AKC123456',
+          status: 'Active',
+        },
+      ],
+    },
   },
   ringStatus: {
     classId: 'class-1',
@@ -112,15 +124,15 @@ const createMockClassInfo = (): ExhibitorClassInfo => ({
     totalEntries: 24,
     completedEntries: 1,
     lastUpdated: new Date(),
-    onDeck: []
-  }
+    onDeck: [],
+  },
 });
 
 export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
   classInfo: propClassInfo,
   availableHandlers = [],
   onCheckIn,
-  onBack
+  onBack,
 }) => {
   const navigate = useNavigate();
   const classInfo = propClassInfo || createMockClassInfo();
@@ -139,7 +151,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
     const classTime = new Date(showClass.startTime);
     const now = new Date();
     const hoursUntilClass = (classTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
+
     // Allow check-in up to 2 hours before class
     return hoursUntilClass <= 2 && hoursUntilClass > -0.5;
   };
@@ -149,7 +161,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
     const classTime = new Date(showClass.startTime);
     const now = new Date();
     const minutesUntilClass = (classTime.getTime() - now.getTime()) / (1000 * 60);
-    
+
     // Late check-in fee if within 30 minutes of class start
     return minutesUntilClass < 30 && minutesUntilClass > 0 ? 10 : 0;
   };
@@ -175,7 +187,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
         status: checkInStatus,
         ...(handlerChange && { handlerChange }),
         ...(specialRequests && { specialRequests }),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
       if (onCheckIn) {
@@ -185,10 +197,10 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
         logger.debug('Check-in request:', 'exhibitor', { data: request });
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       }
-      
+
       // Show success message
       setShowConfirmDialog(false);
-      
+
       // Navigate back after short delay
       setTimeout(() => {
         if (onBack) {
@@ -218,16 +230,17 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
     }
   };
 
-  const isAlreadyCheckedIn = entry.checkInStatus === 'checked-in' || 
-                             entry.checkInStatus === 'scratched' ||
-                             entry.checkInStatus === 'completed';
+  const isAlreadyCheckedIn =
+    entry.checkInStatus === 'checked-in' ||
+    entry.checkInStatus === 'scratched' ||
+    entry.checkInStatus === 'completed';
 
   const lateFee = calculateLateFee();
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm sticky top-0 z-40">
+      <div className="bg-card shadow-sm sticky top-0 z-40">
         <div className="px-4 py-3 flex items-center">
           <Button
             variant="ghost"
@@ -272,7 +285,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                   #{entry.armband}
                 </Badge>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Start Time</p>
@@ -287,7 +300,9 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               <div className="border-t pt-3">
                 <p className="text-gray-500 text-sm">Dog</p>
                 <p className="font-medium">{entry.dog?.callName || entry.dogCallName}</p>
-                <p className="text-sm text-gray-600">{entry.dog?.registrations?.[0]?.breed || entry.breed}</p>
+                <p className="text-sm text-gray-600">
+                  {entry.dog?.registrations?.[0]?.breed || entry.breed}
+                </p>
               </div>
 
               <div className="border-t pt-3">
@@ -308,8 +323,8 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               <div className="space-y-1">
                 <p className="font-medium text-blue-900">Offline Mode Active</p>
                 <p className="text-blue-700 text-sm">
-                  Your check-in will be saved locally and synced when connection is restored. 
-                  Gate stewards have access to advanced offline check-in tools with QR scanning.
+                  Your check-in will be saved locally and synced when connection is restored. Gate
+                  stewards have access to advanced offline check-in tools with QR scanning.
                 </p>
               </div>
             </AlertDescription>
@@ -320,7 +335,13 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
       {/* Check-in Status */}
       {isAlreadyCheckedIn ? (
         <div className="px-4">
-          <Alert className={entry.checkInStatus === 'checked-in' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}>
+          <Alert
+            className={
+              entry.checkInStatus === 'checked-in'
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'
+            }
+          >
             <AlertDescription>
               <div className="flex items-center gap-2">
                 {entry.checkInStatus === 'checked-in' ? (
@@ -358,7 +379,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
           <div className="px-4 py-4 space-y-4">
             <div className="space-y-3">
               <h3 className="font-semibold text-lg">Check In Status</h3>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   size="lg"
@@ -370,7 +391,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                   <CheckCircle2 className="h-8 w-8" />
                   <span>Present</span>
                 </Button>
-                
+
                 <Button
                   size="lg"
                   variant={checkInStatus === 'scratch' ? 'destructive' : 'outline'}
@@ -417,7 +438,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                 id="special-requests"
                 placeholder="Any special requests or notes for the judge..."
                 value={specialRequests}
-                onChange={(e) => setSpecialRequests(e.target.value)}
+                onChange={e => setSpecialRequests(e.target.value)}
                 rows={3}
               />
             </div>
@@ -451,18 +472,20 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               Please confirm your check-in details for {showClass.name}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-3 py-4">
             <div className="flex justify-between">
               <span className="text-gray-600">Dog:</span>
-              <span className="font-medium">{entry.dog?.callName || entry.dogCallName} #{entry.armband}</span>
+              <span className="font-medium">
+                {entry.dog?.callName || entry.dogCallName} #{entry.armband}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Handler:</span>
               <span className="font-medium">
-                {handlerChange ? 
-                  availableHandlers.find(h => h.id === handlerChange)?.name : 
-                  entry.handler?.name || entry.handlerName}
+                {handlerChange
+                  ? availableHandlers.find(h => h.id === handlerChange)?.name
+                  : entry.handler?.name || entry.handlerName}
               </span>
             </div>
             {specialRequests && (
@@ -480,17 +503,14 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
           </div>
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowConfirmDialog(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleConfirmCheckIn}
-              disabled={isSubmitting}
-            >
+            <Button onClick={handleConfirmCheckIn} disabled={isSubmitting}>
               {isSubmitting ? 'Checking In...' : 'Confirm Check-In'}
             </Button>
           </DialogFooter>
@@ -506,7 +526,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
               Are you sure you want to scratch from {showClass.name}?
             </DialogDescription>
           </DialogHeader>
-          
+
           <Alert className="bg-red-50 border-red-200">
             <AlertTriangle className="h-4 w-4 text-red-600" />
             <AlertDescription>
@@ -520,8 +540,8 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
           </Alert>
 
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowScratchWarning(false);
                 setCheckInStatus(null);
@@ -530,7 +550,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               variant="destructive"
               onClick={() => {
                 setShowScratchWarning(false);

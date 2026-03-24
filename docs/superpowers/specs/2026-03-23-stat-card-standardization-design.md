@@ -186,14 +186,20 @@ Uses Tailwind `animate-pulse` on `bg-muted` rectangles. The `StatsGrid` componen
 
 ## Component Location
 
-Both components live in the shared UI layer:
+Both components live in the shared UI layer, following the existing folder-per-component convention:
 
 ```
-packages/ui/src/components/stat-card.tsx    — StatCard, StatCardSkeleton
-packages/ui/src/components/stats-grid.tsx   — StatsGrid
+packages/ui/src/components/StatCard/StatCard.tsx      — StatCard, StatCardSkeleton
+packages/ui/src/components/StatCard/index.ts          — re-exports
+packages/ui/src/components/StatsGrid/StatsGrid.tsx    — StatsGrid
+packages/ui/src/components/StatsGrid/index.ts         — re-exports
 ```
 
-This allows both myK9Show and myK9Q to use them. Export from `packages/ui/src/index.ts`.
+Export from `packages/ui/src/components/index.ts`.
+
+### Dependency: `lucide-react`
+
+The `icon` prop is typed as `LucideIcon` from `lucide-react`. This package is not currently a dependency of `@myk9/ui`. Add it as a **peer dependency** — all consumers (myK9Show, myK9Q) already have it installed.
 
 ---
 

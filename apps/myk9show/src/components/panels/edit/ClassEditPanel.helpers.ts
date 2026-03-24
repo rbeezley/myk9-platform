@@ -16,7 +16,7 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     timeLimit2: classItem.timeLimit2 || '',
     timeLimit3: classItem.timeLimit3 || '',
     judge: classItem.judge || '',
-    judgeId: ((classItem as Record<string, unknown>).judgeId as string) || '',
+    judgeId: classItem.judgeId || '',
     gateSteward: classItem.gateSteward || '',
     tableSteward: classItem.tableSteward || '',
     timerSteward: classItem.timerSteward || '',

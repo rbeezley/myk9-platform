@@ -7,6 +7,7 @@ export interface ClassData {
   classOrder: string;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Upcoming';
   judge: string;
+  judgeId?: string | undefined;
   // More flexible class properties to support different organizations
   className?: string | undefined; // Generated class name
   classNumber?: string | undefined; // Class number for the trial

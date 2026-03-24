@@ -19,6 +19,10 @@ export interface ClassResultsTableProps {
   onDeleteEntry?: ((entryId: string) => void) | undefined;
   onAddEntry?: (() => void) | undefined;
   className?: string | undefined;
+  /** Class ID used for Enter Scores navigation */
+  classId?: string | undefined;
+  /** Opens the requirements panel/drawer */
+  onOpenRequirements?: (() => void) | undefined;
 }
 
 /** Internal row-level data used by the bulk-edit table */

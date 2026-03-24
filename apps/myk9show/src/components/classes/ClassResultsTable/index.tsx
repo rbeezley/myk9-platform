@@ -8,19 +8,15 @@
  */
 
 import React, { useMemo } from 'react';
-import { Save, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Save, AlertCircle, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // UI Components
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 
 // Premium styling
@@ -39,7 +35,10 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   onDeleteEntry,
   onAddEntry,
   className,
+  classId,
+  onOpenRequirements,
 }) => {
+  const navigate = useNavigate();
   const {
     bulkData,
     isSubmitting,
@@ -53,13 +52,11 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
   // Build an entry lookup map so row rendering is O(1) per row
   const entryMap = useMemo(() => {
-    const map = new Map(entries.map((e) => [e.id, e]));
+    const map = new Map(entries.map(e => [e.id, e]));
     return map;
   }, [entries]);
 
-  const showDeleteColumn = !!(
-    userPermissions.canEditEntries && onDeleteEntry
-  );
+  const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
 
   return (
     <TooltipProvider>
@@ -67,26 +64,42 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         {/* Header with actions */}
         <div className="myk9-show-info-card">
           <div className="myk9-show-info-header">
-            <div>
-              <div className="myk9-show-info-title">
-                Class Entries and Results
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {userPermissions.canEditEntries
-                  ? 'Enter results and view calculated placements \u2022 Press Ctrl+S (or Cmd+S) to save'
-                  : 'View results and placements (read-only)'}
-              </p>
+            <div className="flex items-center gap-2">
+              <div className="myk9-show-info-title">Entries & Results</div>
+              <Badge variant="secondary" className="text-xs">
+                {entries.length}
+              </Badge>
             </div>
-            {/* Add Entry Button - only for secretaries and admins */}
-            {onAddEntry && userPermissions.canEditEntries && (
-              <Button
-                onClick={onAddEntry}
-                className="myk9-action-button myk9-action-button-primary"
-                size="sm"
-              >
-                + Add Entry
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Requirements button */}
+              {onOpenRequirements && (
+                <Button variant="outline" size="sm" onClick={onOpenRequirements}>
+                  <ClipboardList className="h-4 w-4" />
+                  <span>Requirements</span>
+                </Button>
+              )}
+              {/* Enter Scores button */}
+              {classId && userPermissions.canEditEntries && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="myk9-action-button myk9-action-button-primary"
+                  onClick={() => navigate(`/scoring/secretary/classes/${classId}`)}
+                >
+                  Enter Scores
+                </Button>
+              )}
+              {/* Add Entry button */}
+              {onAddEntry && userPermissions.canEditEntries && (
+                <Button
+                  onClick={onAddEntry}
+                  className="myk9-action-button myk9-action-button-primary"
+                  size="sm"
+                >
+                  + Add Entry
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -102,8 +115,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              You have read-only access. Contact a secretary or administrator to
-              edit results.
+              You have read-only access. Contact a secretary or administrator to edit results.
             </AlertDescription>
           </Alert>
         )}
@@ -117,9 +129,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 <TableHead>Dog &amp; Handler</TableHead>
                 <TableHead>Placement</TableHead>
                 <TableHead>Qualification</TableHead>
-                <TableHead className="text-center">
-                  Time (MM:SS.HH)
-                </TableHead>
+                <TableHead className="text-center">Time (MM:SS.HH)</TableHead>
                 <TableHead>Faults</TableHead>
                 <TableHead>Notes</TableHead>
                 <TableHead>Status</TableHead>
@@ -155,8 +165,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           <div className="myk9-show-info-card">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                Press Enter or Tab to move between fields quickly &bull;
-                Placements calculated automatically
+                Press Enter or Tab to move between fields quickly &bull; Placements calculated
+                automatically
               </div>
 
               <Button
@@ -166,9 +176,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               >
                 <Save className="h-4 w-4" />
                 <span>
-                  {isSubmitting
-                    ? 'Submitting...'
-                    : `Submit ${summary.entriesWithData} Results`}
+                  {isSubmitting ? 'Submitting...' : `Submit ${summary.entriesWithData} Results`}
                 </span>
               </Button>
             </div>
@@ -180,38 +188,31 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 };
 
 // React.memo optimization for ClassResultsTable performance
-export const MemoizedClassResultsTable = React.memo(
-  ClassResultsTable,
-  (prevProps, nextProps) => {
-    // Compare critical props that affect rendering
-    if (prevProps.entries.length !== nextProps.entries.length) return false;
-    if (prevProps.classConfig?.element !== nextProps.classConfig?.element)
-      return false;
-    if (prevProps.classConfig?.level !== nextProps.classConfig?.level)
-      return false;
-    if (prevProps.userPermissions?.role !== nextProps.userPermissions?.role)
-      return false;
+export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProps, nextProps) => {
+  // Compare critical props that affect rendering
+  if (prevProps.entries.length !== nextProps.entries.length) return false;
+  if (prevProps.classConfig?.element !== nextProps.classConfig?.element) return false;
+  if (prevProps.classConfig?.level !== nextProps.classConfig?.level) return false;
+  if (prevProps.userPermissions?.role !== nextProps.userPermissions?.role) return false;
+  if (prevProps.classId !== nextProps.classId) return false;
 
-    // Compare entries array for result changes
-    for (let i = 0; i < prevProps.entries.length; i++) {
-      const prevEntry = prevProps.entries[i];
-      const nextEntry = nextProps.entries[i];
+  // Compare entries array for result changes
+  for (let i = 0; i < prevProps.entries.length; i++) {
+    const prevEntry = prevProps.entries[i];
+    const nextEntry = nextProps.entries[i];
 
-      // Check key fields that affect result calculations
-      if (
-        prevEntry.id !== nextEntry.id ||
-        prevEntry.status !== nextEntry.status ||
-        prevEntry.displayInfo?.armband !== nextEntry.displayInfo?.armband ||
-        prevEntry.displayInfo?.dogName !== nextEntry.displayInfo?.dogName ||
-        prevEntry.displayInfo?.handlerName !==
-          nextEntry.displayInfo?.handlerName ||
-        prevEntry.judgingState?.currentResult !==
-          nextEntry.judgingState?.currentResult
-      ) {
-        return false;
-      }
+    // Check key fields that affect result calculations
+    if (
+      prevEntry.id !== nextEntry.id ||
+      prevEntry.status !== nextEntry.status ||
+      prevEntry.displayInfo?.armband !== nextEntry.displayInfo?.armband ||
+      prevEntry.displayInfo?.dogName !== nextEntry.displayInfo?.dogName ||
+      prevEntry.displayInfo?.handlerName !== nextEntry.displayInfo?.handlerName ||
+      prevEntry.judgingState?.currentResult !== nextEntry.judgingState?.currentResult
+    ) {
+      return false;
     }
-
-    return true;
   }
-);
+
+  return true;
+});

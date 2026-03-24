@@ -67,8 +67,9 @@ export function ClassCompactHeader({
   // Build class display name from element + level
   const className_ = `${classData.element || ''} ${classData.level || ''}`.trim() || 'Class';
 
-  // Trial display value
-  const trialDisplay = parentTrial?.trialType || parentTrial?.trialNumber || '\u2014';
+  // Trial display value — trialNumber is the name (e.g., "Saturday Trial 1"),
+  // trialType is the sport (e.g., "Scent Work") which we don't want here
+  const trialDisplay = parentTrial?.trialNumber || parentTrial?.name || '\u2014';
 
   // Build metadata fields
   const metadataFields: MetadataItemProps[] = [

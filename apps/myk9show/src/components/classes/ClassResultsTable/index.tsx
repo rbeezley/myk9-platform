@@ -51,10 +51,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   } = useClassResults({ entries, classConfig, userPermissions, onResultsSubmit });
 
   // Build an entry lookup map so row rendering is O(1) per row
-  const entryMap = useMemo(() => {
-    const map = new Map(entries.map(e => [e.id, e]));
-    return map;
-  }, [entries]);
+  const entryMap = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
 
   const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
 

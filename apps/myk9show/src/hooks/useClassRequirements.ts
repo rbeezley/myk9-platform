@@ -1,6 +1,10 @@
 /**
  * Hook to fetch class requirements from the database based on organization, element, and level.
- * Used to auto-fill requirement fields in class edit forms.
+ * Used to auto-fill requirement fields in class edit forms (ClassEditPanel).
+ *
+ * NOTE: For read-only requirements display (ClassRequirementsPanel), use the
+ * React Query version at `hooks/queries/useClassRequirements.ts` instead.
+ * This hook provides auto-fill metadata; the query hook provides raw display data.
  */
 
 import { useState, useEffect, useMemo } from 'react';

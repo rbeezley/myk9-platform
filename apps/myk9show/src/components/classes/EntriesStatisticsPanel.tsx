@@ -55,7 +55,6 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
   editData,
   className,
 }) => {
-  // Calculate comprehensive statistics
   const statistics = React.useMemo(() => {
     const totalEntries = entries.length;
     const entriesWithResults = entries.filter(e => e.time || e.status).length;
@@ -92,7 +91,6 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
     };
   }, [entries, editData]);
 
-  // Create statistic cards based on current data
   const statisticCards: StatisticCard[] = React.useMemo(() => {
     const cards: StatisticCard[] = [
       {

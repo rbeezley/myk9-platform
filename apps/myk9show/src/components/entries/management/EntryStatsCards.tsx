@@ -7,10 +7,7 @@ interface EntryStatsCardsProps {
   stats: EntryStats;
 }
 
-/**
- * Stats cards for entry management overview
- * Extracted from EntryManagementPage.tsx as part of DEBT-002 refactoring
- */
+/** Stats cards for entry management overview. */
 export const EntryStatsCards: React.FC<EntryStatsCardsProps> = ({ stats }) => {
   return (
     <StatsGrid columns={5}>

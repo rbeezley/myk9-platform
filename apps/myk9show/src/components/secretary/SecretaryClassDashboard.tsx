@@ -50,6 +50,9 @@ import { SettingsOverrideCard } from './SettingsOverrideCard';
 // Settings hooks
 import { useClassEffectiveSettings } from '@/hooks/queries/useShowSettingsDatabase';
 
+// Utilities
+import { msToDisplay } from '@/lib/timeUtils';
+
 // Premium styling
 import '@/styles/myk9-show-details.css';
 
@@ -301,7 +304,7 @@ export function SecretaryClassDashboard({
         const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
         const competitionData: CompetitionData = {
           score: searchTime ? (searchTime / 1000).toString() : '',
-          time: searchTime ? formatTime(searchTime) : '',
+          time: searchTime ? msToDisplay(searchTime, 'hundredths') : '',
           qualified: result.qualification === 'Qualified',
           qualification: result.qualification, // Save the specific qualification status
           faults: ('faults' in result ? result.faults : result.totalFaults) || 0,
@@ -330,17 +333,6 @@ export function SecretaryClassDashboard({
     [rawEntries, updateResult, user]
   );
 
-  // Helper function to format time from milliseconds to MM:SS.HH format
-  const formatTime = (ms: number): string => {
-    // Use precise calculation to avoid rounding errors
-    const totalSeconds = ms / 1000;
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    const hundredths = Math.round((totalSeconds % 1) * 100);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-  };
-
-  // Calculate statistics in a single pass
   const stats = useMemo(() => {
     const totalEntries = entries.length;
     let qualifiedCount = 0;

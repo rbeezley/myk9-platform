@@ -26,13 +26,25 @@ import '@/styles/myk9-show-details.css';
 import type { ClassDetailsMainProps } from './ClassDetailsMain.types';
 import {
   countPopulatedFields,
-  formatTime,
   formatClassTitle,
   isScentWorkShow,
   buildClassStats,
   buildClassConfig,
   buildScentWorkEntries,
 } from './ClassDetailsMain.helpers';
+import { msToDisplay } from '@/lib/timeUtils';
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  trials: Calendar,
+  classes: Trophy,
+  entries: Users,
+};
+
+const COLOR_MAP: Record<string, StatColor> = {
+  entries: 'primary',
+  classes: 'emerald',
+  trials: 'purple',
+};
 
 const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   classData,
@@ -111,7 +123,6 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   // Check if this is a Scent Work show
   const isScentWork = isScentWorkShow(parentShow);
 
-  // Build stats
   const stats = buildClassStats(classEntries, isScentWork);
 
   const getStatusClass = useCallback((status: string) => {
@@ -146,7 +157,6 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
     onStatusChange(nextStatus);
   }, [classData.status, onStatusChange]);
 
-  // Auth and permissions
   const { user, hasRole } = useAuthContext();
   const { dogs } = useDogStore();
 
@@ -182,7 +192,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
           const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
 
           const entryUpdate: Partial<EntryData> = {
-            time: searchTime ? formatTime(searchTime) : '',
+            time: searchTime ? msToDisplay(searchTime, 'hundredths') : '',
             status: result.qualification,
             qualificationReason: (result as ScentWorkResult).qualificationReason || undefined,
             score: searchTime ? (searchTime / 1000).toString() : '',
@@ -304,16 +314,6 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
       {/* Statistics Cards */}
       <StatsGrid columns={stats.length as 2 | 3}>
         {stats.map((stat, index) => {
-          const ICON_MAP: Record<string, LucideIcon> = {
-            trials: Calendar,
-            classes: Trophy,
-            entries: Users,
-          };
-          const COLOR_MAP: Record<string, StatColor> = {
-            entries: 'primary',
-            classes: 'emerald',
-            trials: 'purple',
-          };
           const Icon = ICON_MAP[stat.type] ?? Users;
           const color = COLOR_MAP[stat.type] ?? 'primary';
           const subtitle = [stat.detail1, stat.detail2, stat.detail3].filter(Boolean).join(' / ');

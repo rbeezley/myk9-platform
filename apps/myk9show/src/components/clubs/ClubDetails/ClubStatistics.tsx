@@ -10,20 +10,18 @@ interface ClubStatisticsProps {
 
 export const ClubStatistics: React.FC<ClubStatisticsProps> = ({ stats, onTabChange }) => {
   return (
-    <div className="mb-8">
-      <StatsGrid columns={2}>
-        {stats.map((stat, index) => (
-          <StatCard
-            key={index}
-            icon={stat.type === 'shows' ? Calendar : Users}
-            title={stat.title}
-            value={stat.value}
-            color={stat.type === 'shows' ? 'blue' : 'emerald'}
-            subtitle={`${stat.detail1} \u00B7 ${stat.detail2}`}
-            onClick={() => onTabChange(stat.tab)}
-          />
-        ))}
-      </StatsGrid>
-    </div>
+    <StatsGrid columns={2} className="mb-8">
+      {stats.map((stat, index) => (
+        <StatCard
+          key={index}
+          icon={stat.type === 'shows' ? Calendar : Users}
+          title={stat.title}
+          value={stat.value}
+          color={stat.type === 'shows' ? 'blue' : 'emerald'}
+          subtitle={`${stat.detail1} \u00B7 ${stat.detail2}`}
+          onClick={() => onTabChange(stat.tab)}
+        />
+      ))}
+    </StatsGrid>
   );
 };

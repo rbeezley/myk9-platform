@@ -9,6 +9,7 @@ export * from './Sheet';
 export * from './Tabs';
 
 // Domain Components
+export * from './StatCard';
 export * from './StatusBadge';
 export * from './TimerDisplay';
 export * from './PageLayout';

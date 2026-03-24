@@ -109,169 +109,6 @@
   border: 1px solid rgba(88, 86, 214, 0.2);
 }
 
-/* Stats Section - Card Style */
-.myk9-show-stats-section {
-  margin-bottom: 32px;
-}
-
-.myk9-show-stats-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6;
-}
-
-.myk9-show-stat-card {
-  @apply relative overflow-hidden;
-  background: var(--card);
-  border: 0.5px solid var(--border);
-  border-radius: 16px;
-  padding: 24px;
-  backdrop-filter: blur(20px);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.myk9-show-stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-  border-color: rgba(0, 122, 255, 0.4);
-}
-
-.myk9-show-stat-layout {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.myk9-show-stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: white;
-  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
-  flex-shrink: 0;
-}
-
-.myk9-show-stat-icon.trials {
-  background: linear-gradient(135deg, #007aff 0%, #00c7be 100%);
-}
-
-.myk9-show-stat-icon.classes {
-  background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);
-}
-
-.myk9-show-stat-icon.entries {
-  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
-}
-
-.myk9-show-stat-icon.judges {
-  background: linear-gradient(135deg, #ff9500 0%, #ff6200 100%);
-}
-
-.myk9-show-stat-icon.qualified {
-  background: linear-gradient(135deg, #ff3b30 0%, #ff375f 100%);
-}
-
-.myk9-show-stat-icon.judging {
-  background: linear-gradient(135deg, #ff9500 0%, #ff6200 100%);
-}
-
-.myk9-show-stat-icon.awards {
-  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
-}
-
-.myk9-show-stat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.myk9-show-stat-trend {
-  font-size: 14px;
-  font-weight: 590;
-  padding: 4px 8px;
-  border-radius: 8px;
-  background: rgba(52, 199, 89, 0.1);
-  color: #34c759;
-}
-
-.myk9-show-stat-subtitle {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-
-.myk9-show-stat-content {
-  text-align: left;
-  flex: 1;
-}
-
-.myk9-show-stat-title {
-  font-size: 14px;
-  font-weight: 590;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--muted-foreground);
-  margin-bottom: 4px;
-}
-
-.myk9-show-stat-number {
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--foreground);
-  margin-bottom: 12px;
-}
-
-.myk9-show-stat-details {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--muted-foreground);
-  margin-bottom: 12px;
-}
-
-.myk9-show-stat-progress {
-  width: 100%;
-  height: 4px;
-  background: var(--muted);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.myk9-show-stat-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #007aff 0%, #5856d6 100%);
-  border-radius: 2px;
-  transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.myk9-show-stat-progress-bar.trials {
-  background: linear-gradient(90deg, #007aff 0%, #00c7be 100%);
-}
-
-.myk9-show-stat-progress-bar.classes {
-  background: linear-gradient(90deg, #5856d6 0%, #af52de 100%);
-}
-
-.myk9-show-stat-progress-bar.entries {
-  background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
-}
-
-.myk9-show-stat-progress-bar.judges {
-  background: linear-gradient(90deg, #ff9500 0%, #ff6200 100%);
-}
-
-.myk9-show-stat-progress-bar.qualified {
-  background: linear-gradient(90deg, #ff3b30 0%, #ff375f 100%);
-}
-
 /* Show Information Card */
 .myk9-show-info-card {
   background: var(--card);
@@ -807,7 +644,6 @@
 }
 
 /* Dark mode adjustments */
-.dark .myk9-show-stat-card,
 .dark .myk9-show-info-card,
 .dark .myk9-trials-section {
   backdrop-filter: blur(40px);
@@ -831,10 +667,6 @@
     font-size: 17px;
   }
 
-  .myk9-show-stats-grid {
-    @apply grid-cols-1 gap-4;
-  }
-
   .myk9-show-info-grid {
     @apply grid-cols-1 gap-4;
   }
@@ -843,7 +675,6 @@
     @apply grid-cols-1;
   }
 
-  .myk9-show-stat-card:hover,
   .myk9-trial-card:hover {
     transform: none;
   }

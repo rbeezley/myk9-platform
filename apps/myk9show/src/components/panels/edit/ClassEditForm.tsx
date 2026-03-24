@@ -292,9 +292,7 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     }}
                   >
                     <SelectTrigger id="judgeId">
-                      <SelectValue placeholder="Select a judge">
-                        {data.judge && data.judge !== 'TBD' ? data.judge : 'Select a judge'}
-                      </SelectValue>
+                      <SelectValue placeholder="Select a judge" />
                     </SelectTrigger>
                     <SelectContent>
                       {assignedJudges.length > 0 ? (

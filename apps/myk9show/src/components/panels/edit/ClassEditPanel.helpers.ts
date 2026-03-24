@@ -15,7 +15,10 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     timeLimit1: classItem.timeLimit1 || '',
     timeLimit2: classItem.timeLimit2 || '',
     timeLimit3: classItem.timeLimit3 || '',
-    judge: classItem.judge || '',
+    judge:
+      classItem.judge ||
+      ((classItem as unknown as Record<string, unknown>).judgeName as string) ||
+      '',
     judgeId: classItem.judgeId || '',
     gateSteward: classItem.gateSteward || '',
     tableSteward: classItem.tableSteward || '',

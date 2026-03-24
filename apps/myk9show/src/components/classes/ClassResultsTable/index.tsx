@@ -58,8 +58,26 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   return (
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
-        {/* Header with actions */}
+        {/* Error Messages (outside the card) */}
+        {submitError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
+
+        {!userPermissions.canEditEntries && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              You have read-only access. Contact a secretary or administrator to edit results.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Single card: header + table + footer */}
         <div className="myk9-show-info-card">
+          {/* Header with actions */}
           <div className="myk9-show-info-header">
             <div className="flex items-center gap-2">
               <div className="myk9-show-info-title">Entries & Results</div>
@@ -98,27 +116,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               )}
             </div>
           </div>
-        </div>
 
-        {/* Error Messages */}
-        {submitError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{submitError}</AlertDescription>
-          </Alert>
-        )}
-
-        {!userPermissions.canEditEntries && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              You have read-only access. Contact a secretary or administrator to edit results.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Data Entry Table */}
-        <div className="myk9-show-info-card">
+          {/* Table */}
           <Table>
             <TableHeader>
               <TableRow>
@@ -155,12 +154,10 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               })}
             </TableBody>
           </Table>
-        </div>
 
-        {/* Submit Actions */}
-        {userPermissions.canEditEntries && (
-          <div className="myk9-show-info-card">
-            <div className="flex items-center justify-between">
+          {/* Footer with submit */}
+          {userPermissions.canEditEntries && (
+            <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
               <div className="text-sm text-muted-foreground">
                 Press Enter or Tab to move between fields quickly &bull; Placements calculated
                 automatically
@@ -177,8 +174,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 </span>
               </Button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </TooltipProvider>
   );

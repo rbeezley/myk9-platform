@@ -18,6 +18,7 @@ import { StatusFilter, type StatusFilterValue } from '@/components/common/Status
 import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { compareLevels } from '@/utils/schedule-summary';
+import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 
 interface ClassInfo {
   id: string;
@@ -227,7 +228,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
                         <td className="px-4 py-3 font-medium">{cls.element}</td>
                         <td className="px-4 py-3">
                           {cls.level}
-                          {cls.section && (
+                          {shouldShowSection(cls) && (
                             <span className="ml-1 text-muted-foreground">{cls.section}</span>
                           )}
                         </td>

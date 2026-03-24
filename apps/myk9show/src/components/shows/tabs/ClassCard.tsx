@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Users, Clock, Hash } from 'lucide-react';
 import { getClassStatusDisplay, type ClassStatusValue } from '@myk9/core';
+import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 
 interface ClassInfo {
   id: string;
@@ -30,12 +31,7 @@ interface ClassCardProps {
 
 const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
 
-export function ClassCard({
-  classInfo,
-  hideRing,
-  liveData,
-  onClick,
-}: ClassCardProps) {
+export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardProps) {
   const statusDisplay = getClassStatusDisplay(classInfo.status);
   const isLive = LIVE_STATUSES.has(classInfo.status) && liveData;
   const progressPct =
@@ -48,12 +44,12 @@ export function ClassCard({
     <div
       className={cn(
         'rounded-xl border border-border/50 bg-card p-4 space-y-3 transition-all',
-        onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30',
+        onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30'
       )}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+      onKeyDown={onClick ? e => e.key === 'Enter' && onClick() : undefined}
     >
       {/* Header: element/level + status */}
       <div className="flex items-start justify-between gap-2">
@@ -61,7 +57,7 @@ export function ClassCard({
           <h3 className="font-semibold text-base text-card-foreground">{classInfo.element}</h3>
           <p className="text-sm text-muted-foreground">
             {classInfo.level}
-            {classInfo.section && <span className="ml-1">{classInfo.section}</span>}
+            {shouldShowSection(classInfo) && <span className="ml-1">{classInfo.section}</span>}
           </p>
         </div>
         <span
@@ -70,7 +66,7 @@ export function ClassCard({
             statusDisplay.bgClass,
             statusDisplay.textClass,
             statusDisplay.darkBgClass,
-            statusDisplay.darkTextClass,
+            statusDisplay.darkTextClass
           )}
         >
           {statusDisplay.label}
@@ -121,8 +117,7 @@ export function ClassCard({
 
       {/* In ring + next up — live classes only */}
       {isLive &&
-        (liveData.inRingArmband ||
-          (liveData.nextArmbands && liveData.nextArmbands.length > 0)) && (
+        (liveData.inRingArmband || (liveData.nextArmbands && liveData.nextArmbands.length > 0)) && (
           <div className="flex items-center gap-3 text-sm">
             {liveData.inRingArmband && (
               <div className="flex items-center gap-1.5">
@@ -133,7 +128,7 @@ export function ClassCard({
             {liveData.nextArmbands && liveData.nextArmbands.length > 0 && (
               <div className="flex items-center gap-1 text-muted-foreground">
                 <span className="text-xs">Next:</span>
-                {liveData.nextArmbands.map((a) => (
+                {liveData.nextArmbands.map(a => (
                   <span key={a} className="px-1.5 py-0.5 bg-muted rounded text-xs font-medium">
                     #{a}
                   </span>

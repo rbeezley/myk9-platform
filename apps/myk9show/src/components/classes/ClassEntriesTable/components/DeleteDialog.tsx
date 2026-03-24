@@ -26,7 +26,7 @@ export const DeleteDialog: React.FC<DeleteDialogProps> = ({
   open,
   entry,
   onOpenChange,
-  onConfirm
+  onConfirm,
 }) => {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -37,12 +37,10 @@ export const DeleteDialog: React.FC<DeleteDialogProps> = ({
             Are you sure you want to delete this entry?
             {entry && (
               <span className="block mt-2 font-medium text-foreground">
-                #{entry.armband} - {entry.handler} with {entry.dog}
+                {entry.armband ? `#${entry.armband}` : ''} - {entry.handler} with {entry.dog}
               </span>
             )}
-            <span className="block mt-2 text-destructive">
-              This action cannot be undone.
-            </span>
+            <span className="block mt-2 text-destructive">This action cannot be undone.</span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getClassStatusBadgeClasses } from '@myk9/core';
 import { SortableTable, type ColumnDef } from '@/components/common/SortableTable';
 import type { TrialClass } from '@/components/trials/types/trial.types';
+import { shouldShowSection } from './ClassDetailsMain.helpers';
 
 interface ClassesTableViewProps {
   classes: TrialClass[];
@@ -48,7 +49,7 @@ function renderCell(cls: TrialClass, column: ColumnDef<TrialClass>) {
         <td className="px-4 py-3">
           <div className="min-w-0">
             <div className="font-medium truncate">{cls.element}</div>
-            {cls.section && (
+            {shouldShowSection(cls) && (
               <div className="text-xs text-muted-foreground truncate">Section {cls.section}</div>
             )}
           </div>

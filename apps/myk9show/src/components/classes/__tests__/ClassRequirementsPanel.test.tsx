@@ -25,22 +25,16 @@ function makeRequirements(overrides: Partial<ClassRequirements> = {}): ClassRequ
   return {
     organization: 'AKC',
     element: 'Container',
-    level: 'Novice A',
+    level: 'Novice',
     hides: '1',
     distractions: '0',
-    height: '',
-    area_count: 1,
-    area_size: '200-400 sq ft',
-    time_limit_text: '2:30',
-    time_limit_seconds: 150,
-    has_30_second_warning: true,
+    time_limit_text: '2:00',
     time_type: 'fixed',
-    warning_notes: null,
-    required_calls: 'Alert',
-    final_response: null,
-    containers_items: '6-10',
-    area_count_min: null,
-    area_count_max: null,
+    area_count: 1,
+    hides_known: true,
+    has_blank: false,
+    timer_mode: 'single',
+    odors: ['Birch', 'Anise', 'Clove', 'Cypress'],
     ...overrides,
   };
 }
@@ -85,17 +79,17 @@ describe('ClassRequirementsPanel', () => {
 
   it('renders requirement cards conditionally (only when field has data)', () => {
     mockUseClassRequirements.mockReturnValue({
-      requirements: makeRequirements({ height: '', area_count: 1 }),
+      requirements: makeRequirements({ area_count: 1, distractions: '0' }),
       isLoading: false,
       error: null,
     });
     render(<ClassRequirementsPanel {...defaultProps} />);
     // Time Limit should be present
     expect(screen.getByText('Time Limit')).toBeInTheDocument();
-    // Max Height should NOT be present (empty string)
-    expect(screen.queryByText('Max Height')).not.toBeInTheDocument();
     // Search Areas should NOT be present (area_count <= 1)
     expect(screen.queryByText('Search Areas')).not.toBeInTheDocument();
+    // Distractions should NOT be present (value is "0")
+    expect(screen.queryByText('Distractions')).not.toBeInTheDocument();
   });
 
   it('shows Time Limit card with time_limit_text', () => {
@@ -120,35 +114,37 @@ describe('ClassRequirementsPanel', () => {
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
-  it('shows Required Calls for AKC, Final Response for UKC', () => {
-    // AKC case
+  it('shows Distractions card when distractions > 0', () => {
     mockUseClassRequirements.mockReturnValue({
-      requirements: makeRequirements({
-        organization: 'AKC',
-        required_calls: 'Alert',
-        final_response: null,
-      }),
+      requirements: makeRequirements({ distractions: '2' }),
       isLoading: false,
       error: null,
     });
-    const { unmount } = render(<ClassRequirementsPanel {...defaultProps} organization="AKC" />);
-    expect(screen.getByText('Required Calls')).toBeInTheDocument();
-    expect(screen.getByText('Alert')).toBeInTheDocument();
-    unmount();
+    render(<ClassRequirementsPanel {...defaultProps} />);
+    expect(screen.getByText('Distractions')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
 
-    // UKC case
+  it('shows Search Areas card when area_count > 1', () => {
     mockUseClassRequirements.mockReturnValue({
-      requirements: makeRequirements({
-        organization: 'UKC',
-        required_calls: null,
-        final_response: 'Final Response Signal',
-      }),
+      requirements: makeRequirements({ area_count: 3 }),
       isLoading: false,
       error: null,
     });
-    render(<ClassRequirementsPanel {...defaultProps} organization="UKC" />);
-    expect(screen.getByText('Final Response')).toBeInTheDocument();
-    expect(screen.getByText('Final Response Signal')).toBeInTheDocument();
+    render(<ClassRequirementsPanel {...defaultProps} />);
+    expect(screen.getByText('Search Areas')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('shows Dual Timer card when timer_mode is dual', () => {
+    mockUseClassRequirements.mockReturnValue({
+      requirements: makeRequirements({ timer_mode: 'dual' }),
+      isLoading: false,
+      error: null,
+    });
+    render(<ClassRequirementsPanel {...defaultProps} />);
+    expect(screen.getByText('Timer Mode')).toBeInTheDocument();
+    expect(screen.getByText('Dual Timer')).toBeInTheDocument();
   });
 
   it('shows empty state message when no requirements found', () => {

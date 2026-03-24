@@ -1,5 +1,6 @@
 /**
- * Hook to fetch class requirements from the database based on organization, element, and level.
+ * Hook to fetch class requirements from sport_class_rules (joined with
+ * sport_templates) based on organization, element, and level.
  * Used to auto-fill requirement fields in class edit forms (ClassEditPanel).
  *
  * NOTE: For read-only requirements display (ClassRequirementsPanel), use the
@@ -11,26 +12,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/services/database/supabaseClient';
 import { useShowStore } from '@/store/showStore';
 import { logger } from '@/services/LoggingService';
+import {
+  mapRowToRequirements,
+  type ClassRequirements,
+  type SportClassRuleRow,
+} from '@/hooks/queries/useClassRequirements';
 
-/** Requirements data from the class_requirements table */
-export interface ClassRequirementsData {
-  id: number;
-  organization: string;
-  element: string;
-  level: string;
-  hides: string;
-  distractions: string;
-  height: string;
-  area_count: number;
-  time_limit_text: string;
-  area_size: string;
-  has_30_second_warning?: boolean;
-  time_type?: 'fixed' | 'range' | 'dictated';
-  warning_notes?: string;
-  required_calls?: string;
-  final_response?: string;
-  containers_items?: string;
-}
+/** @deprecated Use ClassRequirements from queries/useClassRequirements instead */
+export type ClassRequirementsData = ClassRequirements;
 
 /** Describes whether a field value comes from rules or is set by the judge */
 export interface RequirementFieldMeta {
@@ -46,14 +35,13 @@ export interface RequirementFieldMeta {
 export interface ClassRequirementsAutoFill {
   hidesUsed: RequirementFieldMeta;
   distractionsUsed: RequirementFieldMeta;
-  itemsUsed: RequirementFieldMeta;
   timeLimitText: RequirementFieldMeta;
 }
 
 /**
- * Determine the organization type string for querying class_requirements.
+ * Determine the organization type string for querying sport_templates.
  * The show's organization field may contain values like "AKC Scent Work"
- * but the class_requirements table uses simple "AKC", "UKC", "ASCA".
+ * but the sport_templates table uses simple "AKC", "UKC", "ASCA".
  */
 function normalizeOrganization(orgString: string): string | null {
   const lower = orgString.toLowerCase();
@@ -64,37 +52,23 @@ function normalizeOrganization(orgString: string): string | null {
 }
 
 /**
- * Check if a time_limit_text represents a range (judge-settable) vs a fixed value.
- */
-function isTimeRange(text: string): boolean {
-  return text.includes(' - ') || text.toLowerCase().includes(' to ') || /\d+\s*-\s*\d+/.test(text);
-}
-
-/**
  * Build the auto-fill metadata from raw requirements data.
  */
-function buildAutoFill(
-  requirements: ClassRequirementsData | null
-): ClassRequirementsAutoFill | null {
+function buildAutoFill(requirements: ClassRequirements | null): ClassRequirementsAutoFill | null {
   if (!requirements) return null;
 
   const hidesValue = requirements.hides || '';
   const distractionsValue = requirements.distractions || '';
-  const itemsValue = requirements.containers_items || '';
   const timeLimitText = requirements.time_limit_text || '';
 
-  // Hides: dictated by rules (e.g., "1", "1-3", "2-4")
-  const hidesIsRange = hidesValue.includes('-') || hidesValue.toLowerCase().includes(' to ');
+  // Hides: if the string contains an en-dash it's a range — judge picks exact count
+  const hidesIsRange = hidesValue.includes('\u2013');
 
-  // Distractions: dictated by rules (e.g., "0", "0-3")
-  const distractionsIsRange =
-    distractionsValue.includes('-') || distractionsValue.toLowerCase().includes(' to ');
+  // Distractions: same logic
+  const distractionsIsRange = distractionsValue.includes('\u2013');
 
-  // Time limit: may be fixed, range, or dictated
-  const timeIsJudgeSettable =
-    requirements.time_type === 'range' ||
-    requirements.time_type === 'dictated' ||
-    isTimeRange(timeLimitText);
+  // Time limit: range type means judge sets
+  const timeIsJudgeSettable = requirements.time_type === 'range';
 
   return {
     hidesUsed: {
@@ -110,11 +84,6 @@ function buildAutoFill(
       placeholder: distractionsIsRange
         ? `Set by judge (${distractionsValue})`
         : distractionsValue || 'Enter distractions',
-    },
-    itemsUsed: {
-      ruleValue: itemsValue,
-      isJudgeSettable: false,
-      placeholder: itemsValue || 'Enter items used',
     },
     timeLimitText: {
       ruleValue: timeLimitText,
@@ -133,14 +102,15 @@ interface UseClassRequirementsOptions {
 }
 
 interface UseClassRequirementsResult {
-  requirements: ClassRequirementsData | null;
+  requirements: ClassRequirements | null;
   autoFill: ClassRequirementsAutoFill | null;
   loading: boolean;
   organization: string | null;
 }
 
 /**
- * Fetches class requirements based on the show's organization and the class's element/level.
+ * Fetches class requirements from sport_class_rules (joined with sport_templates)
+ * based on the show's organization and the class's element/level.
  * Returns auto-fill metadata for requirement fields.
  */
 export function useClassRequirements({
@@ -149,7 +119,7 @@ export function useClassRequirements({
   showId,
 }: UseClassRequirementsOptions): UseClassRequirementsResult {
   const { shows } = useShowStore();
-  const [requirements, setRequirements] = useState<ClassRequirementsData | null>(null);
+  const [requirements, setRequirements] = useState<ClassRequirements | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Resolve the organization from the show
@@ -173,20 +143,46 @@ export function useClassRequirements({
     const fetchRequirements = async () => {
       setLoading(true);
       try {
-        // class_requirements table is not in the typed Database schema;
-        // use an untyped client reference to query it.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const untypedSupabase = supabase as any;
-        const { data, error } = (await untypedSupabase
-          .from('class_requirements')
-          .select('*')
-          .eq('organization', organization)
+        // Parse section from level if present (e.g., "Novice A" → level "Novice", section "A")
+        const sectionMatch = level.match(/^(.+?)\s+([AB])$/i);
+        const dbLevel = sectionMatch ? sectionMatch[1] : level;
+        const dbSection = sectionMatch ? sectionMatch[2].toUpperCase() : null;
+
+        let query = supabase
+          .from('sport_class_rules')
+          .select(
+            `
+            element,
+            level,
+            class_name,
+            section,
+            max_time_seconds_fixed,
+            max_time_seconds_min,
+            max_time_seconds_max,
+            hide_count_fixed,
+            hide_count_min,
+            hide_count_max,
+            hides_known,
+            area_count,
+            has_blank,
+            distraction_count_min,
+            distraction_count_max,
+            timer_mode,
+            odors,
+            sport_templates!inner ( organization )
+          `
+          )
+          .eq('sport_templates.organization', organization)
           .eq('element', element)
-          .eq('level', level)
-          .single()) as {
-          data: ClassRequirementsData | null;
-          error: { message: string } | null;
-        };
+          .eq('level', dbLevel);
+
+        if (dbSection) {
+          query = query.eq('section', dbSection);
+        } else {
+          query = query.is('section', null);
+        }
+
+        const { data, error } = await query.limit(1);
 
         if (!cancelled) {
           if (error) {
@@ -196,8 +192,10 @@ export function useClassRequirements({
               {}
             );
             setRequirements(null);
+          } else if (!data || data.length === 0) {
+            setRequirements(null);
           } else {
-            setRequirements(data as ClassRequirementsData);
+            setRequirements(mapRowToRequirements(data[0] as unknown as SportClassRuleRow));
           }
         }
       } catch (err) {

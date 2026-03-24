@@ -53,15 +53,14 @@ export const ResultsTableRow: React.FC<ResultsTableRowProps> = ({
       )}
     >
       {/* Armband */}
-      <TableCell className="font-medium">#{item.armband}</TableCell>
+      <TableCell className="font-medium">
+        {item.armband ? `#${item.armband}` : <span className="text-muted-foreground">--</span>}
+      </TableCell>
 
       {/* Dog & Handler */}
       <TableCell>
         <div>
-          <DogInfoTooltip
-            dogName={item.dogName}
-            registrations={entry.registrations}
-          />
+          <DogInfoTooltip dogName={item.dogName} registrations={entry.registrations} />
           <div className="text-sm text-gray-600">{item.handlerName}</div>
         </div>
       </TableCell>
@@ -69,10 +68,7 @@ export const ResultsTableRow: React.FC<ResultsTableRowProps> = ({
       {/* Placement */}
       <TableCell>
         {item.placement ? (
-          <Badge
-            variant="default"
-            className={getPlacementBadgeClass(item.placement)}
-          >
+          <Badge variant="default" className={getPlacementBadgeClass(item.placement)}>
             <Trophy className="h-4 w-4" />
             {formatPlacement(item.placement)}
           </Badge>
@@ -83,12 +79,7 @@ export const ResultsTableRow: React.FC<ResultsTableRowProps> = ({
 
       {/* Qualification */}
       <TableCell>
-        <QualificationCell
-          item={item}
-          index={index}
-          canEdit={canEdit}
-          onUpdate={onUpdate}
-        />
+        <QualificationCell item={item} index={index} canEdit={canEdit} onUpdate={onUpdate} />
       </TableCell>
 
       {/* Time */}
@@ -98,14 +89,13 @@ export const ResultsTableRow: React.FC<ResultsTableRowProps> = ({
             <div
               className={cn(
                 'inline-block rounded-md',
-                item.modifiedFields?.has('searchTime') &&
-                  'ring-2 ring-blue-500/30'
+                item.modifiedFields?.has('searchTime') && 'ring-2 ring-blue-500/30'
               )}
             >
               <SimpleTimeFields
                 value={item.searchTime}
-                onChange={(value) => onUpdate(index, 'searchTime', value)}
-                onKeyDown={(e) => onKeyDown(e, index, 'searchTime')}
+                onChange={value => onUpdate(index, 'searchTime', value)}
+                onKeyDown={e => onKeyDown(e, index, 'searchTime')}
                 disabled={!canEdit}
                 hideLabels={true}
                 data-index={index}
@@ -115,9 +105,7 @@ export const ResultsTableRow: React.FC<ResultsTableRowProps> = ({
           </div>
         ) : (
           <div className="text-center">
-            <span className="text-sm font-mono">
-              {item.searchTime || '--'}
-            </span>
+            <span className="text-sm font-mono">{item.searchTime || '--'}</span>
           </div>
         )}
       </TableCell>
@@ -128,14 +116,13 @@ export const ResultsTableRow: React.FC<ResultsTableRowProps> = ({
           <Input
             type="number"
             value={item.faults}
-            onChange={(e) => onUpdate(index, 'faults', e.target.value)}
-            onKeyDown={(e) => onKeyDown(e, index, 'faults')}
+            onChange={e => onUpdate(index, 'faults', e.target.value)}
+            onKeyDown={e => onKeyDown(e, index, 'faults')}
             min="0"
             max="99"
             className={cn(
               'w-16',
-              item.modifiedFields?.has('faults') &&
-                'ring-2 ring-blue-500/30 border-blue-500'
+              item.modifiedFields?.has('faults') && 'ring-2 ring-blue-500/30 border-blue-500'
             )}
             data-index={index}
             data-field="faults"
@@ -150,13 +137,12 @@ export const ResultsTableRow: React.FC<ResultsTableRowProps> = ({
         {canEdit ? (
           <Input
             value={item.notes}
-            onChange={(e) => onUpdate(index, 'notes', e.target.value)}
-            onKeyDown={(e) => onKeyDown(e, index, 'notes')}
+            onChange={e => onUpdate(index, 'notes', e.target.value)}
+            onKeyDown={e => onKeyDown(e, index, 'notes')}
             placeholder="Optional notes"
             className={cn(
               'w-40',
-              item.modifiedFields?.has('notes') &&
-                'ring-2 ring-blue-500/30 border-blue-500'
+              item.modifiedFields?.has('notes') && 'ring-2 ring-blue-500/30 border-blue-500'
             )}
             data-index={index}
             data-field="notes"

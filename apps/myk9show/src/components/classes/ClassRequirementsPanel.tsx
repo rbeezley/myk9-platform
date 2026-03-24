@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Target, AlertTriangle, MapPin, MessageSquare, Ruler, Package } from 'lucide-react';
+import { Clock, Target, AlertTriangle, MapPin, Eye, Layers, Timer } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Badge } from '@/components/ui/badge';
 import { useClassRequirements } from '@/hooks/queries/useClassRequirements';
@@ -20,7 +20,6 @@ const iconColors = {
   amber: 'bg-amber-500/15 text-amber-500',
   emerald: 'bg-emerald-500/15 text-emerald-500',
   purple: 'bg-purple-500/15 text-purple-500',
-  pink: 'bg-pink-500/15 text-pink-500',
   slate: 'bg-slate-500/15 text-slate-500',
 } as const;
 
@@ -52,23 +51,9 @@ function RequirementCard({ icon, colorClass, label, value, subtitle }: Requireme
   );
 }
 
-function buildTimeSubtitle(
-  timeType: 'fixed' | 'range' | 'dictated' | null,
-  has30SecondWarning: boolean | null
-): string | undefined {
-  const parts: string[] = [];
-
-  if (timeType === 'range') {
-    parts.push('Range allowed');
-  } else if (timeType === 'dictated') {
-    parts.push('Dictated by organization');
-  }
-
-  if (has30SecondWarning === false) {
-    parts.push('No 30-second warning');
-  }
-
-  return parts.length > 0 ? parts.join(' \u00b7 ') : undefined;
+function buildTimeSubtitle(timeType: 'fixed' | 'range' | null): string | undefined {
+  if (timeType === 'range') return 'Judge sets within range';
+  return undefined;
 }
 
 export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
@@ -107,12 +92,6 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
     </span>
   ) : undefined;
 
-  const isUKC = organization === 'UKC';
-  const showArrangement =
-    element === 'Container' ||
-    element === 'Buried' ||
-    (element === 'Handler Discrimination' && level === 'Novice A');
-
   return (
     <SlideOverPanel
       open={open}
@@ -133,7 +112,7 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
         </div>
       ) : !requirements ? (
         <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-          <Package className="h-10 w-10 text-muted-foreground/50" />
+          <Layers className="h-10 w-10 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">
             No requirements found for this class configuration
           </p>
@@ -147,10 +126,7 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
               colorClass={iconColors.blue}
               label="Time Limit"
               value={requirements.time_limit_text}
-              subtitle={buildTimeSubtitle(
-                requirements.time_type,
-                requirements.has_30_second_warning
-              )}
+              subtitle={buildTimeSubtitle(requirements.time_type)}
             />
           )}
 
@@ -161,26 +137,21 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
               colorClass={iconColors.red}
               label="Hides"
               value={requirements.hides}
+              subtitle={
+                requirements.hides_known
+                  ? 'Number of hides known to handler'
+                  : 'Number of hides unknown (blind)'
+              }
             />
           )}
 
           {/* Distractions */}
-          {requirements.distractions && (
+          {requirements.distractions && requirements.distractions !== '0' && (
             <RequirementCard
               icon={<AlertTriangle className="h-4 w-4" />}
               colorClass={iconColors.amber}
               label="Distractions"
               value={requirements.distractions}
-            />
-          )}
-
-          {/* Area Size */}
-          {requirements.area_size && (
-            <RequirementCard
-              icon={<MapPin className="h-4 w-4" />}
-              colorClass={iconColors.emerald}
-              label="Area Size"
-              value={requirements.area_size}
             />
           )}
 
@@ -194,42 +165,35 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
             />
           )}
 
-          {/* Required Calls (AKC) / Final Response (UKC) */}
-          {isUKC
-            ? requirements.final_response && (
-                <RequirementCard
-                  icon={<MessageSquare className="h-4 w-4" />}
-                  colorClass={iconColors.pink}
-                  label="Final Response"
-                  value={requirements.final_response}
-                />
-              )
-            : requirements.required_calls && (
-                <RequirementCard
-                  icon={<MessageSquare className="h-4 w-4" />}
-                  colorClass={iconColors.pink}
-                  label="Required Calls"
-                  value={requirements.required_calls}
-                />
-              )}
-
-          {/* Max Height */}
-          {requirements.height && requirements.height !== '-' && (
+          {/* Has Blank */}
+          {requirements.has_blank && (
             <RequirementCard
-              icon={<Ruler className="h-4 w-4" />}
+              icon={<Eye className="h-4 w-4" />}
               colorClass={iconColors.slate}
-              label="Max Height"
-              value={requirements.height}
+              label="Blank Area"
+              value="Yes"
+              subtitle="May include an area with no hides"
             />
           )}
 
-          {/* Arrangement */}
-          {showArrangement && requirements.containers_items && (
+          {/* Timer Mode */}
+          {requirements.timer_mode === 'dual' && (
             <RequirementCard
-              icon={<Package className="h-4 w-4" />}
-              colorClass={iconColors.slate}
-              label="Arrangement"
-              value={requirements.containers_items}
+              icon={<Timer className="h-4 w-4" />}
+              colorClass={iconColors.emerald}
+              label="Timer Mode"
+              value="Dual Timer"
+              subtitle="Search time and call time tracked separately"
+            />
+          )}
+
+          {/* Odors */}
+          {requirements.odors && requirements.odors.length > 0 && (
+            <RequirementCard
+              icon={<Target className="h-4 w-4" />}
+              colorClass={iconColors.emerald}
+              label="Odors"
+              value={requirements.odors.join(', ')}
             />
           )}
         </div>

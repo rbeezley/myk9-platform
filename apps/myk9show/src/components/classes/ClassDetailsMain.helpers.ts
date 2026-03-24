@@ -27,12 +27,31 @@ export function formatTime(ms: number): string {
 }
 
 /**
+ * Determine whether section should be displayed for a class.
+ *
+ * AKC Scent Work rules:
+ * - Detective element has no levels or sections.
+ * - Only Novice level has sections (A or B).
+ * - Advanced, Excellent, Master, and all other levels do not have sections.
+ */
+export function shouldShowSection(classLike: {
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+}): boolean {
+  if (!classLike.section) return false;
+  if (classLike.element === 'Detective') return false;
+  if (!classLike.level) return false;
+  return classLike.level.startsWith('Novice');
+}
+
+/**
  * Build a formatted class title from element, level, and section.
  */
 export function formatClassTitle(classData: ClassData): string {
   const parts = [classData.element];
   if (classData.level) parts.push(classData.level);
-  if (classData.section) parts.push(classData.section);
+  if (shouldShowSection(classData)) parts.push(classData.section!);
   return parts.join(' ');
 }
 

@@ -1,9 +1,9 @@
 /**
  * Tests for useClassRequirements React Query hook.
  *
- * The hook fetches from the class_requirements table by organization, element,
- * and level. It uses cacheStrategies.static since requirements don't change
- * during a session.
+ * The hook fetches from sport_class_rules joined with sport_templates by
+ * organization, element, and level. It uses cacheStrategies.static since
+ * requirements don't change during a session.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -56,25 +56,42 @@ function makeQueryChain(resolved: { data: unknown; error: unknown }) {
   return new Proxy({}, handler);
 }
 
+/** Sample mapped ClassRequirements matching what the hook returns after transformation. */
 const SAMPLE_REQUIREMENTS: ClassRequirements = {
   organization: 'AKC',
   element: 'Interior',
   level: 'Novice',
   hides: '1',
   distractions: '0',
-  height: 'N/A',
+  time_limit_text: '1:00\u20133:00',
+  time_type: 'range',
   area_count: 1,
-  area_size: '200-400 sq ft',
-  time_limit_text: '2:00',
-  time_limit_seconds: 120,
-  has_30_second_warning: true,
-  time_type: 'fixed',
-  warning_notes: null,
-  required_calls: 'Alert',
-  final_response: null,
-  containers_items: null,
-  area_count_min: null,
-  area_count_max: null,
+  hides_known: true,
+  has_blank: false,
+  timer_mode: 'single',
+  odors: ['Birch', 'Anise', 'Clove', 'Cypress'],
+};
+
+/** Sample raw row as returned by the Supabase query. */
+const SAMPLE_RAW_ROW = {
+  element: 'Interior',
+  level: 'Novice',
+  class_name: 'Interior Novice A',
+  section: 'A',
+  max_time_seconds_fixed: null,
+  max_time_seconds_min: 60,
+  max_time_seconds_max: 180,
+  hide_count_fixed: 1,
+  hide_count_min: null,
+  hide_count_max: null,
+  hides_known: true,
+  area_count: 1,
+  has_blank: false,
+  distraction_count_min: 0,
+  distraction_count_max: 0,
+  timer_mode: 'single',
+  odors: ['Birch', 'Anise', 'Clove', 'Cypress'],
+  sport_templates: { organization: 'AKC' },
 };
 
 // --- Tests ---
@@ -123,8 +140,8 @@ describe('useClassRequirements', () => {
   });
 
   describe('returns requirements data', () => {
-    it('returns requirements when element/level match a record', async () => {
-      mockFrom.mockReturnValue(makeQueryChain({ data: SAMPLE_REQUIREMENTS, error: null }));
+    it('returns mapped requirements when query returns a row', async () => {
+      mockFrom.mockReturnValue(makeQueryChain({ data: [SAMPLE_RAW_ROW], error: null }));
 
       const { Wrapper } = makeWrapper();
       const { result } = renderHook(
@@ -132,7 +149,7 @@ describe('useClassRequirements', () => {
           useClassRequirements({
             organization: 'AKC',
             element: 'Interior',
-            level: 'Novice',
+            level: 'Novice A',
           }),
         { wrapper: Wrapper }
       );
@@ -144,7 +161,7 @@ describe('useClassRequirements', () => {
     });
 
     it('returns null when no matching record exists', async () => {
-      mockFrom.mockReturnValue(makeQueryChain({ data: null, error: null }));
+      mockFrom.mockReturnValue(makeQueryChain({ data: [], error: null }));
 
       const { Wrapper } = makeWrapper();
       const { result } = renderHook(
@@ -193,10 +210,7 @@ describe('useClassRequirements', () => {
   });
 
   describe('ClassRequirements type', () => {
-    it('has correct fields with no any types', () => {
-      // Type-level check: compile-time verification that ClassRequirements
-      // has the expected shape. If any field is missing or typed as `any`,
-      // TypeScript will catch it at build time.
+    it('has correct fields matching sport_class_rules schema', () => {
       const req: ClassRequirements = SAMPLE_REQUIREMENTS;
 
       // Runtime verification of field existence
@@ -205,19 +219,13 @@ describe('useClassRequirements', () => {
       expect(req.level).toBe('Novice');
       expect(req.hides).toBe('1');
       expect(req.distractions).toBe('0');
-      expect(req.height).toBe('N/A');
+      expect(req.time_limit_text).toBe('1:00\u20133:00');
+      expect(req.time_type).toBe('range');
       expect(req.area_count).toBe(1);
-      expect(req.area_size).toBe('200-400 sq ft');
-      expect(req.time_limit_text).toBe('2:00');
-      expect(req.time_limit_seconds).toBe(120);
-      expect(req.has_30_second_warning).toBe(true);
-      expect(req.time_type).toBe('fixed');
-      expect(req.warning_notes).toBeNull();
-      expect(req.required_calls).toBe('Alert');
-      expect(req.final_response).toBeNull();
-      expect(req.containers_items).toBeNull();
-      expect(req.area_count_min).toBeNull();
-      expect(req.area_count_max).toBeNull();
+      expect(req.hides_known).toBe(true);
+      expect(req.has_blank).toBe(false);
+      expect(req.timer_mode).toBe('single');
+      expect(req.odors).toEqual(['Birch', 'Anise', 'Clove', 'Cypress']);
     });
   });
 });

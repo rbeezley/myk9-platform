@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { formatFee } from '@/utils/format';
 import type { ClassData } from './types/classTypes';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { shouldShowSection } from './ClassDetailsMain.helpers';
 
 // --- Status badge variant mapping (mirrors DetailHero) ---
 
@@ -111,7 +112,7 @@ export function ClassCompactHeader({
               {classData.status}
             </span>
           </div>
-          {classData.section && (
+          {shouldShowSection(classData) && (
             <div className="text-sm text-muted-foreground">Section {classData.section}</div>
           )}
         </div>

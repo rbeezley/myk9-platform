@@ -6,6 +6,34 @@
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 
+/**
+ * Fetch armband numbers from the authoritative `armbands` table for entries
+ * that are missing them. Returns a Map of `show_id:dog_id` → armband_number.
+ *
+ * The `entries.armband` column is a denormalized copy that may lag behind
+ * if the replication UPDATE mutation hasn't synced yet. The `armbands` table
+ * is the authoritative source (written atomically by the assign_armband RPC).
+ */
+async function fetchMissingArmbands(
+  entries: ReadonlyArray<{ armband: string | null; show_id: string | null; dog_id: string | null }>
+): Promise<Map<string, string>> {
+  const missing = entries.filter(e => !e.armband && e.show_id && e.dog_id);
+  if (missing.length === 0) return new Map();
+
+  const showIds = [...new Set(missing.map(e => e.show_id!))];
+  const dogIds = [...new Set(missing.map(e => e.dog_id!))];
+
+  const { data: armbandRows } = await supabase
+    .from('armbands')
+    .select('show_id, dog_id, armband_number')
+    .in('show_id', showIds)
+    .in('dog_id', dogIds);
+
+  if (!armbandRows || armbandRows.length === 0) return new Map();
+
+  return new Map(armbandRows.map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)]));
+}
+
 // Get all entries with related data
 export const getAllEntries = async () => {
   const startTime = Date.now();
@@ -332,7 +360,20 @@ export const getEntriesByClass = async (classId: string) => {
       throw createDatabaseError(error, 'entries', 'select_by_class');
     }
 
-    return { data: data || [], error: null };
+    const entries = data || [];
+
+    // Backfill armbands from the authoritative armbands table for entries
+    // whose replication UPDATE hasn't synced yet
+    const armbandMap = await fetchMissingArmbands(entries);
+    const backfilledEntries = entries.map(e => {
+      if (!e.armband && e.show_id && e.dog_id) {
+        const armband = armbandMap.get(`${e.show_id}:${e.dog_id}`);
+        if (armband) return { ...e, armband };
+      }
+      return e;
+    });
+
+    return { data: backfilledEntries, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'select_by_class');

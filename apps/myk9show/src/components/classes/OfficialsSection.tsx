@@ -222,9 +222,7 @@ export function RequirementsFields({
         id="itemsUsed"
         label="Items Used"
         value={classData.itemsUsed || ''}
-        ruleValue={autoFill?.itemsUsed.ruleValue}
-        isJudgeSettable={autoFill?.itemsUsed.isJudgeSettable}
-        placeholder={autoFill?.itemsUsed.placeholder || 'Enter items used'}
+        placeholder="Enter items used"
         onChange={v => onFieldChange('itemsUsed', v)}
         colSpan={2}
       />

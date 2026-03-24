@@ -124,19 +124,40 @@ export function useClassDetailsData() {
 
   // Transform & merge entries to format expected by ClassDetailsMain.
   // DB entries already have the right shape; local entries need transformation.
+  //
+  // The local entry store may have fresher data than the DB (e.g., armband
+  // assigned via the registration wizard whose UPDATE mutation hasn't synced
+  // to Supabase yet). For fields that are empty in the DB version but
+  // populated locally, we backfill from the local entry.
   const classEntries = useMemo((): ClassEntryDisplay[] => {
+    // Build a lookup of local entries by ID for backfill
+    const localById = new Map<string, ShowEntry>();
+    for (const entry of localEntries) {
+      const typedEntry = entry as ShowEntry;
+      localById.set(typedEntry.id, typedEntry);
+    }
+
     // Start with database entries (already in display format)
-    const dbDisplayEntries: ClassEntryDisplay[] = dbEntries.map(e => ({
-      id: e.id,
-      armband: e.armband || '',
-      handler: e.handler || '',
-      dog: e.dog || 'Unknown Dog',
-      status: (e.status || 'Not Qualified') as ClassEntryDisplay['status'],
-      score: e.score || '',
-      time: e.time || '',
-      placement: e.placement || '',
-      classId: e.classId || '',
-    }));
+    const dbDisplayEntries: ClassEntryDisplay[] = dbEntries.map(e => {
+      // Backfill armband from local entry if DB version is empty
+      let armband = e.armband || '';
+      if (!armband) {
+        const localEntry = localById.get(e.id);
+        armband = localEntry?.registrationData?.armband || '';
+      }
+
+      return {
+        id: e.id,
+        armband,
+        handler: e.handler || '',
+        dog: e.dog || 'Unknown Dog',
+        status: (e.status || 'Not Qualified') as ClassEntryDisplay['status'],
+        score: e.score || '',
+        time: e.time || '',
+        placement: e.placement || '',
+        classId: e.classId || '',
+      };
+    });
 
     // Build a set of IDs from the database entries
     const dbIds = new Set(dbDisplayEntries.map(e => e.id));

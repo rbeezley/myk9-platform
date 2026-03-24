@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { BookOpen, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { ClassData } from './types/classTypes';
 import UnifiedSidebar, { SidebarGroup } from '@/components/common/UnifiedSidebar';
+import { shouldShowSection } from './ClassDetailsMain.helpers';
 
 interface ClassGroupedSidebarProps {
   classes: ClassData[];
@@ -129,7 +130,7 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
   const formatClassDisplay = (cls: ClassData) => {
     const parts = [cls.element];
     if (cls.level) parts.push(cls.level);
-    if (cls.section) parts.push(cls.section);
+    if (shouldShowSection(cls)) parts.push(cls.section!);
     return parts.join(' ');
   };
 

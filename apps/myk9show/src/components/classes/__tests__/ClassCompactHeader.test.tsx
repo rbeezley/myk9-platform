@@ -64,9 +64,33 @@ describe('ClassCompactHeader', () => {
     expect(scheduledBadge.className).toMatch(/muted/);
   });
 
-  it('renders section label when provided', () => {
-    render(<ClassCompactHeader classData={makeClassData({ section: 'A' })} />);
+  it('renders section label for Novice level', () => {
+    render(<ClassCompactHeader classData={makeClassData({ level: 'Novice', section: 'A' })} />);
     expect(screen.getByText('Section A')).toBeInTheDocument();
+  });
+
+  it('hides section label for non-Novice levels', () => {
+    const { rerender } = render(
+      <ClassCompactHeader classData={makeClassData({ level: 'Advanced', section: 'A' })} />
+    );
+    expect(screen.queryByText('Section A')).not.toBeInTheDocument();
+
+    rerender(
+      <ClassCompactHeader classData={makeClassData({ level: 'Excellent', section: 'A' })} />
+    );
+    expect(screen.queryByText('Section A')).not.toBeInTheDocument();
+
+    rerender(<ClassCompactHeader classData={makeClassData({ level: 'Master', section: 'A' })} />);
+    expect(screen.queryByText('Section A')).not.toBeInTheDocument();
+  });
+
+  it('hides section label for Detective element', () => {
+    render(
+      <ClassCompactHeader
+        classData={makeClassData({ element: 'Detective', level: undefined, section: 'A' })}
+      />
+    );
+    expect(screen.queryByText('Section A')).not.toBeInTheDocument();
   });
 
   it('renders metadata strip with all fields', () => {

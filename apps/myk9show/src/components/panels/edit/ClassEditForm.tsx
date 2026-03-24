@@ -384,7 +384,6 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 label="Items Used"
                 value={data.itemsUsed || ''}
                 onChange={handleInputChange('itemsUsed')}
-                autoFillMeta={autoFill?.itemsUsed}
               />
 
               <Separator />

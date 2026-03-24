@@ -29,7 +29,7 @@ interface RequirementCardProps {
   colorClass: string;
   label: string;
   value: string | number;
-  subtitle?: string;
+  subtitle?: string | undefined;
 }
 
 function RequirementCard({ icon, colorClass, label, value, subtitle }: RequirementCardProps) {

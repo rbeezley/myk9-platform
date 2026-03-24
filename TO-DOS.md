@@ -195,6 +195,18 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
+## Class Details Page Redesign - 2026-03-24
+
+- [x] **Restructure Class Details page layout** — Done: Replaced flat DetailHero + info grid + expandable sections layout with compact header (metadata strip) + stats row + full-width results table. Removed data duplication (judge/date no longer shown twice). Enter Scores button moved from page header to results table header. Added ClassRequirementsPanel (slide-out drawer) ported from myK9Q's ClassRequirementsDialog — shows rules reference from `class_requirements` table by org/element/level. New React Query `useClassRequirements` hook. 662 lines of dead code removed (ClassExpandableSections, SectionToggleControls, ClassInfo, ExpandableSection). 28 new tests across 3 files. Spec: `docs/superpowers/specs/2026-03-24-class-details-redesign.md`. Plan: `docs/superpowers/plans/2026-03-24-class-details-redesign.md`.
+
+**Future enhancements (out of scope):**
+
+- Dog status column (Checked In / In Ring / On Deck / Conflict) — requires check-in data pipeline
+- Drag-and-drop run order in entries table
+- Inline score editing in table cells
+
+---
+
 ## Premium Visual Polish — Both Modes - 2026-03-24 00:15
 
 - **Improve card elevation and floating effect** — Cards blend into the background in both light and dark mode. They need stronger visual separation to feel "premium." **Problem:** Cards use `bg-card` with thin `border-border` but no meaningful shadow. In light mode, `#faf8f4` card on `#f5f2ed` background is barely distinguishable. In dark mode, `#26292e` card on `#1a1a1e` is slightly better but still flat. Premium UIs (Linear, Notion, Vercel) use soft, layered shadows to make cards float. **Files:** `apps/myk9show/src/index.css` (could add `--shadow-card` variable), `packages/ui/src/components/ui/card.tsx` (Card component — add default shadow), component-level card containers across the app. **Solution:** Define a `--shadow-card` CSS variable for each mode (light: warm-tinted `rgba(180,160,130,0.08)` multi-layer shadow; dark: `rgba(0,0,0,0.3)` deeper shadow). Apply to the shared Card component. May also want to reduce or remove `border` on cards and let the shadow do the separation work.

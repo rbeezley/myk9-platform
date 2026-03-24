@@ -1,21 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { Users, Calendar, Trophy, Trash2, MoreVertical, type LucideIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Calendar, Trophy, type LucideIcon } from 'lucide-react';
 import { StatCard, StatsGrid } from '@myk9/ui';
 import type { StatColor } from '@myk9/ui';
-import { CLASS_STATUS, getNextClassStatus, type ClassStatusValue } from '@myk9/core';
 import { type EntryData } from './types/classTypes';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { ClassResultsTable } from './ClassResultsTable';
 import SectionToggleControls from './SectionToggleControls';
 import ClassExpandableSections from './ClassExpandableSections';
-import Breadcrumb from '@/components/common/Breadcrumb';
-import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { createUserPermissions, UserPermissions } from '@/types/user-permissions';
@@ -26,7 +16,6 @@ import '@/styles/myk9-show-details.css';
 import type { ClassDetailsMainProps } from './ClassDetailsMain.types';
 import {
   countPopulatedFields,
-  formatClassTitle,
   isScentWorkShow,
   buildClassStats,
   buildClassConfig,
@@ -50,26 +39,10 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   classData,
   classEntries,
   parentShow,
-  parentTrial,
-  isResultsView = false,
-  onEditClass,
-  onDeleteClass,
-  // onEditPhoto,
-  // onViewTrial,
   onAddEntry,
   onDeleteEntry,
-  onStatusChange,
   onResultUpdate,
 }) => {
-  // Generate breadcrumb items
-  const breadcrumbItems = useBreadcrumb({
-    currentPage: 'class',
-    show: parentShow,
-    trial: parentTrial,
-    classId: classData.id,
-    className: isResultsView ? `${classData.className} - Results` : classData.className,
-  });
-
   // Count fields for each section
   const timingFieldsCount = countPopulatedFields([
     classData.estimatedJudgingTime,
@@ -124,38 +97,6 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   const isScentWork = isScentWorkShow(parentShow);
 
   const stats = buildClassStats(classEntries, isScentWork);
-
-  const getStatusClass = useCallback((status: string) => {
-    switch (status) {
-      case CLASS_STATUS.SCHEDULED:
-        return 'myk9-show-status-upcoming';
-      case CLASS_STATUS.IN_PROGRESS:
-        return 'myk9-show-status-in-progress';
-      case CLASS_STATUS.COMPLETED:
-        return 'myk9-show-status-completed';
-      default:
-        return 'myk9-show-status-upcoming';
-    }
-  }, []);
-
-  const getStatusIcon = useCallback((status: string) => {
-    switch (status) {
-      case CLASS_STATUS.SCHEDULED:
-        return <Calendar className="w-3 h-3" />;
-      case CLASS_STATUS.IN_PROGRESS:
-        return <Users className="w-3 h-3" />;
-      case CLASS_STATUS.COMPLETED:
-        return <Trophy className="w-3 h-3" />;
-      default:
-        return <Calendar className="w-3 h-3" />;
-    }
-  }, []);
-
-  const handleStatusClick = useCallback(() => {
-    if (!onStatusChange) return;
-    const nextStatus = getNextClassStatus(classData.status as ClassStatusValue);
-    onStatusChange(nextStatus);
-  }, [classData.status, onStatusChange]);
 
   const { user, hasRole } = useAuthContext();
   const { dogs } = useDogStore();
@@ -212,50 +153,10 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   );
 
   return (
-    <div className="myk9-show-container">
-      {/* Breadcrumb Navigation */}
-      <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
-
+    <div className="space-y-6">
       {/* Class Information Card */}
       <div className="myk9-show-info-card">
-        <div className="myk9-show-info-header">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="myk9-show-info-title">{formatClassTitle(classData)}</div>
-              <button
-                onClick={isResultsView ? undefined : handleStatusClick}
-                className={`myk9-show-status ${getStatusClass(classData.status)} ${onStatusChange && !isResultsView ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                disabled={!onStatusChange || isResultsView}
-                title={onStatusChange && !isResultsView ? 'Click to change status' : undefined}
-              >
-                {getStatusIcon(classData.status)}
-                {classData.status || 'Scheduled'}
-              </button>
-            </div>
-          </div>
-          {!isResultsView && (
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" onClick={onEditClass}>
-                Edit
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={onDeleteClass} className="text-red-600">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Class
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-        </div>
-
-        {/* Essential Information - Always Visible */}
+        {/* Essential Information */}
         <div className="myk9-show-info-grid">
           <div className="myk9-show-info-item">
             <div className="myk9-show-info-label">Trial</div>

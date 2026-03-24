@@ -385,37 +385,37 @@ select {
   :root {
     color-scheme: light dark;
     /* Warm backgrounds matching myK9Q */
-    --background: #f8f7f4; /* Warm off-white */
+    --background: #f5f2ed; /* Warm cream (was #f8f7f4) */
     --foreground: #0a0a0a;
-    --background-alt: #f8f7f4;
-    --card: #fefdfb; /* Subtle cream tint */
+    --background-alt: #f5f2ed;
+    --card: #faf8f4; /* Elevated cream (was #fefdfb) */
     --card-foreground: #0a0a0a;
-    --sidebar: #f8f7f4; /* Match background for seamless look */
+    --sidebar: #f5f2ed; /* Match background for seamless look */
     --sidebar-foreground: #0a0a0a;
-    --card-secondary: #f8f7f4;
+    --card-secondary: #f5f2ed;
     --card-secondary-foreground: #0a0a0a;
     /* Gray neutrals matching myK9Q */
-    --muted: #f6f6f6;
+    --muted: #f0ede7; /* (was #f6f6f6) */
     --muted-foreground: #6b7280;
     /* Default primary - teal (overridden by accent color classes) */
     --primary: #14b8a6;
     --primary-foreground: #ffffff;
-    --secondary: #f8f7f4;
+    --secondary: #f5f2ed;
     --secondary-foreground: #0f172a;
     --accent: #f0fdfa; /* Teal-tinted accent */
     --accent-foreground: #0f766e;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #e5e7eb;
-    --input: #f3f4f6;
+    --border: #e0dbd3; /* (was #e5e7eb) */
+    --input: #efece6; /* (was #f3f4f6) */
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
     --radius: 0.5rem;
-    --dialog-input-bg: #f2f2f2;
-    --popover: #ffffff;
+    --dialog-input-bg: #efece6; /* (was #f2f2f2) */
+    --popover: #faf8f4; /* (was #ffffff) */
     --popover-foreground: #0f172a;
     --show-secondary-bg: transparent;
   }

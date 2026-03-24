@@ -96,7 +96,7 @@ export const STAT_COLORS = {
 export type StatColor = keyof typeof STAT_COLORS;
 ```
 
-Note: The exact opacity syntax may need adjustment depending on the Tailwind version. If `bg-indigo-500/12` doesn't work, use custom CSS `style={{ backgroundColor: 'rgba(99,102,241, 0.12)' }}` or define the colors via `cn()` with raw values. The implementer should test and adapt.
+**[EXPANDED] Tailwind opacity fallback:** The `bg-indigo-500/12` syntax requires Tailwind v3.1+. If it doesn't work with the project's Tailwind version, replace with arbitrary values: `bg-[rgba(99,102,241,0.12)]` for dark, `bg-[rgba(99,102,241,0.08)]` for light. Use `dark:` prefix for theme-specific opacities. Verify by running `pnpm dev:show` and visually checking icon backgrounds render correctly in both themes.
 
 - [ ] **Step 2: Write failing tests**
 
@@ -172,6 +172,15 @@ describe('StatCard', () => {
     expect(trend.className).toMatch(/red/);
   });
 
+  // [ADDED] Neutral trend test
+  it('should style neutral trends in muted', () => {
+    render(<StatCard icon={Users} title="Shows" value={8} trend="8 total" />);
+    const trend = screen.getByText('8 total');
+    expect(trend.className).toMatch(/muted/);
+    expect(trend.className).not.toMatch(/emerald/);
+    expect(trend.className).not.toMatch(/red/);
+  });
+
   it('should add cursor-pointer when onClick provided', () => {
     const handleClick = vi.fn();
     render(
@@ -189,6 +198,36 @@ describe('StatCard', () => {
     );
     await user.click(screen.getByText('100'));
     expect(handleClick).toHaveBeenCalledOnce();
+  });
+
+  // [ADDED] Keyboard accessibility tests
+  it('should add role=button and tabIndex when onClick provided', () => {
+    const handleClick = vi.fn();
+    const { container } = render(
+      <StatCard icon={Users} title="Users" value={100} onClick={handleClick} />
+    );
+    const card = container.firstChild as HTMLElement;
+    expect(card).toHaveAttribute('role', 'button');
+    expect(card).toHaveAttribute('tabindex', '0');
+  });
+
+  it('should fire onClick on Enter key', async () => {
+    const user = userEvent.setup();
+    const handleClick = vi.fn();
+    const { container } = render(
+      <StatCard icon={Users} title="Users" value={100} onClick={handleClick} />
+    );
+    const card = container.firstChild as HTMLElement;
+    card.focus();
+    await user.keyboard('{Enter}');
+    expect(handleClick).toHaveBeenCalledOnce();
+  });
+
+  it('should not add role=button when onClick not provided', () => {
+    const { container } = render(
+      <StatCard icon={Users} title="Users" value={100} />
+    );
+    expect(container.firstChild).not.toHaveAttribute('role');
   });
 
   it('should apply custom className', () => {
@@ -273,7 +312,9 @@ function StatCard({
 }: StatCardProps) {
   const colors = STAT_COLORS[color];
   const clampedProgress = progress != null ? Math.min(100, Math.max(0, progress)) : undefined;
+  // [EXPANDED] Handle positive (+), negative (-), and neutral trends
   const isPositiveTrend = trend?.startsWith('+');
+  const isNegativeTrend = trend?.startsWith('-');
 
   return (
     <div
@@ -285,6 +326,17 @@ function StatCard({
         className
       )}
       onClick={onClick}
+      // [ADDED] Keyboard accessibility for clickable cards
+      {...(onClick && {
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        },
+      })}
       {...props}
     >
       <div className="flex gap-4 items-start">
@@ -303,13 +355,14 @@ function StatCard({
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {title}
             </span>
+            {/* [EXPANDED] Neutral trends render in muted style */}
             {trend && (
               <span
                 className={cn(
                   'rounded-md px-2 py-0.5 text-xs font-medium',
-                  isPositiveTrend
-                    ? 'bg-emerald-500/10 text-emerald-500'
-                    : 'bg-red-500/10 text-red-500'
+                  isPositiveTrend && 'bg-emerald-500/10 text-emerald-500',
+                  isNegativeTrend && 'bg-red-500/10 text-red-500',
+                  !isPositiveTrend && !isNegativeTrend && 'bg-muted text-muted-foreground'
                 )}
               >
                 {trend}
@@ -587,6 +640,8 @@ git commit -m "feat(ui): export StatCard and StatsGrid, add lucide-react peer de
 
 **Context:** ShowStatistics renders 3 simple text-only cards (no icons currently — add Lucide icons per spec). ShowDetails/ShowStatistics renders stat objects through its local StatCard which uses Font Awesome icons and has progress bars.
 
+**[ADDED] Test impact:** If any test files assert the old Card/stat markup for these components, update them to query for the new StatCard output (e.g., `getByText('Total Entries')` still works, but structural queries like `getByRole('progressbar')` or Card-specific selectors may need updating). Search for test files with `grep -r "ShowStatistics\|ShowDetails.*stat" apps/myk9show/src/test/` before migrating.
+
 - [ ] **Step 1: Migrate ShowStatistics.tsx**
 
 Replace the inline Card markup with `StatsGrid` + `StatCard`. Add Lucide icons (Trophy for trials, ListChecks for classes, Users for entries). These cards have no progress bars or trends — just title + value + subtitle.
@@ -622,6 +677,8 @@ git commit -m "refactor(show): migrate show stat cards to @myk9/ui StatCard"
 - Modify: `apps/myk9show/src/components/trials/TrialDetailsMain.tsx`
 
 **Context:** TrialStatistics has 4 cards with Lucide icons, progress bars, and trend percentages. TrialDetailsMain has 3-4 dynamically built stat cards using `myk9-show-*` CSS classes.
+
+**[ADDED] Test impact:** `TrialDetailsMain.test.tsx` has 21 tests that already fail due to component redesigns (listed in TO-DOS.md). After migration, update these tests to assert against the new StatCard output. Similarly check `TrialStatistics` for tests. The stat card markup changes mean any test querying CardHeader, CardTitle, or `myk9-show-stat-*` CSS classes must be updated to query by text content or `role="progressbar"` instead.
 
 - [ ] **Step 1: Migrate TrialStatistics.tsx**
 
@@ -761,6 +818,8 @@ git commit -m "refactor(entries): migrate entry stat cards to @myk9/ui StatCard"
 - Modify: `apps/myk9show/src/components/secretary/bulk-result-entry/SummaryCards.tsx`
 
 **Context:** SecretaryDashboard has the most premium cards (gradient hover, animated pulse). WaitlistManagement and RunOrderQuickStats are simple shadcn cards. SummaryCards uses `myk9-show-*` CSS.
+
+**[ADDED] Test impact:** Check for existing tests for these components. SecretaryDashboard/StatisticsCards may have tests asserting gradient classes, animated pulse, or shadcn Card/CardHeader structure. Update any structural assertions to match the new flat StatCard output.
 
 - [ ] **Step 1: Migrate SecretaryDashboard/StatisticsCards.tsx**
 

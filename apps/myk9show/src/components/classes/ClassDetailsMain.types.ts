@@ -8,6 +8,8 @@ export interface ClassDetailsMainProps {
   onAddEntry: () => void;
   onDeleteEntry?: (entryId: string) => void;
   onResultUpdate?: (entryId: string, result: Partial<EntryData>) => Promise<void>;
+  /** Opens the requirements panel/drawer */
+  onOpenRequirements?: () => void;
 }
 
 export interface ClassStat {

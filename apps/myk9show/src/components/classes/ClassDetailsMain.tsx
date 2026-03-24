@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Users, Calendar, Trophy, type LucideIcon } from 'lucide-react';
 import { StatCard, StatsGrid } from '@myk9/ui';
 import type { StatColor } from '@myk9/ui';
 import { type EntryData } from './types/classTypes';
 import { ClassResultsTable } from './ClassResultsTable';
-import SectionToggleControls from './SectionToggleControls';
-import ClassExpandableSections from './ClassExpandableSections';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { createUserPermissions, UserPermissions } from '@/types/user-permissions';
@@ -15,7 +13,6 @@ import type { ScentWorkResult, MultiAreaScentWorkResult } from '@/types/scent-wo
 import '@/styles/myk9-show-details.css';
 import type { ClassDetailsMainProps } from './ClassDetailsMain.types';
 import {
-  countPopulatedFields,
   isScentWorkShow,
   buildClassStats,
   buildClassConfig,
@@ -42,57 +39,8 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   onAddEntry,
   onDeleteEntry,
   onResultUpdate,
+  onOpenRequirements,
 }) => {
-  // Count fields for each section
-  const timingFieldsCount = countPopulatedFields([
-    classData.estimatedJudgingTime,
-    classData.timeLimit1,
-    classData.timeLimit2,
-    classData.timeLimit3,
-    classData.startTime,
-    classData.endTime,
-  ]);
-
-  const officialsFieldsCount = countPopulatedFields([
-    classData.gateSteward,
-    classData.tableSteward,
-    classData.timerSteward,
-    classData.ringSteward1,
-    classData.ringSteward2,
-    classData.ringSteward3,
-  ]);
-
-  const requirementsFieldsCount = countPopulatedFields([
-    classData.hidesUsed,
-    classData.distractionsUsed,
-    classData.itemsUsed,
-    classData.requiresJumpHeight,
-  ]);
-
-  const feesFieldsCount = countPopulatedFields([
-    classData.preEntryFee,
-    classData.dayOfShowFee,
-    classData.entryFee,
-  ]);
-
-  const customFieldsCount = classData.customFields ? Object.keys(classData.customFields).length : 0;
-
-  // State for section controls
-  const [forceExpandAll, setForceExpandAll] = useState<boolean | undefined>(undefined);
-  const [forceCollapseAll, setForceCollapseAll] = useState<boolean | undefined>(undefined);
-
-  const handleExpandAll = () => {
-    setForceCollapseAll(undefined);
-    setForceExpandAll(true);
-    setTimeout(() => setForceExpandAll(undefined), 200);
-  };
-
-  const handleCollapseAll = () => {
-    setForceExpandAll(undefined);
-    setForceCollapseAll(true);
-    setTimeout(() => setForceCollapseAll(undefined), 200);
-  };
-
   // Check if this is a Scent Work show
   const isScentWork = isScentWorkShow(parentShow);
 
@@ -154,85 +102,29 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Class Information Card */}
-      <div className="myk9-show-info-card">
-        {/* Essential Information */}
-        <div className="myk9-show-info-grid">
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Trial</div>
-            <div className="myk9-show-info-value">{classData.trial}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Trial Date</div>
-            <div className="myk9-show-info-value">
-              {new Date(classData.trialDate + 'T00:00:00').toLocaleDateString()}
-            </div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Judge</div>
-            <div className="myk9-show-info-value">{classData.judge}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Class Order</div>
-            <div className="myk9-show-info-value">#{classData.classOrder}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Entry Fee</div>
-            <div className="myk9-show-info-value">${classData.entryFee}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Max Entries</div>
-            <div className="myk9-show-info-value">{classData.maxEntries}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Time Limit</div>
-            <div className="myk9-show-info-value">{classData.timeLimit1}</div>
-          </div>
-          <div className="myk9-show-info-item">
-            <div className="myk9-show-info-label">Trial Number</div>
-            <div className="myk9-show-info-value">{classData.trialNumber}</div>
-          </div>
-        </div>
+      {/* Statistics Cards — only when there are entries */}
+      {classEntries.length > 0 && (
+        <StatsGrid columns={stats.length as 2 | 3}>
+          {stats.map((stat, index) => {
+            const Icon = ICON_MAP[stat.type] ?? Users;
+            const color = COLOR_MAP[stat.type] ?? 'primary';
+            const subtitle = [stat.detail1, stat.detail2, stat.detail3].filter(Boolean).join(' / ');
 
-        {/* Section Controls */}
-        <div className="mt-6 flex justify-end">
-          <SectionToggleControls onExpandAll={handleExpandAll} onCollapseAll={handleCollapseAll} />
-        </div>
-
-        {/* Expandable Sections */}
-        <ClassExpandableSections
-          classData={classData}
-          timingFieldsCount={timingFieldsCount}
-          officialsFieldsCount={officialsFieldsCount}
-          requirementsFieldsCount={requirementsFieldsCount}
-          feesFieldsCount={feesFieldsCount}
-          customFieldsCount={customFieldsCount}
-          forceExpandAll={forceExpandAll}
-          forceCollapseAll={forceCollapseAll}
-        />
-      </div>
-
-      {/* Statistics Cards */}
-      <StatsGrid columns={stats.length as 2 | 3}>
-        {stats.map((stat, index) => {
-          const Icon = ICON_MAP[stat.type] ?? Users;
-          const color = COLOR_MAP[stat.type] ?? 'primary';
-          const subtitle = [stat.detail1, stat.detail2, stat.detail3].filter(Boolean).join(' / ');
-
-          return (
-            <StatCard
-              key={index}
-              icon={Icon}
-              title={stat.title}
-              value={stat.value}
-              color={color}
-              subtitle={subtitle}
-              progress={stat.progress}
-              {...(stat.trend ? { trend: stat.trend } : {})}
-            />
-          );
-        })}
-      </StatsGrid>
+            return (
+              <StatCard
+                key={index}
+                icon={Icon}
+                title={stat.title}
+                value={stat.value}
+                color={color}
+                subtitle={subtitle}
+                progress={stat.progress}
+                {...(stat.trend ? { trend: stat.trend } : {})}
+              />
+            );
+          })}
+        </StatsGrid>
+      )}
 
       {/* ENTRIES Section */}
       <ClassResultsTable
@@ -242,6 +134,8 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
         onResultsSubmit={handleResultsSubmit}
         onDeleteEntry={onDeleteEntry}
         onAddEntry={onAddEntry}
+        classId={classData?.id}
+        onOpenRequirements={onOpenRequirements}
       />
     </div>
   );

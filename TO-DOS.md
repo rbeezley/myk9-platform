@@ -178,16 +178,4 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Fix Pre-Existing Test Failures - 2026-03-23 14:03
 
-35 test failures across 6 files. Tests became stale after component redesigns — the components work correctly but the tests assert old markup/structure.
-
-- **Fix ScheduleSummary.test.tsx (8 failures)** — All 8 tests fail; component API/rendering changed since tests were written. **Problem:** Tests assert old rendering behavior that no longer matches the redesigned ScheduleSummary component. **Files:** `apps/myk9show/src/test/components/ScheduleSummary.test.tsx`.
-
-- **Fix MyEntriesPage.test.tsx (1 failure)** — Tab structure test expects old tab layout. **Problem:** Test asserts "should render tabs without redundant counts" but the tab structure has changed. **Files:** `apps/myk9show/src/test/pages/MyEntriesPage.test.tsx`.
-
-- **Fix ShowDetailsPage.test.tsx (2 failures)** — Tab label and default tab expectations are stale. **Problem:** Tests expect old tab names ("Overview, Classes, My Entries, Results") and old default-tab logic ("defaults to My Entries tab when user has entries") but the page now has different tabs. **Files:** `apps/myk9show/src/test/pages/ShowDetailsPage.test.tsx`.
-
-- **Fix ShowCardVertical.test.tsx (1 failure)** — Discipline tags rendering assertion fails. **Problem:** Test expects `getByText('Conformation')` but the redesigned ShowCardVertical renders discipline data differently. **Files:** `apps/myk9show/src/components/shows/__tests__/ShowCardVertical.test.tsx`.
-
-- **Fix TrialDetailsMain.test.tsx (21 failures)** — All tests fail due to missing QueryClientProvider and redesigned component structure. **Problem:** The component now uses `useTrialTimeline` (React Query hook) but tests don't wrap in QueryClientProvider. Beyond that, the component was redesigned — stats cards, trial info card, action buttons, navigation, and status badge assertions are all stale. **Files:** `apps/myk9show/src/test/components/trials/TrialDetailsMain.test.tsx`, `apps/myk9show/src/hooks/queries/useTrialTimeline.ts` (new dependency).
-
-- **Fix class-status.test.ts (2 failures)** — Unknown status fallback changed. **Problem:** `getClassStatusDisplay('Unknown')` now returns `{label: 'Upcoming', color: 'blue'}` instead of `{label: 'Unknown', color: 'gray'}`. The implementation deliberately falls through to the Upcoming default, but the test expects a gray "Unknown" display. **Files:** `packages/core/src/constants/class-status.test.ts:106-131`, `packages/core/src/constants/class-status.ts` (implementation).
+- [x] **Fix 36 stale test failures across 7 files** — Done: commit `9a0145f1`. Updated tests for ScheduleSummary (rewired to useScheduleTimeline), TrialDetailsMain (added QueryClientProvider, removed 15 stale tests, added 7 new), ShowDetailsPage (tab labels + default), MyEntriesPage (6 capitalized tabs), ShowCardVertical (uppercase badge text), class-status (Upcoming default), ReplicatedClassesTable (judge join in select query). Also fixed unused `err` lint error in TrialDetailsPage. All suites green: 3530 myK9Show + 271 core tests passing.

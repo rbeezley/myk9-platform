@@ -26,25 +26,26 @@ const getInitials = (firstName: string, lastName: string) => {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`;
 };
 
-const PersonCard: React.FC<PersonCardProps> = ({ 
-  person, 
-  onEdit, 
-  onEditPhoto, 
-  onDelete, 
+const PersonCard: React.FC<PersonCardProps> = ({
+  person,
+  onEdit,
+  onEditPhoto,
+  onDelete,
   onView,
   syncStatus = 'synced',
   lastSyncAt,
   syncErrorMessage,
   showSyncStatus = true,
-  onSyncRetry
+  onSyncRetry,
 }) => {
   // Memoize dog badges to avoid re-creating on every render
-  const dogBadges = useMemo(() => 
-    person.dogs?.map((dogId, index) => (
-      <Badge key={dogId || index} variant="secondary">
-        Dog {index + 1}
-      </Badge>
-    )),
+  const dogBadges = useMemo(
+    () =>
+      person.dogs?.map((dogId, index) => (
+        <Badge key={dogId || index} variant="secondary">
+          Dog {index + 1}
+        </Badge>
+      )),
     [person.dogs]
   );
 
@@ -53,16 +54,19 @@ const PersonCard: React.FC<PersonCardProps> = ({
   const handleEdit = useCallback(() => onEdit(person), [onEdit, person]);
   const handleDelete = useCallback(() => onDelete(person), [onDelete, person]);
   const handleEditPhoto = useCallback(() => onEditPhoto?.(person), [onEditPhoto, person]);
-  
+
   // Memoize event handlers that need event.stopPropagation()
   const handleStopPropagation = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
   }, []);
-  
-  const handleEditClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit(person);
-  }, [onEdit, person]);
+
+  const handleEditClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onEdit(person);
+    },
+    [onEdit, person]
+  );
   // If this is a details page (not a list/grid), wrap in EntityCardContainer
   // For this example, let's assume PersonCard is used for details if onView is not provided
   if (!onView) {
@@ -81,7 +85,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
                 errorMessage={syncErrorMessage}
                 enableActions={syncStatus === 'error' || syncStatus === 'conflict'}
                 onRetry={onSyncRetry}
-                className="bg-white/90 backdrop-blur-sm rounded-full p-1"
+                className="bg-card/90 backdrop-blur-sm rounded-full p-1"
               />
             )}
             <div onClick={handleStopPropagation}>
@@ -92,7 +96,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
               />
             </div>
           </div>
-          
+
           {/* Profile Image */}
           <div className="flex flex-col items-center mb-4 pt-6">
             {person.profileImage ? (
@@ -111,7 +115,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
             </h3>
             <div className="text-sm text-gray-500 text-center">{person.email}</div>
           </div>
-          
+
           {/* Associated Dogs */}
           <div className="px-4">
             <div className="flex flex-wrap gap-1 justify-center mb-2">
@@ -147,7 +151,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
             errorMessage={syncErrorMessage}
             enableActions={syncStatus === 'error' || syncStatus === 'conflict'}
             onRetry={onSyncRetry}
-            className="bg-white/90 backdrop-blur-sm rounded-full p-1"
+            className="bg-card/90 backdrop-blur-sm rounded-full p-1"
           />
         )}
         <div onClick={handleEditClick}>
@@ -188,14 +192,14 @@ export default React.memo(PersonCard, (prevProps, nextProps) => {
   if (prevProps.person.lastName !== nextProps.person.lastName) return false;
   if (prevProps.person.email !== nextProps.person.email) return false;
   if (prevProps.person.profileImage !== nextProps.person.profileImage) return false;
-  
+
   // Compare dogs array length
   if (prevProps.person.dogs?.length !== nextProps.person.dogs?.length) return false;
-  
+
   // Compare sync status props
   if (prevProps.syncStatus !== nextProps.syncStatus) return false;
   if (prevProps.showSyncStatus !== nextProps.showSyncStatus) return false;
-  
+
   // Callback props are assumed to be stable (memoized by parent)
   return true;
 });

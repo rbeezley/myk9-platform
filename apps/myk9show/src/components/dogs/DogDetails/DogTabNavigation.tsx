@@ -17,7 +17,7 @@ const tabs = [
 ];
 
 const DogTabNavigation: React.FC<DogTabNavigationProps> = ({ activeSection, onSectionChange }) => (
-  <div className="sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm">
+  <div className="sticky top-16 z-40 bg-card border-b border-gray-200 shadow-sm">
     <div className="container px-4 mx-auto">
       <div className="flex items-center space-x-6 overflow-x-auto py-4 no-scrollbar">
         {tabs.map(tab => (
@@ -28,7 +28,11 @@ const DogTabNavigation: React.FC<DogTabNavigationProps> = ({ activeSection, onSe
           >
             {tab.label}
             {tab.premium && (
-              <Crown className="inline-block ml-1 text-yellow-500 align-text-bottom" size={16} aria-label="Premium" />
+              <Crown
+                className="inline-block ml-1 text-yellow-500 align-text-bottom"
+                size={16}
+                aria-label="Premium"
+              />
             )}
           </button>
         ))}

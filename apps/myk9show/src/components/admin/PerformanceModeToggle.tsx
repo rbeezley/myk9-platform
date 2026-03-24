@@ -333,7 +333,7 @@ export const PerformanceModeToggle: React.FC = () => {
                           }`}
                         >
                           {settings.storageMode === mode && (
-                            <div className="w-full h-full rounded-full bg-white/20 animate-pulse" />
+                            <div className="w-full h-full rounded-full bg-card/20 animate-pulse" />
                           )}
                         </div>
                       </div>
@@ -434,7 +434,7 @@ export const PerformanceModeToggle: React.FC = () => {
               <Button
                 onClick={resetToDefaults}
                 variant="outline"
-                className="!border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300 text-muted-foreground hover:text-foreground"
+                className="!border-white/10 !bg-card/5 hover:!bg-card/10 !transition-all !duration-300 text-muted-foreground hover:text-foreground"
               >
                 Reset to Defaults
               </Button>

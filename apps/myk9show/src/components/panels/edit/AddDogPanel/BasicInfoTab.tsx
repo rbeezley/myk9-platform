@@ -69,7 +69,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               )}
             </Avatar>
             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/0 via-black/0 to-black/0 group-hover:from-black/20 group-hover:via-black/30 group-hover:to-black/20 transition-all duration-500 rounded-full backdrop-blur-sm">
-              <div className="p-3 bg-white/95 dark:bg-gray-900/95 rounded-full opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-500 shadow-lg backdrop-blur-sm">
+              <div className="p-3 bg-card/95 dark:bg-gray-900/95 rounded-full opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-500 shadow-lg backdrop-blur-sm">
                 <Camera className="w-5 h-5 text-primary" />
               </div>
             </div>

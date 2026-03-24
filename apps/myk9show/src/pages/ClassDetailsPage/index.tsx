@@ -231,7 +231,7 @@ const ClassDetailsPage: React.FC = () => {
         </DropdownMenu>
       </div>
     ),
-    [dialogs]
+    [dialogs.openEditClassPanel, dialogs.openDeleteDialog]
   );
 
   // Early returns for different states
@@ -261,7 +261,7 @@ const ClassDetailsPage: React.FC = () => {
       <ClassDetailsMain
         classData={currentClass}
         classEntries={classEntries}
-        {...(parentShow !== undefined && { parentShow })}
+        parentShow={parentShow}
         onAddEntry={() => {
           if (parentShow?.id) {
             navigate(`/shows/${parentShow.id}/register`);

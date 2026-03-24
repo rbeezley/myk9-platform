@@ -4,7 +4,7 @@ import { Show } from '@/types/show-types';
 export interface ClassDetailsMainProps {
   classData: ClassData;
   classEntries: EntryData[];
-  parentShow?: Show;
+  parentShow?: Show | undefined;
   onAddEntry: () => void;
   onDeleteEntry?: (entryId: string) => void;
   onResultUpdate?: (entryId: string, result: Partial<EntryData>) => Promise<void>;

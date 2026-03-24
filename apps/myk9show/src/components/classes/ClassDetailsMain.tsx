@@ -10,7 +10,6 @@ import { createUserPermissions, UserPermissions } from '@/types/user-permissions
 import { useDogStore } from '@/store/dogStore';
 import { logger } from '@/services/LoggingService';
 import type { ScentWorkResult, MultiAreaScentWorkResult } from '@/types/scent-work-types';
-import '@/styles/myk9-show-details.css';
 import type { ClassDetailsMainProps } from './ClassDetailsMain.types';
 import {
   isScentWorkShow,

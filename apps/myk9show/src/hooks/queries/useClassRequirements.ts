@@ -36,6 +36,8 @@ interface UseClassRequirementsOptions {
   organization: string | null;
   element: string;
   level: string;
+  /** When false, the query won't fire (e.g., panel is closed). Defaults to true. */
+  enabled?: boolean;
 }
 
 interface UseClassRequirementsResult {
@@ -54,8 +56,9 @@ export function useClassRequirements({
   organization,
   element,
   level,
+  enabled: externalEnabled = true,
 }: UseClassRequirementsOptions): UseClassRequirementsResult {
-  const enabled = !!organization && !!element && !!level;
+  const enabled = externalEnabled && !!organization && !!element && !!level;
 
   const { data, isLoading, error } = useQuery<ClassRequirements | null>({
     queryKey: queryKeys.classRequirements(organization ?? '', element, level),

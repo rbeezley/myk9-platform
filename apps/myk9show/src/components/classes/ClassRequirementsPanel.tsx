@@ -82,6 +82,7 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
     organization,
     element,
     level,
+    enabled: open,
   });
 
   const headerActions = (

@@ -29,7 +29,7 @@ function makeTrial(overrides: Partial<Trial> = {}): Trial {
     showId: 'show-1',
     showName: 'Spring Classic',
     trialDate: '2026-03-21',
-    trialNumber: '1',
+    trialNumber: 'Saturday Trial 1',
     status: 'Scheduled',
     trialType: 'Standard',
     ...overrides,
@@ -76,7 +76,7 @@ describe('ClassCompactHeader', () => {
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
 
     expect(screen.getByText('Trial')).toBeInTheDocument();
-    expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText('Saturday Trial 1')).toBeInTheDocument();
 
     expect(screen.getByText('Date')).toBeInTheDocument();
     // The date should be formatted via toLocaleDateString

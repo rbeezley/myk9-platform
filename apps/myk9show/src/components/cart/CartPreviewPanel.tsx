@@ -5,7 +5,6 @@
  * Used in the registration workflow to show items being added.
  */
 
-
 import { ShoppingCart, Clock, Trash2, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,9 +14,14 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useCartStore, useCartItems, useCartTotal, type CartItemWithDetails } from '@/stores/cartStore';
+import {
+  useCartStore,
+  useCartItems,
+  useCartTotal,
+  type CartItemWithDetails,
+} from '@/stores/cartStore';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 
 interface CartPreviewPanelProps {
   onCheckout?: () => void;
@@ -34,14 +38,14 @@ export function CartPreviewPanel({
   showFullDetails = false,
   className,
 }: CartPreviewPanelProps) {
-  const cart = useCartStore((state) => state.cart);
+  const cart = useCartStore(state => state.cart);
   const items = useCartItems();
   const totalCents = useCartTotal();
-  const removeItem = useCartStore((state) => state.removeItem);
-  const getTotalEntryFees = useCartStore((state) => state.getTotalEntryFees);
-  const getPlatformFee = useCartStore((state) => state.getPlatformFee);
+  const removeItem = useCartStore(state => state.removeItem);
+  const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
+  const getPlatformFee = useCartStore(state => state.getPlatformFee);
 
-  const abandonCart = useCartStore((state) => state.abandonCart);
+  const abandonCart = useCartStore(state => state.abandonCart);
 
   const {
     timeRemainingFormatted,
@@ -53,16 +57,17 @@ export function CartPreviewPanel({
     onExpired: () => {
       abandonCart();
       toast.error('Your cart has expired', {
-        description: 'The items in your cart have been released. Please add them again to continue.',
+        description:
+          'The items in your cart have been released. Please add them again to continue.',
         duration: 8000,
       });
     },
   });
 
-  const { dogs = [] } = useDogStore();
+  const { dogs = [] } = useDogStoreCompat();
 
   const getDogName = (dogId: string) => {
-    const dog = dogs.find((d) => d.id === dogId);
+    const dog = dogs.find(d => d.id === dogId);
     return dog?.callName || dog?.name || 'Unknown Dog';
   };
 
@@ -144,7 +149,7 @@ export function CartPreviewPanel({
       <CardContent className="pb-3">
         <ScrollArea className={cn('pr-3', showFullDetails ? 'h-[300px]' : 'h-[150px]')}>
           <div className="space-y-2">
-            {items.map((item) => (
+            {items.map(item => (
               <CartItemRow
                 key={item.id}
                 item={item}

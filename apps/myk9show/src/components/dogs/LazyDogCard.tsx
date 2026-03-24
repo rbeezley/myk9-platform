@@ -15,7 +15,7 @@ import {
   ChevronUp,
   Loader2,
 } from 'lucide-react';
-import { useDogStore } from '../../store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useUserStore } from '../../store/userStore';
 import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -93,7 +93,7 @@ export function LazyDogCard({
   const [detailsData, setDetailsData] = useState<DogDetailsData | null>(null);
   const [hasLoadedDetails, setHasLoadedDetails] = useState(false);
 
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const { people } = useUserStore();
 
   // Find dog in already loaded data

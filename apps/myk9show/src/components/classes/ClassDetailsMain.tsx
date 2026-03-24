@@ -7,7 +7,7 @@ import { ClassResultsTable } from './ClassResultsTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { createUserPermissions, UserPermissions } from '@/types/user-permissions';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { logger } from '@/services/LoggingService';
 import type { ScentWorkResult, MultiAreaScentWorkResult } from '@/types/scent-work-types';
 import type { ClassDetailsMainProps } from './ClassDetailsMain.types';
@@ -46,7 +46,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   const stats = buildClassStats(classEntries, isScentWork);
 
   const { user, hasRole } = useAuthContext();
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
 
   const userPermissions: UserPermissions = React.useMemo(() => {
     const displayName = user?.email || 'Unknown User';

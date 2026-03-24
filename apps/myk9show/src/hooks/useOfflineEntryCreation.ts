@@ -16,7 +16,7 @@ import {
   type EntryLimitCheckResult,
 } from '@/services/entries/EntryLimitChecker';
 import { useEntryStore, type ShowEntryInput } from '@/store/entryStore';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
@@ -71,7 +71,7 @@ export function useOfflineEntryCreation(): UseOfflineEntryCreationResult {
   });
 
   const { entries } = useEntryStore();
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const { shows } = useShowStore();
   const { user } = useAuthContext();
 

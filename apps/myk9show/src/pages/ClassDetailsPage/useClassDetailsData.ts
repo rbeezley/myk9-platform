@@ -20,7 +20,7 @@ import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassS
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import type { ShowEntry } from '@/types/entry-lifecycle';
 import type { CompetitionData } from '@/store/entryStore';
@@ -71,7 +71,7 @@ export function useClassDetailsData() {
   // Store hooks
   const { classes, updateClass, deleteClass } = useClassStoreCompat();
   const { updateResult } = useEntryStore();
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { trials, trialClasses: replicatedTrialClasses } = useTrialStore();
   const { shows } = useShowStore();

@@ -29,7 +29,7 @@ import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassS
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -102,7 +102,7 @@ export function SecretaryClassDashboard({
 
   // Connect to the same data stores as ClassDetailsPage
   const { classes } = useClassStoreCompat();
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { updateResult } = useEntryStore();
   const { shows } = useShowStore();

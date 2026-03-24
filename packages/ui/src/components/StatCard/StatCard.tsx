@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { STAT_COLORS, type StatColor } from './statCardVariants';
 
-export interface StatCardProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface StatCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick'> {
   /** Lucide icon component to display in the card header. */
   icon: LucideIcon;
   /** Label displayed above the value. */

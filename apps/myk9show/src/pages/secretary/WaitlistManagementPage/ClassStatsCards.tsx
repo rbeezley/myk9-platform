@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatCard, StatsGrid } from '@myk9/ui';
 import { Users, CheckCircle2, Clock, ArrowUpCircle } from 'lucide-react';
 import type { ClassWithWaitlistCount } from './types';
 
@@ -21,56 +21,35 @@ export const ClassStatsCards: React.FC<ClassStatsCardsProps> = ({ selectedClass 
     : null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Entry Limit</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {selectedClass.max_entries || '∞'}
-          </div>
-          <p className="text-xs text-muted-foreground">Maximum entries</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Accepted</CardTitle>
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{selectedClass.accepted_count}</div>
-          <p className="text-xs text-muted-foreground">
-            {percentFull !== null ? `${percentFull}% full` : 'No limit set'}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Waitlist</CardTitle>
-          <Clock className="h-4 w-4 text-yellow-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{selectedClass.waitlist_count}</div>
-          <p className="text-xs text-muted-foreground">Waiting for spots</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Available</CardTitle>
-          <ArrowUpCircle className="h-4 w-4 text-blue-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {availableSpots !== null ? availableSpots : '∞'}
-          </div>
-          <p className="text-xs text-muted-foreground">Open spots</p>
-        </CardContent>
-      </Card>
-    </div>
+    <StatsGrid columns={4}>
+      <StatCard
+        icon={Users}
+        title="Entry Limit"
+        value={selectedClass.max_entries || '\u221E'}
+        color="primary"
+        subtitle="Maximum entries"
+      />
+      <StatCard
+        icon={CheckCircle2}
+        title="Accepted"
+        value={selectedClass.accepted_count}
+        color="emerald"
+        subtitle={percentFull !== null ? `${percentFull}% full` : 'No limit set'}
+      />
+      <StatCard
+        icon={Clock}
+        title="Waitlist"
+        value={selectedClass.waitlist_count}
+        color="amber"
+        subtitle="Waiting for spots"
+      />
+      <StatCard
+        icon={ArrowUpCircle}
+        title="Available"
+        value={availableSpots !== null ? availableSpots : '\u221E'}
+        color="blue"
+        subtitle="Open spots"
+      />
+    </StatsGrid>
   );
 };

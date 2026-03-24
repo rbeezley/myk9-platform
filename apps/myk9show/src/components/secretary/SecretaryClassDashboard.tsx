@@ -20,6 +20,7 @@ import {
   Play,
   Check,
 } from 'lucide-react';
+import { StatCard, StatsGrid } from '@myk9/ui';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 
@@ -468,106 +469,48 @@ export function SecretaryClassDashboard({
       </div>
 
       {/* Statistics Cards */}
-      <div className="myk9-show-stats-section">
-        <div className="myk9-show-stats-grid">
-          <div className="myk9-show-stat-card">
-            <div className="myk9-show-stat-layout">
-              <div className="myk9-show-stat-icon entries">
-                <Users className="w-5 h-5" />
-              </div>
-              <div className="myk9-show-stat-content">
-                <div className="myk9-show-stat-header">
-                  <div className="myk9-show-stat-title">Total Entries</div>
-                </div>
-                <div className="myk9-show-stat-number">{stats.totalEntries}</div>
-              </div>
-            </div>
-            <div className="myk9-show-stat-details">
-              <span>Registered</span>
-              <span>Active</span>
-            </div>
-            <div className="myk9-show-stat-progress">
-              <div className="myk9-show-stat-progress-bar entries" style={{ width: '100%' }}></div>
-            </div>
-          </div>
-
-          <div className="myk9-show-stat-card">
-            <div className="myk9-show-stat-layout">
-              <div className="myk9-show-stat-icon trials">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div className="myk9-show-stat-content">
-                <div className="myk9-show-stat-header">
-                  <div className="myk9-show-stat-title">Pending Results</div>
-                </div>
-                <div className="myk9-show-stat-number">{stats.pendingResults}</div>
-              </div>
-            </div>
-            <div className="myk9-show-stat-details">
-              <span>Awaiting</span>
-              <span>Entry</span>
-            </div>
-            <div className="myk9-show-stat-progress">
-              <div
-                className="myk9-show-stat-progress-bar trials"
-                style={{
-                  width: `${stats.totalEntries > 0 ? Math.round((stats.pendingResults / stats.totalEntries) * 100) : 0}%`,
-                }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="myk9-show-stat-card">
-            <div className="myk9-show-stat-layout">
-              <div className="myk9-show-stat-icon qualified">
-                <Award className="w-5 h-5" />
-              </div>
-              <div className="myk9-show-stat-content">
-                <div className="myk9-show-stat-header">
-                  <div className="myk9-show-stat-title">Qualified</div>
-                </div>
-                <div className="myk9-show-stat-number">{stats.qualifiedCount}</div>
-              </div>
-            </div>
-            <div className="myk9-show-stat-details">
-              <span>Q: {stats.qualifiedCount}</span>
-              <span>NQ: {stats.nqCount}</span>
-            </div>
-            <div className="myk9-show-stat-progress">
-              <div
-                className="myk9-show-stat-progress-bar qualified"
-                style={{
-                  width: `${stats.totalEntries > 0 ? Math.round((stats.qualifiedCount / stats.totalEntries) * 100) : 0}%`,
-                }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="myk9-show-stat-card">
-            <div className="myk9-show-stat-layout">
-              <div className="myk9-show-stat-icon classes">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div className="myk9-show-stat-content">
-                <div className="myk9-show-stat-header">
-                  <div className="myk9-show-stat-title">Complete</div>
-                </div>
-                <div className="myk9-show-stat-number">{stats.completionPercentage}%</div>
-              </div>
-            </div>
-            <div className="myk9-show-stat-details">
-              <span>Done: {stats.completedResults}</span>
-              <span>Total: {stats.totalEntries}</span>
-            </div>
-            <div className="myk9-show-stat-progress">
-              <div
-                className="myk9-show-stat-progress-bar classes"
-                style={{ width: `${stats.completionPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StatsGrid columns={4}>
+        <StatCard
+          icon={Users}
+          title="Total Entries"
+          value={stats.totalEntries}
+          color="primary"
+          subtitle="Registered"
+          progress={100}
+        />
+        <StatCard
+          icon={Clock}
+          title="Pending Results"
+          value={stats.pendingResults}
+          color="amber"
+          subtitle="Awaiting entry"
+          progress={
+            stats.totalEntries > 0
+              ? Math.round((stats.pendingResults / stats.totalEntries) * 100)
+              : 0
+          }
+        />
+        <StatCard
+          icon={Award}
+          title="Qualified"
+          value={stats.qualifiedCount}
+          color="emerald"
+          subtitle={`Q: ${stats.qualifiedCount} / NQ: ${stats.nqCount}`}
+          progress={
+            stats.totalEntries > 0
+              ? Math.round((stats.qualifiedCount / stats.totalEntries) * 100)
+              : 0
+          }
+        />
+        <StatCard
+          icon={FileText}
+          title="Complete"
+          value={`${stats.completionPercentage}%`}
+          color="blue"
+          subtitle={`Done: ${stats.completedResults} / Total: ${stats.totalEntries}`}
+          progress={stats.completionPercentage}
+        />
+      </StatsGrid>
 
       {/* Action Bar */}
       <div className="myk9-show-info-card">
@@ -689,9 +632,9 @@ export function SecretaryClassDashboard({
                       <span className="text-muted-foreground">Completion Progress</span>
                       <span className="font-medium">{stats.completionPercentage}%</span>
                     </div>
-                    <div className="myk9-show-stat-progress">
+                    <div className="h-[3px] overflow-hidden rounded-full bg-muted">
                       <div
-                        className="myk9-show-stat-progress-bar classes"
+                        className="h-full rounded-full bg-blue-500 transition-all duration-500"
                         style={{ width: `${stats.completionPercentage}%` }}
                       />
                     </div>

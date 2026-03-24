@@ -6,6 +6,7 @@ import { CalendarSkeleton } from '@/components/common/CalendarSkeleton';
 import { Button } from '@/components/ui/button';
 import { useShowStore } from '@/store/showStore';
 import { Plus, Calendar as CalendarIcon, Trophy, Users, Clock, Copy } from 'lucide-react';
+import { StatCard, StatsGrid } from '@myk9/ui';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import '@/styles/myk9-show-details.css';
 import '@/styles/calendar-performance.css';
@@ -129,125 +130,42 @@ export default function CalendarPage() {
         )}
 
         {/* Stats Cards */}
-        <div className="myk9-show-stats-section">
-          <div className="myk9-show-stats-grid">
-            <div className="myk9-show-stat-card">
-              <div className="myk9-show-stat-layout">
-                <div className="myk9-show-stat-icon trials">
-                  <Trophy className="w-5 h-5" />
-                </div>
-
-                <div className="myk9-show-stat-content">
-                  <div className="myk9-show-stat-header">
-                    <div className="myk9-show-stat-title">Total Shows</div>
-                    <div className="myk9-show-stat-trend">+12%</div>
-                  </div>
-                  <div className="myk9-show-stat-number">{showStats.total}</div>
-                </div>
-              </div>
-
-              <div className="myk9-show-stat-details">
-                <span>Active: {showStats.upcoming}</span>
-                <span>Completed: {showStats.total - showStats.upcoming}</span>
-              </div>
-
-              <div className="myk9-show-stat-progress">
-                <div
-                  className="myk9-show-stat-progress-bar trials"
-                  style={{
-                    width: `${showStats.total > 0 ? Math.round((showStats.upcoming / showStats.total) * 100) : 0}%`,
-                  }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="myk9-show-stat-card">
-              <div className="myk9-show-stat-layout">
-                <div className="myk9-show-stat-icon classes">
-                  <Clock className="w-5 h-5" />
-                </div>
-
-                <div className="myk9-show-stat-content">
-                  <div className="myk9-show-stat-header">
-                    <div className="myk9-show-stat-title">Upcoming</div>
-                    <div className="myk9-show-stat-trend">+8%</div>
-                  </div>
-                  <div className="myk9-show-stat-number">{showStats.upcoming}</div>
-                </div>
-              </div>
-
-              <div className="myk9-show-stat-details">
-                <span>This week: {Math.min(showStats.upcoming, 2)}</span>
-                <span>Next month: {showStats.upcoming}</span>
-              </div>
-
-              <div className="myk9-show-stat-progress">
-                <div
-                  className="myk9-show-stat-progress-bar classes"
-                  style={{ width: `${showStats.upcoming > 0 ? 75 : 0}%` }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="myk9-show-stat-card">
-              <div className="myk9-show-stat-layout">
-                <div className="myk9-show-stat-icon entries">
-                  <CalendarIcon className="w-5 h-5" />
-                </div>
-
-                <div className="myk9-show-stat-content">
-                  <div className="myk9-show-stat-header">
-                    <div className="myk9-show-stat-title">This Month</div>
-                    <div className="myk9-show-stat-trend">0%</div>
-                  </div>
-                  <div className="myk9-show-stat-number">{showStats.thisMonth}</div>
-                </div>
-              </div>
-
-              <div className="myk9-show-stat-details">
-                <span>Scheduled: {showStats.thisMonth}</span>
-                <span>Available: {5 - showStats.thisMonth}</span>
-              </div>
-
-              <div className="myk9-show-stat-progress">
-                <div
-                  className="myk9-show-stat-progress-bar entries"
-                  style={{
-                    width: `${showStats.thisMonth > 0 ? Math.round((showStats.thisMonth / 5) * 100) : 0}%`,
-                  }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="myk9-show-stat-card">
-              <div className="myk9-show-stat-layout">
-                <div className="myk9-show-stat-icon judges">
-                  <Users className="w-5 h-5" />
-                </div>
-
-                <div className="myk9-show-stat-content">
-                  <div className="myk9-show-stat-header">
-                    <div className="myk9-show-stat-title">Registered</div>
-                    <div className="myk9-show-stat-trend">+15%</div>
-                  </div>
-                  <div className="myk9-show-stat-number">{showStats.registered}</div>
-                </div>
-              </div>
-
-              <div className="myk9-show-stat-details">
-                <span>Confirmed: {showStats.registered}</span>
-                <span>Pending: 0</span>
-              </div>
-
-              <div className="myk9-show-stat-progress">
-                <div
-                  className="myk9-show-stat-progress-bar judges"
-                  style={{ width: `${showStats.registered > 0 ? 90 : 0}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StatsGrid columns={4}>
+          <StatCard
+            icon={Trophy}
+            title="Total Shows"
+            value={showStats.total}
+            color="primary"
+            subtitle={`Active: ${showStats.upcoming} / Completed: ${showStats.total - showStats.upcoming}`}
+            progress={
+              showStats.total > 0 ? Math.round((showStats.upcoming / showStats.total) * 100) : 0
+            }
+          />
+          <StatCard
+            icon={Clock}
+            title="Upcoming"
+            value={showStats.upcoming}
+            color="blue"
+            subtitle={`This week: ${Math.min(showStats.upcoming, 2)}`}
+            progress={showStats.upcoming > 0 ? 75 : 0}
+          />
+          <StatCard
+            icon={CalendarIcon}
+            title="This Month"
+            value={showStats.thisMonth}
+            color="amber"
+            subtitle={`Scheduled: ${showStats.thisMonth}`}
+            progress={showStats.thisMonth > 0 ? Math.round((showStats.thisMonth / 5) * 100) : 0}
+          />
+          <StatCard
+            icon={Users}
+            title="Registered"
+            value={showStats.registered}
+            color="emerald"
+            subtitle={`Confirmed: ${showStats.registered}`}
+            progress={showStats.registered > 0 ? 90 : 0}
+          />
+        </StatsGrid>
 
         {/* Main Content - Calendar View Only */}
         {isCalendarLoading ? (

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatCard, StatCardSkeleton, CHART_TOOLTIP_STYLE } from '@/components/ui/stat-card';
+import { StatCard, StatCardSkeleton, StatsGrid } from '@myk9/ui';
 import { Badge } from '@/components/ui/badge';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
@@ -17,6 +17,12 @@ import {
 } from '@/hooks/queries/useJudgeAnalyticsQuery';
 import { Trophy, Calendar, DollarSign, Scale, Clock } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+
+const CHART_TOOLTIP_STYLE: React.CSSProperties = {
+  backgroundColor: 'hsl(var(--card))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '8px',
+};
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: '#10b981',
@@ -64,7 +70,7 @@ const JudgeStatsPage: React.FC = () => {
       </div>
 
       {/* Season Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <StatsGrid columns={4}>
         {statsLoading ? (
           <>
             <StatCardSkeleton />
@@ -79,28 +85,32 @@ const JudgeStatsPage: React.FC = () => {
               value={stats?.showsJudged ?? 0}
               icon={Trophy}
               subtitle={`${currentYear} season`}
+              color="primary"
             />
             <StatCard
               title="Classes Judged"
               value={stats?.classesJudged ?? 0}
               icon={Scale}
               subtitle="Total assignments"
+              color="purple"
             />
             <StatCard
               title="Upcoming"
               value={upcoming?.length ?? 0}
               icon={Calendar}
               subtitle="Confirmed or invited"
+              color="blue"
             />
             <StatCard
               title="Total Fees"
               value={`$${(stats?.totalFees ?? 0).toFixed(0)}`}
               icon={DollarSign}
               subtitle={`${currentYear} earnings`}
+              color="emerald"
             />
           </>
         )}
-      </div>
+      </StatsGrid>
 
       {/* Bottom row: Status breakdown + Upcoming + Qualifications */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

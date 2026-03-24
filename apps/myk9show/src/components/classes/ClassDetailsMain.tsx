@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { Users, Calendar, Trophy, Trash2, MoreVertical } from 'lucide-react';
+import { Users, Calendar, Trophy, Trash2, MoreVertical, type LucideIcon } from 'lucide-react';
+import { StatCard, StatsGrid } from '@myk9/ui';
+import type { StatColor } from '@myk9/ui';
 import { CLASS_STATUS, getNextClassStatus, type ClassStatusValue } from '@myk9/core';
 import { type EntryData } from './types/classTypes';
 import { Button } from '@/components/ui/button';
@@ -300,44 +302,36 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
       </div>
 
       {/* Statistics Cards */}
-      <div className="myk9-show-stats-section">
-        <div className="myk9-show-stats-grid">
-          {stats.map((stat, index) => (
-            <div key={index} className="myk9-show-stat-card">
-              <div className="myk9-show-stat-layout">
-                <div className={`myk9-show-stat-icon ${stat.type}`}>
-                  {stat.type === 'trials' && <Calendar className="w-5 h-5" />}
-                  {stat.type === 'classes' && <Trophy className="w-5 h-5" />}
-                  {stat.type === 'entries' && <Users className="w-5 h-5" />}
-                </div>
+      <StatsGrid columns={stats.length as 2 | 3}>
+        {stats.map((stat, index) => {
+          const ICON_MAP: Record<string, LucideIcon> = {
+            trials: Calendar,
+            classes: Trophy,
+            entries: Users,
+          };
+          const COLOR_MAP: Record<string, StatColor> = {
+            entries: 'primary',
+            classes: 'emerald',
+            trials: 'purple',
+          };
+          const Icon = ICON_MAP[stat.type] ?? Users;
+          const color = COLOR_MAP[stat.type] ?? 'primary';
+          const subtitle = [stat.detail1, stat.detail2, stat.detail3].filter(Boolean).join(' / ');
 
-                <div className="myk9-show-stat-content">
-                  <div className="myk9-show-stat-header">
-                    <div className="myk9-show-stat-title">{stat.title}</div>
-                    {stat.trend && <div className="myk9-show-stat-trend">{stat.trend}</div>}
-                  </div>
-                  <div className="myk9-show-stat-number">{stat.value}</div>
-                </div>
-              </div>
-
-              <div className="myk9-show-stat-details">
-                <span>{stat.detail1}</span>
-                <span>{stat.detail2}</span>
-                {stat.detail3 && (
-                  <span className="text-xs text-muted-foreground">{stat.detail3}</span>
-                )}
-              </div>
-
-              <div className="myk9-show-stat-progress">
-                <div
-                  className={`myk9-show-stat-progress-bar ${stat.type}`}
-                  style={{ width: `${stat.progress}%` }}
-                ></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+          return (
+            <StatCard
+              key={index}
+              icon={Icon}
+              title={stat.title}
+              value={stat.value}
+              color={color}
+              subtitle={subtitle}
+              progress={stat.progress}
+              {...(stat.trend ? { trend: stat.trend } : {})}
+            />
+          );
+        })}
+      </StatsGrid>
 
       {/* ENTRIES Section */}
       <ClassResultsTable

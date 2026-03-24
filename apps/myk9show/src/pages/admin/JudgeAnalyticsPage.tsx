@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatCard, StatCardSkeleton, CHART_TOOLTIP_STYLE } from '@/components/ui/stat-card';
+import { StatCard, StatCardSkeleton, StatsGrid } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,6 +23,12 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+const CHART_TOOLTIP_STYLE: React.CSSProperties = {
+  backgroundColor: 'hsl(var(--card))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: '8px',
+};
 
 // -- Skeleton for loading state -----------------------------------------------
 
@@ -144,7 +150,7 @@ const JudgeAnalyticsPage: React.FC = () => {
       </div>
 
       {/* Roster Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <StatsGrid columns={4}>
         {rosterLoading ? (
           <>
             <StatCardSkeleton />
@@ -163,28 +169,32 @@ const JudgeAnalyticsPage: React.FC = () => {
               value={roster?.totalJudges ?? 0}
               icon={Users}
               subtitle="With qualifications"
+              color="primary"
             />
             <StatCard
               title="Active Qualifications"
               value={roster?.activeQualifications ?? 0}
               icon={Scale}
               subtitle="Currently valid"
+              color="emerald"
             />
             <StatCard
               title="Expiring Soon"
               value={roster?.expiringSoon ?? 0}
               icon={AlertTriangle}
               subtitle="Within 30 days"
+              color="amber"
             />
             <StatCard
               title="Assignments This Month"
               value={roster?.totalAssignmentsThisMonth ?? 0}
               icon={Calendar}
               subtitle="New this month"
+              color="blue"
             />
           </>
         )}
-      </div>
+      </StatsGrid>
 
       {/* Utilization Table */}
       <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">

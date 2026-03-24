@@ -26,7 +26,8 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 ### Live Event / Spectator
 
 - [ ] **TV run order display** — myK9Q has `/tv/:licenseKey` with live run order, results podium, carousel navigation, real-time class status. No equivalent in myK9Show.
-- [ ] **Announcements system** — myK9Q has `/announcements` for trial-wide messaging. myK9Show has a spec (`2026-03-10-show-announcements-design.md`) but no implementation yet.
+- [x] **Announcements system** — Done: DB migration 057, `announcementQueries`, `useAnnouncementStore` (Zustand + realtime), `useAnnouncementSubscription` mounted in App.tsx, `CreateAnnouncementDialog`, `AnnouncementItem`, `AnnouncementsCard` in Mission Control, NotificationCenter Announcements tab wired to store, NotificationBell combined unread count. Full test suite across 7 files.
+- [ ] **Dog notification pipeline** — myK9Show's NotificationCenter has a "Dogs" tab and `notificationStore` infrastructure, but nothing generates alerts. Requires: (1) port run order system from myK9Q (several options, configurable), (2) realtime subscription to run position for the user's entries, (3) fire `your_turn` / `check_in_reminder` / `class_starting` / `results_posted` alerts via `notificationStore.addAlert()`. myK9Q's passcode model required favorites to route alerts; myK9Show's authenticated model can use the user's own entries directly. Favorite-following (a friend's dog) is a future enhancement.
 - [ ] **Voice announcements / settings** — myK9Q has dedicated voice settings for audio feedback and announcements. Not in myK9Show.
 
 ### Scoring

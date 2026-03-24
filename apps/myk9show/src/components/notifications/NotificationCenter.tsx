@@ -119,6 +119,7 @@ export function NotificationCenter() {
 
   const storeAnnouncements = useAnnouncementStore(s => s.announcements);
   const announcementUnread = useAnnouncementStore(s => s.unreadCount);
+  const currentShowIds = useAnnouncementStore(s => s.currentShowIds);
   const annMarkRead = useAnnouncementStore(s => s.markRead);
   const annMarkAllRead = useAnnouncementStore(s => s.markAllRead);
   const { userWithRoles } = useAuthContext();
@@ -356,7 +357,7 @@ export function NotificationCenter() {
         <CreateAnnouncementDialog
           isOpen={isCreateOpen}
           onClose={() => setIsCreateOpen(false)}
-          showId={storeAnnouncements[0]?.show_id ?? ''}
+          showId={currentShowIds[0] ?? ''}
           authorId={authorId}
           authorRole={authorRole}
           authorName={authorName}

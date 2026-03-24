@@ -1169,7 +1169,7 @@
 }
 
 .akc-placement-4th {
-  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%) !important;
+  background: linear-gradient(135deg, var(--card) 0%, var(--muted) 100%) !important;
   color: #1a1a1a !important;
   border: 2px solid #d1d5db !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;

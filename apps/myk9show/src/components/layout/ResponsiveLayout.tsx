@@ -11,12 +11,7 @@ interface ResponsiveLayoutProps {
   className?: string;
 }
 
-export function ResponsiveLayout({ 
-  sidebar, 
-  children, 
-  header, 
-  className 
-}: ResponsiveLayoutProps) {
+export function ResponsiveLayout({ sidebar, children, header, className }: ResponsiveLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -36,9 +31,7 @@ export function ResponsiveLayout({
       </AnimatePresence>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
-        {sidebar}
-      </div>
+      <div className="hidden lg:flex lg:flex-shrink-0">{sidebar}</div>
 
       {/* Mobile sidebar - positioned below header (top-16) */}
       <AnimatePresence>
@@ -67,7 +60,7 @@ export function ResponsiveLayout({
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile header with menu button */}
         {header && (
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 lg:hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-background dark:bg-gray-900 lg:hidden">
             <Button
               variant="ghost"
               size="sm"
@@ -82,15 +75,13 @@ export function ResponsiveLayout({
 
         {/* Desktop header */}
         {header && (
-          <div className="hidden lg:block border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <div className="hidden lg:block border-b border-gray-200 dark:border-gray-700 bg-background dark:bg-gray-900">
             {header}
           </div>
         )}
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>
   );
@@ -109,11 +100,11 @@ interface ResponsiveGridProps {
   gap?: number;
 }
 
-export function ResponsiveGrid({ 
-  children, 
-  className, 
+export function ResponsiveGrid({
+  children,
+  className,
   cols = { sm: 1, md: 2, lg: 3, xl: 4 },
-  gap = 4
+  gap = 4,
 }: ResponsiveGridProps) {
   const gridClasses = cn(
     'grid',
@@ -125,11 +116,7 @@ export function ResponsiveGrid({
     className
   );
 
-  return (
-    <div className={gridClasses}>
-      {children}
-    </div>
-  );
+  return <div className={gridClasses}>{children}</div>;
 }
 
 // Responsive container
@@ -140,11 +127,11 @@ interface ResponsiveContainerProps {
   padding?: boolean;
 }
 
-export function ResponsiveContainer({ 
-  children, 
-  className, 
+export function ResponsiveContainer({
+  children,
+  className,
   size = 'lg',
-  padding = true
+  padding = true,
 }: ResponsiveContainerProps) {
   const sizeClasses = {
     sm: 'max-w-2xl',
@@ -155,12 +142,14 @@ export function ResponsiveContainer({
   };
 
   return (
-    <div className={cn(
-      'mx-auto w-full',
-      sizeClasses[size],
-      padding && 'px-4 sm:px-6 lg:px-8',
-      className
-    )}>
+    <div
+      className={cn(
+        'mx-auto w-full',
+        sizeClasses[size],
+        padding && 'px-4 sm:px-6 lg:px-8',
+        className
+      )}
+    >
       {children}
     </div>
   );
@@ -191,16 +180,14 @@ export function MobileTable({ headers, children, className }: MobileTableProps) 
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="bg-card dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {children}
           </tbody>
         </table>
       </div>
 
       {/* Mobile cards */}
-      <div className="md:hidden space-y-4">
-        {children}
-      </div>
+      <div className="md:hidden space-y-4">{children}</div>
     </div>
   );
 }
@@ -217,18 +204,13 @@ interface ResponsiveTabsProps {
   className?: string;
 }
 
-export function ResponsiveTabs({ 
-  tabs, 
-  activeTab, 
-  onTabChange, 
-  className 
-}: ResponsiveTabsProps) {
+export function ResponsiveTabs({ tabs, activeTab, onTabChange, className }: ResponsiveTabsProps) {
   return (
     <div className={className}>
       {/* Desktop horizontal tabs */}
       <div className="hidden sm:block">
         <nav className="flex space-x-8 border-b border-gray-200 dark:border-gray-700">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
@@ -250,10 +232,10 @@ export function ResponsiveTabs({
       <div className="sm:hidden">
         <select
           value={activeTab}
-          onChange={(e) => onTabChange(e.target.value)}
-          className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          onChange={e => onTabChange(e.target.value)}
+          className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-800 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         >
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <option key={tab.id} value={tab.id}>
               {tab.label}
             </option>

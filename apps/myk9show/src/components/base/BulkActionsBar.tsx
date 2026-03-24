@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { X, MoreHorizontal } from 'lucide-react';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { BulkAction } from '@/utils/bulkActions';
 
@@ -38,7 +38,7 @@ export function BulkActionsBar({
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className={`
           fixed top-20 left-1/2 transform -translate-x-1/2 z-50 
-          bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
+          bg-card dark:bg-gray-800 border border-gray-200 dark:border-gray-700
           rounded-lg shadow-lg px-4 py-3 flex items-center space-x-4
           ${className}
         `}
@@ -46,14 +46,10 @@ export function BulkActionsBar({
         {/* Selection info */}
         <div className="flex items-center space-x-2">
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {selectedCount} {entityName}{selectedCount === 1 ? '' : 's'} selected
+            {selectedCount} {entityName}
+            {selectedCount === 1 ? '' : 's'} selected
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearSelection}
-            className="h-6 w-6 p-0"
-          >
+          <Button variant="ghost" size="sm" onClick={onClearSelection} className="h-6 w-6 p-0">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -63,7 +59,7 @@ export function BulkActionsBar({
 
         {/* Primary actions */}
         <div className="flex items-center space-x-2">
-          {primaryActions.map((action) => (
+          {primaryActions.map(action => (
             <Button
               key={action.id}
               variant={action.variant || 'secondary'}
@@ -86,7 +82,7 @@ export function BulkActionsBar({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {secondaryActions.map((action) => (
+                {secondaryActions.map(action => (
                   <DropdownMenuItem
                     key={action.id}
                     onClick={action.onClick}
@@ -126,10 +122,10 @@ export function BulkSelectCheckbox({
     <input
       type="checkbox"
       checked={checked}
-      ref={(el) => {
+      ref={el => {
         if (el) el.indeterminate = indeterminate ?? false;
       }}
-      onChange={(e) => onCheckedChange(e.target.checked)}
+      onChange={e => onCheckedChange(e.target.checked)}
       aria-label={ariaLabel}
       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
     />
@@ -152,7 +148,7 @@ export function BulkSelectRow({
     <input
       type="checkbox"
       checked={checked}
-      onChange={(e) => onCheckedChange(e.target.checked)}
+      onChange={e => onCheckedChange(e.target.checked)}
       aria-label={ariaLabel}
       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
     />

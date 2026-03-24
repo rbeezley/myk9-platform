@@ -140,6 +140,10 @@ export const queryKeys = {
   upcomingShows: ['shows', 'upcoming'] as const,
   showsWithFilters: (filters: Record<string, unknown>) => ['shows', 'filters', filters] as const,
 
+  // Class Requirements
+  classRequirements: (org: string, element: string, level: string) =>
+    ['classRequirements', org, element, level] as const,
+
   // Clubs
   clubs: ['clubs'] as const,
   club: (id: string) => ['clubs', id] as const,

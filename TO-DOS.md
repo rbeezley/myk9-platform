@@ -195,6 +195,42 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
+## Class Details Page Redesign - 2026-03-24
+
+- [x] **Restructure Class Details page layout** — Done: Replaced flat DetailHero + info grid + expandable sections layout with compact header (metadata strip) + stats row + full-width results table. Removed data duplication (judge/date no longer shown twice). Enter Scores button moved from page header to results table header. Added ClassRequirementsPanel (slide-out drawer) ported from myK9Q's ClassRequirementsDialog — shows rules reference from `class_requirements` table by org/element/level. New React Query `useClassRequirements` hook. 662 lines of dead code removed (ClassExpandableSections, SectionToggleControls, ClassInfo, ExpandableSection). 28 new tests across 3 files. Spec: `docs/superpowers/specs/2026-03-24-class-details-redesign.md`. Plan: `docs/superpowers/plans/2026-03-24-class-details-redesign.md`.
+
+**Future enhancements (out of scope):**
+
+- Dog status column (Checked In / In Ring / On Deck / Conflict) — requires check-in data pipeline
+- Drag-and-drop run order in entries table
+- Inline score editing in table cells
+
+---
+
+## Class Entries: Duplicate Entries and Unknown Dog Names - 2026-03-24 13:55
+
+- **Fix duplicate entries showing in ClassResultsTable** — Class shows 7 entries when only 4 were registered (1 original + 3 added). All display "Unknown Dog" with "#" armbands instead of actual dog names (Maximus, Tera, Sam). **Problem:** Two likely root causes: (1) Entry deduplication in `useClassDetailsData.ts` merges DB entries (React Query via `useClassEntriesWithQuery`) with local entries (Zustand via `useEntriesByClass`), and the dedup by ID may be failing — producing duplicates when both sources return the same entries. (2) Dog name resolution in `buildScentWorkEntries()` matches dogs from `dogStore` by name, falling back to "Unknown Dog" when no match is found — the dog records may not be loading or the matching logic may be wrong. Armband "#" suggests armband assignment during registration didn't persist. **Files:** `apps/myk9show/src/pages/ClassDetailsPage/useClassDetailsData.ts:100-162` (entry merging/dedup logic), `apps/myk9show/src/components/classes/ClassDetailsMain.helpers.ts:130-210` (`buildScentWorkEntries` — dog name matching), `apps/myk9show/src/store/entryStore.ts` (local entry source), `apps/myk9show/src/hooks/queries/useClassEntriesWithQuery.ts` (DB entry source). **Solution:** Debug the actual entry data at both sources to find duplicates. Check if `dogStore` has the registered dogs loaded. Verify armband assignment RPC was called during registration.
+
+---
+
+## AKC Scent Work Section Display Rules - 2026-03-24 13:58
+
+- **Hide section label for non-Novice AKC Scent Work classes** — Section (A/B) should only display for Novice level classes. Detective element has no levels or sections at all. **Problem:** The ClassCompactHeader and other class display locations show "Section A" for all classes regardless of level. In AKC Scent Work, only Novice has sections (A or B). All other levels (Advanced, Excellent, Master, Detective) do not have sections — displaying one is incorrect and confusing. Detective is a unique element with no levels or sections. **Files:** `apps/myk9show/src/components/classes/ClassCompactHeader.tsx:113-115` (section display), `apps/myk9show/src/components/classes/ClassDetailsMain.helpers.ts` (class display helpers), `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx` (class list display — may also show section incorrectly). **Solution:** Conditionally hide section based on level — only show when `classData.level` is "Novice A" or "Novice B" (or starts with "Novice"). For Detective element, hide both level and section. May need to check how section data is stored — if the DB always has a section value even for non-Novice, the display logic needs to filter it out.
+
+---
+
+## Fix Class Requirements Query — Wrong Table - 2026-03-24 14:20
+
+- **Rewrite useClassRequirements to query sport_class_rules** — The requirements panel shows "No requirements found" for all classes because it queries a table that doesn't exist. **Problem:** Both `hooks/queries/useClassRequirements.ts` (new React Query hook) and `hooks/useClassRequirements.ts` (old auto-fill hook) query `class_requirements`, which only exists in myK9Q's separate Supabase project. The unified myk9-platform Supabase uses `sport_class_rules` (created in migration 029) with a completely different schema: `sport_template_id` (UUID join to `sport_templates`) instead of `organization` (string), integer columns (`hide_count_fixed/min/max`, `max_time_seconds_fixed/min/max`, `distraction_count_min/max`) instead of text fields (`hides`, `time_limit_text`, `distractions`), and additional fields (`hides_known`, `has_blank`, `timer_mode`, `odors`). **Files:** `apps/myk9show/src/hooks/queries/useClassRequirements.ts` (new hook — queries nonexistent `class_requirements`), `apps/myk9show/src/hooks/useClassRequirements.ts` (old hook — same problem), `supabase/migrations/029_sport_templates.sql:36-64` (`sport_class_rules` schema), `supabase/migrations/030_seed_sport_templates.sql` (seeded data for AKC/UKC/ASCA), `apps/myk9show/src/components/classes/ClassRequirementsPanel.tsx` (consumer — expects `ClassRequirements` interface). **Solution:** Rewrite the query to: (1) join `sport_class_rules` with `sport_templates` to resolve organization name, (2) accept `sport_template_id` or resolve it from organization string, (3) format integer columns into display strings (e.g., `hide_count_min=1, hide_count_max=3` → "1–3"), (4) compute `time_limit_text` from `max_time_seconds_*` columns, (5) update the `ClassRequirements` interface or add a mapping layer. The old hook for ClassEditForm needs the same fix.
+
+---
+
+## Fix Armband Auto-Assignment - 2026-03-24 14:12
+
+- **Debug armband assignment not persisting to entries** — Entries display "#" for armband instead of assigned numbers. The `assign_armband` RPC is called during registration but armbands aren't showing in the ClassResultsTable. **Problem:** The armband assignment flow in RegistrationWizardPage calls `assignArmband(showId, dogId)` after entry creation (line 369), writes results back to entries via replication layer (lines 378-384), and displays on the confirmation step. However, when viewing the class details page, all entries show "#" for armband. Either the RPC isn't returning values, the write-back to `entries.registrationData.armband` isn't persisting through sync, or the display path in `buildScentWorkEntries()` reads armband from a different field. **Files:** `apps/myk9show/src/pages/RegistrationWizardPage.tsx:364-384` (armband assignment after entry creation), `apps/myk9show/src/services/database/queries/armbandQueries.ts:38-50` (`assignArmband` RPC call), `apps/myk9show/src/components/classes/ClassDetailsMain.helpers.ts:130-210` (`buildScentWorkEntries` — reads `entry.displayInfo.armband`), `supabase/migrations/` (look for `assign_armband` function definition). **Solution:** Check Supabase `entries` table to verify armband values are stored. Trace the data path: RPC return → replication write → React Query fetch → `displayInfo.armband` mapping. The disconnect is likely in which field the armband is stored vs. which field the display reads.
+
+---
+
 ## Premium Visual Polish — Both Modes - 2026-03-24 00:15
 
 - **Improve card elevation and floating effect** — Cards blend into the background in both light and dark mode. They need stronger visual separation to feel "premium." **Problem:** Cards use `bg-card` with thin `border-border` but no meaningful shadow. In light mode, `#faf8f4` card on `#f5f2ed` background is barely distinguishable. In dark mode, `#26292e` card on `#1a1a1e` is slightly better but still flat. Premium UIs (Linear, Notion, Vercel) use soft, layered shadows to make cards float. **Files:** `apps/myk9show/src/index.css` (could add `--shadow-card` variable), `packages/ui/src/components/ui/card.tsx` (Card component — add default shadow), component-level card containers across the app. **Solution:** Define a `--shadow-card` CSS variable for each mode (light: warm-tinted `rgba(180,160,130,0.08)` multi-layer shadow; dark: `rgba(0,0,0,0.3)` deeper shadow). Apply to the shared Card component. May also want to reduce or remove `border` on cards and let the shadow do the separation work.

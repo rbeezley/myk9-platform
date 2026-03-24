@@ -4,10 +4,10 @@
  * Displays class information, entries, and results
  */
 
-import { startTransition, useMemo } from 'react';
+import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Calendar, Pencil, ClipboardEdit, MoreVertical, Trash2 } from 'lucide-react';
+import { Pencil, MoreVertical, Trash2 } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { replicatedClassesTable } from '@/services/replication';
@@ -17,6 +17,8 @@ import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
+import { ClassCompactHeader } from '@/components/classes/ClassCompactHeader';
+import { ClassRequirementsPanel } from '@/components/classes/ClassRequirementsPanel';
 import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,11 +38,10 @@ import { DeleteEntryDialog } from './DeleteEntryDialog';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { DetailHero, getStatusBadge } from '@/components/common/DetailHero';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isSecretary, isAdmin } = useAuthContext();
+  const { user } = useAuthContext();
 
   // Data hook
   const {
@@ -61,6 +62,7 @@ const ClassDetailsPage: React.FC = () => {
 
   // Dialog state
   const dialogs = useClassDetailsDialogs();
+  const [requirementsPanelOpen, setRequirementsPanelOpen] = useState(false);
 
   // Handlers
   const handleConfirmDeleteClass = async () => {
@@ -202,68 +204,35 @@ const ClassDetailsPage: React.FC = () => {
     return crumbs;
   }, [parentShow, parentTrial, currentClass, classId]);
 
-  // Status badge
-  const statusBadge = useMemo(() => getStatusBadge(currentClass?.status), [currentClass?.status]);
+  // INTENT: Enter Scores button deliberately moved from page header to results
+  // table header so it sits next to the data it acts on. Both secretaries and
+  // exhibitors benefit from less clutter in the page header.
 
-  // Hero metadata
-  const heroMetadata = useMemo(() => {
-    const items = [];
-    if (currentClass?.judge) {
-      items.push({ label: `Judge: ${currentClass.judge}` });
-    }
-    if (currentClass?.trialDate) {
-      items.push({
-        label: new Date(currentClass.trialDate + 'T00:00:00').toLocaleDateString(),
-        icon: <Calendar className="h-4 w-4" />,
-      });
-    }
-    if (classEntries.length > 0) {
-      items.push({
-        label: `${classEntries.length} entr${classEntries.length !== 1 ? 'ies' : 'y'}`,
-      });
-    }
-    return items;
-  }, [currentClass?.judge, currentClass?.trialDate, classEntries.length]);
-
-  // Action buttons
-  const actionButtons = useMemo(() => {
-    const buttons = [];
-    if ((isSecretary || isAdmin) && classId) {
-      buttons.push(
-        <Button
-          key="scores"
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(`/scoring/secretary/classes/${classId}`)}
-        >
-          <ClipboardEdit className="h-4 w-4 mr-2" />
-          Enter Scores
+  // Action buttons for the compact header
+  const headerActions = useMemo(
+    () => (
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
+          <Pencil className="mr-1.5 h-3.5 w-3.5" />
+          Edit
         </Button>
-      );
-    }
-    buttons.push(
-      <Button key="edit" variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
-        <Pencil className="h-4 w-4 mr-2" />
-        Edit
-      </Button>
-    );
-    buttons.push(
-      <DropdownMenu key="more">
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete Class
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
-    return <>{buttons}</>;
-  }, [isSecretary, isAdmin, classId, navigate, dialogs]);
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Class
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    ),
+    [dialogs.openEditClassPanel, dialogs.openDeleteDialog]
+  );
 
   // Early returns for different states
   if (classId && !currentClass && trialClasses.length > 0) {
@@ -281,19 +250,18 @@ const ClassDetailsPage: React.FC = () => {
 
   return (
     <PageShell>
-      <PageHeader breadcrumbs={breadcrumbs} title={className} actions={actionButtons} />
+      <PageHeader breadcrumbs={breadcrumbs} title={className} />
 
-      <DetailHero
-        name={className}
-        subtitle={currentClass.section ? `Section ${currentClass.section}` : undefined}
-        metadata={heroMetadata}
-        badge={statusBadge}
+      <ClassCompactHeader
+        classData={currentClass}
+        parentTrial={parentTrial}
+        actions={headerActions}
       />
 
       <ClassDetailsMain
         classData={currentClass}
         classEntries={classEntries}
-        {...(parentShow !== undefined && { parentShow })}
+        parentShow={parentShow}
         onAddEntry={() => {
           if (parentShow?.id) {
             navigate(`/shows/${parentShow.id}/register`);
@@ -301,6 +269,7 @@ const ClassDetailsPage: React.FC = () => {
         }}
         onDeleteEntry={handleDeleteEntry}
         onResultUpdate={handleResultUpdate}
+        onOpenRequirements={() => setRequirementsPanelOpen(true)}
       />
 
       {/* Dialogs */}
@@ -342,6 +311,14 @@ const ClassDetailsPage: React.FC = () => {
         rawEntries={rawEntries}
         dogs={dogs}
         onConfirm={handleConfirmDeleteEntry}
+      />
+
+      <ClassRequirementsPanel
+        open={requirementsPanelOpen}
+        onClose={() => setRequirementsPanelOpen(false)}
+        organization={parentShow?.organization || null}
+        element={currentClass?.element || ''}
+        level={currentClass?.level || ''}
       />
     </PageShell>
   );

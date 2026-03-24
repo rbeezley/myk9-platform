@@ -98,7 +98,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
                              group-hover:bg-black/40 transition-all duration-300 rounded-full"
               >
                 <div
-                  className="p-3 bg-white/90 rounded-full opacity-0 group-hover:opacity-100
+                  className="p-3 bg-card/90 rounded-full opacity-0 group-hover:opacity-100
                                transform scale-75 group-hover:scale-100 transition-all duration-300"
                 >
                   <Camera className="w-5 h-5 text-gray-800" />

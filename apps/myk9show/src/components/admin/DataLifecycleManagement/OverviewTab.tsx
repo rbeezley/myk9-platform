@@ -114,7 +114,7 @@ export function OverviewTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="!border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300"
+                      className="!border-white/10 !bg-card/5 hover:!bg-card/10 !transition-all !duration-300"
                       onClick={onStopScheduler}
                     >
                       <Pause className="h-4 w-4 mr-2" />
@@ -130,7 +130,7 @@ export function OverviewTab({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="!border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300"
+                    className="!border-white/10 !bg-card/5 hover:!bg-card/10 !transition-all !duration-300"
                     onClick={onRunArchiveCheck}
                     disabled={isLoading}
                   >

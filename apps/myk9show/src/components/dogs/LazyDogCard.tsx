@@ -277,7 +277,7 @@ export function LazyDogCard({
                 errorMessage={syncErrorMessage}
                 enableActions={syncStatus === 'error' || syncStatus === 'conflict'}
                 onRetry={onSyncRetry}
-                className="bg-white/90 backdrop-blur-sm rounded-full p-1"
+                className="bg-card/90 backdrop-blur-sm rounded-full p-1"
               />
             </div>
           )}

@@ -45,7 +45,7 @@ export function ExportImportTab({ isLoading, onExportData }: ExportImportTabProp
               Import previously exported data or restore from backup.
             </p>
 
-            <Alert className="!border-white/10 !bg-white/5">
+            <Alert className="!border-white/10 !bg-card/5">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-sm">
                 Always run imports in dry-run mode first to validate the data.

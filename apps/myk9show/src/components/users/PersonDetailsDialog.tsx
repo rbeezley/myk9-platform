@@ -1,5 +1,11 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
@@ -16,7 +22,14 @@ interface PersonDetailsDialogProps {
   onDelete?: (person: User) => void;
 }
 
-const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({ open, onOpenChange, person, onClose, onEdit, onDelete }) => {
+const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({
+  open,
+  onOpenChange,
+  person,
+  onClose,
+  onEdit,
+  onDelete,
+}) => {
   if (!person) return null;
 
   return (
@@ -24,18 +37,41 @@ const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({ open, onOpenC
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center justify-between">
-            <span>{person.firstName} {person.lastName}</span>
+            <span>
+              {person.firstName} {person.lastName}
+            </span>
             <ThreeDotMenu
-              onEdit={onEdit ? () => { onClose(); onEdit(person); } : undefined}
-              onDelete={onDelete ? () => { onClose(); onDelete(person); } : undefined}
+              onEdit={
+                onEdit
+                  ? () => {
+                      onClose();
+                      onEdit(person);
+                    }
+                  : undefined
+              }
+              onDelete={
+                onDelete
+                  ? () => {
+                      onClose();
+                      onDelete(person);
+                    }
+                  : undefined
+              }
             />
           </DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <div className="flex justify-center mb-6">
             <Avatar className="h-32 w-32">
-              <AvatarImage src={person.profileImage} alt={`${person.firstName} ${person.lastName}`} className="object-cover" />
-              <AvatarFallback>{person.firstName.charAt(0)}{person.lastName.charAt(0)}</AvatarFallback>
+              <AvatarImage
+                src={person.profileImage}
+                alt={`${person.firstName} ${person.lastName}`}
+                className="object-cover"
+              />
+              <AvatarFallback>
+                {person.firstName.charAt(0)}
+                {person.lastName.charAt(0)}
+              </AvatarFallback>
             </Avatar>
           </div>
           <Tabs defaultValue="info" className="w-full">
@@ -57,14 +93,19 @@ const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({ open, onOpenC
               <div>
                 <h4 className="text-sm font-medium text-gray-500">Address</h4>
                 <p className="text-base">{person.streetAddress}</p>
-                <p className="text-base">{person.city}, {person.state} {person.zipCode}</p>
+                <p className="text-base">
+                  {person.city}, {person.state} {person.zipCode}
+                </p>
               </div>
             </TabsContent>
             <TabsContent value="dogs" className="mt-4">
               {person.dogs && person.dogs.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4">
                   {person.dogs.map((dogId, index) => (
-                    <Card key={dogId} className="min-w-[300px] bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 snap-start flex-shrink-0 group">
+                    <Card
+                      key={dogId}
+                      className="min-w-[300px] bg-card dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 snap-start flex-shrink-0 group"
+                    >
                       <div className="p-4 flex items-center space-x-4">
                         <Avatar className="h-16 w-16">
                           <AvatarImage src="" alt={`Dog ${index + 1}`} />
@@ -88,7 +129,9 @@ const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({ open, onOpenC
           </Tabs>
         </div>
         <DialogFooter>
-          <Button onClick={onClose} className="!rounded-button cursor-pointer whitespace-nowrap">Close</Button>
+          <Button onClick={onClose} className="!rounded-button cursor-pointer whitespace-nowrap">
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

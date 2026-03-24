@@ -8,11 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
 import type { CleanupTabProps } from './types';
 
-export function CleanupTab({
-  isLoading,
-  lastCleanupReport,
-  onRunCleanup,
-}: CleanupTabProps) {
+export function CleanupTab({ isLoading, lastCleanupReport, onRunCleanup }: CleanupTabProps) {
   return (
     <div className="space-y-6">
       <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
@@ -20,27 +16,20 @@ export function CleanupTab({
           <CardTitle>Orphaned Records Cleanup</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert className="!border-white/10 !bg-white/5">
+          <Alert className="!border-white/10 !bg-card/5">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Cleanup operations help maintain data integrity by removing orphaned records.
-              Always run in dry-run mode first to review what will be removed.
+              Cleanup operations help maintain data integrity by removing orphaned records. Always
+              run in dry-run mode first to review what will be removed.
             </AlertDescription>
           </Alert>
 
           <div className="flex gap-2">
-            <Button
-              onClick={() => onRunCleanup(true)}
-              disabled={isLoading}
-            >
+            <Button onClick={() => onRunCleanup(true)} disabled={isLoading}>
               <CheckCircle className="h-4 w-4 mr-2" />
               Dry Run Scan
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => onRunCleanup(false)}
-              disabled={isLoading}
-            >
+            <Button variant="destructive" onClick={() => onRunCleanup(false)} disabled={isLoading}>
               <Trash2 className="h-4 w-4 mr-2" />
               Execute Cleanup
             </Button>

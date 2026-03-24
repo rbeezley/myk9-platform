@@ -16,7 +16,7 @@ export function ArchivingTab({ archiveStats, isLoading, onRunArchiveCheck }: Arc
           <CardTitle>Archive Management</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert className="!border-white/10 !bg-white/5">
+          <Alert className="!border-white/10 !bg-card/5">
             <Archive className="h-4 w-4" />
             <AlertDescription>
               Shows are automatically archived 30 days after completion. Archived data is compressed
@@ -41,7 +41,7 @@ export function ArchivingTab({ archiveStats, isLoading, onRunArchiveCheck }: Arc
                 <Button
                   size="sm"
                   variant="outline"
-                  className="w-full justify-start !border-white/10 !bg-white/5 hover:!bg-white/10 !transition-all !duration-300"
+                  className="w-full justify-start !border-white/10 !bg-card/5 hover:!bg-card/10 !transition-all !duration-300"
                   onClick={onRunArchiveCheck}
                   disabled={isLoading}
                 >

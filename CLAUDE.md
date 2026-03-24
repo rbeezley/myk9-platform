@@ -25,6 +25,14 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 
 When asked to pull from GitHub or sync, always do `git fetch` then `git pull` before any other analysis or review work.
 
+## Worktrees
+
+Git worktrees share history but **not** gitignored files (`node_modules/`, `.env`, `dist/`). A `PostToolUse` hook runs `scripts/bootstrap-worktree.sh` automatically after `EnterWorktree`. If something is missing, run it manually:
+
+```bash
+bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packages
+```
+
 ## Planning
 
 When creating implementation or remediation plans, always save them to a markdown file (e.g., `PLAN.md` or `docs/plan-<topic>.md`) rather than only outputting to chat. Follow existing plans when they exist — do not start from scratch. **Every plan must include a testing phase** — unit tests for new components, hooks, and utilities. Do not consider a phase complete until its tests are written and passing.

@@ -2,17 +2,21 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Bell, Megaphone } from 'lucide-react';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useAnnouncementStore } from '@/store/announcementStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { formatRelativeTime } from '@/lib/timeUtils';
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { userWithRoles } = useAuthContext();
+  const userId = userWithRoles?.id ?? '';
   const recentAlerts = useNotificationStore(s => s.recentAlerts);
   const unreadCount = useNotificationStore(s => s.unreadCount);
   const markAllRead = useNotificationStore(s => s.markAllRead);
   const openCenter = useNotificationStore(s => s.openCenter);
   const announcements = useAnnouncementStore(s => s.announcements);
   const announcementUnread = useAnnouncementStore(s => s.unreadCount);
+  const annMarkAllRead = useAnnouncementStore(s => s.markAllRead);
 
   const totalUnread = unreadCount + announcementUnread;
 
@@ -105,7 +109,10 @@ export function NotificationBell() {
               </div>
               <div className="flex border-t">
                 <button
-                  onClick={() => markAllRead()}
+                  onClick={() => {
+                    markAllRead();
+                    annMarkAllRead(userId);
+                  }}
                   className="flex-1 p-2 text-center text-sm text-muted-foreground hover:bg-muted"
                 >
                   Mark all read

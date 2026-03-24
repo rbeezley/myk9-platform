@@ -83,7 +83,7 @@
 }
 
 .template-action-secondary {
-  @apply bg-white dark:bg-gray-800 border-2 hover:bg-gray-50 dark:hover:bg-gray-700;
+  @apply bg-card dark:bg-gray-800 border-2 hover:bg-gray-50 dark:hover:bg-gray-700;
 }
 
 /* Improved empty state */
@@ -106,7 +106,7 @@
 /* Page background pattern */
 .template-page-bg {
   position: relative;
-  background-image: 
+  background-image:
     radial-gradient(at 40% 20%, var(--accent) 0px, transparent 50%),
     radial-gradient(at 80% 80%, var(--accent) 0px, transparent 50%),
     radial-gradient(at 20% 80%, var(--accent) 0px, transparent 50%);
@@ -200,7 +200,7 @@
   .template-grid {
     @apply grid-cols-1 gap-4;
   }
-  
+
   .template-card:hover {
     transform: none;
   }

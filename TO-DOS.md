@@ -213,6 +213,12 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
+## AKC Scent Work Section Display Rules - 2026-03-24 13:58
+
+- **Hide section label for non-Novice AKC Scent Work classes** — Section (A/B) should only display for Novice level classes. Detective element has no levels or sections at all. **Problem:** The ClassCompactHeader and other class display locations show "Section A" for all classes regardless of level. In AKC Scent Work, only Novice has sections (A or B). All other levels (Advanced, Excellent, Master, Detective) do not have sections — displaying one is incorrect and confusing. Detective is a unique element with no levels or sections. **Files:** `apps/myk9show/src/components/classes/ClassCompactHeader.tsx:113-115` (section display), `apps/myk9show/src/components/classes/ClassDetailsMain.helpers.ts` (class display helpers), `apps/myk9show/src/components/shows/tabs/ClassesTab.tsx` (class list display — may also show section incorrectly). **Solution:** Conditionally hide section based on level — only show when `classData.level` is "Novice A" or "Novice B" (or starts with "Novice"). For Detective element, hide both level and section. May need to check how section data is stored — if the DB always has a section value even for non-Novice, the display logic needs to filter it out.
+
+---
+
 ## Premium Visual Polish — Both Modes - 2026-03-24 00:15
 
 - **Improve card elevation and floating effect** — Cards blend into the background in both light and dark mode. They need stronger visual separation to feel "premium." **Problem:** Cards use `bg-card` with thin `border-border` but no meaningful shadow. In light mode, `#faf8f4` card on `#f5f2ed` background is barely distinguishable. In dark mode, `#26292e` card on `#1a1a1e` is slightly better but still flat. Premium UIs (Linear, Notion, Vercel) use soft, layered shadows to make cards float. **Files:** `apps/myk9show/src/index.css` (could add `--shadow-card` variable), `packages/ui/src/components/ui/card.tsx` (Card component — add default shadow), component-level card containers across the app. **Solution:** Define a `--shadow-card` CSS variable for each mode (light: warm-tinted `rgba(180,160,130,0.08)` multi-layer shadow; dark: `rgba(0,0,0,0.3)` deeper shadow). Apply to the shared Card component. May also want to reduce or remove `border` on cards and let the shadow do the separation work.

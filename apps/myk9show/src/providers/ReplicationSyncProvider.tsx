@@ -232,14 +232,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         lastSyncAt: new Date(),
       }));
 
-      // Invalidate React Query caches so components refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ['shows'] });
-      queryClient.invalidateQueries({ queryKey: ['trials'] });
-      queryClient.invalidateQueries({ queryKey: ['classes'] });
-      queryClient.invalidateQueries({ queryKey: ['entries'] });
-      queryClient.invalidateQueries({ queryKey: ['dogs'] });
-      queryClient.invalidateQueries({ queryKey: ['clubs'] });
-      queryClient.invalidateQueries({ queryKey: ['judge_assignments'] });
+      // Invalidate React Query caches so components refetch fresh data.
+      // Uses REPLICATED_TABLES to stay in sync automatically.
+      for (const { name } of REPLICATED_TABLES) {
+        queryClient.invalidateQueries({ queryKey: [name] });
+      }
 
       logger.info('Full sync complete', 'replication');
     } catch (error) {

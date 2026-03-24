@@ -319,18 +319,18 @@ export class MutationManager {
         await this.backupMutationsToLocalStorage();
       }
 
-      const successCount = results.filter(r => r.success).length;
+      const successful = results.filter(r => r.success);
       const duration = Date.now() - startTime;
       this.logger.log(
-        `[MutationManager] Uploaded ${successCount}/${pending.length} mutations in ${duration}ms`
+        `[MutationManager] Uploaded ${successful.length}/${pending.length} mutations in ${duration}ms`
       );
 
       // Notify listeners of successful uploads so caches can be invalidated
-      if (successCount > 0 && typeof window !== 'undefined') {
-        const affectedTables = [...new Set(results.filter(r => r.success).map(r => r.tableName))];
+      if (successful.length > 0 && typeof window !== 'undefined') {
+        const affectedTables = [...new Set(successful.map(r => r.tableName))];
         window.dispatchEvent(
           new CustomEvent('replication:upload-complete', {
-            detail: { tables: affectedTables, count: successCount },
+            detail: { tables: affectedTables, count: successful.length },
           })
         );
       }

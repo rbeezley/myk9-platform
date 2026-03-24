@@ -97,6 +97,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Get the number of pending mutations in the queue.
+   * Useful for subclasses to guard cleanup operations.
+   */
+  protected async getMutationPendingCount(): Promise<number> {
+    if (!this.mutationManager) return 0;
+    return this.mutationManager.getPendingCount();
+  }
+
+  /**
    * Queue a mutation for upload to Supabase.
    * Subclasses call this after set() with the Supabase-format payload.
    */
@@ -160,7 +169,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return result;
     })();
 
-    const voidPromise = txPromise.then(() => {}, () => {}) as Promise<void>;
+    const voidPromise = txPromise.then(
+      () => {},
+      () => {}
+    ) as Promise<void>;
     trackTransaction(voidPromise);
 
     return txPromise;
@@ -178,7 +190,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const normalizedId = String(id);
     const key = [this.tableName, normalizedId];
 
-    const row = await db.get(REPLICATION_STORES.REPLICATED_TABLES, key) as ReplicatedRow<T> | undefined;
+    const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
+      | ReplicatedRow<T>
+      | undefined;
 
     if (!row) {
       this.logger.log(`[${this.tableName}] Cache miss for ID: ${normalizedId}`);
@@ -207,14 +221,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
     const normalizedId = String(id);
-    const existingRow = await tx.store.get([this.tableName, normalizedId]) as ReplicatedRow<T> | undefined;
+    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+      | ReplicatedRow<T>
+      | undefined;
 
     // Optimistic locking - verify version hasn't changed
     if (expectedVersion !== undefined && existingRow && existingRow.version !== expectedVersion) {
       await tx.done;
       throw new Error(
         `[${this.tableName}] Concurrent modification detected for row ${normalizedId}. ` +
-        `Expected version ${expectedVersion}, found ${existingRow.version}.`
+          `Expected version ${expectedVersion}, found ${existingRow.version}.`
       );
     }
 
@@ -236,7 +252,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     await tx.store.put(row);
     await tx.done;
 
-    this.logger.log(`[${this.tableName}] Cached row: ${normalizedId} (version: ${row.version}, dirty: ${isDirty})`);
+    this.logger.log(
+      `[${this.tableName}] Cached row: ${normalizedId} (version: ${row.version}, dirty: ${isDirty})`
+    );
 
     this.notifyListeners();
   }
@@ -260,7 +278,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   /**
    * Query rows by index (uses IndexedDB indexes for O(log n) performance)
    */
-  async queryByField(fieldName: 'class_id' | 'trial_id' | 'show_id' | 'armband_number', value: string): Promise<T[]> {
+  async queryByField(
+    fieldName: 'class_id' | 'trial_id' | 'show_id' | 'armband_number',
+    value: string
+  ): Promise<T[]> {
     const startTime = performance.now();
     const db = await this.init();
     const indexName = `tableName_data.${fieldName}`;
@@ -275,7 +296,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           if (tx) {
             try {
               tx.abort();
-              this.logger.warn(`[${this.tableName}] Aborted transaction for query ${fieldName}=${value} due to timeout`);
+              this.logger.warn(
+                `[${this.tableName}] Aborted transaction for query ${fieldName}=${value} due to timeout`
+              );
             } catch {
               // Transaction may have already completed
             }
@@ -293,14 +316,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           throw new Error('Transaction aborted due to timeout');
         }
 
-        const rows = await index.getAll([this.tableName, value]) as ReplicatedRow<T>[];
+        const rows = (await index.getAll([this.tableName, value])) as ReplicatedRow<T>[];
 
         if (txAborted) {
           throw new Error('Transaction aborted due to timeout');
         }
 
-        const freshRows = rows.filter((row) => !this.cacheManager.isExpired(row));
-        return freshRows.map((row) => row.data);
+        const freshRows = rows.filter(row => !this.cacheManager.isExpired(row));
+        return freshRows.map(row => row.data);
       })();
 
       const results = await Promise.race([queryPromise, timeoutPromise]);
@@ -311,7 +334,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           `[${this.tableName}] SLOW query detected: ${fieldName}=${value} took ${duration.toFixed(2)}ms`
         );
       } else {
-        this.logger.log(`[${this.tableName}] Indexed query ${fieldName}=${value}: ${results.length} rows in ${duration.toFixed(2)}ms`);
+        this.logger.log(
+          `[${this.tableName}] Indexed query ${fieldName}=${value}: ${results.length} rows in ${duration.toFixed(2)}ms`
+        );
       }
 
       return results;
@@ -319,14 +344,18 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       const duration = performance.now() - startTime;
 
       if (error instanceof Error && error.message.includes('Query timeout')) {
-        this.logger.error(`[${this.tableName}] Query TIMEOUT: ${fieldName}=${value} exceeded ${QUERY_TIMEOUT_MS}ms`);
+        this.logger.error(
+          `[${this.tableName}] Query TIMEOUT: ${fieldName}=${value} exceeded ${QUERY_TIMEOUT_MS}ms`
+        );
         throw error;
       }
 
       // Fallback to table scan if index doesn't exist
-      this.logger.warn(`[${this.tableName}] Index ${indexName} not found, falling back to table scan (took ${duration.toFixed(2)}ms)`);
+      this.logger.warn(
+        `[${this.tableName}] Index ${indexName} not found, falling back to table scan (took ${duration.toFixed(2)}ms)`
+      );
       const allRows = await this.getAll();
-      return allRows.filter((row) => (row as Record<string, unknown>)[fieldName] === value);
+      return allRows.filter(row => (row as Record<string, unknown>)[fieldName] === value);
     }
   }
 
@@ -343,7 +372,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     const allRows = await this.getAll();
-    return allRows.filter((row) => row[indexName] === value);
+    return allRows.filter(row => row[indexName] === value);
   }
 
   /**
@@ -357,16 +386,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
       const index = tx.store.index('tableName');
 
-      const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
-      const freshRows = rows.filter((row) => !this.cacheManager.isExpired(row));
+      const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
+      const freshRows = rows.filter(row => !this.cacheManager.isExpired(row));
 
       if (licenseKey) {
         return freshRows
-          .filter((row) => (row.data as Record<string, unknown>).license_key === licenseKey)
-          .map((row) => row.data);
+          .filter(row => (row.data as Record<string, unknown>).license_key === licenseKey)
+          .map(row => row.data);
       }
 
-      return freshRows.map((row) => row.data);
+      return freshRows.map(row => row.data);
     })();
 
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -393,7 +422,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     let releaseLock: () => void;
-    const lockPromise = new Promise<void>((resolve) => {
+    const lockPromise = new Promise<void>(resolve => {
       releaseLock = resolve;
     });
 
@@ -421,7 +450,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     try {
       const db = await this.init();
-      const existingRow = await db.get(REPLICATION_STORES.REPLICATED_TABLES, [this.tableName, id]) as ReplicatedRow<T> | undefined;
+      const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.tableName,
+        id,
+      ])) as ReplicatedRow<T> | undefined;
 
       if (!existingRow) {
         throw new Error(`[${this.tableName}] Row ${id} not found for optimistic update`);
@@ -522,7 +554,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
     const index = tx.store.index('tableName');
-    const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
 
     const ids = new Set<string>();
     for (const row of rows) {
@@ -537,7 +569,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
-    const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
 
     let removedCount = 0;
 

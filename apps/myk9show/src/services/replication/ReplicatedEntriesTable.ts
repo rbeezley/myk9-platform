@@ -179,12 +179,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * and app-only display fields (dogCallName, handlerName, etc.).
    */
   private toSupabaseRow(entry: ReplicatedEntry): Record<string, unknown> {
+    // Coerce empty strings to null for UUID FK columns (Postgres rejects '' as invalid UUID)
+    const fk = (v: string | undefined): string | null => v || null;
+
     return {
       id: entry.id,
-      class_id: entry.classId || null,
-      show_id: entry.showId || null,
-      dog_id: entry.dogId || null,
-      handler_id: entry.handlerId || null,
+      class_id: fk(entry.classId),
+      show_id: fk(entry.showId),
+      dog_id: fk(entry.dogId),
+      handler_id: fk(entry.handlerId),
       armband: entry.armband ?? null,
       handler: entry.handler ?? null,
       entry_status: entry.entryStatus ?? null,
@@ -196,7 +199,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       preferred_judge: entry.preferredJudge ?? null,
       special_requests: entry.specialRequests ?? null,
       submitted_at: entry.submittedAt ?? null,
-      registration_id: entry.registrationId || null,
+      registration_id: fk(entry.registrationId),
       is_scored: entry.isScored ?? null,
       result_status: entry.resultStatus ?? null,
       search_time_seconds: entry.searchTimeSeconds ?? null,
@@ -278,14 +281,21 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         rowsSynced++;
       }
 
-      // Clean up orphan local-only entries that aren't in Supabase and
-      // whose INSERT mutations have already been processed (no longer pending).
-      const allLocal = await this.getAll();
-      for (const local of allLocal) {
-        if (local._localOnly && !remoteIds.has(local.id)) {
-          logger.log(`[${this.getTableName()}] Removing orphan local entry ${local.id}`);
-          await this.delete(local.id);
+      // Clean up orphan local-only entries whose INSERT mutations have
+      // permanently failed (not in Supabase, not pending upload).
+      // Uses allCached (pre-sync snapshot) to avoid a second getAll() scan.
+      // Skips cleanup entirely if mutations are still pending to avoid
+      // deleting entries whose INSERT hasn't been uploaded yet.
+      const pendingCount = await this.getMutationPendingCount();
+      if (pendingCount === 0) {
+        for (const local of allCached) {
+          if (local._localOnly && !remoteIds.has(local.id)) {
+            logger.log(`[${this.getTableName()}] Removing orphan local entry ${local.id}`);
+            await this.delete(local.id);
+          }
         }
+        // Safe to clear deleted IDs — all DELETEs have been uploaded
+        this._deletedIds.clear();
       }
 
       await this.updateSyncMetadata({

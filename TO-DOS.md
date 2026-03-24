@@ -183,12 +183,6 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
-## Fix Duplicate Hero on Class Detail Page - 2026-03-23 21:20
-
-- **Remove redundant header from ClassDetailsMain** — The class detail page renders two hero/header sections stacked on top of each other. **Problem:** `ClassDetailsPage` (the page component) renders the new unified `PageHeader` (breadcrumbs + title + actions) and `DetailHero` (name + subtitle + metadata + badge) at lines 290-297. But `ClassDetailsMain` (the content component) also renders its own `Breadcrumb` (line 205), title with status badge (lines 211-222), Edit/Delete buttons (lines 224-243), and info grid (lines 247+). This creates a visually jarring double-header. Same pattern that was previously fixed on TrialDetailsPage. **Files:** `apps/myk9show/src/pages/ClassDetailsPage/index.tsx:288-297` (page renders PageHeader + DetailHero), `apps/myk9show/src/components/classes/ClassDetailsMain.tsx:202-260` (component renders its own Breadcrumb + header card with title, status, actions, info grid). **Solution:** Remove the redundant Breadcrumb, title, status badge, Edit/Delete buttons, and info grid from ClassDetailsMain — these are now handled by PageHeader and DetailHero in the parent page. Keep ClassDetailsMain focused on the content below the hero (expandable sections, entries table, stats). May need to lift any remaining info grid fields into the DetailHero metadata array if not already covered.
-
----
-
 ## Fix Duplicate Judges on Show Details Page - 2026-03-23 21:24
 
 - [x] **Deduplicate judges in JudgesList on ShowOverviewTab** — Done: commit `f681efb2`. Root cause was `showMappers.ts:mapDatabaseToShow` mapping `judge_assignments` rows 1:1 (one entry per class assignment). Fixed by grouping rows by `person_id` before mapping, collecting `class_id` values into `assignedClasses`. The Zustand store path (`buildAssignedJudges.ts`) already deduplicated correctly — only the React Query/mapper path was affected.

@@ -7,7 +7,7 @@
 import { startTransition, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Calendar, Pencil, ClipboardEdit } from 'lucide-react';
+import { Calendar, Pencil, ClipboardEdit, MoreVertical, Trash2 } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { replicatedClassesTable } from '@/services/replication';
@@ -18,8 +18,13 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
-import type { ClassStatusValue } from '@myk9/core';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import { useClassDetailsData } from './useClassDetailsData';
 import { useClassDetailsDialogs } from './useClassDetailsDialogs';
@@ -41,7 +46,6 @@ const ClassDetailsPage: React.FC = () => {
   const {
     classId,
     trialId,
-    isResultsView,
     classes,
     currentClass,
     trialClasses,
@@ -79,14 +83,6 @@ const ClassDetailsPage: React.FC = () => {
       }
     }
     dialogs.closeDeleteDialog();
-  };
-
-  const handleViewTrial = () => {
-    if (currentClass?.trialId) {
-      startTransition(() => {
-        navigate(`/trials/${currentClass.trialId}`);
-      });
-    }
   };
 
   const handleDeleteEntry = (entryId: string) => {
@@ -161,23 +157,6 @@ const ClassDetailsPage: React.FC = () => {
       }
     }
     dialogs.closeEditEntryDialog();
-  };
-
-  const handleStatusChange = async (newStatus: string) => {
-    if (classId) {
-      try {
-        await updateClass(classId, { status: newStatus as ClassStatusValue });
-        toast.success(`Class status updated to ${newStatus}`);
-      } catch (error) {
-        logger.error(
-          'Failed to update class status',
-          'classes',
-          { classId, newStatus },
-          error as Error
-        );
-        toast.error('Failed to update class status');
-      }
-    }
   };
 
   const handleResultUpdate = async (entryId: string, result: Partial<CompetitionResult>) => {
@@ -268,6 +247,21 @@ const ClassDetailsPage: React.FC = () => {
         Edit
       </Button>
     );
+    buttons.push(
+      <DropdownMenu key="more">
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Class
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
     return <>{buttons}</>;
   }, [isSecretary, isAdmin, classId, navigate, dialogs]);
 
@@ -300,19 +294,12 @@ const ClassDetailsPage: React.FC = () => {
         classData={currentClass}
         classEntries={classEntries}
         {...(parentShow !== undefined && { parentShow })}
-        {...(parentTrial !== undefined && { parentTrial })}
-        isResultsView={isResultsView}
-        onEditClass={dialogs.openEditClassPanel}
-        onDeleteClass={dialogs.openDeleteDialog}
-        onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
-        onViewTrial={handleViewTrial}
         onAddEntry={() => {
           if (parentShow?.id) {
             navigate(`/shows/${parentShow.id}/register`);
           }
         }}
         onDeleteEntry={handleDeleteEntry}
-        onStatusChange={handleStatusChange}
         onResultUpdate={handleResultUpdate}
       />
 

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Users, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { StatCard, StatsGrid } from '@myk9/ui';
 import type { CheckInStatistics } from '@/types/offline-checkin-types';
 
 interface StatisticsPanelProps {
@@ -8,34 +9,26 @@ interface StatisticsPanelProps {
 
 export const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ statistics }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-2xl font-bold">{statistics.totalEntries}</div>
-          <div className="text-sm text-muted-foreground">Total Entries</div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-2xl font-bold text-green-600">{statistics.checkedInCount}</div>
-          <div className="text-sm text-muted-foreground">Checked In</div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-2xl font-bold text-orange-600">{statistics.scratchedCount}</div>
-          <div className="text-sm text-muted-foreground">Scratched</div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="text-2xl font-bold text-red-600">{statistics.conflictCount}</div>
-          <div className="text-sm text-muted-foreground">Conflicts</div>
-        </CardContent>
-      </Card>
-    </div>
+    <StatsGrid columns={4}>
+      <StatCard
+        icon={Users}
+        title="Total Entries"
+        value={statistics.totalEntries}
+        color="primary"
+      />
+      <StatCard
+        icon={CheckCircle}
+        title="Checked In"
+        value={statistics.checkedInCount}
+        color="emerald"
+      />
+      <StatCard icon={XCircle} title="Scratched" value={statistics.scratchedCount} color="amber" />
+      <StatCard
+        icon={AlertTriangle}
+        title="Conflicts"
+        value={statistics.conflictCount}
+        color="red"
+      />
+    </StatsGrid>
   );
 };

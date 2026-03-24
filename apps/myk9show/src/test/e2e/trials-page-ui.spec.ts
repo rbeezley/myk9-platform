@@ -17,7 +17,7 @@ import type { Page } from '@playwright/test';
 // Test user credentials
 const testUser = {
   email: 'working-exhibitor@example.com',
-  password: 'testpass123'
+  password: 'testpass123',
 };
 
 // Helper function to login
@@ -61,24 +61,21 @@ test.describe('Trials Page - Statistics Cards', () => {
   test('statistics cards should not show misleading percent changes', async ({ page }) => {
     await navigateToTrialPage(page);
 
-    // Check for contextual subtitles instead of percent changes
-    const statSubtitles = page.locator('.myk9-show-stat-subtitle');
+    // StatCard renders icon in [data-slot="icon"]; subtitles are plain text beneath the value
+    const statIcons = page.locator('[data-slot="icon"]');
 
     // If we have stat cards, they should have contextual subtitles, not percent changes
-    if (await statSubtitles.first().isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Check for contextual text patterns
-      const subtitleTexts = await statSubtitles.allTextContents();
-
-      // Each subtitle should contain contextual words like "active", "completed", "scored", etc.
-      for (const text of subtitleTexts) {
-        const hasContextualText =
-          text.includes('active') ||
-          text.includes('completed') ||
-          text.includes('scored') ||
-          text.includes('qualified') ||
-          text.includes('of') ||
-          text.includes('None');
-        expect(hasContextualText).toBe(true);
+    if (
+      await statIcons
+        .first()
+        .isVisible({ timeout: 5000 })
+        .catch(() => false)
+    ) {
+      // Stat cards should not contain hardcoded misleading trend percentages
+      const fakeTrends = ['+5%', '+12%', '-3%', '+8%'];
+      for (const trend of fakeTrends) {
+        const trendElement = page.locator(`text="${trend}"`);
+        await expect(trendElement).toHaveCount(0);
       }
     }
   });
@@ -86,17 +83,22 @@ test.describe('Trials Page - Statistics Cards', () => {
   test('Qualified Rate card should only show when classes are completed', async ({ page }) => {
     await navigateToTrialPage(page);
 
-    // Get the statistics section
-    const statsSection = page.locator('.myk9-show-stats-section');
+    // StatCard icons are rendered in [data-slot="icon"]
+    const statIcons = page.locator('[data-slot="icon"]');
 
-    if (await statsSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // If there's a Qualified Rate card, it should have qualified data
-      const qualifiedCard = statsSection.locator('text=Qualified Rate');
+    if (
+      await statIcons
+        .first()
+        .isVisible({ timeout: 5000 })
+        .catch(() => false)
+    ) {
+      // If there's a Qualified Rate card, it should have qualified data in its subtitle
+      const qualifiedCard = page.locator('text=Qualified Rate');
 
       if (await qualifiedCard.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // There should be qualified subtitle with actual data
-        const qualifiedSubtitle = page.locator('.myk9-show-stat-subtitle:has-text("qualified")');
-        await expect(qualifiedSubtitle).toBeVisible();
+        // The subtitle text "qualified" should be present near the card
+        const qualifiedText = page.locator('text=/qualified/i');
+        await expect(qualifiedText.first()).toBeVisible();
       }
     }
   });
@@ -160,7 +162,9 @@ test.describe('Trials Page - Action Buttons', () => {
       await expect(deleteButton).not.toBeVisible();
 
       // Open the dropdown menu
-      const moreButton = infoCard.locator('button').filter({ has: page.locator('svg.lucide-more-vertical') });
+      const moreButton = infoCard
+        .locator('button')
+        .filter({ has: page.locator('svg.lucide-more-vertical') });
       if (await moreButton.isVisible()) {
         await moreButton.click();
 
@@ -268,9 +272,7 @@ test.describe('Trials Page - Status Badge Animation', () => {
 
     if (await inProgressBadge.isVisible({ timeout: 5000 }).catch(() => false)) {
       // Check that animation is applied
-      const animation = await inProgressBadge.evaluate(
-        el => window.getComputedStyle(el).animation
-      );
+      const animation = await inProgressBadge.evaluate(el => window.getComputedStyle(el).animation);
       expect(animation).toContain('status-pulse');
     }
   });

@@ -1,10 +1,10 @@
-import React from 'react';
-import { StatCard, StatCardSkeleton } from '@/components/ui/stat-card';
+import type { LucideIcon } from 'lucide-react';
+import { StatCard, StatCardSkeleton, StatsGrid } from '@myk9/ui';
 
 export interface RecordStat {
   title: string;
   value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   subtitle?: string;
 }
 
@@ -20,21 +20,21 @@ interface RecordStatsRowProps {
 export function RecordStatsRow({ stats, isLoading }: RecordStatsRowProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatsGrid columns={4}>
         {Array.from({ length: 4 }).map((_, i) => (
           <StatCardSkeleton key={i} />
         ))}
-      </div>
+      </StatsGrid>
     );
   }
 
   if (stats.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <StatsGrid columns={4}>
       {stats.map(({ subtitle, ...rest }) => (
         <StatCard key={rest.title} {...rest} {...(subtitle ? { subtitle } : {})} />
       ))}
-    </div>
+    </StatsGrid>
   );
 }

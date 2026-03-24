@@ -7,7 +7,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { BarChart3, Calendar, Dog, Users } from 'lucide-react';
-import { StatsCard } from './StatsCard';
+import { StatCard, StatsGrid } from '@myk9/ui';
 import type { PlatformStatisticsSectionProps } from './admin-dashboard-types';
 
 const APPLE_FONT_FAMILY =
@@ -37,36 +37,38 @@ export function PlatformStatisticsSection({
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard
+      <StatsGrid columns={4}>
+        <StatCard
           title="Total Users"
           value={isLoading ? 'Loading...' : totalUsers.toString()}
           icon={Users}
+          color="primary"
           subtitle="Platform users"
-          actionable={true}
           onClick={() => navigate('/admin/users')}
         />
-        <StatsCard
+        <StatCard
           title="Active Shows"
           value={isLoading ? 'Loading...' : activeShows.toString()}
           icon={Calendar}
+          color="emerald"
           subtitle="Currently running"
-          trendValue={`${totalShows} total shows`}
-          trend="neutral"
+          trend={`${totalShows} total shows`}
         />
-        <StatsCard
+        <StatCard
           title="Total Shows"
           value={isLoading ? 'Loading...' : totalShows.toString()}
           icon={Calendar}
+          color="blue"
           subtitle="All shows"
         />
-        <StatsCard
+        <StatCard
           title="Registered Dogs"
           value={isLoading ? 'Loading...' : totalDogs.toString()}
           icon={Dog}
+          color="purple"
           subtitle="In the system"
         />
-      </div>
+      </StatsGrid>
     </div>
   );
 }

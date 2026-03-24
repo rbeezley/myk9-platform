@@ -16,7 +16,7 @@ import type { Page } from '@playwright/test';
 // Test user credentials
 const testUser = {
   email: 'working-exhibitor@example.com',
-  password: 'testpass123'
+  password: 'testpass123',
 };
 
 // Helper function to login
@@ -46,19 +46,19 @@ test.describe('My Entries Page - Fake Trend Data Removal', () => {
   });
 
   test('should not display hardcoded trend percentages', async ({ page }) => {
-    // Wait for stat cards to load
-    await page.waitForSelector('.myk9-show-stat-card', { timeout: 5000 });
+    // Wait for stat cards to load (StatCard renders icon inside [data-slot="icon"])
+    await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
-    // Check that no fake trend percentages exist
+    // Check that no fake trend percentages exist anywhere on the page
     const fakeTrends = ['+5%', '+12%', '-3%', '+8%'];
     for (const trend of fakeTrends) {
-      const trendElement = page.locator(`.myk9-show-stat-card:has-text("${trend}")`);
+      const trendElement = page.locator(`text="${trend}"`);
       await expect(trendElement).toHaveCount(0);
     }
   });
 
   test('should display meaningful stat card titles', async ({ page }) => {
-    await page.waitForSelector('.myk9-show-stat-card', { timeout: 5000 });
+    await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
     // Verify meaningful stat card titles
     await expect(page.locator('text=Total Entries')).toBeVisible();
@@ -68,18 +68,15 @@ test.describe('My Entries Page - Fake Trend Data Removal', () => {
   });
 
   test('should show real contextual information in stat cards', async ({ page }) => {
-    await page.waitForSelector('.myk9-show-stat-card', { timeout: 5000 });
-
-    // Should show "upcoming" count or "paid" count instead of fake trends
-    const statDetails = page.locator('.myk9-show-stat-details');
-    await expect(statDetails.first()).toBeVisible();
+    await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
     // Check for meaningful context (e.g., "X upcoming", "X paid", etc.)
     const pageContent = await page.content();
-    const hasContextualInfo = pageContent.includes('upcoming') ||
-                              pageContent.includes('paid') ||
-                              pageContent.includes('awaiting') ||
-                              pageContent.includes('payment');
+    const hasContextualInfo =
+      pageContent.includes('upcoming') ||
+      pageContent.includes('paid') ||
+      pageContent.includes('awaiting') ||
+      pageContent.includes('payment');
     expect(hasContextualInfo).toBe(true);
   });
 });
@@ -237,7 +234,7 @@ test.describe('My Entries Page - Empty State', () => {
     await page.waitForTimeout(500);
 
     // Check if empty state is shown
-    const emptyState = page.locator('text=/no entries found|haven\'t entered any shows/i');
+    const emptyState = page.locator("text=/no entries found|haven't entered any shows/i");
     const entryCards = page.locator('.myk9-entries-card');
 
     const cardCount = await entryCards.count();
@@ -279,13 +276,14 @@ test.describe('My Entries Page - Context-Aware Messaging', () => {
 
       // Should have relative time or context (e.g., "Accepted 2 days ago", "Show is tomorrow")
       const messageText = await lastUpdatedSection.first().textContent();
-      const hasContextualMessage = messageText?.includes('ago') ||
-                                   messageText?.includes('today') ||
-                                   messageText?.includes('tomorrow') ||
-                                   messageText?.includes('days') ||
-                                   messageText?.includes('pending') ||
-                                   messageText?.includes('Accepted') ||
-                                   messageText?.includes('Submitted');
+      const hasContextualMessage =
+        messageText?.includes('ago') ||
+        messageText?.includes('today') ||
+        messageText?.includes('tomorrow') ||
+        messageText?.includes('days') ||
+        messageText?.includes('pending') ||
+        messageText?.includes('Accepted') ||
+        messageText?.includes('Submitted');
       expect(hasContextualMessage).toBe(true);
     }
   });

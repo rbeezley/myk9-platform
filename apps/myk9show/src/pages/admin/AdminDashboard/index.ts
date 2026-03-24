@@ -11,6 +11,5 @@ export * from './admin-dashboard-types';
 export { useAdminDashboardData, calculateDashboardStats } from './useAdminDashboardData';
 
 // Components
-export { StatsCard } from './StatsCard';
 export { PlatformAdministrationSection } from './PlatformAdministrationSection';
 export { PlatformStatisticsSection } from './PlatformStatisticsSection';

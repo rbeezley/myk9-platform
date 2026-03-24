@@ -222,22 +222,19 @@ describe('TrialDetailsMain', () => {
       expect(screen.getByText('Total Entries')).toBeInTheDocument();
     });
 
-    it('displays detail rows for each stat card', () => {
+    it('displays contextual subtitles for each stat card', () => {
       renderWithProviders(
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      // Judges details
-      expect(screen.getByText('Active: 1')).toBeInTheDocument();
-      expect(screen.getByText('On Break: 1')).toBeInTheDocument();
+      // Judges subtitle: "1 active"
+      expect(screen.getByText('1 active')).toBeInTheDocument();
 
-      // Classes details
-      expect(screen.getByText('Upcoming: 9')).toBeInTheDocument();
-      expect(screen.getByText('Completed: 3')).toBeInTheDocument();
+      // Classes subtitle: "3 of 12 completed"
+      expect(screen.getByText('3 of 12 completed')).toBeInTheDocument();
 
-      // Entries details
-      expect(screen.getByText('Upcoming: 72')).toBeInTheDocument();
-      expect(screen.getByText('Completed: 24')).toBeInTheDocument();
+      // Entries subtitle: "24 scored"
+      expect(screen.getByText('24 scored')).toBeInTheDocument();
     });
 
     it('displays qualified rate details when completed classes exist', () => {
@@ -245,8 +242,8 @@ describe('TrialDetailsMain', () => {
         <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
-      expect(screen.getByText('Qualified: 18')).toBeInTheDocument();
-      expect(screen.getByText('Total: 24')).toBeInTheDocument();
+      // Qualified Rate subtitle: "18 of 24 qualified"
+      expect(screen.getByText('18 of 24 qualified')).toBeInTheDocument();
       expect(screen.getByText('75%')).toBeInTheDocument();
     });
   });

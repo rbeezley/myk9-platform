@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { StatCard, StatsGrid } from '@myk9/ui';
+import { LayoutGrid, Clock, Users, AlertTriangle, Calendar } from 'lucide-react';
 
 interface ScheduleStats {
   totalDuration: number;
@@ -14,10 +15,7 @@ interface RunOrderQuickStatsProps {
   stats: ScheduleStats;
 }
 
-export const RunOrderQuickStats: React.FC<RunOrderQuickStatsProps> = ({
-  classCount,
-  stats,
-}) => {
+export const RunOrderQuickStats: React.FC<RunOrderQuickStatsProps> = ({ classCount, stats }) => {
   const formatDuration = (minutes: number | undefined) => {
     if (!minutes) return '--';
     const hours = Math.floor(minutes / 60);
@@ -30,37 +28,27 @@ export const RunOrderQuickStats: React.FC<RunOrderQuickStatsProps> = ({
   };
 
   return (
-    <Card className="mb-6">
-      <CardContent className="pt-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{classCount}</div>
-            <div className="text-sm text-muted-foreground">Classes</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {formatDuration(stats.totalDuration)}
-            </div>
-            <div className="text-sm text-muted-foreground">Duration</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{stats.judgeCount}</div>
-            <div className="text-sm text-muted-foreground">Judges</div>
-          </div>
-          <div className="text-center">
-            <div className={`text-2xl font-bold ${stats.totalConflicts > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {stats.totalConflicts}
-            </div>
-            <div className="text-sm text-muted-foreground">Conflicts</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm">
-              {formatTime(stats.startTime)} - {formatTime(stats.endTime)}
-            </div>
-            <div className="text-sm text-muted-foreground">Schedule</div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <StatsGrid columns={5} className="mb-6">
+      <StatCard icon={LayoutGrid} title="Classes" value={classCount} color="blue" />
+      <StatCard
+        icon={Clock}
+        title="Duration"
+        value={formatDuration(stats.totalDuration)}
+        color="emerald"
+      />
+      <StatCard icon={Users} title="Judges" value={stats.judgeCount} color="purple" />
+      <StatCard
+        icon={AlertTriangle}
+        title="Conflicts"
+        value={stats.totalConflicts}
+        color={stats.totalConflicts > 0 ? 'red' : 'emerald'}
+      />
+      <StatCard
+        icon={Calendar}
+        title="Schedule"
+        value={`${formatTime(stats.startTime)} - ${formatTime(stats.endTime)}`}
+        color="primary"
+      />
+    </StatsGrid>
   );
 };

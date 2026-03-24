@@ -3,6 +3,7 @@ import { Show } from '@/types/show-types';
 import type { ClassStat } from './ClassDetailsMain.types';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { Dog } from '@/types/dog-types';
+import { msToDisplay } from '@/lib/timeUtils';
 
 /**
  * Count the number of populated (non-empty, non-zero, non-false) fields.
@@ -19,13 +20,10 @@ export function countPopulatedFields(fields: (string | number | boolean | undefi
 
 /**
  * Format time from milliseconds to MM:SS.HH format.
+ * @deprecated Use `msToDisplay(ms, 'hundredths')` from `@/lib/timeUtils` directly.
  */
 export function formatTime(ms: number): string {
-  const totalSeconds = ms / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  const hundredths = Math.round((totalSeconds % 1) * 100);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+  return msToDisplay(ms, 'hundredths');
 }
 
 /**

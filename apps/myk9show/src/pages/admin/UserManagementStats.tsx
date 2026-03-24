@@ -4,73 +4,12 @@
 
 import React from 'react';
 import { Users, UserCheck, Shield, CheckSquare } from 'lucide-react';
+import { StatCard, StatsGrid } from '@myk9/ui';
 import type { User } from '@/types/user-types';
 import type { SelectedUser } from './UserManagementPage.types';
 
-/** Shared style constants */
 const SF_FONT_FAMILY =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
-const EASE_TIMING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  subtitle: string;
-  icon: React.ReactNode;
-  iconBgClass: string;
-  hoverTextClass?: string;
-}
-
-const StatCard: React.FC<StatCardProps> = ({
-  label,
-  value,
-  subtitle,
-  icon,
-  iconBgClass,
-  hoverTextClass,
-}) => (
-  <div
-    className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
-                border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
-                transition-all duration-300
-                min-h-[140px]"
-    style={{
-      fontFamily: SF_FONT_FAMILY,
-      transitionTimingFunction: EASE_TIMING,
-    }}
-  >
-    <div
-      className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
-                     opacity-0 transition-opacity duration-300"
-    />
-    <div className="relative h-full flex flex-col justify-between">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <p
-            className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2"
-            style={{ fontWeight: 590, letterSpacing: '0.02em' }}
-          >
-            {label}
-          </p>
-        </div>
-        <div className={`p-2.5 ${iconBgClass} rounded-xl shadow-sm transition-all duration-300`}>
-          {icon}
-        </div>
-      </div>
-      <div className="flex-1 flex flex-col justify-center">
-        <p
-          className={`text-2xl font-bold mb-1 transition-colors duration-300 ${hoverTextClass ?? ''}`}
-          style={{ fontWeight: 650, lineHeight: '1.25' }}
-        >
-          {value}
-        </p>
-        <p className="text-sm text-muted-foreground" style={{ fontWeight: 500 }}>
-          {subtitle}
-        </p>
-      </div>
-    </div>
-  </div>
-);
 
 interface UserManagementStatsProps {
   users: User[];
@@ -105,44 +44,42 @@ export const UserManagementStats: React.FC<UserManagementStatsProps> = ({
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatsGrid columns={4}>
         <StatCard
-          label="Total Users"
+          title="Total Users"
           value={users.length.toLocaleString()}
+          icon={Users}
+          color="primary"
           subtitle={
             filteredUsers.length !== users.length
               ? `${filteredUsers.length} filtered`
               : 'Platform users'
           }
-          icon={<Users className="h-5 w-5 text-primary" />}
-          iconBgClass="bg-gradient-to-br from-primary/20 to-primary/10"
         />
         <StatCard
-          label="Active Users"
+          title="Active Users"
           value={activeCount}
+          icon={UserCheck}
+          color="emerald"
           subtitle={`${activePercent}% of total`}
-          icon={<UserCheck className="h-5 w-5 text-emerald-600" />}
-          iconBgClass="bg-gradient-to-br from-emerald-500/20 to-emerald-500/10"
         />
         <StatCard
-          label="Roles Assigned"
+          title="Roles Assigned"
           value={totalRoles}
+          icon={Shield}
+          color="purple"
           subtitle={`Across ${roleTypeCount} role types`}
-          icon={<Shield className="h-5 w-5 text-purple-600" />}
-          iconBgClass="bg-gradient-to-br from-purple-500/20 to-purple-500/10"
-          hoverTextClass="group-hover:text-purple-600"
         />
         <StatCard
-          label="Selected"
+          title="Selected"
           value={selectedUsers.length}
+          icon={CheckSquare}
+          color="blue"
           subtitle={
             selectedUsers.length > 0 ? 'Users selected for bulk actions' : 'No users selected'
           }
-          icon={<CheckSquare className="h-5 w-5 text-blue-600" />}
-          iconBgClass="bg-gradient-to-br from-blue-500/20 to-blue-500/10"
-          hoverTextClass="group-hover:text-blue-600"
         />
-      </div>
+      </StatsGrid>
     </div>
   );
 };

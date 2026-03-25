@@ -163,6 +163,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 type="number"
                 value={item.faults}
                 onChange={e => updateBulkData(item.entryId, 'faults', e.target.value)}
+                onFocus={e => e.target.select()}
                 onKeyDown={e => handleKeyDown(e, row.index, 'faults')}
                 min="0"
                 max="99"

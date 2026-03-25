@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Trophy, Trash2 } from 'lucide-react';
@@ -45,14 +45,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
   const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
   const canEdit = userPermissions.canEditEntries;
-
-  // Stable index lookup — cell renderers call this from event handlers, not during render.
-  // Using bulkData.findIndex inside a useCallback keeps columns stable across data edits.
-  const getIndex = useCallback(
-    (entryId: string) => bulkData.findIndex(d => d.entryId === entryId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting bulkData to keep columns stable
-    []
-  );
 
   const columns: ColumnDef<BulkEntryData, unknown>[] = useMemo(() => {
     const cols: ColumnDef<BulkEntryData, unknown>[] = [
@@ -113,18 +105,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'qualification',
         accessorKey: 'qualification',
         header: 'Qualification',
-        cell: ({ row }) => {
-          const item = row.original;
-          const index = getIndex(item.entryId);
-          return (
-            <QualificationCell
-              item={item}
-              index={index}
-              canEdit={canEdit}
-              onUpdate={updateBulkData}
-            />
-          );
-        },
+        cell: ({ row }) => (
+          <QualificationCell item={row.original} canEdit={canEdit} onUpdate={updateBulkData} />
+        ),
       },
       // Time
       {
@@ -133,7 +116,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         header: 'Search Time',
         cell: ({ row }) => {
           const item = row.original;
-          const index = getIndex(item.entryId);
           if (canEdit) {
             return (
               <div className="flex justify-center">
@@ -146,7 +128,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                   <TimeInput
                     value={item.searchTime}
                     onChange={digits =>
-                      updateBulkData(index, 'searchTime', formatSearchTime(digits))
+                      updateBulkData(item.entryId, 'searchTime', formatSearchTime(digits))
                     }
                     onCommit={() => {}}
                     onCancel={() => {}}
@@ -170,21 +152,20 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         header: 'Faults',
         cell: ({ row }) => {
           const item = row.original;
-          const index = getIndex(item.entryId);
           if (canEdit) {
             return (
               <Input
                 type="number"
                 value={item.faults}
-                onChange={e => updateBulkData(index, 'faults', e.target.value)}
-                onKeyDown={e => handleKeyDown(e, index, 'faults')}
+                onChange={e => updateBulkData(item.entryId, 'faults', e.target.value)}
+                onKeyDown={e => handleKeyDown(e, row.index, 'faults')}
                 min="0"
                 max="99"
                 className={cn(
                   'w-16',
                   item.modifiedFields?.has('faults') && 'ring-2 ring-blue-500/30 border-blue-500'
                 )}
-                data-index={index}
+                data-index={row.index}
                 data-field="faults"
               />
             );
@@ -199,19 +180,18 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         header: 'Notes',
         cell: ({ row }) => {
           const item = row.original;
-          const index = getIndex(item.entryId);
           if (canEdit) {
             return (
               <Input
                 value={item.notes}
-                onChange={e => updateBulkData(index, 'notes', e.target.value)}
-                onKeyDown={e => handleKeyDown(e, index, 'notes')}
+                onChange={e => updateBulkData(item.entryId, 'notes', e.target.value)}
+                onKeyDown={e => handleKeyDown(e, row.index, 'notes')}
                 placeholder="Optional notes"
                 className={cn(
                   'w-40',
                   item.modifiedFields?.has('notes') && 'ring-2 ring-blue-500/30 border-blue-500'
                 )}
-                data-index={index}
+                data-index={row.index}
                 data-field="notes"
               />
             );
@@ -257,7 +237,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   }, [
     canEdit,
     entryMap,
-    getIndex,
     handleKeyDown,
     onDeleteEntry,
     showDeleteColumn,

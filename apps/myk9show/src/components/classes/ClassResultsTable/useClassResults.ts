@@ -47,7 +47,7 @@ export function useClassResults({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     setBulkData(() => {
-      const newData = entries.map((entry) => {
+      const newData = entries.map(entry => {
         const existingData = entry.judgingState?.currentResult;
         const competitionData = entry.competitionData;
 
@@ -65,18 +65,14 @@ export function useClassResults({
         if (competitionData?.time) {
           searchTime = convertTimeToInputFormat(competitionData.time);
         } else if (existingData?.searchTime) {
-          searchTime = convertTimeToInputFormat(
-            (existingData.searchTime / 1000).toString()
-          );
+          searchTime = convertTimeToInputFormat((existingData.searchTime / 1000).toString());
         }
 
         // Determine qualification status
         let qualification: QualificationStatus | '' = '';
 
         // First priority: check for explicit qualification string
-        if (
-          (competitionData as Record<string, unknown>)?.qualification
-        ) {
+        if ((competitionData as Record<string, unknown>)?.qualification) {
           qualification = (competitionData as Record<string, unknown>)
             .qualification as QualificationStatus;
         }
@@ -124,23 +120,16 @@ export function useClassResults({
   // ---------------------------------------------------------------------------
   const summary: ResultsSummary = useMemo(() => {
     const totalEntries = bulkData.length;
-    const entriesWithData = bulkData.filter(
-      (item) => item.hasChanges && item.isValid
-    ).length;
-    const validEntries = bulkData.filter((item) => item.isValid).length;
-    const invalidEntries = bulkData.filter(
-      (item) => item.hasChanges && !item.isValid
-    ).length;
+    const entriesWithData = bulkData.filter(item => item.hasChanges && item.isValid).length;
+    const validEntries = bulkData.filter(item => item.isValid).length;
+    const invalidEntries = bulkData.filter(item => item.hasChanges && !item.isValid).length;
 
     return {
       totalEntries,
       entriesWithData,
       validEntries,
       invalidEntries,
-      canSubmit:
-        validEntries > 0 &&
-        invalidEntries === 0 &&
-        userPermissions.canEditEntries,
+      canSubmit: validEntries > 0 && invalidEntries === 0 && userPermissions.canEditEntries,
     };
   }, [bulkData, userPermissions.canEditEntries]);
 
@@ -148,12 +137,14 @@ export function useClassResults({
   // Update bulk data and validate
   // ---------------------------------------------------------------------------
   const updateBulkData = useCallback(
-    (index: number, field: keyof BulkEntryData, value: string) => {
+    (entryId: string, field: keyof BulkEntryData, value: string) => {
       if (!userPermissions.canEditEntries) {
-        return; // Prevent editing for users without permissions
+        return;
       }
 
-      setBulkData((prev) => {
+      setBulkData(prev => {
+        const index = prev.findIndex(d => d.entryId === entryId);
+        if (index === -1) return prev;
         const newData = [...prev];
         const item = { ...newData[index] };
 
@@ -172,8 +163,7 @@ export function useClassResults({
 
         // Check if entry has meaningful changes (not just empty or default values)
         const hasTime = item.searchTime && item.searchTime.trim() !== '';
-        const hasQualification =
-          item.qualification && item.qualification.length > 0;
+        const hasQualification = item.qualification && item.qualification.length > 0;
         const hasQualificationReason =
           item.qualificationReason && item.qualificationReason.trim() !== '';
         const hasFaults = item.faults !== '0';
@@ -200,11 +190,7 @@ export function useClassResults({
         }
 
         // Recalculate placements when relevant fields change
-        if (
-          field === 'searchTime' ||
-          field === 'qualification' ||
-          field === 'faults'
-        ) {
+        if (field === 'searchTime' || field === 'qualification' || field === 'faults') {
           return calculatePlacements(newData);
         }
 
@@ -225,9 +211,7 @@ export function useClassResults({
         e.preventDefault();
 
         const fields = NAVIGABLE_FIELDS;
-        const currentFieldIndex = fields.indexOf(
-          field as (typeof fields)[number]
-        );
+        const currentFieldIndex = fields.indexOf(field as (typeof fields)[number]);
 
         let nextIndex = index;
         let nextFieldIndex = currentFieldIndex;
@@ -273,15 +257,12 @@ export function useClassResults({
 
     try {
       const validResults = bulkData
-        .filter((item) => item.hasChanges && item.isValid)
-        .map((item) => {
-          const searchTime = item.searchTime
-            ? timeStringToMs(item.searchTime)
-            : 0;
+        .filter(item => item.hasChanges && item.isValid)
+        .map(item => {
+          const searchTime = item.searchTime ? timeStringToMs(item.searchTime) : 0;
           const result: ScentWorkResult = {
             entryId: item.entryId,
-            classId:
-              entries.find((e) => e.id === item.entryId)?.classId || '',
+            classId: entries.find(e => e.id === item.entryId)?.classId || '',
             searchTime,
             maxTimeAllowed: classConfig.timeLimit,
             qualification: item.qualification as QualificationStatus,
@@ -303,8 +284,8 @@ export function useClassResults({
       await onResultsSubmit(validResults);
 
       // Clear modified fields after successful submission
-      setBulkData((prev) =>
-        prev.map((item) => ({
+      setBulkData(prev =>
+        prev.map(item => ({
           ...item,
           modifiedFields: new Set<keyof BulkEntryData>(),
           lastEditedBy: userPermissions.displayName || 'Unknown User',
@@ -313,9 +294,7 @@ export function useClassResults({
       );
     } catch (error) {
       logger.error('Submit error:', 'classes', {}, error as Error);
-      setSubmitError(
-        error instanceof Error ? error.message : 'Failed to submit results'
-      );
+      setSubmitError(error instanceof Error ? error.message : 'Failed to submit results');
     } finally {
       setIsSubmitting(false);
     }

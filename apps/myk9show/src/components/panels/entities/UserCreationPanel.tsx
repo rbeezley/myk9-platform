@@ -13,96 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Loader2, User, AlertTriangle } from 'lucide-react';
 import { useUserStore, PersonInput } from '@/store/userStore';
-import { BasePanelProps } from '../types';
 import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-
-interface PersonFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  role?: UserRole;
-}
-
-const PERSON_ROLES: { value: UserRole; label: string }[] = [
-  { value: UserRole.EXHIBITOR, label: 'Exhibitor' },
-  { value: UserRole.JUDGE, label: 'Judge' },
-  { value: UserRole.CHAIRMAN, label: 'Chairman' },
-  { value: UserRole.SECRETARY, label: 'Secretary' },
-  { value: UserRole.STEWARD, label: 'Steward' },
-  { value: UserRole.CLUB_ADMIN, label: 'Club Admin' },
-  { value: UserRole.SITE_ADMIN, label: 'Site Admin' },
-];
-
-const US_STATES = [
-  'AL',
-  'AK',
-  'AZ',
-  'AR',
-  'CA',
-  'CO',
-  'CT',
-  'DE',
-  'FL',
-  'GA',
-  'HI',
-  'ID',
-  'IL',
-  'IN',
-  'IA',
-  'KS',
-  'KY',
-  'LA',
-  'ME',
-  'MD',
-  'MA',
-  'MI',
-  'MN',
-  'MS',
-  'MO',
-  'MT',
-  'NE',
-  'NV',
-  'NH',
-  'NJ',
-  'NM',
-  'NY',
-  'NC',
-  'ND',
-  'OH',
-  'OK',
-  'OR',
-  'PA',
-  'RI',
-  'SC',
-  'SD',
-  'TN',
-  'TX',
-  'UT',
-  'VT',
-  'VA',
-  'WA',
-  'WV',
-  'WI',
-  'WY',
-];
-
-interface PersonCreationPanelProps extends BasePanelProps {
-  role?: 'chairman' | 'secretary' | 'judge' | 'exhibitor';
-  onStateChange?: (state: {
-    isLoading: boolean;
-    error: string | null;
-    isDirty: boolean;
-    isValid: boolean;
-  }) => void;
-  showActions?: boolean; // Controls whether to show action buttons
-}
+import { PERSON_ROLES, US_STATES } from './UserCreationPanel.constants';
+import type { PersonFormData, PersonCreationPanelProps } from './UserCreationPanel.types';
 
 export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   panelId,

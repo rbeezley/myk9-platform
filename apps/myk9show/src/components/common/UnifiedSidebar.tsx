@@ -3,121 +3,10 @@ import { FixedSizeList as List } from 'react-window';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, ChevronDown, Search, Plus, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SIDEBAR_TOKENS } from './UnifiedSidebar.constants';
+import type { UnifiedSidebarProps } from './UnifiedSidebar.types';
 
-// Soft Modern design tokens - warm, approachable, polished
-// Uses CSS variable --primary for dynamic accent color support
-const SIDEBAR_TOKENS = {
-  collapsed: {
-    width: '80px',
-    minWidth: '5rem',
-  },
-  expanded: {
-    width: '240px',
-    minWidth: '12.5rem',
-  },
-  heights: {
-    header: '64px',
-    search: '48px',
-    groupHeader: '32px',
-    item: '44px',
-  },
-  colors: {
-    // Use CSS variable for seamless integration with page background
-    container: 'bg-[var(--sidebar)]',
-    border: 'border-slate-200/60 dark:border-slate-800/60',
-    // Header with subtle depth - transparent to inherit sidebar background
-    header: 'bg-transparent border-b border-slate-200/20 dark:border-slate-800/20',
-    // Elevated search with glass effect
-    search:
-      'bg-background/90 dark:bg-slate-800/90 border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md',
-    item: {
-      // Subtle hover state - uses primary accent color
-      default:
-        'text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-slate-900 dark:hover:text-slate-200',
-      // Primary accent color for selected state
-      selected: 'bg-primary/15 dark:bg-primary/20 text-primary shadow-sm border-l-2 border-primary',
-      // Collapsed state
-      collapsed: 'hover:bg-primary/10 text-slate-500 dark:text-slate-400 hover:text-primary',
-    },
-    text: {
-      primary: 'text-slate-900 dark:text-slate-100',
-      secondary: 'text-slate-500 dark:text-slate-400',
-      selected: 'text-primary font-medium',
-      groupHeader:
-        'text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider',
-    },
-    groupHeader:
-      'text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider',
-  },
-  // Spring-like animation curve for bouncy micro-interactions
-  transitions: {
-    default: 'transition-all duration-300 ease-bounce',
-    fast: 'transition-all duration-200 ease-bounce',
-    slow: 'transition-all duration-500 ease-bounce',
-  },
-} as const;
-
-export interface SidebarGroup<T> {
-  id: string;
-  title: string;
-  icon?: React.ComponentType<{ className?: string }> | undefined;
-  count?: number | undefined;
-  items: T[];
-  isExpanded?: boolean | undefined;
-  isCollapsible?: boolean | undefined;
-  description?: string | undefined;
-}
-
-export interface UnifiedSidebarProps<T> {
-  // Core data
-  items?: T[] | undefined;
-  groups?: SidebarGroup<T>[] | undefined;
-  selectedId: string | null;
-
-  // Callbacks
-  onSelect: (id: string) => void;
-  onAdd?: (() => void) | undefined;
-  onGroupToggle?: ((groupId: string, isExpanded: boolean) => void) | undefined;
-  onCloseMobile?: (() => void) | undefined;
-
-  // Rendering
-  renderItem: (item: T, isSelected: boolean, isCollapsed: boolean) => React.ReactNode;
-  renderCollapsedItem?: ((item: T, isSelected: boolean) => React.ReactNode) | undefined;
-  getItemId: (item: T) => string;
-
-  // Search
-  enableSearch?: boolean | undefined;
-  searchPlaceholder?: string | undefined;
-  getSearchText?: ((item: T) => string) | undefined;
-  searchTerm?: string | undefined;
-  onSearchChange?: ((term: string) => void) | undefined;
-
-  // Appearance
-  title: string;
-  subtitle?: string | undefined;
-  headerIcon?: React.ComponentType<{ className?: string }> | undefined;
-  addButtonText?: string | undefined;
-  addButtonIcon?: React.ComponentType<{ className?: string }> | undefined;
-
-  // Behavior
-  enableCollapse?: boolean | undefined;
-  isCollapsed?: boolean | undefined;
-  onToggleCollapse?: (() => void) | undefined;
-  enableVirtualization?: boolean | undefined;
-  enableResize?: boolean | undefined;
-
-  // Styling
-  className?: string | undefined;
-  width?: number | undefined;
-  onWidthChange?: ((width: number) => void) | undefined;
-
-  // Performance
-  itemHeight?: number | undefined;
-  overscan?: number | undefined;
-
-  // Footer content
-  footerContent?: React.ReactNode | undefined;
-}
+export type { SidebarGroup, UnifiedSidebarProps } from './UnifiedSidebar.types';
 
 function UnifiedSidebar<T extends { id: string }>({
   items = [],
@@ -368,7 +257,7 @@ function UnifiedSidebar<T extends { id: string }>({
               <div
                 className={cn(
                   'mb-2 px-3 cursor-pointer flex items-center justify-between group rounded-md py-1.5',
-                  SIDEBAR_TOKENS.colors.groupHeader,
+                  SIDEBAR_TOKENS.colors.text.groupHeader,
                   'hover:bg-slate-100/50 dark:hover:bg-slate-800/30',
                   SIDEBAR_TOKENS.transitions.fast
                 )}

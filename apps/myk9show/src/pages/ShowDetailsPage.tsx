@@ -18,6 +18,7 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
+import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
@@ -132,7 +133,7 @@ const ShowDetailsPage: React.FC = () => {
     () =>
       isAuthenticated
         ? ['overview', 'trials', 'classes', 'my-entries', 'results']
-        : ['overview', 'trials', 'classes'],
+        : ['overview', 'trials', 'classes', 'results'],
     [isAuthenticated]
   );
   const [activeTab, setTab] = useUrlTab(allowedTabs, 'overview');
@@ -237,7 +238,7 @@ const ShowDetailsPage: React.FC = () => {
       ...(isAuthenticated
         ? [{ id: 'my-entries', label: 'Entries', icon: ClipboardList, count: userEntries.length }]
         : []),
-      ...(isAuthenticated ? [{ id: 'results', label: 'Results', icon: Medal, count: 0 }] : []),
+      { id: 'results', label: 'Results', icon: Medal, count: 0 },
     ],
     [isAuthenticated, associatedTrials.length, showClasses.length, userEntries.length]
   );
@@ -358,14 +359,9 @@ const ShowDetailsPage: React.FC = () => {
             </TabsContent>
           )}
 
-          {isAuthenticated && (
-            <TabsContent value="results">
-              <div className="py-12 text-center text-muted-foreground">
-                <p className="text-lg font-medium">Results</p>
-                <p className="text-sm mt-1">Results will appear here after classes are scored.</p>
-              </div>
-            </TabsContent>
-          )}
+          <TabsContent value="results">
+            <ShowResultsTab showId={actualCurrentShow.id} />
+          </TabsContent>
         </PrimaryTabs>
       </PageShell>
 

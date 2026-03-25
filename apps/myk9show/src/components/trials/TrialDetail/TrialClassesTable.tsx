@@ -1,27 +1,15 @@
-import { useState, useMemo, startTransition } from 'react';
+import { useState, startTransition } from 'react';
 import ClassRowActionsMenu from '@/components/classes/ClassRowActionsMenu';
 import { useNavigate } from 'react-router-dom';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { TrialClass } from '../types/trial.types';
+import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
 import {
-  FileText,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Search,
-  LayoutGrid,
-  List,
-  Layers,
-} from 'lucide-react';
+  DataTable,
+  DataTableToolbar,
+  DataTableSearch,
+} from '@/components/ui/data-table';
+import { FileText, LayoutGrid, List, Layers } from 'lucide-react';
 import { TrialClassesCards } from './TrialClassesCards';
 import { getClassStatusBadgeClasses } from '@myk9/core';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
@@ -39,11 +27,16 @@ const LEVEL_PROGRESSION: Record<string, number> = {
 };
 
 function levelOrder(level: string, section?: string): number {
-  // Try exact match first (e.g., "Novice A"), then base level (e.g., "Novice")
   const key = level.toLowerCase();
   const withSection = section ? `${key} ${section.toLowerCase()}` : key;
   return LEVEL_PROGRESSION[withSection] ?? LEVEL_PROGRESSION[key] ?? 99;
 }
+
+const trialLevelSort: SortingFn<TrialClass> = (rowA, rowB) => {
+  const a = levelOrder(rowA.original.level, rowA.original.section);
+  const b = levelOrder(rowB.original.level, rowB.original.section);
+  return a - b;
+};
 
 interface TrialClassesTableProps {
   classes: TrialClass[];
@@ -51,14 +44,6 @@ interface TrialClassesTableProps {
   onAddClassesFromTemplate?: () => void;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
-}
-
-type SortField = 'element' | 'level' | 'section' | 'judgeName' | 'startTime' | 'entries' | 'status';
-type SortDirection = 'asc' | 'desc';
-
-interface SortConfig {
-  field: SortField;
-  direction: SortDirection;
 }
 
 export const TrialClassesTable = ({
@@ -69,86 +54,109 @@ export const TrialClassesTable = ({
   onDeleteClass,
 }: TrialClassesTableProps) => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
 
-  // Handle column sorting
-  const handleSort = (field: SortField) => {
-    let direction: SortDirection = 'asc';
-    if (sortConfig && sortConfig.field === field && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ field, direction });
-  };
-
-  // Filter and sort classes
-  const filteredAndSortedClasses = useMemo(() => {
-    let filtered = classes;
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = classes.filter(classItem => {
-        const searchLower = searchTerm.toLowerCase();
-        return (
-          classItem.element.toLowerCase().includes(searchLower) ||
-          classItem.level.toLowerCase().includes(searchLower) ||
-          classItem.section.toLowerCase().includes(searchLower) ||
-          (classItem.judgeName || 'TBD').toLowerCase().includes(searchLower) ||
-          classItem.status.toLowerCase().includes(searchLower)
-        );
-      });
-    }
-
-    // Apply sorting
-    if (sortConfig) {
-      const { field, direction } = sortConfig;
-      const mult = direction === 'asc' ? 1 : -1;
-
-      filtered = [...filtered].sort((a, b) => {
-        let cmp = 0;
-
-        if (field === 'level') {
-          cmp = levelOrder(a.level, a.section) - levelOrder(b.level, b.section);
-        } else if (field === 'startTime') {
-          const aTime = a.startTime ? new Date(String(a.startTime)).getTime() : 0;
-          const bTime = b.startTime ? new Date(String(b.startTime)).getTime() : 0;
-          cmp = aTime - bTime;
-        } else if (field === 'entries') {
-          cmp = a.entries - b.entries;
-        } else {
-          const aVal = String(a[field] ?? '');
-          const bVal = String(b[field] ?? '');
-          cmp = aVal.localeCompare(bVal);
+  const columns: ColumnDef<TrialClass, unknown>[] = [
+    {
+      accessorKey: 'element',
+      header: 'Element',
+    },
+    {
+      id: 'level',
+      header: 'Level',
+      accessorFn: cls => {
+        if (shouldShowLevel(cls)) {
+          return cls.level + (shouldShowSection(cls) ? ` ${cls.section}` : '');
         }
-
-        return cmp * mult;
-      });
-    }
-
-    return filtered;
-  }, [classes, searchTerm, sortConfig]);
-
-  // Get sort icon for column header
-  const getSortIcon = (field: SortField) => {
-    if (!sortConfig || sortConfig.field !== field) {
-      return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />;
-    }
-    return sortConfig.direction === 'asc' ? (
-      <ArrowUp className="ml-2 h-4 w-4" />
-    ) : (
-      <ArrowDown className="ml-2 h-4 w-4" />
-    );
-  };
-
-  const getStatusBadge = (status: string) => {
-    return getClassStatusBadgeClasses(status);
-  };
+        return '';
+      },
+      sortingFn: trialLevelSort,
+      cell: ({ row }) => (
+        <>
+          {shouldShowLevel(row.original) ? row.original.level : '—'}
+          {shouldShowSection(row.original) && ` ${row.original.section}`}
+        </>
+      ),
+    },
+    {
+      accessorKey: 'judgeName',
+      header: 'Judge',
+      accessorFn: cls => cls.judgeName || 'TBD',
+    },
+    {
+      accessorKey: 'startTime',
+      header: 'Start Time',
+      sortingFn: 'datetime',
+      cell: ({ row }) =>
+        row.original.startTime
+          ? new Date(String(row.original.startTime)).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            })
+          : 'TBD',
+    },
+    {
+      accessorKey: 'entries',
+      header: 'Entries',
+      sortingFn: 'basic',
+      cell: ({ row }) => {
+        const cls = row.original;
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1">
+              <span>{cls.completedEntries ?? 0}</span>
+              <span className="text-muted-foreground">/</span>
+              <span>{cls.entries}</span>
+            </div>
+            {cls.entries > 0 && (
+              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, ((cls.completedEntries ?? 0) / cls.entries) * 100)}%`,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => (
+        <span
+          className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getClassStatusBadgeClasses(row.original.status)}`}
+        >
+          {row.original.status}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      enableHiding: false,
+      cell: ({ row }) => {
+        const cls = row.original;
+        return (
+          <div className="text-right" onClick={e => e.stopPropagation()}>
+            <ClassRowActionsMenu
+              onView={() => startTransition(() => navigate(`/classes/${cls.id}`))}
+              onEdit={() => onEditClass(cls)}
+              onDelete={() => onDeleteClass(cls)}
+            />
+          </div>
+        );
+      },
+    },
+  ];
 
   if (classes.length === 0) {
     return (
       <div className="text-center py-12">
-        {/* Empty state icon */}
         <div
           className="mx-auto w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4"
           data-testid="empty-state-icon"
@@ -179,13 +187,7 @@ export const TrialClassesTable = ({
       {/* Header with Add Buttons and View Toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">
-            Classes ({filteredAndSortedClasses.length}
-            {searchTerm && filteredAndSortedClasses.length !== classes.length && (
-              <span className="text-muted-foreground"> of {classes.length}</span>
-            )}
-            )
-          </h3>
+          <h3 className="text-lg font-semibold">Classes ({classes.length})</h3>
           <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
         </div>
         <div className="flex items-center gap-2">
@@ -228,22 +230,10 @@ export const TrialClassesTable = ({
         </div>
       </div>
 
-      {/* Search Box */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search classes..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="pl-10 bg-card"
-        />
-      </div>
-
       {/* Cards View */}
       {viewMode === 'cards' && (
         <TrialClassesCards
-          classes={filteredAndSortedClasses}
+          classes={classes}
           trialId={trialId || ''}
           onEditClass={onEditClass}
           onDeleteClass={onDeleteClass}
@@ -252,143 +242,17 @@ export const TrialClassesTable = ({
 
       {/* Table View */}
       {viewMode === 'table' && (
-        <div className="overflow-x-auto">
-          <Table className="bg-card text-foreground">
-            <TableHeader>
-              <TableRow className="bg-card hover:bg-card">
-                <TableHead
-                  className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
-                  onClick={() => handleSort('element')}
-                >
-                  <div className="flex items-center">
-                    Element
-                    {getSortIcon('element')}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
-                  onClick={() => handleSort('level')}
-                >
-                  <div className="flex items-center">
-                    Level
-                    {getSortIcon('level')}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
-                  onClick={() => handleSort('judgeName')}
-                >
-                  <div className="flex items-center">
-                    Judge
-                    {getSortIcon('judgeName')}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
-                  onClick={() => handleSort('startTime')}
-                >
-                  <div className="flex items-center">
-                    Start Time
-                    {getSortIcon('startTime')}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
-                  onClick={() => handleSort('entries')}
-                >
-                  <div className="flex items-center">
-                    Entries
-                    {getSortIcon('entries')}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
-                  onClick={() => handleSort('status')}
-                >
-                  <div className="flex items-center">
-                    Status
-                    {getSortIcon('status')}
-                  </div>
-                </TableHead>
-                <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAndSortedClasses.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <div className="text-muted-foreground">
-                      {searchTerm
-                        ? `No classes found matching "${searchTerm}"`
-                        : 'No classes to display'}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredAndSortedClasses.map(classItem => (
-                  <TableRow
-                    key={classItem.id}
-                    className="bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
-                  >
-                    <TableCell>{classItem.element}</TableCell>
-                    <TableCell>
-                      {shouldShowLevel(classItem) ? classItem.level : '—'}
-                      {shouldShowSection(classItem) && ` ${classItem.section}`}
-                    </TableCell>
-                    <TableCell>{classItem.judgeName || 'TBD'}</TableCell>
-                    <TableCell>
-                      {classItem.startTime
-                        ? new Date(String(classItem.startTime)).toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true,
-                          })
-                        : 'TBD'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1">
-                          <span>{classItem.completedEntries ?? 0}</span>
-                          <span className="text-muted-foreground">/</span>
-                          <span>{classItem.entries}</span>
-                        </div>
-                        {classItem.entries > 0 && (
-                          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, ((classItem.completedEntries ?? 0) / classItem.entries) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-block px-3 py-1 text-xs font-semibold rounded-full
-    ${getStatusBadge(classItem.status)}
-  `}
-                      >
-                        {classItem.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                      <ClassRowActionsMenu
-                        onView={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
-                        onEdit={() => onEditClass(classItem)}
-                        onDelete={() => onDeleteClass(classItem)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable<TrialClass>
+          columns={columns}
+          data={classes}
+          getRowId={cls => cls.id}
+          onRowClick={cls => startTransition(() => navigate(`/classes/${cls.id}`))}
+          toolbar={({ table }) => (
+            <DataTableToolbar table={table}>
+              <DataTableSearch placeholder="Search classes..." />
+            </DataTableToolbar>
+          )}
+        />
       )}
     </div>
   );

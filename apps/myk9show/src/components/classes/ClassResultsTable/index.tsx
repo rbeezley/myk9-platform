@@ -130,7 +130,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                     onChange={digits =>
                       updateBulkData(item.entryId, 'searchTime', formatSearchTime(digits))
                     }
-                    onCommit={() => {}}
+                    onCommit={() => {
+                      const next = document.querySelector(
+                        `[data-index="${row.index}"][data-field="faults"]`
+                      ) as HTMLElement;
+                      next?.focus();
+                    }}
                     onCancel={() => {}}
                     className="w-24 h-8 text-center font-mono"
                   />

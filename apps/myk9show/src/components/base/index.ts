@@ -13,9 +13,6 @@ export type { EntitySidebarProps, EntitySidebarItem } from './EntitySidebar';
 export { EntityCard } from './EntityCard';
 export type { EntityCardProps } from './EntityCard';
 
-export { DataTable } from './DataTable';
-export type { DataTableProps, DataTableColumn } from './DataTable';
-
 // Skeleton loaders
 export {
   SkeletonCard,

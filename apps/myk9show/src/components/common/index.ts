@@ -36,10 +36,6 @@ export { PremiumCard, FeatureCard, StatsCard, ShowCard } from './PremiumCard';
 
 export { GlassCard } from './GlassCard';
 
-// Table Components
-export { SortableTable } from './SortableTable';
-export type { ColumnDef, SortDirection } from './SortableTable';
-
 // Button Components
 export {
   PremiumButton,

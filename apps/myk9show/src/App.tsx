@@ -58,6 +58,9 @@ import { NotificationCenter } from '@/components/notifications/NotificationCente
 // Exhibitor Onboarding
 import { ExhibitorOnboardingChecker } from './components/exhibitor';
 
+// PWA Install
+import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
+
 // Error Handling
 import { GlobalErrorHandler } from './services/error/GlobalErrorHandler';
 
@@ -234,6 +237,7 @@ function App() {
                         )}
                       >
                         <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                          <PWAInstallBanner />
                           <AppHeader />
                           <NotificationCenter />
                           <Routes>

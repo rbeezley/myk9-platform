@@ -88,10 +88,7 @@ export function calculatePlacements(data: BulkEntryData[]): BulkEntryData[] {
   const qualifiedEntries = data
     .map((entry, index) => ({ ...entry, originalIndex: index }))
     .filter(
-      (entry) =>
-        entry.qualification === 'Qualified' &&
-        entry.searchTime &&
-        entry.faults !== undefined
+      entry => entry.qualification === 'Qualified' && entry.searchTime && entry.faults !== undefined
     );
 
   // Sort by faults (ascending), then by time (ascending)
@@ -117,7 +114,7 @@ export function calculatePlacements(data: BulkEntryData[]): BulkEntryData[] {
   });
 
   // Clear placements for non-qualified entries
-  updatedData.forEach((entry) => {
+  updatedData.forEach(entry => {
     if (entry.qualification !== 'Qualified') {
       entry.placement = null;
     }
@@ -138,17 +135,10 @@ export function validateEntry(data: BulkEntryData): { isValid: boolean; error?: 
     return { isValid: false, error: 'Reason required for NQ, Excused, or Withdrawn' };
   }
 
-  // Special handling for different qualification types
-  if (data.qualification === 'Qualified') {
-    if (!data.searchTime) {
-      return { isValid: false, error: 'Time required for Qualified entries' };
-    }
-  } else if (data.qualification === 'Not Qualified') {
-    if (!data.searchTime) {
-      return { isValid: false, error: 'Time required for NQ entries' };
-    }
+  // Only Qualified entries require time — NQ/Excused/Withdrawn/Absent may not have one
+  if (data.qualification === 'Qualified' && !data.searchTime) {
+    return { isValid: false, error: 'Time required for Qualified entries' };
   }
-  // Excused/Withdrawn/Absent entries don't require time
 
   // If time is provided without qualification, require qualification
   if (!data.qualification && data.searchTime) {

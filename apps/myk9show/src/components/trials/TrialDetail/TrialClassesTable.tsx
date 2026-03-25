@@ -98,32 +98,27 @@ export const TrialClassesTable = ({
 
     // Apply sorting
     if (sortConfig) {
+      const { field, direction } = sortConfig;
+      const mult = direction === 'asc' ? 1 : -1;
+
       filtered = [...filtered].sort((a, b) => {
-        const { field, direction } = sortConfig;
-        let aValue: string | number | Date = a[field] ?? '';
-        let bValue: string | number | Date = b[field] ?? '';
+        let cmp = 0;
 
-        // Handle special cases
         if (field === 'level') {
-          aValue = levelOrder(String(aValue));
-          bValue = levelOrder(String(bValue));
-        }
-        if (field === 'judgeName') {
-          aValue = aValue || 'TBD';
-          bValue = bValue || 'TBD';
-        }
-        if (field === 'startTime') {
-          aValue = aValue ? new Date(String(aValue)).getTime() : 0;
-          bValue = bValue ? new Date(String(bValue)).getTime() : 0;
+          cmp = levelOrder(a.level) - levelOrder(b.level);
+        } else if (field === 'startTime') {
+          const aTime = a.startTime ? new Date(String(a.startTime)).getTime() : 0;
+          const bTime = b.startTime ? new Date(String(b.startTime)).getTime() : 0;
+          cmp = aTime - bTime;
+        } else if (field === 'entries') {
+          cmp = a.entries - b.entries;
+        } else {
+          const aVal = String(a[field] ?? '');
+          const bVal = String(b[field] ?? '');
+          cmp = aVal.localeCompare(bVal);
         }
 
-        if (aValue < bValue) {
-          return direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return direction === 'asc' ? 1 : -1;
-        }
-        return 0;
+        return cmp * mult;
       });
     }
 
@@ -336,7 +331,7 @@ export const TrialClassesTable = ({
                   >
                     <TableCell>{classItem.element}</TableCell>
                     <TableCell>
-                      {shouldShowLevel(classItem) ? classItem.level : ''}
+                      {shouldShowLevel(classItem) ? classItem.level : '—'}
                       {shouldShowSection(classItem) && ` ${classItem.section}`}
                     </TableCell>
                     <TableCell>{classItem.judgeName || 'TBD'}</TableCell>

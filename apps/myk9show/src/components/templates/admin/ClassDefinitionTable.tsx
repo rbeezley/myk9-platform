@@ -140,7 +140,6 @@ function buildColumns(
   cols.push({
     id: 'description',
     header: 'Description',
-    enableSorting: false,
     accessorFn: (row: ClassDefRow) => row.classDef.description ?? '',
     cell: ({ row }) => (
       <span className="text-muted-foreground text-sm">

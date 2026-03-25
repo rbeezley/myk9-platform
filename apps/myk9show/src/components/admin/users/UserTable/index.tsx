@@ -298,7 +298,6 @@ function buildColumns(
     {
       id: 'status',
       header: 'Status',
-      enableSorting: false,
       accessorFn: (row: AdminUser) => row.status ?? 'active',
       cell: ({ row }) => {
         const user = row.original;

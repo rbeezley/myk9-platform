@@ -93,7 +93,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'placement',
         accessorKey: 'placement',
         header: 'Placement',
-        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
           return item.placement ? (
@@ -111,7 +110,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'qualification',
         accessorKey: 'qualification',
         header: 'Qualification',
-        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
           const index = getIndex(item.entryId);
@@ -130,7 +128,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'searchTime',
         accessorKey: 'searchTime',
         header: () => <span className="text-center block">Time (MM:SS.HH)</span>,
-        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
           const index = getIndex(item.entryId);
@@ -168,7 +165,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'faults',
         accessorKey: 'faults',
         header: 'Faults',
-        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
           const index = getIndex(item.entryId);
@@ -198,7 +194,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'notes',
         accessorKey: 'notes',
         header: 'Notes',
-        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
           const index = getIndex(item.entryId);
@@ -225,7 +220,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
       {
         id: 'status',
         header: 'Status',
-        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
           return <StatusBadge item={item} validationError={validationErrors.get(item.entryId)} />;

@@ -44,6 +44,10 @@ export { DataTableFilter } from './data-table-filter';
 export { DataTableColumnToggle } from './data-table-column-toggle';
 export { EditableCell } from './data-table-editable-cell';
 export type { EditableCellProps } from './data-table-editable-cell';
+export { TimeInput } from './data-table-time-input';
+export type { TimeInputProps } from './data-table-time-input';
+export { useScoringMode, ScoringProgress } from './data-table-scoring-mode';
+export type { UseScoringModeProps, UseScoringModeReturn } from './data-table-scoring-mode';
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];

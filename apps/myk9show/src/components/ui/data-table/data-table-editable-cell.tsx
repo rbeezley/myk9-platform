@@ -97,8 +97,7 @@ function CellEditor({
 // ─── DOM navigation helpers ───────────────────────────────────────────────────
 
 function getAllEditableCells(within: HTMLElement): HTMLElement[] {
-  const scope =
-    within.closest('table') ?? within.closest('[data-datatable]') ?? document;
+  const scope = within.closest('table') ?? within.closest('[data-datatable]') ?? document;
   return Array.from(scope.querySelectorAll<HTMLElement>('[data-editable-cell]'));
 }
 
@@ -140,22 +139,27 @@ export function EditableCell({
   children,
 }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
-  const [currentValue, setCurrentValue] = useState<unknown>(propValue);
+  const [currentValue, setCurrentValueRaw] = useState<unknown>(propValue);
   const originalValueRef = useRef<unknown>(propValue);
   const [validationError, setValidationError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const setCurrentValue = useCallback((v: unknown) => {
+    setCurrentValueRaw(v);
+    setIsDirty(v !== originalValueRef.current);
+  }, []);
 
   // Keep currentValue and originalValueRef in sync with propValue when not editing
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!editing) {
-      setCurrentValue(propValue);
+      setCurrentValueRaw(propValue);
       originalValueRef.current = propValue;
+      setIsDirty(false);
     }
   }, [propValue, editing]);
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  const isDirty = currentValue !== originalValueRef.current;
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

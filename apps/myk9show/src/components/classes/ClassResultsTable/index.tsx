@@ -126,7 +126,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
       {
         id: 'searchTime',
         accessorKey: 'searchTime',
-        header: 'Time',
+        header: 'Search Time',
         cell: ({ row }) => {
           const item = row.original;
           const index = getIndex(item.entryId);
@@ -318,37 +318,36 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               )}
             </div>
           </div>
-        </div>
 
-        <DataTable<BulkEntryData>
-          columns={columns}
-          data={bulkData}
-          getRowId={row => row.entryId}
-          pageSize={9999}
-          getRowClassName={row =>
-            row.hasChanges && !row.isValid ? 'bg-red-50 dark:bg-red-950/20' : ''
-          }
-        />
+          <DataTable<BulkEntryData>
+            columns={columns}
+            data={bulkData}
+            getRowId={row => row.entryId}
+            pageSize={9999}
+            getRowClassName={row =>
+              row.hasChanges && !row.isValid ? 'bg-red-50 dark:bg-red-950/20' : ''
+            }
+          />
 
-        {userPermissions.canEditEntries && (
-          <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
-            <div className="text-sm text-muted-foreground">
-              Press Enter or Tab to move between fields quickly &bull; Placements calculated
-              automatically
+          {userPermissions.canEditEntries && (
+            <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
+              <div className="text-sm text-muted-foreground">
+                Press Enter or Tab to move between fields quickly &bull; Placements calculated
+                automatically
+              </div>
+              <Button
+                onClick={handleSubmit}
+                disabled={!summary.canSubmit || isSubmitting}
+                className="myk9-action-button myk9-action-button-primary"
+              >
+                <Save className="h-4 w-4" />
+                <span>
+                  {isSubmitting ? 'Submitting...' : `Submit ${summary.entriesWithData} Results`}
+                </span>
+              </Button>
             </div>
-
-            <Button
-              onClick={handleSubmit}
-              disabled={!summary.canSubmit || isSubmitting}
-              className="myk9-action-button myk9-action-button-primary"
-            >
-              <Save className="h-4 w-4" />
-              <span>
-                {isSubmitting ? 'Submitting...' : `Submit ${summary.entriesWithData} Results`}
-              </span>
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </TooltipProvider>
   );

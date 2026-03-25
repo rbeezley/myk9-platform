@@ -1,21 +1,8 @@
-/**
- * ClassResultsTable - Main composition component
- *
- * Enhanced version of BulkResultEntry with:
- * - Role-based access control
- * - Automatic placement calculation
- * - Placement column display
- *
- * Migrated to use DataTable for standardised table rendering.
- */
-
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Trophy, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// UI Components
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -23,11 +10,7 @@ import { Input } from '@/components/ui/input';
 import { SimpleTimeFields } from '@/components/ui/simple-time-fields';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { DataTable } from '@/components/ui/data-table';
-
-// Premium styling
 import '@/styles/myk9-show-details.css';
-
-// Local modules
 import type { ClassResultsTableProps, BulkEntryData } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
 import { useClassResults } from './useClassResults';
@@ -289,7 +272,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   return (
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
-        {/* Error Messages (outside the card) */}
         {submitError && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -306,7 +288,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           </Alert>
         )}
 
-        {/* Header card */}
         <div className="myk9-show-info-card">
           <div className="myk9-show-info-header">
             <div className="flex items-center gap-2">
@@ -316,14 +297,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               </Badge>
             </div>
             <div className="flex items-center gap-2">
-              {/* Requirements button */}
               {onOpenRequirements && (
                 <Button variant="outline" size="sm" onClick={onOpenRequirements}>
                   <ClipboardList className="h-4 w-4" />
                   <span>Requirements</span>
                 </Button>
               )}
-              {/* Enter Scores button */}
+
               {classId && userPermissions.canEditEntries && (
                 <Button
                   variant="default"
@@ -334,7 +314,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                   Enter Scores
                 </Button>
               )}
-              {/* Add Entry button */}
+
               {onAddEntry && userPermissions.canEditEntries && (
                 <Button
                   onClick={onAddEntry}
@@ -348,7 +328,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           </div>
         </div>
 
-        {/* DataTable */}
         <DataTable<BulkEntryData>
           columns={columns}
           data={bulkData}
@@ -360,7 +339,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           }
         />
 
-        {/* Footer with submit */}
         {userPermissions.canEditEntries && (
           <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
             <div className="text-sm text-muted-foreground">

@@ -12,16 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  MoreHorizontal,
-  Edit,
-  Copy,
-  Trash2,
-  GripVertical,
-  Plus,
-  Check,
-  X,
-} from 'lucide-react';
+import { MoreHorizontal, Edit, Copy, Trash2, GripVertical, Plus, Check, X } from 'lucide-react';
 
 interface ClassDefinitionTableProps {
   classes: ClassDefinition[];
@@ -35,10 +26,6 @@ interface ClassDefRow {
   classDef: ClassDefinition;
   originalIndex: number;
 }
-
-// ---------------------------------------------------------------------------
-// Column factory
-// ---------------------------------------------------------------------------
 
 function buildColumns(
   readOnly: boolean,
@@ -59,9 +46,7 @@ function buildColumns(
       id: '_drag',
       enableSorting: false,
       header: () => null,
-      cell: () => (
-        <GripVertical className="h-4 w-4 text-muted-foreground opacity-40" />
-      ),
+      cell: () => <GripVertical className="h-4 w-4 text-muted-foreground opacity-40" />,
     });
   }
 
@@ -92,12 +77,7 @@ function buildColumns(
               className="h-7 w-16"
               min="1"
             />
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-              onClick={saveDisplayOrder}
-            >
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={saveDisplayOrder}>
               <Check className="h-3 w-3" />
             </Button>
             <Button
@@ -134,9 +114,7 @@ function buildColumns(
     id: 'element',
     header: 'Element',
     accessorFn: (row: ClassDefRow) => row.classDef.element,
-    cell: ({ row }) => (
-      <Badge variant="outline">{row.original.classDef.element}</Badge>
-    ),
+    cell: ({ row }) => <Badge variant="outline">{row.original.classDef.element}</Badge>,
   });
 
   // Level
@@ -144,9 +122,7 @@ function buildColumns(
     id: 'level',
     header: 'Level',
     accessorFn: (row: ClassDefRow) => row.classDef.level ?? '',
-    cell: ({ row }) => (
-      <Badge variant="outline">{row.original.classDef.level}</Badge>
-    ),
+    cell: ({ row }) => <Badge variant="outline">{row.original.classDef.level}</Badge>,
   });
 
   // Section
@@ -194,9 +170,7 @@ function buildColumns(
             </DropdownMenuItem>
             {!readOnly && (
               <>
-                <DropdownMenuItem
-                  onClick={() => handleDuplicate(originalIndex)}
-                >
+                <DropdownMenuItem onClick={() => handleDuplicate(originalIndex)}>
                   <Copy className="h-4 w-4 mr-2" />
                   Duplicate
                 </DropdownMenuItem>
@@ -229,9 +203,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
   onEdit,
   readOnly = false,
 }) => {
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(
-    new Set()
-  );
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [editingDisplayOrder, setEditingDisplayOrder] = useState<{
     index: number;
     value: string;
@@ -248,10 +220,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
   );
 
   // Row identity: use the original index as the row ID
-  const getRowId = useCallback(
-    (row: ClassDefRow) => String(row.originalIndex),
-    []
-  );
+  const getRowId = useCallback((row: ClassDefRow) => String(row.originalIndex), []);
 
   // Track selection via DataTable's onSelectionChange
   const handleSelectionChange = useCallback((selected: ClassDefRow[]) => {
@@ -284,9 +253,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
   );
 
   const handleBulkDelete = useCallback(() => {
-    const newClasses = classes.filter(
-      (_, index) => !selectedIndices.has(index)
-    );
+    const newClasses = classes.filter((_, index) => !selectedIndices.has(index));
     const reordered = newClasses.map((cls, i) => ({
       ...cls,
       displayOrder: i + 1,
@@ -348,6 +315,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
     [
       readOnly,
       editingDisplayOrder,
+      setEditingDisplayOrder,
       saveDisplayOrder,
       onEdit,
       handleDuplicate,
@@ -358,8 +326,8 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Define the specific classes that will be generated from this template.
-        Click on the display order to edit.
+        Define the specific classes that will be generated from this template. Click on the display
+        order to edit.
       </p>
 
       <DataTable<ClassDefRow>
@@ -367,9 +335,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
         data={rows}
         pageSize={9999}
         getRowId={getRowId}
-        emptyState={
-          <div className="text-muted-foreground">No classes defined yet.</div>
-        }
+        emptyState={<div className="text-muted-foreground">No classes defined yet.</div>}
         {...(readOnly
           ? {}
           : {
@@ -385,11 +351,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
                           : 'No classes selected'}
                       </span>
                       {selectedIndices.size > 0 && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={handleBulkDelete}
-                        >
+                        <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Selected
                         </Button>

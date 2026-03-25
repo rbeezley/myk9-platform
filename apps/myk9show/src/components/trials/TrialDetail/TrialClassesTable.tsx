@@ -1,4 +1,4 @@
-import { useState, startTransition } from 'react';
+import { useState, useMemo, startTransition } from 'react';
 import ClassRowActionsMenu from '@/components/classes/ClassRowActionsMenu';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -54,103 +54,106 @@ export const TrialClassesTable = ({
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [searchValue, setSearchValue] = useState('');
 
-  const columns: ColumnDef<TrialClass, unknown>[] = [
-    {
-      accessorKey: 'element',
-      header: 'Element',
-    },
-    {
-      id: 'level',
-      header: 'Level',
-      accessorFn: cls => {
-        if (shouldShowLevel(cls)) {
-          return cls.level + (shouldShowSection(cls) ? ` ${cls.section}` : '');
-        }
-        return '';
+  const columns: ColumnDef<TrialClass, unknown>[] = useMemo(
+    () => [
+      {
+        accessorKey: 'element',
+        header: 'Element',
       },
-      sortingFn: trialLevelSort,
-      cell: ({ row }) => (
-        <>
-          {shouldShowLevel(row.original) ? row.original.level : '—'}
-          {shouldShowSection(row.original) && ` ${row.original.section}`}
-        </>
-      ),
-    },
-    {
-      accessorKey: 'judgeName',
-      header: 'Judge',
-      accessorFn: cls => cls.judgeName || 'TBD',
-    },
-    {
-      accessorKey: 'startTime',
-      header: 'Start Time',
-      sortingFn: 'datetime',
-      cell: ({ row }) =>
-        row.original.startTime
-          ? new Date(String(row.original.startTime)).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            })
-          : 'TBD',
-    },
-    {
-      accessorKey: 'entries',
-      header: 'Entries',
-      sortingFn: 'basic',
-      cell: ({ row }) => {
-        const cls = row.original;
-        return (
-          <div className="space-y-1">
-            <div className="flex items-center gap-1">
-              <span>{cls.completedEntries ?? 0}</span>
-              <span className="text-muted-foreground">/</span>
-              <span>{cls.entries}</span>
-            </div>
-            {cls.entries > 0 && (
-              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(100, ((cls.completedEntries ?? 0) / cls.entries) * 100)}%`,
-                  }}
-                />
+      {
+        id: 'level',
+        header: 'Level',
+        accessorFn: cls => {
+          if (shouldShowLevel(cls)) {
+            return cls.level + (shouldShowSection(cls) ? ` ${cls.section}` : '');
+          }
+          return '';
+        },
+        sortingFn: trialLevelSort,
+        cell: ({ row }) => (
+          <>
+            {shouldShowLevel(row.original) ? row.original.level : '—'}
+            {shouldShowSection(row.original) && ` ${row.original.section}`}
+          </>
+        ),
+      },
+      {
+        accessorKey: 'judgeName',
+        header: 'Judge',
+        accessorFn: cls => cls.judgeName || 'TBD',
+      },
+      {
+        accessorKey: 'startTime',
+        header: 'Start Time',
+        sortingFn: 'datetime',
+        cell: ({ row }) =>
+          row.original.startTime
+            ? new Date(String(row.original.startTime)).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              })
+            : 'TBD',
+      },
+      {
+        accessorKey: 'entries',
+        header: 'Entries',
+        sortingFn: 'basic',
+        cell: ({ row }) => {
+          const cls = row.original;
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <span>{cls.completedEntries ?? 0}</span>
+                <span className="text-muted-foreground">/</span>
+                <span>{cls.entries}</span>
               </div>
-            )}
-          </div>
-        );
+              {cls.entries > 0 && (
+                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, ((cls.completedEntries ?? 0) / cls.entries) * 100)}%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        },
       },
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => (
-        <span
-          className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getClassStatusBadgeClasses(row.original.status)}`}
-        >
-          {row.original.status}
-        </span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      enableSorting: false,
-      enableHiding: false,
-      cell: ({ row }) => {
-        const cls = row.original;
-        return (
-          <div className="text-right" onClick={e => e.stopPropagation()}>
-            <ClassRowActionsMenu
-              onView={() => startTransition(() => navigate(`/classes/${cls.id}`))}
-              onEdit={() => onEditClass(cls)}
-              onDelete={() => onDeleteClass(cls)}
-            />
-          </div>
-        );
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <span
+            className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getClassStatusBadgeClasses(row.original.status)}`}
+          >
+            {row.original.status}
+          </span>
+        ),
       },
-    },
-  ];
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }) => {
+          const cls = row.original;
+          return (
+            <div className="text-right" onClick={e => e.stopPropagation()}>
+              <ClassRowActionsMenu
+                onView={() => startTransition(() => navigate(`/classes/${cls.id}`))}
+                onEdit={() => onEditClass(cls)}
+                onDelete={() => onDeleteClass(cls)}
+              />
+            </div>
+          );
+        },
+      },
+    ],
+    [onEditClass, onDeleteClass, navigate]
+  );
 
   if (classes.length === 0) {
     return (
@@ -180,22 +183,21 @@ export const TrialClassesTable = ({
     );
   }
 
-  const filteredCount = searchValue
-    ? classes.filter(cls => {
-        const q = searchValue.toLowerCase();
-        return (
-          cls.element?.toLowerCase().includes(q) ||
-          cls.level?.toLowerCase().includes(q) ||
-          (cls.judgeName ?? '').toLowerCase().includes(q) ||
-          cls.status?.toLowerCase().includes(q) ||
-          cls.section?.toLowerCase().includes(q)
-        );
-      }).length
-    : classes.length;
+  const filteredCount = useMemo(() => {
+    if (!searchValue) return classes.length;
+    const q = searchValue.toLowerCase();
+    return classes.filter(
+      cls =>
+        cls.element?.toLowerCase().includes(q) ||
+        cls.level?.toLowerCase().includes(q) ||
+        (cls.judgeName ?? '').toLowerCase().includes(q) ||
+        cls.status?.toLowerCase().includes(q) ||
+        cls.section?.toLowerCase().includes(q)
+    ).length;
+  }, [classes, searchValue]);
 
   return (
     <div className="space-y-4">
-      {/* Header with Add Buttons and View Toggle */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">
@@ -204,7 +206,6 @@ export const TrialClassesTable = ({
           <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* View Toggle */}
           <div className="flex items-center border rounded-lg overflow-hidden">
             <button
               type="button"
@@ -243,7 +244,6 @@ export const TrialClassesTable = ({
         </div>
       </div>
 
-      {/* Search bar */}
       <div className="relative max-w-sm">
         <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -254,7 +254,6 @@ export const TrialClassesTable = ({
         />
       </div>
 
-      {/* Cards View */}
       {viewMode === 'cards' && (
         <TrialClassesCards
           classes={classes}
@@ -264,7 +263,6 @@ export const TrialClassesTable = ({
         />
       )}
 
-      {/* Table View */}
       {viewMode === 'table' && (
         <DataTable<TrialClass>
           columns={columns}
@@ -273,7 +271,7 @@ export const TrialClassesTable = ({
           onRowClick={cls => startTransition(() => navigate(`/classes/${cls.id}`))}
           globalFilter={searchValue}
           onGlobalFilterChange={setSearchValue}
-          noResultsMessage={<p>No classes found</p>}
+          noResultsMessage="No classes found"
         />
       )}
     </div>

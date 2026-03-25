@@ -36,6 +36,7 @@ import {
   UserPlus,
   Settings,
   Search,
+  KanbanSquare,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -221,6 +222,12 @@ export function buildUnifiedSidebarConfig(
           href: '/secretary/day-of',
           icon: ClipboardCheck,
           description: 'Walk-ins, scratches, move-ups',
+        },
+        {
+          title: 'Tasks',
+          href: '/secretary/tasks',
+          icon: KanbanSquare,
+          description: 'Kanban task board',
         },
         {
           title: 'Run Orders',

@@ -759,6 +759,7 @@ export function DataTable<TData>({
     },
     enableMultiSort,
     maxMultiSortColCount: 3,
+    enableSortingRemoval: true, // [ADDED] unsorted → asc → desc → unsorted cycle
     enableRowSelection: !!selectable,
     enableMultiRowSelection: selectable === 'multi',
     manualSorting,
@@ -1334,6 +1335,87 @@ git commit -m "feat(data-table): add toolbar, search, filter, and column toggle 
 
 ---
 
+## Task 4b: Missing tests, accessibility polish, and search scoping [ADDED]
+
+**Files:**
+
+- Create: `src/components/ui/data-table/__tests__/data-table-selection.test.tsx`
+- Create: `src/components/ui/data-table/__tests__/data-table-column-toggle.test.tsx`
+- Modify: `src/components/ui/data-table/index.tsx`
+- Modify: `src/components/ui/data-table/data-table-search.tsx`
+- Modify: `src/components/ui/data-table/data-table-editable-cell.tsx` (created in Task 14, but plan the requirements now)
+
+These items close gaps between the spec and the plan.
+
+- [ ] **Step 1: Create selection tests**
+
+Create `src/components/ui/data-table/__tests__/data-table-selection.test.tsx`:
+
+Test cases:
+
+- Multi-select: clicking checkbox selects row
+- Multi-select: header checkbox selects all rows on current page
+- Multi-select: Shift+Click selects range (if implemented, otherwise skip)
+- Single-select: only one row can be selected at a time
+- Single-select: renders radio buttons instead of checkboxes
+- onSelectionChange fires with full selection array on each toggle
+- Checkbox click does NOT trigger onRowClick (stopPropagation)
+
+- [ ] **Step 2: Create column toggle tests**
+
+Create `src/components/ui/data-table/__tests__/data-table-column-toggle.test.tsx`:
+
+Test cases:
+
+- Renders toggle dropdown with column names
+- Toggling a column hides/shows it
+- Columns with `enableHiding: false` do not appear in dropdown
+- Toggle button shows "Columns" label
+
+- [ ] **Step 3: Add `searchColumns` prop to DataTableSearch** [EXPANDED]
+
+Update `src/components/ui/data-table/data-table-search.tsx`:
+
+- Add optional `searchColumns?: string[]` prop
+- When provided, set `enableGlobalFilter: false` on all columns, then use column-level `setFilterValue` only on the specified columns
+- When omitted, use global filter as before (existing behavior)
+
+- [ ] **Step 4: Add `enableSortingRemoval` to DataTable** [ALREADY PATCHED]
+
+Verified: `enableSortingRemoval: true` added to `useReactTable` config for three-state sort cycling.
+
+- [ ] **Step 5: Add Ctrl+S / Cmd+S keyboard shortcut for batch save** [ADDED]
+
+In `src/components/ui/data-table/index.tsx`, add a `useEffect` that listens for `Ctrl+S` / `Cmd+S` when `saveMode="batch"` and `onSaveBatch` is provided. Calls `onSaveBatch` with current dirty changes. Prevent default browser save dialog.
+
+- [ ] **Step 6: Document deferred accessibility items**
+
+The following accessibility features from the spec are deferred to a follow-up task (not blocking for initial DataTable release):
+
+- Focus management: move focus to first row on pagination change
+- Arrow key navigation between rows in non-editing mode
+- Screen reader announcements for entering/exiting edit mode
+- "Select all 127" cross-page selection link
+- Mobile toolbar responsive layout (filters collapse into dropdown)
+- Responsive-hidden columns shown as disabled in column toggle on small screens
+
+Add these as `// TODO: a11y` comments in the relevant files so they're tracked.
+
+- [ ] **Step 7: Run all tests**
+
+```bash
+cd apps/myk9show && npx vitest run src/components/ui/data-table/__tests__/
+```
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add apps/myk9show/src/components/ui/data-table/
+git commit -m "feat(data-table): add selection/toggle tests, searchColumns, Ctrl+S, a11y TODOs"
+```
+
+---
+
 ## Task 5: Migrate ClassesTableView (Phase 1)
 
 **Files:**
@@ -1710,6 +1792,8 @@ Test cases:
 - Shows validation error below cell
 - Shows dirty indicator (left border) when value changed
 - Calls `onSave` callback when auto-save fires
+- [ADDED] Click on editable cell calls `e.stopPropagation()` to prevent triggering onRowClick
+- [ADDED] Save failure (rejected promise) reverts cell value and shows toast error
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -1815,6 +1899,7 @@ Create `src/components/ui/data-table/data-table-scoring-mode.tsx`. This is a hoo
 - **Conditional field activation:** Accepts a `conditionalFields` config mapping column IDs to predicate functions. Cells for inactive fields are rendered as read-only.
 - **Progress indicator:** Component that renders "X of Y scored" based on which rows have a non-empty result value.
 - **Undo stack:** Maintains a stack of `{ rowId, columnId, oldValue }` entries. Ctrl+Z pops the stack, reverts the cell, and moves focus back.
+- **[ADDED] Error prevention:** When a time value is committed, compare against an optional `maxTime` from scoring config. If outside range, show an inline warning (yellow border, tooltip) but don't block — secretary knows best.
 
 - [ ] **Step 6: Run tests**
 
@@ -2027,11 +2112,20 @@ git commit -m "chore: final cleanup after DataTable migration"
 
 | Phase         | Tasks | Tables Migrated                                                                 |
 | ------------- | ----- | ------------------------------------------------------------------------------- |
-| Setup         | 1–4   | — (install, build DataTable + toolbar)                                          |
+| Setup         | 1–4b  | — (install, build DataTable + toolbar + tests + polish)                         |
 | Phase 1       | 5–8   | ClassesTableView, EntriesTableView, ShowsTableView + delete old                 |
 | Phase 2       | 9–13  | DogsTableView, PeopleTableView, TrialClassesTable, TrialEntriesTable, UserTable |
 | Editing infra | 14–15 | — (editable cell, scoring mode, time input)                                     |
 | Phase 3       | 16–18 | ClassEntriesTable, ClassResultsTable, ClassDefinitionTable                      |
 | Cleanup       | 19    | — (verification)                                                                |
 
-**Total: 19 tasks, 12 tables migrated, 2 old components deleted.**
+**Total: 20 tasks (19 + 4b), 12 tables migrated, 2 old components deleted.**
+
+### Deferred to follow-up (documented as TODO comments)
+
+- Focus management on pagination change
+- Arrow key navigation between rows (non-editing mode)
+- Screen reader edit-mode announcements
+- "Select all N" cross-page selection link
+- Mobile toolbar responsive layout (filters collapse into dropdown)
+- Responsive-hidden columns shown as disabled in column toggle on small screens

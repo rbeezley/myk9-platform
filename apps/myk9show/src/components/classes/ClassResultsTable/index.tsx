@@ -134,6 +134,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                       <button
                         type="button"
                         className="text-muted-foreground hover:text-foreground"
+                        onMouseDown={e => e.preventDefault()}
                         onClick={() => updateBulkData(item.entryId, 'searchTime', '')}
                         title="Clear time"
                       >

@@ -66,6 +66,7 @@ interface DataTableProps<TData> {
   onGlobalFilterChange?: (value: string) => void;
   manualSorting?: boolean;
   className?: string;
+  getRowClassName?: (data: TData) => string;
 }
 
 export function DataTable<TData>({
@@ -85,6 +86,7 @@ export function DataTable<TData>({
   onGlobalFilterChange,
   manualSorting = false,
   className,
+  getRowClassName,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -272,7 +274,8 @@ export function DataTable<TData>({
                 data-state={row.getIsSelected() ? 'selected' : undefined}
                 className={cn(
                   'border-b border-border/30 hover:bg-muted/20 transition-colors',
-                  onRowClick && 'cursor-pointer'
+                  onRowClick && 'cursor-pointer',
+                  getRowClassName?.(row.original)
                 )}
                 onClick={() => onRowClick?.(row.original, row)}
               >

@@ -5,27 +5,36 @@
  * - Role-based access control
  * - Automatic placement calculation
  * - Placement column display
+ *
+ * Migrated to use DataTable for standardised table rendering.
  */
 
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, AlertCircle, ClipboardList } from 'lucide-react';
+import { type ColumnDef } from '@tanstack/react-table';
+import { Save, AlertCircle, ClipboardList, Trophy, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // UI Components
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { SimpleTimeFields } from '@/components/ui/simple-time-fields';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
+import { DataTable } from '@/components/ui/data-table';
 
 // Premium styling
 import '@/styles/myk9-show-details.css';
 
 // Local modules
-import type { ClassResultsTableProps } from './types';
+import type { ClassResultsTableProps, BulkEntryData } from './types';
+import type { ScentWorkEntry } from '@/types/scent-work-types';
 import { useClassResults } from './useClassResults';
-import { ResultsTableRow } from './ResultsTableRow';
+import { getPlacementBadgeClass, formatPlacement } from './utils';
+import { DogInfoTooltip } from './DogInfoTooltip';
+import { QualificationCell } from './QualificationCell';
+import { StatusBadge } from './StatusBadge';
 
 export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   entries,
@@ -50,10 +59,232 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     handleSubmit,
   } = useClassResults({ entries, classConfig, userPermissions, onResultsSubmit });
 
-  // Build an entry lookup map so row rendering is O(1) per row
   const entryMap = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
 
   const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
+  const canEdit = userPermissions.canEditEntries;
+
+  // Column definitions for DataTable
+  const columns: ColumnDef<BulkEntryData, unknown>[] = useMemo(() => {
+    const indexMap = new Map(bulkData.map((d, i) => [d.entryId, i]));
+    const getIndex = (entryId: string) => indexMap.get(entryId) ?? -1;
+
+    const cols: ColumnDef<BulkEntryData, unknown>[] = [
+      // Armband
+      {
+        id: 'armband',
+        accessorKey: 'armband',
+        header: 'Armband',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <span className="font-medium">
+              {item.armband ? (
+                `#${item.armband}`
+              ) : (
+                <span className="text-muted-foreground">--</span>
+              )}
+            </span>
+          );
+        },
+      },
+      // Dog & Handler
+      {
+        id: 'dogHandler',
+        accessorKey: 'dogName',
+        header: 'Dog & Handler',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          const entry: ScentWorkEntry | undefined = entryMap.get(item.entryId);
+          return (
+            <div>
+              <DogInfoTooltip dogName={item.dogName} registrations={entry?.registrations} />
+              <div className="text-sm text-gray-600">{item.handlerName}</div>
+            </div>
+          );
+        },
+      },
+      // Placement
+      {
+        id: 'placement',
+        accessorKey: 'placement',
+        header: 'Placement',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          return item.placement ? (
+            <Badge variant="default" className={getPlacementBadgeClass(item.placement)}>
+              <Trophy className="h-4 w-4" />
+              {formatPlacement(item.placement)}
+            </Badge>
+          ) : (
+            <span className="text-sm text-muted-foreground">--</span>
+          );
+        },
+      },
+      // Qualification
+      {
+        id: 'qualification',
+        accessorKey: 'qualification',
+        header: 'Qualification',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          const index = getIndex(item.entryId);
+          return (
+            <QualificationCell
+              item={item}
+              index={index}
+              canEdit={canEdit}
+              onUpdate={updateBulkData}
+            />
+          );
+        },
+      },
+      // Time
+      {
+        id: 'searchTime',
+        accessorKey: 'searchTime',
+        header: () => <span className="text-center block">Time (MM:SS.HH)</span>,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          const index = getIndex(item.entryId);
+          if (canEdit) {
+            return (
+              <div className="flex justify-center">
+                <div
+                  className={cn(
+                    'inline-block rounded-md',
+                    item.modifiedFields?.has('searchTime') && 'ring-2 ring-blue-500/30'
+                  )}
+                >
+                  <SimpleTimeFields
+                    value={item.searchTime}
+                    onChange={value => updateBulkData(index, 'searchTime', value)}
+                    onKeyDown={e => handleKeyDown(e, index, 'searchTime')}
+                    disabled={!canEdit}
+                    hideLabels={true}
+                    data-index={index}
+                    data-field="searchTime"
+                  />
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div className="text-center">
+              <span className="text-sm font-mono">{item.searchTime || '--'}</span>
+            </div>
+          );
+        },
+      },
+      // Faults
+      {
+        id: 'faults',
+        accessorKey: 'faults',
+        header: 'Faults',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          const index = getIndex(item.entryId);
+          if (canEdit) {
+            return (
+              <Input
+                type="number"
+                value={item.faults}
+                onChange={e => updateBulkData(index, 'faults', e.target.value)}
+                onKeyDown={e => handleKeyDown(e, index, 'faults')}
+                min="0"
+                max="99"
+                className={cn(
+                  'w-16',
+                  item.modifiedFields?.has('faults') && 'ring-2 ring-blue-500/30 border-blue-500'
+                )}
+                data-index={index}
+                data-field="faults"
+              />
+            );
+          }
+          return <span className="text-sm">{item.faults}</span>;
+        },
+      },
+      // Notes
+      {
+        id: 'notes',
+        accessorKey: 'notes',
+        header: 'Notes',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          const index = getIndex(item.entryId);
+          if (canEdit) {
+            return (
+              <Input
+                value={item.notes}
+                onChange={e => updateBulkData(index, 'notes', e.target.value)}
+                onKeyDown={e => handleKeyDown(e, index, 'notes')}
+                placeholder="Optional notes"
+                className={cn(
+                  'w-40',
+                  item.modifiedFields?.has('notes') && 'ring-2 ring-blue-500/30 border-blue-500'
+                )}
+                data-index={index}
+                data-field="notes"
+              />
+            );
+          }
+          return <span className="text-sm">{item.notes || '--'}</span>;
+        },
+      },
+      // Status
+      {
+        id: 'status',
+        header: 'Status',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          return <StatusBadge item={item} validationError={validationErrors.get(item.entryId)} />;
+        },
+      },
+    ];
+
+    // Conditional delete column
+    if (showDeleteColumn) {
+      cols.push({
+        id: 'delete',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDeleteEntry?.(item.entryId)}
+              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+              title="Delete entry"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          );
+        },
+      });
+    }
+
+    return cols;
+  }, [
+    bulkData,
+    canEdit,
+    entryMap,
+    handleKeyDown,
+    onDeleteEntry,
+    showDeleteColumn,
+    updateBulkData,
+    validationErrors,
+  ]);
 
   return (
     <TooltipProvider>
@@ -75,9 +306,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           </Alert>
         )}
 
-        {/* Single card: header + table + footer */}
+        {/* Header card */}
         <div className="myk9-show-info-card">
-          {/* Header with actions */}
           <div className="myk9-show-info-header">
             <div className="flex items-center gap-2">
               <div className="myk9-show-info-title">Entries & Results</div>
@@ -116,66 +346,40 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               )}
             </div>
           </div>
-
-          {/* Table */}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Armband</TableHead>
-                <TableHead>Dog &amp; Handler</TableHead>
-                <TableHead>Placement</TableHead>
-                <TableHead>Qualification</TableHead>
-                <TableHead className="text-center">Time (MM:SS.HH)</TableHead>
-                <TableHead>Faults</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>Status</TableHead>
-                {showDeleteColumn && <TableHead className="w-12" />}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bulkData.map((item, index) => {
-                const entry = entryMap.get(item.entryId);
-                if (!entry) return null;
-
-                return (
-                  <ResultsTableRow
-                    key={item.entryId}
-                    item={item}
-                    index={index}
-                    entry={entry}
-                    canEdit={userPermissions.canEditEntries}
-                    showDeleteColumn={showDeleteColumn}
-                    validationError={validationErrors.get(item.entryId)}
-                    onUpdate={updateBulkData}
-                    onKeyDown={handleKeyDown}
-                    onDelete={onDeleteEntry}
-                  />
-                );
-              })}
-            </TableBody>
-          </Table>
-
-          {/* Footer with submit */}
-          {userPermissions.canEditEntries && (
-            <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
-              <div className="text-sm text-muted-foreground">
-                Press Enter or Tab to move between fields quickly &bull; Placements calculated
-                automatically
-              </div>
-
-              <Button
-                onClick={handleSubmit}
-                disabled={!summary.canSubmit || isSubmitting}
-                className="myk9-action-button myk9-action-button-primary"
-              >
-                <Save className="h-4 w-4" />
-                <span>
-                  {isSubmitting ? 'Submitting...' : `Submit ${summary.entriesWithData} Results`}
-                </span>
-              </Button>
-            </div>
-          )}
         </div>
+
+        {/* DataTable */}
+        <DataTable<BulkEntryData>
+          columns={columns}
+          data={bulkData}
+          getRowId={row => row.entryId}
+          pageSize={9999}
+          manualSorting
+          getRowClassName={row =>
+            row.hasChanges && !row.isValid ? 'bg-red-50 dark:bg-red-950/20' : ''
+          }
+        />
+
+        {/* Footer with submit */}
+        {userPermissions.canEditEntries && (
+          <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
+            <div className="text-sm text-muted-foreground">
+              Press Enter or Tab to move between fields quickly &bull; Placements calculated
+              automatically
+            </div>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={!summary.canSubmit || isSubmitting}
+              className="myk9-action-button myk9-action-button-primary"
+            >
+              <Save className="h-4 w-4" />
+              <span>
+                {isSubmitting ? 'Submitting...' : `Submit ${summary.entriesWithData} Results`}
+              </span>
+            </Button>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );

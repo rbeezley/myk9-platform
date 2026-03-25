@@ -58,7 +58,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'armband',
         accessorKey: 'armband',
         header: 'Armband',
-        enableSorting: false,
+        sortingFn: 'basic',
         cell: ({ row }) => {
           const item = row.original;
           return (
@@ -77,7 +77,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         id: 'dogHandler',
         accessorKey: 'dogName',
         header: 'Dog & Handler',
-        enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
           const entry: ScentWorkEntry | undefined = entryMap.get(item.entryId);

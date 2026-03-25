@@ -13,8 +13,14 @@ export function DataTableSearch({
   debounceMs = 300,
 }: DataTableSearchProps) {
   const table = useDataTableContext<unknown>();
-  const [value, setValue] = useState('');
+  const currentFilter = (table.getState().globalFilter as string) ?? '';
+  const [value, setValue] = useState(currentFilter);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Sync when external code resets the filter (e.g. "Clear filters" button)
+  useEffect(() => {
+    setValue(currentFilter);
+  }, [currentFilter]);
 
   const applyFilter = useCallback(
     (searchValue: string) => {

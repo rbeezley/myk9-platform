@@ -333,7 +333,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           data={bulkData}
           getRowId={row => row.entryId}
           pageSize={9999}
-          manualSorting
           getRowClassName={row =>
             row.hasChanges && !row.isValid ? 'bg-red-50 dark:bg-red-950/20' : ''
           }

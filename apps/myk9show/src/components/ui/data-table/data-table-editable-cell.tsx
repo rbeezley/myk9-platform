@@ -13,7 +13,6 @@ export interface EditableCellProps {
   row: Row<unknown>;
   column: Column<unknown>;
   onSave?: (value: unknown) => Promise<void>;
-  autoSaveDelay?: number;
   children?: React.ReactNode;
 }
 
@@ -97,8 +96,10 @@ function CellEditor({
 
 // ─── DOM navigation helpers ───────────────────────────────────────────────────
 
-function getAllEditableCells(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>('[data-editable-cell]'));
+function getAllEditableCells(within: HTMLElement): HTMLElement[] {
+  const scope =
+    within.closest('table') ?? within.closest('[data-datatable]') ?? document;
+  return Array.from(scope.querySelectorAll<HTMLElement>('[data-editable-cell]'));
 }
 
 function focusEditableCell(el: HTMLElement) {
@@ -106,7 +107,7 @@ function focusEditableCell(el: HTMLElement) {
 }
 
 function navigateTab(currentEl: HTMLElement, reverse: boolean) {
-  const cells = getAllEditableCells();
+  const cells = getAllEditableCells(currentEl);
   const idx = cells.indexOf(currentEl);
   if (idx === -1) return;
   const next = reverse ? cells[idx - 1] : cells[idx + 1];
@@ -117,7 +118,7 @@ function navigateEnter(currentEl: HTMLElement) {
   const columnId = currentEl.dataset.columnId;
   if (!columnId) return;
 
-  const cells = getAllEditableCells();
+  const cells = getAllEditableCells(currentEl);
   const sameCols = cells.filter(c => c.dataset.columnId === columnId);
   const idx = sameCols.indexOf(currentEl);
   if (idx === -1) return;
@@ -140,20 +141,21 @@ export function EditableCell({
 }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
   const [currentValue, setCurrentValue] = useState<unknown>(propValue);
-  const [originalValue] = useState<unknown>(propValue);
+  const originalValueRef = useRef<unknown>(propValue);
   const [validationError, setValidationError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Keep currentValue in sync with propValue when not editing
+  // Keep currentValue and originalValueRef in sync with propValue when not editing
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!editing) {
       setCurrentValue(propValue);
+      originalValueRef.current = propValue;
     }
   }, [propValue, editing]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const isDirty = currentValue !== originalValue;
+  const isDirty = currentValue !== originalValueRef.current;
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -170,23 +172,23 @@ export function EditableCell({
     }
     setValidationError(null);
 
-    if (onSave && currentValue !== originalValue) {
+    if (onSave && currentValue !== originalValueRef.current) {
       try {
         await onSave(currentValue);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to save';
         notifications.error(msg);
-        setCurrentValue(originalValue);
+        setCurrentValue(originalValueRef.current);
       }
     }
     setEditing(false);
-  }, [currentValue, originalValue, validate, onSave]);
+  }, [currentValue, validate, onSave]);
 
   const cancel = useCallback(() => {
-    setCurrentValue(originalValue);
+    setCurrentValue(originalValueRef.current);
     setValidationError(null);
     setEditing(false);
-  }, [originalValue]);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -218,11 +220,11 @@ export function EditableCell({
         setValidationError(null);
         setEditing(false);
 
-        if (onSave && currentValue !== originalValue) {
+        if (onSave && currentValue !== originalValueRef.current) {
           onSave(currentValue).catch(err => {
             const msg = err instanceof Error ? err.message : 'Failed to save';
             notifications.error(msg);
-            setCurrentValue(originalValue);
+            setCurrentValue(originalValueRef.current);
           });
         }
 
@@ -230,7 +232,7 @@ export function EditableCell({
         setTimeout(doNavigate, 0);
       }
     },
-    [cancel, currentValue, originalValue, validate, onSave]
+    [cancel, currentValue, validate, onSave]
   );
 
   return (

@@ -79,7 +79,13 @@ export function DataTable<TData>({
   onRowClick,
   selectable,
   onSelectionChange,
-  getRowId = (row: TData) => (row as Record<string, unknown>).id as string,
+  getRowId = (row: TData) => {
+    const id = (row as Record<string, unknown>).id;
+    if (id == null && import.meta.env.DEV) {
+      console.warn('DataTable: Row has no `id` property. Provide a `getRowId` prop.');
+    }
+    return String(id ?? '');
+  },
   toolbar,
   emptyState,
   noResultsMessage,
@@ -189,6 +195,7 @@ export function DataTable<TData>({
 
   return (
     <div
+      data-datatable
       className={cn(
         'rounded-xl border border-border/50 bg-card/95 backdrop-blur-sm overflow-hidden',
         className
@@ -280,6 +287,18 @@ export function DataTable<TData>({
                   getRowClassName?.(row.original)
                 )}
                 onClick={() => onRowClick?.(row.original, row)}
+                {...(onRowClick
+                  ? {
+                      tabIndex: 0,
+                      role: 'button' as const,
+                      onKeyDown: (e: React.KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onRowClick(row.original, row);
+                        }
+                      },
+                    }
+                  : {})}
               >
                 {row.getVisibleCells().map(cell => (
                   <TableCell

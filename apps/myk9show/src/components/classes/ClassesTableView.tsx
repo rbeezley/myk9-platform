@@ -36,7 +36,7 @@ const COLUMNS: ColumnDef<TrialClass, unknown>[] = [
     ),
   },
   {
-    accessorKey: 'judgeName',
+    id: 'judgeName',
     header: 'Judge',
     accessorFn: cls => (cls.judgeName ?? 'TBD').toLowerCase(),
     cell: ({ row }) => (

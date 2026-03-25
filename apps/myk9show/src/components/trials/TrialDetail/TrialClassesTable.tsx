@@ -13,6 +13,7 @@ import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDe
 
 type ViewMode = 'table' | 'cards';
 
+// Scent work uses different level names than the standard progression (Advanced/Excellent vs Intermediate/Senior)
 const LEVEL_PROGRESSION: Record<string, number> = {
   novice: 0,
   'novice a': 0,
@@ -78,7 +79,7 @@ export const TrialClassesTable = ({
         ),
       },
       {
-        accessorKey: 'judgeName',
+        id: 'judgeName',
         header: 'Judge',
         accessorFn: cls => cls.judgeName || 'TBD',
       },
@@ -155,6 +156,19 @@ export const TrialClassesTable = ({
     [onEditClass, onDeleteClass, navigate]
   );
 
+  const filteredCount = useMemo(() => {
+    if (!searchValue) return classes.length;
+    const q = searchValue.toLowerCase();
+    return classes.filter(
+      cls =>
+        cls.element?.toLowerCase().includes(q) ||
+        cls.level?.toLowerCase().includes(q) ||
+        (cls.judgeName ?? '').toLowerCase().includes(q) ||
+        cls.status?.toLowerCase().includes(q) ||
+        cls.section?.toLowerCase().includes(q)
+    ).length;
+  }, [classes, searchValue]);
+
   if (classes.length === 0) {
     return (
       <div className="text-center py-12">
@@ -182,19 +196,6 @@ export const TrialClassesTable = ({
       </div>
     );
   }
-
-  const filteredCount = useMemo(() => {
-    if (!searchValue) return classes.length;
-    const q = searchValue.toLowerCase();
-    return classes.filter(
-      cls =>
-        cls.element?.toLowerCase().includes(q) ||
-        cls.level?.toLowerCase().includes(q) ||
-        (cls.judgeName ?? '').toLowerCase().includes(q) ||
-        cls.status?.toLowerCase().includes(q) ||
-        cls.section?.toLowerCase().includes(q)
-    ).length;
-  }, [classes, searchValue]);
 
   return (
     <div className="space-y-4">

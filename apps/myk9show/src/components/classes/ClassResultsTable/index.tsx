@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Trophy, Trash2 } from 'lucide-react';
@@ -46,11 +46,15 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
   const canEdit = userPermissions.canEditEntries;
 
-  // Column definitions for DataTable
-  const columns: ColumnDef<BulkEntryData, unknown>[] = useMemo(() => {
-    const indexMap = new Map(bulkData.map((d, i) => [d.entryId, i]));
-    const getIndex = (entryId: string) => indexMap.get(entryId) ?? -1;
+  // Stable index lookup — cell renderers call this from event handlers, not during render.
+  // Using bulkData.findIndex inside a useCallback keeps columns stable across data edits.
+  const getIndex = useCallback(
+    (entryId: string) => bulkData.findIndex(d => d.entryId === entryId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting bulkData to keep columns stable
+    []
+  );
 
+  const columns: ColumnDef<BulkEntryData, unknown>[] = useMemo(() => {
     const cols: ColumnDef<BulkEntryData, unknown>[] = [
       // Armband
       {
@@ -251,9 +255,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
     return cols;
   }, [
-    bulkData,
     canEdit,
     entryMap,
+    getIndex,
     handleKeyDown,
     onDeleteEntry,
     showDeleteColumn,

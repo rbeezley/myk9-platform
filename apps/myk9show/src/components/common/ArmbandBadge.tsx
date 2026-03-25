@@ -13,7 +13,7 @@ export function ArmbandBadge({ armband, className }: ArmbandBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md bg-primary text-primary-foreground font-bold text-sm tabular-nums',
+        'inline-flex items-center justify-center size-9 rounded-lg bg-primary text-primary-foreground font-bold text-sm tabular-nums',
         className
       )}
     >

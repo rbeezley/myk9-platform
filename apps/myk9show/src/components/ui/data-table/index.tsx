@@ -61,6 +61,7 @@ interface DataTableProps<TData> {
   getRowId?: (row: TData) => string;
   toolbar?: (props: { table: TanstackTable<TData> }) => ReactNode;
   emptyState?: ReactNode;
+  noResultsMessage?: ReactNode;
   loading?: boolean;
   globalFilter?: string;
   onGlobalFilterChange?: (value: string) => void;
@@ -81,6 +82,7 @@ export function DataTable<TData>({
   getRowId = (row: TData) => (row as Record<string, unknown>).id as string,
   toolbar,
   emptyState,
+  noResultsMessage,
   loading = false,
   globalFilter: controlledGlobalFilter,
   onGlobalFilterChange,
@@ -248,23 +250,23 @@ export function DataTable<TData>({
                 colSpan={allColumns.length}
                 className="px-4 py-8 text-center text-muted-foreground"
               >
-                {data.length > 0 ? (
-                  <div>
-                    <p>No results match your filters.</p>
-                    <button
-                      type="button"
-                      className="text-sm underline mt-1 hover:text-foreground"
-                      onClick={() => {
-                        table.resetColumnFilters();
-                        setGlobalFilterValue('');
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                  </div>
-                ) : (
-                  (emptyState ?? 'No results found.')
-                )}
+                {data.length > 0
+                  ? (noResultsMessage ?? (
+                      <div>
+                        <p>No results match your filters.</p>
+                        <button
+                          type="button"
+                          className="text-sm underline mt-1 hover:text-foreground"
+                          onClick={() => {
+                            table.resetColumnFilters();
+                            setGlobalFilterValue('');
+                          }}
+                        >
+                          Clear filters
+                        </button>
+                      </div>
+                    ))
+                  : (emptyState ?? 'No results found.')}
               </TableCell>
             </TableRow>
           ) : (

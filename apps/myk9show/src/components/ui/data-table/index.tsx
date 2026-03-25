@@ -38,6 +38,10 @@ export type {
   CellChange,
   ScoringModeConfig,
 } from './types';
+export { DataTableToolbar, useDataTableContext } from './data-table-toolbar';
+export { DataTableSearch } from './data-table-search';
+export { DataTableFilter } from './data-table-filter';
+export { DataTableColumnToggle } from './data-table-column-toggle';
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];

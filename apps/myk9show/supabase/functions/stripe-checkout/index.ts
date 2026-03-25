@@ -29,9 +29,8 @@ const ALLOWED_ORIGINS = [
 ];
 
 function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
-    ? requestOrigin
-    : ALLOWED_ORIGINS[0];
+  const origin =
+    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -77,7 +76,18 @@ interface EntryCheckoutRequest {
 
 type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | EntryCheckoutRequest;
 
-Deno.serve(async (req) => {
+/** Validate that a URL starts with one of our allowed origins (prevents open redirect) */
+function isAllowedRedirectUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const origin = parsed.origin;
+    return ALLOWED_ORIGINS.includes(origin);
+  } catch {
+    return false;
+  }
+}
+
+Deno.serve(async req => {
   _corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
@@ -96,7 +106,10 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       console.error('Authentication failed:', authError);
@@ -108,7 +121,15 @@ Deno.serve(async (req) => {
     const { mode, success_url, cancel_url } = body;
 
     if (!mode || !success_url || !cancel_url) {
-      return corsResponse({ error: 'Missing required parameters: mode, success_url, cancel_url' }, 400);
+      return corsResponse(
+        { error: 'Missing required parameters: mode, success_url, cancel_url' },
+        400
+      );
+    }
+
+    // Validate redirect URLs against allowed origins (prevent open redirect)
+    if (!isAllowedRedirectUrl(success_url) || !isAllowedRedirectUrl(cancel_url)) {
+      return corsResponse({ error: 'Invalid redirect URL origin' }, 400);
     }
 
     // Get or create person record for this auth user
@@ -131,11 +152,27 @@ Deno.serve(async (req) => {
 
     // Handle different checkout modes
     if (mode === 'entry') {
-      return handleEntryCheckout(body as EntryCheckoutRequest, user.id, customerId, success_url, cancel_url);
+      return handleEntryCheckout(
+        body as EntryCheckoutRequest,
+        user.id,
+        customerId,
+        success_url,
+        cancel_url
+      );
     } else if (mode === 'subscription') {
-      return handleSubscriptionCheckout(body as SubscriptionCheckoutRequest, customerId, success_url, cancel_url);
+      return handleSubscriptionCheckout(
+        body as SubscriptionCheckoutRequest,
+        customerId,
+        success_url,
+        cancel_url
+      );
     } else if (mode === 'payment') {
-      return handlePaymentCheckout(body as PaymentCheckoutRequest, customerId, success_url, cancel_url);
+      return handlePaymentCheckout(
+        body as PaymentCheckoutRequest,
+        customerId,
+        success_url,
+        cancel_url
+      );
     }
 
     return corsResponse({ error: 'Invalid checkout mode' }, 400);
@@ -149,7 +186,10 @@ Deno.serve(async (req) => {
  * Get existing Stripe customer or create a new one
  * Also syncs to exhibitor_profiles if exists
  */
-async function getOrCreateStripeCustomer(user: { id: string; email?: string }, personId: string): Promise<string | null> {
+async function getOrCreateStripeCustomer(
+  user: { id: string; email?: string },
+  personId: string
+): Promise<string | null> {
   // Check for existing customer
   const { data: existing, error: lookupError } = await supabase
     .from('stripe_customers')
@@ -177,13 +217,11 @@ async function getOrCreateStripeCustomer(user: { id: string; email?: string }, p
     });
 
     // Save to stripe_customers table
-    const { error: insertError } = await supabase
-      .from('stripe_customers')
-      .insert({
-        person_id: personId,
-        stripe_customer_id: stripeCustomer.id,
-        email: user.email,
-      });
+    const { error: insertError } = await supabase.from('stripe_customers').insert({
+      person_id: personId,
+      stripe_customer_id: stripeCustomer.id,
+      email: user.email,
+    });
 
     if (insertError) {
       console.error('Error saving stripe customer:', insertError);
@@ -214,7 +252,7 @@ async function handleEntryCheckout(
   authUserId: string,
   customerId: string,
   successUrl: string,
-  cancelUrl: string,
+  cancelUrl: string
 ): Promise<Response> {
   const { cart_id } = request;
 
@@ -225,7 +263,8 @@ async function handleEntryCheckout(
   // Fetch cart with items and verify ownership
   const { data: cart, error: cartError } = await supabase
     .from('entry_carts')
-    .select(`
+    .select(
+      `
       *,
       exhibitor:exhibitor_profiles!inner(auth_user_id),
       items:entry_cart_items(
@@ -244,7 +283,8 @@ async function handleEntryCheckout(
           )
         )
       )
-    `)
+    `
+    )
     .eq('id', cart_id)
     .eq('status', 'active')
     .single();
@@ -261,38 +301,40 @@ async function handleEntryCheckout(
 
   // Check cart hasn't expired
   if (new Date(cart.expires_at) < new Date()) {
-    await supabase
-      .from('entry_carts')
-      .update({ status: 'expired' })
-      .eq('id', cart_id);
+    await supabase.from('entry_carts').update({ status: 'expired' }).eq('id', cart_id);
     return corsResponse({ error: 'Cart has expired. Please create a new cart.' }, 410);
   }
 
   // Build line items for Stripe
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map((item: {
-    entry_fee_cents: number;
-    dog?: { call_name?: string };
-    class?: { name?: string; trial?: { show?: { name?: string } } };
-  }) => ({
-    price_data: {
-      currency: 'usd',
-      unit_amount: item.entry_fee_cents,
-      product_data: {
-        name: `${item.dog?.call_name || 'Dog'} - ${item.class?.name || 'Class'}`,
-        description: item.class?.trial?.show?.name || 'Show Entry',
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map(
+    (item: {
+      entry_fee_cents: number;
+      dog?: { call_name?: string };
+      class?: { name?: string; trial?: { show?: { name?: string } } };
+    }) => ({
+      price_data: {
+        currency: 'usd',
+        unit_amount: item.entry_fee_cents,
+        product_data: {
+          name: `${item.dog?.call_name || 'Dog'} - ${item.class?.name || 'Class'}`,
+          description: item.class?.trial?.show?.name || 'Show Entry',
+        },
       },
-    },
-    quantity: 1,
-  }));
+      quantity: 1,
+    })
+  );
 
   if (lineItems.length === 0) {
     return corsResponse({ error: 'Cart is empty' }, 400);
   }
 
   // Calculate platform fee (if applicable)
-  const subtotal = cart.items.reduce((sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents, 0);
+  const subtotal = cart.items.reduce(
+    (sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents,
+    0
+  );
   const platformFeePercent = 3; // 3% platform fee
-  const platformFeeCents = Math.round(subtotal * platformFeePercent / 100);
+  const platformFeeCents = Math.round((subtotal * platformFeePercent) / 100);
 
   // Add platform fee as line item if > 0
   if (platformFeeCents > 0) {
@@ -355,7 +397,7 @@ async function handleSubscriptionCheckout(
   request: SubscriptionCheckoutRequest,
   customerId: string,
   successUrl: string,
-  cancelUrl: string,
+  cancelUrl: string
 ): Promise<Response> {
   const { price_id } = request;
 
@@ -386,7 +428,7 @@ async function handlePaymentCheckout(
   request: PaymentCheckoutRequest,
   customerId: string,
   successUrl: string,
-  cancelUrl: string,
+  cancelUrl: string
 ): Promise<Response> {
   const { price_id } = request;
 

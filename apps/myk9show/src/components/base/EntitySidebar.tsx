@@ -86,7 +86,7 @@ export function EntitySidebar<T extends EntitySidebarItem>({
 
   return (
     <div
-      className="relative bg-background dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full"
+      className="relative bg-[var(--sidebar)] border-r border-[var(--sidebar-border)] flex flex-col h-full"
       style={{ width: `${width}px` }}
     >
       {/* Header */}

@@ -157,7 +157,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
     <aside
       className={cn(
         'border-r border-border transition-all duration-300 flex flex-col',
-        'bg-card',
+        'bg-[var(--sidebar)]',
         collapsed ? 'w-20 min-w-[5rem]' : 'w-64',
         'mt-16',
         className

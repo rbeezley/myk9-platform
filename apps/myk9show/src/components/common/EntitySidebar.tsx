@@ -65,7 +65,7 @@ function EntitySidebar<T extends { id: string }>({
     <aside
       className={cn(
         'border-r border-border transition-all duration-300 flex flex-col',
-        'bg-card',
+        'bg-[var(--sidebar)]',
         collapsed ? 'w-20 min-w-[5rem]' : 'w-64',
         'mt-16', // Add margin to push below header
         className
@@ -73,7 +73,10 @@ function EntitySidebar<T extends { id: string }>({
       style={SIDEBAR_CONTAINER_STYLE}
     >
       {/* Header - Fixed Height */}
-      <div className="flex items-center justify-between p-3 border-b border-border" style={HEADER_STYLE}>
+      <div
+        className="flex items-center justify-between p-3 border-b border-border"
+        style={HEADER_STYLE}
+      >
         {!collapsed ? (
           <h3 className="text-sm font-semibold truncate mr-2">{title}</h3>
         ) : (
@@ -125,7 +128,7 @@ function EntitySidebar<T extends { id: string }>({
             <div
               key={item.id}
               onClick={() => onSelect(item.id)}
-              onKeyDown={(e) => e.key === 'Enter' && onSelect(item.id)}
+              onKeyDown={e => e.key === 'Enter' && onSelect(item.id)}
               role="button"
               tabIndex={0}
               aria-selected={selectedId === item.id}

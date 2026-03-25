@@ -34,7 +34,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
   const isActive = useActivePath(allHrefs, config.dashboardHref);
 
   return (
-    <div className="flex h-full flex-col bg-card overflow-hidden">
+    <div className="flex h-full flex-col bg-[var(--sidebar)] overflow-hidden">
       {/* Header */}
       <div
         className={cn(

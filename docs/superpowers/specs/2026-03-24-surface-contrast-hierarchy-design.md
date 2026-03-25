@@ -15,10 +15,10 @@ Add two surface differentiations:
 
 ### Sidebar (`--sidebar`)
 
-| Mode  | Before    | After     | Delta                           |
-| ----- | --------- | --------- | ------------------------------- |
-| Light | `#f5f2ed` | `#f0ebe4` | Slightly darker warm cream      |
-| Dark  | `#1a1a1e` | `#151518` | Slightly darker than background |
+| Mode  | Before    | After     | Delta                                           |
+| ----- | --------- | --------- | ----------------------------------------------- |
+| Light | `#f5f2ed` | `#edeae3` | Midpoint warmth — perceptible but not heavy     |
+| Dark  | `#1a1a1e` | `#17171b` | Subtle step down — matches light mode intensity |
 
 Background (`#f5f2ed` / `#1a1a1e`) and card (`#faf8f4` / `#26292e`) are unchanged. This creates three distinct surface levels: sidebar (darkest) → page → card (lightest).
 
@@ -28,8 +28,8 @@ New CSS variable for the header's bottom shadow:
 
 | Mode  | Value                                                                     |
 | ----- | ------------------------------------------------------------------------- |
-| Light | `0 1px 3px rgba(180, 160, 130, 0.1), 0 1px 2px rgba(180, 160, 130, 0.06)` |
-| Dark  | `0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)`              |
+| Light | `0 1px 3px rgba(180, 160, 130, 0.2), 0 1px 2px rgba(180, 160, 130, 0.12)` |
+| Dark  | `0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)`              |
 
 The header keeps its existing `bg-background/80` opacity and `backdrop-blur-lg`. The shadow is additive — it makes the header read as a floating layer without changing the blur or translucency.
 
@@ -39,8 +39,8 @@ The sidebar right border in `SidebarLayout.tsx` currently uses `border-border/30
 
 | Mode  | Before             | After                                      |
 | ----- | ------------------ | ------------------------------------------ |
-| Light | `border-border/30` | `#e4ded5` (via CSS var `--sidebar-border`) |
-| Dark  | `border-border/30` | `#2a2a2f` (via CSS var `--sidebar-border`) |
+| Light | `border-border/30` | `#ddd6ca` (via CSS var `--sidebar-border`) |
+| Dark  | `border-border/30` | `#252528` (via CSS var `--sidebar-border`) |
 
 ## Files to Change
 

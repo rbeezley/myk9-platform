@@ -9,8 +9,8 @@ interface SectionCardProps {
 const SectionCard: React.FC<SectionCardProps> = ({ children, className }) => (
   <div
     className={clsx(
-      'bg-card-secondary p-4 rounded-xl border border-gray-200 shadow-lg overflow-hidden flex flex-col gap-2 relative',
-      'dark:bg-card dark:border-gray-700',
+      'bg-card-secondary p-4 rounded-xl shadow-card overflow-hidden flex flex-col gap-2 relative',
+      'dark:bg-card',
       className
     )}
   >

@@ -47,10 +47,10 @@ export function FilterChips({ filters, values, onChange, className }: FilterChip
           <div key={filter.key} className="relative">
             <button
               className={cn(
-                'h-12 rounded-full px-4 text-base inline-flex items-center gap-1.5 border transition-colors',
+                'h-12 rounded-full px-4 text-base inline-flex items-center gap-1.5 transition-all',
                 activeValue
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-foreground border-border hover:bg-accent'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-card text-foreground shadow-card hover:shadow-card-hover'
               )}
               onClick={() => setOpenKey(isOpen ? null : filter.key)}
             >

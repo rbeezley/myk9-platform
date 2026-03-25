@@ -2,7 +2,8 @@
 
 /* Typography - San Francisco inspired */
 .myk9-people-page {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
@@ -39,7 +40,9 @@
   border-radius: 20px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
 }
@@ -99,10 +102,9 @@
   text-transform: uppercase;
   letter-spacing: 0.02em;
   background: rgba(0, 122, 255, 0.1);
-  color: #007AFF;
+  color: #007aff;
   border: 1px solid rgba(0, 122, 255, 0.2);
 }
-
 
 .myk9-people-contact-link {
   color: var(--foreground);
@@ -113,7 +115,7 @@
 }
 
 .myk9-people-contact-link:hover {
-  color: #007AFF;
+  color: #007aff;
 }
 
 .myk9-people-contact-text {
@@ -143,7 +145,7 @@
   width: 120px;
   height: 120px;
   border-radius: 28px;
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -252,7 +254,7 @@
 }
 
 .myk9-people-contact-value.email {
-  color: #007AFF;
+  color: #007aff;
   text-decoration: none;
 }
 
@@ -265,7 +267,7 @@
 }
 
 .myk9-people-contact-value.phone {
-  color: #34C759;
+  color: #34c759;
   text-decoration: none;
 }
 
@@ -280,14 +282,14 @@
 .myk9-people-contact-link {
   font-size: 15px;
   font-weight: 500;
-  color: #007AFF;
+  color: #007aff;
   text-decoration: none;
   transition: all 0.2s ease;
 }
 
 .myk9-people-contact-link:hover {
   text-decoration: underline;
-  color: #0056CC;
+  color: #0056cc;
 }
 
 .myk9-people-contact-text {
@@ -332,13 +334,13 @@
 
 .myk9-people-status-active {
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
 .myk9-people-status-inactive {
   background: rgba(142, 142, 147, 0.1);
-  color: #8E8E93;
+  color: #8e8e93;
   border: 1px solid rgba(142, 142, 147, 0.2);
 }
 
@@ -366,14 +368,14 @@
 }
 
 .myk9-people-action-button-primary {
-  background: #007AFF;
+  background: #007aff;
   color: white;
-  border-color: #007AFF;
+  border-color: #007aff;
 }
 
 .myk9-people-action-button-primary:hover {
-  background: #0056CC;
-  border-color: #0056CC;
+  background: #0056cc;
+  border-color: #0056cc;
   box-shadow: 0 6px 20px rgba(0, 122, 255, 0.3);
 }
 
@@ -457,7 +459,7 @@
 .myk9-people-sidebar-item.selected {
   background: rgba(0, 122, 255, 0.1);
   border-color: rgba(0, 122, 255, 0.3);
-  color: #007AFF;
+  color: #007aff;
 }
 
 .myk9-people-sidebar-name {
@@ -532,25 +534,25 @@
   .myk9-people-container {
     padding: 24px;
   }
-  
+
   .myk9-people-header {
     flex-direction: column;
     gap: 24px;
     text-align: center;
   }
-  
+
   .myk9-people-photo-section {
     align-items: center;
   }
-  
+
   .myk9-people-info-section {
     text-align: center;
   }
-  
+
   .myk9-people-actions {
     align-self: center;
   }
-  
+
   .myk9-people-dogs-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 12px;
@@ -562,36 +564,36 @@
     padding: 20px;
     padding-top: 60px;
   }
-  
+
   .myk9-people-header {
     padding: 24px;
     gap: 20px;
   }
-  
+
   .myk9-people-title {
     font-size: 24px;
   }
-  
+
   .myk9-people-photo {
     width: 100px;
     height: 100px;
   }
-  
+
   .myk9-people-photo-placeholder {
     width: 100px;
     height: 100px;
     font-size: 40px;
   }
-  
+
   .myk9-people-contact-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .myk9-people-contact-item {
     justify-content: flex-start;
   }
-  
+
   .myk9-people-dogs-grid {
     grid-template-columns: 1fr;
     padding: 16px;
@@ -600,7 +602,7 @@
 
 /* Focus styles for accessibility */
 .myk9-people-action-button:focus {
-  outline: 2px solid #007AFF;
+  outline: 2px solid #007aff;
   outline-offset: 2px;
 }
 
@@ -621,19 +623,23 @@
   width: 40px;
   height: 40px;
   border: 3px solid var(--muted);
-  border-top: 3px solid #007AFF;
+  border-top: 3px solid #007aff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* myK9 subtle borders for user details */
 .myk9-subtle-card-border {
-  border: 0.5px solid var(--border) !important;
+  border: 0.5px solid color-mix(in srgb, var(--border) 30%, transparent) !important;
 }
 
 .myk9-subtle-field-separator {
@@ -653,16 +659,22 @@
 }
 
 /* Target field values by excluding label characteristics (tracking-wide + uppercase) */
-.dark span.text-sm.font-medium:not([class*="muted-foreground"]):not([class*="tracking-wide"]):not([class*="uppercase"]) {
+.dark
+  span.text-sm.font-medium:not([class*='muted-foreground']):not([class*='tracking-wide']):not(
+    [class*='uppercase']
+  ) {
   color: white !important;
 }
 
-.dark span.text-lg.font-semibold:not([class*="muted-foreground"]):not([class*="tracking-wide"]):not([class*="uppercase"]) {
+.dark
+  span.text-lg.font-semibold:not([class*='muted-foreground']):not([class*='tracking-wide']):not(
+    [class*='uppercase']
+  ) {
   color: white !important;
 }
 
 /* Override any other rules that might affect our labels */
-.dark .max-w-7xl .myk9-subtle-field-separator span.text-xs[class*="muted-foreground"] {
+.dark .max-w-7xl .myk9-subtle-field-separator span.text-xs[class*='muted-foreground'] {
   color: rgb(156 163 175 / 0.8) !important;
 }
 
@@ -673,8 +685,8 @@
 }
 
 /* Keep labels properly muted - highest specificity */
-.dark .myk9-subtle-field-separator span[class*="text-muted-foreground"].tracking-wide.uppercase,
-.dark span[class*="text-muted-foreground"].tracking-wide.uppercase,
+.dark .myk9-subtle-field-separator span[class*='text-muted-foreground'].tracking-wide.uppercase,
+.dark span[class*='text-muted-foreground'].tracking-wide.uppercase,
 .dark span.text-muted-foreground.tracking-wide.uppercase {
   color: rgb(156 163 175 / 0.8) !important;
 }

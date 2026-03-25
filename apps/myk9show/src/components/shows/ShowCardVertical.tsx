@@ -36,9 +36,9 @@ export const ShowCardVertical: React.FC<ShowCardVerticalProps> = ({
     <div
       data-testid="show-card-vertical"
       className={cn(
-        'w-[280px] flex-shrink-0 rounded-xl border border-border/50 bg-card cursor-pointer',
+        'w-[280px] flex-shrink-0 rounded-xl bg-card shadow-card cursor-pointer',
         'transition-all duration-200 ease-out',
-        'hover:shadow-md hover:border-border'
+        'hover:shadow-card-hover'
       )}
       onClick={onViewDetails}
     >
@@ -100,7 +100,7 @@ export const ShowCardVertical: React.FC<ShowCardVerticalProps> = ({
  * Skeleton placeholder for loading states. Same 280px width.
  */
 export const ShowCardVerticalSkeleton: React.FC = () => (
-  <div className="w-[280px] flex-shrink-0 rounded-xl border border-border/50 bg-card p-4 space-y-3">
+  <div className="w-[280px] flex-shrink-0 rounded-xl bg-card shadow-card p-4 space-y-3">
     {/* Header skeleton */}
     <div className="flex items-start gap-3">
       <div className="w-[60px] h-[60px] rounded-xl bg-muted animate-pulse flex-shrink-0" />

@@ -1,6 +1,6 @@
 /**
  * PremiumCard Components
- * 
+ *
  * Premium card components with gradient backgrounds, backdrop blur,
  * and sophisticated hover effects. Automatically follows design system.
  */
@@ -18,25 +18,25 @@ export interface PremiumCardProps {
 }
 
 // Base Premium Card - Enhanced version of standard cards
-export function PremiumCard({ 
-  children, 
-  className, 
+export function PremiumCard({
+  children,
+  className,
   variant = 'standard',
-  hover = true 
+  hover = true,
 }: PremiumCardProps) {
   const cardClassName = cn(
     // Base styling
-    "group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl",
-    
+    'group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border/30 rounded-2xl shadow-card backdrop-blur-xl',
+
     // Hover effects (conditional)
-    hover && "transition-all duration-500 hover:shadow-xl hover:-translate-y-2",
-    
+    hover && 'transition-all duration-500 hover:shadow-xl hover:-translate-y-2',
+
     // Variant-specific styling
-    variant === 'feature' && "p-8",
-    variant === 'stats' && "p-6",
-    variant === 'minimal' && "p-4",
-    variant === 'standard' && "p-6",
-    
+    variant === 'feature' && 'p-8',
+    variant === 'stats' && 'p-6',
+    variant === 'minimal' && 'p-4',
+    variant === 'standard' && 'p-6',
+
     className
   );
 
@@ -45,9 +45,7 @@ export function PremiumCard({
       {hover && (
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       )}
-      <div className="relative">
-        {children}
-      </div>
+      <div className="relative">{children}</div>
     </Card>
   );
 }
@@ -60,14 +58,14 @@ export interface FeatureCardProps extends PremiumCardProps {
   action?: React.ReactNode;
 }
 
-export function FeatureCard({ 
-  icon: Icon, 
-  title, 
-  description, 
-  action, 
+export function FeatureCard({
+  icon: Icon,
+  title,
+  description,
+  action,
   children,
   className,
-  hover = true 
+  hover = true,
 }: FeatureCardProps) {
   return (
     <PremiumCard variant="feature" hover={hover} className={className}>
@@ -81,21 +79,11 @@ export function FeatureCard({
           {title}
         </CardTitle>
         {description && (
-          <CardDescription className="text-muted-foreground">
-            {description}
-          </CardDescription>
+          <CardDescription className="text-muted-foreground">{description}</CardDescription>
         )}
       </CardHeader>
-      {children && (
-        <CardContent className="p-0">
-          {children}
-        </CardContent>
-      )}
-      {action && (
-        <div className="pt-4">
-          {action}
-        </div>
-      )}
+      {children && <CardContent className="p-0">{children}</CardContent>}
+      {action && <div className="pt-4">{action}</div>}
     </PremiumCard>
   );
 }
@@ -114,14 +102,14 @@ export interface StatsCardProps {
   className?: string;
 }
 
-export function StatsCard({ 
-  title, 
-  value, 
-  subtitle, 
-  icon: Icon, 
-  trend, 
+export function StatsCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
   color = 'default',
-  className 
+  className,
 }: StatsCardProps) {
   return (
     <PremiumCard variant="stats" className={className}>
@@ -136,33 +124,38 @@ export function StatsCard({
                 {value}
               </p>
               {trend && (
-                <span className={cn(
-                  "text-xs px-2 py-1 rounded-full",
-                  trend.positive ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
-                )}>
-                  {trend.positive ? '+' : ''}{trend.value}%
+                <span
+                  className={cn(
+                    'text-xs px-2 py-1 rounded-full',
+                    trend.positive ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'
+                  )}
+                >
+                  {trend.positive ? '+' : ''}
+                  {trend.value}%
                 </span>
               )}
             </div>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-            )}
+            {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
           </div>
           {Icon && (
-            <div className={cn(
-              "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300",
-              color === "success" && "bg-gradient-to-br from-green-500/20 to-green-400/10",
-              color === "warning" && "bg-gradient-to-br from-yellow-500/20 to-yellow-400/10",
-              color === "danger" && "bg-gradient-to-br from-red-500/20 to-red-400/10",
-              color === "default" && "bg-gradient-to-br from-primary/20 to-primary/10"
-            )}>
-              <Icon className={cn(
-                "h-6 w-6",
-                color === "success" && "text-green-500",
-                color === "warning" && "text-yellow-500",
-                color === "danger" && "text-red-500",
-                color === "default" && "text-primary"
-              )} />
+            <div
+              className={cn(
+                'w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300',
+                color === 'success' && 'bg-gradient-to-br from-green-500/20 to-green-400/10',
+                color === 'warning' && 'bg-gradient-to-br from-yellow-500/20 to-yellow-400/10',
+                color === 'danger' && 'bg-gradient-to-br from-red-500/20 to-red-400/10',
+                color === 'default' && 'bg-gradient-to-br from-primary/20 to-primary/10'
+              )}
+            >
+              <Icon
+                className={cn(
+                  'h-6 w-6',
+                  color === 'success' && 'text-green-500',
+                  color === 'warning' && 'text-yellow-500',
+                  color === 'danger' && 'text-red-500',
+                  color === 'default' && 'text-primary'
+                )}
+              />
             </div>
           )}
         </div>
@@ -184,30 +177,30 @@ export interface ShowCardProps {
   className?: string;
 }
 
-export function ShowCard({ 
-  title, 
-  subtitle, 
-  date, 
-  location, 
-  status, 
-  image, 
-  tags, 
+export function ShowCard({
+  title,
+  subtitle,
+  date,
+  location,
+  status,
+  image,
+  tags,
   action,
-  className 
+  className,
 }: ShowCardProps) {
   return (
     <PremiumCard className={className}>
       {image && (
         <div className="relative h-48 -m-6 mb-4 overflow-hidden rounded-t-2xl">
-          <img 
-            src={image} 
+          <img
+            src={image}
             alt={title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
       )}
-      
+
       <CardHeader className="p-0 pb-4">
         <div className="flex items-start justify-between">
           <div>
@@ -221,12 +214,14 @@ export function ShowCard({
             )}
           </div>
           {status && (
-            <span className={cn(
-              "px-2 py-1 rounded-full text-xs font-medium",
-              status === 'Open' && "bg-green-500/10 text-green-600",
-              status === 'Closed' && "bg-red-500/10 text-red-600",
-              status === 'Upcoming' && "bg-blue-500/10 text-blue-600"
-            )}>
+            <span
+              className={cn(
+                'px-2 py-1 rounded-full text-xs font-medium',
+                status === 'Open' && 'bg-green-500/10 text-green-600',
+                status === 'Closed' && 'bg-red-500/10 text-red-600',
+                status === 'Upcoming' && 'bg-blue-500/10 text-blue-600'
+              )}
+            >
               {status}
             </span>
           )}
@@ -239,31 +234,24 @@ export function ShowCard({
             <span>{date}</span>
           </div>
         )}
-        
+
         {location && (
           <div className="flex items-center text-sm text-muted-foreground">
             <span>{location}</span>
           </div>
         )}
-        
+
         {tags && tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {tags.map((tag, index) => (
-              <span 
-                key={index}
-                className="px-2 py-1 bg-muted/50 text-xs rounded-full"
-              >
+              <span key={index} className="px-2 py-1 bg-muted/50 text-xs rounded-full">
                 {tag}
               </span>
             ))}
           </div>
         )}
-        
-        {action && (
-          <div className="pt-2">
-            {action}
-          </div>
-        )}
+
+        {action && <div className="pt-2">{action}</div>}
       </CardContent>
     </PremiumCard>
   );

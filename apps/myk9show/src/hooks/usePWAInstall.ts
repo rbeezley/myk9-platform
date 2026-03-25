@@ -53,6 +53,7 @@ export function usePWAInstall(): UsePWAInstallReturn {
   const [isDismissed, setIsDismissed] = useState(false);
   const [isIOSSafari] = useState(detectIOSSafari);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
@@ -89,6 +90,7 @@ export function usePWAInstall(): UsePWAInstallReturn {
       // localStorage unavailable
     }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const handler = (e: Event) => {

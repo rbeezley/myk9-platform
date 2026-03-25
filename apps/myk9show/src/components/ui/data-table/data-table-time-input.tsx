@@ -58,12 +58,12 @@ export function TimeInput({
 
   const handleFocus = useCallback(() => {
     setFocused(true);
-  }, []);
+  }, [setFocused]);
 
   const handleBlur = useCallback(() => {
     setFocused(false);
     onCommit();
-  }, [onCommit]);
+  }, [onCommit, setFocused]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +107,7 @@ export function TimeInput({
         e.preventDefault();
       }
     },
-    [onCommit, onCancel]
+    [onCommit, onCancel, setFocused]
   );
 
   return (

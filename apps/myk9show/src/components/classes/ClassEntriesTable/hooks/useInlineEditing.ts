@@ -1,11 +1,7 @@
-/**
- * Hook for managing inline editing state and logic
- */
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { logger } from '@/services/LoggingService';
 import { EntryData } from '../../types/classTypes';
-import { InlineEditData, InlineEditEntry, ErrorState } from '../types';
+import { InlineEditData, InlineEditEntry } from '../types';
 import { validateEntryData, convertTimeToStandardFormat } from '@/utils/entryValidation';
 import { calculateChangesSummary } from '../utils';
 
@@ -17,18 +13,15 @@ interface UseInlineEditingOptions {
 
 interface UseInlineEditingResult {
   inlineEditData: InlineEditData;
-  errors: ErrorState[];
   isSubmitting: boolean;
   submitError: string | null;
   autoSaveEnabled: boolean;
   changesSummary: ReturnType<typeof calculateChangesSummary>;
-  initializeEditData: (entry: EntryData) => void;
   updateInlineEditData: (entryId: string, field: string, value: string) => void;
   getEditData: (entry: EntryData) => InlineEditEntry;
   handleSubmitChanges: () => Promise<void>;
   setAutoSaveEnabled: (enabled: boolean) => void;
   clearEditData: () => void;
-  clearErrors: () => void;
 }
 
 /**
@@ -47,18 +40,17 @@ function createDefaultEditEntry(entry: EntryData): InlineEditEntry {
       time: entry.time || '',
       status: entry.status || '',
       score: entry.score || '',
-      placement: entry.placement || ''
-    }
+      placement: entry.placement || '',
+    },
   };
 }
 
 export function useInlineEditing({
   entries,
   onResultUpdate,
-  canSubmitResults
+  canSubmitResults,
 }: UseInlineEditingOptions): UseInlineEditingResult {
   const [inlineEditData, setInlineEditData] = useState<InlineEditData>({});
-  const [errors, setErrors] = useState<ErrorState[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
@@ -67,63 +59,63 @@ export function useInlineEditing({
   // Calculate changes summary
   const changesSummary = calculateChangesSummary(inlineEditData, canSubmitResults);
 
-  // Initialize edit data for an entry
-  const initializeEditData = useCallback((entry: EntryData) => {
-    if (!inlineEditData[entry.id]) {
-      setInlineEditData(prev => ({
-        ...prev,
-        [entry.id]: createDefaultEditEntry(entry)
-      }));
-    }
-  }, [inlineEditData]);
-
   // Update inline edit data with validation
-  const updateInlineEditData = useCallback((entryId: string, field: string, value: string) => {
-    setInlineEditData(prev => {
-      const originalEntry = entries.find(e => e.id === entryId);
-      if (!originalEntry) return prev;
+  const updateInlineEditData = useCallback(
+    (entryId: string, field: string, value: string) => {
+      setInlineEditData(prev => {
+        const originalEntry = entries.find(e => e.id === entryId);
+        if (!originalEntry) return prev;
 
-      const current = prev[entryId] || createDefaultEditEntry(originalEntry);
+        const current = prev[entryId] || createDefaultEditEntry(originalEntry);
 
-      // Update the specific field
-      const updated = { ...current, [field]: value };
+        // Update the specific field
+        const updated = { ...current, [field]: value };
 
-      // Normalize time format if it's a time field
-      if (field === 'time' && value.trim()) {
-        updated.time = convertTimeToStandardFormat(value);
-      }
+        // Normalize time format if it's a time field
+        if (field === 'time' && value.trim()) {
+          updated.time = convertTimeToStandardFormat(value);
+        }
 
-      // Check if data has changed from original
-      const hasChanges = (
-        updated.time !== current.originalData.time ||
-        updated.status !== current.originalData.status ||
-        updated.score !== current.originalData.score ||
-        updated.placement !== current.originalData.placement
-      );
+        // Check if data has changed from original
+        const hasChanges =
+          updated.time !== current.originalData.time ||
+          updated.status !== current.originalData.status ||
+          updated.score !== current.originalData.score ||
+          updated.placement !== current.originalData.placement;
 
-      // Enhanced validation
-      const validationErrors = validateEntryData({
-        time: updated.time,
-        status: updated.status,
-        score: updated.score,
-        placement: updated.placement
+        // Enhanced validation
+        const validationErrors = validateEntryData({
+          time: updated.time,
+          status: updated.status,
+          score: updated.score,
+          placement: updated.placement,
+        });
+
+        updated.hasChanges = hasChanges;
+        updated.isValid = validationErrors.length === 0;
+        updated.errors = validationErrors;
+
+        return {
+          ...prev,
+          [entryId]: updated,
+        };
       });
+    },
+    [entries]
+  );
 
-      updated.hasChanges = hasChanges;
-      updated.isValid = validationErrors.length === 0;
-      updated.errors = validationErrors;
-
-      return {
-        ...prev,
-        [entryId]: updated
-      };
-    });
-  }, [entries]);
-
-  // Get edit data for an entry (with fallback to original data)
-  const getEditData = useCallback((entry: EntryData): InlineEditEntry => {
-    return inlineEditData[entry.id] || createDefaultEditEntry(entry);
-  }, [inlineEditData]);
+  // Get edit data for an entry, auto-initializing if not yet present
+  const getEditData = useCallback(
+    (entry: EntryData): InlineEditEntry => {
+      const existing = inlineEditData[entry.id];
+      if (existing) return existing;
+      const defaultEntry = createDefaultEditEntry(entry);
+      // Schedule lazy initialization without blocking the render
+      setInlineEditData(prev => (prev[entry.id] ? prev : { ...prev, [entry.id]: defaultEntry }));
+      return defaultEntry;
+    },
+    [inlineEditData]
+  );
 
   // Submit all changes
   const handleSubmitChanges = useCallback(async () => {
@@ -134,13 +126,7 @@ export function useInlineEditing({
       .map(([entryId, data]) => ({ entryId, data }));
 
     if (changedEntries.length === 0) {
-      const errorMsg = 'No valid changes to submit';
-      setSubmitError(errorMsg);
-      setErrors(prev => [...prev, {
-        type: 'validation',
-        message: errorMsg,
-        timestamp: new Date()
-      }]);
+      setSubmitError('No valid changes to submit');
       return;
     }
 
@@ -148,14 +134,16 @@ export function useInlineEditing({
     setSubmitError(null);
 
     try {
-      logger.debug('Starting to submit changes', 'classes', { entriesCount: changedEntries.length });
+      logger.debug('Starting to submit changes', 'classes', {
+        entriesCount: changedEntries.length,
+      });
 
       for (const { entryId, data } of changedEntries) {
         const updateData = {
           time: data.time,
           status: data.status as EntryData['status'],
           score: data.score,
-          placement: data.placement
+          placement: data.placement,
         };
 
         logger.debug('Updating entry', 'classes', { entryId, updateData });
@@ -163,20 +151,19 @@ export function useInlineEditing({
         logger.debug('Entry updated successfully', 'classes', { entryId });
       }
 
-      // Clear edit data and errors after successful submission
       setInlineEditData({});
-      setErrors([]);
 
-      logger.info('Successfully submitted changes', 'classes', { changesCount: changedEntries.length });
+      logger.info('Successfully submitted changes', 'classes', {
+        changesCount: changedEntries.length,
+      });
     } catch (error) {
-      logger.error('Failed to submit changes', 'classes', { entriesCount: changedEntries.length }, error as Error);
-      const errorMsg = error instanceof Error ? error.message : 'Failed to submit changes';
-      setSubmitError(errorMsg);
-      setErrors(prev => [...prev, {
-        type: 'submission',
-        message: errorMsg,
-        timestamp: new Date()
-      }]);
+      logger.error(
+        'Failed to submit changes',
+        'classes',
+        { entriesCount: changedEntries.length },
+        error as Error
+      );
+      setSubmitError(error instanceof Error ? error.message : 'Failed to submit changes');
     } finally {
       setIsSubmitting(false);
 
@@ -190,7 +177,10 @@ export function useInlineEditing({
 
   // Auto-save effect
   useEffect(() => {
-    if (autoSaveEnabled && Object.values(inlineEditData).some(data => data.hasChanges && data.isValid)) {
+    if (
+      autoSaveEnabled &&
+      Object.values(inlineEditData).some(data => data.hasChanges && data.isValid)
+    ) {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
@@ -219,24 +209,16 @@ export function useInlineEditing({
     setInlineEditData({});
   }, []);
 
-  const clearErrors = useCallback(() => {
-    setErrors([]);
-    setSubmitError(null);
-  }, []);
-
   return {
     inlineEditData,
-    errors,
     isSubmitting,
     submitError,
     autoSaveEnabled,
     changesSummary,
-    initializeEditData,
     updateInlineEditData,
     getEditData,
     handleSubmitChanges,
     setAutoSaveEnabled,
     clearEditData,
-    clearErrors
   };
 }

@@ -145,11 +145,13 @@ export function EditableCell({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Keep currentValue in sync with propValue when not editing
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!editing) {
       setCurrentValue(propValue);
     }
   }, [propValue, editing]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const isDirty = currentValue !== originalValue;
 

@@ -18,7 +18,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ### Secretary / Operations
 
-- [ ] **Secretary Kanban board** — myK9Q has KanbanBoard/KanbanCard/KanbanColumn with drag-and-drop task management for day-of operations. Port to myK9Show's SecretaryDashboard.
+- [x] **Secretary Kanban board** — Done: Ported drag-and-drop Kanban board from myK9Q. Three columns (To Do, In Progress, Done) with task cards supporting priority, due date, and assignee. Uses @dnd-kit, shadcn Dialog, Tailwind. Persists to localStorage per show. Route at `/secretary/tasks`, sidebar entry under Secretary section. 8 unit tests.
 - [ ] **Volunteer scheduling page** — myK9Q has VolunteerChip/VolunteerDialog/VolunteerPool for steward/volunteer assignment. Build equivalent in myK9Show.
 - [ ] **Check-in status report** — myK9Q's TrialSecretary has a check-in status tab. Add to myK9Show secretary tools.
 - [ ] **Results control / publishing** — myK9Q has a results control tab for managing result visibility and publishing. Port to myK9Show.
@@ -37,13 +37,13 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 ### Data & Analytics
 
 - [ ] **Trial statistics / analytics** — myK9Q has `/stats` and `/stats/:trialId/class/:classId` with detailed trial & class performance analytics. myK9Show's AnalyticsPage is limited.
-- [ ] **Public results display** — myK9Q has `/results` and `/results/:licenseKey` for browsing results. myK9Show has entry dashboards but no public results page.
+- [x] **Public results display** — Done: Replaced placeholder Results tab on ShowDetailsPage with live podium cards showing 1st–4th placements per class. Results now visible to both authenticated and unauthenticated users. Includes element/level filters, pending results collapsible section. PodiumCard/PodiumPosition components with Tailwind. Data via React Query from `view_entry_with_results`. 15 unit tests.
 
 ### UX / Quality of Life
 
 - [x] **Armband-based dog lookup** — Done: Added `ArmbandLookup` component to ShowDetailsPage header. Compact input field appears when armbands exist for the show. User types armband number, presses Enter, popover shows dog info (name, breed, sex, owner), class entries with status badges, handler info, and "View profile" link. Self-contained component with `armbandQueries.ts` (count + lookup), React Query hooks, error/not-found/loading states. 10 unit tests.
 - [ ] **Settings pages (comprehensive)** — myK9Q has scoring settings, voice settings, privacy, data management, developer tools, install app prompts. myK9Show only has basic PreferencesPage.
-- [ ] **PWA / app install prompts** — myK9Q has device detection and mobile app install prompts. myK9Show has no equivalent.
+- [x] **PWA / app install prompts** — Done: Ported PWA install prompt from myK9Q. `usePWAInstall` hook detects standalone mode, captures `beforeinstallprompt` for Chrome/Edge, provides iOS Safari manual instructions via shadcn Dialog. Banner auto-dismisses for 7 days. Mounted above AppHeader in App.tsx. 8 unit tests.
 
 ---
 

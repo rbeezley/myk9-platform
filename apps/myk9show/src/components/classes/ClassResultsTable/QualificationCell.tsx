@@ -68,14 +68,16 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
               item.modifiedFields?.has('qualification') && 'ring-2 ring-blue-500/30 border-blue-500'
             )}
           >
-            <SelectValue placeholder="Select" />
+            <SelectValue placeholder="Select">
+              {DISPLAY_LABELS[item.qualification] || item.qualification}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Qualified">Q - Qualified</SelectItem>
-            <SelectItem value="Not Qualified">NQ - Not Qualified</SelectItem>
-            <SelectItem value="Absent">ABS - Absent</SelectItem>
-            <SelectItem value="Excused">EXC - Excused</SelectItem>
-            <SelectItem value="Withdrawn">WD - Withdrawn</SelectItem>
+            <SelectItem value="Qualified">Qualified</SelectItem>
+            <SelectItem value="Not Qualified">NQ</SelectItem>
+            <SelectItem value="Absent">Absent</SelectItem>
+            <SelectItem value="Excused">Excused</SelectItem>
+            <SelectItem value="Withdrawn">Withdrawn</SelectItem>
           </SelectContent>
         </Select>
         {item.qualification && (

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { type ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
-import { SortableTable, type ColumnDef } from '@/components/common/SortableTable';
+import { DataTable } from '@/components/ui/data-table';
 import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
@@ -14,134 +15,110 @@ interface EntriesTableViewProps {
   isResendDisabled?: ((registrationId: string) => boolean) | undefined;
 }
 
-const COLUMNS: ColumnDef<EntryManagementEntry>[] = [
-  {
-    key: 'dogName',
-    label: 'Dog Name',
-    className: 'w-[180px]',
-    getValue: entry => (entry.dogName || '').toLowerCase(),
-  },
-  {
-    key: 'handlerName',
-    label: 'Handler',
-    className: 'w-[160px]',
-    getValue: entry => (entry.handlerName || '').toLowerCase(),
-  },
-  {
-    key: 'classes',
-    label: 'Classes',
-    className: 'w-[120px]',
-    getValue: entry => String(entry.classes.length).padStart(5, '0'),
-  },
-  {
-    key: 'armbandNumber',
-    label: 'Armband #',
-    className: 'w-[100px]',
-    getValue: entry => (entry.armbandNumber || '').toLowerCase(),
-  },
-  {
-    key: 'entryStatus',
-    label: 'Status',
-    className: 'w-[150px]',
-    getValue: entry => (entry.entryStatus || '').toLowerCase(),
-  },
-  {
-    key: 'submittedAt',
-    label: 'Date',
-    className: 'w-[120px]',
-    getValue: entry => (entry.submittedAt ? entry.submittedAt.toISOString() : ''),
-  },
-];
-
-function createRenderCell(
+function buildColumns(
   emailStatusMap?: Record<string, EmailLogEntry>,
   onResendEmail?: (registrationId: string) => void,
   isResendDisabled?: (registrationId: string) => boolean
-) {
-  return function renderCell(entry: EntryManagementEntry, column: ColumnDef<EntryManagementEntry>) {
-    switch (column.key) {
-      case 'dogName':
-        return (
-          <td className="px-4 py-3">
-            <div className="min-w-0">
-              <div className="font-medium truncate">{entry.dogName}</div>
-              <div className="text-xs text-muted-foreground truncate">{entry.entryNumber}</div>
-            </div>
-          </td>
-        );
-      case 'handlerName':
-        return (
-          <td className="px-4 py-3 text-muted-foreground truncate">
-            {entry.handlerName || '\u2014'}
-          </td>
-        );
-      case 'classes':
-        return (
-          <td className="px-4 py-3">
-            <div className="flex flex-wrap gap-1">
-              {entry.classes.length > 0 ? (
-                <>
-                  {entry.classes.slice(0, 2).map(cls => (
-                    <Badge key={cls.id} variant="secondary" className="text-xs">
-                      {cls.name}
-                    </Badge>
-                  ))}
-                  {entry.classes.length > 2 && (
-                    <Badge variant="secondary" className="text-xs">
-                      +{entry.classes.length - 2}
-                    </Badge>
-                  )}
-                </>
-              ) : (
-                <span className="text-muted-foreground">{'\u2014'}</span>
+): ColumnDef<EntryManagementEntry, unknown>[] {
+  return [
+    {
+      accessorKey: 'dogName',
+      header: 'Dog Name',
+      accessorFn: entry => (entry.dogName ?? '').toLowerCase(),
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <div className="font-medium truncate">{row.original.dogName}</div>
+          <div className="text-xs text-muted-foreground truncate">{row.original.entryNumber}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'handlerName',
+      header: 'Handler',
+      accessorFn: entry => (entry.handlerName ?? '').toLowerCase(),
+      cell: ({ row }) => (
+        <span className="text-muted-foreground truncate">
+          {row.original.handlerName || '\u2014'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'classes',
+      header: 'Classes',
+      accessorFn: entry => entry.classes.length,
+      sortingFn: 'basic',
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.classes.length > 0 ? (
+            <>
+              {row.original.classes.slice(0, 2).map(cls => (
+                <Badge key={cls.id} variant="secondary" className="text-xs">
+                  {cls.name}
+                </Badge>
+              ))}
+              {row.original.classes.length > 2 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{row.original.classes.length - 2}
+                </Badge>
               )}
-            </div>
-          </td>
-        );
-      case 'armbandNumber':
-        return (
-          <td className="px-4 py-3">
-            {entry.armbandNumber ? (
-              <Badge variant="outline" className="text-xs">
-                {entry.armbandNumber}
-              </Badge>
-            ) : (
-              <span className="text-muted-foreground">{'\u2014'}</span>
-            )}
-          </td>
-        );
-      case 'entryStatus':
-        return (
-          <td className="px-4 py-3">
-            <div className="flex items-center gap-1">
-              {getEntryStatusBadge(entry.entryStatus)}
-              {getPaymentStatusBadge(entry.paymentStatus)}
-              {emailStatusMap && (
-                <EmailStatusIcon
-                  status={emailStatusMap[entry.registrationId]?.status}
-                  errorMessage={emailStatusMap[entry.registrationId]?.error_message}
-                  onResend={onResendEmail ? () => onResendEmail(entry.registrationId) : undefined}
-                  resendDisabled={isResendDisabled?.(entry.registrationId)}
-                />
-              )}
-            </div>
-          </td>
-        );
-      case 'submittedAt':
-        return (
-          <td className="px-4 py-3 text-muted-foreground">
-            {entry.submittedAt
-              ? new Date(entry.submittedAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })
-              : '\u2014'}
-          </td>
-        );
-      default:
-        return <td className="px-4 py-3" />;
-    }
-  };
+            </>
+          ) : (
+            <span className="text-muted-foreground">{'\u2014'}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'armbandNumber',
+      header: 'Armband #',
+      accessorFn: entry => (entry.armbandNumber ?? '').toLowerCase(),
+      cell: ({ row }) =>
+        row.original.armbandNumber ? (
+          <Badge variant="outline" className="text-xs">
+            {row.original.armbandNumber}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">{'\u2014'}</span>
+        ),
+    },
+    {
+      accessorKey: 'entryStatus',
+      header: 'Status',
+      accessorFn: entry => (entry.entryStatus ?? '').toLowerCase(),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          {getEntryStatusBadge(row.original.entryStatus)}
+          {getPaymentStatusBadge(row.original.paymentStatus)}
+          {emailStatusMap && (
+            <EmailStatusIcon
+              status={emailStatusMap[row.original.registrationId]?.status}
+              errorMessage={emailStatusMap[row.original.registrationId]?.error_message}
+              onResend={
+                onResendEmail ? () => onResendEmail(row.original.registrationId) : undefined
+              }
+              resendDisabled={isResendDisabled?.(row.original.registrationId)}
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'submittedAt',
+      header: 'Date',
+      accessorFn: entry => (entry.submittedAt ? entry.submittedAt.toISOString() : ''),
+      sortingFn: 'datetime',
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.submittedAt
+            ? new Date(row.original.submittedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })
+            : '\u2014'}
+        </span>
+      ),
+    },
+  ];
 }
 
 export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
@@ -151,19 +128,17 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
   onResendEmail,
   isResendDisabled,
 }) => {
-  const renderCell = React.useMemo(
-    () => createRenderCell(emailStatusMap, onResendEmail, isResendDisabled),
+  const columns = useMemo(
+    () => buildColumns(emailStatusMap, onResendEmail, isResendDisabled),
     [emailStatusMap, onResendEmail, isResendDisabled]
   );
 
   return (
-    <SortableTable<EntryManagementEntry>
-      items={entries}
-      columns={COLUMNS}
-      defaultSortColumn="dogName"
-      getRowKey={entry => entry.id}
-      onRowClick={onEntryClick}
-      renderCell={renderCell}
+    <DataTable<EntryManagementEntry>
+      data={entries}
+      columns={columns}
+      getRowId={entry => entry.id}
+      {...(onEntryClick !== undefined ? { onRowClick: onEntryClick } : {})}
     />
   );
 };

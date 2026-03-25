@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { TrialClassesCards } from './TrialClassesCards';
 import { getClassStatusBadgeClasses } from '@myk9/core';
+import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 
 type ViewMode = 'table' | 'cards';
 
@@ -317,10 +318,8 @@ export const TrialClassesTable = ({
                   >
                     <TableCell>{classItem.element}</TableCell>
                     <TableCell>
-                      {classItem.level}
-                      {classItem.section &&
-                        classItem.level?.startsWith('Novice') &&
-                        ` ${classItem.section}`}
+                      {shouldShowLevel(classItem) ? classItem.level : ''}
+                      {shouldShowSection(classItem) && ` ${classItem.section}`}
                     </TableCell>
                     <TableCell>{classItem.judgeName || 'TBD'}</TableCell>
                     <TableCell>

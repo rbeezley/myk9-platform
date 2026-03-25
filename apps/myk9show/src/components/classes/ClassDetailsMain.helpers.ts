@@ -48,7 +48,7 @@ export function shouldShowSection(classLike: {
 /**
  * Detective element in AKC Scent Work has no levels — hide level display.
  */
-function shouldShowLevel(classLike: {
+export function shouldShowLevel(classLike: {
   element?: string | undefined;
   level?: string | undefined;
 }): boolean {

@@ -46,11 +46,23 @@ export function shouldShowSection(classLike: {
 }
 
 /**
+ * Detective element in AKC Scent Work has no levels — hide level display.
+ */
+function shouldShowLevel(classLike: {
+  element?: string | undefined;
+  level?: string | undefined;
+}): boolean {
+  if (!classLike.level) return false;
+  if (classLike.element === 'Detective') return false;
+  return true;
+}
+
+/**
  * Build a formatted class title from element, level, and section.
  */
 export function formatClassTitle(classData: ClassData): string {
   const parts = [classData.element];
-  if (classData.level) parts.push(classData.level);
+  if (shouldShowLevel(classData)) parts.push(classData.level!);
   if (shouldShowSection(classData)) parts.push(classData.section!);
   return parts.join(' ');
 }

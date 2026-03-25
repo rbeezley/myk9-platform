@@ -19,6 +19,7 @@ import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { ClassCompactHeader } from '@/components/classes/ClassCompactHeader';
 import { ClassRequirementsPanel } from '@/components/classes/ClassRequirementsPanel';
+import { formatClassTitle } from '@/components/classes/ClassDetailsMain.helpers';
 import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
 import { Button } from '@/components/ui/button';
 import {
@@ -197,9 +198,7 @@ const ClassDetailsPage: React.FC = () => {
       const trialLabel = parentTrial.type || parentTrial.trialNumber || 'Trial';
       crumbs.push({ label: trialLabel, href: `/trials/${parentTrial.id}` });
     }
-    const classLabel = currentClass
-      ? `${currentClass.element || ''} ${currentClass.level || ''}`.trim() || 'Class'
-      : 'Class';
+    const classLabel = currentClass ? formatClassTitle(currentClass) || 'Class' : 'Class';
     crumbs.push({ label: classLabel, href: `/classes/${classId}` });
     return crumbs;
   }, [parentShow, parentTrial, currentClass, classId]);
@@ -246,7 +245,7 @@ const ClassDetailsPage: React.FC = () => {
     return <LoadingClassState />;
   }
 
-  const className = `${currentClass.element || ''} ${currentClass.level || ''}`.trim() || 'Class';
+  const className = formatClassTitle(currentClass) || 'Class';
 
   return (
     <PageShell>

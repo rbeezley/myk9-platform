@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { formatFee } from '@/utils/format';
 import type { ClassData } from './types/classTypes';
 import type { Trial } from '@/components/trials/types/trial.types';
-import { shouldShowSection } from './ClassDetailsMain.helpers';
+import { formatClassTitle, shouldShowSection } from './ClassDetailsMain.helpers';
 
 // --- Status badge variant mapping (mirrors DetailHero) ---
 
@@ -65,8 +65,8 @@ export function ClassCompactHeader({
 }: ClassCompactHeaderProps) {
   const variant: BadgeVariant = STATUS_VARIANT_MAP[classData.status] || 'default';
 
-  // Build class display name from element + level
-  const className_ = `${classData.element || ''} ${classData.level || ''}`.trim() || 'Class';
+  // Build class display name from element + level (hides level for Detective)
+  const className_ = formatClassTitle(classData) || 'Class';
 
   // Trial display value — trialNumber is the name (e.g., "Saturday Trial 1"),
   // trialType is the sport (e.g., "Scent Work") which we don't want here

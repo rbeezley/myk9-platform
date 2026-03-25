@@ -99,6 +99,7 @@
     "@myk9/ui": "workspace:*",
     "@supabase/supabase-js": "^2.93.3",
     "@tanstack/react-query": "^5.90.20",
+    "@tanstack/react-table": "^8.21.3",
     "@tiptap/react": "^3.18.0",
     "@tiptap/starter-kit": "^3.18.0",
     "@vercel/og": "^0.11.1",

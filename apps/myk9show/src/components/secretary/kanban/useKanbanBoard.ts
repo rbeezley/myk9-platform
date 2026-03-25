@@ -14,6 +14,7 @@ export function useKanbanBoard(showId: string | undefined) {
   const [isLoaded, setIsLoaded] = useState(false);
   const isDirty = useRef(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {
       const stored = localStorage.getItem(storageKey);
@@ -29,6 +30,7 @@ export function useKanbanBoard(showId: string | undefined) {
     isDirty.current = false;
     setIsLoaded(true);
   }, [storageKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!isLoaded || !isDirty.current) return;

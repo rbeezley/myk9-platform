@@ -39,6 +39,7 @@ export function TaskDialog({ open, onOpenChange, onSave, task }: TaskDialogProps
   const [dueDate, setDueDate] = useState('');
   const [assignee, setAssignee] = useState('');
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open && task) {
       setTitle(task.title);
@@ -54,6 +55,7 @@ export function TaskDialog({ open, onOpenChange, onSave, task }: TaskDialogProps
       setAssignee('');
     }
   }, [open, task]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

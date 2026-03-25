@@ -1,11 +1,9 @@
 /**
- * UserTable Component - Premium premium data table for user management
+ * UserTable Component - Premium data table for user management
  *
  * Features:
- * - Premium visual design with smooth animations
- * - Premium user avatars with gradient fallbacks
- * - Sophisticated sorting with visual indicators
- * - Multi-select with enhanced checkboxes
+ * - DataTable-powered sorting with visual indicators
+ * - Multi-select with external state (controlled by parent)
  * - Three-dot menus following standard patterns
  * - Advanced hover states with standard easing
  * - Responsive design with mobile adaptation
@@ -19,7 +17,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Table, TableBody } from '@/components/ui/table';
+import { type ColumnDef } from '@tanstack/react-table';
+import { DataTable } from '@/components/ui/data-table';
 import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -27,14 +26,329 @@ import { usePermanentDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
 import '@/styles/myk9-table.css';
 
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Mail, Phone, MapPin, Calendar, Building2 } from 'lucide-react';
+
 import { User } from '@/types/user-types';
-import { DENSITY_CONFIG, APPLE_FONT_STYLE } from './types';
-import type { UserTableProps, SortField, SortDirection } from './types';
-import { UserTableSkeleton } from './UserTableSkeleton';
+import type { AdminUser } from '@/hooks/queries/useUsersQuery';
+import { formatRelativeTime } from '@/lib/timeUtils';
+import { DENSITY_CONFIG, APPLE_FONT_STYLE, ROLE_CONFIG } from './types';
+import type { UserTableProps } from './types';
 import { UserTableEmptyState } from './UserTableEmptyState';
-import { UserTableHeader } from './UserTableHeader';
-import { UserTableRowComponent } from './UserTableRow';
 import { Pagination } from './Pagination';
+import { RowActions } from './RowActions';
+import {
+  getUserInitials,
+  getUserFullName,
+  getUserStatus,
+  getStatusConfig,
+  getDeletedStatusConfig,
+  getAvatarGradient,
+  highlightSearchTerm,
+} from './utils';
+
+// ---------------------------------------------------------------------------
+// Local helpers (previously in UserTableRow)
+// ---------------------------------------------------------------------------
+
+function formatLastLogin(dateString: string | null | undefined): string {
+  if (!dateString) return 'Never';
+  return formatRelativeTime(new Date(dateString));
+}
+
+function isStaleLogin(dateString: string | null | undefined, thresholdDays = 180): boolean {
+  if (!dateString) return false;
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  return diffMs > thresholdDays * 86400000;
+}
+
+// ---------------------------------------------------------------------------
+// Column factory — accepts closure values so cells can use them
+// ---------------------------------------------------------------------------
+
+function buildColumns(
+  selectedUsers: UserTableProps['selectedUsers'],
+  onSelectUser: UserTableProps['onSelectUser'],
+  onSelectAll: UserTableProps['onSelectAll'],
+  users: AdminUser[],
+  searchTerm: string,
+  densityMode: NonNullable<UserTableProps['densityMode']>,
+  onViewUser: (user: User) => void,
+  onEditUser: (user: User) => void,
+  onDeleteUser: (user: User) => void
+): ColumnDef<AdminUser, unknown>[] {
+  const density = DENSITY_CONFIG[densityMode];
+
+  const isUserSelected = (userId: string) => selectedUsers.some(item => item.id === userId);
+  const allSelected = users.length > 0 && users.every(u => isUserSelected(u.id));
+  const someSelected = selectedUsers.length > 0 && !allSelected;
+
+  return [
+    // ── Select checkbox ──────────────────────────────────────────────────
+    {
+      id: '_select',
+      enableSorting: false,
+      header: () => (
+        <input
+          type="checkbox"
+          checked={allSelected}
+          ref={el => {
+            if (el) el.indeterminate = someSelected && !allSelected;
+          }}
+          onChange={e => onSelectAll(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-400 accent-blue-500 cursor-pointer"
+        />
+      ),
+      cell: ({ row }) => {
+        const user = row.original;
+        return (
+          <span onClick={e => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={isUserSelected(user.id)}
+              onChange={e => onSelectUser(user, e.target.checked)}
+              className="h-4 w-4 rounded border-gray-400 accent-blue-500 cursor-pointer"
+            />
+          </span>
+        );
+      },
+    },
+
+    // ── User (name + avatar) ─────────────────────────────────────────────
+    {
+      id: 'name',
+      header: 'User',
+      accessorFn: (row: AdminUser) =>
+        `${row.firstName || ''} ${row.lastName || ''}`.trim().toLowerCase(),
+      cell: ({ row }) => {
+        const user = row.original;
+        const initials = getUserInitials(user);
+        const avatarGradient = getAvatarGradient(initials);
+        const fullName = getUserFullName(user);
+        const status = getUserStatus(user);
+        const statusConfig = user.deletedAt ? getDeletedStatusConfig() : getStatusConfig(status);
+
+        return (
+          <div className={`flex items-center ${density.spacing}`}>
+            <div className="relative">
+              <Avatar
+                className={`${density.avatarSize} ring-2 ring-white/50 ring-offset-2 ring-offset-background shadow-sm`}
+              >
+                <AvatarFallback
+                  className={`${density.fontSize} font-[650] bg-gradient-to-br ${avatarGradient} text-white shadow-inner`}
+                >
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {statusConfig && (
+                <div
+                  className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-background bg-gradient-to-br flex items-center justify-center"
+                  style={{ backgroundColor: statusConfig.background }}
+                >
+                  <statusConfig.icon
+                    className="h-2.5 w-2.5"
+                    style={{ color: statusConfig.color }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div
+                className={`font-[590] text-foreground truncate ${density.fontSize} leading-tight`}
+              >
+                {!user.firstName && !user.lastName ? (
+                  <span className="italic text-muted-foreground">&mdash; &mdash;</span>
+                ) : (
+                  highlightSearchTerm(fullName, searchTerm)
+                )}
+              </div>
+              {user.membershipId && (
+                <div className="text-xs text-muted-foreground font-[500] mt-1 tracking-wide">
+                  ID: {highlightSearchTerm(user.membershipId, searchTerm)}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+
+    // ── Contact ──────────────────────────────────────────────────────────
+    {
+      id: 'email',
+      header: 'Contact',
+      accessorFn: (row: AdminUser) => row.email?.toLowerCase() ?? '',
+      cell: ({ row }) => {
+        const user = row.original;
+        return (
+          <div className="space-y-2">
+            {user.email && (
+              <div className={`flex items-center ${density.spacing} text-sm`}>
+                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center border border-blue-500/20">
+                  <Mail className="h-3 w-3 text-blue-600" />
+                </div>
+                <span className="truncate font-[500] text-foreground">
+                  {highlightSearchTerm(user.email, searchTerm)}
+                </span>
+              </div>
+            )}
+            {user.phone && (
+              <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
+                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-green-500/10 to-green-500/5 flex items-center justify-center border border-green-500/20">
+                  <Phone className="h-3 w-3 text-green-600" />
+                </div>
+                <span className="font-[500]">{highlightSearchTerm(user.phone, searchTerm)}</span>
+              </div>
+            )}
+            {(user.city || user.state) && (
+              <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
+                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500/10 to-orange-500/5 flex items-center justify-center border border-orange-500/20">
+                  <MapPin className="h-3 w-3 text-orange-600" />
+                </div>
+                <span className="font-[500]">
+                  {highlightSearchTerm(
+                    [user.city, user.state].filter(Boolean).join(', '),
+                    searchTerm
+                  )}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+
+    // ── Roles ────────────────────────────────────────────────────────────
+    {
+      id: 'role',
+      header: 'Roles',
+      accessorFn: (row: AdminUser) => row.roles?.[0] ?? '',
+      cell: ({ row }) => {
+        const user = row.original;
+        return (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {user.roles?.map(role => {
+                const roleConfig = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG];
+                return (
+                  <Badge
+                    key={role}
+                    variant="outline"
+                    className="text-xs font-[590] px-3 py-1 rounded-full border-0 transition-all duration-200"
+                    style={{
+                      backgroundColor: roleConfig?.background || 'rgba(142, 142, 147, 0.1)',
+                      color: roleConfig?.color || '#8E8E93',
+                    }}
+                  >
+                    {roleConfig?.icon && <roleConfig.icon className="h-3 w-3 mr-1" />}
+                    {roleConfig?.label || role}
+                  </Badge>
+                );
+              }) || (
+                <Badge
+                  variant="outline"
+                  className="text-xs font-[590] px-3 py-1 rounded-full border border-border/60 text-muted-foreground"
+                >
+                  No Role
+                </Badge>
+              )}
+            </div>
+
+            {user.clubAffiliations && user.clubAffiliations.length > 0 && (
+              <div className={`flex items-center ${density.spacing} text-xs text-muted-foreground`}>
+                <div className="h-5 w-5 rounded-md bg-gradient-to-br from-purple-500/10 to-purple-500/5 flex items-center justify-center border border-purple-500/20">
+                  <Building2 className="h-3 w-3 text-purple-600" />
+                </div>
+                <span className="truncate font-[500]">
+                  {user.clubAffiliations.length === 1
+                    ? highlightSearchTerm(user.clubAffiliations[0], searchTerm)
+                    : `${user.clubAffiliations.length} clubs`}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+
+    // ── Last Login ───────────────────────────────────────────────────────
+    {
+      id: 'lastLogin',
+      header: 'Last Login',
+      accessorFn: (row: AdminUser) => row.lastSignInAt ?? '',
+      cell: ({ row }) => {
+        const user = row.original;
+        const stale = isStaleLogin(user.lastSignInAt);
+        return (
+          <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
+            <div className="h-5 w-5 rounded-md bg-gradient-to-br from-gray-500/10 to-gray-500/5 flex items-center justify-center border border-gray-500/20">
+              <Calendar className="h-3 w-3 text-gray-600" />
+            </div>
+            <span className="font-[500]" style={stale ? { color: '#EF4444' } : undefined}>
+              {formatLastLogin(user.lastSignInAt)}
+            </span>
+          </div>
+        );
+      },
+    },
+
+    // ── Status ───────────────────────────────────────────────────────────
+    {
+      id: 'status',
+      header: 'Status',
+      enableSorting: false,
+      accessorFn: (row: AdminUser) => row.status ?? 'active',
+      cell: ({ row }) => {
+        const user = row.original;
+        const status = getUserStatus(user);
+        const statusConfig = user.deletedAt ? getDeletedStatusConfig() : getStatusConfig(status);
+        return (
+          <Badge
+            variant="outline"
+            className="text-xs font-[590] px-3 py-1 rounded-full border-0 flex items-center gap-1.5 transition-all duration-200"
+            style={{
+              backgroundColor: statusConfig.background,
+              color: statusConfig.color,
+            }}
+          >
+            <statusConfig.icon className="h-3 w-3" />
+            {statusConfig.label}
+          </Badge>
+        );
+      },
+    },
+
+    // ── Actions ──────────────────────────────────────────────────────────
+    {
+      id: '_actions',
+      enableSorting: false,
+      header: () => (
+        <span className="font-[650] text-sm text-muted-foreground uppercase tracking-[0.04em]">
+          Actions
+        </span>
+      ),
+      cell: ({ row }) => {
+        const user = row.original;
+        return (
+          <span onClick={e => e.stopPropagation()}>
+            <RowActions
+              user={user}
+              onView={onViewUser}
+              onEdit={onEditUser}
+              onDelete={onDeleteUser}
+            />
+          </span>
+        );
+      },
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 export const UserTable: React.FC<UserTableProps> = ({
   users,
@@ -51,87 +365,17 @@ export const UserTable: React.FC<UserTableProps> = ({
   searchTerm = '',
   densityMode = 'comfortable',
 }) => {
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { deleteUser } = useUserStore();
   const { isAdmin } = useAuthContext();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
-
-  // Sort users
-  const sortedUsers = useMemo(() => {
-    const sorted = [...users].sort((a, b) => {
-      let aValue: string | number | Date;
-      let bValue: string | number | Date;
-
-      switch (sortField) {
-        case 'name':
-          aValue = `${a.firstName || ''} ${a.lastName || ''}`.trim().toLowerCase();
-          bValue = `${b.firstName || ''} ${b.lastName || ''}`.trim().toLowerCase();
-          break;
-        case 'email':
-          aValue = a.email?.toLowerCase() || '';
-          bValue = b.email?.toLowerCase() || '';
-          break;
-        case 'role':
-          aValue = a.roles?.[0] || '';
-          bValue = b.roles?.[0] || '';
-          break;
-        case 'created':
-          aValue = a.createdAt || new Date(0);
-          bValue = b.createdAt || new Date(0);
-          break;
-        case 'lastLogin':
-          aValue = a.lastSignInAt || '';
-          bValue = b.lastSignInAt || '';
-          break;
-        default:
-          aValue = '';
-          bValue = '';
-      }
-
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return sorted;
-  }, [users, sortField, sortDirection]);
-
-  // Handle sorting
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  // Check if user is selected
-  const isUserSelected = (userId: string) => {
-    return selectedUsers.some(item => item.id === userId);
-  };
-
-  // Check if all visible users are selected
-  const allSelected = users.length > 0 && users.every(user => isUserSelected(user.id));
-  const someSelected = selectedUsers.length > 0 && !allSelected;
-
-  // Handle row actions
   const navigate = useNavigate();
 
-  const handleViewUser = (user: User) => {
-    navigate(`/users/${user.id}`);
-  };
-
-  const handleEditUser = (user: User) => {
-    onUserClick(user); // Opens the details dialog in edit mode
-  };
-
-  const handleDeleteUser = (user: User) => {
-    setDeleteTarget(user);
-  };
+  // Handle row actions
+  const handleViewUser = (user: User) => navigate(`/users/${user.id}`);
+  const handleEditUser = (user: User) => onUserClick(user);
+  const handleDeleteUser = (user: User) => setDeleteTarget(user);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -163,54 +407,49 @@ export const UserTable: React.FC<UserTableProps> = ({
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    return <UserTableSkeleton densityMode={densityMode} />;
-  }
+  // Build columns — stable reference unless closure values change
+  const columns = useMemo(
+    () =>
+      buildColumns(
+        selectedUsers,
+        onSelectUser,
+        onSelectAll,
+        users,
+        searchTerm,
+        densityMode,
+        handleViewUser,
+        handleEditUser,
+        handleDeleteUser
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedUsers, onSelectUser, onSelectAll, users, searchTerm, densityMode]
+  );
 
-  // Empty state
-  if (!users.length) {
-    return <UserTableEmptyState searchTerm={searchTerm} />;
+  // Empty state (before DataTable so we keep the bespoke design)
+  if (!isLoading && !users.length) {
+    return (
+      <div className="space-y-6" style={APPLE_FONT_STYLE}>
+        <UserTableEmptyState searchTerm={searchTerm} />
+      </div>
+    );
   }
-
-  const density = DENSITY_CONFIG[densityMode];
 
   return (
     <div className="space-y-6" style={APPLE_FONT_STYLE}>
-      {/* Enhanced Table Container */}
+      {/* Table — use large pageSize so DataTable never shows its own pagination */}
       <div className="myk9-table-container">
-        {/* Table Wrapper */}
-        <div className="overflow-x-auto">
-          <Table className="myk9-table">
-            <UserTableHeader
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-              allSelected={allSelected}
-              someSelected={someSelected}
-              onSelectAll={onSelectAll}
-            />
-            <TableBody className="myk9-table-body">
-              {sortedUsers.map(user => (
-                <UserTableRowComponent
-                  key={user.id}
-                  user={user}
-                  isSelected={isUserSelected(user.id)}
-                  density={density}
-                  searchTerm={searchTerm}
-                  onSelectUser={onSelectUser}
-                  onUserClick={onUserClick}
-                  onViewUser={handleViewUser}
-                  onEditUser={handleEditUser}
-                  onDeleteUser={handleDeleteUser}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={users}
+          pageSize={9999}
+          loading={isLoading}
+          onRowClick={user => onUserClick(user)}
+          className="myk9-table"
+          emptyState={<UserTableEmptyState searchTerm={searchTerm} />}
+        />
       </div>
 
-      {/* Enhanced Pagination */}
+      {/* External pagination — controlled by parent */}
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}

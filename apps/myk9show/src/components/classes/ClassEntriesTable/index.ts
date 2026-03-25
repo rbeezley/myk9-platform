@@ -1,12 +1,5 @@
-/**
- * ClassEntriesTable Module
- *
- * Exports the main component and related types/utilities for managing
- * class entries with inline editing support.
- */
-
-// Main component
 export { default as ClassEntriesTable } from './ClassEntriesTable';
+export type { DisplayRow } from './ClassEntriesTable';
 
 // Types
 export type {
@@ -14,7 +7,7 @@ export type {
   InlineEditData,
   InlineEditEntry,
   ErrorState,
-  ChangesSummary
+  ChangesSummary,
 } from './types';
 
 export { DEFAULT_PERMISSIONS } from './types';
@@ -27,19 +20,13 @@ export {
   generateCSVContent,
   downloadEntriesAsCSV,
   parseTimeString,
-  formatTimeComponents
+  formatTimeComponents,
 } from './utils';
 
 // Hooks
 export { useInlineEditing } from './hooks/useInlineEditing';
 
 // Sub-components (for advanced use cases)
-export { EmptyState } from './components/EmptyState';
-export { ErrorDisplay } from './components/ErrorDisplay';
-export { EntriesTableHeader } from './components/EntriesTableHeader';
-export { InlineEditingToolbar } from './components/InlineEditingToolbar';
-export { StatusCell, TimeCell, ScoreCell, PlacementCell } from './components/EditableCells';
-export { SaveBar } from './components/SaveBar';
-export { SummaryFooter } from './components/SummaryFooter';
 export { DeleteDialog } from './components/DeleteDialog';
 export { EntryActionsMenu } from './components/EntryActionsMenu';
+export { EditableField } from './components/InlineEditCells';

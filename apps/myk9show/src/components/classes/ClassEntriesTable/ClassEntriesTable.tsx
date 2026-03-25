@@ -1,50 +1,24 @@
-/**
- * ClassEntriesTable Component
- *
- * Table component for displaying and managing class entries with inline editing support.
- */
-
 import React, { useState, useMemo, useCallback } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { type ColumnDef } from '@tanstack/react-table';
+import { Plus, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { DataTable, DataTableToolbar, DataTableSearch } from '@/components/ui/data-table';
 import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { useTableConfiguration } from '@/hooks/useTableConfiguration';
 import { cn } from '@/lib/utils';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
 import { FilterEmptyState } from '@/components/common/FilterEmptyState';
-
-// Types
 import { ClassEntriesTableProps, DEFAULT_PERMISSIONS } from './types';
 import { EntryData } from '../types/classTypes';
-
-// Hooks
 import { useInlineEditing } from './hooks/useInlineEditing';
-
-// Utils
-import { getStatusColor, getPlacementStyle, downloadEntriesAsCSV } from './utils';
-
-// Components
-import { EmptyState } from './components/EmptyState';
-import { ErrorDisplay } from './components/ErrorDisplay';
-import { EntriesTableHeader } from './components/EntriesTableHeader';
-import { InlineEditingToolbar } from './components/InlineEditingToolbar';
-import { StatusCell, TimeCell, ScoreCell, PlacementCell } from './components/EditableCells';
-import { SaveBar } from './components/SaveBar';
-import { SummaryFooter } from './components/SummaryFooter';
+import { downloadEntriesAsCSV } from './utils';
 import { DeleteDialog } from './components/DeleteDialog';
 import { EntryActionsMenu } from './components/EntryActionsMenu';
-
-// Statistics panel
+import { InlineEditingToolbar } from './components/InlineEditingToolbar';
+import { SaveBar } from './components/SaveBar';
+import { SummaryFooter } from './components/SummaryFooter';
+import { renderCell } from './components/renderCell';
 import { EntriesStatisticsPanel } from '../EntriesStatisticsPanel';
-
-// styles
 import '@/styles/myk9-show-details.css';
 
 export const COMPLETED_STATUSES = new Set([
@@ -55,6 +29,23 @@ export const COMPLETED_STATUSES = new Set([
   'Withdrawn',
   'Eliminated',
 ]);
+
+const EMPTY_EDIT_ENTRY: import('./types').InlineEditEntry = {
+  time: '',
+  status: '',
+  score: '',
+  placement: '',
+  isValid: true,
+  hasChanges: false,
+  errors: [],
+  originalData: { time: '', status: '', score: '', placement: '' },
+};
+
+export interface DisplayRow {
+  unified: UnifiedEntryData;
+  entry: EntryData;
+  transformed: Record<string, unknown>;
+}
 
 const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   entries,
@@ -71,23 +62,18 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   userPermissions,
   className,
 }) => {
-  // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<EntryData | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
 
-  // Default permissions if none provided
   const permissions = userPermissions || DEFAULT_PERMISSIONS;
 
-  // Inline editing hook
   const {
     inlineEditData,
-    errors,
     isSubmitting,
     submitError,
     autoSaveEnabled,
     changesSummary,
-    initializeEditData,
     updateInlineEditData,
     getEditData,
     handleSubmitChanges,
@@ -99,13 +85,11 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
     canSubmitResults: permissions.canSubmitResults,
   });
 
-  // Get table configuration based on show type and template
-  const { columns, transformEntry } = useTableConfiguration({
+  const { columns: tableColumns, transformEntry } = useTableConfiguration({
     trialType,
     template,
   });
 
-  // Transform entries to unified format for consistent display
   const unifiedEntries = useMemo(() => {
     return entries.map(entry => {
       const unified: UnifiedEntryData = {
@@ -132,29 +116,24 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
     return { all: entries.length, pending: entries.length - completed, completed };
   }, [entries]);
 
-  const filteredEntries = useMemo(() => {
-    if (statusFilter === 'all') return entries;
-    return entries.filter(entry => {
-      const isCompleted = COMPLETED_STATUSES.has(entry.status);
-      return statusFilter === 'completed' ? isCompleted : !isCompleted;
-    });
-  }, [entries, statusFilter]);
+  // Single pass: filter + build display rows (entries[i] and unifiedEntries[i] are always paired)
+  const displayRows: DisplayRow[] = useMemo(() => {
+    const rows: DisplayRow[] = [];
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
+      if (statusFilter !== 'all') {
+        const isCompleted = COMPLETED_STATUSES.has(entry.status);
+        if (statusFilter === 'completed' ? !isCompleted : isCompleted) continue;
+      }
+      rows.push({
+        unified: unifiedEntries[i],
+        entry,
+        transformed: transformEntry(unifiedEntries[i]),
+      });
+    }
+    return rows;
+  }, [entries, unifiedEntries, statusFilter, transformEntry]);
 
-  const filteredUnifiedEntries = useMemo(() => {
-    if (statusFilter === 'all') return unifiedEntries;
-    return unifiedEntries.filter(e => {
-      const isCompleted = COMPLETED_STATUSES.has(e.status);
-      return statusFilter === 'completed' ? isCompleted : !isCompleted;
-    });
-  }, [unifiedEntries, statusFilter]);
-
-  const entryById = useMemo(() => {
-    const map = new Map<string, EntryData>();
-    for (const entry of filteredEntries) map.set(entry.id, entry);
-    return map;
-  }, [filteredEntries]);
-
-  // Delete handlers
   const handleDeleteClick = useCallback((entry: EntryData) => {
     setEntryToDelete(entry);
     setDeleteDialogOpen(true);
@@ -168,29 +147,24 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
     setEntryToDelete(null);
   }, [entryToDelete, onDeleteEntry]);
 
-  // Keyboard navigation handler
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent, _entryId: string, field: string, rowIndex: number) => {
       const { key, shiftKey, ctrlKey, metaKey } = event;
 
-      // Handle Ctrl/Cmd + S to save
       if ((ctrlKey || metaKey) && key === 's') {
         event.preventDefault();
         handleSubmitChanges();
         return;
       }
 
-      // Handle Escape to cancel editing
       if (key === 'Escape') {
         event.preventDefault();
         clearEditData();
         return;
       }
 
-      // Handle Tab and Enter navigation
       if (key === 'Enter' || key === 'Tab') {
         event.preventDefault();
-
         const fieldOrder = ['time', 'status', 'score', 'placement'];
         const currentFieldIndex = fieldOrder.indexOf(field);
 
@@ -198,7 +172,6 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         let nextRowIndex = rowIndex;
 
         if (shiftKey) {
-          // Navigate backwards
           if (currentFieldIndex > 0) {
             nextField = fieldOrder[currentFieldIndex - 1];
           } else if (rowIndex > 0) {
@@ -208,10 +181,9 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
             return;
           }
         } else {
-          // Navigate forwards
           if (currentFieldIndex < fieldOrder.length - 1) {
             nextField = fieldOrder[currentFieldIndex + 1];
-          } else if (rowIndex < filteredEntries.length - 1) {
+          } else if (rowIndex < displayRows.length - 1) {
             nextRowIndex = rowIndex + 1;
             nextField = fieldOrder[0];
           } else {
@@ -219,64 +191,176 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
           }
         }
 
-        // Find and focus next input
-        const nextEntryId = filteredEntries[nextRowIndex]?.id;
+        const nextEntryId = displayRows[nextRowIndex]?.entry.id;
         if (nextEntryId) {
           const nextInput = document.querySelector(
             `input[data-entry-id="${nextEntryId}"][data-field="${nextField}"], select[data-entry-id="${nextEntryId}"][data-field="${nextField}"]`
           ) as HTMLElement;
-
-          if (nextInput) {
-            nextInput.focus();
-          }
+          if (nextInput) nextInput.focus();
         }
       }
     },
-    [filteredEntries, handleSubmitChanges, clearEditData]
+    [displayRows, handleSubmitChanges, clearEditData]
   );
 
-  // CSV export handler
   const handleExportCSV = useCallback(() => {
     if (permissions.canExportData) {
       downloadEntriesAsCSV(entries);
     }
   }, [entries, permissions.canExportData]);
 
-  // Empty state
+  const columnDefs: ColumnDef<DisplayRow, unknown>[] = useMemo(() => {
+    const cols: ColumnDef<DisplayRow, unknown>[] = tableColumns.map(column => ({
+      id: column.id,
+      accessorFn: (row: DisplayRow) => {
+        const cellData = row.transformed[column.id] as Record<string, unknown> | undefined;
+        return cellData?.raw ?? '';
+      },
+      header:
+        column.id === 'time' && enableInlineEditing
+          ? () => (
+              <div className="flex justify-center gap-1">
+                <span className="w-12 text-center">Min</span>
+                <span className="w-4 text-center">:</span>
+                <span className="w-12 text-center">Sec</span>
+                <span className="w-4 text-center">.</span>
+                <span className="w-12 text-center">1/100</span>
+              </div>
+            )
+          : column.label,
+      enableSorting: column.sortable,
+      cell: ({ row }) =>
+        renderCell({
+          row,
+          columnId: column.id,
+          dataType: column.dataType,
+          enableInlineEditing,
+          getEditData,
+          updateInlineEditData,
+          handleKeyDown,
+          align: column.align,
+        }),
+    }));
+
+    cols.push({
+      id: 'actions',
+      header: () => <div className="text-center">Actions</div>,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const entry = row.original.entry;
+        const editData = enableInlineEditing ? getEditData(entry) : EMPTY_EDIT_ENTRY;
+        return (
+          <div className="text-center">
+            <EntryActionsMenu
+              entry={entry}
+              enableInlineEditing={enableInlineEditing}
+              editData={editData}
+              onView={() => (onViewEntry ? onViewEntry(entry.id) : onEditEntry(entry.id))}
+              onEdit={() => onEditEntry(entry.id)}
+              onEnterResults={() =>
+                onEnterResults ? onEnterResults(entry.id) : onEditEntry(entry.id)
+              }
+              onDelete={() => handleDeleteClick(entry)}
+            />
+          </div>
+        );
+      },
+    });
+
+    return cols;
+  }, [
+    tableColumns,
+    enableInlineEditing,
+    getEditData,
+    updateInlineEditData,
+    handleKeyDown,
+    onViewEntry,
+    onEditEntry,
+    onEnterResults,
+    handleDeleteClick,
+  ]);
+
   if (entries.length === 0) {
     return (
       <div className={cn('space-y-6', className)}>
         {permissions.canViewStatistics && (
           <EntriesStatisticsPanel entries={entries} editData={inlineEditData} />
         )}
-        <EmptyState onAddEntry={onAddEntry} canAddEntries={permissions.canAddEntries} />
+        <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-muted-foreground/20">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <Plus className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground mb-2">No entries yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Add the first entry to get started with this class.
+              </p>
+              {permissions.canAddEntries && (
+                <Button
+                  onClick={onAddEntry}
+                  className="myk9-action-button myk9-action-button-primary"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add First Entry
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
+  const filterEmptyState =
+    displayRows.length === 0 && entries.length > 0 ? (
+      <FilterEmptyState
+        noun="entries"
+        statusFilter={statusFilter}
+        onReset={() => setStatusFilter('all')}
+        allDoneMessage="All entries have results!"
+        noneDoneMessage="No entries have results yet."
+      />
+    ) : undefined;
+
   return (
     <div className={cn('space-y-6', className)}>
-      {/* Statistics Panel */}
       {permissions.canViewStatistics && (
         <EntriesStatisticsPanel entries={entries} editData={inlineEditData} />
       )}
 
-      {/* Error Display */}
-      <ErrorDisplay errors={errors} />
+      <div className="myk9-show-info-card">
+        <div className="myk9-show-info-header">
+          <div>
+            <div className="myk9-show-info-title">Class Entries</div>
+            <p className="text-sm text-muted-foreground mt-1">
+              {enableInlineEditing
+                ? 'Edit results directly in the table'
+                : 'Manage competition entries and results'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {permissions.canExportData && (
+              <Button variant="outline" onClick={handleExportCSV} className="myk9-action-button">
+                <Download className="h-4 w-4" />
+                <span>Export CSV</span>
+              </Button>
+            )}
+            {permissions.canAddEntries && (
+              <Button
+                onClick={onAddEntry}
+                className="myk9-action-button myk9-action-button-primary"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Entry</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
 
-      {/* Header */}
-      <EntriesTableHeader
-        enableInlineEditing={enableInlineEditing}
-        canExportData={permissions.canExportData}
-        canAddEntries={permissions.canAddEntries}
-        onExportCSV={handleExportCSV}
-        onAddEntry={onAddEntry}
-      />
-
-      {/* Status Filter */}
       <StatusFilter filter={statusFilter} onFilterChange={setStatusFilter} counts={statusCounts} />
 
-      {/* Inline Editing Toolbar */}
       <InlineEditingToolbar
         enableInlineEditing={enableInlineEditing}
         canEditResults={permissions.canEditResults}
@@ -290,172 +374,19 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         onToggleAutoSave={() => setAutoSaveEnabled(!autoSaveEnabled)}
       />
 
-      {/* Table */}
-      <div className="border border-border rounded-lg overflow-hidden bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
-              {columns.map(column => (
-                <TableHead
-                  key={column.id}
-                  className={`font-semibold ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
-                  style={{ width: column.width }}
-                >
-                  {column.id === 'time' ? (
-                    <div className="flex justify-center gap-1">
-                      <span className="w-12 text-center">Min</span>
-                      <span className="w-4 text-center">:</span>
-                      <span className="w-12 text-center">Sec</span>
-                      <span className="w-4 text-center">.</span>
-                      <span className="w-12 text-center">1/100</span>
-                    </div>
-                  ) : (
-                    column.label
-                  )}
-                </TableHead>
-              ))}
-              <TableHead className="font-semibold text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredUnifiedEntries.map((entry, index) => {
-              const transformedEntry = transformEntry(entry);
-              const originalEntry = entryById.get(entry.id)!;
-              const editData = getEditData(originalEntry);
+      <DataTable<DisplayRow>
+        columns={columnDefs}
+        data={displayRows}
+        getRowId={row => row.entry.id}
+        pageSize={9999}
+        emptyState={filterEmptyState}
+        toolbar={({ table }) => (
+          <DataTableToolbar table={table}>
+            <DataTableSearch placeholder="Search entries..." />
+          </DataTableToolbar>
+        )}
+      />
 
-              // Initialize edit data if inline editing is enabled
-              if (enableInlineEditing) {
-                initializeEditData(originalEntry);
-              }
-
-              return (
-                <TableRow
-                  key={entry.id}
-                  className={cn(
-                    'hover:bg-muted/50 transition-colors border-b border-border/50',
-                    enableInlineEditing &&
-                      editData.hasChanges &&
-                      !editData.isValid &&
-                      'bg-red-50 dark:bg-red-950/20'
-                  )}
-                >
-                  {columns.map(column => {
-                    const cellData = transformedEntry[column.id] as Record<string, unknown>;
-                    const rawValue = cellData?.raw;
-                    const formattedValue = cellData?.formatted || '--';
-                    const cellClassName = cellData?.className || '';
-
-                    const isEditableColumn =
-                      enableInlineEditing &&
-                      ['time', 'status', 'score', 'placement'].includes(column.id);
-
-                    return (
-                      <TableCell
-                        key={column.id}
-                        className={`${column.className || ''} ${cellClassName} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''} ${column.id === 'time' && isEditableColumn ? 'align-top' : ''}`}
-                      >
-                        {isEditableColumn ? (
-                          // Render editable field
-                          column.id === 'status' ? (
-                            <StatusCell
-                              entryId={originalEntry.id}
-                              value={editData.status}
-                              errors={editData.errors}
-                              onUpdate={value =>
-                                updateInlineEditData(originalEntry.id, 'status', value)
-                              }
-                            />
-                          ) : column.id === 'time' ? (
-                            <TimeCell
-                              entryId={originalEntry.id}
-                              value={editData.time}
-                              errors={editData.errors}
-                              onUpdate={value =>
-                                updateInlineEditData(originalEntry.id, 'time', value)
-                              }
-                              onKeyDown={e => handleKeyDown(e, originalEntry.id, 'time', index)}
-                            />
-                          ) : column.id === 'score' ? (
-                            <ScoreCell
-                              entryId={originalEntry.id}
-                              value={editData.score}
-                              errors={editData.errors}
-                              onUpdate={value =>
-                                updateInlineEditData(originalEntry.id, 'score', value)
-                              }
-                              onKeyDown={e => handleKeyDown(e, originalEntry.id, 'score', index)}
-                            />
-                          ) : column.id === 'placement' ? (
-                            <PlacementCell
-                              entryId={originalEntry.id}
-                              value={editData.placement}
-                              errors={editData.errors}
-                              onUpdate={value =>
-                                updateInlineEditData(originalEntry.id, 'placement', value)
-                              }
-                              onKeyDown={e =>
-                                handleKeyDown(e, originalEntry.id, 'placement', index)
-                              }
-                            />
-                          ) : (
-                            String(formattedValue || '')
-                          )
-                        ) : // Render readonly field
-                        column.dataType === 'status' ? (
-                          <Badge
-                            variant="secondary"
-                            className={`${getStatusColor(String(formattedValue || ''))} border-0`}
-                          >
-                            {String(formattedValue || '')}
-                          </Badge>
-                        ) : column.dataType === 'placement' ? (
-                          <span className={getPlacementStyle(String(rawValue || ''))}>
-                            {String(formattedValue || '')}
-                          </span>
-                        ) : (
-                          String(formattedValue || '')
-                        )}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell className="text-center">
-                    <EntryActionsMenu
-                      entry={originalEntry}
-                      enableInlineEditing={enableInlineEditing}
-                      editData={editData}
-                      onView={() =>
-                        onViewEntry ? onViewEntry(originalEntry.id) : onEditEntry(originalEntry.id)
-                      }
-                      onEdit={() => onEditEntry(originalEntry.id)}
-                      onEnterResults={() =>
-                        onEnterResults
-                          ? onEnterResults(originalEntry.id)
-                          : onEditEntry(originalEntry.id)
-                      }
-                      onDelete={() => handleDeleteClick(originalEntry)}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {filteredUnifiedEntries.length === 0 && entries.length > 0 && (
-              <TableRow>
-                <TableCell colSpan={columns.length + 1} className="text-center py-8">
-                  <FilterEmptyState
-                    noun="entries"
-                    statusFilter={statusFilter}
-                    onReset={() => setStatusFilter('all')}
-                    allDoneMessage="All entries have results!"
-                    noneDoneMessage="No entries have results yet."
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Inline Editing Save Bar */}
       {enableInlineEditing && (
         <SaveBar
           changesSummary={changesSummary}
@@ -465,10 +396,8 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         />
       )}
 
-      {/* Summary Footer */}
       <SummaryFooter entries={entries} />
 
-      {/* Delete Confirmation Dialog */}
       <DeleteDialog
         open={deleteDialogOpen}
         entry={entryToDelete}
@@ -479,7 +408,6 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   );
 };
 
-// React.memo optimization with custom comparison for performance
 export default React.memo(ClassEntriesTable, (prevProps, nextProps) => {
   if (prevProps.entries.length !== nextProps.entries.length) return false;
   if (prevProps.trialType !== nextProps.trialType) return false;

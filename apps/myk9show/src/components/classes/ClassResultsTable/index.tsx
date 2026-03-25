@@ -7,9 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
-import { SimpleTimeFields } from '@/components/ui/simple-time-fields';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, TimeInput, formatSearchTime } from '@/components/ui/data-table';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, BulkEntryData } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
@@ -127,7 +126,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
       {
         id: 'searchTime',
         accessorKey: 'searchTime',
-        header: () => <span className="text-center block">Time (MM:SS.HH)</span>,
+        header: 'Time',
         cell: ({ row }) => {
           const item = row.original;
           const index = getIndex(item.entryId);
@@ -140,14 +139,14 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                     item.modifiedFields?.has('searchTime') && 'ring-2 ring-blue-500/30'
                   )}
                 >
-                  <SimpleTimeFields
+                  <TimeInput
                     value={item.searchTime}
-                    onChange={value => updateBulkData(index, 'searchTime', value)}
-                    onKeyDown={e => handleKeyDown(e, index, 'searchTime')}
-                    disabled={!canEdit}
-                    hideLabels={true}
-                    data-index={index}
-                    data-field="searchTime"
+                    onChange={digits =>
+                      updateBulkData(index, 'searchTime', formatSearchTime(digits))
+                    }
+                    onCommit={() => {}}
+                    onCancel={() => {}}
+                    className="w-24 h-8 text-center font-mono"
                   />
                 </div>
               </div>

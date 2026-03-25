@@ -118,6 +118,7 @@ Tables can pass pre-sorted data and disable client-side sorting (`manualSorting=
 - **Controls:** First / Previous / Next / Last buttons with page indicator ("Page 2 of 5")
 - **Position:** Below the table — row count on the left ("Showing 26–50 of 127 entries"), navigation on the right
 - **With selection:** Row count changes to "3 of 127 selected"
+- **Auto-hide:** When total rows ≤ `pageSize`, the pagination bar hides automatically. The table still paginates internally (consistent behavior), but the controls add no visual noise for small datasets.
 
 ---
 
@@ -144,6 +145,7 @@ Tables can pass pre-sorted data and disable client-side sorting (`manualSorting=
 
 - Checkbox/radio column is auto-prepended (not defined in column array)
 - **Select-all** selects current page only. A "Select all 127" link appears for cross-page selection.
+- **Callback timing:** `onSelectionChange` fires on every state change with the full current selection array. Consumers should derive UI state (e.g., bulk action availability) from `selectedRows.length`, not individual entries.
 
 ---
 
@@ -171,6 +173,8 @@ Column definitions accept a `meta.responsiveHide` breakpoint:
 ```
 
 Uses Tailwind breakpoints. Applied as `hidden md:table-cell` on `<td>` and `<th>`. Pure CSS, no JS resize observer.
+
+**Note:** `meta.responsiveHide` is a pure visual concern, independent of TanStack Table's column visibility state. A responsive-hidden column is still "visible" in TanStack Table's model, meaning global search will include it and `getVisibleFlatColumns()` will return it. The `DataTableColumnToggle` dropdown should reflect responsive state: on small screens, responsive-hidden columns appear as disabled/greyed with a "hidden on mobile" note, preventing user confusion.
 
 ### Persistence
 
@@ -205,8 +209,27 @@ Each column specifies edit configuration via `meta`:
 
 ### Save Modes (table-level prop)
 
-- `saveMode="auto"` — Debounced auto-save (default 2s), fires `onSave(rowId, columnId, value)` per cell
-- `saveMode="batch"` — Dirty changes accumulate, save bar appears at bottom with Save/Discard buttons, fires `onSaveBatch(changes[])` on save
+- `saveMode="auto"` — Debounced auto-save (default 2s) per-cell. Fires `onSave` after the cell's debounce timer expires.
+- `saveMode="batch"` — Dirty changes accumulate, save bar appears at bottom with Save/Discard buttons. Fires `onSaveBatch` on save.
+
+**Callback signatures:**
+
+```typescript
+// Row identity derived from getRowId prop, defaults to (row) => row.id
+getRowId?: (row: TData) => string;
+
+// Auto-save: fires per cell after debounce. Rejecting the promise reverts
+// the cell value and shows a toast error.
+onSave?: (rowId: string, columnId: string, value: unknown) => Promise<void>;
+
+// Batch save: fires with all accumulated changes.
+onSaveBatch?: (changes: Array<{
+  rowId: string;
+  columnId: string;
+  oldValue: unknown;
+  newValue: unknown;
+}>) => Promise<void>;
+```
 
 ### Validation
 
@@ -217,12 +240,22 @@ Errors display inline below the cell. Rows with validation errors get a red left
 For anything beyond built-in types, pass `editType: 'custom'` and an `editComponent`:
 
 ```typescript
+interface EditComponentProps<TValue> {
+  value: TValue;
+  onChange: (value: TValue) => void;
+  onCommit: () => void;   // confirm edit, triggers save and auto-advance
+  onCancel: () => void;   // revert to original value
+  row: Row<TData>;        // full row for context-dependent editors
+  column: Column<TData>;  // column definition
+}
+
+// Usage in column def:
 {
   accessorKey: 'special_field',
   meta: {
     editable: true,
     editType: 'custom',
-    editComponent: (props) => <MyCustomEditor {...props} />,
+    editComponent: (props: EditComponentProps<string>) => <MyCustomEditor {...props} />,
   },
 }
 ```
@@ -251,6 +284,17 @@ A specialized editing configuration for fast score entry from paper score sheets
 />
 ```
 
+### Domain Hook Integration
+
+Scoring mode is a **UI layer** — it controls field flow, keyboard navigation, and visual presentation. Domain-specific logic (data transformation, placement calculation, qualification-reason clearing, multi-area scent work results) remains in external hooks like `useClassResults`. The DataTable receives pre-transformed data and calls domain callbacks via `onSave`/`onSaveBatch`. It does not own business rules.
+
+This means:
+
+- `useClassResults` (or equivalent domain hook) transforms raw `ScentWorkEntry[]` into the row data shape the table displays
+- Auto-placement recalculation on time/qualification/faults change is triggered by the domain hook's `onSave` handler, not the table
+- `MultiAreaScentWorkResult` types with per-area fields are handled by custom cell editors (`editType: 'custom'`)
+- `Ctrl+S` / `Cmd+S` is wired to the domain hook's submit function via the table's `onSaveBatch` callback
+
 ### Smart Entry Flow
 
 1. **Scoring mode** — "Enter Scores" button strips the table to essential columns: Armband #, Dog Name (read-only), Time, Result, Faults, Reason.
@@ -261,7 +305,7 @@ A specialized editing configuration for fast score entry from paper score sheets
 
 4. **Conditional fields** — Reason column only becomes editable when result requires it (NQ, Eliminated). Faults column is always editable.
 
-5. **Smart time input** — Secretary types a continuous stream of digits. Formatting is applied on blur/Tab:
+5. **Smart time input** — This replaces the existing `SimpleTimeFields` (three separate inputs) and `TimeCell` components with a single-field digit-stream input. Secretary types a continuous stream of digits. Formatting is applied on blur/Tab. When editing an existing time (e.g., `1:23.45`), clicking the cell shows the raw digits (`12345`) for easy correction.
 
    | Typed    | Formatted  | Explanation                             |
    | -------- | ---------- | --------------------------------------- |
@@ -313,7 +357,7 @@ Composable slot — assemble from standard building blocks:
 
 ### Components
 
-- **DataTableSearch** — Debounced text input (300ms). Filters across all visible columns by default, or scoped via `searchColumns={['dogName', 'handler']}`.
+- **DataTableSearch** — Debounced text input (300ms). Uses TanStack Table's `globalFilter` with an `includesString` filter function. Searches all columns with `enableGlobalFilter !== false` (this intentionally includes responsive-hidden columns — if data matches, the row should appear). Scope to specific columns via `searchColumns={['dogName', 'handler']}`.
 - **DataTableFilter** — Dropdown button with column name. Active filter shown as badge count. Single or multi-select. Clears with X.
 - **DataTableColumnToggle** — Column visibility dropdown.
 
@@ -360,13 +404,14 @@ When `data.length > 0` but filters produce zero visible rows: "No results match 
 
 ### Row Click
 
-Opt-in via `onRowClick`. Adds `cursor-pointer` and hover emphasis:
+Opt-in via `onRowClick`. Adds `cursor-pointer` and hover emphasis. The callback receives the original data object and the TanStack `Row` wrapper:
 
 ```typescript
+// onRowClick?: (data: TData, row: Row<TData>) => void
 <DataTable
   columns={columns}
   data={classes}
-  onRowClick={(row) => navigate(`/classes/${row.id}`)}
+  onRowClick={(data) => navigate(`/classes/${data.id}`)}
 />
 ```
 
@@ -402,28 +447,28 @@ Clicking the actions dropdown does NOT trigger row click.
 
 ## Migration Strategy
 
-### Tables to Migrate (13 total)
+### Tables to Migrate (12 table components)
 
-| Table                       | Current Pattern                         | Complexity |
-| --------------------------- | --------------------------------------- | ---------- |
-| ClassesTableView            | SortableTable                           | Low        |
-| EntriesTableView            | SortableTable                           | Low        |
-| ShowsTableView              | SortableTable                           | Low        |
-| DogsTableView               | Inline sort state                       | Medium     |
-| PeopleTableView             | Inline sort state                       | Medium     |
-| TrialClassesTable           | Custom sort + search                    | Medium     |
-| TrialEntriesTable           | Custom sort + search + React Query      | Medium     |
-| UserTable                   | Custom pagination + selection + density | Medium     |
-| ClassEntriesTable           | Custom inline editing                   | High       |
-| ClassResultsTable           | Custom inline editing                   | High       |
-| ClassDefinitionTable        | Unknown                                 | Low–Medium |
-| DataTable (base/) consumers | Simple DataTable                        | Low        |
+| Table                       | Current Pattern                                      | Complexity |
+| --------------------------- | ---------------------------------------------------- | ---------- |
+| ClassesTableView            | SortableTable                                        | Low        |
+| EntriesTableView            | SortableTable                                        | Low        |
+| ShowsTableView              | SortableTable                                        | Low        |
+| DataTable (base/) consumers | Simple DataTable                                     | Low        |
+| DogsTableView               | Inline sort state                                    | Medium     |
+| PeopleTableView             | Inline sort state                                    | Medium     |
+| TrialClassesTable           | Custom sort + search                                 | Medium     |
+| TrialEntriesTable           | Custom sort + search + React Query                   | Medium     |
+| UserTable                   | Custom pagination + selection + density              | Medium     |
+| ClassEntriesTable           | Custom inline editing                                | High       |
+| ClassResultsTable           | Custom inline editing + domain scoring logic         | High       |
+| ClassDefinitionTable        | Selection + drag-reorder + inline edit + bulk delete | High       |
 
 ### Migration Order
 
-1. **Low complexity first** — SortableTable consumers (ClassesTableView, EntriesTableView, ShowsTableView) + base DataTable consumers. Proves the pattern.
-2. **Medium complexity** — Tables with custom sort/search (DogsTableView, PeopleTableView, TrialClassesTable, TrialEntriesTable, UserTable).
-3. **High complexity last** — ClassEntriesTable and ClassResultsTable, once inline editing infrastructure is solid.
+1. **Phase 1 — Low complexity** — SortableTable consumers (ClassesTableView, EntriesTableView, ShowsTableView) + base DataTable consumers. Proves the pattern.
+2. **Phase 2 — Medium complexity** — Tables with custom sort/search (DogsTableView, PeopleTableView, TrialClassesTable, TrialEntriesTable, UserTable).
+3. **Phase 3 — High complexity** — ClassEntriesTable, ClassResultsTable, and ClassDefinitionTable. ClassDefinitionTable has drag-to-reorder via `@dnd-kit`, multi-select with checkboxes, inline display-order editing, bulk delete, and row duplication — making it comparable in complexity to the scoring tables.
 
 ### What Gets Deleted After Migration
 
@@ -434,6 +479,19 @@ Clicking the actions dropdown does NOT trigger row click.
 ### What Stays
 
 - `src/components/ui/table/table.tsx` — shadcn primitives (DataTable renders through them)
+
+---
+
+## Accessibility
+
+TanStack Table is headless and provides no ARIA attributes — these must be implemented in the DataTable component:
+
+- **Sort headers:** `aria-sort="ascending"` / `"descending"` / `"none"` on `<th>` elements
+- **Pagination:** Buttons get `aria-label` (e.g., "Go to next page", "Page 2 of 5")
+- **Selection:** Checkboxes get `aria-label` (e.g., "Select row", "Select all rows on this page")
+- **Editable cells:** Announce edit mode to screen readers via `aria-label` changes when entering/exiting edit mode
+- **Focus management:** When pagination changes, focus moves to the first row of the new page. When inline editing commits, focus moves to the next editable cell per auto-advance rules.
+- **Keyboard navigation:** Arrow keys navigate between rows (non-editing mode), Enter activates row click or enters edit mode
 
 ---
 

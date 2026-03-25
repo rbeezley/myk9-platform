@@ -130,7 +130,7 @@ const AppHeader: React.FC = () => {
   const shortcutDisplays = useMemo(() => getShortcutDisplays(shortcuts), [shortcuts]);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-lg text-foreground border-border h-12 transition-all duration-300 supports-[backdrop-filter]:bg-background/60">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-lg text-foreground border-border h-12 transition-all duration-300 supports-[backdrop-filter]:bg-background/60 shadow-[var(--shadow-header)]">
       <div className="px-4 sm:px-6 h-full">
         <div className="flex items-center justify-between h-full">
           {/* Left: Logo */}
@@ -283,10 +283,7 @@ const AppHeader: React.FC = () => {
 
                     {/* Common menu items */}
                     <DropdownMenuItem asChild>
-                      <Link
-                        to="/profile"
-                        className="w-full flex items-center gap-2"
-                      >
+                      <Link to="/profile" className="w-full flex items-center gap-2">
                         <UserIcon className="h-4 w-4" />
                         My Profile
                       </Link>

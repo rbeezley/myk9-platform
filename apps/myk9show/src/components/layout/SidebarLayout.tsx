@@ -162,7 +162,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           'fixed bottom-0 left-0',
           SIDEBAR_LAYOUT_CONSTANTS.HEADER_OFFSET_CLASS,
           SIDEBAR_LAYOUT_CONSTANTS.SIDEBAR_Z_INDEX,
-          'border-r border-border/30',
+          'border-r border-[var(--sidebar-border)]',
           'bg-[var(--sidebar)]',
           'transform transition-all duration-300 ease-in-out',
           // Desktop: always visible

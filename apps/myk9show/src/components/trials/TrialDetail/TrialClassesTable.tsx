@@ -28,6 +28,19 @@ import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDe
 
 type ViewMode = 'table' | 'cards';
 
+const LEVEL_PROGRESSION: Record<string, number> = {
+  'novice a': 0,
+  'novice b': 1,
+  advanced: 2,
+  excellent: 3,
+  master: 4,
+  masters: 4,
+};
+
+function levelOrder(level: string): number {
+  return LEVEL_PROGRESSION[level.toLowerCase()] ?? 99;
+}
+
 interface TrialClassesTableProps {
   classes: TrialClass[];
   trialId?: string;
@@ -91,6 +104,10 @@ export const TrialClassesTable = ({
         let bValue: string | number | Date = b[field] ?? '';
 
         // Handle special cases
+        if (field === 'level') {
+          aValue = levelOrder(String(aValue));
+          bValue = levelOrder(String(bValue));
+        }
         if (field === 'judgeName') {
           aValue = aValue || 'TBD';
           bValue = bValue || 'TBD';

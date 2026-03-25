@@ -42,6 +42,8 @@ export { DataTableToolbar, useDataTableContext } from './data-table-toolbar';
 export { DataTableSearch } from './data-table-search';
 export { DataTableFilter } from './data-table-filter';
 export { DataTableColumnToggle } from './data-table-column-toggle';
+export { EditableCell } from './data-table-editable-cell';
+export type { EditableCellProps } from './data-table-editable-cell';
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];

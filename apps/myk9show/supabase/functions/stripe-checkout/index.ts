@@ -79,9 +79,7 @@ type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | En
 /** Validate that a URL starts with one of our allowed origins (prevents open redirect) */
 function isAllowedRedirectUrl(url: string): boolean {
   try {
-    const parsed = new URL(url);
-    const origin = parsed.origin;
-    return ALLOWED_ORIGINS.includes(origin);
+    return ALLOWED_ORIGINS.includes(new URL(url).origin);
   } catch {
     return false;
   }

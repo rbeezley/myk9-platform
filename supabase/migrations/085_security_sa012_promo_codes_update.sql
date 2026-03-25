@@ -29,10 +29,16 @@ AS $$
 BEGIN
   UPDATE public.promo_codes
   SET usage_count = usage_count + 1
-  WHERE id = promo_id;
+  WHERE id = promo_id
+    AND (usage_limit IS NULL OR usage_count < usage_limit);
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Promo code % not found', promo_id;
+    -- Either promo doesn't exist or usage_limit reached
+    IF EXISTS (SELECT 1 FROM public.promo_codes WHERE id = promo_id) THEN
+      RAISE EXCEPTION 'Promo code usage limit reached';
+    ELSE
+      RAISE EXCEPTION 'Promo code % not found', promo_id;
+    END IF;
   END IF;
 END;
 $$;

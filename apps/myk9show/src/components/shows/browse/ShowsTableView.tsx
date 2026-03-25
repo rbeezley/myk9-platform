@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { type ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableTable, type ColumnDef } from '@/components/common/SortableTable';
+import { DataTable } from '@/components/ui/data-table';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 
 interface ShowsTableViewProps {
@@ -68,42 +69,65 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${start} - ${end}`;
 }
 
-const DATA_COLUMNS: ColumnDef<EnhancedShow>[] = [
+const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
   {
-    key: 'name',
-    label: 'Name',
-    className: 'w-[220px]',
-    getValue: show => (show.name || '').toLowerCase(),
+    accessorKey: 'name',
+    header: 'Name',
+    accessorFn: show => (show.name ?? '').toLowerCase(),
+    cell: ({ row }) => (
+      <div className="min-w-0">
+        <div className="font-medium truncate">{row.original.name}</div>
+        {row.original.events.length > 0 && (
+          <div className="text-xs text-muted-foreground truncate">
+            {row.original.events.join(', ')}
+          </div>
+        )}
+      </div>
+    ),
   },
   {
-    key: 'dateRange',
-    label: 'Dates',
-    className: 'w-[180px]',
-    getValue: show => show.startDate || '',
+    id: 'dateRange',
+    header: 'Dates',
+    accessorFn: show => show.startDate ?? '',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">
+        {row.original.startDate
+          ? formatDateRange(row.original.startDate, row.original.endDate)
+          : '\u2014'}
+      </span>
+    ),
   },
   {
-    key: 'location',
-    label: 'Location',
-    className: 'w-[180px]',
-    getValue: show => (show.location || '').toLowerCase(),
+    accessorKey: 'location',
+    header: 'Location',
+    accessorFn: show => (show.location ?? '').toLowerCase(),
+    cell: ({ row }) => (
+      <span className="text-muted-foreground truncate">{row.original.location || '\u2014'}</span>
+    ),
   },
   {
-    key: 'organization',
-    label: 'Organization',
-    className: 'w-[140px]',
-    getValue: show => (show.organization || '').toLowerCase(),
+    accessorKey: 'organization',
+    header: 'Organization',
+    accessorFn: show => (show.organization ?? '').toLowerCase(),
+    cell: ({ row }) => (
+      <span className="text-muted-foreground truncate">
+        {row.original.organization || '\u2014'}
+      </span>
+    ),
   },
   {
-    key: 'status',
-    label: 'Status',
-    className: 'w-[120px]',
-    getValue: show => (show.status || '').toLowerCase(),
+    accessorKey: 'status',
+    header: 'Status',
+    accessorFn: show => (show.status ?? '').toLowerCase(),
+    cell: ({ row }) => getStatusBadge(row.original.status),
   },
   {
-    key: 'clubName',
-    label: 'Host Club',
-    className: 'w-[160px]',
-    getValue: show => (show.clubName || '').toLowerCase(),
+    accessorKey: 'clubName',
+    header: 'Host Club',
+    accessorFn: show => (show.clubName ?? '').toLowerCase(),
+    cell: ({ row }) => (
+      <span className="text-muted-foreground truncate">{row.original.clubName || '\u2014'}</span>
+    ),
   },
 ];
 
@@ -115,75 +139,26 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   onToggleAll,
 }) => {
   const navigate = useNavigate();
-
   const hasSelection = Boolean(onToggleSelect);
 
-  // Prepend a "select" column when selection is enabled
-  const columns = useMemo(() => {
+  const columns = useMemo<ColumnDef<EnhancedShow, unknown>[]>(() => {
     if (!hasSelection) return DATA_COLUMNS;
-    const selectCol: ColumnDef<EnhancedShow> = {
-      key: '_select',
-      label: '',
-      className: 'w-[48px]',
-      getValue: show => (isSelected?.(show) ? '1' : '0'),
+    const selectCol: ColumnDef<EnhancedShow, unknown> = {
+      id: '_select',
+      header: () => null,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Checkbox
+          checked={isSelected?.(row.original) ?? false}
+          onCheckedChange={() => onToggleSelect?.(row.original)}
+          aria-label={`Select ${row.original.name}`}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        />
+      ),
     };
     return [selectCol, ...DATA_COLUMNS];
-  }, [hasSelection, isSelected]);
+  }, [hasSelection, isSelected, onToggleSelect]);
 
-  const renderCell = (show: EnhancedShow, column: ColumnDef<EnhancedShow>) => {
-    switch (column.key) {
-      case '_select':
-        return (
-          <td className="px-4 py-3">
-            <Checkbox
-              checked={isSelected?.(show) ?? false}
-              onCheckedChange={() => onToggleSelect?.(show)}
-              aria-label={`Select ${show.name}`}
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            />
-          </td>
-        );
-      case 'name':
-        return (
-          <td className="px-4 py-3">
-            <div className="min-w-0">
-              <div className="font-medium truncate">{show.name}</div>
-              {show.events.length > 0 && (
-                <div className="text-xs text-muted-foreground truncate">
-                  {show.events.join(', ')}
-                </div>
-              )}
-            </div>
-          </td>
-        );
-      case 'dateRange':
-        return (
-          <td className="px-4 py-3 text-muted-foreground">
-            {show.startDate ? formatDateRange(show.startDate, show.endDate) : '\u2014'}
-          </td>
-        );
-      case 'location':
-        return (
-          <td className="px-4 py-3 text-muted-foreground truncate">{show.location || '\u2014'}</td>
-        );
-      case 'organization':
-        return (
-          <td className="px-4 py-3 text-muted-foreground truncate">
-            {show.organization || '\u2014'}
-          </td>
-        );
-      case 'status':
-        return <td className="px-4 py-3">{getStatusBadge(show.status)}</td>;
-      case 'clubName':
-        return (
-          <td className="px-4 py-3 text-muted-foreground truncate">{show.clubName || '\u2014'}</td>
-        );
-      default:
-        return <td className="px-4 py-3" />;
-    }
-  };
-
-  // Render a select-all header for the table when selection is active
   const selectAllHeader = hasSelection ? (
     <div className="px-4 py-2 border-b border-border/30 bg-muted/20 flex items-center gap-2">
       <Checkbox
@@ -198,13 +173,11 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   return (
     <div>
       {selectAllHeader}
-      <SortableTable<EnhancedShow>
-        items={shows}
+      <DataTable<EnhancedShow>
+        data={shows}
         columns={columns}
-        defaultSortColumn="name"
-        getRowKey={show => show.id}
+        getRowId={show => show.id}
         onRowClick={show => navigate(`/shows/${show.id}`)}
-        renderCell={renderCell}
       />
     </div>
   );

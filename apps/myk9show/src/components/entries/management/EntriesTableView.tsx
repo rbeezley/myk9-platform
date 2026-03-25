@@ -6,6 +6,7 @@ import { getEntryStatusBadge, getPaymentStatusBadge } from '@/utils/entryManagem
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { EmailStatusIcon } from '@/components/entries/EmailStatusIcon';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 interface EntriesTableViewProps {
   entries: EntryManagementEntry[];
@@ -72,14 +73,7 @@ function buildColumns(
       accessorKey: 'armbandNumber',
       header: 'Armband #',
       accessorFn: entry => (entry.armbandNumber ?? '').toLowerCase(),
-      cell: ({ row }) =>
-        row.original.armbandNumber ? (
-          <Badge variant="outline" className="text-xs">
-            {row.original.armbandNumber}
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground">{'\u2014'}</span>
-        ),
+      cell: ({ row }) => <ArmbandBadge armband={row.original.armbandNumber} />,
     },
     {
       accessorKey: 'entryStatus',

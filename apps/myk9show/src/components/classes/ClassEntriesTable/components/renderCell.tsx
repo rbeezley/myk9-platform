@@ -7,6 +7,7 @@ import type { InlineEditEntry } from '../types';
 import { getStatusColor, getPlacementStyle } from '../utils';
 import { EditableField } from './InlineEditCells';
 import type { DisplayRow } from '../ClassEntriesTable';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 const EDITABLE_COLUMNS = new Set(['time', 'status', 'score', 'placement']);
 
@@ -51,6 +52,14 @@ export function renderCell({
           onUpdate={(field, value) => updateInlineEditData(entry.id, field, value)}
           onKeyDown={handleKeyDown}
         />
+      </div>
+    );
+  }
+
+  if (dataType === 'armband') {
+    return (
+      <div className={alignClass || undefined}>
+        <ArmbandBadge armband={rawValue as string | number | null | undefined} />
       </div>
     );
   }

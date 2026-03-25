@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import type { ScoringEntry } from '../types';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 interface ScoringEntryCardProps {
   entry: ScoringEntry;
@@ -92,9 +93,7 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
         </div>
 
         {/* Armband Badge */}
-        <div className="shrink-0 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg">
-          {entry.armband}
-        </div>
+        <ArmbandBadge armband={entry.armband} />
 
         {/* Entry Info */}
         <div className="flex-1 min-w-0">

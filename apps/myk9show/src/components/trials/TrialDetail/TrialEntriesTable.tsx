@@ -3,13 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { cacheStrategies } from '@/lib/queryClient';
 import { getEntriesByTrial } from '@/services/database/queries/entry-query-lookups';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  DataTable,
-  DataTableToolbar,
-  DataTableSearch,
-} from '@/components/ui/data-table';
+import { DataTable, DataTableToolbar, DataTableSearch } from '@/components/ui/data-table';
 import { ClipboardList } from 'lucide-react';
 import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 interface TrialEntriesTableProps {
   trialId: string;
@@ -58,9 +55,7 @@ const COLUMNS: ColumnDef<DisplayEntry, unknown>[] = [
   {
     accessorKey: 'armband',
     header: 'Armband',
-    cell: ({ row }) => (
-      <span className="font-mono">{row.original.armband || '--'}</span>
-    ),
+    cell: ({ row }) => <ArmbandBadge armband={row.original.armband} />,
   },
   {
     accessorKey: 'dogName',

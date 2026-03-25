@@ -1935,15 +1935,15 @@ git commit -m "feat(data-table): add smart time input and scoring mode component
 
 This is a high-complexity migration. The inline editing, filtering, and keyboard navigation are replaced by DataTable's editing infrastructure. Domain-specific logic in `useInlineEditing` may need adaptation.
 
-- [ ] **Step 1: Read all ClassEntriesTable files thoroughly**
+- [x] **Step 1: Read all ClassEntriesTable files thoroughly**
 
 Read every file in the directory to understand the full component tree, data flow, and behavior.
 
-- [ ] **Step 2: Define the DataTable column definitions**
+- [x] **Step 2: Define the DataTable column definitions**
 
 Create the column defs using `meta.editable`, `meta.editType`, and custom cell renderers for status, time, score, and placement.
 
-- [ ] **Step 3: Rewrite the main component**
+- [x] **Step 3: Rewrite the main component**
 
 Replace the custom table rendering with DataTable. Keep:
 
@@ -1953,23 +1953,23 @@ Replace the custom table rendering with DataTable. Keep:
 - Entry actions menu (keep as actions column)
 - Delete dialog (keep, triggered from actions)
 
-- [ ] **Step 4: Clean up unused subcomponents**
+- [x] **Step 4: Clean up unused subcomponents**
 
 Delete subcomponents that are fully replaced by DataTable equivalents. Keep domain-specific components (DeleteDialog, EntryActionsMenu).
 
-- [ ] **Step 5: Update tests**
+- [x] **Step 5: Update tests**
 
 ```bash
 cd apps/myk9show && npx vitest run src/components/classes/ClassEntriesTable/__tests__/
 ```
 
-- [ ] **Step 6: Run typecheck**
+- [x] **Step 6: Run typecheck**
 
 ```bash
 cd apps/myk9show && pnpm typecheck
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/myk9show/src/components/classes/ClassEntriesTable/
@@ -1990,11 +1990,11 @@ git commit -m "refactor: migrate ClassEntriesTable to DataTable with inline edit
 
 This table gets scoring mode. The `useClassResults` domain hook handles data transformation and business logic. DataTable handles the UI.
 
-- [ ] **Step 1: Read all ClassResultsTable files**
+- [x] **Step 1: Read all ClassResultsTable files**
 
 Understand the `useClassResults` hook, `BulkEntryData` model, qualification cell behavior, and submit flow. Also read `src/components/classes/__tests__/ClassResultsTableHeader.test.tsx` — this existing test file tests the header button behavior and will need updating.
 
-- [ ] **Step 2: Define scoring-mode column definitions**
+- [x] **Step 2: Define scoring-mode column definitions**
 
 Map the existing columns to DataTable columns with scoring mode:
 
@@ -2003,11 +2003,11 @@ Map the existing columns to DataTable columns with scoring mode:
 - Faults → `editType: 'number'`, always editable
 - Reason → `editType: 'select'`, conditional on result
 
-- [ ] **Step 3: Rewrite index.tsx**
+- [x] **Step 3: Rewrite index.tsx**
 
 Replace custom table rendering with DataTable + `scoringMode`. Wire `useClassResults` callbacks to `onSave`.
 
-- [ ] **Step 4: Update tests**
+- [x] **Step 4: Update tests**
 
 Update both `src/components/classes/__tests__/ClassResultsTableHeader.test.tsx` and any tests within the ClassResultsTable directory:
 
@@ -2015,13 +2015,13 @@ Update both `src/components/classes/__tests__/ClassResultsTableHeader.test.tsx` 
 cd apps/myk9show && npx vitest run --testPathPattern='ClassResultsTable'
 ```
 
-- [ ] **Step 5: Run typecheck**
+- [x] **Step 5: Run typecheck**
 
 ```bash
 cd apps/myk9show && pnpm typecheck
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/myk9show/src/components/classes/ClassResultsTable/ apps/myk9show/src/components/classes/__tests__/ClassResultsTableHeader.test.tsx
@@ -2038,11 +2038,11 @@ git commit -m "refactor: migrate ClassResultsTable to DataTable with scoring mod
 
 This table has drag-to-reorder (native HTML5 drag currently), multi-select with checkboxes, inline display-order editing, bulk delete, and row duplication. It uses `@dnd-kit` patterns (the lib is already installed).
 
-- [ ] **Step 1: Read the current file**
+- [x] **Step 1: Read the current file**
 
 Read `src/components/templates/admin/ClassDefinitionTable.tsx` thoroughly. Map drag-and-drop behavior, selection logic, inline editing, and bulk actions.
 
-- [ ] **Step 2: Rewrite to use DataTable**
+- [x] **Step 2: Rewrite to use DataTable**
 
 - Use `selectable="multi"` for checkbox selection
 - Use DataTable inline editing for display order
@@ -2050,13 +2050,13 @@ Read `src/components/templates/admin/ClassDefinitionTable.tsx` thoroughly. Map d
 - Move bulk actions (delete, duplicate) to toolbar
 - Set `manualSorting={true}` when in drag-reorder mode
 
-- [ ] **Step 3: Run typecheck**
+- [x] **Step 3: Run typecheck**
 
 ```bash
 cd apps/myk9show && pnpm typecheck
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/myk9show/src/components/templates/admin/ClassDefinitionTable.tsx
@@ -2073,7 +2073,7 @@ git commit -m "refactor: migrate ClassDefinitionTable to DataTable with drag-reo
 - Run full test suite
 - Run typecheck
 
-- [ ] **Step 1: Search for stale imports**
+- [x] **Step 1: Search for stale imports**
 
 ```bash
 cd apps/myk9show && grep -r "SortableTable\|from.*base/DataTable\|from.*common/SortableTable" src/ --include="*.ts" --include="*.tsx"
@@ -2081,25 +2081,25 @@ cd apps/myk9show && grep -r "SortableTable\|from.*base/DataTable\|from.*common/S
 
 Expected: no results
 
-- [ ] **Step 2: Run full typecheck**
+- [x] **Step 2: Run full typecheck**
 
 ```bash
 pnpm typecheck
 ```
 
-- [ ] **Step 3: Run full test suite**
+- [x] **Step 3: Run full test suite**
 
 ```bash
 cd apps/myk9show && pnpm test
 ```
 
-- [ ] **Step 4: Run lint**
+- [x] **Step 4: Run lint**
 
 ```bash
 pnpm lint
 ```
 
-- [ ] **Step 5: Final commit if any cleanup needed**
+- [x] **Step 5: Final commit if any cleanup needed**
 
 ```bash
 git add -u

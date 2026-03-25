@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { DataTable, TimeInput, formatSearchTime } from '@/components/ui/data-table';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, BulkEntryData } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
@@ -54,18 +55,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         accessorKey: 'armband',
         header: 'Armband',
         sortingFn: 'basic',
-        cell: ({ row }) => {
-          const item = row.original;
-          return (
-            <span className="font-medium">
-              {item.armband ? (
-                `#${item.armband}`
-              ) : (
-                <span className="text-muted-foreground">--</span>
-              )}
-            </span>
-          );
-        },
+        cell: ({ row }) => <ArmbandBadge armband={row.original.armband} />,
       },
       // Dog & Handler
       {

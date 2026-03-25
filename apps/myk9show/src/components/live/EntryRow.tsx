@@ -5,6 +5,7 @@ import {
   ENTRY_STATUS_BORDER,
   ENTRY_STATUS_BADGE,
 } from '@/constants/live-status-config';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 
 interface EntryRowProps {
   armband: string;
@@ -42,9 +43,7 @@ export function EntryRow({
       )}
     >
       {/* Armband */}
-      <div className="flex h-10 w-14 flex-shrink-0 items-center justify-center rounded-md bg-muted text-sm font-bold">
-        #{armband}
-      </div>
+      <ArmbandBadge armband={armband} />
 
       {/* Dog + Handler info */}
       <div className="min-w-0 flex-1">

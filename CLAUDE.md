@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Project guidance for Claude Code when working with the myK9 Platform monorepo.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -12,14 +12,11 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 
 ## Development Principles
 
-1. **Best practices by default** — Follow established patterns, conventions, and standards
-2. **Deviate only with reason** — If suggesting something non-standard, explain why
-3. **Long-term maintainability first** — Favor clarity, consistency, and future-proofing over clever shortcuts
-4. **Don't guess or assume** — Verify facts, check actual code, ask if uncertain
-5. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
-6. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
-7. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
-8. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate. When making UX changes, check if they preserve the role's target feeling (see `docs/INTENT.md`)
+1. **Don't guess or assume** — Verify facts, check actual code, ask if uncertain
+2. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
+3. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
+4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
+5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate. When making UX changes, check if they preserve the role's target feeling (see `docs/INTENT.md`)
 
 ## Git Operations
 
@@ -54,64 +51,33 @@ cd apps/myk9q && pnpm test        # myK9Q unit tests (vitest)
 cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest)
 cd apps/myk9q && pnpm test:e2e    # myK9Q E2E tests (playwright)
 cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
+
+# Run a single test file
+cd apps/myk9show && npx vitest run src/path/to/file.test.ts
+# Run tests matching a name pattern
+cd apps/myk9show && npx vitest run -t "pattern"
+# Run with coverage
+cd apps/myk9show && pnpm test:coverage
 ```
 
 ## Architecture Decisions
 
-| Decision                 | Choice                   | Rationale                                                      |
-| ------------------------ | ------------------------ | -------------------------------------------------------------- |
-| Package manager          | pnpm                     | Better monorepo support, faster, disk-efficient                |
-| Build orchestration      | Turborepo                | Remote caching, parallel builds, industry standard             |
-| UI library (myK9Show)    | Base UI via shadcn/ui    | Actively maintained (Radix stagnated after WorkOS acquisition) |
-| UI library (myK9Q)       | Semantic CSS             | Keep existing production code unchanged                        |
-| CSS framework (myK9Show) | Tailwind CSS             | Industry standard, good maintainability                        |
-| Database                 | Supabase (myk9-platform) | Unified project for both apps                                  |
-| Formatting               | Prettier                 | Auto-format hook runs on every file edit                       |
-
-## Monorepo Structure
-
-```
-myk9-platform/
-├── apps/
-│   ├── myk9show/        # @myk9/show - Full show management
-│   └── myk9q/           # @myk9/q - Lightweight scoring
-├── packages/
-│   ├── core/            # @myk9/core - Utilities, types, constants
-│   ├── replication/     # @myk9/replication - Offline-first sync
-│   ├── supabase/        # @myk9/supabase - Client and types
-│   ├── ui/              # @myk9/ui - Shared UI components
-│   ├── scoring/         # @myk9/scoring - Scoring logic and stores
-│   └── scoring-ui/      # @myk9/scoring-ui - Shared scoring UI hooks
-├── supabase/
-│   ├── config.toml      # Supabase CLI config
-│   ├── functions/       # Edge Functions (stripe-checkout, stripe-customer-portal, stripe-upgrade-subscription)
-│   └── migrations/      # Database migrations (001-006)
-└── docs/
-    ├── MIGRATION-PLAN.md
-    └── SCHEMA-ANALYSIS.md
-```
+- **UI library (myK9Show):** Base UI via shadcn/ui — NOT Radix (Radix stagnated after WorkOS acquisition)
+- **UI library (myK9Q):** Semantic CSS — do not add Tailwind to myK9Q
+- **Database:** Unified Supabase project (`myk9-platform`) for both apps
+- **Formatting:** Prettier auto-format hook runs on every file edit
 
 ## Database Configuration
 
-**Unified Supabase Project:** `myk9-platform`
-
-- Project URL: `https://sojmvhhwsjxmfistvzbe.supabase.co`
-
-**Supabase CLI:**
-
-```bash
-supabase link --project-ref sojmvhhwsjxmfistvzbe  # Link (requires db password)
-supabase db push                                    # Apply migrations
-supabase migration list                             # List migrations
-supabase functions deploy <name> --no-verify-jwt    # Deploy Edge Function
-```
+- **Project ref:** `sojmvhhwsjxmfistvzbe`
+- **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
+- **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
 
 ## Deployment
 
 - **myK9Show staging:** myk9-platform-myk9show.vercel.app (auto-deploys from `main`)
 - **myK9Q staging:** myk9-platform-myk9q.vercel.app (auto-deploys from `main`)
 - **Legacy production:** myk9q.com (separate repo, untouched)
-- **Edge Functions:** Deployed to Supabase with `--no-verify-jwt` (functions handle auth internally)
 
 ## Stripe Integration
 
@@ -120,31 +86,87 @@ supabase functions deploy <name> --no-verify-jwt    # Deploy Edge Function
 - **Pattern:** Frontend calls Supabase Edge Function → Edge Function calls Stripe API with `STRIPE_SECRET_KEY`
 - **Status:** Test mode (needs test products/prices + `sk_test_*` key for full testing)
 
-## Key Patterns
+## Environment Variables
 
-### Importing from workspace packages
+Both apps use `VITE_` prefix (Vite convention). Copy `.env.example` → `.env` in each app directory.
+
+**Required (both apps):** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+
+**myK9Show additional:** `VITE_APP_VERSION`, `VITE_APP_ENVIRONMENT`, `VITE_LOG_ENDPOINT`, `VITE_VAPID_PUBLIC_KEY`, `VITE_ENABLE_DEV_TOOLS`, `VITE_ENABLE_DEBUG_LOGS`
+
+**myK9Q additional:** `VITE_ENVIRONMENT`, `ANTHROPIC_API_KEY` (optional, for Rules Assistant)
+
+## Routing Architecture (myK9Show)
+
+Routes are organized by role in `src/routes/`:
+
+- `adminRoutes.tsx` — SITE_ADMIN routes
+- `secretaryRoutes.tsx` — SECRETARY + SITE_ADMIN
+- `judgeRoutes.tsx` — JUDGE + SECRETARY + SITE_ADMIN (sidebar vs. scoring split)
+- `clubAdminRoutes.tsx` — CLUB_ADMIN + SITE_ADMIN
+- `publicRoutes.tsx` — Anonymous + authenticated-but-unprivileged
+
+All routes use `React.lazy()` with `<SuspenseWrapper>` + `<PageTransition>`. Route preloading priorities defined in `src/routes/routeRegistry.ts` (critical/high/medium/low). Protected routes wrapped with `<ProtectedRoute>` which checks role permissions.
+
+## Authentication & RBAC
+
+**myK9Show** uses database-driven RBAC via `AuthContext` (`src/context/AuthContext.tsx`):
+
+- **Roles** (`UserRole` enum in `src/types/auth-types.ts`): `SITE_ADMIN`, `SECRETARY`, `JUDGE`, `CLUB_ADMIN`, `CHAIRMAN`, `STEWARD`, `EXHIBITOR`
+- **Hierarchy** (highest privilege first): site_admin → secretary → judge → club_admin → chairman → steward → exhibitor
+- **Permissions**: Database-driven via `RBACService`, scoped to show/trial/class level (`scope_type` + `scope_id`)
+- **Convenience flags**: `isAdmin`, `isSecretary`, `isExhibitor`, `isJudge`
+- **Key methods**: `hasRole(role)`, `hasPermission(permission, scope?)`, `getUserRoles()`, `checkPermissionAsync(permission, scope?)`
+
+**myK9Q** uses passcode-based auth: `[role][4-digits]` (e.g., `aa260`). Roles: `a` (admin), `j` (judge), `s` (steward), `e` (exhibitor). Validated via Supabase Edge Function.
+
+## Form Handling (myK9Show)
+
+Uses custom `OptimisticForm` component (`src/components/forms/OptimisticForm.tsx`) — not React Hook Form:
 
 ```typescript
-import { logger } from '@myk9/core';
-import { ReplicatedTable } from '@myk9/replication';
-import { Button } from '@myk9/ui';
-import { useScoringStore, QualifyingResult } from '@myk9/scoring';
+<OptimisticForm
+  entityType="dog" entityId={id} initialData={dog}
+  onSave={saveFn} onValidate={zodValidator}
+  autoSave autoSaveDelay={2000}
+>
+  {({ data, updateField, isDirty, isProcessing, errors }) => (
+    // render form fields
+  )}
+</OptimisticForm>
 ```
+
+- **Pattern**: Render props with `updateField`/`updateFields`
+- **Auto-save**: Debounced (default 2s), validates before saving
+- **Validation**: Zod schemas passed via `onValidate`, returns `string[]` errors
+
+## Error Handling (myK9Show)
+
+**ErrorBoundary** (`src/components/common/ErrorBoundary.tsx`):
+
+- `level` prop: `'page' | 'section' | 'component'` — controls fallback UI
+- Auto-classifies errors via `ErrorClassificationService`
+- Max 3 retries, logs to `LoggingService`
+
+**Toast notifications** via Sonner (`src/lib/notifications.tsx`):
+
+```typescript
+import { notifications, actionNotifications } from '@/lib/notifications';
+notifications.success('Saved');
+notifications.error('Failed to save');
+actionNotifications.created('Dog', dog.name); // "Dog 'Rex' created"
+actionNotifications.deleted('Entry', null, onUndo); // with undo action
+```
+
+## Key Patterns
 
 ### Offline-first data (myK9Q)
 
+Always use replicated tables — never bypass with direct Supabase calls (breaks offline):
+
 ```typescript
-// Always use replicated tables for data operations
 import { replicatedClassesTable } from '@myk9/replication';
 await replicatedClassesTable.updateClassStatus(classId, status);
-```
-
-### Scoring stores (from @myk9/scoring)
-
-```typescript
-import { useScoringStore, useTimerStore } from '@myk9/scoring';
-const { startSession, submitScore, syncStatus } = useScoringStore();
-const { startTimer, stopTimer, getAreaTime } = useTimerStore();
 ```
 
 ## State Management
@@ -182,13 +204,8 @@ const { startTimer, stopTimer, getAreaTime } = useTimerStore();
 - **Mutations:** Optimistic cache update in `onSuccess`, then invalidate related queries
 - **Query hooks:** Located in `src/hooks/queries/`
 
-### Context Providers (myK9Show)
-
-4 providers — `AuthContext` (auth + RBAC), `EnhancedThemeContext`, `RegistrationContext`, `ThemeContext`. Context is for global, rarely-changing state only. Don't add new contexts for domain data — use Zustand.
-
 ### Anti-Patterns
 
-- Don't bypass `@myk9/replication` with direct Supabase calls in myK9Q (breaks offline)
 - Don't use `useState` for server data that should be cached (use React Query)
 - Don't add new Context providers for domain data (use Zustand stores)
 - Don't duplicate stores across apps — extract to a shared package
@@ -211,6 +228,22 @@ After any file refactoring or extraction, run this checklist before reporting co
 Always ensure generated test code compiles cleanly: no `await` outside `async`, no unused variables (remove them, don't underscore-prefix), and run the test suite before considering work complete.
 
 When test runners hang or appear stuck for more than 30 seconds, stop and report the issue rather than retrying in a loop. Known issue: test suite has pre-existing timeout/hanging problems.
+
+### Test Utilities (myK9Show)
+
+**Custom render** (`src/test/utils/testUtils.tsx`): Wraps components with QueryClientProvider (no retries), AuthProvider, and MemoryRouter. Always use this instead of raw `render`:
+
+```typescript
+import { render, userEvent } from '@/test/utils/testUtils';
+const { user } = render(<MyComponent />, { initialRoute: '/shows/123' });
+await user.click(screen.getByRole('button'));
+```
+
+**Helpers**: `waitForLoadingToFinish()` (waits for `aria-busy`, `data-testid="loading"`, `.animate-pulse` to clear), `mockZustandStore(initialState)`, `createMockResponse(data, delay?)`, `expectAsyncError(fn, message?)`
+
+### Test Setup
+
+Global setup (`src/test/setup.ts`) auto-mocks: Supabase client (chainable queries), IndexedDB (`fake-indexeddb`), localStorage, `window.matchMedia`, `IntersectionObserver`, `ResizeObserver`, and suppresses console output. Vitest globals enabled — no need to import `describe`/`it`/`expect`.
 
 ## Workflow
 

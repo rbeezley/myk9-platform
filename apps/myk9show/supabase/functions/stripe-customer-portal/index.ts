@@ -26,9 +26,8 @@ const ALLOWED_ORIGINS = [
 ];
 
 function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
-    ? requestOrigin
-    : ALLOWED_ORIGINS[0];
+  const origin =
+    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -49,11 +48,22 @@ function corsResponse(body: string | object | null, status = 200) {
 }
 
 interface PortalRequest {
-  customerId: string;  // Supabase UUID (stripe_customers.id)
+  customerId: string; // Supabase UUID (stripe_customers.id)
   returnUrl: string;
 }
 
-Deno.serve(async (req) => {
+/** Validate that a URL starts with one of our allowed origins (prevents open redirect) */
+function isAllowedRedirectUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const origin = parsed.origin;
+    return ALLOWED_ORIGINS.includes(origin);
+  } catch {
+    return false;
+  }
+}
+
+Deno.serve(async req => {
   _corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
@@ -72,7 +82,10 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       console.error('Authentication failed:', authError);
@@ -85,6 +98,11 @@ Deno.serve(async (req) => {
 
     if (!customerId || !returnUrl) {
       return corsResponse({ error: 'Missing required parameters: customerId, returnUrl' }, 400);
+    }
+
+    // Validate return URL against allowed origins (prevent open redirect)
+    if (!isAllowedRedirectUrl(returnUrl)) {
+      return corsResponse({ error: 'Invalid return URL origin' }, 400);
     }
 
     // Look up the Stripe customer ID and verify ownership
@@ -119,8 +137,11 @@ Deno.serve(async (req) => {
     return corsResponse({ url: session.url });
   } catch (error: unknown) {
     console.error('Customer portal error:', error);
-    return corsResponse({
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }, 502);
+    return corsResponse(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      502
+    );
   }
 });

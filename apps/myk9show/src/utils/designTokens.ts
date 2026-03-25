@@ -59,10 +59,10 @@ export const componentTokens = {
 // Common CSS class builders
 export const buildClasses = {
   card: {
-    base: 'bg-card border border-border/50 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-300',
-    hover: 'hover:shadow-md hover:-translate-y-0.5 hover:border-primary/20',
+    base: 'bg-card border border-border/50 rounded-xl shadow-card backdrop-blur-sm transition-all duration-300',
+    hover: 'hover:shadow-card-hover hover:-translate-y-0.5',
     standard:
-      'bg-card border border-border/50 rounded-xl p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/20',
+      'bg-card border border-border/50 rounded-xl p-6 shadow-card backdrop-blur-sm transition-all duration-300 hover:shadow-card-hover hover:-translate-y-0.5',
   },
   button: {
     primary:

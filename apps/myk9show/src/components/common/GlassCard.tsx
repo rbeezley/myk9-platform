@@ -41,7 +41,7 @@ export function GlassCard({
   return (
     <div
       className={cn(
-        'group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500',
+        'group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border/30 rounded-2xl shadow-card backdrop-blur-xl transition-all duration-500',
         hoverClasses[hoverEffect],
         className
       )}

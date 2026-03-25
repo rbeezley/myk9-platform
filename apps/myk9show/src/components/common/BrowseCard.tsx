@@ -17,7 +17,7 @@ export function BrowseCard({ href, actionLabel, badges, avatar, name, children }
 
   return (
     <div
-      className="group cursor-pointer rounded-lg border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30"
+      className="group cursor-pointer rounded-xl bg-card p-4 shadow-card transition-all hover:shadow-card-hover"
       onClick={() => navigate(href)}
       role="link"
       tabIndex={0}

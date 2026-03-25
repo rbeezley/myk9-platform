@@ -34,9 +34,9 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
     <div
       data-testid="show-card"
       className={cn(
-        'group relative overflow-hidden rounded-xl border border-border/50 bg-card cursor-pointer',
+        'group relative overflow-hidden rounded-xl bg-card shadow-card cursor-pointer',
         'transition-all duration-200 ease-out',
-        'hover:shadow-md hover:border-border',
+        'hover:shadow-card-hover',
         entryStatus.status === 'closing_soon' && 'ring-2 ring-orange-400/50',
         isSelected && 'ring-2 ring-primary/50'
       )}
@@ -96,7 +96,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
  * Skeleton placeholder for loading states.
  */
 export const ShowCardHorizontalSkeleton: React.FC = () => (
-  <div className="rounded-xl border border-border/50 bg-card p-4">
+  <div className="rounded-xl bg-card shadow-card p-4">
     <div className="flex flex-col md:flex-row md:items-center gap-3">
       <div className="flex-shrink-0">
         <div className="w-14 h-14 rounded-xl bg-muted animate-pulse" />

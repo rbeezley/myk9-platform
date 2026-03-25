@@ -22,7 +22,7 @@ export function SearchBar({
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="h-12 w-full pl-11 pr-4 text-base bg-background border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl outline-none transition-colors"
+        className="h-12 w-full pl-11 pr-4 text-base bg-card shadow-card focus:shadow-card-hover focus:ring-2 focus:ring-primary/20 rounded-xl outline-none transition-all"
       />
     </div>
   );

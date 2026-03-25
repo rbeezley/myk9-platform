@@ -29,6 +29,7 @@ import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDe
 type ViewMode = 'table' | 'cards';
 
 const LEVEL_PROGRESSION: Record<string, number> = {
+  novice: 0,
   'novice a': 0,
   'novice b': 1,
   advanced: 2,
@@ -37,8 +38,11 @@ const LEVEL_PROGRESSION: Record<string, number> = {
   masters: 4,
 };
 
-function levelOrder(level: string): number {
-  return LEVEL_PROGRESSION[level.toLowerCase()] ?? 99;
+function levelOrder(level: string, section?: string): number {
+  // Try exact match first (e.g., "Novice A"), then base level (e.g., "Novice")
+  const key = level.toLowerCase();
+  const withSection = section ? `${key} ${section.toLowerCase()}` : key;
+  return LEVEL_PROGRESSION[withSection] ?? LEVEL_PROGRESSION[key] ?? 99;
 }
 
 interface TrialClassesTableProps {
@@ -105,7 +109,7 @@ export const TrialClassesTable = ({
         let cmp = 0;
 
         if (field === 'level') {
-          cmp = levelOrder(a.level) - levelOrder(b.level);
+          cmp = levelOrder(a.level, a.section) - levelOrder(b.level, b.section);
         } else if (field === 'startTime') {
           const aTime = a.startTime ? new Date(String(a.startTime)).getTime() : 0;
           const bTime = b.startTime ? new Date(String(b.startTime)).getTime() : 0;

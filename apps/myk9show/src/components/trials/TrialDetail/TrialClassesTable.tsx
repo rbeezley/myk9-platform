@@ -314,7 +314,8 @@ export const TrialClassesTable = ({
                 filteredAndSortedClasses.map(classItem => (
                   <TableRow
                     key={classItem.id}
-                    className="bg-card hover:bg-muted/50 transition-colors"
+                    className="bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
                   >
                     <TableCell>{classItem.element}</TableCell>
                     <TableCell>
@@ -359,7 +360,7 @@ export const TrialClassesTable = ({
                         {classItem.status}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       <ClassRowActionsMenu
                         onView={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
                         onEdit={() => onEditClass(classItem)}

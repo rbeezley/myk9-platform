@@ -80,9 +80,9 @@ export function useClassResults({
         else if (existingData?.qualification) {
           qualification = existingData.qualification;
         }
-        // Third priority: fall back to boolean qualified field (legacy)
-        else if (competitionData?.qualified !== undefined) {
-          qualification = competitionData.qualified === true ? 'Qualified' : 'Not Qualified';
+        // Third priority: fall back to boolean qualified field (legacy) — only set if explicitly qualified
+        else if (competitionData?.qualified === true) {
+          qualification = 'Qualified';
         }
 
         const bulkEntry: BulkEntryData = {

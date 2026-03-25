@@ -1,10 +1,8 @@
-/**
- * QualificationCell - Editable or read-only qualification status with reason dropdown
- */
-
 import React from 'react';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -21,6 +19,14 @@ interface QualificationCellProps {
   onUpdate: (entryId: string, field: keyof BulkEntryData, value: string) => void;
 }
 
+const DISPLAY_LABELS: Record<string, string> = {
+  Qualified: 'Q',
+  'Not Qualified': 'NQ',
+  Absent: 'ABS',
+  Excused: 'EXC',
+  Withdrawn: 'WD',
+};
+
 export const QualificationCell: React.FC<QualificationCellProps> = ({
   item,
   canEdit,
@@ -31,7 +37,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
       <div>
         <div>
           <Badge variant={item.qualification === 'Qualified' ? 'default' : 'secondary'}>
-            {item.qualification === 'Not Qualified' ? 'NQ' : item.qualification || 'Not Set'}
+            {DISPLAY_LABELS[item.qualification] || item.qualification || 'Not Set'}
           </Badge>
         </div>
         {item.qualificationReason && (
@@ -43,31 +49,48 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
 
   const showReasonDropdown = STATUSES_REQUIRING_REASON.includes(item.qualification);
 
+  const handleClear = () => {
+    onUpdate(item.entryId, 'qualification', '');
+    onUpdate(item.entryId, 'qualificationReason', '');
+  };
+
   return (
     <div className="space-y-1">
-      <Select
-        value={item.qualification}
-        onValueChange={value => onUpdate(item.entryId, 'qualification', value)}
-        data-field="qualification"
-      >
-        <SelectTrigger
-          className={cn(
-            'w-32',
-            item.modifiedFields?.has('qualification') && 'ring-2 ring-blue-500/30 border-blue-500'
-          )}
+      <div className="flex items-center gap-1">
+        <Select
+          value={item.qualification}
+          onValueChange={value => onUpdate(item.entryId, 'qualification', value)}
+          data-field="qualification"
         >
-          <SelectValue placeholder="Select" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="Qualified">Qualified</SelectItem>
-          <SelectItem value="Not Qualified">NQ</SelectItem>
-          <SelectItem value="Absent">Absent</SelectItem>
-          <SelectItem value="Excused">Excused</SelectItem>
-          <SelectItem value="Withdrawn">Withdrawn</SelectItem>
-        </SelectContent>
-      </Select>
+          <SelectTrigger
+            className={cn(
+              'w-28',
+              item.modifiedFields?.has('qualification') && 'ring-2 ring-blue-500/30 border-blue-500'
+            )}
+          >
+            <SelectValue placeholder="Select" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Qualified">Q - Qualified</SelectItem>
+            <SelectItem value="Not Qualified">NQ - Not Qualified</SelectItem>
+            <SelectItem value="Absent">ABS - Absent</SelectItem>
+            <SelectItem value="Excused">EXC - Excused</SelectItem>
+            <SelectItem value="Withdrawn">WD - Withdrawn</SelectItem>
+          </SelectContent>
+        </Select>
+        {item.qualification && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+            onClick={handleClear}
+            title="Clear qualification"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
 
-      {/* Conditional Reason Dropdown - Stacked Below */}
       {showReasonDropdown && (
         <Select
           value={item.qualificationReason}
@@ -76,7 +99,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
         >
           <SelectTrigger
             className={cn(
-              'w-32 h-7 text-xs',
+              'w-28 h-7 text-xs',
               item.modifiedFields?.has('qualificationReason') &&
                 'ring-2 ring-blue-500/30 border-blue-500'
             )}

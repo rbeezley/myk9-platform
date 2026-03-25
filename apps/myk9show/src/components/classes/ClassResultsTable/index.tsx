@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Save, AlertCircle, ClipboardList, Trophy, Trash2 } from 'lucide-react';
+import { Save, AlertCircle, ClipboardList, Trophy, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -115,20 +115,32 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                     item.modifiedFields?.has('searchTime') && 'ring-2 ring-blue-500/30'
                   )}
                 >
-                  <TimeInput
-                    value={item.searchTime}
-                    onChange={digits =>
-                      updateBulkData(item.entryId, 'searchTime', formatSearchTime(digits))
-                    }
-                    onCommit={() => {
-                      const next = document.querySelector(
-                        `[data-index="${row.index}"][data-field="faults"]`
-                      ) as HTMLElement;
-                      next?.focus();
-                    }}
-                    onCancel={() => {}}
-                    className="w-24 h-8 text-center font-mono"
-                  />
+                  <div className="flex items-center gap-1">
+                    <TimeInput
+                      value={item.searchTime}
+                      onChange={digits =>
+                        updateBulkData(item.entryId, 'searchTime', formatSearchTime(digits))
+                      }
+                      onCommit={() => {
+                        const next = document.querySelector(
+                          `[data-index="${row.index}"][data-field="faults"]`
+                        ) as HTMLElement;
+                        next?.focus();
+                      }}
+                      onCancel={() => {}}
+                      className="w-24 h-8 text-center font-mono"
+                    />
+                    {item.searchTime && (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => updateBulkData(item.entryId, 'searchTime', '')}
+                        title="Clear time"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

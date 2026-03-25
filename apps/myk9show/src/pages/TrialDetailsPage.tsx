@@ -51,7 +51,8 @@ import {
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { DetailHero, getStatusBadge } from '@/components/common/DetailHero';
+import { DetailHero } from '@/components/common/DetailHero';
+import { getStatusBadge } from '@/components/common/detailHeroUtils';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useUrlTab } from '@/hooks/useUrlTab';

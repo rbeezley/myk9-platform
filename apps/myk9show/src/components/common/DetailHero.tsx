@@ -26,17 +26,6 @@ interface DetailHeroProps {
   className?: string;
 }
 
-/** Map a status string to a HeroBadge variant. */
-const STATUS_VARIANT_MAP: Record<string, HeroBadge['variant']> = {
-  'In Progress': 'warning',
-  Completed: 'success',
-};
-
-export function getStatusBadge(status: string | undefined): HeroBadge | undefined {
-  if (!status) return undefined;
-  return { label: status, variant: STATUS_VARIANT_MAP[status] || 'default' };
-}
-
 const badgeStyles: Record<string, string> = {
   success: 'bg-green-500/10 text-green-600 border-green-500/20',
   warning: 'bg-orange-500/10 text-orange-600 border-orange-500/20',

@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PageShell } from '@/components/common';
+import { PageShell } from '@/components/common/PageShell';
 import { KanbanBoard } from '@/components/secretary/kanban';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';

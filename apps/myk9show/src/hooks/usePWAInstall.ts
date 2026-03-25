@@ -53,7 +53,6 @@ export function usePWAInstall(): UsePWAInstallReturn {
   const [isDismissed, setIsDismissed] = useState(false);
   const [isIOSSafari] = useState(detectIOSSafari);
 
-  // Detect if app is already installed
   useEffect(() => {
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
@@ -75,7 +74,6 @@ export function usePWAInstall(): UsePWAInstallReturn {
     }
   }, []);
 
-  // Check if user previously dismissed the prompt
   useEffect(() => {
     try {
       const dismissedData = localStorage.getItem(DISMISS_KEY);
@@ -92,7 +90,6 @@ export function usePWAInstall(): UsePWAInstallReturn {
     }
   }, []);
 
-  // Capture the beforeinstallprompt event
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
@@ -102,7 +99,6 @@ export function usePWAInstall(): UsePWAInstallReturn {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  // Listen for successful installation
   useEffect(() => {
     const handler = () => {
       setIsInstalled(true);

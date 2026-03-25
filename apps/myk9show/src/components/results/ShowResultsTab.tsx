@@ -7,6 +7,8 @@ import { useState, useMemo } from 'react';
 import { Trophy, Filter, ChevronDown, ChevronRight, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { EmptyState } from '@/components/common/EmptyState';
 import { PodiumCard } from './PodiumCard';
 import {
   useShowResults,
@@ -27,44 +29,43 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
   const filtered = useMemo(() => filterResults(results, filters), [results, filters]);
   const { elements, levels } = useMemo(() => getFilterOptions(results), [results]);
 
-  // Split into classes with placements vs without (pending)
-  const withPlacements = filtered.filter(c => c.placements.length > 0);
-  const pending = filtered.filter(c => c.placements.length === 0);
+  const { withPlacements, pending } = useMemo(() => {
+    const w: typeof filtered = [];
+    const p: typeof filtered = [];
+    for (const c of filtered) {
+      (c.placements.length > 0 ? w : p).push(c);
+    }
+    return { withPlacements: w, pending: p };
+  }, [filtered]);
 
   const hasActiveFilters = filters.element || filters.level;
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingSpinner message="Loading results..." />;
   }
 
   if (error) {
     return (
-      <div className="py-12 text-center text-muted-foreground">
-        <p>Error loading results.</p>
-        <Button variant="outline" size="sm" className="mt-2" onClick={() => refetch()}>
-          Retry
-        </Button>
-      </div>
+      <EmptyState
+        icon={Trophy}
+        title="Error loading results"
+        action={{ label: 'Retry', onClick: () => refetch() }}
+      />
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="py-12 text-center text-muted-foreground">
-        <Trophy className="mx-auto mb-3 h-10 w-10 opacity-40" />
-        <p className="text-lg font-medium">No results yet</p>
-        <p className="mt-1 text-sm">Results will appear here as classes complete scoring.</p>
-      </div>
+      <EmptyState
+        icon={Trophy}
+        title="No results yet"
+        description="Results will appear here as classes complete scoring."
+      />
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
       {(elements.length > 1 || levels.length > 1) && (
         <div className="flex flex-wrap items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
@@ -116,11 +117,10 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
         </div>
       )}
 
-      {/* Podium cards grid */}
       {withPlacements.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {withPlacements.map(cls => (
-            <PodiumCard key={cls.classId} className={cls.className} placements={cls.placements} />
+            <PodiumCard key={cls.classId} classTitle={cls.className} placements={cls.placements} />
           ))}
         </div>
       ) : (
@@ -129,7 +129,6 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
         </div>
       )}
 
-      {/* Pending classes (scored but no placements yet) */}
       {pending.length > 0 && (
         <div className="rounded-lg border">
           <button

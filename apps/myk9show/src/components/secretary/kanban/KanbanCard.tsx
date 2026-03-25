@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Calendar, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import type { KanbanTask } from './kanban-types';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import type { KanbanTask, TaskPriority } from './kanban-types';
 
 interface KanbanCardProps {
   task: KanbanTask;
@@ -13,23 +18,17 @@ interface KanbanCardProps {
   isDragOverlay?: boolean;
 }
 
-const PRIORITY_STYLES: Record<string, string> = {
+const PRIORITY_STYLES: Record<TaskPriority, string> = {
   high: 'bg-destructive/10 text-destructive border-destructive/20',
   medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   low: 'bg-muted text-muted-foreground border-border',
 };
-
-function formatDate(dateStr?: string): string | null {
-  if (!dateStr) return null;
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
 
 export function KanbanCard({ task, onEdit, onDelete, isDragOverlay = false }: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     disabled: isDragOverlay,
   });
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -52,48 +51,31 @@ export function KanbanCard({ task, onEdit, onDelete, isDragOverlay = false }: Ka
       <div className="flex items-start justify-between gap-2">
         <h4 className="text-sm font-medium leading-tight">{task.title}</h4>
         {!isDragOverlay && (onEdit || onDelete) && (
-          <div className="relative">
-            <button
-              className="rounded p-0.5 text-muted-foreground hover:bg-muted"
-              onClick={e => {
-                e.stopPropagation();
-                setMenuOpen(!menuOpen);
-              }}
-              onPointerDown={e => e.stopPropagation()}
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-full z-10 mt-1 w-28 rounded-md border bg-popover p-1 shadow-md">
-                {onEdit && (
-                  <button
-                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-muted"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onEdit();
-                    }}
-                    onPointerDown={e => e.stopPropagation()}
-                  >
-                    <Pencil className="h-3 w-3" /> Edit
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onDelete();
-                    }}
-                    onPointerDown={e => e.stopPropagation()}
-                  >
-                    <Trash2 className="h-3 w-3" /> Delete
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="rounded p-0.5 text-muted-foreground hover:bg-muted"
+                onPointerDown={e => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-28">
+              {onEdit && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="mr-2 h-3 w-3" /> Edit
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-3 w-3" /> Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
@@ -113,7 +95,7 @@ export function KanbanCard({ task, onEdit, onDelete, isDragOverlay = false }: Ka
         {task.dueDate && (
           <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
             <Calendar className="h-2.5 w-2.5" />
-            {formatDate(task.dueDate)}
+            {formatDate(task.dueDate, { month: 'short', day: 'numeric' })}
           </span>
         )}
         {task.assignee && (

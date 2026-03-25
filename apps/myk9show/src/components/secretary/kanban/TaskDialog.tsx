@@ -9,7 +9,21 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { KanbanTask, TaskPriority } from './kanban-types';
+
+const PRIORITIES: { value: TaskPriority; label: string }[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+];
 
 interface TaskDialogProps {
   open: boolean;
@@ -44,14 +58,15 @@ export function TaskDialog({ open, onOpenChange, onSave, task }: TaskDialogProps
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSave({
+    const data: Partial<KanbanTask> = {
       title: title.trim(),
-      description: description.trim() || undefined,
-      priority: priority || undefined,
-      dueDate: dueDate || undefined,
-      assignee: assignee.trim() || undefined,
       status: task?.status || 'todo',
-    });
+    };
+    if (description.trim()) data.description = description.trim();
+    if (priority) data.priority = priority;
+    if (dueDate) data.dueDate = dueDate;
+    if (assignee.trim()) data.assignee = assignee.trim();
+    onSave(data);
     onOpenChange(false);
   };
 
@@ -77,30 +92,30 @@ export function TaskDialog({ open, onOpenChange, onSave, task }: TaskDialogProps
 
           <div className="space-y-2">
             <Label htmlFor="task-description">Description</Label>
-            <textarea
+            <Textarea
               id="task-description"
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Add more details (optional)"
               rows={3}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="task-priority">Priority</Label>
-              <select
-                id="task-priority"
-                value={priority}
-                onChange={e => setPriority(e.target.value as TaskPriority | '')}
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-              >
-                <option value="">None</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+              <Label>Priority</Label>
+              <Select value={priority} onValueChange={v => setPriority(v as TaskPriority | '')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map(p => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="task-due">Due Date</Label>

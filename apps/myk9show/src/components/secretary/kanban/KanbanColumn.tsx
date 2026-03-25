@@ -12,7 +12,7 @@ interface KanbanColumnProps {
   icon: React.ReactNode;
   count: number;
   children: React.ReactNode;
-  onAddTask?: () => void;
+  onAddTask?: (() => void) | undefined;
 }
 
 export function KanbanColumn({ id, title, icon, count, children, onAddTask }: KanbanColumnProps) {

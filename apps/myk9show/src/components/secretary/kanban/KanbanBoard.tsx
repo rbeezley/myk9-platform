@@ -3,7 +3,7 @@
  * Three columns: To Do, In Progress, Done. Persists to localStorage per show.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -86,7 +86,11 @@ export function KanbanBoard({ showId }: KanbanBoardProps) {
     setEditingTask(null);
   };
 
-  const getTasksByStatus = (status: KanbanStatus) => tasks.filter(t => t.status === status);
+  const tasksByStatus = useMemo(() => {
+    const grouped: Record<KanbanStatus, KanbanTask[]> = { todo: [], 'in-progress': [], done: [] };
+    for (const t of tasks) grouped[t.status].push(t);
+    return grouped;
+  }, [tasks]);
 
   return (
     <>
@@ -98,7 +102,7 @@ export function KanbanBoard({ showId }: KanbanBoardProps) {
           onDragEnd={handleDragEnd}
         >
           {COLUMNS.map(col => {
-            const columnTasks = getTasksByStatus(col.id);
+            const columnTasks = tasksByStatus[col.id];
             return (
               <KanbanColumn
                 key={col.id}

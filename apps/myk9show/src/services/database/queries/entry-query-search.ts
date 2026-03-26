@@ -4,6 +4,7 @@
  * Read-only operations for statistics aggregation, searching, and eligibility checks.
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 
 // Get entry statistics for a show
 export const getEntryStatistics = async (showId?: string) => {
@@ -190,7 +191,9 @@ export const searchEntries = async (searchTerm: string) => {
         )
       `
       )
-      .or(`armband.ilike.%${searchTerm}%,handler.ilike.%${searchTerm}%`)
+      .or(
+        `armband.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,handler.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+      )
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(50);

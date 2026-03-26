@@ -11,6 +11,7 @@
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DayOfEntry } from './dayOfOperationsTypes';
 
 /**
@@ -255,7 +256,9 @@ export const searchDogs = async (searchTerm: string) => {
         )
       `
       )
-      .or(`name.ilike.%${searchTerm}%,call_name.ilike.%${searchTerm}%`)
+      .or(
+        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,call_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+      )
       .is('deleted_at', null)
       .eq('status', 'active')
       .limit(20);

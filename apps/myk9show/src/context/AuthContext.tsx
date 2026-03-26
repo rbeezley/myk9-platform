@@ -304,8 +304,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Scope checking for database permissions
-      if (scope && rbacData.userRoles.length > 0) {
+      // When a scope is provided, always require a matching scoped role
+      if (scope) {
         return rbacData.userRoles.some(
           ur =>
             ur.scope_type === (scope as { type: string }).type &&
@@ -322,7 +322,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    if (scope && userWithRoles.scopes.length > 0) {
+    // When a scope is provided, always require a matching scoped entry
+    if (scope) {
       return userWithRoles.scopes.some(
         s => s.scopeType === (scope as Scope).type && s.scopeId === (scope as Scope).id
       );
@@ -417,6 +418,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           scopeType: scope?.type,
           scopeId: scope?.id,
         });
+        await refreshPermissions();
       }
     : undefined;
 
@@ -432,6 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           scopeType: scope?.type,
           scopeId: scope?.id,
         });
+        await refreshPermissions();
       }
     : undefined;
 

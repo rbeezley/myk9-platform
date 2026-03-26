@@ -40,16 +40,13 @@ export const checkDatabaseConnection = async (): Promise<{
   latency?: number;
 }> => {
   const startTime = Date.now();
-  
+
   try {
     // Simple query to test connection
-    const { error } = await supabase
-      .from('clubs')
-      .select('id')
-      .limit(1);
-    
+    const { error } = await supabase.from('clubs').select('id').limit(1);
+
     const latency = Date.now() - startTime;
-    
+
     if (error) {
       return {
         connected: false,
@@ -57,7 +54,7 @@ export const checkDatabaseConnection = async (): Promise<{
         latency,
       };
     }
-    
+
     return {
       connected: true,
       latency,
@@ -72,12 +69,7 @@ export const checkDatabaseConnection = async (): Promise<{
 };
 
 // Database query logging utility (development only)
-export const logQuery = (
-  table: string,
-  operation: string,
-  duration: number,
-  error?: string
-) => {
+export const logQuery = (table: string, operation: string, duration: number, error?: string) => {
   if (import.meta.env.DEV) {
     // Development logging (unused in production)
     const logData = {
@@ -88,8 +80,12 @@ export const logQuery = (
       status: error ? 'ERROR' : 'SUCCESS',
       ...(error && { error }),
     };
-    
-    logger.debug(`🗄️ DB Query [${operation.toUpperCase()}]: ${table} (${duration}ms) ${error ? `❌ ${error}` : '✅'}`, 'database', logData);
+
+    logger.debug(
+      `🗄️ DB Query [${operation.toUpperCase()}]: ${table} (${duration}ms) ${error ? `❌ ${error}` : '✅'}`,
+      'database',
+      logData
+    );
   }
 };
 
@@ -110,18 +106,20 @@ export const createDatabaseError = (
   operation?: string
 ): DatabaseError => {
   // Type guard for error objects
-  const err = error && typeof error === 'object' ? error as { 
-    message?: string; 
-    details?: string; 
-    hint?: string; 
-    code?: string; 
-  } : {};
-  
+  const err =
+    error && typeof error === 'object'
+      ? (error as {
+          message?: string;
+          details?: string;
+          hint?: string;
+          code?: string;
+        })
+      : {};
+
   return {
     name: 'DatabaseError',
     message: err.message || 'Database operation failed',
-    details: err.details,
-    hint: err.hint,
+    ...(import.meta.env.DEV && { details: err.details, hint: err.hint }),
     code: err.code,
     table,
     operation,
@@ -130,7 +128,10 @@ export const createDatabaseError = (
 
 // Authentication utilities
 export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
   return { user, error };
 };
 
@@ -145,18 +146,16 @@ export const createRealtimeSubscription = (
   callback: (payload: unknown) => void,
   filter?: string
 ) => {
-  const subscription = supabase
-    .channel(`public:${table}`)
-    .on(
-      'postgres_changes',
-      { 
-        event: '*', 
-        schema: 'public', 
-        table,
-        ...(filter && { filter }),
-      },
-      callback
-    );
+  const subscription = supabase.channel(`public:${table}`).on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table,
+      ...(filter && { filter }),
+    },
+    callback
+  );
 
   return {
     subscribe: () => subscription.subscribe(),
@@ -169,13 +168,13 @@ export const executeBatch = async <T>(
   operations: Array<() => Promise<T>>
 ): Promise<Array<{ success: boolean; data?: T; error?: DatabaseError }>> => {
   const results = await Promise.allSettled(operations.map(op => op()));
-  
-  return results.map((result) => {
+
+  return results.map(result => {
     if (result.status === 'fulfilled') {
       return { success: true, data: result.value };
     } else {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: createDatabaseError(result.reason),
       };
     }

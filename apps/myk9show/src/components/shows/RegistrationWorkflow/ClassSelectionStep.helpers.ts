@@ -198,3 +198,14 @@ export function updateJumpHeightInSelections(
   filtered.push(updated);
   return filtered;
 }
+
+/**
+ * Build a display label for a class level+section combination.
+ * Always shows section when present (AKC Scent Work: only Novice has A/B;
+ * UKC Nose Work: every level has A/B).
+ * Returns undefined for level-less elements (e.g., Detective).
+ */
+export function buildDisplayLabel(level: string, section: string | undefined): string | undefined {
+  if (!level) return undefined;
+  return [level, section].filter(Boolean).join(' ');
+}

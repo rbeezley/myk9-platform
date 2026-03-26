@@ -26,3 +26,21 @@ export interface ClassWithTrial {
     date: string;
   };
 }
+
+export interface LevelInfo {
+  classId: string;
+  level: string;
+  section: string | undefined;
+  displayLabel: string;
+  isSelected: boolean;
+  isAlreadyEntered: boolean;
+  requiresJumpHeight?: boolean;
+}
+
+export interface ElementGroup {
+  element: string;
+  fee: number;
+  levels: LevelInfo[];
+  /** True when the element has no levels (e.g., "Detective") — render checkbox inline in header */
+  isSingleClass: boolean;
+}

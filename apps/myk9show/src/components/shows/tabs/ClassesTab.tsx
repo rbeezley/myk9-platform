@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MineToggle } from '@/components/common/MineToggle';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
-import { Search, ChevronRight } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   getClassStatusDisplay,
@@ -19,6 +19,7 @@ import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { compareLevels } from '@/utils/schedule-summary';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 
 interface ClassInfo {
   id: string;
@@ -46,6 +47,10 @@ interface ClassesTabProps {
   showId: string;
   userHasEntries: boolean;
   hideRing?: boolean;
+}
+
+interface ClassTableRow extends ClassInfo {
+  trialLabel: string;
 }
 
 function formatTrialDate(dateStr: string): string {
@@ -131,9 +136,91 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
 
   const hasMultipleTrials = groupedByTrial.length > 1;
 
-  // Compute column count dynamically so colSpan stays in sync
-  // Base: Element, Level, Judge, Time, Status, Entries, Chevron = 7
-  const totalColumns = 7 + (hideRing ? 0 : 1);
+  // Flat table data with trial label for the DataTable view
+  const tableData = useMemo<ClassTableRow[]>(
+    () =>
+      filteredClasses.map(cls => ({
+        ...cls,
+        trialLabel: [
+          cls.trialDate ? formatTrialDate(cls.trialDate) : '',
+          cls.trialName || (cls.trialNumber ? `Trial ${cls.trialNumber}` : ''),
+        ]
+          .filter(Boolean)
+          .join(' \u2014 '),
+      })),
+    [filteredClasses]
+  );
+
+  const classColumns = useMemo<ColumnDef<ClassTableRow, unknown>[]>(() => {
+    const cols: ColumnDef<ClassTableRow, unknown>[] = [
+      {
+        accessorKey: 'trialLabel',
+        header: 'Trial',
+        meta: { responsiveHide: 'md' as const },
+      },
+      { accessorKey: 'element', header: 'Element' },
+      {
+        accessorKey: 'level',
+        header: 'Level',
+        sortingFn: (rowA, rowB) => compareLevels(rowA.original.level, rowB.original.level),
+        cell: ({ row }) => (
+          <>
+            {row.original.level}
+            {shouldShowSection(row.original) && (
+              <span className="ml-1 text-muted-foreground">{row.original.section}</span>
+            )}
+          </>
+        ),
+      },
+      {
+        accessorKey: 'judgeName',
+        header: 'Judge',
+        meta: { responsiveHide: 'md' as const },
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
+        ),
+      },
+      {
+        accessorKey: 'time',
+        header: 'Time',
+        meta: { responsiveHide: 'sm' as const },
+      },
+    ];
+
+    if (!hideRing) {
+      cols.push({
+        accessorKey: 'ring',
+        header: 'Ring',
+        meta: { responsiveHide: 'sm' as const },
+      });
+    }
+
+    cols.push(
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => {
+          const statusDisplay = getClassStatusDisplay(row.original.status);
+          return (
+            <span
+              className={cn(
+                'px-2 py-0.5 rounded text-xs font-medium',
+                getClassStatusBadgeClasses(row.original.status)
+              )}
+            >
+              {statusDisplay.label}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: 'entryCount',
+        header: 'Entries',
+      }
+    );
+
+    return cols;
+  }, [hideRing]);
 
   if (classes.length === 0) {
     return (
@@ -174,95 +261,17 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
           onReset={() => setStatusFilter('all')}
         />
       ) : viewMode === 'table' ? (
-        <div className="rounded-xl border border-border/50 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border/30">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Element</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Level</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
-                  Judge
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
-                  Time
-                </th>
-                {!hideRing && (
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
-                    Ring
-                  </th>
-                )}
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Entries</th>
-                <th className="w-8" />
-              </tr>
-            </thead>
-            <tbody>
-              {groupedByTrial.map(group => (
-                <React.Fragment key={group.label}>
-                  {hasMultipleTrials && (
-                    <tr className="bg-muted/20">
-                      <td
-                        colSpan={totalColumns}
-                        className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide"
-                      >
-                        {group.label}
-                      </td>
-                    </tr>
-                  )}
-                  {group.classes.map(cls => {
-                    const statusDisplay = getClassStatusDisplay(cls.status);
-                    return (
-                      <tr
-                        key={cls.id}
-                        role="button"
-                        tabIndex={0}
-                        className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
-                        onClick={() =>
-                          navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
-                        }
-                        onKeyDown={e => {
-                          if (e.key === 'Enter')
-                            navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`);
-                        }}
-                      >
-                        <td className="px-4 py-3 font-medium">{cls.element}</td>
-                        <td className="px-4 py-3">
-                          {cls.level}
-                          {shouldShowSection(cls) && (
-                            <span className="ml-1 text-muted-foreground">{cls.section}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                          {cls.judgeName || 'TBD'}
-                        </td>
-                        <td className="px-4 py-3 hidden sm:table-cell">{cls.time}</td>
-                        {!hideRing && (
-                          <td className="px-4 py-3 hidden sm:table-cell">{cls.ring}</td>
-                        )}
-                        <td className="px-4 py-3">
-                          <span
-                            className={cn(
-                              'px-2 py-0.5 rounded text-xs font-medium',
-                              getClassStatusBadgeClasses(cls.status)
-                            )}
-                          >
-                            {statusDisplay.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">
-                          {cls.entryCount}
-                        </td>
-                        <td className="px-2 py-3 text-muted-foreground/50">
-                          <ChevronRight className="h-4 w-4" />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          tableId="classesTab"
+          columns={classColumns}
+          data={tableData}
+          initialSorting={[
+            { id: 'trialLabel', desc: false },
+            { id: 'element', desc: false },
+            { id: 'level', desc: false },
+          ]}
+          onRowClick={cls => navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)}
+        />
       ) : (
         groupedByTrial.map(group => (
           <div key={group.label} className="space-y-3">

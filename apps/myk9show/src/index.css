@@ -374,11 +374,24 @@ body {
 input,
 textarea,
 select {
-  border-color: var(--border) !important;
+  border-color: var(--input-border, var(--border)) !important;
+  transition: border-color 0.15s ease;
+}
+
+input:hover,
+textarea:hover,
+select:hover {
+  border-color: var(--input-border-hover, rgba(0, 0, 0, 0.2)) !important;
+}
+
+.dark input:hover,
+.dark textarea:hover,
+.dark select:hover {
+  border-color: var(--input-border-hover, rgba(255, 255, 255, 0.15)) !important;
 }
 
 .border-input {
-  border-color: var(--border) !important;
+  border-color: var(--input-border, var(--border)) !important;
 }
 
 @layer base {
@@ -408,6 +421,8 @@ select {
     --destructive-foreground: #ffffff;
     --border: rgba(0, 0, 0, 0.06);
     --input: #f2f2f5;
+    --input-border: #e4e4e7; /* zinc-300 — visible input edges */
+    --input-border-hover: #d4d4d8; /* zinc-400 — hover feedback */
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
@@ -451,6 +466,8 @@ select {
     --destructive-foreground: #ffffff;
     --border: rgba(255, 255, 255, 0.06);
     --input: #1a1a1f;
+    --input-border: #27272a; /* zinc-800 — visible input edges */
+    --input-border-hover: #3f3f46; /* zinc-700 — hover feedback */
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;

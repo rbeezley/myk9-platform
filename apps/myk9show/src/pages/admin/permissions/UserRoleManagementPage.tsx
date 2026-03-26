@@ -4,7 +4,7 @@
  * Created: December 2024
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -259,7 +259,10 @@ const UserRoleManagementPage: React.FC = () => {
     }
   };
 
-  const columns = makeColumns((id, email, roleName) => setPendingRevoke({ id, email, roleName }));
+  const columns = useMemo(
+    () => makeColumns((id, email, roleName) => setPendingRevoke({ id, email, roleName })),
+    []
+  );
 
   // Group by role for summary
   const roleStats = roles.map(role => {
@@ -384,6 +387,7 @@ const UserRoleManagementPage: React.FC = () => {
         {/* User Assignments Tab */}
         <TabsContent value="assignments" className="space-y-4">
           <DataTable
+            tableId="userRoleAssignments"
             columns={columns}
             data={userRoles}
             emptyState={

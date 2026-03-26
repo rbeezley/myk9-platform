@@ -430,6 +430,7 @@ const PermissionAuditPage: React.FC = () => {
 
           {/* Audit Log DataTable */}
           <DataTable
+            tableId="permissionAudit"
             columns={columns}
             data={filteredLogs}
             initialSorting={[{ id: 'created_at', desc: true }]}

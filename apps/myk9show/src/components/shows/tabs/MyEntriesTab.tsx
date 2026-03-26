@@ -53,6 +53,7 @@ const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
   {
     id: 'myDog',
     header: 'My Dog',
+    accessorFn: (row) => row.dogName,
     cell: ({ row }) => (
       <span>
         {row.original.dogName}
@@ -61,18 +62,17 @@ const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
         )}
       </span>
     ),
-    enableSorting: false,
   },
   {
     id: 'position',
     header: 'Position',
+    accessorFn: (row) => (row.scored ? Infinity : row.dogsAhead),
     cell: ({ row }) => {
       const { scored, dogsAhead } = row.original;
       if (scored) return 'Completed';
       if (dogsAhead === 0) return 'Next up';
       return `${dogsAhead} ahead`;
     },
-    enableSorting: false,
   },
 ];
 

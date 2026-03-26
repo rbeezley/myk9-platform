@@ -2,7 +2,7 @@
  * Waitlist Table component for WaitlistManagementPage
  */
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, Dog, ArrowUpCircle, Trash2 } from 'lucide-react';
@@ -101,18 +101,23 @@ export function WaitlistTable({
   onSearchChange,
   onSetActionDialog,
 }: WaitlistTableProps) {
-  const handleOfferSpot = (entry: WaitlistEntry) => {
-    onSetActionDialog({ open: true, action: 'offer', entry });
-  };
+  const handleOfferSpot = useCallback(
+    (entry: WaitlistEntry) => {
+      onSetActionDialog({ open: true, action: 'offer', entry });
+    },
+    [onSetActionDialog]
+  );
 
-  const handleRemove = (entry: WaitlistEntry) => {
-    onSetActionDialog({ open: true, action: 'remove', entry });
-  };
+  const handleRemove = useCallback(
+    (entry: WaitlistEntry) => {
+      onSetActionDialog({ open: true, action: 'remove', entry });
+    },
+    [onSetActionDialog]
+  );
 
   const columns = useMemo(
     () => buildColumns(selectedClass, handleOfferSpot, handleRemove),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedClass]
+    [selectedClass, handleOfferSpot, handleRemove]
   );
 
   return (

@@ -100,7 +100,7 @@ export function ScratchEntriesTable({ entries, onScratch }: ScratchEntriesTableP
       </CardHeader>
       <CardContent>
         <DataTable
-          tableId="scratch-entries"
+          tableId="scratchEntries"
           columns={columns}
           data={entries}
           emptyState="No entries available to scratch"

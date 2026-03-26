@@ -99,7 +99,7 @@ export function MoveUpEntriesTable({ entries, onMoveUp }: MoveUpEntriesTableProp
       </CardHeader>
       <CardContent>
         <DataTable
-          tableId="move-up-entries"
+          tableId="moveUpEntries"
           columns={columns}
           data={entries}
           emptyState="No entries available for move-up"

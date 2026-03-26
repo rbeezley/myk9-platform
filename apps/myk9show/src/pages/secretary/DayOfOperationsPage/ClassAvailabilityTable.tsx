@@ -78,7 +78,7 @@ export function ClassAvailabilityTable({ classes, onAddEntry }: ClassAvailabilit
       </CardHeader>
       <CardContent>
         <DataTable
-          tableId="class-availability"
+          tableId="classAvailability"
           columns={classAvailabilityColumns}
           data={classes}
           emptyState="No classes found"

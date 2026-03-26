@@ -130,6 +130,7 @@ export function UserActivityUsersTab({ filteredSessions, userMetrics }: UserActi
     <div className="space-y-6">
       {/* Users DataTable */}
       <DataTable
+        tableId="userActivityUsers"
         columns={columns}
         data={filteredSessions}
         initialSorting={[{ id: 'lastActivity', desc: true }]}

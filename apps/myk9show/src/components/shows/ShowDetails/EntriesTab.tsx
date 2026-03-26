@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cacheStrategies } from '@/lib/queryClient';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Search, ClipboardList, Loader2 } from 'lucide-react';
+import { Users, ClipboardList, Loader2 } from 'lucide-react';
 import { getEntriesByShow } from '@/services/database/queries/entryQueries';
 import { getEntryStatusClasses, formatDate } from '@/utils/entryManagementUtils';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 
 /** Shape of a single entry row returned by getEntriesByShow. */
 interface ShowEntryRow {
@@ -41,9 +42,74 @@ interface EntriesTabProps {
   onManageEntries?: (() => void) | undefined;
 }
 
-export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+const entryColumns: ColumnDef<ShowEntryRow, unknown>[] = [
+  {
+    id: 'dogName',
+    accessorFn: row => {
+      const dog = row.dog;
+      const parts = [dog?.name, dog?.call_name, dog?.breed].filter(Boolean);
+      return parts.join(' ') || 'Unknown Dog';
+    },
+    header: 'Dog',
+    cell: ({ row }) => {
+      const dog = row.original.dog;
+      const registeredName = dog?.name || 'Unknown Dog';
+      const callName = dog?.call_name;
+      const breed = dog?.breed || '';
+      return (
+        <div>
+          <div className="font-medium text-foreground">{registeredName}</div>
+          {callName && callName !== registeredName && (
+            <div className="text-xs text-muted-foreground">&ldquo;{callName}&rdquo;</div>
+          )}
+          {breed && <div className="text-xs text-muted-foreground">{breed}</div>}
+        </div>
+      );
+    },
+  },
+  {
+    id: 'className',
+    accessorFn: row => row.class?.name || 'N/A',
+    header: 'Class',
+  },
+  {
+    id: 'handler',
+    accessorFn: row =>
+      row.handler ||
+      (row.dog?.owner
+        ? `${row.dog.owner.first_name || ''} ${row.dog.owner.last_name || ''}`.trim()
+        : 'N/A'),
+    header: 'Handler / Owner',
+    meta: { responsiveHide: 'md' as const },
+  },
+  {
+    accessorKey: 'armband',
+    header: 'Armband',
+    cell: ({ getValue }) => <span className="font-mono">{(getValue() as string) || '-'}</span>,
+  },
+  {
+    accessorKey: 'entry_status',
+    header: 'Status',
+    cell: ({ getValue }) => {
+      const status = (getValue() as string) || 'Unknown';
+      return (
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getEntryStatusClasses(status)}`}
+        >
+          {status}
+        </span>
+      );
+    },
+  },
+  {
+    accessorKey: 'created_at',
+    header: 'Date',
+    meta: { responsiveHide: 'sm' as const },
+    cell: ({ getValue }) => formatDate(getValue() as string | null),
+  },
+];
 
+export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries }) => {
   const {
     data: entries = [],
     isLoading: loading,
@@ -65,28 +131,6 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
       ? queryError.message
       : 'Failed to load entries'
     : null;
-
-  /** Filtered entries based on search term. */
-  const filteredEntries = useMemo(() => {
-    if (!searchTerm.trim()) return entries;
-    const term = searchTerm.toLowerCase();
-    return entries.filter(entry => {
-      const dogName = (entry.dog?.call_name || entry.dog?.name || '').toLowerCase();
-      const handler = (entry.handler || '').toLowerCase();
-      const className = (entry.class?.name || '').toLowerCase();
-      const armband = (entry.armband || '').toLowerCase();
-      const ownerName = entry.dog?.owner
-        ? `${entry.dog.owner.first_name || ''} ${entry.dog.owner.last_name || ''}`.toLowerCase()
-        : '';
-      return (
-        dogName.includes(term) ||
-        handler.includes(term) ||
-        className.includes(term) ||
-        armband.includes(term) ||
-        ownerName.includes(term)
-      );
-    });
-  }, [entries, searchTerm]);
 
   if (loading) {
     return (
@@ -140,22 +184,10 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
 
   return (
     <div className="space-y-4">
-      {/* Search and summary bar */}
+      {/* Summary bar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by dog, handler, class, or armband..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {filteredEntries.length} of {entries.length} entries
-          </span>
+          <span className="text-sm text-muted-foreground">{entries.length} entries</span>
           {onManageEntries && (
             <Button onClick={onManageEntries} variant="outline" size="sm">
               <Users className="w-4 h-4 mr-2" />
@@ -165,67 +197,7 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
         </div>
       </div>
 
-      {/* Entries table */}
-      <Card className="border-0 shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="text-left font-semibold px-4 py-3 text-muted-foreground">Dog</th>
-                <th className="text-left font-semibold px-4 py-3 text-muted-foreground">Class</th>
-                <th className="text-left font-semibold px-4 py-3 text-muted-foreground">
-                  Handler / Owner
-                </th>
-                <th className="text-left font-semibold px-4 py-3 text-muted-foreground">Armband</th>
-                <th className="text-left font-semibold px-4 py-3 text-muted-foreground">Status</th>
-                <th className="text-left font-semibold px-4 py-3 text-muted-foreground">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEntries.map(entry => {
-                const dogDisplay = entry.dog?.call_name || entry.dog?.name || 'Unknown Dog';
-                const breed = entry.dog?.breed || '';
-                const className = entry.class?.name || 'N/A';
-                const handlerDisplay =
-                  entry.handler ||
-                  (entry.dog?.owner
-                    ? `${entry.dog.owner.first_name || ''} ${entry.dog.owner.last_name || ''}`.trim()
-                    : 'N/A');
-                const status = entry.entry_status || 'Unknown';
-                const dateStr = formatDate(entry.created_at);
-
-                return (
-                  <tr
-                    key={entry.id}
-                    className="border-b border-border/50 hover:bg-muted/20 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">{dogDisplay}</div>
-                      {breed && <div className="text-xs text-muted-foreground">{breed}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-foreground">{className}</td>
-                    <td className="px-4 py-3 text-foreground">{handlerDisplay}</td>
-                    <td className="px-4 py-3 text-foreground font-mono">{entry.armband || '-'}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getEntryStatusClasses(status)}`}
-                      >
-                        {status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{dateStr}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {filteredEntries.length === 0 && searchTerm && (
-          <div className="p-8 text-center text-muted-foreground">
-            No entries match "{searchTerm}"
-          </div>
-        )}
-      </Card>
+      <DataTable tableId="showEntriesTab" columns={entryColumns} data={entries} />
     </div>
   );
 };

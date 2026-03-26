@@ -93,7 +93,7 @@ export function isClassSelected(
  */
 export function getClassFee(
   show: ShowFeeInfo | undefined,
-  classData: ClassWithTrial['classData']
+  classData: { entryFee?: number | undefined }
 ): number {
   return getShowEntryFee(show, classData.entryFee);
 }

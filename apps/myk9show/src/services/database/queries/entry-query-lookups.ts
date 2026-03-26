@@ -269,7 +269,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
   }
 };
 
-// Get entries by trial ID (for financial summary)
+// Get entries by trial ID (via class join — shared by TrialEntriesTable, FinancialSummary, TrialDetailsPage)
 export const getEntriesByTrial = async (trialId: string) => {
   const startTime = Date.now();
 

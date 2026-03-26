@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { cacheStrategies } from '@/lib/queryClient';
-import { getEntriesByTrial } from '@/services/database/queries/entry-query-lookups';
+import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable, DataTableToolbar, DataTableSearch } from '@/components/ui/data-table';
 import { ClipboardList } from 'lucide-react';
@@ -112,20 +110,7 @@ const EMPTY_STATE = (
 );
 
 export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
-  const {
-    data: rawEntries = [],
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ['trials', trialId, 'entries'],
-    queryFn: async () => {
-      const { data, error } = await getEntriesByTrial(trialId);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!trialId,
-    ...cacheStrategies.dynamic,
-  });
+  const { data: rawEntries = [], isLoading, isError } = useTrialEntries(trialId);
 
   // Map raw entries to display format
   const entries: DisplayEntry[] = useMemo(() => {

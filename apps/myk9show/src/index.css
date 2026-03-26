@@ -384,46 +384,46 @@ select {
 @layer base {
   :root {
     color-scheme: light dark;
-    /* Warm backgrounds matching myK9Q */
-    --background: #f5f2ed; /* Warm cream (was #f8f7f4) */
-    --foreground: #0a0a0a;
-    --background-alt: #f5f2ed;
-    --card: #faf8f4; /* Elevated cream (was #fefdfb) */
-    --card-foreground: #0a0a0a;
-    --sidebar: #edeae3; /* Subtle warmth — perceptible but not heavy */
-    --sidebar-foreground: #0a0a0a;
-    --card-secondary: #f5f2ed;
-    --card-secondary-foreground: #0a0a0a;
-    /* Gray neutrals matching myK9Q */
-    --muted: #f0ede7; /* (was #f6f6f6) */
-    --muted-foreground: #6b7280;
+    /* Neutral zinc backgrounds */
+    --background: #f2f2f5;
+    --foreground: #18181b;
+    --background-alt: #f2f2f5;
+    --card: #ffffff;
+    --card-foreground: #18181b;
+    --sidebar: #e8e8ec;
+    --sidebar-foreground: #18181b;
+    --card-secondary: #f2f2f5;
+    --card-secondary-foreground: #18181b;
+    /* Zinc neutrals */
+    --muted: #f2f2f5;
+    --muted-foreground: #71717a;
     /* Default primary - teal (overridden by accent color classes) */
     --primary: #14b8a6;
     --primary-foreground: #ffffff;
-    --secondary: #f5f2ed;
-    --secondary-foreground: #0f172a;
+    --secondary: #f2f2f5;
+    --secondary-foreground: #18181b;
     --accent: #f0fdfa; /* Teal-tinted accent */
     --accent-foreground: #0f766e;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #e0dbd3; /* (was #e5e7eb) */
-    --input: #efece6; /* (was #f3f4f6) */
+    --border: rgba(0, 0, 0, 0.06);
+    --input: #f2f2f5;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
     --radius: 0.5rem;
-    --dialog-input-bg: #efece6; /* (was #f2f2f2) */
-    --popover: #faf8f4; /* (was #ffffff) */
-    --popover-foreground: #0f172a;
+    --dialog-input-bg: #f2f2f5;
+    --popover: #ffffff;
+    --popover-foreground: #18181b;
     --show-secondary-bg: transparent;
-    /* Card elevation — warm-tinted multi-layer shadows */
-    --shadow-card: 0 1px 2px rgba(180, 160, 130, 0.06), 0 4px 12px rgba(180, 160, 130, 0.08);
-    --shadow-card-hover: 0 2px 4px rgba(180, 160, 130, 0.08), 0 12px 32px rgba(180, 160, 130, 0.12);
-    /* Header elevation — subtle floating shadow */
-    --shadow-header: 0 1px 3px rgba(180, 160, 130, 0.2), 0 1px 2px rgba(180, 160, 130, 0.12);
-    --sidebar-border: #ddd6ca;
+    /* Card elevation — neutral multi-layer shadows */
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03);
+    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+    /* Header elevation */
+    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+    --sidebar-border: rgba(0, 0, 0, 0.06);
   }
 
   .dark {

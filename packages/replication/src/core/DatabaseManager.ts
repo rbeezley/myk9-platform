@@ -10,13 +10,15 @@
  */
 
 import { openDB, deleteDB, IDBPDatabase } from 'idb';
-import type { Logger, DatabaseManagerDependencies, LogDiagnostics, HandleDatabaseCorruption } from '../dependencies';
-import { noopLogger, noopDiagnostics, noopCorruptionHandler } from '../dependencies';
+import type { Logger, DatabaseManagerDependencies } from '../dependencies';
+import { noopLogger } from '../dependencies';
 import {
   DB_NAME,
   DB_VERSION,
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
+  DELETE_DB_TIMEOUT_MS,
+  CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 
 /**
@@ -105,22 +107,30 @@ function createObjectStores(
     store.createIndex('tableName_data.class_id', ['tableName', 'data.class_id'], { unique: false });
     store.createIndex('tableName_data.trial_id', ['tableName', 'data.trial_id'], { unique: false });
     store.createIndex('tableName_data.show_id', ['tableName', 'data.show_id'], { unique: false });
-    store.createIndex('tableName_data.armband_number', ['tableName', 'data.armband_number'], { unique: false });
+    store.createIndex('tableName_data.armband_number', ['tableName', 'data.armband_number'], {
+      unique: false,
+    });
   } else if (oldVersion < 3) {
     // Upgrade from v1/v2 to v3: Add query performance indexes if missing
     const store = transaction.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
 
     if (!store.indexNames.contains('tableName_data.class_id')) {
-      store.createIndex('tableName_data.class_id', ['tableName', 'data.class_id'], { unique: false });
+      store.createIndex('tableName_data.class_id', ['tableName', 'data.class_id'], {
+        unique: false,
+      });
     }
     if (!store.indexNames.contains('tableName_data.trial_id')) {
-      store.createIndex('tableName_data.trial_id', ['tableName', 'data.trial_id'], { unique: false });
+      store.createIndex('tableName_data.trial_id', ['tableName', 'data.trial_id'], {
+        unique: false,
+      });
     }
     if (!store.indexNames.contains('tableName_data.show_id')) {
       store.createIndex('tableName_data.show_id', ['tableName', 'data.show_id'], { unique: false });
     }
     if (!store.indexNames.contains('tableName_data.armband_number')) {
-      store.createIndex('tableName_data.armband_number', ['tableName', 'data.armband_number'], { unique: false });
+      store.createIndex('tableName_data.armband_number', ['tableName', 'data.armband_number'], {
+        unique: false,
+      });
     }
   }
 
@@ -171,15 +181,14 @@ function createObjectStores(
  */
 export class DatabaseManager {
   private logger: Logger;
-  private logDiagnostics: LogDiagnostics;
-  private handleCorruption: HandleDatabaseCorruption;
   private dbName: string;
   private dbVersion: number;
+  private consecutiveFailures = 0;
+  private circuitOpen = false;
+  private isRecovering = false;
 
   constructor(dependencies: DatabaseManagerDependencies = {}, dbName?: string, dbVersion?: number) {
     this.logger = dependencies.logger ?? noopLogger;
-    this.logDiagnostics = dependencies.logDiagnostics ?? noopDiagnostics;
-    this.handleCorruption = dependencies.handleDatabaseCorruption ?? noopCorruptionHandler;
     this.dbName = dbName ?? DB_NAME;
     this.dbVersion = dbVersion ?? DB_VERSION;
   }
@@ -188,21 +197,50 @@ export class DatabaseManager {
    * Open the database with timeout protection
    */
   private async openDatabaseWithTimeout(): Promise<IDBPDatabase> {
-    this.logger.log(`[DatabaseManager] About to call openDB("${this.dbName}", ${this.dbVersion})...`);
+    this.logger.log(
+      `[DatabaseManager] About to call openDB("${this.dbName}", ${this.dbVersion})...`
+    );
 
     const openDBPromise = openDB(this.dbName, this.dbVersion, {
       upgrade: (db, oldVersion, newVersion, transaction) => {
-        this.logger.log(`[DatabaseManager] Upgrade callback triggered - oldVersion: ${oldVersion}, newVersion: ${newVersion}`);
+        this.logger.log(
+          `[DatabaseManager] Upgrade callback triggered - oldVersion: ${oldVersion}, newVersion: ${newVersion}`
+        );
         createObjectStores(db, oldVersion, transaction as unknown as IDBTransaction, this.logger);
       },
-    }).then((db) => {
+      blocked: () => {
+        this.logger.warn(
+          `[DatabaseManager] openDB blocked by existing connection — force-closing stale sharedDB`
+        );
+        if (sharedDB) {
+          try {
+            sharedDB.close();
+          } catch {
+            /* ignore */
+          }
+          sharedDB = null;
+        }
+      },
+    }).then(db => {
       this.logger.log(`[DatabaseManager] openDB() promise resolved!`);
+      db.onversionchange = () => {
+        this.logger.warn(
+          `[DatabaseManager] Another instance requested upgrade — closing connection`
+        );
+        db.close();
+        sharedDB = null;
+        dbInitPromise = null;
+      };
       return db;
     });
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        reject(new Error(`Database open timed out after ${DB_INIT_TIMEOUT_MS}ms - database may be corrupted or locked`));
+        reject(
+          new Error(
+            `Database open timed out after ${DB_INIT_TIMEOUT_MS}ms - database may be corrupted or locked`
+          )
+        );
       }, DB_INIT_TIMEOUT_MS);
     });
 
@@ -210,37 +248,13 @@ export class DatabaseManager {
   }
 
   /**
-   * Handle database corruption - delete and recreate
-   */
-  private async recoverFromCorruption(): Promise<IDBPDatabase> {
-    this.logger.warn(`[DatabaseManager] Deleting corrupted database and attempting recovery...`);
-    this.handleCorruption();
-
-    await deleteDB(this.dbName);
-    this.logger.log(`[DatabaseManager] Database deleted successfully`);
-
-    const retryPromise = openDB(this.dbName, this.dbVersion, {
-      upgrade: (db, oldVersion, newVersion, transaction) => {
-        this.logger.log(`[DatabaseManager] Retry upgrade - oldVersion: ${oldVersion}, newVersion: ${newVersion}`);
-        createObjectStores(db, oldVersion, transaction as unknown as IDBTransaction, this.logger);
-      },
-    });
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Database open timed out after ${DB_INIT_TIMEOUT_MS}ms on retry`));
-      }, DB_INIT_TIMEOUT_MS);
-    });
-
-    return Promise.race([retryPromise, timeoutPromise]);
-  }
-
-  /**
    * Get the shared database instance
    * SINGLETON PATTERN: All tables share the same DB instance to prevent upgrade deadlocks
    */
   async getDatabase(tableName: string): Promise<IDBPDatabase> {
-    this.logger.log(`[${tableName}] init() called - sharedDB: ${!!sharedDB}, dbInitPromise: ${!!dbInitPromise}`);
+    this.logger.log(
+      `[${tableName}] init() called - sharedDB: ${!!sharedDB}, dbInitPromise: ${!!dbInitPromise}`
+    );
 
     // Return shared instance if already initialized AND connection is healthy
     if (sharedDB) {
@@ -256,12 +270,16 @@ export class DatabaseManager {
         this.logger.log(`[${tableName}] Using existing sharedDB (health check passed)`);
         return sharedDB;
       } catch (healthCheckError) {
-        const errorMsg = healthCheckError instanceof Error ? healthCheckError.message : String(healthCheckError);
+        const errorMsg =
+          healthCheckError instanceof Error ? healthCheckError.message : String(healthCheckError);
 
         if (errorMsg.includes('closing')) {
           this.logger.warn(`[${tableName}] Database connection is closing, reinitializing...`);
         } else {
-          this.logger.warn(`[${tableName}] Database health check failed, reinitializing...`, healthCheckError);
+          this.logger.warn(
+            `[${tableName}] Database health check failed, reinitializing...`,
+            healthCheckError
+          );
         }
 
         if (sharedDB) {
@@ -272,8 +290,13 @@ export class DatabaseManager {
           }
         }
 
-        if (errorMsg.includes('Object stores missing') || errorMsg.includes('object stores was not found')) {
-          this.logger.warn(`[${tableName}] Corrupted database detected - deleting and recreating...`);
+        if (
+          errorMsg.includes('Object stores missing') ||
+          errorMsg.includes('object stores was not found')
+        ) {
+          this.logger.warn(
+            `[${tableName}] Corrupted database detected - deleting and recreating...`
+          );
           try {
             await deleteDB(this.dbName);
             this.logger.log(`[${tableName}] Corrupted database deleted successfully`);
@@ -302,7 +325,9 @@ export class DatabaseManager {
         this.logger.log(`[${tableName}] My turn in queue (${tablesInitialized})`);
 
         if (activeTransactions.size > 0) {
-          this.logger.log(`[${tableName}] Waiting for ${activeTransactions.size} active transactions to complete...`);
+          this.logger.log(
+            `[${tableName}] Waiting for ${activeTransactions.size} active transactions to complete...`
+          );
           await Promise.all(Array.from(activeTransactions));
           this.logger.log(`[${tableName}] All active transactions complete`);
         }
@@ -338,38 +363,19 @@ export class DatabaseManager {
     } catch (error) {
       this.logger.error(`[DatabaseManager] Failed to open database:`, error);
 
-      try {
-        sharedDB = await this.recoverFromCorruption();
-        dbInitPromise = Promise.resolve(sharedDB);
+      // Use circuit breaker recovery instead of legacy recoverFromCorruption()
+      dbInitInProgress = false;
+      dbInitPromise = null;
+      sharedDB = null;
 
-        this.logger.log(`[DatabaseManager] Database recreated successfully after corruption`);
-        dbInitInProgress = false;
+      await this.recover();
 
-        tableInitQueue = Promise.resolve();
-        tablesInitialized = 0;
-
+      // If recover() re-opened successfully, return it
+      if (sharedDB) {
         return sharedDB;
-      } catch (retryError) {
-        this.logger.error(`[DatabaseManager] Failed to recreate database after deletion:`, retryError);
-
-        setTimeout(() => {
-          Promise.resolve(this.logDiagnostics({ error: retryError })).catch(err => {
-            this.logger.error('[DatabaseManager] Diagnostic report failed:', err);
-          });
-        }, 0);
-
-        const currentlyInUse = activeTransactions.size > 0;
-        if (!currentlyInUse) {
-          this.logger.log(`[${tableName}] No active transactions, safe to reset global state`);
-          dbInitPromise = null;
-          sharedDB = null;
-          tableInitQueue = Promise.resolve();
-          tablesInitialized = 0;
-        }
-
-        dbInitInProgress = false;
-        throw retryError;
       }
+
+      throw error;
     }
   }
 
@@ -388,12 +394,16 @@ export class DatabaseManager {
     initInProgress: boolean;
     tablesInitialized: number;
     activeTransactions: number;
+    consecutiveFailures: number;
+    circuitOpen: boolean;
   } {
     return {
       isInitialized: sharedDB !== null,
       initInProgress: dbInitInProgress,
       tablesInitialized,
       activeTransactions: activeTransactions.size,
+      consecutiveFailures: this.consecutiveFailures,
+      circuitOpen: this.circuitOpen,
     };
   }
 
@@ -410,6 +420,108 @@ export class DatabaseManager {
     tableInitQueue = Promise.resolve();
     tablesInitialized = 0;
     activeTransactions.clear();
+    this.consecutiveFailures = 0;
+    this.circuitOpen = false;
+    this.isRecovering = false;
+  }
+
+  /**
+   * Record a getAll/init failure. Trips circuit breaker after threshold.
+   */
+  recordFailure(): void {
+    this.consecutiveFailures++;
+    this.logger.warn(
+      `[DatabaseManager] Failure recorded (${this.consecutiveFailures}/${CIRCUIT_BREAKER_THRESHOLD})`
+    );
+
+    if (this.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD && !this.circuitOpen) {
+      this.circuitOpen = true;
+      this.logger.error(
+        `[DatabaseManager] Circuit breaker tripped after ${this.consecutiveFailures} consecutive failures`
+      );
+      this.recover().catch(err => this.logger.error(`[DatabaseManager] Recovery failed:`, err));
+    }
+  }
+
+  /**
+   * Reset the failure counter (called after a successful operation)
+   */
+  resetFailures(): void {
+    if (this.consecutiveFailures > 0) {
+      this.consecutiveFailures = 0;
+    }
+    this.circuitOpen = false;
+  }
+
+  /**
+   * Auto-recover: force-close, nuke IndexedDB, re-open, emit event
+   */
+  private async recover(): Promise<void> {
+    if (this.isRecovering) return;
+    this.isRecovering = true;
+
+    this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
+
+    // Step 1: Force-close existing connection
+    if (sharedDB) {
+      try {
+        sharedDB.close();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    // Step 2: Null out all module-level state
+    sharedDB = null;
+    dbInitPromise = null;
+    dbInitInProgress = false;
+    tableInitQueue = Promise.resolve();
+    tablesInitialized = 0;
+
+    // Step 3: Try to delete IndexedDB (with short timeout — may hang if locked)
+    try {
+      await Promise.race([
+        deleteDB(this.dbName),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('deleteDB timed out')), DELETE_DB_TIMEOUT_MS)
+        ),
+      ]);
+      this.logger.log(`[DatabaseManager] IndexedDB deleted successfully`);
+    } catch {
+      this.logger.warn(
+        `[DatabaseManager] deleteDB timed out or failed — proceeding without deletion`
+      );
+    }
+
+    // Step 4: Try to re-open fresh
+    try {
+      dbInitPromise = this.openDatabaseWithTimeout();
+      sharedDB = await dbInitPromise;
+      this.logger.log(`[DatabaseManager] Database re-opened after recovery`);
+    } catch (error) {
+      this.logger.error(`[DatabaseManager] Failed to re-open database after recovery:`, error);
+      dbInitPromise = null;
+      sharedDB = null;
+    }
+
+    // Step 5: Reset circuit breaker state
+    this.consecutiveFailures = 0;
+    this.circuitOpen = false;
+    this.isRecovering = false;
+
+    // Step 6: Emit recovery event for the app layer
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('replication:recovery', { detail: { reason: 'circuit-breaker' } })
+      );
+    }
+  }
+
+  /**
+   * Check if the circuit breaker is currently open
+   */
+  isCircuitOpen(): boolean {
+    return this.circuitOpen;
   }
 }
 

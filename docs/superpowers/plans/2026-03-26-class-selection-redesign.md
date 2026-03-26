@@ -26,12 +26,12 @@
 
 ## Deferred to Availability Badge Iteration
 
-These features depend on per-class availability data (deferred per spec):
+- **Availability badges** — spots remaining, full indicator, low-spots warning. Deferred per spec.
+- **Waitlist join** — "Join Waitlist" button when a class is full. Depends on availability data. Deferred alongside badges.
 
-- **Jump height selection** — currently rendered below each ClassCardRow when `requiresJumpHeight` is true. Will be added below the ElementCard when availability badges are implemented.
-- **Waitlist join** — currently rendered when a class is full. Will be added below the ElementCard in the same future iteration.
+## [ADDED] Preserved Features (Not Deferred)
 
-Both features remain functional in the codebase but are not rendered in the new compact layout until the availability iteration.
+- **Jump height selection** — independent of availability. Must render below the ElementCard when a selected class has `requiresJumpHeight: true`. Addressed in Task 9.
 
 ---
 
@@ -53,6 +53,7 @@ export interface LevelInfo {
   displayLabel: string;
   isSelected: boolean;
   isAlreadyEntered: boolean;
+  requiresJumpHeight?: boolean; // [ADDED] preserved from old ClassCardRow
 }
 
 export interface ElementGroup {
@@ -458,6 +459,25 @@ describe('ElementCard', () => {
     expect(screen.getByText('$10')).toBeInTheDocument();
     expect(screen.queryByText('$10/class')).not.toBeInTheDocument();
   });
+
+  // [ADDED] Edge case: single level WITH a level value shows chips, not inline
+  it('renders element with one level as chips when level exists', () => {
+    const singleLevelWithLevel: LevelInfo[] = [
+      { classId: 'b1', level: 'Advanced', section: undefined, displayLabel: 'Advanced', isSelected: false, isAlreadyEntered: false },
+    ];
+    render(
+      <ElementCard
+        element="Buried"
+        levels={singleLevelWithLevel}
+        fee={10}
+        isSingleClass={false}
+        onToggle={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Buried')).toBeInTheDocument();
+    expect(screen.getByText('Advanced')).toBeInTheDocument();
+    expect(screen.getByText('$10/class')).toBeInTheDocument();
+  });
 });
 ```
 
@@ -666,6 +686,19 @@ Add new styles at the same location:
   border-color: #0d9488;
   background: rgba(13, 148, 136, 0.1);
 }
+
+/* [ADDED] Mobile responsiveness */
+@media (max-width: 480px) {
+  .myk9-level-chip {
+    min-width: 70px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .myk9-element-card {
+    padding: 10px 12px;
+  }
+}
 ```
 
 - [ ] **Step 2: Run typecheck to ensure no build issues**
@@ -788,6 +821,19 @@ With:
 
 ```typescript
 import { Card, CardContent } from '@/components/ui/card';
+```
+
+[ADDED] Keep the Select imports (needed for jump height dropdown):
+
+```typescript
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 ```
 
 Replace:
@@ -974,20 +1020,59 @@ Replace the `<Card>` / `<ScrollArea>` / `<TrialSectionHeader>` / `<ClassCardRow>
                             isExpanded={expandedTrials.has(trial.id)}
                             onToggle={() => toggleTrial(trial.id)}
                           >
-                            {elementGroups.map(group => (
-                              <ElementCard
-                                key={group.element}
-                                element={group.element}
-                                fee={group.fee}
-                                isSingleClass={group.isSingleClass}
-                                levels={group.levels.map(l => ({
-                                  ...l,
-                                  isSelected: isClassSelected(dogId, l.classId, cartItems, classSelections),
-                                  isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
-                                }))}
-                                onToggle={(classId) => handleClassToggle(dogId, trial.id, classId, group.fee)}
-                              />
-                            ))}
+                            {elementGroups.map(group => {
+                              // [ADDED] Check if any selected class in this group needs jump height
+                              const selectedWithJumpHeight = group.levels.filter(l =>
+                                l.requiresJumpHeight &&
+                                isClassSelected(dogId, l.classId, cartItems, classSelections) &&
+                                !getExistingEntry(dogId, l.classId)
+                              );
+
+                              return (
+                                <React.Fragment key={group.element}>
+                                  <ElementCard
+                                    element={group.element}
+                                    fee={group.fee}
+                                    isSingleClass={group.isSingleClass}
+                                    levels={group.levels.map(l => ({
+                                      ...l,
+                                      isSelected: isClassSelected(dogId, l.classId, cartItems, classSelections),
+                                      isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
+                                    }))}
+                                    onToggle={(classId) => handleClassToggle(dogId, trial.id, classId, group.fee)}
+                                  />
+                                  {/* [ADDED] Jump height selection below element card */}
+                                  {selectedWithJumpHeight.map(cls => {
+                                    const sel = getSelectionForDog(classSelections, dogId)
+                                      .selectedClasses.find(c => c.classId === cls.classId);
+                                    return (
+                                      <div key={`jh-${cls.classId}`} className="ml-6 flex items-center gap-2">
+                                        <Label className="text-xs text-muted-foreground">
+                                          Jump Height for {cls.displayLabel || group.element}:
+                                        </Label>
+                                        <Select
+                                          value={sel?.jumpHeight || ''}
+                                          onValueChange={value =>
+                                            onSelectionChange(
+                                              updateJumpHeightInSelections(classSelections, dogId, cls.classId, value)
+                                            )
+                                          }
+                                        >
+                                          <SelectTrigger className="w-24 h-7 text-xs">
+                                            <SelectValue placeholder="Select..." />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {['8', '12', '16', '20', '24'].map(h => (
+                                              <SelectItem key={h} value={h}>{h}&quot;</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    );
+                                  })}
+                                </React.Fragment>
+                              );
+                            })}
                           </TrialSection>
                         );
                       })}

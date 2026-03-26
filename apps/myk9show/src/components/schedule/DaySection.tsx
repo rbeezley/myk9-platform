@@ -16,7 +16,7 @@ export function DaySection({ day, showId }: DaySectionProps) {
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold text-orange-500">{formatted}</h3>
+      <h3 className="mb-3 text-sm font-semibold text-primary">{formatted}</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {day.trials.map(trial => (
           <TrialSpine key={trial.trialId} trial={trial} showId={showId} />

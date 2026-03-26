@@ -23,6 +23,7 @@ const ALLOWED_ORIGINS = [
   'https://myk9show.com',
   'https://www.myk9show.com',
   'https://app.myk9show.com',
+  'https://myk9-platform-myk9show.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
@@ -75,6 +76,12 @@ interface EntryCheckoutRequest {
 }
 
 type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | EntryCheckoutRequest;
+
+// Valid subscription price IDs — must match stripe-upgrade-subscription allowlist (SA-024)
+const VALID_PRICE_IDS = new Set([
+  'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
+  'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
+]);
 
 /** Validate that a URL starts with one of our allowed origins (prevents open redirect) */
 function isAllowedRedirectUrl(url: string): boolean {
@@ -401,6 +408,11 @@ async function handleSubscriptionCheckout(
 
   if (!price_id) {
     return corsResponse({ error: 'Missing price_id for subscription checkout' }, 400);
+  }
+
+  // Validate price_id against allowlist (SA-024)
+  if (!VALID_PRICE_IDS.has(price_id)) {
+    return corsResponse({ error: 'Invalid price_id' }, 400);
   }
 
   const session = await stripe.checkout.sessions.create({

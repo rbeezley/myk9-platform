@@ -118,7 +118,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       const sorted = classes.slice().sort((a, b) => {
         const elemCmp = a.element.localeCompare(b.element);
         if (elemCmp !== 0) return elemCmp;
-        return compareLevels(a.level, b.level);
+        const levelCmp = compareLevels(a.level, b.level);
+        if (levelCmp !== 0) return levelCmp;
+        return (a.section || '').localeCompare(b.section || '');
       });
 
       for (const cls of sorted) {

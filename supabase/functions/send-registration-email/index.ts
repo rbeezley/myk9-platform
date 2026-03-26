@@ -199,11 +199,13 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verify the caller owns this registration or is a secretary for the show's club
+    // Verify the caller owns this registration or is a secretary/admin for the show
     const isOwner = registration.person?.auth_user_id === user.id;
     let isSecretary = false;
-    if (!isOwner && registration.show?.club_id) {
-      // Check if caller has trial_secretary role for this club via user_roles + roles tables
+    let isAdmin = false;
+
+    if (!isOwner) {
+      // Look up caller's person record (needed for both secretary and admin checks)
       const { data: callerPerson } = await supabase
         .from('people')
         .select('id')
@@ -211,19 +213,32 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (callerPerson) {
-        const { data: secretaryRole } = await supabase
-          .from('user_roles')
-          .select('id, role:roles!inner(name)')
-          .eq('user_id', callerPerson.id)
-          .eq('is_active', true)
-          .eq('club_id', registration.show.club_id)
-          .eq('roles.name', 'trial_secretary')
-          .maybeSingle();
-        isSecretary = !!secretaryRole;
+        // Check secretary role for show's club
+        if (registration.show?.club_id) {
+          const { data: secretaryRole } = await supabase
+            .from('user_roles')
+            .select('id, role:roles!inner(name)')
+            .eq('user_id', callerPerson.id)
+            .eq('is_active', true)
+            .eq('club_id', registration.show.club_id)
+            .eq('roles.name', 'trial_secretary')
+            .maybeSingle();
+          isSecretary = !!secretaryRole;
+        }
+
+        // Check platform admin role via database (SA-014: not JWT claims)
+        if (!isSecretary) {
+          const { data: adminRole } = await supabase
+            .from('user_roles')
+            .select('id, role:roles!inner(name)')
+            .eq('user_id', callerPerson.id)
+            .eq('is_active', true)
+            .in('roles.name', ['site_admin', 'platform_admin'])
+            .maybeSingle();
+          isAdmin = !!adminRole;
+        }
       }
     }
-    // Also allow platform admins
-    const isAdmin = user.app_metadata?.role === 'admin';
     if (!isOwner && !isSecretary && !isAdmin) {
       return new Response(JSON.stringify({ error: 'Not authorized' }), {
         status: 403,

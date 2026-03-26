@@ -25,15 +25,15 @@ const ALLOWED_ORIGINS = [
   'https://myk9show.com',
   'https://www.myk9show.com',
   'https://app.myk9show.com',
+  'https://myk9-platform-myk9show.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
 ];
 
 function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
-    ? requestOrigin
-    : ALLOWED_ORIGINS[0];
+  const origin =
+    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -79,14 +79,14 @@ interface ExhibitorInfo {
   };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   // Verify cron secret for security
   const authHeader = req.headers.get('Authorization');
   const providedSecret = authHeader?.replace('Bearer ', '');
 
-  if (cronSecret && providedSecret !== cronSecret) {
+  if (!cronSecret || providedSecret !== cronSecret) {
     console.error('Unauthorized cron request');
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
@@ -184,13 +184,16 @@ Deno.serve(async (req) => {
       `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`
     );
 
-    return new Response(JSON.stringify({
-      success: true,
-      timestamp: new Date().toISOString(),
-      results,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        timestamp: new Date().toISOString(),
+        results,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Cron job error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -241,9 +244,10 @@ async function offerSpot(entry: WaitlistEntry): Promise<boolean> {
  */
 async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
   // Get class info
-  const { data: classInfo } = await supabase
+  const { data: classInfo } = (await supabase
     .from('classes')
-    .select(`
+    .select(
+      `
       id,
       name,
       trial:trial_id (
@@ -254,14 +258,16 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
           name
         )
       )
-    `)
+    `
+    )
     .eq('id', entry.class_id)
-    .single() as { data: ClassInfo | null };
+    .single()) as { data: ClassInfo | null };
 
   // Get exhibitor info
-  const { data: exhibitorInfo } = await supabase
+  const { data: exhibitorInfo } = (await supabase
     .from('exhibitor_profiles')
-    .select(`
+    .select(
+      `
       id,
       person:person_id (
         id,
@@ -269,9 +275,10 @@ async function sendOfferNotification(entry: WaitlistEntry): Promise<void> {
         last_name,
         email
       )
-    `)
+    `
+    )
     .eq('id', entry.exhibitor_id)
-    .single() as { data: ExhibitorInfo | null };
+    .single()) as { data: ExhibitorInfo | null };
 
   if (!classInfo || !exhibitorInfo?.person?.email) {
     console.log('Missing info for notification, skipping email');
@@ -334,7 +341,7 @@ async function processClassesWithOpenSpots(results: {
   }
 
   // Get unique class IDs
-  const uniqueClassIds = [...new Set(classesWithWaiting.map((w) => w.class_id))];
+  const uniqueClassIds = [...new Set(classesWithWaiting.map(w => w.class_id))];
 
   for (const classId of uniqueClassIds) {
     // Check if there's already an active offer for this class

@@ -75,10 +75,9 @@ Deno.serve(async (req: Request) => {
       const event = JSON.parse(body);
       return await handleEvent(event);
     } else {
-      // No secret configured — accept but log warning
-      console.warn('RESEND_WEBHOOK_SECRET not set — skipping signature verification');
-      const event = await req.json();
-      return await handleEvent(event);
+      // No secret configured — fail closed
+      console.error('RESEND_WEBHOOK_SECRET not configured — rejecting webhook');
+      return new Response('Webhook verification not configured', { status: 503 });
     }
   } catch (err) {
     console.error('resend-webhook error:', err);

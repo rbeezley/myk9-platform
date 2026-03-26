@@ -11,15 +11,15 @@ const ALLOWED_ORIGINS = [
   'https://myk9show.com',
   'https://www.myk9show.com',
   'https://app.myk9show.com',
+  'https://myk9-platform-myk9show.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
 ];
 
 function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
-    ? requestOrigin
-    : ALLOWED_ORIGINS[0];
+  const origin =
+    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -57,27 +57,27 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
     const payload: LogPayload = await req.json();
 
     if (!payload.entries || !Array.isArray(payload.entries) || payload.entries.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No log entries provided' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'No log entries provided' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Enforce size limit
     const entries = payload.entries.slice(0, MAX_ENTRIES_PER_REQUEST);
 
     // Map entries to database rows
-    const rows = entries.map((entry) => ({
+    const rows = entries.map(entry => ({
       created_at: entry.timestamp || new Date().toISOString(),
       level: entry.level,
       message: (entry.message || '').substring(0, 2000),
@@ -96,21 +96,21 @@ Deno.serve(async (req: Request) => {
 
     if (error) {
       console.error('Failed to insert logs:', error.message);
-      return new Response(
-        JSON.stringify({ error: 'Failed to store logs' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Failed to store logs' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    return new Response(
-      JSON.stringify({ received: rows.length }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ received: rows.length }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (err) {
     console.error('receive-logs error:', err);
-    return new Response(
-      JSON.stringify({ error: 'Invalid request' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ error: 'Invalid request' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

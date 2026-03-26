@@ -12,15 +12,15 @@ const ALLOWED_ORIGINS = [
   'https://myk9show.com',
   'https://www.myk9show.com',
   'https://app.myk9show.com',
+  'https://myk9-platform-myk9show.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
 ];
 
 function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
-    ? requestOrigin
-    : ALLOWED_ORIGINS[0];
+  const origin =
+    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -88,7 +88,7 @@ interface WaitlistOfferData {
 
 type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData;
 
-Deno.serve(async (req) => {
+Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   // Handle CORS
@@ -161,9 +161,7 @@ Deno.serve(async (req) => {
         break;
 
       default:
-        return jsonResponse(
-          { error: `Unknown email type: ${(data as EmailData).type}` }, 400
-        );
+        return jsonResponse({ error: `Unknown email type: ${(data as EmailData).type}` }, 400);
     }
 
     // Send email via Resend
@@ -191,17 +189,20 @@ Deno.serve(async (req) => {
     console.log(`Email sent successfully: ${result.id} to ${data.to}`);
 
     // Log the email in the database for tracking
-    await supabase.from('email_logs').insert({
-      to_email: data.to,
-      email_type: data.type,
-      subject,
-      resend_id: result.id,
-      status: 'sent',
-      metadata: { type: data.type },
-    }).catch((err) => {
-      // Non-critical - just log if email_logs table doesn't exist
-      console.log('Could not log email (table may not exist):', err.message);
-    });
+    await supabase
+      .from('email_logs')
+      .insert({
+        to_email: data.to,
+        email_type: data.type,
+        subject,
+        resend_id: result.id,
+        status: 'sent',
+        metadata: { type: data.type },
+      })
+      .catch(err => {
+        // Non-critical - just log if email_logs table doesn't exist
+        console.log('Could not log email (table may not exist):', err.message);
+      });
 
     return jsonResponse({ success: true, id: result.id });
   } catch (error: unknown) {
@@ -217,7 +218,7 @@ Deno.serve(async (req) => {
 function generateEntryConfirmationEmail(data: EntryConfirmationData): string {
   const entriesHtml = data.entries
     .map(
-      (entry) => `
+      entry => `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
           <strong>${escapeHtml(entry.dogName)}</strong><br>
@@ -333,7 +334,7 @@ function generateEntryConfirmationEmail(data: EntryConfirmationData): string {
 function generatePaymentReceiptEmail(data: PaymentReceiptData): string {
   const itemsHtml = data.items
     .map(
-      (item) => `
+      item => `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(item.description)}</td>
         <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatCurrency(item.amount)}</td>
@@ -399,12 +400,16 @@ function generatePaymentReceiptEmail(data: PaymentReceiptData): string {
           </tfoot>
         </table>
 
-        ${data.paymentMethod && data.last4 ? `
+        ${
+          data.paymentMethod && data.last4
+            ? `
         <div style="margin-top: 24px; padding: 16px; background-color: #f9fafb; border-radius: 6px;">
           <p style="margin: 0; color: #6b7280; font-size: 14px;">Payment Method</p>
           <p style="margin: 4px 0 0 0; font-weight: 600;">${escapeHtml(data.paymentMethod)} ending in ${escapeHtml(data.last4)}</p>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <!-- Receipt ID -->
         <div style="margin-top: 24px; text-align: center;">

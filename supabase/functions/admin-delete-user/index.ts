@@ -15,6 +15,7 @@ const ALLOWED_ORIGINS = [
   'https://myk9show.com',
   'https://www.myk9show.com',
   'https://app.myk9show.com',
+  'https://myk9-platform-myk9show.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',

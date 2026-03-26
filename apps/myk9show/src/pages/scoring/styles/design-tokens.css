@@ -340,44 +340,44 @@
 /* ===== DARK THEME ===== */
 .theme-dark {
   /* UI Colors (Dark Mode) */
-  --background: #1a1a1e; /* Warmer charcoal (was #1a1d23) */
-  --foreground: #ffffff;
-  --card: #26292e; /* Elevated card background - lighter than page for contrast */
-  --card-foreground: #ffffff;
-  --muted: #26292e;
-  --muted-foreground: #ffffff;
-  --border: #4a5568;
-  --input: #2a2a2a;
-  --input-bg: #1f2937;
-  --input-border: #374151;
-  --input-text: #f9fafb;
-  --input-bg-hover: #374151;
+  --background: #0f0f12;
+  --foreground: #f4f4f5;
+  --card: #1a1a1f;
+  --card-foreground: #f4f4f5;
+  --muted: #1a1a1f;
+  --muted-foreground: #71717a;
+  --border: rgba(255, 255, 255, 0.06);
+  --input: #1a1a1f;
+  --input-bg: #1a1a1f;
+  --input-border: #27272a;
+  --input-text: #f4f4f5;
+  --input-bg-hover: #222227;
   --primary: #14b8a6;
   --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
-  --secondary: #2a2a2a;
-  --secondary-foreground: #ffffff;
+  --secondary: #1a1a1f;
+  --secondary-foreground: #f4f4f5;
 
-  /* Neutral Grays (Dark Theme) - for theme switching */
-  --surface: #2a2a2a; /* Dark surface */
-  --surface-subtle: #262626; /* Slightly darker surface */
-  --surface-muted: #1a1a1a; /* Very dark surface */
-  --surface-elevated: #2c3e50; /* Dark elevated surface */
-  --background-subtle: #1f2937; /* Dark surface elevated */
-  --background-soft: #334155; /* Medium dark gray */
-  --foreground-muted: #e5e7eb; /* Light muted text on dark */
-  --foreground-dark: #ffffff; /* White text on dark bg */
-  --border-light: #3a3a3a; /* Dark border */
-  --border-subtle: #4a5568; /* Subtle dark border */
-  --text-gray: #9ca3af; /* Gray text on dark */
-  --text-light-gray: #6b7280; /* Darker gray text */
+  /* Neutral Grays (Dark Theme) */
+  --surface: #1a1a1f;
+  --surface-subtle: #141417;
+  --surface-muted: #0f0f12;
+  --surface-elevated: #222227;
+  --background-subtle: #141417;
+  --background-soft: #222227;
+  --foreground-muted: #a1a1aa;
+  --foreground-dark: #f4f4f5;
+  --border-light: #27272a;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --text-gray: #71717a;
+  --text-light-gray: #52525b;
 
   /* Glass Morphism (Dark Mode) */
-  --glass-bg: rgba(26, 29, 35, 0.9);
-  --glass-border: rgba(74, 85, 104, 0.3);
+  --glass-bg: rgba(15, 15, 18, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.06);
 
   /* Skeleton Loaders (Dark Mode) */
-  --skeleton-gradient: var(--skeleton-gradient-dark);
+  --skeleton-gradient: linear-gradient(90deg, #1a1a1f 25%, #141417 50%, #1a1a1f 75%);
 
   /* Check-in Status Colors (darker backgrounds for better dark mode visibility) */
   --status-no-status: #6b7280;
@@ -426,10 +426,10 @@
   --token-result-withdrawn: var(--status-at-gate);
 
   /* Text Colors (Dark Mode) */
-  --token-text-primary: #ffffff;
-  --token-text-secondary: #e5e7eb;
-  --token-text-tertiary: #9ca3af;
-  --token-text-muted: #6b7280;
+  --token-text-primary: #f4f4f5;
+  --token-text-secondary: #a1a1aa;
+  --token-text-tertiary: #71717a;
+  --token-text-muted: #52525b;
   --token-text-white: #ffffff;
 
   /* Shadows (Dark Mode - stronger) */

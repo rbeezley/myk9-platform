@@ -5,7 +5,9 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
-import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, Plus } from 'lucide-react';
+import { useRBAC } from '@/hooks/useRBAC';
 import { cn } from '@/lib/utils';
 import {
   getClassStatusDisplay,
@@ -66,9 +68,11 @@ function formatTrialDate(dateStr: string): string {
 
 export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }: ClassesTabProps) {
   const navigate = useNavigate();
+  const { hasPermission } = useRBAC();
   const [viewMode, setViewMode] = useViewPreference('classes', 'table');
   const [isMine, setIsMine] = useState(userHasEntries);
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
+  const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
   const mineCount = useMemo(() => classes.filter(c => c.userHasEntry).length, [classes]);
   const mineFilteredClasses = useMemo(
@@ -251,7 +255,21 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
             hidden={!userHasEntries}
           />
         </div>
-        <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+        <div className="ml-auto flex items-center gap-2">
+          <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+          {canManage && (
+            <Button
+              size="sm"
+              onClick={() =>
+                navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-classes`)
+              }
+              className="gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              Add Class
+            </Button>
+          )}
+        </div>
       </div>
 
       {filteredClasses.length === 0 && classes.length > 0 ? (

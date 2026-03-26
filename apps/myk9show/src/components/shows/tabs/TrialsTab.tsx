@@ -147,22 +147,21 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
 
   return (
     <div className="space-y-4">
-      {canManage && (
-        <div className="flex justify-end">
-          <Button size="sm" onClick={openWizard} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Add Trial
-          </Button>
-        </div>
-      )}
-
       <div className="flex items-center justify-between gap-4">
         <StatusFilter
           filter={statusFilter}
           onFilterChange={setStatusFilter}
           counts={statusCounts}
         />
-        <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+        <div className="ml-auto flex items-center gap-2">
+          <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+          {canManage && (
+            <Button size="sm" onClick={openWizard} className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              Add Trial
+            </Button>
+          )}
+        </div>
       </div>
 
       {trials.length === 0 ? (

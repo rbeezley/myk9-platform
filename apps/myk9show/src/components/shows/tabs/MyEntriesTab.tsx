@@ -1,11 +1,14 @@
+import { useNavigate } from 'react-router-dom';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { LiveClassCard } from '@/components/live/LiveClassCard';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
-import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRBAC } from '@/hooks/useRBAC';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 
 interface MyEntriesTabProps {
@@ -53,7 +56,7 @@ const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
   {
     id: 'myDog',
     header: 'My Dog',
-    accessorFn: (row) => row.dogName,
+    accessorFn: row => row.dogName,
     cell: ({ row }) => (
       <span>
         {row.original.dogName}
@@ -66,7 +69,7 @@ const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
   {
     id: 'position',
     header: 'Position',
-    accessorFn: (row) => (row.scored ? Infinity : row.dogsAhead),
+    accessorFn: row => (row.scored ? Infinity : row.dogsAhead),
     cell: ({ row }) => {
       const { scored, dogsAhead } = row.original;
       if (scored) return 'Completed';
@@ -77,8 +80,11 @@ const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
 ];
 
 export function MyEntriesTab({ showId }: MyEntriesTabProps) {
+  const navigate = useNavigate();
+  const { hasPermission } = useRBAC();
   const { entriesByClass, isLoading, isError } = useMyEntries(showId);
   const [viewMode, setViewMode] = useViewPreference('entries', 'cards');
+  const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
   if (isLoading) {
     return <LoadingSkeleton variant="cards" count={3} />;
@@ -109,7 +115,19 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
         <p className="text-sm text-muted-foreground">
           {entriesByClass.length} class{entriesByClass.length !== 1 ? 'es' : ''}
         </p>
-        <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+        <div className="ml-auto flex items-center gap-2">
+          <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+          {canManage && (
+            <Button
+              size="sm"
+              onClick={() => navigate(`/secretary/register/${showId}`)}
+              className="gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              Add Entry
+            </Button>
+          )}
+        </div>
       </div>
 
       {viewMode === 'cards' ? (

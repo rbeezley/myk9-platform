@@ -118,6 +118,58 @@ export const TrialSectionHeader: React.FC<TrialSectionHeaderProps> = ({
   </div>
 );
 
+// ─── Trial Section (Collapsible) ────────────────────────────────────────────────
+
+interface TrialSectionProps {
+  trialName: string;
+  trialType?: string | undefined;
+  selectedCount: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+export const TrialSection: React.FC<TrialSectionProps> = ({
+  trialName,
+  trialType,
+  selectedCount,
+  isExpanded,
+  onToggle,
+  children,
+}) => (
+  <div className="mb-4">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center justify-between w-full pb-2 border-b cursor-pointer hover:bg-muted/30 -mx-1 px-1 rounded-sm transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        <ChevronRight
+          className={cn(
+            'h-4 w-4 text-muted-foreground transition-transform duration-200',
+            isExpanded && 'rotate-90'
+          )}
+        />
+        <h4 className="font-medium text-sm">{trialName || 'Unnamed Trial'}</h4>
+        {trialType && (
+          <Badge variant="outline" className="text-xs">
+            {trialType}
+          </Badge>
+        )}
+      </div>
+      <span
+        className={cn(
+          'text-xs font-medium',
+          selectedCount > 0 ? 'text-primary' : 'text-muted-foreground'
+        )}
+      >
+        {selectedCount} selected
+      </span>
+    </button>
+    {isExpanded && <div className="mt-3 space-y-2 pl-6">{children}</div>}
+  </div>
+);
+
 // ─── Empty States ──────────────────────────────────────────────────────────────
 
 export const NoTrialsAlert: React.FC = () => (

@@ -15,38 +15,48 @@ DROP POLICY IF EXISTS "permissions_all" ON permissions;
 DROP POLICY IF EXISTS "role_permissions_all" ON role_permissions;
 
 -- Only platform admins can mutate RBAC schema tables
+-- Use DROP IF EXISTS + CREATE to handle cases where policies were already applied manually
+DROP POLICY IF EXISTS "roles_insert" ON roles;
 CREATE POLICY "roles_insert" ON roles
   FOR INSERT TO authenticated
   WITH CHECK ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "roles_update" ON roles;
 CREATE POLICY "roles_update" ON roles
   FOR UPDATE TO authenticated
   USING ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "roles_delete" ON roles;
 CREATE POLICY "roles_delete" ON roles
   FOR DELETE TO authenticated
   USING ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "permissions_insert" ON permissions;
 CREATE POLICY "permissions_insert" ON permissions
   FOR INSERT TO authenticated
   WITH CHECK ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "permissions_update" ON permissions;
 CREATE POLICY "permissions_update" ON permissions
   FOR UPDATE TO authenticated
   USING ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "permissions_delete" ON permissions;
 CREATE POLICY "permissions_delete" ON permissions
   FOR DELETE TO authenticated
   USING ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "role_permissions_insert" ON role_permissions;
 CREATE POLICY "role_permissions_insert" ON role_permissions
   FOR INSERT TO authenticated
   WITH CHECK ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "role_permissions_update" ON role_permissions;
 CREATE POLICY "role_permissions_update" ON role_permissions
   FOR UPDATE TO authenticated
   USING ((SELECT is_platform_admin()));
 
+DROP POLICY IF EXISTS "role_permissions_delete" ON role_permissions;
 CREATE POLICY "role_permissions_delete" ON role_permissions
   FOR DELETE TO authenticated
   USING ((SELECT is_platform_admin()));

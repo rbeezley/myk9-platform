@@ -1,10 +1,10 @@
 import { type ReactNode, useMemo, useState } from 'react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import {
   type ColumnDef,
   type DisplayColumnDef,
   type SortingState,
   type ColumnFiltersState,
-  type VisibilityState,
   type RowSelectionState,
   type Table as TanstackTable,
   useReactTable,
@@ -27,6 +27,9 @@ import { cn } from '@/lib/utils';
 import { DataTableColumnHeader } from './data-table-column-header';
 import { DataTablePagination } from './data-table-pagination';
 import { type DataTableColumnMeta, RESPONSIVE_CLASSES } from './types';
+import { DataTableToolbar } from './data-table-toolbar';
+import { DataTableSearch } from './data-table-search';
+import { DataTableColumnToggle } from './data-table-column-toggle';
 
 export type { ColumnDef } from '@tanstack/react-table';
 export { DataTableColumnHeader } from './data-table-column-header';
@@ -50,11 +53,13 @@ export { useScoringMode, ScoringProgress } from './data-table-scoring-mode';
 export type { UseScoringModeProps, UseScoringModeReturn } from './data-table-scoring-mode';
 
 interface DataTableProps<TData> {
+  tableId?: string;
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   pageSize?: number;
   pageSizeOptions?: number[];
   enableMultiSort?: boolean;
+  initialSorting?: SortingState;
   onRowClick?: (data: TData, row: unknown) => void;
   selectable?: 'single' | 'multi';
   onSelectionChange?: (selectedRows: TData[]) => void;
@@ -71,11 +76,13 @@ interface DataTableProps<TData> {
 }
 
 export function DataTable<TData>({
+  tableId,
   columns,
   data,
   pageSize = 25,
   pageSizeOptions,
   enableMultiSort = true,
+  initialSorting,
   onRowClick,
   selectable,
   onSelectionChange,
@@ -96,9 +103,9 @@ export function DataTable<TData>({
   className,
   getRowClassName,
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>(initialSorting ?? []);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(tableId);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize });
   const [internalGlobalFilter, setInternalGlobalFilter] = useState('');
@@ -160,7 +167,10 @@ export function DataTable<TData>({
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: updater => {
+      const next = typeof updater === 'function' ? updater(columnVisibility) : updater;
+      setColumnVisibility(next);
+    },
     onRowSelectionChange: updater => {
       const next = typeof updater === 'function' ? updater(rowSelection) : updater;
       setRowSelection(next);
@@ -201,7 +211,14 @@ export function DataTable<TData>({
         className
       )}
     >
-      {toolbar?.({ table })}
+      {toolbar
+        ? toolbar({ table })
+        : tableId && (
+            <DataTableToolbar table={table}>
+              <DataTableSearch />
+              <DataTableColumnToggle />
+            </DataTableToolbar>
+          )}
 
       {/* Table component has its own overflow-auto wrapper */}
       <Table>

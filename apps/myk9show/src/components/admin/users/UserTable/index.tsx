@@ -438,6 +438,7 @@ export const UserTable: React.FC<UserTableProps> = ({
       {/* Table — use large pageSize so DataTable never shows its own pagination */}
       <div className="myk9-table-container">
         <DataTable
+          tableId="adminUsers"
           columns={columns}
           data={users}
           pageSize={9999}

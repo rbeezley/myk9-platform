@@ -328,6 +328,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           </div>
 
           <DataTable<BulkEntryData>
+            tableId="classResults"
             columns={columns}
             data={bulkData}
             getRowId={row => row.entryId}

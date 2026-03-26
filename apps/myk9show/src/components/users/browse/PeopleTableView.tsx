@@ -39,7 +39,7 @@ function getRoleBadges(roles: string[] | undefined) {
 const columns: ColumnDef<User>[] = [
   {
     id: 'name',
-    accessorFn: (user) => getFullName(user),
+    accessorFn: user => getFullName(user),
     header: 'Name',
     cell: ({ row }) => {
       const person = row.original;
@@ -64,13 +64,13 @@ const columns: ColumnDef<User>[] = [
   },
   {
     id: 'roles',
-    accessorFn: (user) => (user.roles || []).join(','),
+    accessorFn: user => (user.roles || []).join(','),
     header: 'Roles',
     cell: ({ row }) => getRoleBadges(row.original.roles),
   },
   {
     id: 'location',
-    accessorFn: (user) => getLocation(user),
+    accessorFn: user => getLocation(user),
     header: 'Location',
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{getLocation(row.original) || '—'}</span>
@@ -83,10 +83,11 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people }) => {
 
   return (
     <DataTable
+      tableId="peopleBrowse"
       columns={columns}
       data={people}
-      onRowClick={(person) => navigate(`/people/${person.id}`)}
-      getRowId={(person) => person.id}
+      onRowClick={person => navigate(`/people/${person.id}`)}
+      getRowId={person => person.id}
     />
   );
 };

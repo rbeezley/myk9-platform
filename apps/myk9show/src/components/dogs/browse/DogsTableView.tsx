@@ -57,7 +57,7 @@ function getSexBadge(sex: string | undefined) {
 const columns: ColumnDef<Dog>[] = [
   {
     id: 'name',
-    accessorFn: (dog) => getDogDisplayName(dog),
+    accessorFn: dog => getDogDisplayName(dog),
     header: 'Name',
     cell: ({ row }) => {
       const dog = row.original;
@@ -98,7 +98,7 @@ const columns: ColumnDef<Dog>[] = [
   },
   {
     id: 'owner',
-    accessorFn: (dog) => dog.ownerName || '',
+    accessorFn: dog => dog.ownerName || '',
     header: 'Owner',
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{row.original.ownerName || '—'}</span>
@@ -116,10 +116,11 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs }) => {
 
   return (
     <DataTable
+      tableId="dogsBrowse"
       columns={columns}
       data={dogs}
-      onRowClick={(dog) => navigate(`/dogs/${dog.id}`)}
-      getRowId={(dog) => dog.id}
+      onRowClick={dog => navigate(`/dogs/${dog.id}`)}
+      getRowId={dog => dog.id}
     />
   );
 };

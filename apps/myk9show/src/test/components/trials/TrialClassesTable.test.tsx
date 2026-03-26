@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { TrialClassesTable } from '@/components/trials/TrialDetail/TrialClassesTable';
@@ -91,7 +91,9 @@ describe('TrialClassesTable', () => {
       );
 
       expect(screen.getByText('No classes yet')).toBeInTheDocument();
-      expect(screen.getByText('Add classes to start managing entries and scores')).toBeInTheDocument();
+      expect(
+        screen.getByText('Add classes to start managing entries and scores')
+      ).toBeInTheDocument();
     });
 
     it('shows Add Classes button when handler provided', () => {
@@ -138,7 +140,7 @@ describe('TrialClassesTable', () => {
     });
 
     it('filters classes based on search term', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       renderWithRouter(
         <TrialClassesTable
           classes={mockClasses}
@@ -150,14 +152,19 @@ describe('TrialClassesTable', () => {
       const searchInput = screen.getByPlaceholderText('Search classes...');
       await user.type(searchInput, 'Container');
 
-      // Should show only Container class
+      // DataTableSearch debounces 300ms — wait for filter to apply
+      await waitFor(
+        () => {
+          expect(screen.queryByText('Interior')).not.toBeInTheDocument();
+        },
+        { timeout: 1000 }
+      );
       expect(screen.getByText('Container')).toBeInTheDocument();
-      expect(screen.queryByText('Interior')).not.toBeInTheDocument();
       expect(screen.queryByText('Exterior')).not.toBeInTheDocument();
     });
 
     it('shows "no classes found" message when search yields no results', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       renderWithRouter(
         <TrialClassesTable
           classes={mockClasses}
@@ -169,7 +176,10 @@ describe('TrialClassesTable', () => {
       const searchInput = screen.getByPlaceholderText('Search classes...');
       await user.type(searchInput, 'NonexistentClass');
 
-      expect(screen.getByText(/no classes found/i)).toBeInTheDocument();
+      // DataTableSearch debounces 300ms — wait for filter to apply
+      await waitFor(() => expect(screen.getByText(/no classes found/i)).toBeInTheDocument(), {
+        timeout: 1000,
+      });
     });
   });
 
@@ -200,7 +210,7 @@ describe('TrialClassesTable', () => {
       expect(screen.getByText(/classes \(3\)/i)).toBeInTheDocument();
     });
 
-    it('shows filtered count when search is active', async () => {
+    it('still shows total count in header when search is active', async () => {
       const user = userEvent.setup();
       renderWithRouter(
         <TrialClassesTable
@@ -213,8 +223,8 @@ describe('TrialClassesTable', () => {
       const searchInput = screen.getByPlaceholderText('Search classes...');
       await user.type(searchInput, 'Novice');
 
-      // Should show filtered count
-      expect(screen.getByText(/of 3/)).toBeInTheDocument();
+      // Header always shows total count; filtering is handled inside DataTable
+      expect(screen.getByText(/classes \(3\)/i)).toBeInTheDocument();
     });
   });
 

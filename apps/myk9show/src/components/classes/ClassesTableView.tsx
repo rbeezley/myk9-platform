@@ -74,6 +74,7 @@ export const ClassesTableView: React.FC<ClassesTableViewProps> = ({ classes }) =
 
   return (
     <DataTable<TrialClass>
+      tableId="classesBrowse"
       data={classes}
       columns={COLUMNS}
       getRowId={cls => cls.id}

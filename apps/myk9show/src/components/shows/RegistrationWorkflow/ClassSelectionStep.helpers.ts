@@ -206,6 +206,7 @@ export function updateJumpHeightInSelections(
  * Returns undefined for level-less elements (e.g., Detective).
  */
 export function buildDisplayLabel(level: string, section: string | undefined): string | undefined {
-  if (!level) return undefined;
+  // "Unknown" is used for Detective-style classes that have no real level
+  if (!level || level === 'Unknown') return undefined;
   return [level, section].filter(Boolean).join(' ');
 }

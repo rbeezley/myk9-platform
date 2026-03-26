@@ -139,7 +139,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
       const elementGroups: ElementGroup[] = [];
       for (const [element, classEntries] of elementMap) {
-        const isSingleClass = classEntries.length === 1 && !classEntries[0].level;
+        const isSingleClass = classEntries.length === 1 && !classEntries[0].displayLabel;
         elementGroups.push({
           element,
           fee: getClassFee(show, { entryFee: undefined }),

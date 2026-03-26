@@ -21,6 +21,11 @@ describe('buildDisplayLabel', () => {
     expect(buildDisplayLabel('', 'A')).toBeUndefined();
   });
 
+  it('returns undefined for "Unknown" level (Detective-style classes)', () => {
+    expect(buildDisplayLabel('Unknown', 'A')).toBeUndefined();
+    expect(buildDisplayLabel('Unknown', undefined)).toBeUndefined();
+  });
+
   it('handles UKC Nose Work pattern — section at every level', () => {
     expect(buildDisplayLabel('Novice', 'A')).toBe('Novice A');
     expect(buildDisplayLabel('Novice', 'B')).toBe('Novice B');

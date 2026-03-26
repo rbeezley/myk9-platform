@@ -105,7 +105,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
 
     // CamelCase fields
     element: (dbRow.element as string | undefined) ?? undefined,
-    section: (dbRow.section as string | undefined) ?? undefined,
+    section: (dbRow.division as string | undefined) ?? undefined,
     areaCount: (dbRow.area_count as number | undefined) ?? undefined,
     timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,

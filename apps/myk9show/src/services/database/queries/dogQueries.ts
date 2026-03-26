@@ -1,5 +1,6 @@
 // Dog-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
 
@@ -252,7 +253,7 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
     const data = {
       id,
       deleted_at: updateData.deleted_at as string,
-      deleted_by: updateData.deleted_by as string | null ?? null,
+      deleted_by: (updateData.deleted_by as string | null) ?? null,
     };
     logger.debug('📊 Soft delete succeeded:', 'database', { data });
     return { data, error: null };
@@ -272,7 +273,9 @@ export const searchDogs = async (searchTerm: string) => {
     const { data, error } = await supabase
       .from('dogs')
       .select('*')
-      .or(`name.ilike.%${searchTerm}%,breed.ilike.%${searchTerm}%,call_name.ilike.%${searchTerm}%`)
+      .or(
+        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,breed.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,call_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+      )
       .is('deleted_at', null)
       .order('name', { ascending: true });
 

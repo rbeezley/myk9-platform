@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import {
   Dialog,
   DialogContent,
@@ -40,7 +41,7 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
       const { error } = await scratchEntry(entry.id, reason || undefined);
 
       if (error) {
-        toast.error(`Failed to scratch entry: ${error.message}`);
+        toast.error(getUserFriendlyError(error));
         return;
       }
 
@@ -93,7 +94,7 @@ export function ScratchDialog({ open, onOpenChange, entry, onSuccess }: ScratchD
               <Textarea
                 placeholder="Enter reason for scratch..."
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={e => setReason(e.target.value)}
               />
             </div>
           </div>

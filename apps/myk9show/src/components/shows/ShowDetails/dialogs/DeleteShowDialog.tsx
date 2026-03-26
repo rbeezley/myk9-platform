@@ -7,6 +7,7 @@ import { previewCascadingDelete as buildPreview } from '@/utils/cascadingDelete'
 import type { CascadingDeletePreview } from '@/utils/cascadingDelete';
 import { logger } from '@/services/LoggingService';
 import { toast } from 'sonner';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 
 export interface DeleteShowDialogProps {
   open: boolean;
@@ -56,7 +57,7 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
       onOpenChange(false);
     } catch (error) {
       logger.error('Failed to delete show:', 'shows', {}, error as Error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete show');
+      toast.error(getUserFriendlyError(error));
     } finally {
       setIsDeleting(false);
     }

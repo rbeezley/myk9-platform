@@ -415,30 +415,26 @@ export const AdminRoutes = () => (
       )}
     />
 
-    {/* Testing routes — available to all authenticated users */}
+    {/* Testing routes — restricted to SITE_ADMIN */}
     <Route
       path="/admin/permission-test"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <PermissionTestPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <PermissionTestPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
     />
     <Route
       path="/admin/rbac-test"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <RBACTestPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
+      element={adminGuard(
+        <SuspenseWrapper>
+          <PageTransition>
+            <RBACTestPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      )}
     />
   </>
 );

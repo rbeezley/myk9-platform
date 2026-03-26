@@ -1,9 +1,7 @@
 // Club-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type {
-  DbClubInsert,
-  DbClubUpdate,
-} from '../../../types/database-mappings';
+import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
 
 // Get all clubs
 export const getAllClubs = async () => {
@@ -15,14 +13,14 @@ export const getAllClubs = async () => {
       .select('*')
       .is('deleted_at', null)
       .order('name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'select_all_with_shows', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'select_all');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -43,14 +41,14 @@ export const getClubById = async (id: string) => {
       .eq('id', id)
       .is('deleted_at', null)
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'select_by_id_detailed', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'select_by_id');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -69,16 +67,18 @@ export const searchClubsByLocation = async (searchTerm: string) => {
       .from('clubs')
       .select('*')
       .is('deleted_at', null)
-      .or(`address.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`)
+      .or(
+        `address.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+      )
       .order('name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'search_by_location', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'search_by_location');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -101,11 +101,11 @@ export const getActiveClubs = async () => {
 
     const duration = Date.now() - startTime;
     logQuery('club', 'select_active', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'select_active');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -118,21 +118,17 @@ export const getActiveClubs = async () => {
 // Create new club
 export const createClub = async (clubData: DbClubInsert) => {
   const startTime = Date.now();
-  
+
   try {
-    const { data, error } = await supabase
-      .from('clubs')
-      .insert([clubData])
-      .select()
-      .single();
-    
+    const { data, error } = await supabase.from('clubs').insert([clubData]).select().single();
+
     const duration = Date.now() - startTime;
     logQuery('club', 'insert', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'insert');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -145,7 +141,7 @@ export const createClub = async (clubData: DbClubInsert) => {
 // Update club
 export const updateClub = async (id: string, updates: DbClubUpdate) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('clubs')
@@ -156,14 +152,14 @@ export const updateClub = async (id: string, updates: DbClubUpdate) => {
       .eq('id', id)
       .select()
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'update', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'update');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -214,7 +210,7 @@ export const deleteClub = async (id: string, deletedBy?: string) => {
 // Hard delete club (permanent removal - admin only)
 export const hardDeleteClub = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('clubs')
@@ -222,14 +218,14 @@ export const hardDeleteClub = async (id: string) => {
       .eq('id', id)
       .select('id, name')
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'hard_delete', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'hard_delete');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -247,7 +243,7 @@ export const restoreClub = async (id: string, restoredBy?: string) => {
     const updateData: Record<string, unknown> = {
       deleted_at: null,
       deleted_by: null,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     if (restoredBy) {
@@ -313,16 +309,18 @@ export const searchClubs = async (searchTerm: string) => {
       .from('clubs')
       .select('*')
       .is('deleted_at', null)
-      .or(`name.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
+      .or(
+        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,address.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+      )
       .order('name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'search', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'search');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -350,17 +348,20 @@ export const getClubsWithShowCounts = async () => {
       throw createDatabaseError(error, 'club', 'select_with_show_counts');
     }
 
-    const dataWithCounts = data?.map(club => {
-      // Supabase returns aggregates as [{count: N}] on the relation key
-      const showsAgg = (club as unknown as Record<string, unknown>).shows as Array<{ count: number }> | undefined;
-      // Remove the nested shows aggregate, preserve the typed club fields
-      const cleanClub = { ...club };
-      delete (cleanClub as Record<string, unknown>).shows;
-      return {
-        ...cleanClub,
-        show_count: showsAgg?.[0]?.count ?? 0,
-      };
-    }) || [];
+    const dataWithCounts =
+      data?.map(club => {
+        // Supabase returns aggregates as [{count: N}] on the relation key
+        const showsAgg = (club as unknown as Record<string, unknown>).shows as
+          | Array<{ count: number }>
+          | undefined;
+        // Remove the nested shows aggregate, preserve the typed club fields
+        const cleanClub = { ...club };
+        delete (cleanClub as Record<string, unknown>).shows;
+        return {
+          ...cleanClub,
+          show_count: showsAgg?.[0]?.count ?? 0,
+        };
+      }) || [];
 
     return { data: dataWithCounts, error: null };
   } catch (error) {
@@ -380,17 +381,17 @@ export const getClubStatistics = async () => {
       .from('clubs')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
-    
+
     const duration = Date.now() - startTime;
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'statistics');
     }
-    
+
     const stats = {
       total: count || 0,
     };
-    
+
     logQuery('club', 'statistics', duration);
     return { data: stats, error: null };
   } catch (error) {
@@ -406,29 +407,25 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
   const startTime = Date.now();
 
   try {
-    let query = supabase
-      .from('clubs')
-      .select('id, name')
-      .eq('name', name)
-      .is('deleted_at', null);
+    let query = supabase.from('clubs').select('id, name').eq('name', name).is('deleted_at', null);
 
     if (excludeId) {
       query = query.neq('id', excludeId);
     }
 
     const { data, error } = await query;
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'check_name_exists', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'check_name_exists');
     }
-    
-    return { 
-      exists: (data && data.length > 0), 
-      data: data?.[0] || null, 
-      error: null 
+
+    return {
+      exists: data && data.length > 0,
+      data: data?.[0] || null,
+      error: null,
     };
   } catch (error) {
     const duration = Date.now() - startTime;

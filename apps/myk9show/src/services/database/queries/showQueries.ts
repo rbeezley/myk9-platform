@@ -1,5 +1,6 @@
 // Show-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
 
 // Get all shows with club and trial information (excluding soft-deleted)
@@ -529,7 +530,9 @@ export const searchShows = async (searchTerm: string) => {
     const { data, error } = await supabase
       .from('shows')
       .select('*')
-      .or(`name.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%`)
+      .or(
+        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,location.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+      )
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
 

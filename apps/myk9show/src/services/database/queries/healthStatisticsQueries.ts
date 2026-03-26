@@ -3,10 +3,8 @@
 // ========================================
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type {
-  HealthFilters,
-  HealthStatistics
-} from '@/types/health';
+import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import type { HealthFilters, HealthStatistics } from '@/types/health';
 import { getAllVaccinations, getUpcomingVaccinations } from './vaccinationQueries';
 import { getAllMedications, getActiveMedications } from './medicationQueries';
 import { getAllAllergies, getActiveAllergies } from './allergyQueries';
@@ -16,16 +14,18 @@ import { getAllVetVisits, getVetVisitsRequiringFollowUp } from './vetVisitQuerie
 // HEALTH STATISTICS & ANALYTICS
 // ========================================
 
-export const getHealthStatistics = async (dogId: string): Promise<{ data: HealthStatistics | null; error: unknown }> => {
+export const getHealthStatistics = async (
+  dogId: string
+): Promise<{ data: HealthStatistics | null; error: unknown }> => {
   const startTime = Date.now();
 
   try {
     // Get vaccination stats
     const { data: vaccinations } = await getAllVaccinations(dogId);
     const { data: upcomingVaccinations } = await getUpcomingVaccinations(dogId);
-    const overdueVaccinations = vaccinations?.filter(v =>
-      v.expiration_date && new Date(v.expiration_date) < new Date()
-    ) || [];
+    const overdueVaccinations =
+      vaccinations?.filter(v => v.expiration_date && new Date(v.expiration_date) < new Date()) ||
+      [];
 
     // Get medication stats
     const { data: activeMedications } = await getActiveMedications(dogId);
@@ -96,11 +96,18 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
           type: 'vaccination' as const,
           date: vaccination.date_administered,
           title: `${vaccination.vaccine_name} Vaccination`,
-          ...(vaccination.administered_by && { description: `Administered by ${vaccination.administered_by}` }),
+          ...(vaccination.administered_by && {
+            description: `Administered by ${vaccination.administered_by}`,
+          }),
           details: vaccination,
           dog_id: dogId,
-          urgent: !!(vaccination.expiration_date && new Date(vaccination.expiration_date) < new Date()),
-          status: vaccination.expiration_date && new Date(vaccination.expiration_date) < new Date() ? 'overdue' : 'completed'
+          urgent: !!(
+            vaccination.expiration_date && new Date(vaccination.expiration_date) < new Date()
+          ),
+          status:
+            vaccination.expiration_date && new Date(vaccination.expiration_date) < new Date()
+              ? 'overdue'
+              : 'completed',
         });
       });
     }
@@ -113,11 +120,13 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
           type: 'medication' as const,
           date: medication.start_date || medication.created_at!,
           title: `${medication.medication_name}`,
-          ...(medication.prescribing_vet && { description: `Prescribed by ${medication.prescribing_vet}` }),
+          ...(medication.prescribing_vet && {
+            description: `Prescribed by ${medication.prescribing_vet}`,
+          }),
           details: medication,
           dog_id: dogId,
           urgent: false,
-          status: medication.is_active ? 'completed' : 'completed'
+          status: medication.is_active ? 'completed' : 'completed',
         });
       });
     }
@@ -134,7 +143,7 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
           details: allergy,
           dog_id: dogId,
           urgent: allergy.severity === 'severe' || allergy.severity === 'life_threatening',
-          status: 'completed'
+          status: 'completed',
         });
       });
     }
@@ -151,7 +160,7 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
           details: visit,
           dog_id: dogId,
           urgent: !!visit.follow_up_date,
-          status: visit.follow_up_date ? 'upcoming' : 'completed'
+          status: visit.follow_up_date ? 'upcoming' : 'completed',
         });
       });
     }
@@ -186,7 +195,11 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
 // SEARCH FUNCTIONS
 // ========================================
 
-export const searchHealthRecords = async (dogId: string, searchTerm: string, filters?: HealthFilters) => {
+export const searchHealthRecords = async (
+  dogId: string,
+  searchTerm: string,
+  filters?: HealthFilters
+) => {
   const startTime = Date.now();
 
   try {
@@ -204,7 +217,9 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
         .from('vaccinations')
         .select('*')
         .eq('dog_id', dogId)
-        .or(`vaccine_name.ilike.%${searchTerm}%,administered_by.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+        .or(
+          `vaccine_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,administered_by.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+        );
 
       vaccinations?.forEach(vaccination => {
         results.push({
@@ -212,7 +227,7 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
           type: 'vaccination' as const,
           title: `${vaccination.vaccine_name} Vaccination`,
           date: vaccination.date_administered,
-          details: vaccination
+          details: vaccination,
         });
       });
     }
@@ -223,7 +238,9 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
         .from('medications')
         .select('*')
         .eq('dog_id', dogId)
-        .or(`medication_name.ilike.%${searchTerm}%,prescribing_vet.ilike.%${searchTerm}%,reason.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+        .or(
+          `medication_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,prescribing_vet.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,reason.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+        );
 
       medications?.forEach(medication => {
         results.push({
@@ -231,7 +248,7 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
           type: 'medication' as const,
           title: medication.medication_name,
           date: medication.start_date || medication.created_at!,
-          details: medication
+          details: medication,
         });
       });
     }
@@ -242,7 +259,9 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
         .from('allergies')
         .select('*')
         .eq('dog_id', dogId)
-        .or(`allergen.ilike.%${searchTerm}%,reaction.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+        .or(
+          `allergen.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,reaction.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+        );
 
       allergies?.forEach(allergy => {
         results.push({
@@ -250,7 +269,7 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
           type: 'allergy' as const,
           title: `Allergy: ${allergy.allergen}`,
           date: allergy.diagnosed_date || allergy.created_at || new Date().toISOString(),
-          details: allergy
+          details: allergy,
         });
       });
     }
@@ -261,7 +280,9 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
         .from('vet_visits')
         .select('*')
         .eq('dog_id', dogId)
-        .or(`reason.ilike.%${searchTerm}%,diagnosis.ilike.%${searchTerm}%,treatment.ilike.%${searchTerm}%,vet_name.ilike.%${searchTerm}%,clinic_name.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+        .or(
+          `reason.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,diagnosis.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,treatment.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,vet_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,clinic_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,notes.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+        );
 
       vetVisits?.forEach(visit => {
         results.push({
@@ -269,7 +290,7 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
           type: 'vet_visit' as const,
           title: `Vet Visit: ${visit.reason}`,
           date: visit.visit_date,
-          details: visit
+          details: visit,
         });
       });
     }

@@ -89,7 +89,9 @@ class LoadingErrorBoundary extends React.Component<
             </div>
             <h3 className="text-lg font-semibold mb-2">Failed to load component</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {this.state.error.message || 'An error occurred while loading this page.'}
+              {import.meta.env.DEV
+                ? this.state.error.message || 'An error occurred while loading this page.'
+                : 'An error occurred while loading this page.'}
             </p>
             <div className="flex gap-2 justify-center">
               <Button onClick={this.retry} variant="outline" size="sm">

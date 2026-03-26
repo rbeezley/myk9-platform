@@ -16,6 +16,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { joinWaitlist } from '@/services/database/queries/waitlistQueries';
 import { toast } from 'sonner';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import { InlineHandlerSection } from './InlineHandlerSection';
 import type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -236,7 +237,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     try {
       const { error, position } = await joinWaitlist(classId, dogId, user.id);
       if (error) {
-        toast.error('Failed to join waitlist', { description: error.message });
+        toast.error('Failed to join waitlist', { description: getUserFriendlyError(error) });
       } else {
         toast.success(`Added to waitlist (position #${position})`);
       }

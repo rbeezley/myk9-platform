@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import {
   Select,
   SelectContent,
@@ -39,19 +40,13 @@ interface MoveUpDialogProps {
   onSuccess: () => void;
 }
 
-export function MoveUpDialog({
-  open,
-  onOpenChange,
-  entry,
-  classes,
-  onSuccess,
-}: MoveUpDialogProps) {
+export function MoveUpDialog({ open, onOpenChange, entry, classes, onSuccess }: MoveUpDialogProps) {
   const [targetClassId, setTargetClassId] = useState('');
   const [reason, setReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const availableTargetClasses = classes.filter(
-    (c) => c.available_spots > 0 && c.id !== entry?.class_id
+    c => c.available_spots > 0 && c.id !== entry?.class_id
   );
 
   const handleMoveUp = async () => {
@@ -62,7 +57,7 @@ export function MoveUpDialog({
       const { data, error } = await processMoveUp(entry.id, targetClassId, reason || undefined);
 
       if (error) {
-        toast.error(`Failed to process move-up: ${error.message}`);
+        toast.error(getUserFriendlyError(error));
         return;
       }
 
@@ -118,7 +113,7 @@ export function MoveUpDialog({
                   <SelectValue placeholder="Select target class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableTargetClasses.map((cls) => (
+                  {availableTargetClasses.map(cls => (
                     <SelectItem key={cls.id} value={cls.id}>
                       {cls.class_number && `#${cls.class_number} `}
                       {cls.name} ({cls.available_spots} spots)
@@ -133,7 +128,7 @@ export function MoveUpDialog({
               <Textarea
                 placeholder="e.g., Qualified in Novice"
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={e => setReason(e.target.value)}
               />
             </div>
           </div>

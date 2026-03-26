@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import {
   Select,
   SelectContent,
@@ -90,8 +91,8 @@ export function DayOfEntryDialog({
   };
 
   const toggleClassSelection = (classId: string) => {
-    setSelectedClasses((prev) =>
-      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
+    setSelectedClasses(prev =>
+      prev.includes(classId) ? prev.filter(id => id !== classId) : [...prev, classId]
     );
   };
 
@@ -117,7 +118,7 @@ export function DayOfEntryDialog({
       );
 
       if (error) {
-        toast.error(`Failed to create entry: ${error.message}`);
+        toast.error(getUserFriendlyError(error));
         return;
       }
 
@@ -132,7 +133,7 @@ export function DayOfEntryDialog({
     }
   };
 
-  const availableClasses = classes.filter((c) => c.available_spots > 0);
+  const availableClasses = classes.filter(c => c.available_spots > 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -150,8 +151,8 @@ export function DayOfEntryDialog({
                 id="dog-search"
                 placeholder="Enter dog name..."
                 value={dogSearch}
-                onChange={(e) => setDogSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleDogSearch()}
+                onChange={e => setDogSearch(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleDogSearch()}
               />
               <Button variant="outline" onClick={handleDogSearch}>
                 <Search className="h-4 w-4" />
@@ -159,7 +160,7 @@ export function DayOfEntryDialog({
             </div>
             {dogSearchResults.length > 0 && !selectedDog && (
               <div className="border rounded-md max-h-40 overflow-y-auto">
-                {dogSearchResults.map((dog) => (
+                {dogSearchResults.map(dog => (
                   <div
                     key={dog.id}
                     className="p-2 hover:bg-muted cursor-pointer"
@@ -196,45 +197,48 @@ export function DayOfEntryDialog({
               id="handler-name"
               placeholder="Handler name"
               value={handler}
-              onChange={(e) => setHandler(e.target.value)}
+              onChange={e => setHandler(e.target.value)}
             />
           </FormField>
 
           {/* Class Selection */}
           <div className="space-y-2">
             <FormField label="Select Classes" fieldId="class-selection" required>
-            <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-2">
-              {availableClasses.map((cls) => (
-                <div key={cls.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={cls.id}
-                    checked={selectedClasses.includes(cls.id)}
-                    onCheckedChange={() => toggleClassSelection(cls.id)}
-                  />
-                  <label htmlFor={cls.id} className="flex-1 cursor-pointer">
-                    {cls.class_number && (
-                      <span className="text-muted-foreground mr-1">#{cls.class_number}</span>
-                    )}
-                    {cls.name}
-                    <span className="text-muted-foreground ml-2">
-                      ({cls.available_spots} spots available)
-                    </span>
-                  </label>
-                </div>
-              ))}
-              {availableClasses.length === 0 && (
-                <div className="text-center text-muted-foreground py-4">
-                  No classes with available spots
-                </div>
-              )}
-            </div>
+              <div className="border rounded-md max-h-48 overflow-y-auto p-2 space-y-2">
+                {availableClasses.map(cls => (
+                  <div key={cls.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={cls.id}
+                      checked={selectedClasses.includes(cls.id)}
+                      onCheckedChange={() => toggleClassSelection(cls.id)}
+                    />
+                    <label htmlFor={cls.id} className="flex-1 cursor-pointer">
+                      {cls.class_number && (
+                        <span className="text-muted-foreground mr-1">#{cls.class_number}</span>
+                      )}
+                      {cls.name}
+                      <span className="text-muted-foreground ml-2">
+                        ({cls.available_spots} spots available)
+                      </span>
+                    </label>
+                  </div>
+                ))}
+                {availableClasses.length === 0 && (
+                  <div className="text-center text-muted-foreground py-4">
+                    No classes with available spots
+                  </div>
+                )}
+              </div>
             </FormField>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Payment Method */}
             <FormField label="Payment Method" fieldId="payment-method">
-              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+              <Select
+                value={paymentMethod}
+                onValueChange={v => setPaymentMethod(v as PaymentMethod)}
+              >
                 <SelectTrigger id="payment-method">
                   <SelectValue />
                 </SelectTrigger>
@@ -252,7 +256,7 @@ export function DayOfEntryDialog({
                 id="jump-height"
                 placeholder="e.g., 20"
                 value={jumpHeight}
-                onChange={(e) => setJumpHeight(e.target.value)}
+                onChange={e => setJumpHeight(e.target.value)}
               />
             </FormField>
           </div>
@@ -263,7 +267,7 @@ export function DayOfEntryDialog({
               id="entry-notes"
               placeholder="Any special notes..."
               value={entryNotes}
-              onChange={(e) => setEntryNotes(e.target.value)}
+              onChange={e => setEntryNotes(e.target.value)}
             />
           </FormField>
         </div>

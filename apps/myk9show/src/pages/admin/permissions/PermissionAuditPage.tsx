@@ -4,15 +4,13 @@
  * Created: December 2024
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   History,
-  Search,
   Filter,
   Calendar,
   User,
@@ -22,29 +20,146 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DataTable,
+  DataTableToolbar,
+  DataTableSearch,
+  DataTableColumnToggle,
+  type ColumnDef,
+} from '@/components/ui/data-table';
+import type { DataTableColumnMeta } from '@/components/ui/data-table';
 import { rbacService } from '@/services/rbac/RBACService';
 import { PermissionAuditLog } from '@/types/rbac-types';
 import { formatDistanceToNow } from 'date-fns';
+
+function getActionIcon(actionType: string) {
+  switch (actionType) {
+    case 'assign_role':
+    case 'create_role':
+      return <Shield className="h-4 w-4 text-green-600" />;
+    case 'revoke_role':
+    case 'delete_role':
+      return <Shield className="h-4 w-4 text-red-600" />;
+    case 'grant_permission':
+      return <Settings className="h-4 w-4 text-blue-600" />;
+    case 'revoke_permission':
+      return <Settings className="h-4 w-4 text-orange-600" />;
+    default:
+      return <History className="h-4 w-4 text-gray-600" />;
+  }
+}
+
+function getActionBadgeVariant(actionType: string) {
+  const variants = {
+    assign_role: 'default',
+    revoke_role: 'destructive',
+    grant_permission: 'default',
+    revoke_permission: 'secondary',
+    create_role: 'default',
+    delete_role: 'destructive',
+    update_role: 'secondary',
+  } as const;
+  return variants[actionType as keyof typeof variants] || 'outline';
+}
+
+const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
+  {
+    accessorKey: 'action',
+    header: 'Action',
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {getActionIcon(row.original.action)}
+        <Badge variant={getActionBadgeVariant(row.original.action) as 'default'}>
+          {row.original.action.replace('_', ' ').toUpperCase()}
+        </Badge>
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'user_id',
+    header: 'Actor',
+    cell: ({ row }) => (
+      <div>
+        <div className="font-medium">{row.original.user_id ? 'User' : 'System'}</div>
+        {row.original.user_id && (
+          <div className="text-xs text-muted-foreground font-mono">{row.original.user_id}</div>
+        )}
+      </div>
+    ),
+  },
+  {
+    id: 'target',
+    header: 'Target',
+    accessorFn: row => `${row.target_type ?? ''} ${row.target_id ?? ''}`,
+    meta: { responsiveHide: 'md' } satisfies DataTableColumnMeta,
+    cell: ({ row }) => (
+      <div className="space-y-1">
+        {row.original.target_id && row.original.target_type && (
+          <div className="text-sm">
+            {row.original.target_type}:{' '}
+            <span className="font-medium font-mono text-xs">{row.original.target_id}</span>
+          </div>
+        )}
+      </div>
+    ),
+  },
+  {
+    id: 'details',
+    header: 'Details',
+    meta: { responsiveHide: 'lg' } satisfies DataTableColumnMeta,
+    accessorFn: row =>
+      row.new_value && typeof row.new_value === 'object'
+        ? Object.entries(row.new_value)
+            .map(([k, v]) => `${k}: ${String(v)}`)
+            .join(' ')
+        : '',
+    cell: ({ row }) => {
+      const val = row.original.new_value;
+      if (!val || typeof val !== 'object') return null;
+      return (
+        <div className="text-xs">
+          {Object.entries(val).map(([key, value]) => (
+            <div key={key}>
+              <span className="text-muted-foreground">{key}:</span> {String(value)}
+            </div>
+          ))}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'created_at',
+    header: 'Time',
+    cell: ({ row }) => (
+      <div>
+        <div className="text-sm">
+          {row.original.created_at
+            ? formatDistanceToNow(new Date(row.original.created_at), { addSuffix: true })
+            : 'N/A'}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {row.original.created_at ? new Date(row.original.created_at).toLocaleTimeString() : ''}
+        </div>
+      </div>
+    ),
+    sortingFn: (rowA, rowB) => {
+      const a = new Date(rowA.original.created_at || 0).getTime();
+      const b = new Date(rowB.original.created_at || 0).getTime();
+      return a - b;
+    },
+  },
+];
 
 const PermissionAuditPage: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<PermissionAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('7d');
 
@@ -53,7 +168,6 @@ const PermissionAuditPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      // Calculate date range
       const now = new Date();
       const daysBack =
         dateRange === '1d'
@@ -111,70 +225,18 @@ const PermissionAuditPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Filter audit logs
-  const filteredLogs = auditLogs.filter(log => {
-    const matchesSearch =
-      searchTerm === '' ||
-      (log.action || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.target_type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.target_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.user_id || '').toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesAction = actionFilter === 'all' || log.action === actionFilter;
-
-    return matchesSearch && matchesAction;
-  });
-
-  // Get unique action types for filter
-  const actionTypes = [...new Set(auditLogs.map(log => log.action))].sort();
-
-  // Group logs by date
-  const logsByDate = filteredLogs.reduce(
-    (acc, log) => {
-      const date = new Date(log.created_at || 0).toDateString();
-      if (!acc[date]) {
-        acc[date] = [];
-      }
-      acc[date].push(log);
-      return acc;
-    },
-    {} as Record<string, PermissionAuditLog[]>
+  // Filter by action type (date range is handled by API call)
+  const filteredLogs = useMemo(
+    () =>
+      actionFilter === 'all' ? auditLogs : auditLogs.filter(log => log.action === actionFilter),
+    [auditLogs, actionFilter]
   );
 
-  const getActionIcon = (actionType: string) => {
-    switch (actionType) {
-      case 'assign_role':
-      case 'create_role':
-        return <Shield className="h-4 w-4 text-green-600" />;
-      case 'revoke_role':
-      case 'delete_role':
-        return <Shield className="h-4 w-4 text-red-600" />;
-      case 'grant_permission':
-        return <Settings className="h-4 w-4 text-blue-600" />;
-      case 'revoke_permission':
-        return <Settings className="h-4 w-4 text-orange-600" />;
-      default:
-        return <History className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  const getActionBadge = (actionType: string) => {
-    const variants = {
-      assign_role: 'default',
-      revoke_role: 'destructive',
-      grant_permission: 'default',
-      revoke_permission: 'secondary',
-      create_role: 'default',
-      delete_role: 'destructive',
-      update_role: 'secondary',
-    } as const;
-
-    return (
-      <Badge variant={variants[actionType as keyof typeof variants] || 'outline'}>
-        {actionType.replace('_', ' ').toUpperCase()}
-      </Badge>
-    );
-  };
+  // Get unique action types for filter
+  const actionTypes = useMemo(
+    () => [...new Set(auditLogs.map(log => log.action))].sort(),
+    [auditLogs]
+  );
 
   if (isLoading) {
     return (
@@ -233,21 +295,15 @@ const PermissionAuditPage: React.FC = () => {
                 Track all permission and role changes in the system
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={() => loadAuditLogs()}
-                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 
-                           hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-              <Button onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => loadAuditLogs()}
+              className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40
+                         hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
           </div>
 
           {/* Error Display */}
@@ -260,12 +316,12 @@ const PermissionAuditPage: React.FC = () => {
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
+              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
+                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
                          transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
             >
               <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
+                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
                            opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               />
               <div className="relative flex items-start justify-between">
@@ -278,8 +334,8 @@ const PermissionAuditPage: React.FC = () => {
                   </p>
                 </div>
                 <div
-                  className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl 
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110 
+                  className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl
+                             shadow-sm group-hover:shadow-xl group-hover:scale-110
                              transition-all duration-300"
                 >
                   <History className="h-5 w-5 text-primary" />
@@ -288,12 +344,12 @@ const PermissionAuditPage: React.FC = () => {
             </Card>
 
             <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
+              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
+                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
                          transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
             >
               <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
+                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
                            opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               />
               <div className="relative flex items-start justify-between">
@@ -306,8 +362,8 @@ const PermissionAuditPage: React.FC = () => {
                   </p>
                 </div>
                 <div
-                  className="p-2 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-xl 
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110 
+                  className="p-2 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-xl
+                             shadow-sm group-hover:shadow-xl group-hover:scale-110
                              transition-all duration-300"
                 >
                   <Shield className="h-5 w-5 text-green-500" />
@@ -316,12 +372,12 @@ const PermissionAuditPage: React.FC = () => {
             </Card>
 
             <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
+              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
+                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
                          transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
             >
               <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
+                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
                            opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               />
               <div className="relative flex items-start justify-between">
@@ -334,8 +390,8 @@ const PermissionAuditPage: React.FC = () => {
                   </p>
                 </div>
                 <div
-                  className="p-2 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl 
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110 
+                  className="p-2 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl
+                             shadow-sm group-hover:shadow-xl group-hover:scale-110
                              transition-all duration-300"
                 >
                   <Settings className="h-5 w-5 text-purple-500" />
@@ -344,12 +400,12 @@ const PermissionAuditPage: React.FC = () => {
             </Card>
 
             <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl 
+              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
+                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
                          transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
             >
               <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
+                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
                            opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               />
               <div className="relative flex items-start justify-between">
@@ -362,8 +418,8 @@ const PermissionAuditPage: React.FC = () => {
                   </p>
                 </div>
                 <div
-                  className="p-2 bg-gradient-to-br from-orange-500/20 to-orange-500/10 rounded-xl 
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110 
+                  className="p-2 bg-gradient-to-br from-orange-500/20 to-orange-500/10 rounded-xl
+                             shadow-sm group-hover:shadow-xl group-hover:scale-110
                              transition-all duration-300"
                 >
                   <User className="h-5 w-5 text-orange-500" />
@@ -372,34 +428,36 @@ const PermissionAuditPage: React.FC = () => {
             </Card>
           </div>
 
-          {/* Filters */}
-          <Card
-            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                       border border-border rounded-2xl shadow-sm backdrop-blur-xl 
-                       transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
-          >
-            <div
-              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
-                         opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            />
-            <CardContent className="relative p-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="Search by user, role, permission, or action..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-background border-border/50 focus:border-primary focus:ring-2 
-                           focus:ring-primary/20 rounded-lg transition-all duration-300"
-                  />
-                </div>
+          {/* Audit Log DataTable */}
+          <DataTable
+            columns={columns}
+            data={filteredLogs}
+            initialSorting={[{ id: 'created_at', desc: true }]}
+            emptyState={
+              <div className="text-center py-8">
+                <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No audit events found</h3>
+                <p className="text-muted-foreground">No audit events in the selected time range</p>
+              </div>
+            }
+            toolbar={({ table }) => (
+              <DataTableToolbar table={table}>
+                <DataTableSearch placeholder="Search audit logs..." />
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger className="w-40 h-8 text-xs" aria-label="Date range">
+                    <Calendar className="h-3.5 w-3.5 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1d">Last 24 hours</SelectItem>
+                    <SelectItem value="7d">Last 7 days</SelectItem>
+                    <SelectItem value="30d">Last 30 days</SelectItem>
+                    <SelectItem value="90d">Last 90 days</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={actionFilter} onValueChange={setActionFilter}>
-                  <SelectTrigger
-                    className="w-full md:w-48 bg-background border-border/50 
-                                       focus:border-primary transition-all duration-300"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
+                  <SelectTrigger className="w-44 h-8 text-xs" aria-label="Action filter">
+                    <Filter className="h-3.5 w-3.5 mr-1" />
                     <SelectValue placeholder="Filter by action" />
                   </SelectTrigger>
                   <SelectContent>
@@ -411,148 +469,14 @@ const PermissionAuditPage: React.FC = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={dateRange} onValueChange={setDateRange}>
-                  <SelectTrigger
-                    className="w-full md:w-48 bg-background border-border/50 
-                                       focus:border-primary transition-all duration-300"
-                  >
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1d">Last 24 hours</SelectItem>
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
-                    <SelectItem value="90d">Last 90 days</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Audit Log Table */}
-          <Card
-            className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 
-                       border border-border rounded-2xl shadow-sm backdrop-blur-xl 
-                       transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
-          >
-            <div
-              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent 
-                         opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            />
-            <CardHeader className="relative">
-              <CardTitle className="group-hover:text-primary transition-colors duration-300">
-                Audit Events
-              </CardTitle>
-              <CardDescription>
-                {filteredLogs.length} of {auditLogs.length} events shown
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="relative">
-              {Object.keys(logsByDate).length > 0 ? (
-                <div className="space-y-6">
-                  {Object.entries(logsByDate)
-                    .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
-                    .map(([date, logs]) => (
-                      <div key={date}>
-                        <h3 className="font-medium text-sm text-muted-foreground mb-3 sticky top-0 bg-background">
-                          {date} ({logs.length} events)
-                        </h3>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Action</TableHead>
-                              <TableHead>Actor</TableHead>
-                              <TableHead>Target</TableHead>
-                              <TableHead>Details</TableHead>
-                              <TableHead>Time</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {logs
-                              .sort(
-                                (a, b) =>
-                                  new Date(b.created_at || 0).getTime() -
-                                  new Date(a.created_at || 0).getTime()
-                              )
-                              .map(log => (
-                                <TableRow key={log.id}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      {getActionIcon(log.action)}
-                                      {getActionBadge(log.action)}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div>
-                                      <div className="font-medium">
-                                        {log.user_id ? 'User' : 'System'}
-                                      </div>
-                                      {log.user_id && (
-                                        <div className="text-xs text-muted-foreground font-mono">
-                                          {log.user_id}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="space-y-1">
-                                      {log.target_id && log.target_type && (
-                                        <div className="text-sm">
-                                          {log.target_type}:{' '}
-                                          <span className="font-medium font-mono text-xs">
-                                            {log.target_id}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    {log.new_value && typeof log.new_value === 'object' && (
-                                      <div className="text-xs">
-                                        {Object.entries(log.new_value).map(([key, value]) => (
-                                          <div key={key}>
-                                            <span className="text-muted-foreground">{key}:</span>{' '}
-                                            {String(value)}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="text-sm">
-                                      {log.created_at
-                                        ? formatDistanceToNow(new Date(log.created_at), {
-                                            addSuffix: true,
-                                          })
-                                        : 'N/A'}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {log.created_at
-                                        ? new Date(log.created_at).toLocaleTimeString()
-                                        : ''}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No audit events found</h3>
-                  <p className="text-muted-foreground">
-                    {searchTerm || actionFilter !== 'all'
-                      ? 'No events match your current filters'
-                      : 'No audit events in the selected time range'}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                <DataTableColumnToggle />
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleExport}>
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Export
+                </Button>
+              </DataTableToolbar>
+            )}
+          />
         </div>
       </div>
     </div>

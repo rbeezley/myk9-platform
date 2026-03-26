@@ -428,43 +428,43 @@ select {
 
   .dark {
     color-scheme: dark;
-    /* Warm dark backgrounds matching myK9Q */
-    --background: #1a1a1e; /* Warmer charcoal */
-    --foreground: #ffffff;
-    --background-alt: #26292e;
-    --card: #26292e; /* Elevated card background */
-    --card-foreground: #ffffff;
-    --sidebar: #17171b; /* Subtle step down — perceptible but not heavy */
-    --sidebar-foreground: #ffffff;
-    --card-secondary: #2a2d33;
-    --card-secondary-foreground: #ffffff;
-    --muted: #26292e;
-    --muted-foreground: #9ca3af;
+    /* Neutral dark backgrounds */
+    --background: #0f0f12;
+    --foreground: #f4f4f5;
+    --background-alt: #1a1a1f;
+    --card: #1a1a1f;
+    --card-foreground: #f4f4f5;
+    --sidebar: #141417;
+    --sidebar-foreground: #f4f4f5;
+    --card-secondary: #141417;
+    --card-secondary-foreground: #f4f4f5;
+    --muted: #1a1a1f;
+    --muted-foreground: #71717a;
     /* Default primary - teal (overridden by accent color classes) */
     --primary: #14b8a6;
     --primary-foreground: #ffffff;
-    --secondary: #2a2a2a;
-    --secondary-foreground: #ffffff;
+    --secondary: #1a1a1f;
+    --secondary-foreground: #f4f4f5;
     --accent: #134e4a; /* Dark teal accent */
     --accent-foreground: #5eead4;
     --destructive: #dc2626;
     --destructive-foreground: #ffffff;
-    --border: #4a5568;
-    --input: #1f2937;
+    --border: rgba(255, 255, 255, 0.06);
+    --input: #1a1a1f;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
-    --dialog-input-bg: #1a1a1e;
-    --popover: #26292e;
-    --popover-foreground: #ffffff;
+    --dialog-input-bg: #0f0f12;
+    --popover: #1a1a1f;
+    --popover-foreground: #f4f4f5;
     /* Card elevation — deeper shadows for dark mode */
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3);
-    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 12px 32px rgba(0, 0, 0, 0.4);
-    /* Header elevation — deeper shadow for dark mode */
-    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
-    --sidebar-border: #252528;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.3);
+    /* Header elevation */
+    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --sidebar-border: rgba(255, 255, 255, 0.06);
   }
 
   * {

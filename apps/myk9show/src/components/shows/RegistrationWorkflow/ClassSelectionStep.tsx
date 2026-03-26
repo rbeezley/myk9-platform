@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -27,7 +19,6 @@ import type { ClassSelectionStepProps, ElementGroup } from './ClassSelectionStep
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import {
   getDogById,
-  getSelectionForDog,
   isClassSelected,
   getClassFee,
   findCartItem,
@@ -35,7 +26,6 @@ import {
   getCartCountForDog,
   addClassToSelections,
   removeClassFromSelections,
-  updateJumpHeightInSelections,
   buildDisplayLabel,
 } from './ClassSelectionStep.helpers';
 import {
@@ -334,77 +324,27 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                             isExpanded={expandedTrials.has(trial.id)}
                             onToggle={() => toggleTrial(trial.id)}
                           >
-                            {elementGroups.map(group => {
-                              const selectedWithJumpHeight = group.levels.filter(
-                                l =>
-                                  l.requiresJumpHeight &&
-                                  isClassSelected(dogId, l.classId, cartItems, classSelections) &&
-                                  !getExistingEntry(dogId, l.classId)
-                              );
-
-                              return (
-                                <React.Fragment key={group.element}>
-                                  <ElementCard
-                                    element={group.element}
-                                    fee={group.fee}
-                                    isSingleClass={group.isSingleClass}
-                                    levels={group.levels.map(l => ({
-                                      ...l,
-                                      isSelected: isClassSelected(
-                                        dogId,
-                                        l.classId,
-                                        cartItems,
-                                        classSelections
-                                      ),
-                                      isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
-                                    }))}
-                                    onToggle={classId =>
-                                      handleClassToggle(dogId, trial.id, classId, group.fee)
-                                    }
-                                  />
-                                  {selectedWithJumpHeight.map(cls => {
-                                    const sel = getSelectionForDog(
-                                      classSelections,
-                                      dogId
-                                    ).selectedClasses.find(c => c.classId === cls.classId);
-                                    return (
-                                      <div
-                                        key={`jh-${cls.classId}`}
-                                        className="ml-6 flex items-center gap-2"
-                                      >
-                                        <Label className="text-xs text-muted-foreground">
-                                          Jump Height for {cls.displayLabel || group.element}:
-                                        </Label>
-                                        <Select
-                                          value={sel?.jumpHeight || ''}
-                                          onValueChange={value =>
-                                            onSelectionChange(
-                                              updateJumpHeightInSelections(
-                                                classSelections,
-                                                dogId,
-                                                cls.classId,
-                                                value
-                                              )
-                                            )
-                                          }
-                                        >
-                                          <SelectTrigger className="w-24 h-7 text-xs">
-                                            <SelectValue placeholder="Select..." />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {['8', '12', '16', '20', '24'].map(h => (
-                                              <SelectItem key={h} value={h}>
-                                                {h}&quot;
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    );
-                                  })}
-                                </React.Fragment>
-                              );
-                            })}
+                            {elementGroups.map(group => (
+                              <ElementCard
+                                key={group.element}
+                                element={group.element}
+                                fee={group.fee}
+                                isSingleClass={group.isSingleClass}
+                                levels={group.levels.map(l => ({
+                                  ...l,
+                                  isSelected: isClassSelected(
+                                    dogId,
+                                    l.classId,
+                                    cartItems,
+                                    classSelections
+                                  ),
+                                  isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
+                                }))}
+                                onToggle={classId =>
+                                  handleClassToggle(dogId, trial.id, classId, group.fee)
+                                }
+                              />
+                            ))}
                           </TrialSection>
                         );
                       })}

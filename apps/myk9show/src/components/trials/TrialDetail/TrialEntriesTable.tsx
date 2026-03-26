@@ -10,33 +10,6 @@ interface TrialEntriesTableProps {
   trialId: string;
 }
 
-interface EntryRecord {
-  id: string;
-  handler: string | null;
-  entry_status: string | null;
-  entry_fee: number | null;
-  armband: string | null;
-  created_at: string | null;
-  dog: {
-    id: string;
-    name: string;
-    call_name: string | null;
-    breed: string | null;
-    owner: {
-      id: string;
-      first_name: string | null;
-      last_name: string | null;
-      email: string | null;
-    } | null;
-  } | null;
-  class: {
-    id: string;
-    name: string | null;
-    class_number: string | null;
-    entry_fee: number | null;
-  } | null;
-}
-
 interface DisplayEntry {
   id: string;
   dogName: string;
@@ -114,25 +87,23 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
 
   // Map raw entries to display format
   const entries: DisplayEntry[] = useMemo(() => {
-    return rawEntries.map((e: unknown) => {
-      const raw = e as EntryRecord;
-      const dog = raw.dog;
-      const cls = raw.class;
+    return rawEntries.map(e => {
+      const dog = e.dog;
       const owner = dog?.owner;
 
       const handlerName =
-        raw.handler || (owner ? `${owner.first_name || ''} ${owner.last_name || ''}`.trim() : '');
+        e.handler || (owner ? `${owner.first_name || ''} ${owner.last_name || ''}`.trim() : '');
 
       return {
-        id: raw.id,
+        id: e.id,
         dogName: dog?.call_name || dog?.name || 'Unknown',
         breed: dog?.breed || '',
-        className: cls?.name || 'Unknown',
+        className: e.class?.name || 'Unknown',
         handler: handlerName || 'Unknown',
-        status: raw.entry_status || 'pending',
-        armband: raw.armband || '',
-        date: raw.created_at ? new Date(raw.created_at).toLocaleDateString() : '',
-        rawDate: raw.created_at || '',
+        status: e.entry_status || 'pending',
+        armband: e.armband || '',
+        date: e.created_at ? new Date(e.created_at).toLocaleDateString() : '',
+        rawDate: e.created_at || '',
       };
     });
   }, [rawEntries]);

@@ -7,7 +7,7 @@ interface TrialForStats {
   classes?: TrialClass[];
 }
 
-interface EntryForStats {
+export interface EntryForStats {
   classId: string;
   status?: string;
 }

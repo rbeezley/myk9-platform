@@ -174,6 +174,7 @@ export const queryKeys = {
   trial: (id: string) => ['trials', id] as const,
   trialClasses: (trialId: string) => ['trials', trialId, 'classes'] as const,
   trialPromoCodes: (trialId: string) => ['trials', trialId, 'promo-codes'] as const,
+  trialEntries: (trialId: string) => ['trials', trialId, 'entries'] as const,
   trialFinancialSummary: (trialId: string) => ['trials', trialId, 'financial-summary'] as const,
 
   // Pipeline

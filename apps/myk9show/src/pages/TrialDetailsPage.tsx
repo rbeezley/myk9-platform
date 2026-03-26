@@ -58,7 +58,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { useUrlTab } from '@/hooks/useUrlTab';
 
 // Extracted hooks
-import { useTrialStats } from '@/hooks/useTrialStats';
+import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialTemplates } from '@/hooks/useTrialTemplates';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 
@@ -93,8 +93,7 @@ const TrialDetailsPage: React.FC = () => {
   // Get classes store
   const { addClass, classes, updateClass, deleteClass } = useClassStoreCompat();
 
-  // Fetch entries scoped to this trial via class join
-  const { data: trialEntries = [], isLoading: entriesLoading } = useTrialEntries(trialId || '');
+  const { data: trialEntries = [] } = useTrialEntries(trialId || '');
 
   // Set selected trial based on URL parameter
   useEffect(() => {
@@ -131,14 +130,25 @@ const TrialDetailsPage: React.FC = () => {
     }
   };
 
+  // Single pass over trialEntries: build count map + stats array
+  const { entryCountByClass, trialEntriesForStats } = useMemo(() => {
+    const countMap = new Map<string, number>();
+    const statsArr: EntryForStats[] = [];
+    for (const e of trialEntries) {
+      countMap.set(e.class_id, (countMap.get(e.class_id) ?? 0) + 1);
+      const status = e.entry_status ?? undefined;
+      statsArr.push(
+        status !== undefined ? { classId: e.class_id, status } : { classId: e.class_id }
+      );
+    }
+    return { entryCountByClass: countMap, trialEntriesForStats: statsArr };
+  }, [trialEntries]);
+
   // Compute trial with classes
   const trialWithClasses = useMemo(() => {
     if (!currentTrial) return undefined;
     const trialClasses = classes.filter(c => c.trialId === currentTrial.id);
     const convertedClasses = trialClasses.map(classData => {
-      const classEntryCount = entriesLoading
-        ? -1
-        : trialEntries.filter((e: Record<string, unknown>) => e.class_id === classData.id).length;
       const startTime =
         classData.startTime ||
         (classData.trialDate ? `${classData.trialDate}T09:00:00` : new Date().toISOString());
@@ -154,28 +164,15 @@ const TrialDetailsPage: React.FC = () => {
         judgeId: ((classData as unknown as Record<string, unknown>).judgeId as string) || 'TBD',
         judgeName: classData.judge || 'TBD',
         startTime,
-        entries: classEntryCount,
+        entries: entryCountByClass.get(classData.id) ?? 0,
       };
     });
     return {
       ...currentTrial,
       classes: convertedClasses.length > 0 ? convertedClasses : currentTrial.classes || [],
     };
-  }, [currentTrial, classes, trialEntries]);
+  }, [currentTrial, classes, entryCountByClass]);
 
-  // Extracted hooks
-  const trialEntriesForStats = useMemo(
-    () =>
-      trialEntries.map((e: Record<string, unknown>) => {
-        const entry: { classId: string; status?: string } = {
-          classId: e.class_id as string,
-        };
-        const status = e.entry_status as string | undefined;
-        if (status !== undefined) entry.status = status;
-        return entry;
-      }),
-    [trialEntries]
-  );
   const trialStatistics = useTrialStats(trialWithClasses, trialEntriesForStats);
   const { handleSaveClassesFromTemplate } = useTrialTemplates({
     currentTrial,

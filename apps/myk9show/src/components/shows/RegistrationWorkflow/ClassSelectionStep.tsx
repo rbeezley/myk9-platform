@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Info } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -9,21 +8,15 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
 import { compareLevels } from '@/utils/schedule-summary';
-import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useCartStore, useCartItems } from '@/stores/cartStore';
-import { useEntryEligibility } from '@/hooks/useEntryEligibility';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
-import { joinWaitlist } from '@/services/database/queries/waitlistQueries';
 import { toast } from 'sonner';
-import { getUserFriendlyError } from '@/utils/errorMessages';
 import { InlineHandlerSection } from './InlineHandlerSection';
-import type { ClassSelectionStepProps } from './ClassSelectionStep.types';
+import type { ClassSelectionStepProps, ElementGroup } from './ClassSelectionStep.types';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import {
-  buildAvailabilityMap,
   getDogById,
-  getSelectionForDog,
   isClassSelected,
   getClassFee,
   findCartItem,
@@ -31,14 +24,14 @@ import {
   getCartCountForDog,
   addClassToSelections,
   removeClassFromSelections,
-  updateJumpHeightInSelections,
+  buildDisplayLabel,
 } from './ClassSelectionStep.helpers';
 import {
   DogTabTrigger,
-  TrialSectionHeader,
+  TrialSection,
   NoTrialsAlert,
   NoClassesAlert,
-  ClassCardRow,
+  ElementCard,
   DogCartSummary,
   OverallCartSummary,
 } from './ClassSelectionStep.components';
@@ -58,26 +51,19 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const { shows = [] } = useShowStore();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
-  const { user, isSecretary, isAdmin } = useAuthContext();
+  const { isSecretary, isAdmin } = useAuthContext();
   const { profile: exhibitorProfile } = useExhibitorProfile();
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
-  const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
-  const [joiningWaitlist, setJoiningWaitlist] = useState<string | null>(null);
+  const [, setIsAddingToCart] = useState<string | null>(null);
 
-  // Cart store
   const cartItems = useCartItems();
   const loadCart = useCartStore(state => state.loadCart);
   const createCart = useCartStore(state => state.createCart);
   const addItem = useCartStore(state => state.addItem);
   const removeItem = useCartStore(state => state.removeItem);
 
-  // Check for existing entries
   const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
-
-  // Fetch class availability data
-  const { classes: classAvailability, isLoading: isLoadingAvailability } =
-    useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
   const showTrials = useMemo(
@@ -93,71 +79,79 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     [trials, showId]
   );
 
-  // Build classesWithTrials from the trial store's trialClasses (same source ShowDetailsPage uses).
-  // This avoids a data-source mismatch where useClassStoreCompat() (Supabase direct) could
-  // return stale/incomplete data if mutations hadn't been fully synced.
-  const classesWithTrials = useMemo(() => {
-    return showTrials.flatMap(trial => {
-      const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
-
-      // Determine which element+level combos have multiple classes (need section to distinguish)
-      const elLevelCounts = new Map<string, number>();
-      for (const cls of classes) {
-        const key = `${cls.element}|${cls.level}`;
-        elLevelCounts.set(key, (elLevelCounts.get(key) || 0) + 1);
-      }
-
-      return classes
-        .slice()
-        .sort((a, b) => {
-          const elemCmp = a.element.localeCompare(b.element);
-          if (elemCmp !== 0) return elemCmp;
-          return compareLevels(a.level, b.level);
-        })
-        .map(cls => {
-          // Only show section suffix when multiple sections exist for this element+level
-          const key = `${cls.element}|${cls.level}`;
-          const showSection = cls.section && (elLevelCounts.get(key) || 0) > 1;
-          const sectionSuffix = showSection ? ` ${cls.section}` : '';
-          const displayName =
-            `${cls.element} ${cls.level}${sectionSuffix}`.trim() || 'Unnamed Class';
-          return {
-            classData: {
-              id: cls.id,
-              name: displayName,
-              className: displayName,
-              element: cls.element,
-              level: cls.level,
-              section: cls.section,
-              entryFee: undefined as number | undefined,
-              requiresJumpHeight: false,
-              description: undefined as string | undefined,
-            },
-            trial: {
-              id: trial.id,
-              name: trial.name || '',
-              date: trial.trialDate || show?.startDate || '',
-            },
-          };
-        });
-    });
-  }, [showTrials, trialClasses, show?.startDate]);
-
-  const allClassIds = useMemo(
-    () => classesWithTrials.map(c => c.classData.id),
-    [classesWithTrials]
-  );
-
-  const { checkEligibility } = useEntryEligibility({
-    showId,
-    dogIds: selectedDogs,
-    classIds: allClassIds,
+  const [expandedTrials, setExpandedTrials] = useState<Set<string>>(() => {
+    const firstTrialId = showTrials[0]?.id;
+    return firstTrialId ? new Set([firstTrialId]) : new Set();
   });
 
-  const availabilityMap = useMemo(
-    () => buildAvailabilityMap(classAvailability),
-    [classAvailability]
-  );
+  const toggleTrial = useCallback((trialId: string) => {
+    setExpandedTrials(prev => {
+      const next = new Set(prev);
+      if (next.has(trialId)) {
+        next.delete(trialId);
+      } else {
+        next.add(trialId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Build grouped class data: Map<trialId, ElementGroup[]>
+  const classesByTrialElement = useMemo(() => {
+    const result = new Map<string, ElementGroup[]>();
+    const defaultFee = getClassFee(show, { entryFee: undefined });
+
+    for (const trial of showTrials) {
+      const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
+      const elementMap = new Map<
+        string,
+        { classId: string; level: string; section: string; displayLabel: string }[]
+      >();
+
+      const sorted = classes.slice().sort((a, b) => {
+        const elemCmp = a.element.localeCompare(b.element);
+        if (elemCmp !== 0) return elemCmp;
+        const levelCmp = compareLevels(a.level, b.level);
+        if (levelCmp !== 0) return levelCmp;
+        return (a.section || '').localeCompare(b.section || '');
+      });
+
+      for (const cls of sorted) {
+        const displayLabel = buildDisplayLabel(cls.level, cls.section);
+        const entry = {
+          classId: cls.id,
+          level: cls.level,
+          section: cls.section,
+          displayLabel: displayLabel ?? '',
+        };
+        const existing = elementMap.get(cls.element);
+        if (existing) {
+          existing.push(entry);
+        } else {
+          elementMap.set(cls.element, [entry]);
+        }
+      }
+
+      const elementGroups: ElementGroup[] = [];
+      for (const [element, classEntries] of elementMap) {
+        const isSingleClass = classEntries.length === 1 && !classEntries[0].displayLabel;
+        elementGroups.push({
+          element,
+          fee: defaultFee,
+          levels: classEntries.map(entry => ({
+            ...entry,
+            isSelected: false,
+            isAlreadyEntered: false,
+          })),
+          isSingleClass,
+        });
+      }
+
+      result.set(trial.id, elementGroups);
+    }
+
+    return result;
+  }, [showTrials, trialClasses, show]);
 
   // Initialize cart on mount — uses exhibitor_profiles.id (not auth user id)
   const exhibitorId = exhibitorProfile?.id;
@@ -227,25 +221,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
   };
 
-  const handleJoinWaitlist = async (dogId: string, classId: string) => {
-    if (!user?.id) {
-      toast.error('You must be logged in to join a waitlist');
-      return;
-    }
-    const key = `${dogId}-${classId}`;
-    setJoiningWaitlist(key);
-    try {
-      const { error, position } = await joinWaitlist(classId, dogId, user.id);
-      if (error) {
-        toast.error('Failed to join waitlist', { description: getUserFriendlyError(error) });
-      } else {
-        toast.success(`Added to waitlist (position #${position})`);
-      }
-    } finally {
-      setJoiningWaitlist(null);
-    }
-  };
-
   if (selectedDogs.length === 0) {
     return (
       <Alert>
@@ -259,7 +234,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Select Classes</h3>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Choose which classes each dog will enter. Select all that apply.
         </p>
       </div>
@@ -282,113 +257,66 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         </TabsList>
 
         {selectedDogs.map(dogId => {
-          const dog = getDogById(dogs, dogId);
-          const selection = getSelectionForDog(classSelections, dogId);
           const dogCartCount = getCartCountForDog(cartItems, dogId);
 
           return (
             <TabsContent key={dogId} value={dogId}>
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Classes for {dog?.callName || dog?.name}
-                    {dog?.registrations?.[0]?.registeredName &&
-                      ` "${dog.registrations[0].registeredName}"`}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[350px] pr-4">
-                    <div className="space-y-6">
-                      {showTrials.length === 0 ? (
-                        <NoTrialsAlert />
-                      ) : classesWithTrials.length === 0 ? (
-                        <NoClassesAlert trialCount={showTrials.length} />
-                      ) : (
-                        showTrials.map(trial => {
-                          const trialClassItems = classesWithTrials.filter(
-                            c => c.trial.id === trial.id
-                          );
-                          if (trialClassItems.length === 0) return null;
+                <CardContent className="pt-4">
+                  {showTrials.length === 0 ? (
+                    <NoTrialsAlert />
+                  ) : classesByTrialElement.size === 0 ? (
+                    <NoClassesAlert trialCount={showTrials.length} />
+                  ) : (
+                    <div className="space-y-2">
+                      {showTrials.map(trial => {
+                        const elementGroups = classesByTrialElement.get(trial.id) || [];
+                        if (elementGroups.length === 0) return null;
 
+                        const selectedCount = elementGroups.reduce((count, group) => {
                           return (
-                            <div key={`${trial.id}-${dogId}`} className="space-y-3">
-                              <TrialSectionHeader
-                                trialName={trial.name || 'Unnamed Trial'}
-                                trialType={trial.trialType}
-                                classCount={trialClassItems.length}
-                              />
-                              <div className="space-y-2 pl-6">
-                                {trialClassItems.map(({ classData }) => {
-                                  const availability = availabilityMap.get(classData.id);
-                                  const isFull = availability?.isFull ?? false;
-                                  const spotsAvailable = availability?.spotsAvailable ?? 0;
-                                  const entryLimit = availability?.entryLimit ?? 0;
-                                  const waitlistCount = availability?.waitlistCount ?? 0;
-                                  const isLowSpots =
-                                    !isFull && entryLimit > 0 && spotsAvailable <= 3;
-                                  const fee = getClassFee(show, classData);
-                                  const itemKey = `${dogId}-${classData.id}`;
-                                  const eligibilityResult =
-                                    checkEligibility(dogId, classData.id) ?? undefined;
-                                  const isIneligible =
-                                    eligibilityResult && !eligibilityResult.isEligible;
-                                  const hasWarnings =
-                                    eligibilityResult && eligibilityResult.warnings.length > 0;
-                                  const selectedClass = selection.selectedClasses.find(
-                                    c => c.classId === classData.id
-                                  );
-
-                                  return (
-                                    <ClassCardRow
-                                      key={`${dogId}-${classData.id}`}
-                                      dogId={dogId}
-                                      classData={classData}
-                                      isSelected={isClassSelected(
-                                        dogId,
-                                        classData.id,
-                                        cartItems,
-                                        classSelections
-                                      )}
-                                      isAlreadyEntered={!!getExistingEntry(dogId, classData.id)}
-                                      isFull={isFull}
-                                      isLowSpots={isLowSpots}
-                                      isProcessing={
-                                        isAddingToCart === itemKey || isLoadingAvailability
-                                      }
-                                      isIneligible={!!isIneligible}
-                                      hasWarnings={!!hasWarnings}
-                                      isLoadingAvailability={isLoadingAvailability}
-                                      entryLimit={entryLimit}
-                                      spotsAvailable={spotsAvailable}
-                                      waitlistCount={waitlistCount}
-                                      fee={fee}
-                                      selectedJumpHeight={selectedClass?.jumpHeight}
-                                      eligibilityResult={eligibilityResult}
-                                      joiningWaitlistKey={joiningWaitlist}
-                                      onToggle={() =>
-                                        handleClassToggle(dogId, trial.id, classData.id, fee)
-                                      }
-                                      onJumpHeightChange={value =>
-                                        onSelectionChange(
-                                          updateJumpHeightInSelections(
-                                            classSelections,
-                                            dogId,
-                                            classData.id,
-                                            value
-                                          )
-                                        )
-                                      }
-                                      onJoinWaitlist={() => handleJoinWaitlist(dogId, classData.id)}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            </div>
+                            count +
+                            group.levels.filter(l =>
+                              isClassSelected(dogId, l.classId, cartItems, classSelections)
+                            ).length
                           );
-                        })
-                      )}
+                        }, 0);
+
+                        return (
+                          <TrialSection
+                            key={`${trial.id}-${dogId}`}
+                            trialName={trial.name || 'Unnamed Trial'}
+                            trialType={trial.trialType}
+                            selectedCount={selectedCount}
+                            isExpanded={expandedTrials.has(trial.id)}
+                            onToggle={() => toggleTrial(trial.id)}
+                          >
+                            {elementGroups.map(group => (
+                              <ElementCard
+                                key={group.element}
+                                element={group.element}
+                                fee={group.fee}
+                                isSingleClass={group.isSingleClass}
+                                levels={group.levels.map(l => ({
+                                  ...l,
+                                  isSelected: isClassSelected(
+                                    dogId,
+                                    l.classId,
+                                    cartItems,
+                                    classSelections
+                                  ),
+                                  isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
+                                }))}
+                                onToggle={classId =>
+                                  handleClassToggle(dogId, trial.id, classId, group.fee)
+                                }
+                              />
+                            ))}
+                          </TrialSection>
+                        );
+                      })}
                     </div>
-                  </ScrollArea>
+                  )}
                   <DogCartSummary
                     cartCount={dogCartCount}
                     totalFees={getTotalFeesForDog(cartItems, dogId)}

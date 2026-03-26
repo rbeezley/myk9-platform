@@ -53,18 +53,14 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
       'bg-transparent rounded-none cursor-pointer',
       isActive
         ? [
-            'text-blue-600 border-blue-600 font-semibold',
-            'data-[state=active]:text-blue-600 data-[state=active]:border-blue-600',
+            'text-primary border-primary font-semibold',
+            'data-[state=active]:text-primary data-[state=active]:border-primary',
           ]
         : [
             'text-muted-foreground border-transparent hover:text-foreground',
             'data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-transparent',
           ]
     )}
-    style={{
-      borderBottomColor: isActive ? '#007AFF' : 'transparent',
-      color: isActive ? '#007AFF' : undefined,
-    }}
   >
     <span>{dog?.callName || dog?.name || 'Unknown'}</span>
     <div className="flex items-center gap-1">
@@ -81,8 +77,10 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
       {cartCount > 0 && (
         <Badge
           variant={isActive ? 'default' : 'secondary'}
-          className="h-5 px-1.5 text-xs flex items-center gap-0.5"
-          style={isActive ? { backgroundColor: '#007AFF' } : {}}
+          className={cn(
+            'h-5 px-1.5 text-xs flex items-center gap-0.5',
+            isActive && 'bg-primary text-primary-foreground'
+          )}
           title={`${cartCount} class${cartCount !== 1 ? 'es' : ''} in cart`}
         >
           <ShoppingCart className="h-3 w-3" />

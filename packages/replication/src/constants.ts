@@ -99,10 +99,19 @@ export const DIRTY_ROW_DEBOUNCE_MS = 500;
 export const TABLE_INIT_QUEUE_DELAY_MS = 10;
 
 /** Timeout for database initialization (milliseconds) */
-export const DB_INIT_TIMEOUT_MS = 30000; // 30 seconds
+export const DB_INIT_TIMEOUT_MS = 5000; // 5 seconds (reduced from 30s)
 
 /** Delay before retry after initialization failure (milliseconds) */
 export const INIT_RETRY_DELAY_MS = 50;
+
+/** Timeout for getAll() operations (milliseconds) */
+export const GET_ALL_TIMEOUT_MS = 5000; // 5 seconds (reduced from 20s)
+
+/** Timeout for deleteDB during recovery (milliseconds) */
+export const DELETE_DB_TIMEOUT_MS = 3000; // 3 seconds
+
+/** Number of consecutive failures before circuit breaker trips */
+export const CIRCUIT_BREAKER_THRESHOLD = 3;
 
 // ==================== Replication Manager ====================
 

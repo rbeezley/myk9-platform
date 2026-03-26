@@ -37,11 +37,7 @@ export type {
 // Conflict Resolution
 export { ConflictResolver, conflictResolver } from './conflict/ConflictResolver';
 export { ConflictManager, conflictManager } from './conflict/ConflictManager';
-export type {
-  ConflictEvent,
-  ConflictEventType,
-  ConflictStats,
-} from './conflict/ConflictManager';
+export type { ConflictEvent, ConflictEventType, ConflictStats } from './conflict/ConflictManager';
 
 // Dependency injection interfaces
 export type {
@@ -99,6 +95,9 @@ export {
   TABLE_INIT_QUEUE_DELAY_MS,
   DB_INIT_TIMEOUT_MS,
   INIT_RETRY_DELAY_MS,
+  GET_ALL_TIMEOUT_MS,
+  DELETE_DB_TIMEOUT_MS,
+  CIRCUIT_BREAKER_THRESHOLD,
   // Replication Manager
   SUBSCRIPTION_HEALTH_CHECK_INTERVAL_MS,
   SUBSCRIPTION_INIT_TIMEOUT_MS,

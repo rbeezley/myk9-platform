@@ -21,6 +21,7 @@ import {
   QUERY_TIMEOUT_MS,
   SLOW_QUERY_THRESHOLD_MS,
   MAX_OPTIMISTIC_UPDATE_RETRIES,
+  GET_ALL_TIMEOUT_MS,
 } from '../constants';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
@@ -379,8 +380,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {
-    const GET_ALL_TIMEOUT_MS = 20000;
-
     const getAllPromise = (async () => {
       const db = await this.init();
       const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
@@ -405,9 +404,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     });
 
     try {
-      return await Promise.race([getAllPromise, timeoutPromise]);
+      const result = await Promise.race([getAllPromise, timeoutPromise]);
+      databaseManager.resetFailures();
+      return result;
     } catch (error) {
       this.logger.error(`[${this.tableName}] getAll() failed:`, error);
+      databaseManager.recordFailure();
       return [];
     }
   }

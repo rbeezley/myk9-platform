@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetBody,
-  SheetFooter,
-  SheetTitle,
-} from '@myk9/ui';
+import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { FormField } from '@/components/common/FormField';
 import { useUserStore } from '@/store/userStore';
 import { useClubStore } from '@/store/clubStore';
 import { Club } from '@/types/club-types';
-import { Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 
@@ -23,21 +22,15 @@ interface AddMemberDialogProps {
   club: Club;
 }
 
-export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
-  open,
-  onOpenChange,
-  club
-}) => {
+export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenChange, club }) => {
   const [selectedPersonId, setSelectedPersonId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const people = useUserStore(state => state.people);
   const updateClub = useClubStore(state => state.updateClub);
 
   // Filter out people who are already members
-  const availablePeople = people.filter(person => 
-    !club.memberIds?.includes(person.id.toString())
-  );
+  const availablePeople = people.filter(person => !club.memberIds?.includes(person.id.toString()));
 
   const handleAddMember = async () => {
     if (!selectedPersonId) return;
@@ -46,14 +39,16 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
     try {
       const updatedClub: Club = {
         ...club,
-        memberIds: [...(club.memberIds || []), selectedPersonId]
+        memberIds: [...(club.memberIds || []), selectedPersonId],
       };
-      
+
       await updateClub(updatedClub);
 
       // Show success feedback
       const addedPerson = people.find(p => p.id.toString() === selectedPersonId);
-      const personName = addedPerson ? `${addedPerson.firstName} ${addedPerson.lastName}` : 'Member';
+      const personName = addedPerson
+        ? `${addedPerson.firstName} ${addedPerson.lastName}`
+        : 'Member';
       notifications.success(`${personName} added to ${club.name}`);
 
       // Reset form and close dialog
@@ -77,7 +72,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
       <SheetContent size="sm">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
+            <Plus className="h-4 w-4" />
             Add Member to {club.name}
           </SheetTitle>
         </SheetHeader>
@@ -90,7 +85,9 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 <div className="text-sm text-muted-foreground">
                   No people available to add as members.
                   {people.length === 0 ? (
-                    <span className="block mt-1">Create some people first to add them as members.</span>
+                    <span className="block mt-1">
+                      Create some people first to add them as members.
+                    </span>
                   ) : (
                     <span className="block mt-1">All existing people are already members.</span>
                   )}
@@ -103,16 +100,14 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                     <SelectValue placeholder="Choose a person to add as member" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availablePeople.map((person) => (
+                    {availablePeople.map(person => (
                       <SelectItem key={person.id} value={person.id.toString()}>
                         <div className="flex flex-col">
                           <div className="font-medium">
                             {person.firstName} {person.lastName}
                           </div>
                           {person.email && (
-                            <div className="text-xs text-muted-foreground">
-                              {person.email}
-                            </div>
+                            <div className="text-xs text-muted-foreground">{person.email}</div>
                           )}
                         </div>
                       </SelectItem>

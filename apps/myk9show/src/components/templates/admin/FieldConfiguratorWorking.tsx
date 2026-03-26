@@ -3,6 +3,7 @@ import { ClassTemplate } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Plus } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 
 interface FieldConfiguratorProps {
@@ -13,7 +14,7 @@ interface FieldConfiguratorProps {
 
 export const FieldConfiguratorWorking: React.FC<FieldConfiguratorProps> = ({
   template,
-  readOnly = false
+  readOnly = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -32,7 +33,7 @@ export const FieldConfiguratorWorking: React.FC<FieldConfiguratorProps> = ({
             <div>
               <h4 className="font-semibold mb-2">Field Categories</h4>
               <div className="flex gap-2 flex-wrap">
-                {['all', 'identity', 'scheduling', 'competition', 'personnel'].map((category) => (
+                {['all', 'identity', 'scheduling', 'competition', 'personnel'].map(category => (
                   <Button
                     key={category}
                     variant={selectedCategory === category ? 'default' : 'outline'}
@@ -47,7 +48,9 @@ export const FieldConfiguratorWorking: React.FC<FieldConfiguratorProps> = ({
 
             {/* Current Fields */}
             <div>
-              <h4 className="font-semibold mb-2">Current Fields ({template.fieldSpecifications?.length || 0})</h4>
+              <h4 className="font-semibold mb-2">
+                Current Fields ({template.fieldSpecifications?.length || 0})
+              </h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {template.fieldSpecifications?.map((field, index) => (
                   <div key={index} className="flex items-center justify-between p-3 border rounded">
@@ -74,17 +77,15 @@ export const FieldConfiguratorWorking: React.FC<FieldConfiguratorProps> = ({
                     )}
                   </div>
                 )) || (
-                  <p className="text-muted-foreground py-4 text-center">
-                    No fields configured yet
-                  </p>
+                  <p className="text-muted-foreground py-4 text-center">No fields configured yet</p>
                 )}
               </div>
             </div>
 
-            {/* Add Field Button */}
             {!readOnly && (
               <div className="pt-4">
                 <Button onClick={() => logger.debug('Add field clicked', 'templates', {})}>
+                  <Plus className="h-4 w-4" />
                   Add Field
                 </Button>
               </div>

@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Info, CheckCircle } from 'lucide-react';
+import { Info, CheckCircle, Plus } from 'lucide-react';
 import { Dog, Registration, User } from '@/types/dog-types';
 import { logger } from '@/services/LoggingService';
 import { useFormValidation } from '@/hooks/useFormValidation';
@@ -322,7 +322,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             Add New Dog
             {ownerInfo && (
               <span className="text-sm font-normal text-gray-600">

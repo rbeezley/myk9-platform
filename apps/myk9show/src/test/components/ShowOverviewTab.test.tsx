@@ -4,11 +4,6 @@ import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
 import type { Show } from '@/types/show-types';
 
 // Mock child components to verify they're rendered with correct props
-vi.mock('@/components/shows/overview/QuickInfoCards', () => ({
-  QuickInfoCards: ({ show }: { show: Show }) => (
-    <div data-testid="quick-info-cards">{show.name}</div>
-  ),
-}));
 vi.mock('@/components/shows/overview/ScheduleSummary', () => ({
   ScheduleSummary: () => <div data-testid="schedule-summary" />,
 }));
@@ -62,11 +57,6 @@ const fullShow: Show = {
 };
 
 describe('ShowOverviewTab', () => {
-  it('renders QuickInfoCards', () => {
-    render(<ShowOverviewTab show={fullShow} />);
-    expect(screen.getByTestId('quick-info-cards')).toBeInTheDocument();
-  });
-
   it('renders ShowOfficials when chairman exists', () => {
     render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('show-officials')).toBeInTheDocument();

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  CalendarDays,
-  MapPin,
   LayoutDashboard,
   Trophy,
   ListChecks,
@@ -18,6 +16,7 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
+import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
@@ -206,29 +205,6 @@ const ShowDetailsPage: React.FC = () => {
     [actualCurrentShow?.name, id]
   );
 
-  // DetailHero metadata
-  const heroMetadata = useMemo(() => {
-    if (!actualCurrentShow) return [];
-    const items = [];
-    if (actualCurrentShow.startDate) {
-      const start = new Date(actualCurrentShow.startDate).toLocaleDateString();
-      const end = actualCurrentShow.endDate
-        ? new Date(actualCurrentShow.endDate).toLocaleDateString()
-        : null;
-      items.push({
-        label: end && end !== start ? `${start} - ${end}` : start,
-        icon: <CalendarDays className="h-4 w-4" />,
-      });
-    }
-    if (actualCurrentShow.location) {
-      items.push({
-        label: actualCurrentShow.location,
-        icon: <MapPin className="h-4 w-4" />,
-      });
-    }
-    return items;
-  }, [actualCurrentShow]);
-
   // Tab definitions for PrimaryTabs (must be before early returns — rules of hooks)
   const tabDefs: PrimaryTabDef[] = useMemo(
     () => [
@@ -319,12 +295,13 @@ const ShowDetailsPage: React.FC = () => {
               ? { label: actualCurrentShow.organization, variant: 'default' }
               : undefined
           }
-          metadata={heroMetadata}
           primaryAction={{
             label: 'Register',
             onClick: handleRegisterForShow,
           }}
         />
+
+        <QuickInfoCards show={actualCurrentShow} />
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
           <TabsContent value="overview">

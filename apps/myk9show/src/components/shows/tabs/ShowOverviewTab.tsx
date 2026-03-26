@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import type { Show } from '@/types/show-types';
-import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ScheduleSummary } from '@/components/shows/overview/ScheduleSummary';
 import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
 import { JudgesList } from '@/components/shows/overview/JudgesList';
@@ -28,9 +27,6 @@ export function ShowOverviewTab({ show }: ShowOverviewTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Quick info bar — full width */}
-      <QuickInfoCards show={show} />
-
       {/* Two-column layout: main content + sidebar */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr,340px] gap-6">
         {/* Main content column */}

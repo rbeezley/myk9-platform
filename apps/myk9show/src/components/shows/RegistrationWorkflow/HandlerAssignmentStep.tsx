@@ -125,8 +125,8 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {assignedEntries} of {totalEntries} entries have handlers assigned. Owners are assigned
-            by default.
+            {assignedEntries} of {totalEntries} entries have handlers assigned. Assign handlers to
+            all entries to continue.
           </AlertDescription>
         </Alert>
       )}
@@ -178,7 +178,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
                           </Badge>
                         </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Not assigned</span>
+                        <span className="text-sm text-destructive font-medium">Not assigned</span>
                       )}
 
                       <Button

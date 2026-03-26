@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { UserPlus, Shield, Search, X, MoreVertical, Trash2, KeyRound } from 'lucide-react';
+import { Plus, Shield, Search, X, MoreVertical, Trash2, KeyRound } from 'lucide-react';
 import type { User } from '@/types/user-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import {
@@ -228,7 +228,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
         <div className="flex items-center justify-between p-6 pb-2">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
-              <UserPlus className="h-5 w-5 text-primary" />
+              <Plus className="h-4 w-4 text-primary" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">Add Member</h2>
           </div>

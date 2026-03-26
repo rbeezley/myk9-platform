@@ -3,15 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, ChevronRight, Plus } from 'lucide-react';
+import { Calendar, Plus } from 'lucide-react';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { StatusFilter, type StatusFilterValue } from '@/components/common/StatusFilter';
 import { FilterEmptyState } from '@/components/common/FilterEmptyState';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useRBAC } from '@/hooks/useRBAC';
-import { getClassStatusBadgeClasses, getClassStatusDisplay, CLASS_STATUS } from '@myk9/core';
+import {
+  getClassStatusBadgeClasses,
+  getClassStatusDisplay,
+  CLASS_STATUS,
+  type ClassStatusValue,
+} from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 
 export interface TrialStats {
   classCount: number;
@@ -50,6 +56,53 @@ function getTrialStatusTokens(status: string): {
   return { border: 'border-border', text: 'text-blue-500', bar: 'bg-blue-500' };
 }
 
+interface TrialRow {
+  id: string;
+  trialDate: string;
+  name: string;
+  trialNumber: string;
+  trialType: string | undefined;
+  plannedStartTime: string | undefined;
+  status: ClassStatusValue;
+  classCount: number;
+  entryCount: number;
+  completedClasses: number;
+}
+
+const trialColumns: ColumnDef<TrialRow, unknown>[] = [
+  {
+    accessorKey: 'trialDate',
+    header: 'Date',
+    cell: ({ row }) => {
+      const parts = getDateParts(row.original.trialDate);
+      return parts ? `${parts.month} ${parts.day}` : '\u2014';
+    },
+  },
+  { accessorKey: 'name', header: 'Trial Name' },
+  { accessorKey: 'trialType', header: 'Type', meta: { responsiveHide: 'md' as const } },
+  { accessorKey: 'plannedStartTime', header: 'Time', meta: { responsiveHide: 'md' as const } },
+  { accessorKey: 'classCount', header: 'Classes' },
+  { accessorKey: 'entryCount', header: 'Entries' },
+  {
+    accessorKey: 'completedClasses',
+    header: 'Scored',
+    meta: { responsiveHide: 'sm' as const },
+    cell: ({ row }) => {
+      const { completedClasses, classCount } = row.original;
+      return completedClasses > 0 ? `${completedClasses}/${classCount}` : '\u2014';
+    },
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <Badge className={`text-[10px] ${getClassStatusBadgeClasses(row.original.status)}`}>
+        {getClassStatusDisplay(row.original.status).label}
+      </Badge>
+    ),
+  },
+];
+
 export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   const navigate = useNavigate();
   const { hasPermission } = useRBAC();
@@ -73,6 +126,21 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
       return statusFilter === 'completed' ? isCompleted : !isCompleted;
     });
   }, [trials, statusFilter]);
+
+  const tableData = useMemo<TrialRow[]>(
+    () =>
+      filteredTrials.map(trial => ({
+        id: trial.id,
+        trialDate: trial.trialDate,
+        name: trial.name || `Trial ${trial.trialNumber}`,
+        trialNumber: trial.trialNumber,
+        trialType: trial.trialType,
+        plannedStartTime: trial.plannedStartTime,
+        status: trial.status,
+        ...(trialStats[trial.id] || EMPTY_STATS),
+      })),
+    [filteredTrials, trialStats]
+  );
 
   const openWizard = () =>
     navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-trials`);
@@ -215,76 +283,12 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           })}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border/30">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                  Trial Name
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
-                  Type
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
-                  Time
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Classes</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Entries</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">
-                  Scored
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="w-8" />
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTrials.map(trial => {
-                const dateParts = trial.trialDate ? getDateParts(trial.trialDate) : null;
-                const stats = trialStats[trial.id] || EMPTY_STATS;
-                const statusDisplay = getClassStatusDisplay(trial.status);
-                return (
-                  <tr
-                    key={trial.id}
-                    role="button"
-                    tabIndex={0}
-                    className="border-b border-border/20 hover:bg-muted/10 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/shows/${showId}/trials/${trial.id}`)}
-                    onKeyDown={e =>
-                      e.key === 'Enter' && navigate(`/shows/${showId}/trials/${trial.id}`)
-                    }
-                  >
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {dateParts ? `${dateParts.month} ${dateParts.day}` : '\u2014'}
-                    </td>
-                    <td className="px-4 py-3 font-medium">
-                      {trial.name || `Trial ${trial.trialNumber}`}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                      {trial.trialType}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">{trial.plannedStartTime}</td>
-                    <td className="px-4 py-3 text-right">{stats.classCount}</td>
-                    <td className="px-4 py-3 text-right">{stats.entryCount}</td>
-                    <td className="px-4 py-3 text-right hidden sm:table-cell text-muted-foreground">
-                      {stats.completedClasses > 0
-                        ? `${stats.completedClasses}/${stats.classCount}`
-                        : '\u2014'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge className={`text-[10px] ${getClassStatusBadgeClasses(trial.status)}`}>
-                        {statusDisplay.label}
-                      </Badge>
-                    </td>
-                    <td className="px-2 py-3 text-muted-foreground/50">
-                      <ChevronRight className="h-4 w-4" />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          tableId="trialsTab"
+          columns={trialColumns}
+          data={tableData}
+          onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
+        />
       )}
     </div>
   );

@@ -25,7 +25,7 @@ import { TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { Dog } from '@/types/dog-types';
 import type { EligibilityResult } from '@/hooks/useEntryEligibility';
-import type { ClassWithTrial } from './ClassSelectionStep.types';
+import type { ClassWithTrial, LevelInfo } from './ClassSelectionStep.types';
 
 // ─── Dog Tab Trigger ───────────────────────────────────────────────────────────
 
@@ -169,6 +169,114 @@ export const TrialSection: React.FC<TrialSectionProps> = ({
     {isExpanded && <div className="mt-3 space-y-2 pl-6">{children}</div>}
   </div>
 );
+
+// ─── Element Card ───────────────────────────────────────────────────────────────
+
+interface ElementCardProps {
+  element: string;
+  levels: LevelInfo[];
+  fee: number;
+  isSingleClass: boolean;
+  onToggle: (classId: string) => void;
+}
+
+export const ElementCard: React.FC<ElementCardProps> = ({
+  element,
+  levels,
+  fee,
+  isSingleClass,
+  onToggle,
+}) => {
+  if (isSingleClass) {
+    const cls = levels[0];
+    if (!cls) return null;
+    return (
+      <div className="myk9-element-card myk9-element-card-single">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id={`single-${cls.classId}`}
+              checked={cls.isSelected || cls.isAlreadyEntered}
+              disabled={cls.isAlreadyEntered}
+              onCheckedChange={() => !cls.isAlreadyEntered && onToggle(cls.classId)}
+            />
+            <Label
+              htmlFor={`single-${cls.classId}`}
+              className={cn(
+                'font-semibold text-sm cursor-pointer',
+                cls.isAlreadyEntered && 'text-teal-600'
+              )}
+            >
+              {element}
+            </Label>
+            {cls.isAlreadyEntered && <CheckCircle2 className="h-3.5 w-3.5 text-teal-600" />}
+          </div>
+          <span className="text-xs text-muted-foreground">${fee}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="myk9-element-card">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="font-semibold text-sm text-card-foreground">{element}</span>
+        <span className="text-xs text-muted-foreground">${fee}/class</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {levels.map(cls => (
+          <LevelChip
+            key={cls.classId}
+            classId={cls.classId}
+            displayLabel={cls.displayLabel}
+            isSelected={cls.isSelected}
+            isAlreadyEntered={cls.isAlreadyEntered}
+            onToggle={onToggle}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── Level Chip ─────────────────────────────────────────────────────────────────
+
+interface LevelChipProps {
+  classId: string;
+  displayLabel: string;
+  isSelected: boolean;
+  isAlreadyEntered: boolean;
+  onToggle: (classId: string) => void;
+}
+
+const LevelChip: React.FC<LevelChipProps> = ({
+  classId,
+  displayLabel,
+  isSelected,
+  isAlreadyEntered,
+  onToggle,
+}) => {
+  const isChecked = isSelected || isAlreadyEntered;
+
+  return (
+    <label
+      className={cn(
+        'myk9-level-chip',
+        isAlreadyEntered && 'myk9-level-chip-entered',
+        isSelected && !isAlreadyEntered && 'myk9-level-chip-selected'
+      )}
+    >
+      <Checkbox
+        id={`chip-${classId}`}
+        checked={isChecked}
+        disabled={isAlreadyEntered}
+        onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
+        className="h-3.5 w-3.5"
+      />
+      <span className="text-xs">{displayLabel}</span>
+    </label>
+  );
+};
 
 // ─── Empty States ──────────────────────────────────────────────────────────────
 

@@ -2,11 +2,15 @@ import { useState, useMemo, startTransition } from 'react';
 import ClassRowActionsMenu from '@/components/classes/ClassRowActionsMenu';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { TrialClass } from '../types/trial.types';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
-import { DataTable } from '@/components/ui/data-table';
-import { Plus, LayoutGrid, List, Layers, Search } from 'lucide-react';
+import {
+  DataTable,
+  DataTableToolbar,
+  DataTableSearch,
+  DataTableColumnToggle,
+} from '@/components/ui/data-table';
+import { Plus, LayoutGrid, List, Layers } from 'lucide-react';
 import { TrialClassesCards } from './TrialClassesCards';
 import { getClassStatusBadgeClasses } from '@myk9/core';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
@@ -53,7 +57,6 @@ export const TrialClassesTable = ({
 }: TrialClassesTableProps) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [searchValue, setSearchValue] = useState('');
 
   const columns: ColumnDef<TrialClass, unknown>[] = useMemo(
     () => [
@@ -156,19 +159,6 @@ export const TrialClassesTable = ({
     [onEditClass, onDeleteClass, navigate]
   );
 
-  const filteredCount = useMemo(() => {
-    if (!searchValue) return classes.length;
-    const q = searchValue.toLowerCase();
-    return classes.filter(
-      cls =>
-        cls.element?.toLowerCase().includes(q) ||
-        cls.level?.toLowerCase().includes(q) ||
-        (cls.judgeName ?? '').toLowerCase().includes(q) ||
-        cls.status?.toLowerCase().includes(q) ||
-        cls.section?.toLowerCase().includes(q)
-    ).length;
-  }, [classes, searchValue]);
-
   if (classes.length === 0) {
     return (
       <div className="text-center py-12">
@@ -201,9 +191,7 @@ export const TrialClassesTable = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">
-            Classes ({searchValue ? `${filteredCount} of ${classes.length}` : classes.length})
-          </h3>
+          <h3 className="text-lg font-semibold">Classes ({classes.length})</h3>
           <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
         </div>
         <div className="flex items-center gap-2">
@@ -245,16 +233,6 @@ export const TrialClassesTable = ({
         </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search classes..."
-          value={searchValue}
-          onChange={e => setSearchValue(e.target.value)}
-          className="h-8 pl-8 text-sm"
-        />
-      </div>
-
       {viewMode === 'cards' && (
         <TrialClassesCards
           classes={classes}
@@ -266,13 +244,18 @@ export const TrialClassesTable = ({
 
       {viewMode === 'table' && (
         <DataTable<TrialClass>
+          tableId="trialClasses"
           columns={columns}
           data={classes}
           getRowId={cls => cls.id}
           onRowClick={cls => startTransition(() => navigate(`/classes/${cls.id}`))}
-          globalFilter={searchValue}
-          onGlobalFilterChange={setSearchValue}
           noResultsMessage="No classes found"
+          toolbar={({ table }) => (
+            <DataTableToolbar table={table}>
+              <DataTableSearch placeholder="Search classes..." />
+              <DataTableColumnToggle />
+            </DataTableToolbar>
+          )}
         />
       )}
     </div>

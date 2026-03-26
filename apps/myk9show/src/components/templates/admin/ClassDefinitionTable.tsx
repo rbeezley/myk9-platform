@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { ClassDefinition } from '@/types/template.types';
-import { DataTable, DataTableToolbar } from '@/components/ui/data-table';
+import { DataTable, DataTableToolbar, DataTableColumnToggle } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -330,6 +330,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
       </p>
 
       <DataTable<ClassDefRow>
+        tableId="classDefinitions"
         columns={columns}
         data={rows}
         pageSize={9999}
@@ -356,10 +357,13 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
                         </Button>
                       )}
                     </div>
-                    <Button size="sm" onClick={handleAddClass}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Class
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <DataTableColumnToggle />
+                      <Button size="sm" onClick={handleAddClass}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Class
+                      </Button>
+                    </div>
                   </div>
                 </DataTableToolbar>
               ),

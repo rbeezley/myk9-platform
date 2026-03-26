@@ -174,6 +174,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
     <div>
       {selectAllHeader}
       <DataTable<EnhancedShow>
+        tableId="showsBrowse"
         data={shows}
         columns={columns}
         getRowId={show => show.id}

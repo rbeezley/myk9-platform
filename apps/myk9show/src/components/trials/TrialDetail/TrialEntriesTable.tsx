@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { type ColumnDef } from '@tanstack/react-table';
-import { DataTable, DataTableToolbar, DataTableSearch } from '@/components/ui/data-table';
+import {
+  DataTable,
+  DataTableToolbar,
+  DataTableSearch,
+  DataTableColumnToggle,
+} from '@/components/ui/data-table';
 import { ClipboardList } from 'lucide-react';
 import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
@@ -130,6 +135,7 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
       </div>
 
       <DataTable<DisplayEntry>
+        tableId="trialEntries"
         columns={COLUMNS}
         data={entries}
         getRowId={entry => entry.id}
@@ -138,6 +144,7 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
         toolbar={({ table }) => (
           <DataTableToolbar table={table}>
             <DataTableSearch placeholder="Search entries..." />
+            <DataTableColumnToggle />
           </DataTableToolbar>
         )}
       />

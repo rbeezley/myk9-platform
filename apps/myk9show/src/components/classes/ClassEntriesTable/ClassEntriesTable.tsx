@@ -2,7 +2,12 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DataTable, DataTableToolbar, DataTableSearch } from '@/components/ui/data-table';
+import {
+  DataTable,
+  DataTableToolbar,
+  DataTableSearch,
+  DataTableColumnToggle,
+} from '@/components/ui/data-table';
 import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { useTableConfiguration } from '@/hooks/useTableConfiguration';
 import { cn } from '@/lib/utils';
@@ -375,6 +380,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
       />
 
       <DataTable<DisplayRow>
+        tableId="classEntries"
         columns={columnDefs}
         data={displayRows}
         getRowId={row => row.entry.id}
@@ -383,6 +389,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         toolbar={({ table }) => (
           <DataTableToolbar table={table}>
             <DataTableSearch placeholder="Search entries..." />
+            <DataTableColumnToggle />
           </DataTableToolbar>
         )}
       />

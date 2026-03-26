@@ -4,12 +4,11 @@
  * Created: December 2024
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -28,7 +27,6 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import {
   Users,
   ArrowLeft,
-  Search,
   Plus,
   UserCheck,
   Calendar,
@@ -39,19 +37,19 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  DataTable,
+  DataTableToolbar,
+  DataTableSearch,
+  DataTableColumnToggle,
+  type ColumnDef,
+} from '@/components/ui/data-table';
+import type { DataTableColumnMeta } from '@/components/ui/data-table';
 import { rbacService } from '@/services/rbac/RBACService';
 import { UserRole, Role } from '@/types/rbac-types';
 import { UserRoleAssignmentDialog } from '@/components/admin/permissions/UserRoleAssignmentDialog';
@@ -64,13 +62,135 @@ const USER_ROLE_TAB_DEFS: PrimaryTabDef[] = [
   { id: 'roles', label: 'Role Summary', icon: ClipboardList },
 ];
 
+function makeColumns(
+  onRevoke: (id: string, email: string, roleName: string) => void
+): ColumnDef<UserRole, unknown>[] {
+  return [
+    {
+      accessorKey: 'user_email',
+      header: 'User',
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.user_email || 'Unknown User'}</div>
+          <div className="text-xs text-muted-foreground font-mono">{row.original.user_id}</div>
+        </div>
+      ),
+    },
+    {
+      id: 'role',
+      header: 'Role',
+      accessorFn: row => row.role?.display_name ?? row.role?.name ?? '',
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.role?.display_name || 'Unknown Role'}</div>
+          <code className="text-xs bg-muted px-1 py-0.5 rounded">{row.original.role?.name}</code>
+        </div>
+      ),
+    },
+    {
+      id: 'scope',
+      header: 'Scope',
+      meta: { responsiveHide: 'md' } satisfies DataTableColumnMeta,
+      accessorFn: row =>
+        row.scope_type && row.scope_id ? `${row.scope_type}: ${row.scope_id}` : 'Global',
+      cell: ({ row }) =>
+        row.original.scope_type && row.original.scope_id ? (
+          <Badge variant="outline">
+            {row.original.scope_type}: {row.original.scope_id}
+          </Badge>
+        ) : (
+          <Badge variant="secondary">Global</Badge>
+        ),
+    },
+    {
+      accessorKey: 'is_active',
+      header: 'Status',
+      cell: ({ row }) => (
+        <Badge variant={row.original.is_active ? 'default' : 'secondary'}>
+          {row.original.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'granted_at',
+      header: 'Assigned',
+      meta: { responsiveHide: 'sm' } satisfies DataTableColumnMeta,
+      cell: ({ row }) => (
+        <div>
+          <div className="text-sm">
+            {new Date(row.original.granted_at || '').toLocaleDateString()}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            by {row.original.assigned_by_email || 'System'}
+          </div>
+        </div>
+      ),
+      sortingFn: (rowA, rowB) => {
+        const a = new Date(rowA.original.granted_at || 0).getTime();
+        const b = new Date(rowB.original.granted_at || 0).getTime();
+        return a - b;
+      },
+    },
+    {
+      accessorKey: 'expires_at',
+      header: 'Expires',
+      meta: { responsiveHide: 'lg' } satisfies DataTableColumnMeta,
+      cell: ({ row }) =>
+        row.original.expires_at ? (
+          <div className="text-sm">{new Date(row.original.expires_at).toLocaleDateString()}</div>
+        ) : (
+          <Badge variant="outline">Never</Badge>
+        ),
+      sortingFn: (rowA, rowB) => {
+        const a = rowA.original.expires_at
+          ? new Date(rowA.original.expires_at).getTime()
+          : Infinity;
+        const b = rowB.original.expires_at
+          ? new Date(rowB.original.expires_at).getTime()
+          : Infinity;
+        return a - b;
+      },
+    },
+    {
+      id: 'actions',
+      header: '',
+      enableSorting: false,
+      enableHiding: false,
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() =>
+                onRevoke(
+                  row.original.id,
+                  row.original.user_email || 'Unknown User',
+                  row.original.role?.display_name || 'Unknown Role'
+                )
+              }
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Revoke Role
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
+}
+
 const UserRoleManagementPage: React.FC = () => {
   const [activeTab, setTab] = useUrlTab(USER_ROLE_TAB_IDS, 'assignments');
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [pendingRevoke, setPendingRevoke] = useState<{
     id: string;
@@ -131,25 +251,18 @@ const UserRoleManagementPage: React.FC = () => {
         ...(assignment.scopeId !== undefined && { scopeId: assignment.scopeId }),
         ...(assignment.expiresAt !== undefined && { expiresAt: assignment.expiresAt }),
       });
-      await loadData(); // Reload data
+      await loadData();
       setShowAssignDialog(false);
     } catch (err) {
       logger.error('Failed to assign role:', 'pages', {}, err as Error);
-      throw err; // Let the dialog handle the error
+      throw err;
     }
   };
 
-  // Filter user roles based on search
-  const filteredUserRoles = userRoles.filter(ur => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (ur.user_email || '').toLowerCase().includes(searchLower) ||
-      (ur.role?.name || '').toLowerCase().includes(searchLower) ||
-      (ur.role?.display_name || '').toLowerCase().includes(searchLower) ||
-      (ur.scope_type || '').toLowerCase().includes(searchLower) ||
-      (ur.scope_id || '').toLowerCase().includes(searchLower)
-    );
-  });
+  const columns = useMemo(
+    () => makeColumns((id, email, roleName) => setPendingRevoke({ id, email, roleName })),
+    []
+  );
 
   // Group by role for summary
   const roleStats = roles.map(role => {
@@ -273,136 +386,24 @@ const UserRoleManagementPage: React.FC = () => {
       >
         {/* User Assignments Tab */}
         <TabsContent value="assignments" className="space-y-4">
-          {/* Search */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search by user email, role, or scope..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          <DataTable
+            tableId="userRoleAssignments"
+            columns={columns}
+            data={userRoles}
+            emptyState={
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No assignments found</h3>
+                <p className="text-muted-foreground">No role assignments have been made yet</p>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Assignments Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>User Role Assignments</CardTitle>
-              <CardDescription>
-                {filteredUserRoles.length} of {userRoles.length} assignments shown
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned</TableHead>
-                    <TableHead>Expires</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUserRoles.map(userRole => (
-                    <TableRow key={userRole.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{userRole.user_email || 'Unknown User'}</div>
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {userRole.user_id}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">
-                            {userRole.role?.display_name || 'Unknown Role'}
-                          </div>
-                          <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                            {userRole.role?.name}
-                          </code>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {userRole.scope_type && userRole.scope_id ? (
-                          <Badge variant="outline">
-                            {userRole.scope_type}: {userRole.scope_id}
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Global</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={userRole.is_active ? 'default' : 'secondary'}>
-                          {userRole.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {new Date(userRole.granted_at || '').toLocaleDateString()}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          by {userRole.assigned_by_email || 'System'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {userRole.expires_at ? (
-                          <div className="text-sm">
-                            {new Date(userRole.expires_at).toLocaleDateString()}
-                          </div>
-                        ) : (
-                          <Badge variant="outline">Never</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() =>
-                                setPendingRevoke({
-                                  id: userRole.id,
-                                  email: userRole.user_email || 'Unknown User',
-                                  roleName: userRole.role?.display_name || 'Unknown Role',
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Revoke Role
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {filteredUserRoles.length === 0 && (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No assignments found</h3>
-                  <p className="text-muted-foreground">
-                    {searchTerm
-                      ? `No assignments match "${searchTerm}"`
-                      : 'No role assignments have been made yet'}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            }
+            toolbar={({ table }) => (
+              <DataTableToolbar table={table}>
+                <DataTableSearch placeholder="Search by user, role, or scope..." />
+                <DataTableColumnToggle />
+              </DataTableToolbar>
+            )}
+          />
         </TabsContent>
 
         {/* Role Summary Tab */}

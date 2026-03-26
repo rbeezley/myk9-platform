@@ -7,15 +7,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { XCircle } from 'lucide-react';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import type { ScratchableEntry } from './types';
 
 interface ScratchEntriesTableProps {
@@ -23,69 +16,95 @@ interface ScratchEntriesTableProps {
   onScratch: (entry: ScratchableEntry) => void;
 }
 
+function buildColumns(
+  onScratch: (entry: ScratchableEntry) => void
+): ColumnDef<ScratchableEntry, unknown>[] {
+  return [
+    {
+      accessorKey: 'armband',
+      header: 'Armband',
+      cell: ({ row }) => <span className="font-mono">{row.original.armband || '-'}</span>,
+    },
+    {
+      id: 'dog',
+      header: 'Dog',
+      accessorFn: row => row.dog?.name ?? '',
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.dog?.name}</div>
+          {row.original.dog?.call_name && (
+            <div className="text-sm text-muted-foreground">
+              &quot;{row.original.dog.call_name}&quot;
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'handler',
+      header: 'Handler',
+      cell: ({ row }) => row.original.handler || '-',
+      meta: { responsiveHide: 'md' as const },
+    },
+    {
+      id: 'class',
+      header: 'Class',
+      accessorFn: row => row.class?.name ?? '',
+      cell: ({ row }) => (
+        <span>
+          {row.original.class?.class_number && (
+            <span className="text-muted-foreground mr-1">#{row.original.class.class_number}</span>
+          )}
+          {row.original.class?.name}
+        </span>
+      ),
+    },
+    {
+      id: 'check_in',
+      header: 'Check-in',
+      accessorFn: row => row.entry_status ?? 'pending',
+      cell: ({ row }) => (
+        <Badge variant={row.original.entry_status === 'checked_in' ? 'default' : 'outline'}>
+          {row.original.entry_status || 'pending'}
+        </Badge>
+      ),
+      meta: { responsiveHide: 'sm' as const },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div className="text-right">
+          <Button size="sm" variant="destructive" onClick={() => onScratch(row.original)}>
+            <XCircle className="mr-2 h-4 w-4" />
+            Scratch
+          </Button>
+        </div>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ];
+}
+
 export function ScratchEntriesTable({ entries, onScratch }: ScratchEntriesTableProps) {
+  const columns = buildColumns(onScratch);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Scratch Management</CardTitle>
-        <CardDescription>Mark entries as scratched (no refund for day-of scratches)</CardDescription>
+        <CardDescription>
+          Mark entries as scratched (no refund for day-of scratches)
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Armband</TableHead>
-              <TableHead>Dog</TableHead>
-              <TableHead>Handler</TableHead>
-              <TableHead>Class</TableHead>
-              <TableHead>Check-in</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {entries.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
-                  No entries available to scratch
-                </TableCell>
-              </TableRow>
-            ) : (
-              entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="font-mono">{entry.armband || '-'}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{entry.dog?.name}</div>
-                    {entry.dog?.call_name && (
-                      <div className="text-sm text-muted-foreground">
-                        "{entry.dog.call_name}"
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>{entry.handler || '-'}</TableCell>
-                  <TableCell>
-                    {entry.class?.class_number && (
-                      <span className="text-muted-foreground mr-1">#{entry.class.class_number}</span>
-                    )}
-                    {entry.class?.name}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={entry.entry_status === 'checked_in' ? 'default' : 'outline'}
-                    >
-                      {entry.entry_status || 'pending'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="destructive" onClick={() => onScratch(entry)}>
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Scratch
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          tableId="scratchEntries"
+          columns={columns}
+          data={entries}
+          emptyState="No entries available to scratch"
+        />
       </CardContent>
     </Card>
   );

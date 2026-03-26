@@ -129,6 +129,7 @@ export const EntriesTableView: React.FC<EntriesTableViewProps> = ({
 
   return (
     <DataTable<EntryManagementEntry>
+      tableId="entriesManagement"
       data={entries}
       columns={columns}
       getRowId={entry => entry.id}

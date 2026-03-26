@@ -6,10 +6,75 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 
 interface MyEntriesTabProps {
   showId: string;
 }
+
+interface MyEntryRow {
+  classId: string;
+  className: string;
+  dogName: string;
+  armband: string;
+  runOrder: number;
+  dogsAhead: number;
+  scored: boolean;
+}
+
+const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
+  {
+    accessorKey: 'className',
+    header: 'Class',
+  },
+  {
+    accessorKey: 'scored',
+    header: 'Status',
+    cell: ({ row }) => (
+      <span
+        className={cn(
+          'px-2 py-0.5 rounded text-xs font-medium',
+          row.original.scored
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+        )}
+      >
+        {row.original.scored ? 'Scored' : 'Pending'}
+      </span>
+    ),
+  },
+  {
+    id: 'progress',
+    header: 'Progress',
+    meta: { responsiveHide: 'md' as const },
+    cell: () => <span className="text-muted-foreground">&mdash;</span>,
+    enableSorting: false,
+  },
+  {
+    id: 'myDog',
+    header: 'My Dog',
+    cell: ({ row }) => (
+      <span>
+        {row.original.dogName}
+        {row.original.armband && (
+          <span className="ml-1 text-muted-foreground">#{row.original.armband}</span>
+        )}
+      </span>
+    ),
+    enableSorting: false,
+  },
+  {
+    id: 'position',
+    header: 'Position',
+    cell: ({ row }) => {
+      const { scored, dogsAhead } = row.original;
+      if (scored) return 'Completed';
+      if (dogsAhead === 0) return 'Next up';
+      return `${dogsAhead} ahead`;
+    },
+    enableSorting: false,
+  },
+];
 
 export function MyEntriesTab({ showId }: MyEntriesTabProps) {
   const { entriesByClass, isLoading, isError } = useMyEntries(showId);
@@ -60,57 +125,12 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border/30">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Class</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
-                  Progress
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">My Dog</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Position</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entriesByClass.map(entry => (
-                <tr
-                  key={entry.classId}
-                  className="border-b border-border/20 hover:bg-muted/10 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">{entry.className}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        'px-2 py-0.5 rounded text-xs font-medium',
-                        entry.scored
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                      )}
-                    >
-                      {entry.scored ? 'Scored' : 'Pending'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">&mdash;</td>
-                  <td className="px-4 py-3">
-                    <span>{entry.dogName}</span>
-                    {entry.armband && (
-                      <span className="ml-1 text-muted-foreground">#{entry.armband}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {entry.scored
-                      ? 'Completed'
-                      : entry.dogsAhead === 0
-                        ? 'Next up'
-                        : `${entry.dogsAhead} ahead`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          tableId="myEntriesTab"
+          columns={myEntryColumns}
+          data={entriesByClass}
+          getRowId={row => row.classId}
+        />
       )}
     </div>
   );

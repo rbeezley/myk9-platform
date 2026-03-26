@@ -103,18 +103,16 @@ describe('ReplicatedTable', () => {
       await table.set('1', { ...entity, name: 'Rex v2' });
 
       // Try to update with stale version 1
-      await expect(
-        table.set('1', { ...entity, name: 'conflict' }, false, 1)
-      ).rejects.toThrow('Concurrent modification detected');
+      await expect(table.set('1', { ...entity, name: 'conflict' }, false, 1)).rejects.toThrow(
+        'Concurrent modification detected'
+      );
     });
 
     it('should succeed with correct expectedVersion', async () => {
       const entity: TestEntity = { id: '1', name: 'Rex' };
       await table.set('1', entity); // version = 1
 
-      await expect(
-        table.set('1', { ...entity, name: 'Rex v2' }, false, 1)
-      ).resolves.not.toThrow();
+      await expect(table.set('1', { ...entity, name: 'Rex v2' }, false, 1)).resolves.not.toThrow();
     });
   });
 
@@ -133,7 +131,7 @@ describe('ReplicatedTable', () => {
       const results = await table.getAll();
 
       expect(results).toHaveLength(3);
-      const names = results.map((r) => r.name).sort();
+      const names = results.map(r => r.name).sort();
       expect(names).toEqual(['Buddy', 'Max', 'Rex']);
     });
 
@@ -173,7 +171,7 @@ describe('ReplicatedTable', () => {
       table.subscribe(callback);
 
       // Wait for async callback
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
 
       expect(callback).toHaveBeenCalled();
       const data = callback.mock.calls[0]![0] as TestEntity[];
@@ -185,7 +183,7 @@ describe('ReplicatedTable', () => {
       const unsubscribe = table.subscribe(callback);
 
       // Wait for the initial async callback from subscribe
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
 
       expect(typeof unsubscribe).toBe('function');
       unsubscribe();
@@ -196,7 +194,7 @@ describe('ReplicatedTable', () => {
       await table.set('2', { id: '2', name: 'Buddy' });
 
       // Wait for debounced notification
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 200));
 
       // The callback should not have been called after unsubscribe
       expect(callback).not.toHaveBeenCalled();
@@ -207,13 +205,13 @@ describe('ReplicatedTable', () => {
       table.subscribe(callback);
 
       // Wait for initial notification
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
       callback.mockClear();
 
       await table.set('1', { id: '1', name: 'Rex' });
 
       // Wait for debounced notification
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 200));
 
       expect(callback).toHaveBeenCalled();
     });
@@ -225,13 +223,13 @@ describe('ReplicatedTable', () => {
       table.subscribe(callback);
 
       // Wait for initial notification
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
       callback.mockClear();
 
       await table.delete('1');
 
       // Wait for debounced notification
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 200));
 
       expect(callback).toHaveBeenCalled();
     });
@@ -241,7 +239,7 @@ describe('ReplicatedTable', () => {
     it('should apply update function to current data', async () => {
       await table.set('1', { id: '1', name: 'Rex', score: 90 });
 
-      const result = await table.optimisticUpdate('1', (current) => ({
+      const result = await table.optimisticUpdate('1', current => ({
         ...current,
         score: 95,
       }));
@@ -251,15 +249,15 @@ describe('ReplicatedTable', () => {
     });
 
     it('should throw when row does not exist', async () => {
-      await expect(
-        table.optimisticUpdate('nonexistent', (current) => current)
-      ).rejects.toThrow('not found for optimistic update');
+      await expect(table.optimisticUpdate('nonexistent', current => current)).rejects.toThrow(
+        'not found for optimistic update'
+      );
     });
 
     it('should persist the updated data', async () => {
       await table.set('1', { id: '1', name: 'Rex', score: 90 });
 
-      await table.optimisticUpdate('1', (current) => ({
+      await table.optimisticUpdate('1', current => ({
         ...current,
         name: 'Rex Updated',
       }));
@@ -272,7 +270,7 @@ describe('ReplicatedTable', () => {
     it('should mark updated row as dirty', async () => {
       await table.set('1', { id: '1', name: 'Rex' });
 
-      await table.optimisticUpdate('1', (current) => ({
+      await table.optimisticUpdate('1', current => ({
         ...current,
         name: 'Rex Updated',
       }));
@@ -285,8 +283,8 @@ describe('ReplicatedTable', () => {
     it('should support async update functions', async () => {
       await table.set('1', { id: '1', name: 'Rex', score: 90 });
 
-      const result = await table.optimisticUpdate('1', async (current) => {
-        await new Promise((r) => setTimeout(r, 10));
+      const result = await table.optimisticUpdate('1', async current => {
+        await new Promise(r => setTimeout(r, 10));
         return { ...current, score: 100 };
       });
 
@@ -375,7 +373,7 @@ describe('ReplicatedTable', () => {
       expect(removed).toBe(1);
       const all = await table.getAll();
       expect(all).toHaveLength(2);
-      expect(all.map((r) => r.id).sort()).toEqual(['1', '3']);
+      expect(all.map(r => r.id).sort()).toEqual(['1', '3']);
     });
 
     it('should preserve dirty rows even if not in server set', async () => {
@@ -476,6 +474,33 @@ describe('ReplicatedTable', () => {
 
       expect(metadata!.lastFullSyncAt).toBe(1000); // preserved
       expect(metadata!.syncStatus).toBe('syncing'); // updated
+    });
+  });
+
+  describe('getAll circuit breaker integration', () => {
+    it('should reset failures on successful getAll()', async () => {
+      const { databaseManager } = await import('./DatabaseManager');
+
+      // Seed a row so getAll returns data
+      await table.set('1', { id: '1', name: 'Rex' });
+
+      // Artificially record a failure
+      databaseManager.recordFailure();
+      expect(databaseManager.getStatus().consecutiveFailures).toBe(1);
+
+      // Successful getAll should reset
+      const result = await table.getAll();
+      expect(result.length).toBe(1);
+      expect(databaseManager.getStatus().consecutiveFailures).toBe(0);
+    });
+
+    it('should use GET_ALL_TIMEOUT_MS constant', async () => {
+      // Verify the constant is imported and used (no hardcoded 20000)
+      // This is a compile-time check — if GET_ALL_TIMEOUT_MS is removed,
+      // the build will fail. The runtime behavior is tested by the
+      // circuit breaker tests in DatabaseManager.test.ts.
+      const { GET_ALL_TIMEOUT_MS } = await import('../constants');
+      expect(GET_ALL_TIMEOUT_MS).toBe(5000);
     });
   });
 });

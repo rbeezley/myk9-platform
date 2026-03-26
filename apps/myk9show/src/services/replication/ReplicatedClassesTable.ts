@@ -105,7 +105,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
 
     // CamelCase fields
     element: (dbRow.element as string | undefined) ?? undefined,
-    section: (dbRow.division as string | undefined) ?? undefined,
+    section: (dbRow.section as string | undefined) ?? undefined,
     areaCount: (dbRow.area_count as number | undefined) ?? undefined,
     timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
@@ -204,7 +204,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       start_time: cls.startTime ?? null,
       estimated_duration: cls.estimatedDuration ?? null,
       element: cls.element ?? null,
-      division: cls.section ?? null,
+      section: cls.section ?? null,
       num_areas: cls.areaCount ?? null,
       time_limit_seconds: cls.timeLimitSeconds ?? null,
       timer_mode: cls.timerMode ?? null,

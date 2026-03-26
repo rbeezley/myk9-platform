@@ -291,11 +291,12 @@ export const getEntriesByTrial = async (trialId: string) => {
             email
           )
         ),
-        class:class_id (
+        class:class_id!inner (
           id,
           name,
           class_number,
-          entry_fee
+          entry_fee,
+          trial_id
         ),
         promo_code:promo_code_id (
           id,
@@ -305,7 +306,7 @@ export const getEntriesByTrial = async (trialId: string) => {
         )
       `
       )
-      .eq('trial_id', trialId)
+      .eq('class.trial_id', trialId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 

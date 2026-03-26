@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-26-table-standardization-design.md`
 
+**Important notes for implementers:**
+
+- **Date sorting:** TanStack's built-in `sortingFn: 'datetime'` may not parse plain date strings like `'2026-05-09'`. If sorting doesn't work correctly, use a custom sort function: `sortingFn: (rowA, rowB, colId) => new Date(rowA.getValue(colId)).getTime() - new Date(rowB.getValue(colId)).getTime()`
+- **Existing tests:** When migrating a table from raw HTML to DataTable, existing tests for that component may assert on the old HTML structure (e.g., `<th>`, `<td>`, specific CSS classes). Check for existing test files and update assertions to work with DataTable's structure (e.g., sort buttons in headers, `data-datatable` wrapper).
+- **Parent component contracts:** Before removing props from a component (e.g., `globalFilter`/`onGlobalFilterChange` from TrialClassesTable), search for all import sites to verify no parent depends on those props. If a parent passes them, update the parent too.
+
 ---
 
 ## Phase 1: Infrastructure
@@ -238,27 +244,39 @@ import { DataTableSearch } from './data-table-search';
 import { DataTableColumnToggle } from './data-table-column-toggle';
 ```
 
-Add `tableId` to the props interface:
+Add `tableId` and `initialSorting` to the props interface:
 
 ```typescript
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   tableId?: string; // NEW — enables persistent column visibility + default toolbar
+  initialSorting?: SortingState; // [ADDED] — default sort order on first render
   pageSize?: number;
   // ... rest unchanged
 }
 ```
 
-Add `tableId` to the destructured props:
+Add `tableId` and `initialSorting` to the destructured props:
 
 ```typescript
 export function DataTable<TData>({
   columns,
   data,
   tableId, // NEW
+  initialSorting, // [ADDED]
   pageSize = 25,
   // ... rest unchanged
+```
+
+Replace the sorting state initializer to use `initialSorting`:
+
+```typescript
+// BEFORE:
+const [sorting, setSorting] = useState<SortingState>([]);
+
+// AFTER:
+const [sorting, setSorting] = useState<SortingState>(initialSorting ?? []);
 ```
 
 Replace the column visibility state with the persistent hook:
@@ -1116,9 +1134,16 @@ Replace the table view branch with:
   tableId="classesTab"
   columns={classColumns}
   data={tableData}
+  initialSorting={[
+    { id: 'trialLabel', desc: false },
+    { id: 'element', desc: false },
+    { id: 'level', desc: false },
+  ]}
   onRowClick={cls => navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)}
 />
 ```
+
+`[ADDED]` — `initialSorting` sets the default sort order per the spec: Trial asc, Element asc, Level asc.
 
 Keep card view branch unchanged (still uses `groupedByTrial`). The `groupedByTrial` useMemo remains for card view rendering.
 
@@ -1337,6 +1362,8 @@ git commit -m "feat(user-activity): migrate card grid to DataTable with search, 
 **Group C — Uses external search (needs toolbar migration):**
 
 - `apps/myk9show/src/components/trials/TrialDetail/TrialClassesTable.tsx` → add `tableId="trialClasses"` + add custom toolbar with `DataTableSearch` + `DataTableColumnToggle`, remove external `globalFilter`/`onGlobalFilterChange` props and the external search `<Input>`
+
+`[ADDED]` **Before modifying TrialClassesTable:** Search for all imports to verify no parent passes `globalFilter` or `onGlobalFilterChange` as props. If a parent depends on them, update the parent too. Run: `grep -rn "TrialClassesTable" apps/myk9show/src --include="*.tsx"` to find all usage sites.
 
 - [ ] **Step 1: Update Group A tables (7 files)**
 

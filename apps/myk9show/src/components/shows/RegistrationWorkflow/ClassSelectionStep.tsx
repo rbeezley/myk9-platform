@@ -221,9 +221,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     }
   };
 
-  // Waitlist handler — will be re-enabled when availability badges are added
-  // const handleJoinWaitlist = async (dogId: string, classId: string) => { ... };
-
   if (selectedDogs.length === 0) {
     return (
       <Alert>
@@ -237,7 +234,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Select Classes</h3>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Choose which classes each dog will enter. Select all that apply.
         </p>
       </div>

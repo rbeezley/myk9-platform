@@ -10,23 +10,6 @@ export interface ClassSelectionStepProps {
   onHandlerAssignmentChange?: (assignments: Record<string, HandlerInfo>) => void;
 }
 
-export interface ClassWithTrial {
-  classData: {
-    id: string;
-    name: string;
-    description?: string | undefined;
-    fee?: number | undefined;
-    entryFee?: number | undefined;
-    className?: string | undefined;
-    requiresJumpHeight?: boolean | undefined;
-  } & Record<string, unknown>;
-  trial: {
-    id: string;
-    name: string;
-    date: string;
-  };
-}
-
 export interface LevelInfo {
   classId: string;
   level: string;

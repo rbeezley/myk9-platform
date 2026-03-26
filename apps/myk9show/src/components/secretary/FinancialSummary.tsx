@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { queryKeys, cacheStrategies } from '@/lib/queryClient';
+import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { exportToCSV } from '@/lib/export';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,6 @@ import {
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Download, DollarSign, Users, Tag, Gift, Loader2, Search } from 'lucide-react';
-import { getEntriesByTrial } from '@/services/database/queries/entry-query-lookups';
 import { paymentStatusColors } from '@/lib/financial-constants';
 
 interface FinancialSummaryProps {
@@ -48,16 +46,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const { data: rawEntries = [], isLoading } = useQuery({
-    queryKey: queryKeys.trialFinancialSummary(trialId),
-    queryFn: async () => {
-      const { data, error } = await getEntriesByTrial(trialId);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!trialId,
-    ...cacheStrategies.dynamic,
-  });
+  const { data: rawEntries = [], isLoading } = useTrialEntries(trialId);
 
   // Map raw entries to display rows
   const entries: EntryRow[] = useMemo(

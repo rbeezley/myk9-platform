@@ -8,9 +8,7 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
 import { compareLevels } from '@/utils/schedule-summary';
-import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useCartStore, useCartItems } from '@/stores/cartStore';
-import { useEntryEligibility } from '@/hooks/useEntryEligibility';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { toast } from 'sonner';
@@ -57,21 +55,15 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const { profile: exhibitorProfile } = useExhibitorProfile();
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
-  // Keep cart processing state — used by handleClassToggle, will be consumed by availability badges
-  const [_isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
+  const [, setIsAddingToCart] = useState<string | null>(null);
 
-  // Cart store
   const cartItems = useCartItems();
   const loadCart = useCartStore(state => state.loadCart);
   const createCart = useCartStore(state => state.createCart);
   const addItem = useCartStore(state => state.addItem);
   const removeItem = useCartStore(state => state.removeItem);
 
-  // Check for existing entries
   const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
-
-  // Pre-fetch class availability data — results will be consumed when availability badges are added
-  useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
   const showTrials = useMemo(
@@ -107,6 +99,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // Build grouped class data: Map<trialId, ElementGroup[]>
   const classesByTrialElement = useMemo(() => {
     const result = new Map<string, ElementGroup[]>();
+    const defaultFee = getClassFee(show, { entryFee: undefined });
 
     for (const trial of showTrials) {
       const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
@@ -144,12 +137,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         const isSingleClass = classEntries.length === 1 && !classEntries[0].displayLabel;
         elementGroups.push({
           element,
-          fee: getClassFee(show, { entryFee: undefined }),
+          fee: defaultFee,
           levels: classEntries.map(entry => ({
-            classId: entry.classId,
-            level: entry.level,
-            section: entry.section,
-            displayLabel: entry.displayLabel,
+            ...entry,
             isSelected: false,
             isAlreadyEntered: false,
           })),
@@ -162,28 +152,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
     return result;
   }, [showTrials, trialClasses, show]);
-
-  const allClassIds = useMemo(() => {
-    const ids: string[] = [];
-    for (const groups of classesByTrialElement.values()) {
-      for (const group of groups) {
-        for (const level of group.levels) {
-          ids.push(level.classId);
-        }
-      }
-    }
-    return ids;
-  }, [classesByTrialElement]);
-
-  // Keep eligibility hook — results will be consumed by availability badges
-  const { checkEligibility: _checkEligibility } = useEntryEligibility({
-    showId,
-    dogIds: selectedDogs,
-    classIds: allClassIds,
-  });
-
-  // Availability map — will be re-enabled when availability badges are added
-  // const availabilityMap = useMemo(() => buildAvailabilityMap(classAvailability), [classAvailability]);
 
   // Initialize cart on mount — uses exhibitor_profiles.id (not auth user id)
   const exhibitorId = exhibitorProfile?.id;
@@ -300,7 +268,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                 <CardContent className="pt-4">
                   {showTrials.length === 0 ? (
                     <NoTrialsAlert />
-                  ) : allClassIds.length === 0 ? (
+                  ) : classesByTrialElement.size === 0 ? (
                     <NoClassesAlert trialCount={showTrials.length} />
                   ) : (
                     <div className="space-y-2">

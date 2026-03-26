@@ -1,53 +1,7 @@
 import type { ClassSelectionData } from '@/types/show-registration-types';
 import type { Dog } from '@/types/dog-types';
-import type { ClassAvailability } from '@/hooks/useClassAvailability';
 import type { CartItemWithDetails } from '@/stores/cartStore';
-import type { ClassWithTrial } from './ClassSelectionStep.types';
 import { getShowEntryFee, type ShowFeeInfo } from './PaymentStep/utils';
-
-/**
- * Build a Map for quick availability lookup by classId.
- */
-export function buildAvailabilityMap(
-  classAvailability: ClassAvailability[]
-): Map<string, ClassAvailability> {
-  const map = new Map<string, ClassAvailability>();
-  classAvailability.forEach(ca => map.set(ca.classId, ca));
-  return map;
-}
-
-/**
- * Group classes by their parent trial.
- */
-export function buildClassesWithTrials<
-  T extends { id: string; trialId?: string | undefined; className?: string | undefined },
->(
-  showTrials: Array<{ id: string; name?: string | undefined; trialDate?: string | undefined }>,
-  classes: T[],
-  showStartDate: string | undefined
-): ClassWithTrial[] {
-  const grouped: ClassWithTrial[] = [];
-
-  showTrials.forEach(trial => {
-    const trialClasses = (classes || []).filter(c => c.trialId === trial.id);
-
-    trialClasses.forEach(classData => {
-      grouped.push({
-        classData: {
-          ...classData,
-          name: classData.className || 'Unnamed Class',
-        },
-        trial: {
-          id: trial.id,
-          name: trial.name || '',
-          date: trial.trialDate || showStartDate || '',
-        },
-      });
-    });
-  });
-
-  return grouped;
-}
 
 /**
  * Find a dog by ID from the dogs array.

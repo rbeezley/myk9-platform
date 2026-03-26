@@ -104,7 +104,10 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
         icon={Search}
         title="No entries in this show"
         description="You haven't entered any classes in this show yet."
-        action={{ label: 'Browse Classes', onClick: () => {} }}
+        action={{
+          label: 'Browse Classes',
+          onClick: () => navigate(`/shows/${showId}?tab=classes`),
+        }}
       />
     );
   }

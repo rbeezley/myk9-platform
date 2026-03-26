@@ -20,6 +20,7 @@ import {
   DELETE_DB_TIMEOUT_MS,
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
+import { withTimeout } from '../mutation-utils';
 
 /**
  * Object store names for the replication system
@@ -234,17 +235,7 @@ export class DatabaseManager {
       return db;
     });
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(
-          new Error(
-            `Database open timed out after ${DB_INIT_TIMEOUT_MS}ms - database may be corrupted or locked`
-          )
-        );
-      }, DB_INIT_TIMEOUT_MS);
-    });
-
-    return Promise.race([openDBPromise, timeoutPromise]);
+    return withTimeout(openDBPromise, DB_INIT_TIMEOUT_MS, 'Database open');
   }
 
   /**
@@ -363,7 +354,6 @@ export class DatabaseManager {
     } catch (error) {
       this.logger.error(`[DatabaseManager] Failed to open database:`, error);
 
-      // Use circuit breaker recovery instead of legacy recoverFromCorruption()
       dbInitInProgress = false;
       dbInitPromise = null;
       sharedDB = null;
@@ -447,10 +437,8 @@ export class DatabaseManager {
    * Reset the failure counter (called after a successful operation)
    */
   resetFailures(): void {
-    if (this.consecutiveFailures > 0) {
-      this.consecutiveFailures = 0;
-    }
-    this.circuitOpen = false;
+    if (this.consecutiveFailures > 0) this.consecutiveFailures = 0;
+    if (this.circuitOpen) this.circuitOpen = false;
   }
 
   /**
@@ -462,7 +450,6 @@ export class DatabaseManager {
 
     this.logger.warn(`[DatabaseManager] Starting auto-recovery...`);
 
-    // Step 1: Force-close existing connection
     if (sharedDB) {
       try {
         sharedDB.close();
@@ -471,21 +458,15 @@ export class DatabaseManager {
       }
     }
 
-    // Step 2: Null out all module-level state
     sharedDB = null;
     dbInitPromise = null;
     dbInitInProgress = false;
     tableInitQueue = Promise.resolve();
     tablesInitialized = 0;
 
-    // Step 3: Try to delete IndexedDB (with short timeout — may hang if locked)
+    // Short timeout — deleteDB hangs when the DB is locked
     try {
-      await Promise.race([
-        deleteDB(this.dbName),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('deleteDB timed out')), DELETE_DB_TIMEOUT_MS)
-        ),
-      ]);
+      await withTimeout(deleteDB(this.dbName), DELETE_DB_TIMEOUT_MS, 'deleteDB');
       this.logger.log(`[DatabaseManager] IndexedDB deleted successfully`);
     } catch {
       this.logger.warn(
@@ -493,7 +474,6 @@ export class DatabaseManager {
       );
     }
 
-    // Step 4: Try to re-open fresh
     try {
       dbInitPromise = this.openDatabaseWithTimeout();
       sharedDB = await dbInitPromise;
@@ -504,12 +484,10 @@ export class DatabaseManager {
       sharedDB = null;
     }
 
-    // Step 5: Reset circuit breaker state
     this.consecutiveFailures = 0;
     this.circuitOpen = false;
     this.isRecovering = false;
 
-    // Step 6: Emit recovery event for the app layer
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('replication:recovery', { detail: { reason: 'circuit-breaker' } })

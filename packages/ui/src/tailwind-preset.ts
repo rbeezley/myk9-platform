@@ -151,9 +151,9 @@ export const myk9Preset: Partial<Config> = {
 
       // Shadows
       boxShadow: {
-        card: 'var(--shadow-card, 0 1px 2px rgba(180, 160, 130, 0.06), 0 4px 12px rgba(180, 160, 130, 0.08))',
+        card: 'var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03))',
         'card-hover':
-          'var(--shadow-card-hover, 0 2px 4px rgba(180, 160, 130, 0.08), 0 12px 32px rgba(180, 160, 130, 0.12))',
+          'var(--shadow-card-hover, 0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06))',
         dialog: '0 24px 48px rgba(0, 0, 0, 0.15)',
         button: '0 4px 12px rgba(0, 122, 255, 0.3)',
       },

@@ -111,7 +111,7 @@ describe('DatabaseManager', () => {
 describe('Transaction tracking', () => {
   it('should track active transactions', () => {
     let resolvePromise: () => void;
-    const txPromise = new Promise<void>((resolve) => {
+    const txPromise = new Promise<void>(resolve => {
       resolvePromise = resolve;
     });
 
@@ -125,7 +125,7 @@ describe('Transaction tracking', () => {
 
   it('should remove completed transactions', async () => {
     let resolvePromise: () => void;
-    const txPromise = new Promise<void>((resolve) => {
+    const txPromise = new Promise<void>(resolve => {
       resolvePromise = resolve;
     });
 
@@ -135,7 +135,7 @@ describe('Transaction tracking', () => {
 
     // Wait for finally callback
     await txPromise;
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise(r => setTimeout(r, 10));
 
     expect(getActiveTransactionCount()).toBe(initialCount);
   });
@@ -143,8 +143,12 @@ describe('Transaction tracking', () => {
   it('should wait for all active transactions', async () => {
     let resolve1: () => void;
     let resolve2: () => void;
-    const tx1 = new Promise<void>((r) => { resolve1 = r; });
-    const tx2 = new Promise<void>((r) => { resolve2 = r; });
+    const tx1 = new Promise<void>(r => {
+      resolve1 = r;
+    });
+    const tx2 = new Promise<void>(r => {
+      resolve2 = r;
+    });
 
     trackTransaction(tx1);
     trackTransaction(tx2);
@@ -160,23 +164,122 @@ describe('Transaction tracking', () => {
     const initialCount = getActiveTransactionCount();
 
     let resolve1: () => void;
-    const tx1 = new Promise<void>((r) => { resolve1 = r; });
+    const tx1 = new Promise<void>(r => {
+      resolve1 = r;
+    });
     trackTransaction(tx1);
     expect(getActiveTransactionCount()).toBe(initialCount + 1);
 
     resolve1!();
     await tx1;
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise(r => setTimeout(r, 10));
     expect(getActiveTransactionCount()).toBe(initialCount);
 
     let resolve2: () => void;
-    const tx2 = new Promise<void>((r) => { resolve2 = r; });
+    const tx2 = new Promise<void>(r => {
+      resolve2 = r;
+    });
     trackTransaction(tx2);
     expect(getActiveTransactionCount()).toBe(initialCount + 1);
 
     resolve2!();
     await tx2;
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise(r => setTimeout(r, 10));
     expect(getActiveTransactionCount()).toBe(initialCount);
+  });
+});
+
+describe('Circuit breaker', () => {
+  let dbManager: DatabaseManager;
+
+  beforeEach(async () => {
+    const { databaseManager: singletonMgr } = await import('./DatabaseManager');
+    await singletonMgr.reset();
+    dbManager = new DatabaseManager({}, 'test-circuit-' + Date.now(), 5);
+  });
+
+  afterEach(async () => {
+    await dbManager.reset();
+  });
+
+  it('should start with zero failures and circuit closed', () => {
+    const status = dbManager.getStatus();
+    expect(status.consecutiveFailures).toBe(0);
+    expect(status.circuitOpen).toBe(false);
+  });
+
+  it('should increment failure count on recordFailure()', () => {
+    dbManager.recordFailure();
+    expect(dbManager.getStatus().consecutiveFailures).toBe(1);
+
+    dbManager.recordFailure();
+    expect(dbManager.getStatus().consecutiveFailures).toBe(2);
+  });
+
+  it('should reset failure count on resetFailures()', () => {
+    dbManager.recordFailure();
+    dbManager.recordFailure();
+    dbManager.resetFailures();
+
+    const status = dbManager.getStatus();
+    expect(status.consecutiveFailures).toBe(0);
+    expect(status.circuitOpen).toBe(false);
+  });
+
+  it('should trip circuit after threshold consecutive failures', async () => {
+    // Listen for the recovery event
+    let recoveryFired = false;
+    const handler = () => {
+      recoveryFired = true;
+    };
+    window.addEventListener('replication:recovery', handler);
+
+    dbManager.recordFailure();
+    dbManager.recordFailure();
+    expect(dbManager.isCircuitOpen()).toBe(false);
+
+    dbManager.recordFailure(); // threshold = 3
+
+    // Recovery is async — give it a tick to complete
+    await new Promise(r => setTimeout(r, 100));
+
+    expect(recoveryFired).toBe(true);
+
+    // After recovery completes, circuit resets
+    expect(dbManager.getStatus().consecutiveFailures).toBe(0);
+    expect(dbManager.getStatus().circuitOpen).toBe(false);
+
+    window.removeEventListener('replication:recovery', handler);
+  });
+
+  it('should recover even when deleteDB would time out', async () => {
+    let recoveryFired = false;
+    const handler = () => {
+      recoveryFired = true;
+    };
+    window.addEventListener('replication:recovery', handler);
+
+    // Trip the circuit breaker
+    dbManager.recordFailure();
+    dbManager.recordFailure();
+    dbManager.recordFailure();
+
+    // Wait for async recovery
+    await new Promise(r => setTimeout(r, 500));
+
+    expect(recoveryFired).toBe(true);
+    expect(dbManager.getStatus().consecutiveFailures).toBe(0);
+
+    window.removeEventListener('replication:recovery', handler);
+  });
+
+  it('should reset failure count and circuit state on reset()', async () => {
+    dbManager.recordFailure();
+    dbManager.recordFailure();
+    await dbManager.reset();
+
+    const status = dbManager.getStatus();
+    expect(status.consecutiveFailures).toBe(0);
+    expect(status.circuitOpen).toBe(false);
   });
 });

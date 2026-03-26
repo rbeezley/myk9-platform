@@ -477,7 +477,7 @@ select {
   }
 }
 
-/* Global scrollbar — thin, warm-tinted, appears on hover */
+/* Global scrollbar — thin, neutral, appears on hover */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -488,12 +488,12 @@ select {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(180, 160, 130, 0.25);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(180, 160, 130, 0.4);
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .dark ::-webkit-scrollbar-thumb {
@@ -507,7 +507,7 @@ select {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(180, 160, 130, 0.25) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
 .dark * {

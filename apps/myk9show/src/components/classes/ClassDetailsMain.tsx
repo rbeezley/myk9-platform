@@ -70,9 +70,9 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
     [classEntries, dogs, classData, classConfig]
   );
 
-  // Handle results submission from BulkResultEntry
+  // Handle results submission from ClassResultsTable
   const handleResultsSubmit = React.useCallback(
-    async (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => {
+    async (results: (ScentWorkResult | MultiAreaScentWorkResult)[], clearedEntryIds?: string[]) => {
       if (!onResultUpdate) return;
 
       try {
@@ -91,6 +91,16 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
           };
 
           await onResultUpdate(result.entryId, entryUpdate);
+        }
+
+        if (clearedEntryIds?.length) {
+          for (const entryId of clearedEntryIds) {
+            await onResultUpdate(entryId, {
+              time: '',
+              score: '',
+              placement: '',
+            });
+          }
         }
       } catch (error) {
         logger.error('Error submitting results:', 'classes', {}, error as Error);

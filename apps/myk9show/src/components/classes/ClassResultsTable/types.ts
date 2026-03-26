@@ -15,7 +15,10 @@ export interface ClassResultsTableProps {
   entries: ScentWorkEntry[];
   classConfig: ScentWorkClassConfig;
   userPermissions: UserPermissions;
-  onResultsSubmit: (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => Promise<void>;
+  onResultsSubmit: (
+    results: (ScentWorkResult | MultiAreaScentWorkResult)[],
+    clearedEntryIds?: string[]
+  ) => Promise<void>;
   onDeleteEntry?: ((entryId: string) => void) | undefined;
   onAddEntry?: (() => void) | undefined;
   className?: string | undefined;
@@ -39,6 +42,10 @@ export interface BulkEntryData {
   placement: number | null;
   isValid: boolean;
   hasChanges: boolean;
+  /** Whether this entry had existing result data when initialized */
+  hadExistingData: boolean;
+  /** Whether existing data has been fully cleared (all result fields emptied) */
+  isCleared: boolean;
   /** Track which fields were modified */
   modifiedFields?: Set<keyof BulkEntryData> | undefined;
   /** Who last edited this result */
@@ -53,5 +60,6 @@ export interface ResultsSummary {
   entriesWithData: number;
   validEntries: number;
   invalidEntries: number;
+  clearedEntries: number;
   canSubmit: boolean;
 }

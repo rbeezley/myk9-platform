@@ -28,7 +28,10 @@ interface UseClassResultsParams {
   entries: ScentWorkEntry[];
   classConfig: ScentWorkClassConfig;
   userPermissions: UserPermissions;
-  onResultsSubmit: (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => Promise<void>;
+  onResultsSubmit: (
+    results: (ScentWorkResult | MultiAreaScentWorkResult)[],
+    clearedEntryIds?: string[]
+  ) => Promise<void>;
 }
 
 export function useClassResults({
@@ -85,6 +88,8 @@ export function useClassResults({
           qualification = 'Qualified';
         }
 
+        const hadExistingData = !!(searchTime || qualification);
+
         const bulkEntry: BulkEntryData = {
           entryId: entry.id,
           armband: entry.displayInfo.armband,
@@ -102,6 +107,8 @@ export function useClassResults({
           placement: null, // Will be calculated
           isValid: !!(searchTime && qualification),
           hasChanges: false,
+          hadExistingData,
+          isCleared: false,
           modifiedFields: new Set<keyof BulkEntryData>(),
           lastEditedBy: competitionData?.recordedBy || existingData?.recordedBy,
           lastEditedAt: existingData?.recordedAt,
@@ -119,17 +126,25 @@ export function useClassResults({
   // Summary statistics
   // ---------------------------------------------------------------------------
   const summary: ResultsSummary = useMemo(() => {
-    const totalEntries = bulkData.length;
-    const entriesWithData = bulkData.filter(item => item.hasChanges && item.isValid).length;
-    const validEntries = bulkData.filter(item => item.isValid).length;
-    const invalidEntries = bulkData.filter(item => item.hasChanges && !item.isValid).length;
+    let clearedEntries = 0;
+    let entriesWithData = 0;
+    let validEntries = 0;
+    let invalidEntries = 0;
+    for (const item of bulkData) {
+      if (item.isCleared) clearedEntries++;
+      else if (item.hasChanges && item.isValid) entriesWithData++;
+      if (item.isValid) validEntries++;
+      if (item.hasChanges && !item.isValid) invalidEntries++;
+    }
+    const hasSubmittableWork = (entriesWithData > 0 || clearedEntries > 0) && invalidEntries === 0;
 
     return {
-      totalEntries,
+      totalEntries: bulkData.length,
       entriesWithData,
       validEntries,
       invalidEntries,
-      canSubmit: validEntries > 0 && invalidEntries === 0 && userPermissions.canEditEntries,
+      clearedEntries,
+      canSubmit: hasSubmittableWork && userPermissions.canEditEntries,
     };
   }, [bulkData, userPermissions.canEditEntries]);
 
@@ -175,6 +190,20 @@ export function useClassResults({
           hasFaults ||
           hasNotes
         );
+
+        if (
+          item.hadExistingData &&
+          !hasTime &&
+          !hasQualification &&
+          !hasQualificationReason &&
+          !hasFaults &&
+          !hasNotes
+        ) {
+          item.isCleared = true;
+          item.hasChanges = true;
+        } else {
+          item.isCleared = false;
+        }
 
         const validation = validateEntry(item);
         item.isValid = validation.isValid;
@@ -256,8 +285,10 @@ export function useClassResults({
     setSubmitError(null);
 
     try {
+      const clearedEntryIds = bulkData.filter(item => item.isCleared).map(item => item.entryId);
+
       const validResults = bulkData
-        .filter(item => item.hasChanges && item.isValid)
+        .filter(item => item.hasChanges && item.isValid && !item.isCleared)
         .map(item => {
           const searchTime = item.searchTime ? timeStringToMs(item.searchTime) : 0;
           const result: ScentWorkResult = {
@@ -276,12 +307,12 @@ export function useClassResults({
           return result;
         });
 
-      if (validResults.length === 0) {
+      if (validResults.length === 0 && clearedEntryIds.length === 0) {
         setSubmitError('No valid results to submit');
         return;
       }
 
-      await onResultsSubmit(validResults);
+      await onResultsSubmit(validResults, clearedEntryIds.length > 0 ? clearedEntryIds : undefined);
 
       // Clear modified fields after successful submission
       setBulkData(prev =>

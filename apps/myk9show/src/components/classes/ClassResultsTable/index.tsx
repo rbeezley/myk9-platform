@@ -19,6 +19,21 @@ import { DogInfoTooltip } from './DogInfoTooltip';
 import { QualificationCell } from './QualificationCell';
 import { StatusBadge } from './StatusBadge';
 
+function getSubmitLabel(
+  summary: { entriesWithData: number; clearedEntries: number },
+  isSubmitting: boolean
+): string {
+  if (isSubmitting) return 'Submitting...';
+  if (summary.clearedEntries > 0 && summary.entriesWithData === 0) {
+    const n = summary.clearedEntries;
+    return `Clear ${n} Result${n !== 1 ? 's' : ''}`;
+  }
+  if (summary.clearedEntries > 0) {
+    return `Submit ${summary.entriesWithData} / Clear ${summary.clearedEntries}`;
+  }
+  return `Submit ${summary.entriesWithData} Results`;
+}
+
 export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   entries,
   classConfig,
@@ -317,7 +332,11 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             getRowId={row => row.entryId}
             pageSize={9999}
             getRowClassName={row =>
-              row.hasChanges && !row.isValid ? 'bg-red-50 dark:bg-red-950/20' : ''
+              row.isCleared
+                ? 'bg-amber-50 dark:bg-amber-950/20'
+                : row.hasChanges && !row.isValid
+                  ? 'bg-red-50 dark:bg-red-950/20'
+                  : ''
             }
           />
 
@@ -333,9 +352,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 className="myk9-action-button myk9-action-button-primary"
               >
                 <Save className="h-4 w-4" />
-                <span>
-                  {isSubmitting ? 'Submitting...' : `Submit ${summary.entriesWithData} Results`}
-                </span>
+                <span>{getSubmitLabel(summary, isSubmitting)}</span>
               </Button>
             </div>
           )}

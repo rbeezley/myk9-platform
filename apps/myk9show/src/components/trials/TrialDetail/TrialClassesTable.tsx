@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { TrialClass } from '../types/trial.types';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
-import { FileText, LayoutGrid, List, Layers, Search } from 'lucide-react';
+import { Plus, LayoutGrid, List, Layers, Search } from 'lucide-react';
 import { TrialClassesCards } from './TrialClassesCards';
 import { getClassStatusBadgeClasses } from '@myk9/core';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
@@ -188,7 +188,7 @@ export const TrialClassesTable = ({
               onClick={onAddClassesFromTemplate}
               className="myk9-action-button myk9-action-button-primary"
             >
-              <FileText className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
               Add Classes
             </Button>
           )}
@@ -238,7 +238,7 @@ export const TrialClassesTable = ({
               onClick={onAddClassesFromTemplate}
               className="myk9-action-button myk9-action-button-primary"
             >
-              <FileText className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
               Add Classes
             </Button>
           )}

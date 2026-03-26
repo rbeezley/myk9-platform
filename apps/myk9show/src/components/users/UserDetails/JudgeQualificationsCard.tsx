@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Settings } from 'lucide-react';
+import { Award, Plus, Settings } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -155,7 +155,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                           hover:bg-gradient-to-r hover:from-amber-500/5 hover:to-amber-500/10
                           hover:border-amber-500/20 hover:scale-105 transition-all duration-300 px-6 py-3"
               >
-                <Award className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 Add Qualifications
               </Button>
             )}

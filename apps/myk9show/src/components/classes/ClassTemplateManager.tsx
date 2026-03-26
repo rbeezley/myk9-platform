@@ -1,4 +1,4 @@
-import { Zap, ChevronRight, Settings, Plus } from 'lucide-react';
+import { ChevronRight, Settings, Plus } from 'lucide-react';
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -83,7 +83,7 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
-          <Zap className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Add Classes from Template
         </Button>
       </DialogTrigger>

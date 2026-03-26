@@ -4,7 +4,7 @@ import EditExternalShowDialog from './EditExternalShowDialog';
 import ShowDetailsDialog, { ExternalShow } from './ShowDetailsDialog';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Button } from '@/components/ui/button';
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { Eye, Edit, Plus, Trash2 } from 'lucide-react';
 import type { Competition } from '@/types/competition-types';
 import { logger } from '@/services/LoggingService';
 
@@ -39,7 +39,8 @@ export default function ExternalShowsSection({
           }}
           variant="default"
         >
-          + Add Show
+          <Plus className="h-4 w-4" />
+          Add Show
         </Button>
       </div>
       {(shows || []).map((show, idx) => (

@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { UserPlus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { ClassWithCapacity } from '@/services/database/queries/dayOfOperationsQueries';
 
 interface ClassAvailabilityTableProps {
@@ -33,7 +33,7 @@ export function ClassAvailabilityTable({ classes, onAddEntry }: ClassAvailabilit
             <CardDescription>Classes with available spots for day-of entries</CardDescription>
           </div>
           <Button onClick={onAddEntry}>
-            <UserPlus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Day-of Entry
           </Button>
         </div>
@@ -57,7 +57,7 @@ export function ClassAvailabilityTable({ classes, onAddEntry }: ClassAvailabilit
                 </TableCell>
               </TableRow>
             ) : (
-              classes.map((cls) => (
+              classes.map(cls => (
                 <TableRow key={cls.id}>
                   <TableCell className="font-medium">
                     {cls.class_number && (

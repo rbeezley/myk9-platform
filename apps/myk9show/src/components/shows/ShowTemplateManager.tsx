@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Settings, Zap, ChevronRight, Filter, Search } from 'lucide-react';
+import { Plus, Settings, ChevronRight, Filter, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -156,7 +156,7 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
-          <Zap className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Add Classes from Template
         </Button>
       </DialogTrigger>

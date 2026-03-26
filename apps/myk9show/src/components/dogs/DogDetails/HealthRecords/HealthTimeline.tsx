@@ -5,20 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { 
-  Calendar, 
-  Heart, 
-  Pill, 
-  Shield, 
-  Stethoscope, 
-  FileText, 
+import {
+  Calendar,
+  Heart,
+  Pill,
+  Shield,
+  Stethoscope,
+  FileText,
   Search,
   Filter,
   Download,
   Upload,
   Clock,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -57,33 +58,33 @@ const eventTypeConfig = {
   vaccination: {
     icon: Shield,
     color: 'bg-green-500',
-    label: 'Vaccination'
+    label: 'Vaccination',
   },
   vet_visit: {
     icon: Stethoscope,
     color: 'bg-blue-500',
-    label: 'Vet Visit'
+    label: 'Vet Visit',
   },
   medication: {
     icon: Pill,
     color: 'bg-purple-500',
-    label: 'Medication'
+    label: 'Medication',
   },
   allergy: {
     icon: AlertTriangle,
     color: 'bg-red-500',
-    label: 'Allergy'
+    label: 'Allergy',
   },
   surgery: {
     icon: Heart,
     color: 'bg-orange-500',
-    label: 'Surgery'
+    label: 'Surgery',
   },
   checkup: {
     icon: CheckCircle,
     color: 'bg-cyan-500',
-    label: 'Checkup'
-  }
+    label: 'Checkup',
+  },
 };
 
 export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimelineProps) {
@@ -97,10 +98,11 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(event =>
-        event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.vetName?.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        event =>
+          event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          event.vetName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -129,7 +131,9 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
     return grouped;
   }, [filteredEvents]);
 
-  const years = Object.keys(eventsByYear).map(Number).sort((a, b) => b - a);
+  const years = Object.keys(eventsByYear)
+    .map(Number)
+    .sort((a, b) => b - a);
 
   const getStatusBadge = (status: string, expiration?: Date) => {
     if (status === 'overdue' || (expiration && expiration < new Date())) {
@@ -156,29 +160,36 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
         {viewMode === 'timeline' && !isLast && (
           <div className="absolute left-6 top-16 w-0.5 h-full bg-border z-0" />
         )}
-        
+
         <div className="flex gap-4">
           {viewMode === 'timeline' && (
-            <div className={cn(
-              "flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center z-10",
-              config.color
-            )}>
+            <div
+              className={cn(
+                'flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center z-10',
+                config.color
+              )}
+            >
               <IconComponent className="h-6 w-6 text-white" />
             </div>
           )}
-          
-          <Card className={cn(
-            "flex-1 cursor-pointer hover:shadow-md transition-shadow",
-            viewMode === 'grid' && "h-full"
-          )} onClick={() => onEventClick?.(event)}>
+
+          <Card
+            className={cn(
+              'flex-1 cursor-pointer hover:shadow-md transition-shadow',
+              viewMode === 'grid' && 'h-full'
+            )}
+            onClick={() => onEventClick?.(event)}
+          >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
                   {viewMode === 'grid' && (
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center",
-                      config.color
-                    )}>
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-full flex items-center justify-center',
+                        config.color
+                      )}
+                    >
                       <IconComponent className="h-4 w-4 text-white" />
                     </div>
                   )}
@@ -202,19 +213,20 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
                 </div>
               </div>
             </CardHeader>
-            
+
             {(event.description || event.attachments?.length || event.cost) && (
               <CardContent className="pt-0">
                 {event.description && (
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {event.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-3">{event.description}</p>
                 )}
-                
+
                 {event.attachments && event.attachments.length > 0 && (
                   <div className="flex gap-2 mb-3">
                     {event.attachments.slice(0, 3).map(attachment => (
-                      <div key={attachment.id} className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded">
+                      <div
+                        key={attachment.id}
+                        className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded"
+                      >
                         <FileText className="h-3 w-3" />
                         {attachment.name}
                       </div>
@@ -226,12 +238,10 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
                     )}
                   </div>
                 )}
-                
+
                 <div className="flex items-center justify-between">
-                  {event.cost && (
-                    <span className="text-sm font-medium">${event.cost}</span>
-                  )}
-                  
+                  {event.cost && <span className="text-sm font-medium">${event.cost}</span>}
+
                   {event.expiration && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
@@ -255,7 +265,7 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
           <Heart className="h-5 w-5" />
           <h2 className="text-xl font-semibold">Health Timeline</h2>
         </div>
-        
+
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
             <Upload className="h-4 w-4 mr-2" />
@@ -266,6 +276,7 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
             Export Timeline
           </Button>
           <Button size="sm" onClick={onAddEvent}>
+            <Plus className="h-4 w-4" />
             Add Event
           </Button>
         </div>
@@ -280,36 +291,40 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search health records..."
-                  value={""}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={''}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <select
-                value={""}
-                onChange={(e) => setFilterType(e.target.value)}
+                value={''}
+                onChange={e => setFilterType(e.target.value)}
                 className="px-3 py-2 border rounded-md text-sm"
               >
                 <option value="all">All Types</option>
                 {Object.entries(eventTypeConfig).map(([key, config]) => (
-                  <option key={key} value={""}>{config.label}</option>
+                  <option key={key} value={''}>
+                    {config.label}
+                  </option>
                 ))}
               </select>
-              
+
               <select
-                value={""}
-                onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
+                value={''}
+                onChange={e => setSelectedYear(e.target.value ? Number(e.target.value) : null)}
                 className="px-3 py-2 border rounded-md text-sm"
               >
                 <option value="">All Years</option>
                 {years.map(year => (
-                  <option key={year} value={""}>{year}</option>
+                  <option key={year} value={''}>
+                    {year}
+                  </option>
                 ))}
               </select>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -341,9 +356,9 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
                 </h3>
                 <div className="space-y-6">
                   {eventsByYear[year].map((event, index) => (
-                    <EventItem 
-                      key={event.id} 
-                      event={event} 
+                    <EventItem
+                      key={event.id}
+                      event={event}
                       isLast={index === eventsByYear[year].length - 1}
                     />
                   ))}
@@ -373,12 +388,12 @@ export function HealthTimeline({ events, onEventClick, onAddEvent }: HealthTimel
             <Heart className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Health Records Found</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {searchTerm || filterType !== 'all' 
+              {searchTerm || filterType !== 'all'
                 ? 'Try adjusting your search or filters'
-                : 'Start tracking your dog\'s health by adding the first record'
-              }
+                : "Start tracking your dog's health by adding the first record"}
             </p>
             <Button onClick={onAddEvent}>
+              <Plus className="h-4 w-4" />
               Add Health Record
             </Button>
           </CardContent>

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, AlertCircle, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { FileText, AlertCircle, Plus, Edit, Trash2 } from 'lucide-react';
 import type { Registration } from '@/types/dog-types';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import type { DogFormData } from './types';
@@ -94,7 +94,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
           className="w-full border-dashed border-2 h-12 hover:border-primary/50 hover:text-primary"
           onClick={onAddRegistration}
         >
-          <PlusCircle className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-2" />
           Add New Registration
         </Button>
       </CardContent>

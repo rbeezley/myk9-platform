@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Save, AlertCircle, ClipboardList, Trophy, Trash2, X } from 'lucide-react';
+import { Save, AlertCircle, ClipboardList, Plus, Trophy, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -320,7 +320,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                   className="myk9-action-button myk9-action-button-primary"
                   size="sm"
                 >
-                  + Add Entry
+                  <Plus className="h-4 w-4" />
+                  Add Entry
                 </Button>
               )}
             </div>

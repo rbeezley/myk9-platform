@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { logger } from '@/services/LoggingService';
 import {
@@ -16,9 +22,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { 
+import {
   Users,
-  UserPlus,
+  Plus,
   Clock,
   AlertTriangle,
   Edit,
@@ -26,7 +32,7 @@ import {
   Mail,
   Phone,
   Award,
-  MapPin
+  MapPin,
 } from 'lucide-react';
 
 export interface Personnel {
@@ -49,7 +55,7 @@ export interface PersonnelRole {
 
 export interface TimeSlot {
   start: string; // HH:MM format
-  end: string;   // HH:MM format
+  end: string; // HH:MM format
   date?: string; // Optional date restriction
 }
 
@@ -88,18 +94,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
   onPersonnelAdd,
   onPersonnelUpdate,
   onPersonnelDelete,
-  onAssignmentChange
+  onAssignmentChange,
 }) => {
   const [activeTab, setActiveTab] = useState('assignments');
   const [addPersonnelOpen, setAddPersonnelOpen] = useState(false);
   const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
 
   // Group classes by time conflicts for assignment validation
-  const detectConflicts = (
-    classId: string, 
-    role: string, 
-    personnelId: string
-  ): string[] => {
+  const detectConflicts = (classId: string, role: string, personnelId: string): string[] => {
     const conflicts: string[] = [];
     const targetClass = classes.find(c => c.id === classId);
     if (!targetClass) return conflicts;
@@ -110,11 +112,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // Check if person has required role
     const hasRole = person.roles.some(r => {
       const roleMap = {
-        'judgeId': 'judge',
-        'gate': 'gate-steward',
-        'table': 'table-steward',
-        'timer': 'timer',
-        'ring': 'ring-steward'
+        judgeId: 'judge',
+        gate: 'gate-steward',
+        table: 'table-steward',
+        timer: 'timer',
+        ring: 'ring-steward',
       };
       return r.type === roleMap[role as keyof typeof roleMap];
     });
@@ -132,11 +134,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     }
 
     // Check time conflicts with other assignments
-    const conflictingAssignments = assignments.filter(a => 
-      a.personnelId === personnelId && 
-      a.classId !== classId &&
-      a.startTime < new Date(targetClass.plannedStartTime || Date.now()) &&
-      a.endTime > new Date(targetClass.plannedStartTime || Date.now())
+    const conflictingAssignments = assignments.filter(
+      a =>
+        a.personnelId === personnelId &&
+        a.classId !== classId &&
+        a.startTime < new Date(targetClass.plannedStartTime || Date.now()) &&
+        a.endTime > new Date(targetClass.plannedStartTime || Date.now())
     );
 
     conflictingAssignments.forEach(assignment => {
@@ -149,19 +152,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
   // Get available personnel for a specific role and class
   const getAvailablePersonnel = (classId: string, role: string): Personnel[] => {
     const roleMap = {
-      'judgeId': 'judge',
-      'gate': 'gate-steward',
-      'table': 'table-steward',
-      'timer': 'timer',
-      'ring': 'ring-steward'
+      judgeId: 'judge',
+      gate: 'gate-steward',
+      table: 'table-steward',
+      timer: 'timer',
+      ring: 'ring-steward',
     };
 
     return personnel.filter(person => {
       // Check if person has the required role
-      const hasRequiredRole = person.roles.some(r => 
-        r.type === roleMap[role as keyof typeof roleMap]
+      const hasRequiredRole = person.roles.some(
+        r => r.type === roleMap[role as keyof typeof roleMap]
       );
-      
+
       if (!hasRequiredRole) return false;
 
       // Check conflicts
@@ -175,13 +178,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const totalRoles = classes.length * 4; // judge + 3 steward roles per class
     const assignedRoles = assignments.length;
     const conflictCount = assignments.reduce((count, a) => count + a.conflicts.length, 0);
-    
+
     return {
       totalRoles,
       assignedRoles,
       unassignedRoles: totalRoles - assignedRoles,
       conflictCount,
-      completionRate: Math.round((assignedRoles / totalRoles) * 100)
+      completionRate: Math.round((assignedRoles / totalRoles) * 100),
     };
   };
 
@@ -193,7 +196,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
       { key: 'judgeId', label: 'Judge', icon: Award },
       { key: 'gate', label: 'Gate Steward', icon: MapPin },
       { key: 'table', label: 'Table Steward', icon: Users },
-      { key: 'timer', label: 'Timer', icon: Clock }
+      { key: 'timer', label: 'Timer', icon: Clock },
     ];
 
     return (
@@ -201,15 +204,16 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="font-medium">{cls.className}</h3>
           <Badge variant="outline">
-            {cls.element}{cls.level ? ` ${cls.level}` : ''}
+            {cls.element}
+            {cls.level ? ` ${cls.level}` : ''}
           </Badge>
         </div>
 
         <div className="grid gap-4">
           {roles.map(role => {
             const available = getAvailablePersonnel(cls.id, role.key);
-            const currentAssignment = assignments.find(a => 
-              a.classId === cls.id && a.role === role.key
+            const currentAssignment = assignments.find(
+              a => a.classId === cls.id && a.role === role.key
             );
 
             return (
@@ -218,12 +222,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                   <role.icon className="h-4 w-4" />
                   {role.label}
                 </Label>
-                
+
                 <Select
                   value={currentAssignment?.personnelId || ''}
-                  onValueChange={(value) => 
-                    onAssignmentChange(cls.id, role.key, value || null)
-                  }
+                  onValueChange={value => onAssignmentChange(cls.id, role.key, value || null)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select personnel..." />
@@ -267,7 +269,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
               <Users className="h-5 w-5" />
               Personnel Management
             </div>
-            <Badge variant={stats.conflictCount > 0 ? "destructive" : "default"}>
+            <Badge variant={stats.conflictCount > 0 ? 'destructive' : 'default'}>
               {stats.completionRate}% complete
             </Badge>
           </CardTitle>
@@ -287,7 +289,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
               <div className="text-sm text-muted-foreground">Unassigned</div>
             </div>
             <div className="text-center">
-              <div className={`text-2xl font-bold ${stats.conflictCount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <div
+                className={`text-2xl font-bold ${stats.conflictCount > 0 ? 'text-red-600' : 'text-green-600'}`}
+              >
                 {stats.conflictCount}
               </div>
               <div className="text-sm text-muted-foreground">Conflicts</div>
@@ -324,9 +328,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
               <div className="grid gap-4">
                 {classes.map(cls => (
                   <Card key={cls.id}>
-                    <CardContent className="pt-4">
-                      {renderAssignmentForm(cls)}
-                    </CardContent>
+                    <CardContent className="pt-4">{renderAssignmentForm(cls)}</CardContent>
                   </Card>
                 ))}
               </div>
@@ -339,7 +341,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 <Dialog open={addPersonnelOpen} onOpenChange={setAddPersonnelOpen}>
                   <DialogTrigger asChild>
                     <Button>
-                      <UserPlus className="h-4 w-4 mr-2" />
+                      <Plus className="h-4 w-4 mr-2" />
                       Add Personnel
                     </Button>
                   </DialogTrigger>
@@ -348,7 +350,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                       <DialogTitle>Add New Personnel</DialogTitle>
                     </DialogHeader>
                     <PersonnelForm
-                      onSave={(person) => {
+                      onSave={person => {
                         onPersonnelAdd(person);
                         setAddPersonnelOpen(false);
                       }}
@@ -387,7 +389,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="flex gap-1">
                           <Button
                             variant="ghost"
@@ -415,18 +417,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             {/* Schedule Tab */}
             <TabsContent value="schedule" className="space-y-4 mt-6">
               <h3 className="font-medium">Personnel Schedule</h3>
-              
+
               <div className="space-y-4">
                 {personnel.map(person => {
                   const personAssignments = assignments.filter(a => a.personnelId === person.id);
-                  
+
                   return (
                     <Card key={person.id}>
                       <CardHeader>
                         <CardTitle className="text-base flex items-center justify-between">
                           {person.name}
                           <Badge variant="outline">
-                            {personAssignments.length} assignment{personAssignments.length !== 1 ? 's' : ''}
+                            {personAssignments.length} assignment
+                            {personAssignments.length !== 1 ? 's' : ''}
                           </Badge>
                         </CardTitle>
                       </CardHeader>
@@ -434,8 +437,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {personAssignments.length > 0 ? (
                           <div className="space-y-2">
                             {personAssignments.map(assignment => (
-                              <div key={`${assignment.classId}-${assignment.role}`} 
-                                   className="flex items-center justify-between p-2 bg-muted rounded">
+                              <div
+                                key={`${assignment.classId}-${assignment.role}`}
+                                className="flex items-center justify-between p-2 bg-muted rounded"
+                              >
                                 <div>
                                   <span className="font-medium">{assignment.className}</span>
                                   <span className="text-sm text-muted-foreground ml-2">
@@ -443,7 +448,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                   </span>
                                 </div>
                                 <div className="text-sm font-mono">
-                                  {assignment.startTime.toTimeString().slice(0, 5)} - 
+                                  {assignment.startTime.toTimeString().slice(0, 5)} -
                                   {assignment.endTime.toTimeString().slice(0, 5)}
                                 </div>
                               </div>
@@ -471,7 +476,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             </DialogHeader>
             <PersonnelForm
               personnel={editingPersonnel}
-              onSave={(updates) => {
+              onSave={updates => {
                 onPersonnelUpdate(editingPersonnel.id, updates);
                 setEditingPersonnel(null);
               }}
@@ -505,14 +510,14 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ personnel, onSave, onCanc
         minBreakBetween: 15,
         preferredElements: [],
         avoidElements: [],
-        canWorkWithJudges: []
-      }
+        canWorkWithJudges: [],
+      },
     }
   );
 
   const handleSave = () => {
     if (!formData.name) return;
-    
+
     const completePersonnel: Personnel = {
       id: personnel?.id || `person-${Date.now()}`,
       name: formData.name!,
@@ -522,7 +527,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ personnel, onSave, onCanc
       certifications: formData.certifications || [],
       availability: formData.availability || [],
       preferences: formData.preferences!,
-      ...(formData.notes !== undefined && { notes: formData.notes })
+      ...(formData.notes !== undefined && { notes: formData.notes }),
     };
 
     onSave(completePersonnel);
@@ -535,7 +540,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ personnel, onSave, onCanc
           <Label>Name *</Label>
           <Input
             value={formData.name || ''}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={e => setFormData({ ...formData, name: e.target.value })}
             placeholder="Full name"
           />
         </div>
@@ -544,7 +549,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ personnel, onSave, onCanc
           <Input
             type="email"
             value={formData.email || ''}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={e => setFormData({ ...formData, email: e.target.value })}
             placeholder="email@example.com"
           />
         </div>
@@ -554,7 +559,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ personnel, onSave, onCanc
         <Label>Phone</Label>
         <Input
           value={formData.phone || ''}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          onChange={e => setFormData({ ...formData, phone: e.target.value })}
           placeholder="(555) 123-4567"
         />
       </div>
@@ -563,7 +568,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ personnel, onSave, onCanc
         <Label>Notes</Label>
         <Textarea
           value={formData.notes || ''}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          onChange={e => setFormData({ ...formData, notes: e.target.value })}
           placeholder="Additional notes about this person..."
           rows={3}
         />

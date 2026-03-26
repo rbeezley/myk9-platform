@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Award, Hash, Settings } from 'lucide-react';
+import { Award, Hash, Plus, Settings } from 'lucide-react';
 import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
 
 interface QualificationsTabProps {
@@ -81,7 +81,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
             </p>
             {canEditQualifications && (
               <Button variant="outline" onClick={onManageQualifications} className="gap-2">
-                <Award className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 Add Qualifications
               </Button>
             )}

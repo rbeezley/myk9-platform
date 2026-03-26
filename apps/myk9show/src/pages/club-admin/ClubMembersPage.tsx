@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
-import { Users, UserPlus, Shield, Search, Trash2, KeyRound } from 'lucide-react';
+import { Users, Plus, Shield, Search, Trash2, KeyRound } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -279,7 +279,7 @@ const ClubMembersPage: React.FC = () => {
             </div>
           </div>
           <Button onClick={() => setShowAddMember(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-2" />
             Add Member
           </Button>
         </div>
@@ -409,7 +409,7 @@ const ClubMembersPage: React.FC = () => {
                       </p>
                       {!searchQuery && (
                         <Button onClick={() => setShowAddMember(true)}>
-                          <UserPlus className="h-4 w-4 mr-2" />
+                          <Plus className="h-4 w-4 mr-2" />
                           Add Member
                         </Button>
                       )}

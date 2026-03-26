@@ -1,7 +1,8 @@
-import React from "react";
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import { Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-import TrialItem from "./TrialItem";
+import TrialItem from './TrialItem';
 
 export interface Trial {
   id: string;
@@ -31,12 +32,14 @@ const TrialsList: React.FC<TrialsListProps> = ({
 }) => (
   <div className="mb-12">
     <div className="flex justify-between items-center mb-6">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-card-foreground">Associated Trials</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-card-foreground">
+        Associated Trials
+      </h2>
       <Button
         className="!rounded-button whitespace-nowrap cursor-pointer"
         onClick={() => setShowAddTrialDialog(true)}
       >
-        <i className="fas fa-plus mr-2"></i>
+        <Plus className="h-4 w-4 mr-2" />
         Add Trial
       </Button>
     </div>
@@ -52,7 +55,7 @@ const TrialsList: React.FC<TrialsListProps> = ({
           </tr>
         </thead>
         <tbody>
-          {trials.map((trial) => (
+          {trials.map(trial => (
             <TrialItem
               key={trial.id}
               trial={trial}

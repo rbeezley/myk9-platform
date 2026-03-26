@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useStoreSubscriptions } from '@/hooks/useStoreSubscriptions';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import {
   ReplicationSyncContext,
   type ReplicationSyncContextValue,
@@ -320,6 +321,18 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:sync-requested', handleSyncRequest);
     return () => window.removeEventListener('replication:sync-requested', handleSyncRequest);
+  }, []);
+
+  // Listen for circuit breaker recovery — show toast and re-sync
+  useEffect(() => {
+    const handleRecovery = (event: Event) => {
+      const { reason } = (event as CustomEvent<{ reason: string }>).detail;
+      logger.warn('IndexedDB recovery triggered', 'replication', { reason });
+      notifications.info('Resyncing local data...');
+      triggerSyncRef.current?.();
+    };
+    window.addEventListener('replication:recovery', handleRecovery);
+    return () => window.removeEventListener('replication:recovery', handleRecovery);
   }, []);
 
   // Invalidate React Query caches when auto-upload completes

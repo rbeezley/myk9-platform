@@ -224,8 +224,8 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
   it('renders ViewToggle with Cards and Table modes', () => {
     renderPage();
 
-    expect(screen.getByText('Cards')).toBeInTheDocument();
-    expect(screen.getByText('Table')).toBeInTheDocument();
+    expect(screen.getByTitle('Cards view')).toBeInTheDocument();
+    expect(screen.getByTitle('Table view')).toBeInTheDocument();
   });
 
   it('renders ResultsCount showing correct numbers', () => {

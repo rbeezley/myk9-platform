@@ -16,39 +16,39 @@
   --brand-gradient: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
 
   /* ===== UI COLORS (Light Theme) ===== */
-  /* Warm premium backgrounds for Hero/Ruler brand archetype */
-  --background: #f8f7f4; /* Warm off-white (was #fefefe) */
-  --foreground: #0a0a0a;
-  --card: #fefdfb; /* Subtle cream tint (was #ffffff) */
-  --card-foreground: #0a0a0a;
-  --muted: #f6f6f6;
-  --muted-foreground: #6b7280;
-  --border: #e5e7eb;
-  --input: #f3f4f6;
-  --input-bg: #efece6;
-  --input-border: #d1d5db;
-  --input-text: #111827;
-  --input-bg-hover: #fafbfc;
+  /* Neutral zinc backgrounds */
+  --background: #f2f2f5;
+  --foreground: #18181b;
+  --card: #ffffff; /* Pure white card surface */
+  --card-foreground: #18181b;
+  --muted: #f2f2f5;
+  --muted-foreground: #71717a;
+  --border: rgba(0, 0, 0, 0.06);
+  --input: #f2f2f5;
+  --input-bg: #f2f2f5;
+  --input-border: #e4e4e7;
+  --input-text: #18181b;
+  --input-bg-hover: #e8e8ec;
   --primary: #14b8a6;
   --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
   --accent-color: var(--primary);
-  --secondary: #f8f7f4; /* Warm off-white (was #f1f5f9) - page container backgrounds */
-  --secondary-foreground: #0f172a;
+  --secondary: #f2f2f5;
+  --secondary-foreground: #18181b;
 
-  /* Neutral Grays (Light Theme) - for theme switching */
-  --surface: #f5f2ed; /* Warm off-white (was #f1f5f9) */
-  --surface-subtle: #f0ede7; /* Very light surface */
-  --surface-muted: #f0ede7; /* Light subtle surface */
-  --surface-elevated: #faf8f4; /* Elevated card/modal background */
-  --background-subtle: #f5f2ed; /* Lightest surface */
-  --background-soft: #f5f2ed; /* Subtle background */
-  --foreground-muted: #374151; /* Muted text color */
-  --foreground-dark: #1e293b; /* Dark text on light bg */
-  --border-light: #e0e0e0; /* Light border */
-  --border-subtle: #e5e7eb; /* Very light border */
-  --text-gray: #6b7280; /* Gray text/muted */
-  --text-light-gray: #9ca3af; /* Light gray text */
+  /* Neutral Grays (Light Theme) */
+  --surface: #f2f2f5;
+  --surface-subtle: #ededf0;
+  --surface-muted: #ededf0;
+  --surface-elevated: #ffffff;
+  --background-subtle: #f2f2f5;
+  --background-soft: #f2f2f5;
+  --foreground-muted: #71717a;
+  --foreground-dark: #18181b;
+  --border-light: #e4e4e7;
+  --border-subtle: #e4e4e7;
+  --text-gray: #71717a;
+  --text-light-gray: #a1a1aa;
 
   /* ===== STATUS COLORS ===== */
   /* Check-in Status Colors */
@@ -189,10 +189,10 @@
   --token-result-withdrawn: #7c3aed;
 
   /* Text Colors */
-  --token-text-primary: #000000;
-  --token-text-secondary: #374151;
-  --token-text-tertiary: #6b7280;
-  --token-text-muted: #9ca3af;
+  --token-text-primary: #18181b;
+  --token-text-secondary: #52525b;
+  --token-text-tertiary: #71717a;
+  --token-text-muted: #a1a1aa;
   --token-text-white: #ffffff;
 
   /* In Ring: Blue (active competing) */
@@ -277,11 +277,11 @@
   --overlay-success: rgba(16, 185, 129, 0.1); /* 13x - green success highlight */
 
   /* Dark theme overlays */
-  --overlay-dark-heavy: rgba(26, 29, 35, 0.8); /* 22x - dark glass morphism */
+  --overlay-dark-heavy: rgba(15, 15, 18, 0.8); /* 22x - dark glass morphism */
 
   /* ===== SKELETON LOADERS ===== */
-  --skeleton-gradient: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  --skeleton-gradient-dark: linear-gradient(90deg, #2a2a2a 25%, #1a1a1a 50%, #2a2a2a 75%);
+  --skeleton-gradient: linear-gradient(90deg, #f2f2f5 25%, #e8e8ec 50%, #f2f2f5 75%);
+  --skeleton-gradient-dark: linear-gradient(90deg, #1a1a1f 25%, #141417 50%, #1a1a1f 75%);
 
   /* ===== HOVER EFFECTS ===== */
   --token-hover-lift: translateY(-2px);

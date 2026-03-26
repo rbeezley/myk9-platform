@@ -8,7 +8,7 @@ const appleInput = {
     'flex h-10 w-full', // 2.5rem height from design tokens
     'px-3.5 py-2.5', // Enhanced padding for touch targets
     'bg-input', // Solid input background - consistent with design system
-    'border-0', // No border for clean design system
+    'border border-[var(--input-border)]', // Visible edge for discoverability
     'rounded-xl', // 12px radius from tokens
     'transition-all duration-200 ease-apple', // standard easing
     'transform-gpu', // GPU acceleration for smoother animations
@@ -32,7 +32,11 @@ const appleInput = {
     'focus-visible:scale-[1.02]',
   ],
   // Hover and interaction states
-  interactive: ['hover:border-border/10', 'hover:bg-background', 'hover:shadow-sm'],
+  interactive: [
+    'hover:border-[var(--input-border-hover)]',
+    'hover:bg-background',
+    'hover:shadow-sm',
+  ],
   // File input styling
   file: [
     'file:border-0',

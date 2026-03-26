@@ -7,21 +7,59 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Plus } from 'lucide-react';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import type { ClassWithCapacity } from '@/services/database/queries/dayOfOperationsQueries';
 
 interface ClassAvailabilityTableProps {
   classes: ClassWithCapacity[];
   onAddEntry: () => void;
 }
+
+const classAvailabilityColumns: ColumnDef<ClassWithCapacity, unknown>[] = [
+  {
+    id: 'class',
+    header: 'Class',
+    accessorFn: row => row.name,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {row.original.class_number && (
+          <span className="text-muted-foreground mr-2">#{row.original.class_number}</span>
+        )}
+        {row.original.name}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'max_entries',
+    header: 'Limit',
+    cell: ({ row }) => <div className="text-center">{row.original.max_entries ?? 'No limit'}</div>,
+  },
+  {
+    accessorKey: 'accepted_count',
+    header: 'Accepted',
+    cell: ({ row }) => <div className="text-center">{row.original.accepted_count}</div>,
+  },
+  {
+    accessorKey: 'available_spots',
+    header: 'Available',
+    cell: ({ row }) => <div className="text-center">{row.original.available_spots}</div>,
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    accessorFn: row => (row.available_spots > 0 ? 'Open' : 'Full'),
+    cell: ({ row }) => (
+      <div className="text-center">
+        {row.original.available_spots > 0 ? (
+          <Badge variant="default">Open</Badge>
+        ) : (
+          <Badge variant="destructive">Full</Badge>
+        )}
+      </div>
+    ),
+  },
+];
 
 export function ClassAvailabilityTable({ classes, onAddEntry }: ClassAvailabilityTableProps) {
   return (
@@ -39,47 +77,12 @@ export function ClassAvailabilityTable({ classes, onAddEntry }: ClassAvailabilit
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Class</TableHead>
-              <TableHead className="text-center">Limit</TableHead>
-              <TableHead className="text-center">Accepted</TableHead>
-              <TableHead className="text-center">Available</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {classes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No classes found
-                </TableCell>
-              </TableRow>
-            ) : (
-              classes.map(cls => (
-                <TableRow key={cls.id}>
-                  <TableCell className="font-medium">
-                    {cls.class_number && (
-                      <span className="text-muted-foreground mr-2">#{cls.class_number}</span>
-                    )}
-                    {cls.name}
-                  </TableCell>
-                  <TableCell className="text-center">{cls.max_entries || 'No limit'}</TableCell>
-                  <TableCell className="text-center">{cls.accepted_count}</TableCell>
-                  <TableCell className="text-center">{cls.available_spots}</TableCell>
-                  <TableCell className="text-center">
-                    {cls.available_spots > 0 ? (
-                      <Badge variant="default">Open</Badge>
-                    ) : (
-                      <Badge variant="destructive">Full</Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          tableId="class-availability"
+          columns={classAvailabilityColumns}
+          data={classes}
+          emptyState="No classes found"
+        />
       </CardContent>
     </Card>
   );

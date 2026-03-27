@@ -34,6 +34,7 @@ export interface TrialInput {
   eventNumber?: string | undefined;
   type?: string | undefined;
   trialType?: string | undefined;
+  sportType?: string | undefined;
   plannedStartTime?: string | undefined;
   order?: string | undefined;
   // Additional fields from Trial interface for updates
@@ -41,17 +42,19 @@ export interface TrialInput {
   timeStarted?: string | undefined;
   timeEnded?: string | undefined;
   // Classes associated with this trial
-  classes?: Array<{
-    id: string;
-    element: string;
-    level: string;
-    section: string;
-    judgeId: string;
-    judgeName?: string | undefined;
-    startTime: string;
-    status: ClassStatusValue;
-    entries: number;
-  }> | undefined;
+  classes?:
+    | Array<{
+        id: string;
+        element: string;
+        level: string;
+        section: string;
+        judgeId: string;
+        judgeName?: string | undefined;
+        startTime: string;
+        status: ClassStatusValue;
+        entries: number;
+      }>
+    | undefined;
 }
 
 export interface TrialClassInput {
@@ -74,7 +77,11 @@ export interface TrialStore {
 
   // Local-First Trial Actions
   addTrial: (trialData: TrialInput, userId: string) => Promise<SyncableTrial>;
-  updateTrial: (id: string, updates: Partial<TrialInput>, userId: string) => Promise<SyncableTrial | null>;
+  updateTrial: (
+    id: string,
+    updates: Partial<TrialInput>,
+    userId: string
+  ) => Promise<SyncableTrial | null>;
   deleteTrial: (id: string) => Promise<void>;
   getTrialById: (id: string) => SyncableTrial | null;
   getTrialsByShow: (showId: string) => SyncableTrial[];
@@ -94,8 +101,17 @@ export interface TrialStore {
 
   // Trial Classes
   trialClasses: Record<string, SyncableTrialClass[]>; // Maps trialId to its classes
-  addTrialClass: (trialId: string, trialClassData: TrialClassInput, userId: string) => Promise<SyncableTrialClass>;
-  updateTrialClass: (trialId: string, classId: string, updates: Partial<TrialClassInput>, userId: string) => Promise<SyncableTrialClass | null>;
+  addTrialClass: (
+    trialId: string,
+    trialClassData: TrialClassInput,
+    userId: string
+  ) => Promise<SyncableTrialClass>;
+  updateTrialClass: (
+    trialId: string,
+    classId: string,
+    updates: Partial<TrialClassInput>,
+    userId: string
+  ) => Promise<SyncableTrialClass | null>;
   deleteTrialClass: (trialId: string, classId: string) => Promise<void>;
   getTrialClassesByTrial: (trialId: string) => SyncableTrialClass[];
 

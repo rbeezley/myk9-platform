@@ -42,22 +42,58 @@ export function useClassResults({
   const [validationErrors] = useState<Map<string, string>>(new Map());
 
   // ---------------------------------------------------------------------------
-  // Initialize bulk data from raw DB entries
+  // Initialize bulk data from raw DB entries.
+  // Only re-initialize when the set of entry IDs changes (new class, entries
+  // added/removed) — NOT when entry objects get new references from store
+  // updates. This prevents the useEffect from overwriting user edits or
+  // just-submitted scores with stale raw data.
   // ---------------------------------------------------------------------------
   const rawEntryMap = useMemo(() => new Map(rawEntries.map(r => [r.id, r])), [rawEntries]);
 
+  const entryIdKey = useMemo(
+    () =>
+      entries
+        .map(e => e.id)
+        .sort()
+        .join(','),
+    [entries]
+  );
+
+  const rawEntryVersionKey = useMemo(
+    () =>
+      rawEntries
+        .map(r => `${r.id}:${r.result_status ?? ''}:${r.search_time_seconds ?? ''}`)
+        .sort()
+        .join(','),
+    [rawEntries]
+  );
+
   useEffect(() => {
-    setBulkData(() => {
+    setBulkData(prev => {
+      // If we already have bulk data for the same entries and the raw data
+      // hasn't changed, keep the current state (preserves user edits).
+      const prevIds = prev
+        .map(b => b.entryId)
+        .sort()
+        .join(',');
+      if (prev.length > 0 && prevIds === entryIdKey) {
+        // Only re-init entries that are new (not in prev)
+        const prevMap = new Map(prev.map(b => [b.entryId, b]));
+        const hasAllEntries = entries.every(e => prevMap.has(e.id));
+        if (hasAllEntries && prev.length === entries.length) {
+          return prev; // No change — keep user edits
+        }
+      }
+
       const newData = entries.map(entry => {
         const raw = rawEntryMap.get(entry.id);
 
-        // Read scoring fields directly from DB columns
         const qualification = mapResultStatusToQualification(raw?.result_status);
         const searchTime = dbSecondsToInputFormat(raw?.search_time_seconds);
 
         const hadExistingData = !!(searchTime || qualification);
 
-        const bulkEntry: BulkEntryData = {
+        return {
           entryId: entry.id,
           armband: entry.displayInfo.armband,
           dogName: entry.displayInfo.dogName,
@@ -73,14 +109,12 @@ export function useClassResults({
           hadExistingData,
           isCleared: false,
           modifiedFields: new Set<keyof BulkEntryData>(),
-        };
-
-        return bulkEntry;
+        } satisfies BulkEntryData;
       });
 
       return calculatePlacements(newData);
     });
-  }, [entries, rawEntryMap]);
+  }, [entryIdKey, rawEntryVersionKey, entries, rawEntryMap]);
 
   // ---------------------------------------------------------------------------
   // Summary statistics

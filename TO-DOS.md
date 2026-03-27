@@ -285,7 +285,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Check-in Status System — 2026-03-26
 
-- [ ] **Check-in status system** — Interactive status badges on entry cards. Exhibitors can set: Checked-in, Conflict, Pulled, At Gate. Secretary/steward can also set: Come to Gate, In Ring (manual), No Status (reset). In Ring is set automatically when scoresheet opens. Requires: database column for entry status, real-time subscription, role-aware status toggle UI. EntryCard's status badge slot and entryStatusConfig.ts are already in place.
+- [x] **Check-in status system** — Done: Added `check_in_status` column (migration 092) with RLS policies (staff update any, exhibitors own only). Shared `CheckInStatusBadge` component reads from `@myk9/core` canonical config (single source of truth for icons, colors, labels). `StatusPickerDialog` modal with role-filtered options (exhibitors 5, staff 8). Real-time Supabase subscription per class via `useCheckInStatusSubscription`. Automatic transitions: in-ring on scoresheet open, completed on score submit (with `ring_entry_time`/`ring_exit_time` timestamps). Status badges on all entry views: ClassResultsTable (cards + table), TrialEntriesTable, MyEntriesTab. Deleted duplicate `entryStatusConfig.ts`. Offline-first via replication layer. Spec: `docs/superpowers/specs/2026-03-27-check-in-status-system-design.md`. Plan: `docs/superpowers/plans/2026-03-27-check-in-status-system.md`.
 
 ---
 

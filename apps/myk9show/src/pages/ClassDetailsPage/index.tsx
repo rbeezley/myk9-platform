@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Pencil, MoreVertical, Trash2, ClipboardList } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
-import { replicatedClassesTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import { useTrialStore } from '@/store/trialStore';
 import { queryClient } from '@/lib/queryClient';
 import { useEntryStore } from '@/store/entryStore';
@@ -182,6 +182,27 @@ const ClassDetailsPage: React.FC = () => {
       };
 
       await updateResult(entryId, storeUpdate, user?.id || 'unknown');
+
+      // Also update DB-level scoring columns that the store doesn't map automatically.
+      // Without this, result_status/is_scored stay stale and reload with old values.
+      const isClearing = !result.status && !result.time && !result.score;
+      const resultStatusMap: Record<string, string> = {
+        Qualified: 'qualified',
+        'Not Qualified': 'nq',
+        Absent: 'absent',
+        Excused: 'excused',
+        Withdrawn: 'withdrawn',
+        Eliminated: 'nq',
+      };
+      await replicatedEntriesTable.updateEntry(entryId, {
+        result_status: isClearing
+          ? 'pending'
+          : result.status
+            ? resultStatusMap[result.status] || 'pending'
+            : undefined,
+        isScored: isClearing ? false : !!(result.time || result.status),
+        is_scored: isClearing ? false : !!(result.time || result.status),
+      });
     } catch (error) {
       logger.error('Failed to update result', 'classes', { entryId }, error as Error);
       throw error;

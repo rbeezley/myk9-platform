@@ -183,7 +183,8 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Classes/ })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /Entries/ })).toBeNull();
-    expect(screen.queryByRole('tab', { name: /Results/ })).toBeNull();
+    // Results tab is now visible to all users (including unauthenticated)
+    expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
   });
 
   it('renders NotFoundState when show does not exist', () => {

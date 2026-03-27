@@ -11,6 +11,7 @@ vi.mock('@/store/announcementStore', async () => {
   const useAnnouncementStore = create<Record<string, unknown>>()(() => ({
     announcements: [],
     unreadCount: 0,
+    currentShowIds: [],
     markRead: vi.fn(),
     markAllRead: vi.fn(),
   }));

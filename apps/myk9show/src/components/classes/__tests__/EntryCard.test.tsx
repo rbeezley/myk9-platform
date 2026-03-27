@@ -80,7 +80,7 @@ describe('EntryCard', () => {
     });
     const badge = screen.getByText(/Come to Gate/);
     expect(badge).toBeInTheDocument();
-    expect(badge.className).toContain('bg-primary');
+    expect(badge).toHaveStyle({ backgroundColor: expect.stringContaining('var(') });
   });
 
   it('shows -- for missing armband', () => {

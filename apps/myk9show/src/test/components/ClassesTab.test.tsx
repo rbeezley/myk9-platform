@@ -7,6 +7,12 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+vi.mock('@/hooks/useRBAC', () => ({
+  useRBAC: () => ({
+    hasPermission: () => false,
+  }),
+}));
+
 let mockViewMode = 'table';
 const mockSetViewMode = vi.fn((m: string) => {
   mockViewMode = m;
@@ -20,13 +26,7 @@ vi.mock('@/hooks/useViewPreference', () => ({
 }));
 
 vi.mock('@/components/common/ViewToggle', () => ({
-  ViewToggle: ({
-    active,
-    onChange,
-  }: {
-    active: string;
-    onChange: (k: string) => void;
-  }) => (
+  ViewToggle: ({ active, onChange }: { active: string; onChange: (k: string) => void }) => (
     <div data-testid="view-toggle">
       <button data-testid="toggle-cards" onClick={() => onChange('cards')}>
         Cards

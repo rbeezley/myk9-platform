@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ClassesTab } from '../ClassesTab';
+
+vi.mock('@/hooks/useRBAC', () => ({
+  useRBAC: () => ({
+    hasPermission: () => false,
+  }),
+}));
 
 function makeClass(overrides: Record<string, unknown> = {}) {
   return {
@@ -30,7 +36,7 @@ function renderTab(classes: ReturnType<typeof makeClass>[]) {
   return render(
     <MemoryRouter>
       <ClassesTab classes={classes} showId="show-1" userHasEntries={false} />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -42,10 +48,7 @@ describe('ClassesTab status filter', () => {
   });
 
   it('shows StatusFilter when classes have mixed statuses', () => {
-    renderTab([
-      makeClass({ status: 'Scheduled' }),
-      makeClass({ status: 'Completed' }),
-    ]);
+    renderTab([makeClass({ status: 'Scheduled' }), makeClass({ status: 'Completed' })]);
     expect(screen.getByRole('button', { name: /All/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Pending/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Completed/ })).toBeInTheDocument();
@@ -72,7 +75,7 @@ describe('ClassesTab status filter', () => {
     // Click the Completed filter button (in the StatusFilter toolbar, not the table badge)
     const filterButtons = screen.getAllByRole('button');
     const completedFilterBtn = filterButtons.find(
-      btn => btn.textContent?.includes('Completed') && btn.textContent?.includes('('),
+      btn => btn.textContent?.includes('Completed') && btn.textContent?.includes('(')
     )!;
     await userEvent.click(completedFilterBtn);
     expect(screen.queryByText('Interior')).not.toBeInTheDocument();
@@ -90,7 +93,7 @@ describe('ClassesTab status filter', () => {
     // Then click All to reset
     const allButtons = screen.getAllByRole('button');
     const allFilterBtn = allButtons.find(
-      btn => btn.textContent?.includes('All') && btn.textContent?.includes('('),
+      btn => btn.textContent?.includes('All') && btn.textContent?.includes('(')
     )!;
     await userEvent.click(allFilterBtn);
     expect(screen.getByText('Exterior')).toBeInTheDocument();

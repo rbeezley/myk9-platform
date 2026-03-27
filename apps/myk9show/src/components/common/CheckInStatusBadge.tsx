@@ -6,9 +6,9 @@ import { CHECKIN_ICON_MAP } from './checkin-icon-map';
 
 interface CheckInStatusBadgeProps {
   status: CheckInStatus;
-  size?: 'sm' | 'md';
-  onClick?: () => void;
-  className?: string;
+  size?: 'sm' | 'md' | undefined;
+  onClick?: (() => void) | undefined;
+  className?: string | undefined;
 }
 
 export function CheckInStatusBadge({

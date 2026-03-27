@@ -1,4 +1,3 @@
-// apps/myk9show/src/components/preferences/ScoringSettings.tsx
 import { useState, useEffect } from 'react';
 import { Volume2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/stores/settingsStore';
 
+function hasSpeechSynthesis() {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window;
+}
+
 export function ScoringSettings() {
   const voiceAnnouncements = useSettingsStore(s => s.settings.voiceAnnouncements);
   const voiceName = useSettingsStore(s => s.settings.voiceName);
@@ -17,11 +20,8 @@ export function ScoringSettings() {
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  // Guard against browsers without Web Speech API
-  const hasSpeechSynthesis = typeof window !== 'undefined' && 'speechSynthesis' in window;
-
   useEffect(() => {
-    if (!hasSpeechSynthesis) return;
+    if (!hasSpeechSynthesis()) return;
 
     const loadVoices = () => {
       const allVoices = window.speechSynthesis.getVoices();
@@ -31,10 +31,10 @@ export function ScoringSettings() {
     loadVoices();
     window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
-  }, [hasSpeechSynthesis]);
+  }, []);
 
   const handleTestVoice = () => {
-    if (!hasSpeechSynthesis) return;
+    if (!hasSpeechSynthesis()) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance('This is a test of your selected voice.');
     const selectedVoice = voices.find(v => v.name === voiceName);
@@ -126,13 +126,13 @@ export function ScoringSettings() {
             variant="outline"
             size="sm"
             onClick={handleTestVoice}
-            disabled={!hasSpeechSynthesis}
+            disabled={!hasSpeechSynthesis()}
           >
             <Volume2 className="h-4 w-4 mr-2" />
             Test Voice
           </Button>
 
-          {!hasSpeechSynthesis && (
+          {!hasSpeechSynthesis() && (
             <p className="text-xs text-muted-foreground mt-2">
               Voice features are not available in this browser.
             </p>

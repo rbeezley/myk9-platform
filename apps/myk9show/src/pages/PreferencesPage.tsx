@@ -3,7 +3,7 @@
  * Full page for user preferences with inline settings navigation
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   Monitor,
@@ -179,19 +179,31 @@ export function PreferencesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const visibleGroups = settingsGroups
-    .map(group => ({
-      ...group,
-      sections: group.sections.filter(
-        section => !section.roleRequired || section.roleRequired.some(role => hasRole(role))
-      ),
-    }))
-    .filter(group => group.sections.length > 0);
+  const visibleGroups = useMemo(
+    () =>
+      settingsGroups
+        .map(group => ({
+          ...group,
+          sections: group.sections.filter(
+            section => !section.roleRequired || section.roleRequired.some(role => hasRole(role))
+          ),
+        }))
+        .filter(group => group.sections.length > 0),
+    [hasRole]
+  );
 
-  const activeSection = visibleGroups.flatMap(g => g.sections).find(s => s.id === activeTab);
+  const activeSection = useMemo(
+    () => visibleGroups.flatMap(g => g.sections).find(s => s.id === activeTab),
+    [visibleGroups, activeTab]
+  );
 
-  const activeGroupId =
-    visibleGroups.find(g => g.sections.some(s => s.id === activeTab))?.id || visibleGroups[0]?.id;
+  const activeGroup = useMemo(
+    () => visibleGroups.find(g => g.sections.some(s => s.id === activeTab)) || visibleGroups[0],
+    [visibleGroups, activeTab]
+  );
+
+  const activeGroupId = activeGroup?.id;
+  const activeGroupSections = activeGroup?.sections;
 
   /**
    * Handle preference updates
@@ -519,29 +531,25 @@ export function PreferencesPage() {
             </button>
           ))}
         </div>
-        {/* Section chips within active group */}
-        {(() => {
-          const activeGroup = visibleGroups.find(g => g.id === activeGroupId);
-          if (!activeGroup || activeGroup.sections.length <= 1) return null;
-          return (
-            <div className="flex gap-1.5 px-4 pb-3 overflow-x-auto">
-              {activeGroup.sections.map(section => (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveTab(section.id)}
-                  className={cn(
-                    'px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors border',
-                    activeTab === section.id
-                      ? 'border-primary/30 bg-primary/10 text-primary font-medium'
-                      : 'border-border bg-background text-muted-foreground'
-                  )}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </div>
-          );
-        })()}
+        {/* Section chips within active group (hidden for single-section groups) */}
+        {activeGroupSections && activeGroupSections.length > 1 && (
+          <div className="flex gap-1.5 px-4 pb-3 overflow-x-auto">
+            {activeGroupSections.map(section => (
+              <button
+                key={section.id}
+                onClick={() => setActiveTab(section.id)}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors border',
+                  activeTab === section.id
+                    ? 'border-primary/30 bg-primary/10 text-primary font-medium'
+                    : 'border-border bg-background text-muted-foreground'
+                )}
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Content */}

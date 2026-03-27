@@ -37,6 +37,8 @@ import type {
   BandwidthMode,
 } from '@/types/user-preferences';
 
+const PRESERVED_KEYS = ['myK9Q_settings'];
+
 interface DataSettingsProps {
   preferences?: DataPreferences | undefined;
   onUpdate: (preferences: Partial<DataPreferences>) => void;
@@ -172,40 +174,43 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
     onUpdate({ maxCacheSize });
   };
 
-  const PRESERVED_KEYS = ['myK9Q_settings', 'supabase.auth.token'];
-
-  const handleClearCache = () => {
+  const handleClearCache = async () => {
     const confirmed = window.confirm(
       'This will clear all cached data and reload the app. Your settings and login will be preserved. Continue?'
     );
     if (!confirmed) return;
 
-    // Clear localStorage except preserved keys
     const preserved = new Map<string, string>();
     for (const key of PRESERVED_KEYS) {
       const value = localStorage.getItem(key);
       if (value !== null) preserved.set(key, value);
+    }
+    // Supabase auth key uses dynamic prefix (sb-<ref>-auth-token)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('sb-') && key.includes('auth-token')) {
+        preserved.set(key, localStorage.getItem(key)!);
+      }
     }
     localStorage.clear();
     for (const [key, value] of preserved) {
       localStorage.setItem(key, value);
     }
 
-    // Clear React Query cache
     queryClient.clear();
 
-    // Clear IndexedDB — databases() not in Firefox; fallback to known names
-    if (window.indexedDB?.databases) {
-      window.indexedDB
-        .databases()
-        .then(dbs => {
-          for (const db of dbs) {
-            if (db.name) window.indexedDB.deleteDatabase(db.name);
-          }
-        })
-        .catch(() => {});
-    } else if (window.indexedDB) {
-      window.indexedDB.deleteDatabase('myK9Q_Replication');
+    // Firefox doesn't support indexedDB.databases()
+    try {
+      if (window.indexedDB?.databases) {
+        const dbs = await window.indexedDB.databases();
+        for (const db of dbs) {
+          if (db.name) window.indexedDB.deleteDatabase(db.name);
+        }
+      } else if (window.indexedDB) {
+        window.indexedDB.deleteDatabase('myK9ShowDB');
+      }
+    } catch {
+      // IndexedDB cleanup is best-effort
     }
 
     window.location.reload();

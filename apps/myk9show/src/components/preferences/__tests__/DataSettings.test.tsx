@@ -59,7 +59,7 @@ describe('DataSettings cache clear', () => {
 
   it('preserves settings and auth keys in localStorage', async () => {
     localStorage.setItem('myK9Q_settings', '{"theme":"dark"}');
-    localStorage.setItem('supabase.auth.token', '{"access_token":"abc"}');
+    localStorage.setItem('sb-abc123-auth-token', '{"access_token":"abc"}');
     localStorage.setItem('myk9-notification-preferences', '{"enabled":true}');
     localStorage.setItem('scroll_shows', '150');
 
@@ -69,7 +69,7 @@ describe('DataSettings cache clear', () => {
 
     // Preserved
     expect(localStorage.getItem('myK9Q_settings')).toBe('{"theme":"dark"}');
-    expect(localStorage.getItem('supabase.auth.token')).toBe('{"access_token":"abc"}');
+    expect(localStorage.getItem('sb-abc123-auth-token')).toBe('{"access_token":"abc"}');
     // Cleared
     expect(localStorage.getItem('myk9-notification-preferences')).toBeNull();
     expect(localStorage.getItem('scroll_shows')).toBeNull();

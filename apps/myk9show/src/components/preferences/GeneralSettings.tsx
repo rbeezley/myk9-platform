@@ -1,4 +1,3 @@
-// apps/myk9show/src/components/preferences/GeneralSettings.tsx
 import { Vibrate } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -6,10 +5,12 @@ import { Label } from '@/components/ui/label';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useHapticFeedback } from '@myk9/scoring-ui';
 
+const ALWAYS_ENABLED = () => true;
+
 export function GeneralSettings() {
   const hapticFeedback = useSettingsStore(s => s.settings.hapticFeedback);
   const updateSettings = useSettingsStore(s => s.updateSettings);
-  const haptic = useHapticFeedback(() => true);
+  const haptic = useHapticFeedback(ALWAYS_ENABLED);
 
   const handleHapticToggle = (checked: boolean) => {
     updateSettings({ hapticFeedback: checked });

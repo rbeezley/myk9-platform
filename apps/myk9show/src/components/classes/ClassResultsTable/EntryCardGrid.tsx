@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
 import { EntryCard, type EntryCardEntry } from './EntryCard';
-import type { EntryStatus } from './entryStatusConfig';
 
 interface EntryCardGridProps {
   entries: ScentWorkEntry[];
@@ -16,8 +15,7 @@ function toCardEntry(entry: ScentWorkEntry): EntryCardEntry {
     dogName: entry.displayInfo.dogName,
     dogBreed: entry.displayInfo.dogBreed,
     handlerName: entry.displayInfo.handlerName,
-    // Default to no_status until check-in system is built
-    status: 'no_status' as EntryStatus,
+    status: 'no-status',
   };
 }
 

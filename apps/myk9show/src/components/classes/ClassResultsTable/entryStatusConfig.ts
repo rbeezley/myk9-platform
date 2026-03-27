@@ -1,11 +1,4 @@
-export type EntryStatus =
-  | 'no_status'
-  | 'checked_in'
-  | 'conflict'
-  | 'pulled'
-  | 'come_to_gate'
-  | 'at_gate'
-  | 'in_ring';
+import type { CheckInStatus } from '@myk9/core';
 
 export interface StatusBadgeConfig {
   label: string;
@@ -13,13 +6,14 @@ export interface StatusBadgeConfig {
   className: string;
 }
 
-export const ENTRY_STATUS_CONFIG: Record<EntryStatus, StatusBadgeConfig> = {
-  no_status: {
+/** Tailwind badge styles for each check-in status. Labels/icons from @myk9/core's CHECKIN_STATUS. */
+export const ENTRY_STATUS_CONFIG: Record<CheckInStatus, StatusBadgeConfig> = {
+  'no-status': {
     label: 'No Status',
     icon: '',
     className: 'bg-muted text-muted-foreground',
   },
-  checked_in: {
+  'checked-in': {
     label: 'Checked-in',
     icon: '✓',
     className: 'bg-green-600 text-white',
@@ -34,19 +28,24 @@ export const ENTRY_STATUS_CONFIG: Record<EntryStatus, StatusBadgeConfig> = {
     icon: '✕',
     className: 'bg-red-500 text-white',
   },
-  come_to_gate: {
+  'come-to-gate': {
     label: 'Come to Gate',
     icon: '✦',
     className: 'bg-primary text-primary-foreground',
   },
-  at_gate: {
+  'at-gate': {
     label: 'At Gate',
     icon: '★',
     className: 'bg-sky-500 text-white',
   },
-  in_ring: {
+  'in-ring': {
     label: 'In Ring',
     icon: '●',
     className: 'bg-amber-500 text-white',
+  },
+  completed: {
+    label: 'Completed',
+    icon: '✓',
+    className: 'bg-muted text-muted-foreground',
   },
 };

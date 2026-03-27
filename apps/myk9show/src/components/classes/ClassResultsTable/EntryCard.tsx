@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
-import { type EntryStatus, ENTRY_STATUS_CONFIG } from './entryStatusConfig';
+import type { CheckInStatus } from '@myk9/core';
+import { ENTRY_STATUS_CONFIG } from './entryStatusConfig';
 
 export interface EntryCardEntry {
   entryId: string;
@@ -9,7 +10,7 @@ export interface EntryCardEntry {
   dogName: string;
   dogBreed: string;
   handlerName: string;
-  status: EntryStatus;
+  status: CheckInStatus;
 }
 
 interface EntryCardProps {

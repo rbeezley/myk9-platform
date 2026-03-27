@@ -17,7 +17,7 @@ function makeEntry(overrides: Partial<EntryCardEntry> = {}) {
     dogName: 'Laila',
     dogBreed: 'Scottish Terrier',
     handlerName: 'Kathy Gray',
-    status: 'no_status',
+    status: 'no-status',
     ...overrides,
   };
 }
@@ -58,7 +58,7 @@ describe('EntryCard', () => {
   });
 
   it('renders status badge with label', () => {
-    renderCard({ entry: makeEntry({ status: 'checked_in' }) });
+    renderCard({ entry: makeEntry({ status: 'checked-in' }) });
     expect(screen.getByText(/Checked-in/)).toBeInTheDocument();
   });
 
@@ -74,9 +74,9 @@ describe('EntryCard', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/scoring/secretary/classes/class-1/entries/entry-1');
   });
 
-  it('renders come_to_gate badge with primary color', () => {
+  it('renders come-to-gate badge with primary color', () => {
     renderCard({
-      entry: makeEntry({ status: 'come_to_gate' }),
+      entry: makeEntry({ status: 'come-to-gate' }),
     });
     const badge = screen.getByText(/Come to Gate/);
     expect(badge).toBeInTheDocument();

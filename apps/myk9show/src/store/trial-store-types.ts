@@ -34,7 +34,6 @@ export interface TrialInput {
   eventNumber?: string | undefined;
   type?: string | undefined;
   trialType?: string | undefined;
-  sportType?: string | undefined;
   plannedStartTime?: string | undefined;
   order?: string | undefined;
   // Additional fields from Trial interface for updates

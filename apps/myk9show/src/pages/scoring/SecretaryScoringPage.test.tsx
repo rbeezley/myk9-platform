@@ -9,6 +9,7 @@ const mockGetClassById = vi.fn();
 const mockGetTrialById = vi.fn();
 const mockGetEntriesByClass = vi.fn();
 const mockGetDog = vi.fn();
+const mockGetShow = vi.fn();
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { getClassById: (...args: unknown[]) => mockGetClassById(...args) },
@@ -26,6 +27,10 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: (...args: unknown[]) => mockGetDog(...args) },
+}));
+
+vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
+  replicatedShowsTable: { get: (...args: unknown[]) => mockGetShow(...args) },
 }));
 
 // Mock useOptimisticScoring
@@ -98,7 +103,16 @@ function createMockClass(overrides = {}) {
 function createMockTrial(overrides = {}) {
   return {
     id: 'trial-1',
-    sportType: 'akc-scent-work',
+    showId: 'show-1',
+    trialType: 'Scent Work',
+    ...overrides,
+  };
+}
+
+function createMockShow(overrides = {}) {
+  return {
+    id: 'show-1',
+    organization: 'AKC',
     ...overrides,
   };
 }
@@ -147,6 +161,7 @@ describe('SecretaryScoringPage', () => {
     // Default data setup
     mockGetClassById.mockResolvedValue(createMockClass());
     mockGetTrialById.mockResolvedValue(createMockTrial());
+    mockGetShow.mockResolvedValue(createMockShow());
     mockGetEntriesByClass.mockResolvedValue([createMockEntry('1'), createMockEntry('2')]);
     mockGetDog.mockImplementation((id: string) =>
       Promise.resolve(createMockDog(id.replace('dog-', '')))

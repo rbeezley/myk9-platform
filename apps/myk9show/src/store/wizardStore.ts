@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { deriveSportType } from '@/pages/scoring/types';
 
 /** Maps show organization to a default trial type (discipline). */
 const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
@@ -41,7 +40,6 @@ interface WizardState {
     name: string;
     dateTime: string; // ISO datetime string
     eventNumber: string;
-    sportType?: string | undefined; // e.g. 'akc-scent-work', 'ukc-nosework'
     trialType?: string | undefined; // e.g. 'Scent Work', 'Agility', 'Obedience'
     classes: Array<{
       templateId: string;
@@ -158,13 +156,6 @@ export const useWizardStore = create<WizardState & WizardActions>()(
             {
               ...trial,
               id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              sportType:
-                trial.sportType ??
-                deriveSportType(
-                  state.show.organization,
-                  trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization] ?? ''
-                ) ??
-                undefined,
               trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization],
             },
           ],

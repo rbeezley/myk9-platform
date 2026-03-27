@@ -13,6 +13,8 @@ import type {
 } from '@myk9/scoring-ui';
 import type { ScoreSubmissionData } from '@/hooks/useOptimisticScoring';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 
@@ -196,8 +198,8 @@ export type SportType =
   | 'unknown';
 
 /**
- * Map trial sport_type code to organization and sport type.
- * Uses the authoritative sport_type from the trial record (Migration 029).
+ * Map a sport_type code (e.g. 'akc-scent-work') to organization and sport type.
+ * The code is derived at runtime via deriveSportType(org, trialType).
  */
 export function mapSportType(sportTypeCode: string): {
   organization: Organization;
@@ -243,10 +245,20 @@ export function deriveSportType(organization: string, trialType: string): string
   return SPORT_TYPE_BY_ORG_DISCIPLINE[`${organization}:${trialType}`] ?? null;
 }
 
+/** Resolve sport type for a class by walking trial → show → deriveSportType. */
+export async function resolveSportTypeForClass(trialId: string | undefined): Promise<string | null> {
+  if (!trialId) return null;
+  const trial = await replicatedTrialsTable.getTrialById(trialId);
+  if (!trial?.showId || !trial.trialType) return null;
+  const show = await replicatedShowsTable.get(trial.showId);
+  if (!show?.organization) return null;
+  return deriveSportType(show.organization, trial.trialType);
+}
+
 /**
  * Detect organization and sport type from class name.
- * @deprecated Use mapSportType() with trial.sportType instead. Kept as fallback
- * for pre-migration trials that don't have sport_type set.
+ * @deprecated Use deriveSportType(org, trialType) + mapSportType() instead.
+ * Kept as fallback for edge cases where org/trialType are unavailable.
  */
 export function detectScoresheetType(classInfo: ClassInfo): {
   organization: Organization;

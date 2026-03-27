@@ -15,7 +15,7 @@ import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+
 import { logger } from '@/services/LoggingService';
 import { getScoresheetComponent, buildResolvedClassRules } from '@myk9/scoring-ui';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
@@ -27,6 +27,7 @@ import type { ScoringEntry, ClassInfo } from './types';
 import {
   toScoringEntry,
   toClassInfo,
+  resolveSportTypeForClass,
   mapSportType,
   detectScoresheetType,
   toRegistryKey,
@@ -73,12 +74,10 @@ export function ScoresheetPage() {
           return;
         }
 
-        // Load trial sport_type
-        if (cls.trialId) {
-          const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
-          if (trial?.sportType) {
-            setTrialSportType(trial.sportType);
-          }
+        // Derive sport type from show organization + trial type
+        const derived = await resolveSportTypeForClass(cls.trialId);
+        if (derived) {
+          setTrialSportType(derived);
         }
 
         // Find target entry from the list

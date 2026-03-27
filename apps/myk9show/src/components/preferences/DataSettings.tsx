@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Info,
 } from 'lucide-react';
+import { queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -171,6 +172,45 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
     onUpdate({ maxCacheSize });
   };
 
+  const PRESERVED_KEYS = ['myK9Q_settings', 'supabase.auth.token'];
+
+  const handleClearCache = () => {
+    const confirmed = window.confirm(
+      'This will clear all cached data and reload the app. Your settings and login will be preserved. Continue?'
+    );
+    if (!confirmed) return;
+
+    // Clear localStorage except preserved keys
+    const preserved = new Map<string, string>();
+    for (const key of PRESERVED_KEYS) {
+      const value = localStorage.getItem(key);
+      if (value !== null) preserved.set(key, value);
+    }
+    localStorage.clear();
+    for (const [key, value] of preserved) {
+      localStorage.setItem(key, value);
+    }
+
+    // Clear React Query cache
+    queryClient.clear();
+
+    // Clear IndexedDB — databases() not in Firefox; fallback to known names
+    if (window.indexedDB?.databases) {
+      window.indexedDB
+        .databases()
+        .then(dbs => {
+          for (const db of dbs) {
+            if (db.name) window.indexedDB.deleteDatabase(db.name);
+          }
+        })
+        .catch(() => {});
+    } else if (window.indexedDB) {
+      window.indexedDB.deleteDatabase('myK9Q_Replication');
+    }
+
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
       {/* Sync Mode */}
@@ -284,7 +324,12 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
               <span className="text-xs text-muted-foreground">
                 {Math.round(cacheUsage.percentage)}% used
               </span>
-              <Button variant="outline" size="sm" className="text-xs h-6">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-6"
+                onClick={handleClearCache}
+              >
                 Clear Cache
               </Button>
             </div>

@@ -5,6 +5,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
+import type { CheckInStatus } from '@myk9/core';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 
 interface MyEntryByClass {
@@ -15,6 +16,7 @@ interface MyEntryByClass {
   runOrder: number;
   dogsAhead: number;
   scored: boolean;
+  checkInStatus: CheckInStatus;
 }
 
 export interface UseMyEntriesResult {
@@ -106,6 +108,7 @@ export function useMyEntries(showId: string | undefined): UseMyEntriesResult {
         runOrder,
         dogsAhead,
         scored: isScored(entry),
+        checkInStatus: entry.checkInStatus ?? 'no-status',
       };
     });
 

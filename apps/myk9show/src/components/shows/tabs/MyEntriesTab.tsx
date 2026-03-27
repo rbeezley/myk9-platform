@@ -10,6 +10,8 @@ import { Search, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRBAC } from '@/hooks/useRBAC';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
+import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
+import type { CheckInStatus } from '@myk9/core';
 
 interface MyEntriesTabProps {
   showId: string;
@@ -23,6 +25,7 @@ interface MyEntryRow {
   runOrder: number;
   dogsAhead: number;
   scored: boolean;
+  checkInStatus: CheckInStatus;
 }
 
 const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
@@ -44,6 +47,13 @@ const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
       >
         {row.original.scored ? 'Scored' : 'Pending'}
       </span>
+    ),
+  },
+  {
+    id: 'checkInStatus',
+    header: 'Check-in',
+    cell: ({ row }) => (
+      <CheckInStatusBadge status={row.original.checkInStatus} size="sm" />
     ),
   },
   {

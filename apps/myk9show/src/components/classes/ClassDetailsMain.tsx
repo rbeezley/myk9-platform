@@ -102,6 +102,8 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
               time: '',
               score: '',
               placement: '',
+              status: '' as EntryData['status'],
+              qualificationReason: '',
             });
           }
         }

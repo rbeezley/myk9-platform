@@ -36,17 +36,11 @@ import {
   DollarSign,
   Pencil,
   Trash2,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -318,27 +312,6 @@ const TrialDetailsPage: React.FC = () => {
           <PageHeader
             breadcrumbs={breadcrumbs}
             title={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
-            actions={
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleEditTrial}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleDeleteTrial} className="text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Trial
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            }
           />
 
           <DetailHero
@@ -350,7 +323,25 @@ const TrialDetailsPage: React.FC = () => {
             }
             metadata={heroMetadata}
             badge={statusBadge}
-            secondaryActions={showTrials.length > 1 ? prevNextNav : undefined}
+            secondaryActions={
+              <div className="flex items-center gap-2">
+                {showTrials.length > 1 && prevNextNav}
+                <Button variant="outline" size="sm" onClick={handleEditTrial}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <ThreeDotMenu
+                  items={[
+                    {
+                      label: 'Delete Trial',
+                      icon: <Trash2 className="h-4 w-4" />,
+                      onClick: handleDeleteTrial,
+                      className: 'text-destructive',
+                    },
+                  ]}
+                />
+              </div>
+            }
           />
 
           <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>

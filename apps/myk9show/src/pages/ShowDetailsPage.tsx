@@ -11,6 +11,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -258,32 +259,9 @@ const ShowDetailsPage: React.FC = () => {
           breadcrumbs={breadcrumbs}
           title={actualCurrentShow.name || 'Show Details'}
           actions={
-            <div className="flex items-center gap-2">
-              {(armbandCount ?? 0) > 0 && actualCurrentShow?.id && (
-                <ArmbandLookup showId={actualCurrentShow.id} />
-              )}
-              {canManageShow && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setShowEditPanel(true)}
-                    className="h-10 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
-                  >
-                    <Pencil className="h-4 w-4 mr-2 inline-block" />
-                    Edit
-                  </button>
-                  <ThreeDotMenu
-                    items={[
-                      {
-                        label: 'Delete Show',
-                        icon: <Trash2 className="h-4 w-4" />,
-                        onClick: () => setShowDeleteDialog(true),
-                        className: 'text-destructive',
-                      },
-                    ]}
-                  />
-                </div>
-              )}
-            </div>
+            (armbandCount ?? 0) > 0 && actualCurrentShow?.id ? (
+              <ArmbandLookup showId={actualCurrentShow.id} />
+            ) : undefined
           }
         />
 
@@ -299,6 +277,26 @@ const ShowDetailsPage: React.FC = () => {
             label: 'Register',
             onClick: handleRegisterForShow,
           }}
+          secondaryActions={
+            canManageShow && (
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" onClick={() => setShowEditPanel(true)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                <ThreeDotMenu
+                  items={[
+                    {
+                      label: 'Delete Show',
+                      icon: <Trash2 className="h-4 w-4" />,
+                      onClick: () => setShowDeleteDialog(true),
+                      className: 'text-destructive',
+                    },
+                  ]}
+                />
+              </div>
+            )
+          }
           footer={<QuickInfoCards show={actualCurrentShow} />}
         />
 

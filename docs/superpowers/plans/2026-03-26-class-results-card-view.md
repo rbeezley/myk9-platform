@@ -179,19 +179,24 @@ describe('EntryCard', () => {
     );
   });
 
-  it('renders all status badge variants with correct styles', () => {
-    const { container } = renderCard({
+  it('renders come_to_gate badge with primary color', () => {
+    renderCard({
       entry: makeEntry({ status: 'come_to_gate' }),
     });
     const badge = screen.getByText(/Come to Gate/);
     expect(badge).toBeInTheDocument();
-    // Badge should have primary color class
     expect(badge.className).toContain('bg-primary');
   });
 
   it('shows -- for missing armband', () => {
     renderCard({ entry: makeEntry({ armband: '' }) });
     expect(screen.getByText('--')).toBeInTheDocument();
+  });
+
+  // [ADDED] Verify card is a focusable button for keyboard accessibility
+  it('renders as a button element for keyboard access', () => {
+    renderCard();
+    expect(screen.getByRole('button')).toBeInTheDocument();
   });
 });
 ```
@@ -569,17 +574,22 @@ Inside the component function body, after the `const canEdit = ...` line (line 6
 ```typescript
 const [viewMode, setViewMode] = useViewPreference('class-results', 'table');
 const useSecretaryRoute = !!userPermissions.canEditEntries;
+// [ADDED] Guard: card view requires classId for scoring navigation
+const effectiveViewMode = classId ? viewMode : 'table';
 ```
 
 In the JSX, insert the `ViewToggle` inside the header bar. Replace the line `<div className="flex items-center gap-2">` at line 298 (the one containing the action buttons) with:
 
 ```typescript
 <div className="flex items-center gap-2">
-  <ViewToggle
-    modes={CARD_TABLE_MODES}
-    active={viewMode}
-    onChange={setViewMode}
-  />
+  {/* [ADDED] Only show toggle when classId exists (cards need it for navigation) */}
+  {classId && (
+    <ViewToggle
+      modes={CARD_TABLE_MODES}
+      active={effectiveViewMode}
+      onChange={setViewMode}
+    />
+  )}
   {onOpenRequirements && (
 ```
 
@@ -588,10 +598,11 @@ The closing `</div>` for the action buttons stays the same.
 Replace the `DataTable` block (lines 330–343) and the submit footer (lines 345–360) with a conditional render:
 
 ```typescript
-{viewMode === 'cards' ? (
+{/* [ADDED] Use effectiveViewMode (falls back to table when classId missing) */}
+{effectiveViewMode === 'cards' ? (
   <EntryCardGrid
     entries={entries}
-    classId={classId ?? ''}
+    classId={classId!}
     useSecretaryRoute={useSecretaryRoute}
   />
 ) : (

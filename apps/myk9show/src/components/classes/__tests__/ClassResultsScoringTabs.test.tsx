@@ -5,11 +5,12 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { render } from '@/test/utils/testUtils';
 import { ClassResultsTable } from '../ClassResultsTable';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { createUserPermissions } from '@/types/user-permissions';
 
 vi.mock('@/components/ui/tabs', () => import('../../common/__tests__/mockTabs'));
@@ -26,6 +27,33 @@ vi.mock('@/hooks/useAuthContext', () => ({
 vi.mock('@/store/entryStore', () => ({
   useEntryStore: vi.fn(() => vi.fn()),
 }));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    updateEntry: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+/** Create a minimal RawEntryRow for scored entries */
+function makeRawEntry(id: string, scored: boolean): RawEntryRow {
+  return {
+    id,
+    class_id: 'class-1',
+    show_id: 'show-1',
+    dog_id: `dog-${id}`,
+    handler_id: `handler-${id}`,
+    armband: id.replace('entry-', ''),
+    handler: null,
+    result_status: scored ? 'qualified' : null,
+    is_scored: scored,
+    search_time_seconds: scored ? 90 : null,
+    total_faults: scored ? 0 : null,
+    final_placement: null,
+    judge_notes: null,
+    disqualification_reason: null,
+    scoring_completed_at: null,
+  } as RawEntryRow;
+}
 
 /** Create a minimal ScentWorkEntry with optional scoring data. */
 function makeEntry(
@@ -64,9 +92,14 @@ function makeEntry(
   } as ScentWorkEntry;
 }
 
-function makeProps(entries: ScentWorkEntry[], overrides: Record<string, unknown> = {}) {
+function makeProps(
+  entries: ScentWorkEntry[],
+  rawEntries: RawEntryRow[] = [],
+  overrides: Record<string, unknown> = {}
+) {
   return {
     entries,
+    rawEntries,
     classConfig: {
       element: 'Container' as const,
       level: 'Novice' as const,
@@ -75,17 +108,16 @@ function makeProps(entries: ScentWorkEntry[], overrides: Record<string, unknown>
       warningsEnabled: true,
     },
     userPermissions: createUserPermissions('secretary', 'user-1', 'Test User'),
-    onResultsSubmit: vi.fn(),
     ...overrides,
   };
 }
 
-function renderTable(entries: ScentWorkEntry[], overrides: Record<string, unknown> = {}) {
-  return render(
-    <MemoryRouter>
-      <ClassResultsTable {...makeProps(entries, overrides)} />
-    </MemoryRouter>
-  );
+function renderTable(
+  entries: ScentWorkEntry[],
+  rawEntries: RawEntryRow[] = [],
+  overrides: Record<string, unknown> = {}
+) {
+  return render(<ClassResultsTable {...makeProps(entries, rawEntries, overrides)} />);
 }
 
 describe('ClassResultsTable scoring tabs', () => {
@@ -95,21 +127,28 @@ describe('ClassResultsTable scoring tabs', () => {
   const scoredB = makeEntry('entry-4', 'Max', { scored: true });
   const allEntries = [unscoredA, unscoredB, scoredA, scoredB];
 
+  // Raw entries that mark entry-3 and entry-4 as scored
+  const rawScoredA = makeRawEntry('entry-3', true);
+  const rawScoredB = makeRawEntry('entry-4', true);
+  const rawUnscoredA = makeRawEntry('entry-1', false);
+  const rawUnscoredB = makeRawEntry('entry-2', false);
+  const allRawEntries = [rawUnscoredA, rawUnscoredB, rawScoredA, rawScoredB];
+
   it('renders Pending, Completed, and All tabs', () => {
-    renderTable(allEntries);
+    renderTable(allEntries, allRawEntries);
     expect(screen.getByText('Pending')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('All')).toBeInTheDocument();
   });
 
   it('defaults to the Pending tab', () => {
-    renderTable(allEntries);
+    renderTable(allEntries, allRawEntries);
     const pendingTab = screen.getByText('Pending').closest('[role="tab"]');
     expect(pendingTab).toHaveAttribute('aria-selected', 'true');
   });
 
   it('shows badge counts on Pending and Completed tabs', () => {
-    renderTable(allEntries);
+    renderTable(allEntries, allRawEntries);
     // The SubTabs component renders badge counts as small circular spans.
     // Pending: 2 unscored entries, Completed: 2 scored entries
     const tabList = screen.getByRole('tablist');
@@ -119,7 +158,7 @@ describe('ClassResultsTable scoring tabs', () => {
   });
 
   it('shows only unscored entries in Pending tab (default)', () => {
-    renderTable(allEntries);
+    renderTable(allEntries, allRawEntries);
     // Pending tab is default - should show unscored entries
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Luna')).toBeInTheDocument();
@@ -128,7 +167,7 @@ describe('ClassResultsTable scoring tabs', () => {
   });
 
   it('shows only scored entries when Completed tab is selected', async () => {
-    renderTable(allEntries);
+    renderTable(allEntries, allRawEntries);
     await userEvent.click(screen.getByText('Completed'));
     expect(screen.queryByText('Rex')).not.toBeInTheDocument();
     expect(screen.queryByText('Luna')).not.toBeInTheDocument();
@@ -137,7 +176,7 @@ describe('ClassResultsTable scoring tabs', () => {
   });
 
   it('shows all entries when All tab is selected', async () => {
-    renderTable(allEntries);
+    renderTable(allEntries, allRawEntries);
     await userEvent.click(screen.getByText('All'));
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Luna')).toBeInTheDocument();
@@ -147,7 +186,7 @@ describe('ClassResultsTable scoring tabs', () => {
 
   it('handles all entries being unscored', () => {
     const entries = [unscoredA, unscoredB];
-    renderTable(entries);
+    renderTable(entries, [rawUnscoredA, rawUnscoredB]);
     // Pending tab (default) should show both
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Luna')).toBeInTheDocument();
@@ -155,7 +194,7 @@ describe('ClassResultsTable scoring tabs', () => {
 
   it('handles all entries being scored', async () => {
     const entries = [scoredA, scoredB];
-    renderTable(entries);
+    renderTable(entries, [rawScoredA, rawScoredB]);
     // Pending tab (default) should be empty, switch to Completed
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
     await userEvent.click(screen.getByText('Completed'));
@@ -171,19 +210,11 @@ describe('ClassResultsTable scoring tabs', () => {
     expect(screen.getByText('All')).toBeInTheDocument();
   });
 
-  it('detects scored entries via judgingState.currentResult', () => {
-    const entryWithJudgingState = {
-      ...makeEntry('entry-5', 'Cooper'),
-      judgingState: {
-        isInProgress: false,
-        currentResult: {
-          searchTime: 90000,
-          qualification: 'Qualified' as const,
-        },
-      },
-    } as ScentWorkEntry;
+  it('detects scored entries via rawEntries is_scored flag', () => {
+    const cooperEntry = makeEntry('entry-5', 'Cooper');
+    const cooperRaw = makeRawEntry('entry-5', true);
 
-    renderTable([unscoredA, entryWithJudgingState]);
+    renderTable([unscoredA, cooperEntry], [rawUnscoredA, cooperRaw]);
     // Pending (default) should show only unscored
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.queryByText('Cooper')).not.toBeInTheDocument();

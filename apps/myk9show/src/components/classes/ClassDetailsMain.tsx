@@ -2,14 +2,11 @@ import React from 'react';
 import { Users, Calendar, Trophy, type LucideIcon } from 'lucide-react';
 import { StatCard, StatsGrid } from '@myk9/ui';
 import type { StatColor } from '@myk9/ui';
-import { type EntryData } from './types/classTypes';
 import { ClassResultsTable } from './ClassResultsTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { createUserPermissions, UserPermissions } from '@/types/user-permissions';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { logger } from '@/services/LoggingService';
-import type { ScentWorkResult, MultiAreaScentWorkResult } from '@/types/scent-work-types';
 import type { ClassDetailsMainProps } from './ClassDetailsMain.types';
 import {
   isScentWorkShow,
@@ -17,7 +14,6 @@ import {
   buildClassConfig,
   buildScentWorkEntries,
 } from './ClassDetailsMain.helpers';
-import { msToDisplay } from '@/lib/timeUtils';
 import { useCheckInStatusSubscription } from '@/hooks/useCheckInStatusSubscription';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -35,10 +31,10 @@ const COLOR_MAP: Record<string, StatColor> = {
 const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   classData,
   classEntries,
+  rawEntries,
   parentShow,
   onAddEntry,
   onDeleteEntry,
-  onResultUpdate,
   onOpenRequirements,
 }) => {
   useCheckInStatusSubscription(classData?.id);
@@ -73,47 +69,6 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
     [classEntries, dogs, classData, classConfig]
   );
 
-  // Handle results submission from ClassResultsTable
-  const handleResultsSubmit = React.useCallback(
-    async (results: (ScentWorkResult | MultiAreaScentWorkResult)[], clearedEntryIds?: string[]) => {
-      if (!onResultUpdate) return;
-
-      try {
-        for (const result of results) {
-          const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
-
-          const entryUpdate: Partial<EntryData> = {
-            time: searchTime ? msToDisplay(searchTime, 'hundredths') : '',
-            status: result.qualification,
-            qualificationReason: (result as ScentWorkResult).qualificationReason || undefined,
-            score: searchTime ? (searchTime / 1000).toString() : '',
-            placement:
-              (
-                result as ScentWorkResult & { placementCalculated?: number }
-              ).placementCalculated?.toString() || '',
-          };
-
-          await onResultUpdate(result.entryId, entryUpdate);
-        }
-
-        if (clearedEntryIds?.length) {
-          for (const entryId of clearedEntryIds) {
-            await onResultUpdate(entryId, {
-              time: '',
-              score: '',
-              placement: '',
-              status: '' as EntryData['status'],
-              qualificationReason: '',
-            });
-          }
-        }
-      } catch (error) {
-        logger.error('Error submitting results:', 'classes', {}, error as Error);
-      }
-    },
-    [onResultUpdate]
-  );
-
   return (
     <div className="space-y-6">
       {/* Statistics Cards — only when there are entries */}
@@ -143,9 +98,9 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
       {/* ENTRIES Section */}
       <ClassResultsTable
         entries={scentWorkEntries}
+        rawEntries={rawEntries}
         classConfig={classConfig}
         userPermissions={userPermissions}
-        onResultsSubmit={handleResultsSubmit}
         onDeleteEntry={onDeleteEntry}
         onAddEntry={onAddEntry}
         classId={classData?.id}

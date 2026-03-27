@@ -326,9 +326,9 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
-## Entries Default to Scored/Completed Status — 2026-03-27 14:14
+## Simplified Scoring Data Flow — 2026-03-27
 
-- [x] **Fix entries showing as scored by default on Completed tab** — Done: Root cause was `useClassDetailsData` mapping the lifecycle `entry_status` (e.g. 'confirmed') as the qualification result. This truthy string caused `buildScentWorkEntries` to create `competitionData` for all entries, making `isEntryScored` return true. Fixed by using `competitionData.qualification` (actual scoring result) instead. Also hardened `isEntryScored` with a `SCORED_QUALIFICATIONS` set to only treat meaningful values (Qualified, NQ, Absent, etc.) as scored.
+- [x] **Collapse scoring state to single source of truth** — Done: Replaced 7-layer type conversion chain with direct DB column read/write. `useClassResults` now reads `result_status`, `search_time_seconds`, `total_faults`, `judge_notes`, `final_placement` from raw DB rows (via `useClassEntriesRaw` hook) and writes back via `replicatedEntriesTable.updateEntry()` with DB column names. Eliminated: `handleResultUpdate`, `handleResultsSubmit`, `competitionData`/`judgingState` dual-source fallback, lifecycle-status-as-qualification bug. Added per-row clear button (Eraser icon) that resets all scoring columns to defaults. `isEntryScored` now reads `is_scored`/`result_status` from DB. New `scoringMappings.ts` helpers translate between DB `result_status` and display `QualificationStatus`. Spec: `docs/superpowers/specs/2026-03-27-simplified-scoring-data-flow-design.md`. Plan: `docs/superpowers/plans/2026-03-27-simplified-scoring-data-flow.md`.
 
 ---
 

@@ -4,21 +4,17 @@
 import type {
   ScentWorkEntry,
   ScentWorkClassConfig,
-  ScentWorkResult,
-  MultiAreaScentWorkResult,
   QualificationStatus,
 } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 /** Props for the top-level ClassResultsTable component */
 export interface ClassResultsTableProps {
   entries: ScentWorkEntry[];
+  rawEntries?: RawEntryRow[] | undefined;
   classConfig: ScentWorkClassConfig;
   userPermissions: UserPermissions;
-  onResultsSubmit: (
-    results: (ScentWorkResult | MultiAreaScentWorkResult)[],
-    clearedEntryIds?: string[]
-  ) => Promise<void>;
   onDeleteEntry?: ((entryId: string) => void) | undefined;
   onAddEntry?: (() => void) | undefined;
   className?: string | undefined;

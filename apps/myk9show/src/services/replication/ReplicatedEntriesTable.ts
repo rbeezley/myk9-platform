@@ -61,6 +61,11 @@ export interface ReplicatedEntry {
   handlerName?: string | undefined;
   armbandNumber?: string | undefined;
 
+  disqualification_reason?: string | null | undefined;
+  totalFaults?: number | undefined;
+  judgeNotes?: string | null | undefined;
+  scoringCompletedAt?: string | null | undefined;
+
   // Extra fields for scoring/display (snake_case for Compatibility)
   is_scored?: boolean | undefined;
   result_status?: string | undefined;
@@ -72,6 +77,9 @@ export interface ReplicatedEntry {
   dog_breed?: string | undefined;
   handler_name?: string | undefined;
   armband_number?: string | undefined;
+  total_faults?: number | undefined;
+  judge_notes?: string | null | undefined;
+  scoring_completed_at?: string | null | undefined;
   class_id?: string | undefined;
   entry_status?: string | undefined;
   element?: string | undefined;
@@ -126,6 +134,10 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     registrationId: (dbRow.registration_id as string | undefined) ?? undefined,
 
     // CamelCase fields
+    disqualification_reason: (dbRow.disqualification_reason as string | undefined) ?? undefined,
+    totalFaults: (dbRow.total_faults as number | undefined) ?? undefined,
+    judgeNotes: (dbRow.judge_notes as string | undefined) ?? undefined,
+    scoringCompletedAt: (dbRow.scoring_completed_at as string | undefined) ?? undefined,
     isScored: (dbRow.is_scored as boolean | undefined) ?? false,
     resultStatus: (dbRow.result_status as string | undefined) ?? undefined,
     resultText: (dbRow.result_text as string | undefined) ?? undefined,
@@ -148,6 +160,9 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     dog_breed: (dbRow.dog_breed as string | undefined) ?? undefined,
     handler_name: row.handler ?? undefined,
     armband_number: row.armband ?? undefined,
+    total_faults: (dbRow.total_faults as number | undefined) ?? undefined,
+    judge_notes: (dbRow.judge_notes as string | undefined) ?? undefined,
+    scoring_completed_at: (dbRow.scoring_completed_at as string | undefined) ?? undefined,
     class_id: row.class_id ?? undefined,
     entry_status: row.entry_status ?? undefined,
     element: (dbRow.element as string | undefined) ?? undefined,
@@ -219,9 +234,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       registration_id: fk(entry.registrationId),
       is_scored: entry.isScored ?? null,
       result_status: entry.resultStatus ?? null,
-      search_time_seconds: entry.searchTimeSeconds ?? null,
-      total_score: entry.totalPoints ?? null,
-      final_placement: entry.finalPlacement != null ? Number(entry.finalPlacement) : null,
+      disqualification_reason: entry.disqualification_reason ?? null,
+      search_time_seconds: entry.searchTimeSeconds ?? entry.search_time_seconds ?? null,
+      total_score: entry.totalPoints ?? entry.total_points ?? null,
+      total_faults: entry.totalFaults ?? entry.total_faults ?? null,
+      judge_notes: entry.judgeNotes ?? entry.judge_notes ?? null,
+      scoring_completed_at: entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null,
+      final_placement: entry.finalPlacement != null ? Number(entry.finalPlacement) : entry.final_placement != null ? Number(entry.final_placement) : null,
       ring_entry_time: entry.ring_entry_time ?? null,
       ring_exit_time: entry.ring_exit_time ?? null,
       updated_at: new Date().toISOString(),

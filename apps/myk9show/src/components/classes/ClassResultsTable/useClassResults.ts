@@ -6,39 +6,36 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
-import type {
-  ScentWorkEntry,
-  ScentWorkClassConfig,
-  ScentWorkResult,
-  MultiAreaScentWorkResult,
-  QualificationStatus,
-} from '@/types/scent-work-types';
+import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import {
+  mapResultStatusToQualification,
+  mapQualificationToResultStatus,
+  dbSecondsToInputFormat,
+  inputFormatToDbSeconds,
+} from '@/utils/scoringMappings';
 import type { BulkEntryData, ResultsSummary } from './types';
 import { STATUSES_REQUIRING_REASON, NAVIGABLE_FIELDS } from './constants';
-import {
-  timeStringToMs,
-  convertTimeToInputFormat,
-  calculatePlacements,
-  validateEntry,
-} from './utils';
+import { calculatePlacements, validateEntry } from './utils';
 
 interface UseClassResultsParams {
   entries: ScentWorkEntry[];
+  rawEntries: RawEntryRow[];
   classConfig: ScentWorkClassConfig;
   userPermissions: UserPermissions;
-  onResultsSubmit: (
-    results: (ScentWorkResult | MultiAreaScentWorkResult)[],
-    clearedEntryIds?: string[]
-  ) => Promise<void>;
+  classId: string;
 }
 
 export function useClassResults({
   entries,
-  classConfig,
+  rawEntries,
+  classConfig: _classConfig,
   userPermissions,
-  onResultsSubmit,
+  classId,
 }: UseClassResultsParams) {
   const [bulkData, setBulkData] = useState<BulkEntryData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,51 +43,21 @@ export function useClassResults({
   const [validationErrors] = useState<Map<string, string>>(new Map());
 
   // ---------------------------------------------------------------------------
-  // Initialize bulk data from entries
+  // Initialize bulk data from raw DB entries
   // ---------------------------------------------------------------------------
+  const rawEntryMap = useMemo(
+    () => new Map(rawEntries.map(r => [r.id, r])),
+    [rawEntries]
+  );
+
   useEffect(() => {
     setBulkData(() => {
       const newData = entries.map(entry => {
-        const existingData = entry.judgingState?.currentResult;
-        const competitionData = entry.competitionData;
+        const raw = rawEntryMap.get(entry.id);
 
-        logger.debug('ClassResultsTable - Processing entry:', 'classes', {
-          data: {
-            entryId: entry.id,
-            competitionData,
-            existingData,
-            armband: entry.displayInfo.armband,
-          },
-        });
-
-        // Determine search time - prefer normalized input format.
-        // Only fall back to judgingState if competitionData doesn't exist at all
-        // (not when it exists but time is empty — that means it was cleared).
-        let searchTime = '';
-        if (competitionData?.time) {
-          searchTime = convertTimeToInputFormat(competitionData.time);
-        } else if (!competitionData && existingData?.searchTime) {
-          searchTime = convertTimeToInputFormat((existingData.searchTime / 1000).toString());
-        }
-
-        // Determine qualification status
-        let qualification: QualificationStatus | '' = '';
-
-        // First priority: check for explicit qualification string in competitionData
-        if ((competitionData as Record<string, unknown>)?.qualification) {
-          qualification = (competitionData as Record<string, unknown>)
-            .qualification as QualificationStatus;
-        }
-        // Second priority: fall back to judgingState ONLY if competitionData doesn't exist.
-        // If competitionData exists but qualification is empty, the entry was cleared — don't
-        // restore old qualification from judgingState.
-        else if (!competitionData && existingData?.qualification) {
-          qualification = existingData.qualification;
-        }
-        // Third priority: fall back to boolean qualified field (legacy) — only set if explicitly qualified
-        else if (competitionData?.qualified === true) {
-          qualification = 'Qualified';
-        }
+        // Read scoring fields directly from DB columns
+        const qualification = mapResultStatusToQualification(raw?.result_status);
+        const searchTime = dbSecondsToInputFormat(raw?.search_time_seconds);
 
         const hadExistingData = !!(searchTime || qualification);
 
@@ -101,31 +68,23 @@ export function useClassResults({
           handlerName: entry.displayInfo.handlerName,
           searchTime,
           qualification,
-          qualificationReason:
-            (competitionData as Record<string, unknown>)?.qualificationReason?.toString() || '',
-          faults:
-            (competitionData as Record<string, unknown>)?.faults?.toString() ||
-            (!competitionData && existingData?.faults?.toString()) ||
-            '0',
-          notes:
-            competitionData?.judgeNotes || (!competitionData && existingData?.judgeNotes) || '',
-          placement: null, // Will be calculated
+          qualificationReason: raw?.disqualification_reason ?? '',
+          faults: String(raw?.total_faults ?? 0),
+          notes: raw?.judge_notes ?? '',
+          placement: raw?.final_placement ?? null,
           isValid: !!(searchTime && qualification),
           hasChanges: false,
           hadExistingData,
           isCleared: false,
           modifiedFields: new Set<keyof BulkEntryData>(),
-          lastEditedBy: competitionData?.recordedBy || existingData?.recordedBy,
-          lastEditedAt: existingData?.recordedAt,
         };
 
         return bulkEntry;
       });
 
-      // Calculate placements for the initial data
       return calculatePlacements(newData);
     });
-  }, [entries]);
+  }, [entries, rawEntryMap]);
 
   // ---------------------------------------------------------------------------
   // Summary statistics
@@ -283,6 +242,8 @@ export function useClassResults({
   // ---------------------------------------------------------------------------
   // Submit results
   // ---------------------------------------------------------------------------
+  const queryClient = useQueryClient();
+
   const handleSubmit = useCallback(async () => {
     if (!userPermissions.canEditEntries) return;
 
@@ -290,42 +251,53 @@ export function useClassResults({
     setSubmitError(null);
 
     try {
-      const clearedEntryIds = bulkData.filter(item => item.isCleared).map(item => item.entryId);
+      const scoredItems = bulkData.filter(
+        item => item.hasChanges && item.isValid && !item.isCleared
+      );
+      const clearedItems = bulkData.filter(item => item.isCleared);
 
-      const validResults = bulkData
-        .filter(item => item.hasChanges && item.isValid && !item.isCleared)
-        .map(item => {
-          const searchTime = item.searchTime ? timeStringToMs(item.searchTime) : 0;
-          const result: ScentWorkResult = {
-            entryId: item.entryId,
-            classId: entries.find(e => e.id === item.entryId)?.classId || '',
-            searchTime,
-            maxTimeAllowed: classConfig.timeLimit,
-            qualification: item.qualification as QualificationStatus,
-            faults: parseInt(item.faults) || 0,
-            judgeNotes: item.notes,
-            recordedBy: userPermissions.displayName || 'Unknown User',
-            recordedAt: new Date(),
-            placementCalculated: item.placement || undefined,
-            qualificationReason: item.qualificationReason || undefined,
-          };
-          return result;
-        });
-
-      if (validResults.length === 0 && clearedEntryIds.length === 0) {
+      if (scoredItems.length === 0 && clearedItems.length === 0) {
         setSubmitError('No valid results to submit');
         return;
       }
 
-      await onResultsSubmit(validResults, clearedEntryIds.length > 0 ? clearedEntryIds : undefined);
+      // Write scored entries directly to DB columns via replication
+      for (const item of scoredItems) {
+        await replicatedEntriesTable.updateEntry(item.entryId, {
+          resultStatus: mapQualificationToResultStatus(item.qualification),
+          searchTimeSeconds: inputFormatToDbSeconds(item.searchTime),
+          totalFaults: parseInt(item.faults) || 0,
+          judgeNotes: item.notes || null,
+          finalPlacement: item.placement != null ? String(item.placement) : undefined,
+          isScored: true,
+          scoringCompletedAt: new Date().toISOString(),
+        });
+      }
 
-      // Clear modified fields after successful submission
+      // Clear entries — reset all scoring columns to defaults
+      for (const item of clearedItems) {
+        await replicatedEntriesTable.updateEntry(item.entryId, {
+          resultStatus: 'pending',
+          isScored: false,
+          searchTimeSeconds: 0,
+          totalFaults: 0,
+          judgeNotes: null,
+          finalPlacement: undefined,
+          scoringCompletedAt: null,
+          disqualification_reason: null,
+        });
+      }
+
+      // Invalidate React Query cache to refresh from DB
+      queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
+
+      // Reset local change tracking
       setBulkData(prev =>
         prev.map(item => ({
           ...item,
+          hasChanges: false,
+          isCleared: false,
           modifiedFields: new Set<keyof BulkEntryData>(),
-          lastEditedBy: userPermissions.displayName || 'Unknown User',
-          lastEditedAt: new Date(),
         }))
       );
     } catch (error) {
@@ -334,7 +306,7 @@ export function useClassResults({
     } finally {
       setIsSubmitting(false);
     }
-  }, [bulkData, classConfig, onResultsSubmit, userPermissions, entries]);
+  }, [bulkData, classId, userPermissions, queryClient]);
 
   // ---------------------------------------------------------------------------
   // Ctrl+S / Cmd+S keyboard shortcut

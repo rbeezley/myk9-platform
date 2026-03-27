@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Pencil, MoreVertical, Trash2, ClipboardList } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
-import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
+import { replicatedClassesTable } from '@/services/replication';
 import { useTrialStore } from '@/store/trialStore';
 import { queryClient } from '@/lib/queryClient';
 import { useEntryStore } from '@/store/entryStore';
@@ -20,7 +20,7 @@ import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { ClassCompactHeader } from '@/components/classes/ClassCompactHeader';
 import { ClassRequirementsPanel } from '@/components/classes/ClassRequirementsPanel';
 import { formatClassTitle } from '@/components/classes/ClassDetailsMain.helpers';
-import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
+import type { ClassData } from '@/components/classes/types/classTypes';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -51,14 +51,14 @@ const ClassDetailsPage: React.FC = () => {
     classes,
     currentClass,
     trialClasses,
-    rawEntries,
+    localRawEntries,
+    dbRawEntries,
     classEntries,
     parentTrial,
     parentShow,
     dogs,
     updateClass,
     deleteClass,
-    updateResult,
   } = useClassDetailsData();
 
   // Dialog state
@@ -162,53 +162,6 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.closeEditEntryDialog();
   };
 
-  const handleResultUpdate = async (entryId: string, result: Partial<CompetitionResult>) => {
-    try {
-      const qualified =
-        result.status === 'Qualified'
-          ? true
-          : result.status === 'Not Qualified'
-            ? false
-            : undefined;
-
-      const storeUpdate = {
-        time: result.time,
-        qualified,
-        qualification: result.status,
-        qualificationReason: result.qualificationReason,
-        score: result.score,
-        placement: result.placement,
-        recordedBy: 'secretary',
-      };
-
-      await updateResult(entryId, storeUpdate, user?.id || 'unknown');
-
-      // Also update DB-level scoring columns that the store doesn't map automatically.
-      // Without this, result_status/is_scored stay stale and reload with old values.
-      const isClearing = !result.status && !result.time && !result.score;
-      const resultStatusMap: Record<string, string> = {
-        Qualified: 'qualified',
-        'Not Qualified': 'nq',
-        Absent: 'absent',
-        Excused: 'excused',
-        Withdrawn: 'withdrawn',
-        Eliminated: 'nq',
-      };
-      await replicatedEntriesTable.updateEntry(entryId, {
-        result_status: isClearing
-          ? 'pending'
-          : result.status
-            ? resultStatusMap[result.status] || 'pending'
-            : undefined,
-        isScored: isClearing ? false : !!(result.time || result.status),
-        is_scored: isClearing ? false : !!(result.time || result.status),
-      });
-    } catch (error) {
-      logger.error('Failed to update result', 'classes', { entryId }, error as Error);
-      throw error;
-    }
-  };
-
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {
     const crumbs = [{ label: 'Shows', href: '/shows' }];
@@ -285,6 +238,7 @@ const ClassDetailsPage: React.FC = () => {
       <ClassDetailsMain
         classData={currentClass}
         classEntries={classEntries}
+        rawEntries={dbRawEntries}
         parentShow={parentShow}
         onAddEntry={() => {
           if (parentShow?.id) {
@@ -292,7 +246,6 @@ const ClassDetailsPage: React.FC = () => {
           }
         }}
         onDeleteEntry={handleDeleteEntry}
-        onResultUpdate={handleResultUpdate}
       />
 
       {/* Dialogs */}
@@ -322,7 +275,7 @@ const ClassDetailsPage: React.FC = () => {
         open={dialogs.editEntryDialogOpen}
         onOpenChange={dialogs.setEditEntryDialogOpen}
         entryId={dialogs.editEntryId}
-        rawEntries={rawEntries}
+        rawEntries={localRawEntries}
         dogs={dogs}
         onSave={handleSaveEntryEdit}
       />
@@ -331,7 +284,7 @@ const ClassDetailsPage: React.FC = () => {
         open={dialogs.deleteEntryDialogOpen}
         onOpenChange={dialogs.setDeleteEntryDialogOpen}
         entryId={dialogs.entryToDelete}
-        rawEntries={rawEntries}
+        rawEntries={localRawEntries}
         dogs={dogs}
         onConfirm={handleConfirmDeleteEntry}
       />

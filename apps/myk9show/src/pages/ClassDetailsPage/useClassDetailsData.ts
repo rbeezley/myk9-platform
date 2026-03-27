@@ -17,9 +17,9 @@ import { useMemo } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { useClassStoreCompat, useClassEntriesWithQuery } from '@/hooks/useClassStoreCompat';
+import { useClassEntriesRaw } from '@/hooks/queries/useClassEntriesRaw';
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
-import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import type { ShowEntry } from '@/types/entry-lifecycle';
@@ -70,7 +70,6 @@ export function useClassDetailsData() {
 
   // Store hooks
   const { classes, updateClass, deleteClass } = useClassStoreCompat();
-  const { updateResult } = useEntryStore();
   const { dogs } = useDogStoreCompat();
   const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { trials, trialClasses: replicatedTrialClasses } = useTrialStore();
@@ -107,7 +106,10 @@ export function useClassDetailsData() {
   // Merge: use DB entries as the base, then add any local-only entries that
   // aren't already present (e.g., entries created via the wizard that haven't
   // been uploaded to Supabase yet).
-  const rawEntries = localEntries;
+  const localRawEntries = localEntries;
+
+  // Raw DB entry rows with scoring columns intact (for ClassResultsTable)
+  const { data: dbRawEntries = [] } = useClassEntriesRaw(classId || undefined);
 
   // Get parent trial and show for breadcrumb context
   const parentTrial = trialId
@@ -198,7 +200,8 @@ export function useClassDetailsData() {
     trialClasses,
 
     // Entries
-    rawEntries,
+    localRawEntries,
+    dbRawEntries,
     classEntries,
 
     // Parent context
@@ -211,6 +214,5 @@ export function useClassDetailsData() {
     // Actions
     updateClass,
     deleteClass,
-    updateResult,
   };
 }

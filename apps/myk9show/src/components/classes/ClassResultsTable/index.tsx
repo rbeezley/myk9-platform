@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Save, AlertCircle, ClipboardList, Plus, Trophy, Trash2, X } from 'lucide-react';
+import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { SubTabs, type SubTabDef } from '@/components/common/SubTabs';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, BulkEntryData } from './types';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
 import type { CheckInStatus } from '@myk9/core';
 import { useClassResults } from './useClassResults';
@@ -30,27 +31,11 @@ import { useEntryStore } from '@/store/entryStore';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
-/** Meaningful qualification values that indicate an entry has been scored. */
-const SCORED_QUALIFICATIONS = new Set([
-  'Qualified',
-  'Not Qualified',
-  'NQ',
-  'Absent',
-  'Excused',
-  'Withdrawn',
-  'Eliminated',
-]);
-
-function isEntryScored(entry: ScentWorkEntry): boolean {
-  const comp = entry.competitionData;
-  if (comp?.time || (comp?.qualified !== undefined && comp.qualified !== null)) return true;
-  const result = entry.judgingState?.currentResult;
-  if (
-    result?.searchTime ||
-    (result?.qualification && SCORED_QUALIFICATIONS.has(result.qualification))
-  )
-    return true;
-  return false;
+function isEntryScored(entryId: string, rawEntryMap: Map<string, RawEntryRow>): boolean {
+  const raw = rawEntryMap.get(entryId);
+  if (!raw) return false;
+  if (raw.is_scored === true) return true;
+  return !!raw.result_status && raw.result_status !== 'pending';
 }
 
 function getSubmitLabel(
@@ -70,9 +55,9 @@ function getSubmitLabel(
 
 export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   entries,
+  rawEntries,
   classConfig,
   userPermissions,
-  onResultsSubmit,
   onDeleteEntry,
   onAddEntry,
   className,
@@ -89,7 +74,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     updateBulkData,
     handleKeyDown,
     handleSubmit,
-  } = useClassResults({ entries, classConfig, userPermissions, onResultsSubmit });
+  } = useClassResults({
+    entries,
+    rawEntries: rawEntries ?? [],
+    classConfig,
+    userPermissions,
+    classId: classId ?? '',
+  });
 
   const { isExhibitor, isSecretary, isJudge, user } = useAuthContext();
   const updateCheckInStatus = useEntryStore(s => s.updateCheckInStatus);
@@ -121,10 +112,15 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   // Scoring status tab filtering (Pending / Completed / All)
   const [scoringTab, setScoringTab] = useState<ScoringStatusTab>('pending');
 
-  /** Entry IDs that are scored, derived from the source entries. */
+  /** Entry IDs that are scored, derived from raw DB entries. */
+  const rawEntryMap = useMemo(
+    () => new Map((rawEntries ?? []).map(r => [r.id, r])),
+    [rawEntries]
+  );
+
   const scoredEntryIds = useMemo(
-    () => new Set(entries.filter(isEntryScored).map(e => e.id)),
-    [entries]
+    () => new Set(entries.filter(e => isEntryScored(e.id, rawEntryMap)).map(e => e.id)),
+    [entries, rawEntryMap]
   );
 
   const tabCounts = useMemo(() => {
@@ -352,6 +348,35 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
       },
     ];
 
+    // Clear result column
+    if (canEdit) {
+      cols.push({
+        id: 'clearResult',
+        header: '',
+        cell: ({ row }) => {
+          const item = row.original;
+          if (!item.hadExistingData && !item.hasChanges) return null;
+          return (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              onClick={() => {
+                updateBulkData(item.entryId, 'qualification', '');
+                updateBulkData(item.entryId, 'searchTime', '');
+                updateBulkData(item.entryId, 'faults', '0');
+                updateBulkData(item.entryId, 'notes', '');
+                updateBulkData(item.entryId, 'qualificationReason', '');
+              }}
+              title="Clear result"
+            >
+              <Eraser className="h-3.5 w-3.5" />
+            </Button>
+          );
+        },
+      });
+    }
+
     // Conditional delete column
     if (showDeleteColumn) {
       cols.push({
@@ -527,31 +552,10 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
 // React.memo optimization for ClassResultsTable performance
 export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProps, nextProps) => {
-  // Compare critical props that affect rendering
+  if (prevProps.rawEntries !== nextProps.rawEntries) return false;
+  if (prevProps.entries !== nextProps.entries) return false;
   if (prevProps.entries.length !== nextProps.entries.length) return false;
-  if (prevProps.classConfig?.element !== nextProps.classConfig?.element) return false;
-  if (prevProps.classConfig?.level !== nextProps.classConfig?.level) return false;
-  if (prevProps.userPermissions?.role !== nextProps.userPermissions?.role) return false;
-  if (prevProps.classId !== nextProps.classId) return false;
-
-  // Compare entries array for result changes
-  for (let i = 0; i < prevProps.entries.length; i++) {
-    const prevEntry = prevProps.entries[i];
-    const nextEntry = nextProps.entries[i];
-
-    // Check key fields that affect result calculations
-    if (
-      prevEntry.id !== nextEntry.id ||
-      prevEntry.status !== nextEntry.status ||
-      prevEntry.displayInfo?.armband !== nextEntry.displayInfo?.armband ||
-      prevEntry.displayInfo?.dogName !== nextEntry.displayInfo?.dogName ||
-      prevEntry.displayInfo?.handlerName !== nextEntry.displayInfo?.handlerName ||
-      prevEntry.judgingState?.currentResult !== nextEntry.judgingState?.currentResult ||
-      prevEntry.checkInStatus !== nextEntry.checkInStatus
-    ) {
-      return false;
-    }
-  }
-
+  if (prevProps.userPermissions !== nextProps.userPermissions) return false;
+  if (prevProps.classConfig !== nextProps.classConfig) return false;
   return true;
 });

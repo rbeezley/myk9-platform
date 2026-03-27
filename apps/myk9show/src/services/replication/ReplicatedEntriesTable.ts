@@ -61,6 +61,8 @@ export interface ReplicatedEntry {
   handlerName?: string | undefined;
   armbandNumber?: string | undefined;
 
+  disqualification_reason?: string | null | undefined;
+
   // Extra fields for scoring/display (snake_case for Compatibility)
   is_scored?: boolean | undefined;
   result_status?: string | undefined;
@@ -126,6 +128,7 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     registrationId: (dbRow.registration_id as string | undefined) ?? undefined,
 
     // CamelCase fields
+    disqualification_reason: (dbRow.disqualification_reason as string | undefined) ?? undefined,
     isScored: (dbRow.is_scored as boolean | undefined) ?? false,
     resultStatus: (dbRow.result_status as string | undefined) ?? undefined,
     resultText: (dbRow.result_text as string | undefined) ?? undefined,
@@ -219,6 +222,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       registration_id: fk(entry.registrationId),
       is_scored: entry.isScored ?? null,
       result_status: entry.resultStatus ?? null,
+      disqualification_reason: entry.disqualification_reason ?? null,
       search_time_seconds: entry.searchTimeSeconds ?? null,
       total_score: entry.totalPoints ?? null,
       final_placement: entry.finalPlacement != null ? Number(entry.finalPlacement) : null,

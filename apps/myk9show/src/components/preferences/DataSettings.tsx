@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Info,
 } from 'lucide-react';
+import { queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -35,6 +36,8 @@ import type {
   CacheStrategy,
   BandwidthMode,
 } from '@/types/user-preferences';
+
+const PRESERVED_KEYS = ['myK9Q_settings'];
 
 interface DataSettingsProps {
   preferences?: DataPreferences | undefined;
@@ -171,6 +174,48 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
     onUpdate({ maxCacheSize });
   };
 
+  const handleClearCache = async () => {
+    const confirmed = window.confirm(
+      'This will clear all cached data and reload the app. Your settings and login will be preserved. Continue?'
+    );
+    if (!confirmed) return;
+
+    const preserved = new Map<string, string>();
+    for (const key of PRESERVED_KEYS) {
+      const value = localStorage.getItem(key);
+      if (value !== null) preserved.set(key, value);
+    }
+    // Supabase auth key uses dynamic prefix (sb-<ref>-auth-token)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('sb-') && key.includes('auth-token')) {
+        preserved.set(key, localStorage.getItem(key)!);
+      }
+    }
+    localStorage.clear();
+    for (const [key, value] of preserved) {
+      localStorage.setItem(key, value);
+    }
+
+    queryClient.clear();
+
+    // Firefox doesn't support indexedDB.databases()
+    try {
+      if (window.indexedDB?.databases) {
+        const dbs = await window.indexedDB.databases();
+        for (const db of dbs) {
+          if (db.name) window.indexedDB.deleteDatabase(db.name);
+        }
+      } else if (window.indexedDB) {
+        window.indexedDB.deleteDatabase('myK9ShowDB');
+      }
+    } catch {
+      // IndexedDB cleanup is best-effort
+    }
+
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
       {/* Sync Mode */}
@@ -284,7 +329,12 @@ export function DataSettings({ preferences, onUpdate, onReset }: DataSettingsPro
               <span className="text-xs text-muted-foreground">
                 {Math.round(cacheUsage.percentage)}% used
               </span>
-              <Button variant="outline" size="sm" className="text-xs h-6">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-6"
+                onClick={handleClearCache}
+              >
                 Clear Cache
               </Button>
             </div>

@@ -294,7 +294,12 @@ export function ScoringSettings() {
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
+  // [EXPANDED] Guard against browsers without Web Speech API
+  const hasSpeechSynthesis = typeof window !== 'undefined' && 'speechSynthesis' in window;
+
   useEffect(() => {
+    if (!hasSpeechSynthesis) return;
+
     const loadVoices = () => {
       const allVoices = window.speechSynthesis.getVoices();
       setVoices(allVoices.filter(v => v.lang.startsWith('en')));
@@ -303,9 +308,10 @@ export function ScoringSettings() {
     loadVoices();
     window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
     return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
-  }, []);
+  }, [hasSpeechSynthesis]);
 
   const handleTestVoice = () => {
+    if (!hasSpeechSynthesis) return; // [ADDED] guard
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance('This is a test of your selected voice.');
     const selectedVoice = voices.find(v => v.name === voiceName);
@@ -393,10 +399,22 @@ export function ScoringSettings() {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" onClick={handleTestVoice}>
+          {/* [ADDED] Disable voice controls when speechSynthesis unavailable */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTestVoice}
+            disabled={!hasSpeechSynthesis}
+          >
             <Volume2 className="h-4 w-4 mr-2" />
             Test Voice
           </Button>
+
+          {!hasSpeechSynthesis && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Voice features are not available in this browser.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -580,7 +598,8 @@ export function InstallAppSettings() {
       {canInstall && (
         <Card>
           <CardContent className="pt-6">
-            <Button onClick={() => promptInstall()} className="w-full">
+            {/* [EXPANDED] Catch prompt rejection (user cancels or browser error) */}
+            <Button onClick={() => promptInstall().catch(() => {})} className="w-full">
               <Download className="h-4 w-4 mr-2" />
               Install myK9Show
             </Button>
@@ -770,13 +789,18 @@ const handleClearCache = () => {
   // Clear React Query cache
   queryClient.clear();
 
-  // Clear IndexedDB databases
+  // [EXPANDED] Clear IndexedDB — databases() not in Firefox; fallback to known names
   if (window.indexedDB?.databases) {
-    window.indexedDB.databases().then(dbs => {
-      for (const db of dbs) {
-        if (db.name) window.indexedDB.deleteDatabase(db.name);
-      }
-    });
+    window.indexedDB
+      .databases()
+      .then(dbs => {
+        for (const db of dbs) {
+          if (db.name) window.indexedDB.deleteDatabase(db.name);
+        }
+      })
+      .catch(() => {});
+  } else if (window.indexedDB) {
+    window.indexedDB.deleteDatabase('myK9Q_Replication');
   }
 
   window.location.reload();
@@ -810,6 +834,8 @@ git commit -m "fix: wire up cache clear button in DataSettings with confirmation
 **Files:**
 
 - Modify: `apps/myk9show/src/pages/PreferencesPage.tsx`
+
+> **[ADDED] Preservation note:** The sidebar footer (Export, Import, Sync Now, Reset All buttons + device badge, lines 277-346) and the content area alert banners (error, actionError, successMessage, lines 440-459) MUST be preserved as-is. Only the sidebar `<nav>` and the mobile nav toggle are rewritten.
 
 - [ ] **Step 1: Define the grouped data structure**
 

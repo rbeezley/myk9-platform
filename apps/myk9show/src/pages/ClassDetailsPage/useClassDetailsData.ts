@@ -151,7 +151,10 @@ export function useClassDetailsData() {
         armband,
         handler: e.handler || '',
         dog: e.dog || 'Unknown Dog',
-        status: (e.status || 'Not Qualified') as ClassEntryDisplay['status'],
+        // Use competitionData qualification if scored, otherwise empty.
+        // e.status is the lifecycle status (confirmed/paid/etc.), NOT the scoring result.
+        status: ((e as unknown as { competitionData?: { qualification?: string } }).competitionData
+          ?.qualification || '') as ClassEntryDisplay['status'],
         score: e.score || '',
         time: e.time || '',
         placement: e.placement || '',

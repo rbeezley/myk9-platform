@@ -30,12 +30,26 @@ import { useEntryStore } from '@/store/entryStore';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
-/** Check whether a ScentWorkEntry has been scored (has competition data or judging result). */
+/** Meaningful qualification values that indicate an entry has been scored. */
+const SCORED_QUALIFICATIONS = new Set([
+  'Qualified',
+  'Not Qualified',
+  'NQ',
+  'Absent',
+  'Excused',
+  'Withdrawn',
+  'Eliminated',
+]);
+
 function isEntryScored(entry: ScentWorkEntry): boolean {
   const comp = entry.competitionData;
-  if (comp?.time || comp?.qualified !== undefined) return true;
+  if (comp?.time || (comp?.qualified !== undefined && comp.qualified !== null)) return true;
   const result = entry.judgingState?.currentResult;
-  if (result?.searchTime || result?.qualification) return true;
+  if (
+    result?.searchTime ||
+    (result?.qualification && SCORED_QUALIFICATIONS.has(result.qualification))
+  )
+    return true;
   return false;
 }
 
@@ -502,9 +516,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         onOpenChange={open => {
           if (!open) setStatusPickerEntry(null);
         }}
-        entry={
-          statusPickerEntry ?? { entryId: '', armband: '', dogName: '', handlerName: '' }
-        }
+        entry={statusPickerEntry ?? { entryId: '', armband: '', dogName: '', handlerName: '' }}
         currentStatus={statusPickerEntry?.currentStatus ?? 'no-status'}
         onStatusChange={handleStatusChange}
         isStaff={isStaff}

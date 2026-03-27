@@ -88,6 +88,15 @@ export function useClassResults({
       const newData = entries.map(entry => {
         const raw = rawEntryMap.get(entry.id);
 
+        // Diagnostic logging — remove after confirming fix
+        console.log('[SCORING INIT]', {
+          entryId: entry.id,
+          dogName: entry.displayInfo?.dogName,
+          rawFound: !!raw,
+          rawResultStatus: raw?.result_status,
+          rawSearchTime: raw?.search_time_seconds,
+        });
+
         const qualification = mapResultStatusToQualification(raw?.result_status);
         const searchTime = dbSecondsToInputFormat(raw?.search_time_seconds);
 
@@ -289,9 +298,21 @@ export function useClassResults({
         return;
       }
 
+      // Diagnostic logging — remove after confirming fix
+      console.log('[SCORING SUBMIT]', {
+        scoredCount: scoredItems.length,
+        clearedCount: clearedItems.length,
+        scoredItems: scoredItems.map(i => ({
+          id: i.entryId,
+          qual: i.qualification,
+          time: i.searchTime,
+          faults: i.faults,
+        })),
+      });
+
       // Write scored entries directly to DB columns via replication
       for (const item of scoredItems) {
-        await replicatedEntriesTable.updateEntry(item.entryId, {
+        const updatePayload = {
           resultStatus: mapQualificationToResultStatus(item.qualification),
           searchTimeSeconds: inputFormatToDbSeconds(item.searchTime),
           totalFaults: parseInt(item.faults) || 0,
@@ -299,7 +320,9 @@ export function useClassResults({
           finalPlacement: item.placement != null ? String(item.placement) : undefined,
           isScored: true,
           scoringCompletedAt: new Date().toISOString(),
-        });
+        };
+        console.log('[SCORING WRITE]', item.entryId, updatePayload);
+        await replicatedEntriesTable.updateEntry(item.entryId, updatePayload);
       }
 
       // Clear entries — reset all scoring columns to defaults

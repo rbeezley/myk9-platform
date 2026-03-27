@@ -139,7 +139,10 @@ export function useClassDetailsData() {
       localById.set(typedEntry.id, typedEntry);
     }
 
-    // Start with database entries (already in display format)
+    // Build a lookup of raw DB entries for dog name resolution
+    const rawById = new Map(dbRawEntries.map(r => [r.id, r]));
+
+    // Start with database entries — resolve dog names from raw DB join data
     const dbDisplayEntries: ClassEntryDisplay[] = dbEntries.map(e => {
       // Backfill armband from local entry if DB version is empty
       let armband = e.armband || '';
@@ -148,18 +151,19 @@ export function useClassDetailsData() {
         armband = localEntry?.registrationData?.armband || '';
       }
 
+      // Get dog name from the raw DB join (mapDatabaseToEntry doesn't extract it)
+      const raw = rawById.get(e.id);
+      const dogName = raw?.dog?.call_name || raw?.dog?.name || e.dog || 'Unknown Dog';
+
       return {
         id: e.id,
         armband,
         handler: e.handler || '',
-        dog: e.dog || 'Unknown Dog',
-        // Use competitionData qualification if scored, otherwise empty.
-        // e.status is the lifecycle status (confirmed/paid/etc.), NOT the scoring result.
-        status: ((e as unknown as { competitionData?: { qualification?: string } }).competitionData
-          ?.qualification || '') as ClassEntryDisplay['status'],
-        score: e.score || '',
-        time: e.time || '',
-        placement: e.placement || '',
+        dog: dogName,
+        status: '' as ClassEntryDisplay['status'], // Scoring handled by rawEntries
+        score: '',
+        time: '',
+        placement: '',
         classId: e.classId || '',
       };
     });
@@ -185,7 +189,7 @@ export function useClassDetailsData() {
     });
 
     return merged;
-  }, [dbEntries, localEntries, dogsById]);
+  }, [dbEntries, dbRawEntries, localEntries, dogsById]);
 
   return {
     // URL params

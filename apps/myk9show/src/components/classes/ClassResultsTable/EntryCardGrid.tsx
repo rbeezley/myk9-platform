@@ -5,6 +5,7 @@ import { EntryCard, type EntryCardEntry } from './EntryCard';
 interface EntryCardGridProps {
   entries: ScentWorkEntry[];
   classId: string;
+  onStatusClick?: ((entry: EntryCardEntry) => void) | undefined;
 }
 
 function toCardEntry(entry: ScentWorkEntry): EntryCardEntry {
@@ -14,11 +15,11 @@ function toCardEntry(entry: ScentWorkEntry): EntryCardEntry {
     dogName: entry.displayInfo.dogName,
     dogBreed: entry.displayInfo.dogBreed,
     handlerName: entry.displayInfo.handlerName,
-    status: 'no-status',
+    status: entry.checkInStatus ?? 'no-status',
   };
 }
 
-export function EntryCardGrid({ entries, classId }: EntryCardGridProps) {
+export function EntryCardGrid({ entries, classId, onStatusClick }: EntryCardGridProps) {
   const cardEntries = useMemo(() => entries.map(toCardEntry), [entries]);
 
   if (cardEntries.length === 0) {
@@ -32,6 +33,7 @@ export function EntryCardGrid({ entries, classId }: EntryCardGridProps) {
           key={entry.entryId}
           entry={entry}
           scoringRoute={`/scoring/classes/${classId}/entries/${entry.entryId}`}
+          {...(onStatusClick != null && { onStatusClick })}
         />
       ))}
     </div>

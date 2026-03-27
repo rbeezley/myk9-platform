@@ -7,6 +7,7 @@ export interface TrialEntryRow {
   id: string;
   class_id: string;
   entry_status: string | null;
+  check_in_status?: string | null;
   handler: string | null;
   armband: string | null;
   created_at: string | null;
@@ -48,7 +49,7 @@ export const useTrialEntries = (trialId: string) => {
     queryFn: async () => {
       const { data, error } = await getEntriesByTrial(trialId);
       if (error) throw error;
-      return data as TrialEntryRow[];
+      return data as unknown as TrialEntryRow[];
     },
     enabled: !!trialId,
     ...cacheStrategies.dynamic,

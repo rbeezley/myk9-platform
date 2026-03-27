@@ -179,9 +179,6 @@ export function PreferencesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Mobile nav state
-  const [, setMobileNavOpen] = useState(false);
-
   const visibleGroups = settingsGroups
     .map(group => ({
       ...group,
@@ -343,10 +340,7 @@ export function PreferencesPage() {
               {group.sections.map(section => (
                 <button
                   key={section.id}
-                  onClick={() => {
-                    setActiveTab(section.id);
-                    setMobileNavOpen(false);
-                  }}
+                  onClick={() => setActiveTab(section.id)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm',
                     activeTab === section.id

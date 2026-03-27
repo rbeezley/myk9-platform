@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { render } from '@/test/utils/testUtils';
 import { ClassResultsTable } from '../ClassResultsTable';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import { createUserPermissions } from '@/types/user-permissions';
@@ -24,6 +24,12 @@ vi.mock('@/store/entryStore', () => ({
   useEntryStore: vi.fn(() => vi.fn()),
 }));
 
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    updateEntry: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 // Minimal valid props for ClassResultsTable
 function makeProps(overrides: Record<string, unknown> = {}) {
   const entries: ScentWorkEntry[] = [];
@@ -38,19 +44,15 @@ function makeProps(overrides: Record<string, unknown> = {}) {
 
   return {
     entries,
+    rawEntries: [],
     classConfig,
     userPermissions,
-    onResultsSubmit: vi.fn(),
     ...overrides,
   };
 }
 
 function renderTable(props: ReturnType<typeof makeProps>) {
-  return render(
-    <MemoryRouter>
-      <ClassResultsTable {...props} />
-    </MemoryRouter>
-  );
+  return render(<ClassResultsTable {...props} />);
 }
 
 describe('ClassResultsTable header buttons', () => {

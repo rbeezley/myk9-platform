@@ -10,7 +10,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { ClassResultsTable } from '../ClassResultsTable';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import { createUserPermissions } from '@/types/user-permissions';
-import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 // Minimal valid props for ClassResultsTable
 function makeProps(overrides: Record<string, unknown> = {}) {

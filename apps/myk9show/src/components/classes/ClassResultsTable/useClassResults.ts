@@ -63,24 +63,28 @@ export function useClassResults({
           },
         });
 
-        // Determine search time - prefer normalized input format
+        // Determine search time - prefer normalized input format.
+        // Only fall back to judgingState if competitionData doesn't exist at all
+        // (not when it exists but time is empty — that means it was cleared).
         let searchTime = '';
         if (competitionData?.time) {
           searchTime = convertTimeToInputFormat(competitionData.time);
-        } else if (existingData?.searchTime) {
+        } else if (!competitionData && existingData?.searchTime) {
           searchTime = convertTimeToInputFormat((existingData.searchTime / 1000).toString());
         }
 
         // Determine qualification status
         let qualification: QualificationStatus | '' = '';
 
-        // First priority: check for explicit qualification string
+        // First priority: check for explicit qualification string in competitionData
         if ((competitionData as Record<string, unknown>)?.qualification) {
           qualification = (competitionData as Record<string, unknown>)
             .qualification as QualificationStatus;
         }
-        // Second priority: check existing data
-        else if (existingData?.qualification) {
+        // Second priority: fall back to judgingState ONLY if competitionData doesn't exist.
+        // If competitionData exists but qualification is empty, the entry was cleared — don't
+        // restore old qualification from judgingState.
+        else if (!competitionData && existingData?.qualification) {
           qualification = existingData.qualification;
         }
         // Third priority: fall back to boolean qualified field (legacy) — only set if explicitly qualified
@@ -101,9 +105,10 @@ export function useClassResults({
             (competitionData as Record<string, unknown>)?.qualificationReason?.toString() || '',
           faults:
             (competitionData as Record<string, unknown>)?.faults?.toString() ||
-            existingData?.faults?.toString() ||
+            (!competitionData && existingData?.faults?.toString()) ||
             '0',
-          notes: competitionData?.judgeNotes || existingData?.judgeNotes || '',
+          notes:
+            competitionData?.judgeNotes || (!competitionData && existingData?.judgeNotes) || '',
           placement: null, // Will be calculated
           isValid: !!(searchTime && qualification),
           hasChanges: false,

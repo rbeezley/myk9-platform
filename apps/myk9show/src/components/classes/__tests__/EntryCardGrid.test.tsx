@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryCardGrid } from '../ClassResultsTable/EntryCardGrid';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
@@ -42,6 +43,8 @@ function renderGrid(entries: ScentWorkEntry[] = [], useSecretaryRoute = true) {
 }
 
 describe('EntryCardGrid', () => {
+  beforeEach(() => mockNavigate.mockClear());
+
   it('renders one card per entry', () => {
     const entries = [
       makeScentWorkEntry({
@@ -90,16 +93,18 @@ describe('EntryCardGrid', () => {
     expect(screen.getByText(/no entries/i)).toBeInTheDocument();
   });
 
-  it('builds secretary scoring route when useSecretaryRoute is true', () => {
+  it('builds secretary scoring route when useSecretaryRoute is true', async () => {
     const entries = [makeScentWorkEntry({ id: 'entry-1' })];
     renderGrid(entries, true);
-    expect(screen.getByText('Laila')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button'));
+    expect(mockNavigate).toHaveBeenCalledWith('/scoring/secretary/classes/class-1/entries/entry-1');
   });
 
-  it('builds judge scoring route when useSecretaryRoute is false', () => {
+  it('builds judge scoring route when useSecretaryRoute is false', async () => {
     const entries = [makeScentWorkEntry({ id: 'entry-1' })];
     renderGrid(entries, false);
-    expect(screen.getByText('Laila')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button'));
+    expect(mockNavigate).toHaveBeenCalledWith('/scoring/classes/class-1/entries/entry-1');
   });
 
   it('passes armband, breed, and handler from displayInfo', () => {

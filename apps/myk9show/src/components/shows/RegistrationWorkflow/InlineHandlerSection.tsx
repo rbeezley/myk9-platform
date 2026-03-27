@@ -117,7 +117,7 @@ export const InlineHandlerSection: React.FC<InlineHandlerSectionProps> = ({
                       </Badge>
                     </div>
                   ) : (
-                    <span className="text-sm text-destructive font-medium">Not assigned</span>
+                    <span className="text-sm text-muted-foreground">Not assigned</span>
                   )}
 
                   <Button

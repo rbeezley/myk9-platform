@@ -299,9 +299,8 @@ const ShowDetailsPage: React.FC = () => {
             label: 'Register',
             onClick: handleRegisterForShow,
           }}
+          footer={<QuickInfoCards show={actualCurrentShow} />}
         />
-
-        <QuickInfoCards show={actualCurrentShow} />
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
           <TabsContent value="overview">

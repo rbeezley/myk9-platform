@@ -23,6 +23,7 @@ interface DetailHeroProps {
   badge?: HeroBadge | undefined;
   primaryAction?: HeroAction;
   secondaryActions?: React.ReactNode;
+  footer?: React.ReactNode;
   className?: string;
 }
 
@@ -40,11 +41,12 @@ export function DetailHero({
   badge,
   primaryAction,
   secondaryActions,
+  footer,
   className,
 }: DetailHeroProps) {
   return (
-    <div className={cn('rounded-xl border border-border/50 bg-card p-6', className)}>
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+    <div className={cn('rounded-xl border border-border/50 bg-card overflow-hidden', className)}>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6">
         <div className="space-y-1.5">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
@@ -84,6 +86,7 @@ export function DetailHero({
           )}
         </div>
       </div>
+      {footer && <div className="border-t border-border/50 bg-muted/30">{footer}</div>}
     </div>
   );
 }

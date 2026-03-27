@@ -15,7 +15,7 @@ interface SubTabsProps {
   tabs: SubTabDef[];
   value: string;
   onValueChange: (value: string) => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   /** When this key changes, the active tab resets to the first tab. */
   resetKey?: string;
   className?: string;

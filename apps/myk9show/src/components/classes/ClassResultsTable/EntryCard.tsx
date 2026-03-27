@@ -14,7 +14,6 @@ export interface EntryCardEntry {
 
 interface EntryCardProps {
   entry: EntryCardEntry;
-  classId: string;
   scoringRoute: string;
 }
 

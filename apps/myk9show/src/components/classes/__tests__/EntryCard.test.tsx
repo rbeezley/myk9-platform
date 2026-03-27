@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { EntryCard } from '../ClassResultsTable/EntryCard';
+import { EntryCard, type EntryCardEntry } from '../ClassResultsTable/EntryCard';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
@@ -10,14 +10,14 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-function makeEntry(overrides: Record<string, unknown> = {}) {
+function makeEntry(overrides: Partial<EntryCardEntry> = {}) {
   return {
     entryId: 'entry-1',
     armband: '107',
     dogName: 'Laila',
     dogBreed: 'Scottish Terrier',
     handlerName: 'Kathy Gray',
-    status: 'no_status' as const,
+    status: 'no_status',
     ...overrides,
   };
 }
@@ -25,7 +25,6 @@ function makeEntry(overrides: Record<string, unknown> = {}) {
 function renderCard(props: Partial<React.ComponentProps<typeof EntryCard>> = {}) {
   const defaultProps = {
     entry: makeEntry(),
-    classId: 'class-1',
     scoringRoute: '/scoring/secretary/classes/class-1/entries/entry-1',
   };
   return render(

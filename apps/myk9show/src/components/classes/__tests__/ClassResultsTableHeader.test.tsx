@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ClassResultsTable } from '../ClassResultsTable';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import { createUserPermissions } from '@/types/user-permissions';
+import { CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 
 // Minimal valid props for ClassResultsTable
 function makeProps(overrides: Record<string, unknown> = {}) {
@@ -79,5 +80,56 @@ describe('ClassResultsTable header buttons', () => {
     renderTable(makeProps());
     // Badge shows "0" for empty entries
     expect(screen.getByText('0')).toBeInTheDocument();
+  });
+});
+
+describe('ClassResultsTable view toggle', () => {
+  it('renders view toggle buttons when classId provided', () => {
+    renderTable(makeProps({ classId: 'class-1' }));
+    expect(screen.getByTitle('Cards view')).toBeInTheDocument();
+    expect(screen.getByTitle('Table view')).toBeInTheDocument();
+  });
+
+  it('defaults to table view', () => {
+    renderTable(makeProps({ classId: 'class-1' }));
+    const tableBtn = screen.getByTitle('Table view');
+    expect(tableBtn.className).toContain('bg-primary');
+  });
+
+  it('switches to card view when cards toggle is clicked', async () => {
+    const entries: ScentWorkEntry[] = [
+      {
+        id: 'entry-1',
+        status: 'registered',
+        displayInfo: {
+          armband: '107',
+          dogName: 'Laila',
+          dogBreed: 'Scottish Terrier',
+          handlerName: 'Kathy Gray',
+          dogId: 'dog-1',
+          handlerId: 'handler-1',
+        },
+        classConfig: {
+          element: 'Container',
+          level: 'Advanced',
+          timeLimit: '3:00',
+          multiArea: false,
+          warningsEnabled: true,
+        },
+      } as ScentWorkEntry,
+    ];
+    renderTable(makeProps({ classId: 'class-1', entries }));
+
+    await userEvent.click(screen.getByTitle('Cards view'));
+    // Card view renders dog name in card format
+    expect(screen.getByText('Laila')).toBeInTheDocument();
+    // Table-specific elements should not be visible
+    expect(screen.queryByText('Dog & Handler')).not.toBeInTheDocument();
+  });
+
+  it('hides submit footer in card view', async () => {
+    renderTable(makeProps({ classId: 'class-1' }));
+    await userEvent.click(screen.getByTitle('Cards view'));
+    expect(screen.queryByText(/Submit.*Results/)).not.toBeInTheDocument();
   });
 });

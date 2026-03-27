@@ -18,6 +18,9 @@ import { getPlacementBadgeClass, formatPlacement } from './utils';
 import { DogInfoTooltip } from './DogInfoTooltip';
 import { QualificationCell } from './QualificationCell';
 import { StatusBadge } from './StatusBadge';
+import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+import { ViewToggle } from '@/components/common/ViewToggle';
+import { EntryCardGrid } from './EntryCardGrid';
 
 function getSubmitLabel(
   summary: { entriesWithData: number; clearedEntries: number },
@@ -61,6 +64,11 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
   const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
   const canEdit = userPermissions.canEditEntries;
+
+  const [viewMode, setViewMode] = useViewPreference('class-results', 'table');
+  const useSecretaryRoute = !!userPermissions.canEditEntries;
+  // Guard: card view requires classId for scoring navigation
+  const effectiveViewMode = classId ? viewMode : 'table';
 
   const columns: ColumnDef<BulkEntryData, unknown>[] = useMemo(() => {
     const cols: ColumnDef<BulkEntryData, unknown>[] = [
@@ -296,6 +304,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               </Badge>
             </div>
             <div className="flex items-center gap-2">
+              {classId && (
+                <ViewToggle
+                  modes={CARD_TABLE_MODES}
+                  active={effectiveViewMode}
+                  onChange={setViewMode}
+                />
+              )}
               {onOpenRequirements && (
                 <Button variant="outline" size="sm" onClick={onOpenRequirements}>
                   <ClipboardList className="h-4 w-4" />
@@ -327,36 +342,46 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             </div>
           </div>
 
-          <DataTable<BulkEntryData>
-            tableId="classResults"
-            columns={columns}
-            data={bulkData}
-            getRowId={row => row.entryId}
-            pageSize={9999}
-            getRowClassName={row =>
-              row.isCleared
-                ? 'bg-amber-50 dark:bg-amber-950/20'
-                : row.hasChanges && !row.isValid
-                  ? 'bg-red-50 dark:bg-red-950/20'
-                  : ''
-            }
-          />
+          {effectiveViewMode === 'cards' ? (
+            <EntryCardGrid
+              entries={entries}
+              classId={classId!}
+              useSecretaryRoute={useSecretaryRoute}
+            />
+          ) : (
+            <>
+              <DataTable<BulkEntryData>
+                tableId="classResults"
+                columns={columns}
+                data={bulkData}
+                getRowId={row => row.entryId}
+                pageSize={9999}
+                getRowClassName={row =>
+                  row.isCleared
+                    ? 'bg-amber-50 dark:bg-amber-950/20'
+                    : row.hasChanges && !row.isValid
+                      ? 'bg-red-50 dark:bg-red-950/20'
+                      : ''
+                }
+              />
 
-          {userPermissions.canEditEntries && (
-            <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
-              <div className="text-sm text-muted-foreground">
-                Press Enter or Tab to move between fields quickly &bull; Placements calculated
-                automatically
-              </div>
-              <Button
-                onClick={handleSubmit}
-                disabled={!summary.canSubmit || isSubmitting}
-                className="myk9-action-button myk9-action-button-primary"
-              >
-                <Save className="h-4 w-4" />
-                <span>{getSubmitLabel(summary, isSubmitting)}</span>
-              </Button>
-            </div>
+              {userPermissions.canEditEntries && (
+                <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
+                  <div className="text-sm text-muted-foreground">
+                    Press Enter or Tab to move between fields quickly &bull; Placements calculated
+                    automatically
+                  </div>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!summary.canSubmit || isSubmitting}
+                    className="myk9-action-button myk9-action-button-primary"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{getSubmitLabel(summary, isSubmitting)}</span>
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

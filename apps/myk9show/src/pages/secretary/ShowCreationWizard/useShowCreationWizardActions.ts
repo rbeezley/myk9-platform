@@ -133,7 +133,6 @@ export function useShowCreationWizardActions({
           eventNumber: wizardTrial.eventNumber || '',
           type: trialName,
           trialType: wizardTrial.trialType || showOrganization,
-          sportType: wizardTrial.sportType,
           plannedStartTime: wizardTrial.dateTime
             ? format(new Date(wizardTrial.dateTime), 'h:mm a')
             : '09:00 AM',

@@ -175,12 +175,12 @@ export const mapDatabaseToShow = (
     location: dbShow.location || '',
     status: dbShow.status || 'upcoming',
     // Extract unique trial types (e.g., "Scent Work", "Agility")
-    // Prefers trial_type (user-friendly), falls back to sport_type, then organization
+    // Uses trial_type (user-friendly), falls back to organization
     events: (() => {
       const trialTypes = [
         ...new Set(
           (rawTrials as Array<Record<string, unknown>>)
-            .map(t => (t.trial_type || t.sport_type) as string | null)
+            .map(t => t.trial_type as string | null)
             .filter((s): s is string => !!s)
         ),
       ];

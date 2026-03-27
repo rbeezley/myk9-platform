@@ -28,7 +28,6 @@ export interface ReplicatedTrial {
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   maxEntriesPerHandler?: number | undefined;
-  sportType?: string | undefined;
   trialType?: string | undefined;
   plannedStartTime?: string | undefined;
   actualStartTime?: string | undefined;
@@ -64,7 +63,6 @@ function rowToTrial(row: TrialRow): ReplicatedTrial {
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
     maxEntriesPerHandler: row.max_entries_per_handler ?? undefined,
-    sportType: row.sport_type ?? undefined,
     trialType: row.trial_type ?? undefined,
     plannedStartTime: row.planned_start_time ?? undefined,
     actualStartTime: row.actual_start_time ?? undefined,
@@ -129,7 +127,6 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       max_entries_per_dog: trial.maxEntriesPerDog ?? null,
       max_total_entries: trial.maxTotalEntries ?? null,
       max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
-      sport_type: trial.sportType ?? null,
       trial_type: trial.trialType ?? null,
       planned_start_time: trial.plannedStartTime ?? null,
       actual_start_time: trial.actualStartTime ?? null,

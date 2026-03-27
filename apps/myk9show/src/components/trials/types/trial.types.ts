@@ -16,7 +16,6 @@ export interface Trial {
   order?: string | undefined;
   name?: string | undefined;
   trialType?: string | undefined;
-  sportType?: string | undefined;
   pipelineStage?: number | undefined;
 }
 

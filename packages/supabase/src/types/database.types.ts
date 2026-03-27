@@ -4189,7 +4189,6 @@ export type Database = {
           pipeline_stage: number;
           planned_start_time: string | null;
           show_id: string;
-          sport_type: string | null;
           status: string | null;
           trial_number: string | null;
           trial_type: string | null;
@@ -4215,7 +4214,6 @@ export type Database = {
           pipeline_stage?: number;
           planned_start_time?: string | null;
           show_id: string;
-          sport_type?: string | null;
           status?: string | null;
           trial_number?: string | null;
           trial_type?: string | null;
@@ -4241,7 +4239,6 @@ export type Database = {
           pipeline_stage?: number;
           planned_start_time?: string | null;
           show_id?: string;
-          sport_type?: string | null;
           status?: string | null;
           trial_number?: string | null;
           trial_type?: string | null;

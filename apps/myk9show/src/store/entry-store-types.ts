@@ -5,6 +5,8 @@
  * used by `useEntryStore` and its consumers throughout the app.
  */
 
+import type { CheckInStatus } from '@myk9/core';
+
 // Entry lifecycle states
 export type EntryStatus =
   | 'draft' // User building entry
@@ -63,6 +65,9 @@ export interface ShowEntry {
 
   // Current state
   status: EntryStatus;
+
+  // Show-day check-in status (separate from lifecycle status)
+  checkInStatus?: CheckInStatus | undefined;
 
   // Registration phase data
   registrationData: RegistrationData;

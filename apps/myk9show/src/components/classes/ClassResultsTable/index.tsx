@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Plus, Trophy, Trash2, X } from 'lucide-react';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { DataTable, TimeInput, formatSearchTime } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { SubTabs, type SubTabDef } from '@/components/common/SubTabs';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, BulkEntryData } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
@@ -21,6 +22,17 @@ import { StatusBadge } from './StatusBadge';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EntryCardGrid } from './EntryCardGrid';
+
+export type ScoringStatusTab = 'all' | 'pending' | 'completed';
+
+/** Check whether a ScentWorkEntry has been scored (has competition data or judging result). */
+function isEntryScored(entry: ScentWorkEntry): boolean {
+  const comp = entry.competitionData;
+  if (comp?.time || comp?.qualified !== undefined) return true;
+  const result = entry.judgingState?.currentResult;
+  if (result?.searchTime || result?.qualification) return true;
+  return false;
+}
 
 function getSubmitLabel(
   summary: { entriesWithData: number; clearedEntries: number },
@@ -68,6 +80,43 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const [viewMode, setViewMode] = useViewPreference('class-results', 'table');
   // Guard: card view requires classId for scoring navigation
   const effectiveViewMode = classId ? viewMode : 'table';
+
+  // Scoring status tab filtering (Pending / Completed / All)
+  const [scoringTab, setScoringTab] = useState<ScoringStatusTab>('pending');
+
+  /** Entry IDs that are scored, derived from the source entries. */
+  const scoredEntryIds = useMemo(
+    () => new Set(entries.filter(isEntryScored).map(e => e.id)),
+    [entries]
+  );
+
+  const tabCounts = useMemo(() => {
+    const completed = scoredEntryIds.size;
+    return { pending: entries.length - completed, completed };
+  }, [entries.length, scoredEntryIds]);
+
+  const scoringTabs: SubTabDef[] = useMemo(
+    () => [
+      { id: 'pending', label: 'Pending', badge: tabCounts.pending },
+      { id: 'completed', label: 'Completed', badge: tabCounts.completed },
+      { id: 'all', label: 'All' },
+    ],
+    [tabCounts.pending, tabCounts.completed]
+  );
+
+  /** Bulk data filtered by the active scoring tab. */
+  const filteredBulkData = useMemo(() => {
+    if (scoringTab === 'all') return bulkData;
+    if (scoringTab === 'completed') return bulkData.filter(d => scoredEntryIds.has(d.entryId));
+    return bulkData.filter(d => !scoredEntryIds.has(d.entryId));
+  }, [bulkData, scoringTab, scoredEntryIds]);
+
+  /** Source entries filtered by the active scoring tab (for card view). */
+  const filteredEntries = useMemo(() => {
+    if (scoringTab === 'all') return entries;
+    if (scoringTab === 'completed') return entries.filter(e => scoredEntryIds.has(e.id));
+    return entries.filter(e => !scoredEntryIds.has(e.id));
+  }, [entries, scoringTab, scoredEntryIds]);
 
   const columns: ColumnDef<BulkEntryData, unknown>[] = useMemo(() => {
     const cols: ColumnDef<BulkEntryData, unknown>[] = [
@@ -341,14 +390,21 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             </div>
           </div>
 
+          <SubTabs
+            tabs={scoringTabs}
+            value={scoringTab}
+            onValueChange={v => setScoringTab(v as ScoringStatusTab)}
+            className="px-4 pt-3"
+          />
+
           {effectiveViewMode === 'cards' ? (
-            <EntryCardGrid entries={entries} classId={classId!} />
+            <EntryCardGrid entries={filteredEntries} classId={classId!} />
           ) : (
             <>
               <DataTable<BulkEntryData>
                 tableId="classResults"
                 columns={columns}
-                data={bulkData}
+                data={filteredBulkData}
                 getRowId={row => row.entryId}
                 pageSize={9999}
                 getRowClassName={row =>

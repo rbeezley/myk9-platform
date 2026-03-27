@@ -42,7 +42,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 ### UX / Quality of Life
 
 - [x] **Armband-based dog lookup** — Done: Added `ArmbandLookup` component to ShowDetailsPage header. Compact input field appears when armbands exist for the show. User types armband number, presses Enter, popover shows dog info (name, breed, sex, owner), class entries with status badges, handler info, and "View profile" link. Self-contained component with `armbandQueries.ts` (count + lookup), React Query hooks, error/not-found/loading states. 10 unit tests.
-- [ ] **Settings pages (comprehensive)** — myK9Q has scoring settings, voice settings, privacy, data management, developer tools, install app prompts. myK9Show only has basic PreferencesPage.
+- [x] **Settings pages (comprehensive)** — Done: Reorganized PreferencesPage into 4 grouped sidebar categories (Appearance, Alerts & Sound, Events, Account & Data). Added GeneralSettings (haptic feedback toggle), ScoringSettings (voice announcements + voice selection/speed/test, role-gated to judges/secretaries/stewards/admins), and InstallAppSettings (PWA install status + browser-specific instructions). Wired up placeholder cache clear button with confirmation, selective localStorage/IndexedDB/React Query clearing. Mobile two-level nav (group pills + section chips). Developer tools skipped (dead code in myK9Q; myK9Show has better debug infra). 28 tests across 5 files.
 - [x] **PWA / app install prompts** — Done: Ported PWA install prompt from myK9Q. `usePWAInstall` hook detects standalone mode, captures `beforeinstallprompt` for Chrome/Edge, provides iOS Safari manual instructions via shadcn Dialog. Banner auto-dismisses for 7 days. Mounted above AppHeader in App.tsx. 8 unit tests.
 
 ---
@@ -317,6 +317,18 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 - [x] **Fix sport_type not being set on trials** — Done: Added `deriveSportType(org, trialType)` mapping function in scoring types. Added `sportType` to `Trial` and `TrialInput` interfaces. Wizard `createTrials()` now passes `sportType` from wizard state. Trial edit panel derives `sportType` from org + trialType on save. Replaced `SPORT_TYPE_MAP` in wizardStore with `deriveSportType()`. Fixed trialStore `addTrial`/`updateTrial` missing sportType in field mapping. 10 unit tests for the mapping function. Scoresheets now resolve correctly for all supported org/discipline combos.
 - [x] **Eliminate redundant `sport_type` column** — Done: Scoring pages derive sport type at runtime via `resolveSportTypeForClass()` helper (trial→show→deriveSportType chain). Removed sportType from Trial/TrialInput interfaces, stores, replication layer, Supabase types. Migration 091 drops the column. 18 files changed. — `trialType` (human label like "Scent Work") and `sportType` (DB code like "akc-scent-work") encode the same information. `deriveSportType(org, trialType)` can convert on the fly. Refactor scoring pages to derive at render time instead of reading `trial.sportType`, then drop the `sport_type` column. Touches: `ScoresheetPage`, `SecretaryScoringPage`, `ReplicatedTrialsTable`, `trialStore`, `wizardStore`.
+
+---
+
+## Standard Toolbar on Entries Sub-Tabs — 2026-03-27 14:11
+
+- **Add standard toolbar to Pending/Completed/All entry sub-tabs** — The search bar and standard DataTable toolbar should appear within each sub-tab content area, not just above the tabs. **Problem:** On the Class Details page, the Entries & Results section has SubTabs (Pending/Completed/All) but the standard toolbar (search input, column visibility toggle) is missing between the sub-tabs and the entry list. Users have no way to search or filter entries within a tab. The header bar has ViewToggle, Enter Scores, and Add Entry buttons, but no search. **Files:** `apps/myk9show/src/components/classes/ClassResultsTable/index.tsx:441-475` (SubTabs + content area — toolbar should appear between SubTabs and the EntryCardGrid/DataTable). **Solution:** Add a search input and any other standard toolbar elements between the SubTabs and the entries content. Match the toolbar pattern used elsewhere in the app (e.g., TrialEntriesTable has DataTable with built-in toolbar). Consider whether the search should filter across all tabs or just the active one.
+
+---
+
+## Entries Default to Scored/Completed Status — 2026-03-27 14:14
+
+- [x] **Fix entries showing as scored by default on Completed tab** — Done: Root cause was `useClassDetailsData` mapping the lifecycle `entry_status` (e.g. 'confirmed') as the qualification result. This truthy string caused `buildScentWorkEntries` to create `competitionData` for all entries, making `isEntryScored` return true. Fixed by using `competitionData.qualification` (actual scoring result) instead. Also hardened `isEntryScored` with a `SCORED_QUALIFICATIONS` set to only treat meaningful values (Qualified, NQ, Absent, etc.) as scored.
 
 ---
 

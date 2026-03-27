@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
@@ -8,8 +8,6 @@ import { supabase } from '@/lib/supabase';
  */
 export function useCheckInStatusSubscription(classId: string | undefined) {
   const queryClient = useQueryClient();
-  const queryClientRef = useRef(queryClient);
-  queryClientRef.current = queryClient;
 
   useEffect(() => {
     if (!classId) return;
@@ -26,7 +24,7 @@ export function useCheckInStatusSubscription(classId: string | undefined) {
           filter: `class_id=eq.${classId}`,
         },
         () => {
-          queryClientRef.current.invalidateQueries({
+          queryClient.invalidateQueries({
             queryKey: ['classes', classId, 'entries'],
           });
         }
@@ -36,5 +34,5 @@ export function useCheckInStatusSubscription(classId: string | undefined) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [classId]);
+  }, [classId, queryClient]);
 }

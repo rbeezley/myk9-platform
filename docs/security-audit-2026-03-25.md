@@ -148,7 +148,7 @@ No `TO` clause — applies to `anon` and `authenticated`.
 
 ---
 
-### [HIGH] SA-009: `send-push-notification` has no JWT auth and uses CORS `*`
+### [HIGH] SA-009: `send-push-notification` has no JWT auth and uses CORS `*` — FIXED
 
 **Category:** Edge Function Auth
 **Location:** `supabase/functions/send-push-notification/index.ts:12-23`
@@ -156,6 +156,7 @@ No `TO` clause — applies to `anon` and `authenticated`.
 **Risk:** Any caller who knows the function URL can send push notifications to any user — notification spam, phishing.
 **Fix:** Add JWT verification or service role key check. Restrict CORS to known origins.
 **Auto-fixable:** No (requires design decision on auth model)
+**Resolution (2026-03-27):** Added service role key verification (this function is internal-only, called by push-trigger-_ edge functions). Replaced CORS `_` with origin allowlist matching other edge functions.
 
 ---
 

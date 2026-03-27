@@ -133,6 +133,11 @@ export interface EntryStoreState {
     userId: string,
     reason?: string
   ) => Promise<SyncableShowEntry | null>;
+  updateCheckInStatus: (
+    entryId: string,
+    checkInStatus: CheckInStatus,
+    userId: string
+  ) => Promise<SyncableShowEntry | null>;
 
   // Competition phase methods
   recordResult: (entryId: string, result: CompetitionData) => Promise<SyncableShowEntry | null>;

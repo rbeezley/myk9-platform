@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { CheckInStatus } from '@myk9/core';
 import { replicatedEntriesTable } from '@/services/replication';
 import {
   mergeEntryData,
@@ -244,6 +245,48 @@ export const useEntryStore = create<EntryStoreState>()(
         return updatedEntry;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to update status';
+        set({ error: errorMessage });
+        throw error;
+      }
+    },
+
+    updateCheckInStatus: async (
+      entryId: string,
+      checkInStatus: CheckInStatus,
+      userId: string
+    ): Promise<SyncableShowEntry | null> => {
+      try {
+        const entry = get().entries.find(e => e.id === entryId);
+        if (!entry) {
+          set({ error: `Entry with id ${entryId} not found` });
+          return null;
+        }
+
+        const updated: SyncableShowEntry = {
+          ...entry,
+          checkInStatus,
+          updatedAt: new Date().toISOString(),
+          _version: (entry._version || 0) + 1,
+          _lastModified: new Date(),
+          _lastModifiedBy: userId,
+          _syncStatus: 'pending',
+        };
+
+        // Queue mutation through replication layer
+        await replicatedEntriesTable.updateEntry(entryId, {
+          checkInStatus,
+          check_in_status: checkInStatus,
+        });
+
+        // Update local state
+        set(state => ({
+          entries: state.entries.map(e => (e.id === entryId ? updated : e)),
+        }));
+
+        return updated;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to update check-in status';
         set({ error: errorMessage });
         throw error;
       }

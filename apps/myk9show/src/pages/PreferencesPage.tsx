@@ -4,8 +4,8 @@
  */
 
 import { useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
-  Settings,
   Monitor,
   Bell,
   Wifi,
@@ -17,9 +17,16 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  SlidersHorizontal,
+  Volume2,
+  Trophy,
+  Download as DownloadIcon,
+  Smartphone,
 } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuthUser } from '@/hooks/useAuthUser';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -32,65 +39,128 @@ import { PrivacySettings } from '@/components/preferences/PrivacySettings';
 import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DeviceManager } from '@/components/preferences/DeviceManager';
 import { SyncStatusIndicator } from '@/components/preferences/SyncStatusIndicator';
+import { GeneralSettings } from '@/components/preferences/GeneralSettings';
+import { ScoringSettings } from '@/components/preferences/ScoringSettings';
+import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import type { PreferencesUpdate } from '@/types/user-preferences';
 
 type TabValue =
   | 'theme'
+  | 'general'
   | 'notifications'
+  | 'scoring'
   | 'competition'
-  | 'data'
   | 'privacy'
   | 'security'
-  | 'devices';
+  | 'data'
+  | 'devices'
+  | 'install';
 
-// Tab configuration
-const tabs = [
+interface SettingsSection {
+  id: TabValue;
+  label: string;
+  icon: LucideIcon;
+  description: string;
+  roleRequired?: UserRole[];
+}
+
+interface SettingsGroup {
+  id: string;
+  label: string;
+  sections: SettingsSection[];
+}
+
+const settingsGroups: SettingsGroup[] = [
   {
-    value: 'theme' as TabValue,
-    label: 'Theme & Appearance',
-    icon: Monitor,
-    description: 'Customize the visual appearance and layout',
+    id: 'appearance',
+    label: 'Appearance',
+    sections: [
+      {
+        id: 'theme',
+        label: 'Theme & Display',
+        icon: Monitor,
+        description: 'Customize colors, layout, and visual preferences',
+      },
+      {
+        id: 'general',
+        label: 'General',
+        icon: SlidersHorizontal,
+        description: 'App behavior and interaction preferences',
+      },
+    ],
   },
   {
-    value: 'notifications' as TabValue,
-    label: 'Notifications',
-    icon: Bell,
-    description: 'Manage notification preferences and timing',
+    id: 'alerts',
+    label: 'Alerts & Sound',
+    sections: [
+      {
+        id: 'notifications',
+        label: 'Notifications',
+        icon: Bell,
+        description: 'Manage notification preferences and timing',
+      },
+      {
+        id: 'scoring',
+        label: 'Scoring',
+        icon: Volume2,
+        description: 'Voice announcements and audio during scoring',
+        roleRequired: [UserRole.JUDGE, UserRole.SECRETARY, UserRole.STEWARD, UserRole.SITE_ADMIN],
+      },
+    ],
   },
   {
-    value: 'competition' as TabValue,
-    label: 'Competition',
-    icon: Settings,
-    description: 'Set defaults for competition views and filters',
+    id: 'events',
+    label: 'Events',
+    sections: [
+      {
+        id: 'competition',
+        label: 'Competition',
+        icon: Trophy,
+        description: 'Set defaults for competition views and filters',
+      },
+    ],
   },
   {
-    value: 'data' as TabValue,
-    label: 'Data & Sync',
-    icon: Wifi,
-    description: 'Control data synchronization and performance',
-  },
-  {
-    value: 'privacy' as TabValue,
-    label: 'Privacy',
-    icon: Shield,
-    description: 'Manage privacy and data sharing settings',
-  },
-  {
-    value: 'security' as TabValue,
-    label: 'Security',
-    icon: Lock,
-    description: 'Change your password and security settings',
-  },
-  {
-    value: 'devices' as TabValue,
-    label: 'Devices',
-    icon: Monitor,
-    description: 'Manage connected devices and sync status',
+    id: 'account',
+    label: 'Account & Data',
+    sections: [
+      {
+        id: 'privacy',
+        label: 'Privacy',
+        icon: Shield,
+        description: 'Manage privacy and data sharing settings',
+      },
+      {
+        id: 'security',
+        label: 'Security',
+        icon: Lock,
+        description: 'Change your password and security settings',
+      },
+      {
+        id: 'data',
+        label: 'Data & Sync',
+        icon: Wifi,
+        description: 'Control data synchronization and performance',
+      },
+      {
+        id: 'devices',
+        label: 'Devices',
+        icon: Smartphone,
+        description: 'Manage connected devices and sync status',
+      },
+      {
+        id: 'install',
+        label: 'Install App',
+        icon: DownloadIcon,
+        description: 'Add myK9Show to your home screen',
+      },
+    ],
   },
 ];
 
 export function PreferencesPage() {
   const user = useAuthUser();
+  const { hasRole } = useAuthContext();
   const {
     preferences,
     loading,
@@ -110,7 +180,21 @@ export function PreferencesPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Mobile nav state
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [, setMobileNavOpen] = useState(false);
+
+  const visibleGroups = settingsGroups
+    .map(group => ({
+      ...group,
+      sections: group.sections.filter(
+        section => !section.roleRequired || section.roleRequired.some(role => hasRole(role))
+      ),
+    }))
+    .filter(group => group.sections.length > 0);
+
+  const activeSection = visibleGroups.flatMap(g => g.sections).find(s => s.id === activeTab);
+
+  const activeGroupId =
+    visibleGroups.find(g => g.sections.some(s => s.id === activeTab))?.id || visibleGroups[0]?.id;
 
   /**
    * Handle preference updates
@@ -249,27 +333,33 @@ export function PreferencesPage() {
       </div>
 
       {/* Navigation Items */}
-      <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-        {tabs.map(tab => (
-          <button
-            key={tab.value}
-            onClick={() => {
-              setActiveTab(tab.value);
-              setMobileNavOpen(false);
-            }}
-            className={cn(
-              'w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors',
-              activeTab === tab.value
-                ? 'bg-primary/10 text-primary'
-                : 'hover:bg-muted/50 text-foreground'
-            )}
-          >
-            <tab.icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">{tab.label}</div>
-              <div className="text-xs text-muted-foreground truncate">{tab.description}</div>
+      <nav className="flex-1 overflow-y-auto p-2 space-y-4">
+        {visibleGroups.map(group => (
+          <div key={group.id}>
+            <div className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              {group.label}
             </div>
-          </button>
+            <div className="space-y-0.5">
+              {group.sections.map(section => (
+                <button
+                  key={section.id}
+                  onClick={() => {
+                    setActiveTab(section.id);
+                    setMobileNavOpen(false);
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm',
+                    activeTab === section.id
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'hover:bg-muted/50 text-foreground'
+                  )}
+                >
+                  <section.icon className="h-4 w-4 flex-shrink-0" />
+                  <span>{section.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
@@ -368,8 +458,12 @@ export function PreferencesPage() {
             onReset={() => handleReset('theme')}
           />
         );
+      case 'general':
+        return <GeneralSettings />;
       case 'notifications':
         return <NotificationSettings />;
+      case 'scoring':
+        return <ScoringSettings />;
       case 'competition':
         return (
           <CompetitionSettings
@@ -398,6 +492,8 @@ export function PreferencesPage() {
         return <SecuritySettings />;
       case 'devices':
         return <DeviceManager devices={devices} syncState={syncState} />;
+      case 'install':
+        return <InstallAppSettings />;
       default:
         return null;
     }
@@ -410,15 +506,48 @@ export function PreferencesPage() {
         {sidebarContent}
       </aside>
 
-      {/* Mobile nav toggle */}
-      <div className="md:hidden p-4 border-b border-border">
-        <Button variant="ghost" size="sm" onClick={() => setMobileNavOpen(!mobileNavOpen)}>
-          <Settings className="h-4 w-4 mr-2" />
-          {tabs.find(t => t.value === activeTab)?.label}
-        </Button>
-        {mobileNavOpen && (
-          <div className="mt-2 border rounded-lg border-border bg-card">{sidebarContent}</div>
-        )}
+      {/* Mobile nav */}
+      <div className="md:hidden border-b border-border">
+        {/* Group pills */}
+        <div className="flex gap-1 px-4 pt-3 pb-2 overflow-x-auto">
+          {visibleGroups.map(group => (
+            <button
+              key={group.id}
+              onClick={() => setActiveTab(group.sections[0].id)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
+                activeGroupId === group.id
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-muted/50 text-muted-foreground'
+              )}
+            >
+              {group.label}
+            </button>
+          ))}
+        </div>
+        {/* Section chips within active group */}
+        {(() => {
+          const activeGroup = visibleGroups.find(g => g.id === activeGroupId);
+          if (!activeGroup || activeGroup.sections.length <= 1) return null;
+          return (
+            <div className="flex gap-1.5 px-4 pb-3 overflow-x-auto">
+              {activeGroup.sections.map(section => (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveTab(section.id)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors border',
+                    activeTab === section.id
+                      ? 'border-primary/30 bg-primary/10 text-primary font-medium'
+                      : 'border-border bg-background text-muted-foreground'
+                  )}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Main Content */}
@@ -426,12 +555,8 @@ export function PreferencesPage() {
         {/* Header with sync status */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {tabs.find(t => t.value === activeTab)?.label}
-            </h1>
-            <p className="text-muted-foreground">
-              {tabs.find(t => t.value === activeTab)?.description}
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">{activeSection?.label}</h1>
+            <p className="text-muted-foreground">{activeSection?.description}</p>
           </div>
           <SyncStatusIndicator syncState={syncState} compact />
         </div>

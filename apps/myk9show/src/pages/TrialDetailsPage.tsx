@@ -404,6 +404,7 @@ const TrialDetailsPage: React.FC = () => {
         trialId={currentTrial?.id || ''}
         trialName={currentTrial?.type || currentTrial?.trialNumber || ''}
         initialTrialData={currentTrial || {}}
+        {...(showOrganization ? { organization: showOrganization } : {})}
         onSave={async trialData => {
           if (currentTrial?.id) {
             updateTrial(

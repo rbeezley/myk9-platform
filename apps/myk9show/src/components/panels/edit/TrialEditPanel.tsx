@@ -23,6 +23,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
+import { deriveSportType } from '@/pages/scoring/types';
 
 interface TrialEditPanelProps {
   open: boolean;
@@ -33,6 +34,7 @@ interface TrialEditPanelProps {
   onSave?: (trialData: Partial<Trial>) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
+  organization?: string;
 }
 
 // Form data interface extending Trial for edit panel needs
@@ -552,6 +554,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   initialTrialData,
   onSave,
   enableAutoSave = false,
+  organization,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>('basic');
 
@@ -562,11 +565,14 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   const handleSave = useCallback(
     async (formData: TrialEditFormData) => {
       const trialData = formDataToTrial(formData);
+      if (organization && formData.trialType) {
+        trialData.sportType = deriveSportType(organization, formData.trialType) ?? undefined;
+      }
       if (onSave) {
         await onSave(trialData);
       }
     },
-    [onSave]
+    [onSave, organization]
   );
 
   // When validation fails, switch to the tab containing the first error and scroll to it

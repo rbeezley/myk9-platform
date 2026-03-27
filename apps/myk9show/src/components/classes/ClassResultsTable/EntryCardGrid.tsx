@@ -5,7 +5,6 @@ import { EntryCard, type EntryCardEntry } from './EntryCard';
 interface EntryCardGridProps {
   entries: ScentWorkEntry[];
   classId: string;
-  useSecretaryRoute: boolean;
 }
 
 function toCardEntry(entry: ScentWorkEntry): EntryCardEntry {
@@ -19,13 +18,7 @@ function toCardEntry(entry: ScentWorkEntry): EntryCardEntry {
   };
 }
 
-function buildScoringRoute(classId: string, entryId: string, useSecretaryRoute: boolean): string {
-  return useSecretaryRoute
-    ? `/scoring/secretary/classes/${classId}/entries/${entryId}`
-    : `/scoring/classes/${classId}/entries/${entryId}`;
-}
-
-export function EntryCardGrid({ entries, classId, useSecretaryRoute }: EntryCardGridProps) {
+export function EntryCardGrid({ entries, classId }: EntryCardGridProps) {
   const cardEntries = useMemo(() => entries.map(toCardEntry), [entries]);
 
   if (cardEntries.length === 0) {
@@ -38,7 +31,7 @@ export function EntryCardGrid({ entries, classId, useSecretaryRoute }: EntryCard
         <EntryCard
           key={entry.entryId}
           entry={entry}
-          scoringRoute={buildScoringRoute(classId, entry.entryId, useSecretaryRoute)}
+          scoringRoute={`/scoring/classes/${classId}/entries/${entry.entryId}`}
         />
       ))}
     </div>

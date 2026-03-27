@@ -66,7 +66,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const canEdit = userPermissions.canEditEntries;
 
   const [viewMode, setViewMode] = useViewPreference('class-results', 'table');
-  const useSecretaryRoute = !!userPermissions.canEditEntries;
   // Guard: card view requires classId for scoring navigation
   const effectiveViewMode = classId ? viewMode : 'table';
 
@@ -343,11 +342,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           </div>
 
           {effectiveViewMode === 'cards' ? (
-            <EntryCardGrid
-              entries={entries}
-              classId={classId!}
-              useSecretaryRoute={useSecretaryRoute}
-            />
+            <EntryCardGrid entries={entries} classId={classId!} />
           ) : (
             <>
               <DataTable<BulkEntryData>

@@ -34,10 +34,10 @@ function makeScentWorkEntry(overrides: Partial<ScentWorkEntry> = {}): ScentWorkE
   } as ScentWorkEntry;
 }
 
-function renderGrid(entries: ScentWorkEntry[] = [], useSecretaryRoute = true) {
+function renderGrid(entries: ScentWorkEntry[] = []) {
   return render(
     <MemoryRouter>
-      <EntryCardGrid entries={entries} classId="class-1" useSecretaryRoute={useSecretaryRoute} />
+      <EntryCardGrid entries={entries} classId="class-1" />
     </MemoryRouter>
   );
 }
@@ -93,16 +93,9 @@ describe('EntryCardGrid', () => {
     expect(screen.getByText(/no entries/i)).toBeInTheDocument();
   });
 
-  it('builds secretary scoring route when useSecretaryRoute is true', async () => {
+  it('navigates to live scoresheet route on card click', async () => {
     const entries = [makeScentWorkEntry({ id: 'entry-1' })];
-    renderGrid(entries, true);
-    await userEvent.click(screen.getByRole('button'));
-    expect(mockNavigate).toHaveBeenCalledWith('/scoring/secretary/classes/class-1/entries/entry-1');
-  });
-
-  it('builds judge scoring route when useSecretaryRoute is false', async () => {
-    const entries = [makeScentWorkEntry({ id: 'entry-1' })];
-    renderGrid(entries, false);
+    renderGrid(entries);
     await userEvent.click(screen.getByRole('button'));
     expect(mockNavigate).toHaveBeenCalledWith('/scoring/classes/class-1/entries/entry-1');
   });

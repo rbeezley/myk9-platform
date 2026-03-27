@@ -59,6 +59,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         trialNumber: trialData.trialNumber,
         status: trialData.status,
         trialType: trialData.trialType,
+        sportType: trialData.sportType,
         plannedStartTime: trialData.plannedStartTime,
         actualStartTime: trialData.timeStarted,
         actualEndTime: trialData.timeEnded,
@@ -123,6 +124,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
       if (updates.trialNumber !== undefined) replicatedUpdates.trialNumber = updates.trialNumber;
       if (updates.status !== undefined) replicatedUpdates.status = updates.status;
       if (updates.trialType !== undefined) replicatedUpdates.trialType = updates.trialType;
+      if (updates.sportType !== undefined) replicatedUpdates.sportType = updates.sportType;
       if (updates.plannedStartTime !== undefined)
         replicatedUpdates.plannedStartTime = updates.plannedStartTime;
       if (updates.timeStarted !== undefined)

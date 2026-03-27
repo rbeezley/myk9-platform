@@ -224,6 +224,26 @@ export function mapSportType(sportTypeCode: string): {
 }
 
 /**
+ * Derive the sport_type code from an organization and trial discipline.
+ * Inverse of mapSportType() — used when creating/editing trials.
+ * Returns null for org/discipline combos without a registered scoresheet.
+ */
+const SPORT_TYPE_BY_ORG_DISCIPLINE: Record<string, string> = {
+  'AKC:Scent Work': 'akc-scent-work',
+  'AKC:Scent Work Nationals': 'akc-scent-work-nationals',
+  'AKC:FastCAT': 'akc-fast-cat',
+  'UKC:Nosework': 'ukc-nosework',
+  'UKC:Rally': 'ukc-rally',
+  'UKC:Obedience': 'ukc-obedience',
+  'UKC:Obedience & Rally': 'ukc-obedience',
+  'ASCA:Scent Detection': 'asca-scent-detection',
+};
+
+export function deriveSportType(organization: string, trialType: string): string | null {
+  return SPORT_TYPE_BY_ORG_DISCIPLINE[`${organization}:${trialType}`] ?? null;
+}
+
+/**
  * Detect organization and sport type from class name.
  * @deprecated Use mapSportType() with trial.sportType instead. Kept as fallback
  * for pre-migration trials that don't have sport_type set.

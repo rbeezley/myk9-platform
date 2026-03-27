@@ -250,16 +250,40 @@ export function useClassEntriesRaw(classId: string | undefined) {
 }
 ```
 
-- [ ] **Step 2: Run typecheck**
+- [ ] **Step 2: Add `disqualification_reason` to ReplicatedEntry and toSupabaseRow [ADDED]**
+
+In `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`:
+
+1. Add to `ReplicatedEntry` interface:
+
+```typescript
+  disqualification_reason?: string | null | undefined;
+```
+
+2. Add to `rowToEntry` mapping:
+
+```typescript
+  disqualification_reason: (row.disqualification_reason as string | undefined) ?? undefined,
+```
+
+3. Add to `toSupabaseRow` mapping:
+
+```typescript
+  disqualification_reason: entry.disqualification_reason ?? null,
+```
+
+This ensures the clear operation can write `disqualification_reason: null` through to the DB.
+
+- [ ] **Step 3: Run typecheck**
 
 Run: `pnpm typecheck`
 Expected: Pass.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add apps/myk9show/src/hooks/queries/useClassEntriesRaw.ts
-git commit -m "feat: add useClassEntriesRaw hook for direct DB column access"
+git add apps/myk9show/src/hooks/queries/useClassEntriesRaw.ts apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts
+git commit -m "feat: add useClassEntriesRaw hook, add disqualification_reason to ReplicatedEntry"
 ```
 
 ---
@@ -568,12 +592,34 @@ Add a new column before the delete column:
 
 Add `Eraser` to the Lucide imports at the top of the file.
 
-- [ ] **Step 4: Run typecheck**
+- [ ] **Step 4: Update MemoizedClassResultsTable comparison [ADDED]**
+
+The `MemoizedClassResultsTable` (at the bottom of index.tsx) compares `prevEntry.competitionData` and `prevEntry.judgingState?.currentResult` to detect changes. These fields are no longer the source of truth. Update the comparison to check the `rawEntries` prop instead:
+
+```typescript
+export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProps, nextProps) => {
+  // Re-render if rawEntries change (scoring data from DB)
+  if (prevProps.rawEntries !== nextProps.rawEntries) return false;
+  // Re-render if entries array identity changes (display data)
+  if (prevProps.entries !== nextProps.entries) return false;
+  if (prevProps.entries.length !== nextProps.entries.length) return false;
+  // Re-render if permissions change
+  if (prevProps.userPermissions !== nextProps.userPermissions) return false;
+  if (prevProps.classConfig !== nextProps.classConfig) return false;
+  return true;
+});
+```
+
+Remove the per-entry `competitionData`/`judgingState`/`checkInStatus` deep comparison — `rawEntries` reference identity handles it.
+
+- [ ] **Step 5: Run typecheck**
 
 Run: `pnpm typecheck`
 Expected: Errors in ClassDetailsMain and ClassDetailsPage that still pass old props — fixed in next tasks.
 
-- [ ] **Step 5: Commit**
+Note: [ADDED] Clear button is table-view only for v1. Card view users switch to table view to clear entries. Card view is for quick status overview, not detailed editing.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add apps/myk9show/src/components/classes/ClassResultsTable/index.tsx

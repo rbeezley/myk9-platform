@@ -13,7 +13,7 @@ describe('EntryRow', () => {
 
   it('renders armband number prominently', () => {
     render(<EntryRow {...baseProps} />);
-    expect(screen.getByText('#148')).toBeInTheDocument();
+    expect(screen.getByText('148')).toBeInTheDocument();
   });
 
   it('renders dog name and handler', () => {

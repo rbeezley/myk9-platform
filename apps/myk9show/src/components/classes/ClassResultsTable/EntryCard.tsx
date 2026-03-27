@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import type { CheckInStatus } from '@myk9/core';
-import { ENTRY_STATUS_CONFIG } from './entryStatusConfig';
 
 export interface EntryCardEntry {
   entryId: string;
@@ -16,11 +16,11 @@ export interface EntryCardEntry {
 interface EntryCardProps {
   entry: EntryCardEntry;
   scoringRoute: string;
+  onStatusClick?: ((entry: EntryCardEntry) => void) | undefined;
 }
 
-export function EntryCard({ entry, scoringRoute }: EntryCardProps) {
+export function EntryCard({ entry, scoringRoute, onStatusClick }: EntryCardProps) {
   const navigate = useNavigate();
-  const statusConfig = ENTRY_STATUS_CONFIG[entry.status];
 
   return (
     <button
@@ -39,15 +39,11 @@ export function EntryCard({ entry, scoringRoute }: EntryCardProps) {
           <span className="font-semibold text-[15px] text-foreground truncate">
             {entry.dogName}
           </span>
-          <span
-            className={cn(
-              'shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md',
-              statusConfig.className
-            )}
-          >
-            {statusConfig.icon && `${statusConfig.icon} `}
-            {statusConfig.label}
-          </span>
+          <CheckInStatusBadge
+            status={entry.status}
+            size="sm"
+            {...(onStatusClick != null && { onClick: () => onStatusClick(entry) })}
+          />
         </div>
         <div className="text-[13px] text-muted-foreground truncate">{entry.dogBreed}</div>
         <div className="text-xs text-muted-foreground/70 truncate">

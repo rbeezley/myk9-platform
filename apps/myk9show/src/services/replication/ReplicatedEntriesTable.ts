@@ -11,6 +11,7 @@
 
 import { ReplicatedTable, type SyncResult } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import type { Database } from '@/types/supabase';
 
@@ -32,6 +33,11 @@ export interface ReplicatedEntry {
   handler?: string | undefined;
   status?: string | undefined;
   entryStatus?: string | undefined;
+
+  // Check-in status (show-day flow, separate from entry_status lifecycle)
+  checkInStatus?: CheckInStatus | undefined;
+  check_in_status?: CheckInStatus | undefined; // snake_case alias for Supabase compatibility
+
   jumpHeight?: string | undefined;
   entryFee?: number | undefined;
   totalFees?: number | undefined;
@@ -75,6 +81,10 @@ export interface ReplicatedEntry {
   timeLimit2?: string | undefined;
   timeLimit3?: string | undefined;
 
+  // Ring timing (show-day flow)
+  ring_entry_time?: string | undefined;
+  ring_exit_time?: string | undefined;
+
   // Timestamps
   updated_at?: string | undefined;
 
@@ -102,6 +112,8 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     handler: row.handler ?? undefined,
     status: (dbRow.status as string | undefined) ?? undefined,
     entryStatus: row.entry_status ?? undefined,
+    checkInStatus: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
+    check_in_status: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
     jumpHeight: row.jump_height ?? undefined,
     entryFee: row.entry_fee ?? undefined,
     totalFees: (dbRow.total_fees as number | undefined) ?? undefined,
@@ -149,6 +161,10 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
       ? String(dbRow.time_limit_area3_seconds as number)
       : undefined,
 
+    // Ring timing
+    ring_entry_time: (row.ring_entry_time as string | undefined) ?? undefined,
+    ring_exit_time: (row.ring_exit_time as string | undefined) ?? undefined,
+
     // Timestamps
     updated_at: row.updated_at ?? undefined,
   };
@@ -191,6 +207,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       armband: entry.armband ?? null,
       handler: entry.handler ?? null,
       entry_status: entry.entryStatus ?? null,
+      check_in_status: entry.checkInStatus ?? entry.check_in_status ?? 'no-status',
       jump_height: entry.jumpHeight ?? null,
       entry_fee: entry.entryFee ?? null,
       payment_status: entry.paymentStatus ?? null,
@@ -205,6 +222,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       search_time_seconds: entry.searchTimeSeconds ?? null,
       total_score: entry.totalPoints ?? null,
       final_placement: entry.finalPlacement != null ? Number(entry.finalPlacement) : null,
+      ring_entry_time: entry.ring_entry_time ?? null,
+      ring_exit_time: entry.ring_exit_time ?? null,
       updated_at: new Date().toISOString(),
     };
   }

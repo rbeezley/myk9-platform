@@ -5,6 +5,18 @@ import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
 
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    userWithRoles: {
+      id: 'user-1',
+      email: 'test@test.com',
+      roles: ['exhibitor'],
+      scopes: [],
+      user_metadata: { full_name: 'Test User' },
+    },
+  }),
+}));
+
 vi.mock('@/store/announcementStore', async () => {
   const { create } = await import('zustand');
   const useAnnouncementStore = create<Record<string, unknown>>()(() => ({

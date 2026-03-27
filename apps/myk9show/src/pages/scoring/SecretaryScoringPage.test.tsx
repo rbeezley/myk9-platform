@@ -19,9 +19,11 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { getTrialById: (...args: unknown[]) => mockGetTrialById(...args) },
 }));
 
+const mockUpdateEntry = vi.fn().mockResolvedValue(null);
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getEntriesByClass: (...args: unknown[]) => mockGetEntriesByClass(...args),
+    updateEntry: (...args: unknown[]) => mockUpdateEntry(...args),
   },
 }));
 
@@ -54,6 +56,28 @@ vi.mock('@/services/LoggingService', () => ({
     info: vi.fn(),
     debug: vi.fn(),
   },
+}));
+
+// Mock useAuthContext
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    user: { id: 'test-user-id' },
+    userWithRoles: null,
+    loading: false,
+    hasRole: () => false,
+    hasPermission: () => false,
+    getUserRoles: () => [],
+  }),
+}));
+
+// Mock useEntryStore
+const mockUpdateCheckInStatus = vi.fn();
+vi.mock('@/store/entryStore', () => ({
+  useEntryStore: Object.assign(() => ({}), {
+    getState: () => ({
+      updateCheckInStatus: mockUpdateCheckInStatus,
+    }),
+  }),
 }));
 
 // Track what getScoresheetComponent returns

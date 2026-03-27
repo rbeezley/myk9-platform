@@ -14,6 +14,19 @@ import { createUserPermissions } from '@/types/user-permissions';
 
 vi.mock('@/components/ui/tabs', () => import('../../common/__tests__/mockTabs'));
 
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    isExhibitor: true,
+    isSecretary: false,
+    isJudge: false,
+    user: { id: 'test-user' },
+  }),
+}));
+
+vi.mock('@/store/entryStore', () => ({
+  useEntryStore: vi.fn(() => vi.fn()),
+}));
+
 /** Create a minimal ScentWorkEntry with optional scoring data. */
 function makeEntry(
   id: string,

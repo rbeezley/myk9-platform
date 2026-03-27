@@ -1,12 +1,7 @@
-/**
- * Shared icon map for check-in status components.
- *
- * Maps icon name strings from @myk9/core's CheckInStatusConfig to
- * Lucide icon components. Used by CheckInStatusBadge and CheckInStatusMenu.
- */
+// checkin-icon-map.ts — Single source of truth for check-in status icons.
 import {
-  Circle,
   Check,
+  Circle,
   AlertTriangle,
   XCircle,
   Star,
@@ -16,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+/** Maps @myk9/core icon name strings to Lucide components. */
 export const CHECKIN_ICON_MAP: Record<string, LucideIcon> = {
   Circle,
   Check,

@@ -5,6 +5,7 @@
  * `SyncableShowEntry` (store layer), plus ID generation utilities.
  */
 
+import type { CheckInStatus } from '@myk9/core';
 import type { ReplicatedEntry } from '@/services/replication';
 import type { EntryStatus, SyncableShowEntry } from './entry-store-types';
 
@@ -193,6 +194,8 @@ export function entryToReplicated(entry: SyncableShowEntry): ReplicatedEntry {
     handler: entry.registrationData.handler,
     entryStatus: entry.status,
     entry_status: entry.status,
+    checkInStatus: (entry.checkInStatus as CheckInStatus) ?? 'no-status',
+    check_in_status: (entry.checkInStatus as CheckInStatus) ?? 'no-status',
     jumpHeight: entry.registrationData.jumpHeight,
     entryFee: entry.registrationData.entryFee,
     paymentStatus: entry.registrationData.paymentStatus,

@@ -11,6 +11,19 @@ import { ClassResultsTable } from '../ClassResultsTable';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import { createUserPermissions } from '@/types/user-permissions';
 
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    isExhibitor: true,
+    isSecretary: false,
+    isJudge: false,
+    user: { id: 'test-user' },
+  }),
+}));
+
+vi.mock('@/store/entryStore', () => ({
+  useEntryStore: vi.fn(() => vi.fn()),
+}));
+
 // Minimal valid props for ClassResultsTable
 function makeProps(overrides: Record<string, unknown> = {}) {
   const entries: ScentWorkEntry[] = [];

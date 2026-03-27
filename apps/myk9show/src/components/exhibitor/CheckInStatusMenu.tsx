@@ -12,7 +12,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { getCheckinStatusConfig } from '@myk9/core';
 import { Circle, Check } from 'lucide-react';
 import { CheckInStatusBadge } from './CheckInStatusBadge';
-import { CHECKIN_ICON_MAP } from './checkin-icons';
+import { CHECKIN_ICON_MAP } from '@/components/common/checkin-icon-map';
 
 /** Status display order in the menu */
 const MENU_ORDER: CheckInStatus[] = ['checked-in', 'at-gate', 'conflict', 'pulled', 'no-status'];

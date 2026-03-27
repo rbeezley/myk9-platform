@@ -10,6 +10,8 @@ import {
 import { ClipboardList } from 'lucide-react';
 import { getEntryStatusClasses } from '@/utils/entryManagementUtils';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
+import type { CheckInStatus } from '@myk9/core';
 
 interface TrialEntriesTableProps {
   trialId: string;
@@ -22,6 +24,7 @@ interface DisplayEntry {
   className: string;
   handler: string;
   status: string;
+  checkInStatus: CheckInStatus;
   armband: string;
   date: string;
   rawDate: string;
@@ -62,6 +65,13 @@ const COLUMNS: ColumnDef<DisplayEntry, unknown>[] = [
       >
         {row.original.status}
       </span>
+    ),
+  },
+  {
+    id: 'checkInStatus',
+    header: 'Check-in',
+    cell: ({ row }) => (
+      <CheckInStatusBadge status={row.original.checkInStatus} size="sm" />
     ),
   },
   {
@@ -106,6 +116,7 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
         className: e.class?.name || 'Unknown',
         handler: handlerName || 'Unknown',
         status: e.entry_status || 'pending',
+        checkInStatus: (e.check_in_status as CheckInStatus) ?? 'no-status',
         armband: e.armband || '',
         date: e.created_at ? new Date(e.created_at).toLocaleDateString() : '',
         rawDate: e.created_at || '',

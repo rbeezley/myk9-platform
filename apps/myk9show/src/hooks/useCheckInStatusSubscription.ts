@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 /**
  * Subscribes to real-time check-in status changes for entries in a class.
@@ -9,7 +8,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
  */
 export function useCheckInStatusSubscription(classId: string | undefined) {
   const queryClient = useQueryClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const queryClientRef = useRef(queryClient);
+  queryClientRef.current = queryClient;
 
   useEffect(() => {
     if (!classId) return;
@@ -26,18 +26,15 @@ export function useCheckInStatusSubscription(classId: string | undefined) {
           filter: `class_id=eq.${classId}`,
         },
         () => {
-          queryClient.invalidateQueries({
+          queryClientRef.current.invalidateQueries({
             queryKey: ['classes', classId, 'entries'],
           });
         }
       )
       .subscribe();
 
-    channelRef.current = channel;
-
     return () => {
       supabase.removeChannel(channel);
-      channelRef.current = null;
     };
-  }, [classId, queryClient]);
+  }, [classId]);
 }

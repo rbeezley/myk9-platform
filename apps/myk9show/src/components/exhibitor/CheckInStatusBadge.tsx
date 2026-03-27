@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import type { CheckInStatus } from '@myk9/core';
 import { getCheckinStatusConfig, isExhibitorAllowedStatus } from '@myk9/core';
 import { Circle } from 'lucide-react';
-import { CHECKIN_ICON_MAP } from './checkin-icons';
+import { CHECKIN_ICON_MAP } from '@/components/common/checkin-icon-map';
 
 /** Tailwind color classes per status — aligned with design-tokens.css */
 const STATUS_COLORS: Record<CheckInStatus, { bg: string; text: string; border: string }> = {

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -35,8 +36,9 @@ export function StatusPickerDialog({
 }: StatusPickerDialogProps) {
   const visibleStatuses = isStaff ? CHECKIN_STATUSES : EXHIBITOR_ALLOWED_STATUSES;
 
-  const statusConfigs = Object.values(CHECKIN_STATUS).filter(config =>
-    visibleStatuses.includes(config.value)
+  const statusConfigs = useMemo(
+    () => Object.values(CHECKIN_STATUS).filter(config => visibleStatuses.includes(config.value)),
+    [visibleStatuses]
   );
 
   function handlePick(status: CheckInStatus) {

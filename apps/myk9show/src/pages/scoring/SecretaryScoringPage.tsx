@@ -18,8 +18,8 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useEntryStore } from '@/store/entryStore';
 import { logger } from '@/services/LoggingService';
+import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
 import { getScoresheetComponent, buildResolvedClassRules } from '@myk9/scoring-ui';
 import type { ScoreData, ResolvedClassRules } from '@myk9/scoring-ui';
 
@@ -106,12 +106,8 @@ export function SecretaryScoringPage() {
 
         // Auto-set check-in status to in-ring when scoresheet opens
         const rawEntry = rawEntries.find(e => e.id === entryId);
-        if (rawEntry && rawEntry.checkInStatus !== 'completed') {
-          const updateCheckInStatus = useEntryStore.getState().updateCheckInStatus;
-          updateCheckInStatus(rawEntry.id, 'in-ring', user?.id ?? 'system');
-          replicatedEntriesTable.updateEntry(rawEntry.id, {
-            ring_entry_time: new Date().toISOString(),
-          });
+        if (rawEntry) {
+          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, user?.id ?? 'system');
         }
 
         setAllEntries(scoringEntries);
@@ -158,11 +154,7 @@ export function SecretaryScoringPage() {
         setEntry(prev => (prev ? { ...prev, isScored: true, status: 'scored' } : null));
 
         // Auto-set check-in status to completed after scoring
-        const updateCheckInStatus = useEntryStore.getState().updateCheckInStatus;
-        updateCheckInStatus(entry.entryId, 'completed', user?.id ?? 'system');
-        replicatedEntriesTable.updateEntry(entry.entryId, {
-          ring_exit_time: new Date().toISOString(),
-        });
+        transitionToCompleted(entry.entryId, user?.id ?? 'system');
       },
       onError: err => {
         logger.error('Secretary score submission failed:', 'pages', {}, err as Error);

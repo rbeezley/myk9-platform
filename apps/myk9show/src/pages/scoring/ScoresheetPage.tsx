@@ -17,8 +17,8 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useEntryStore } from '@/store/entryStore';
 import { logger } from '@/services/LoggingService';
+import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
 import { getScoresheetComponent, buildResolvedClassRules } from '@myk9/scoring-ui';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 
@@ -91,13 +91,7 @@ export function ScoresheetPage() {
         }
 
         // Auto-set check-in status to in-ring when scoresheet opens
-        if (rawEntry.checkInStatus !== 'completed') {
-          const updateCheckInStatus = useEntryStore.getState().updateCheckInStatus;
-          updateCheckInStatus(rawEntry.id, 'in-ring', user?.id ?? 'system');
-          replicatedEntriesTable.updateEntry(rawEntry.id, {
-            ring_entry_time: new Date().toISOString(),
-          });
-        }
+        transitionToInRing(rawEntry.id, rawEntry.checkInStatus, user?.id ?? 'system');
 
         // Load only the needed dog
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
@@ -132,11 +126,7 @@ export function ScoresheetPage() {
         setEntry(prev => (prev ? { ...prev, isScored: true, status: 'scored' } : null));
 
         // Auto-set check-in status to completed after scoring
-        const updateCheckInStatus = useEntryStore.getState().updateCheckInStatus;
-        updateCheckInStatus(entry.entryId, 'completed', user?.id ?? 'system');
-        replicatedEntriesTable.updateEntry(entry.entryId, {
-          ring_exit_time: new Date().toISOString(),
-        });
+        transitionToCompleted(entry.entryId, user?.id ?? 'system');
       },
       onError: err => {
         logger.error('Score submission failed:', 'pages', {}, err as Error);

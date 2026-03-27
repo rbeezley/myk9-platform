@@ -10,10 +10,13 @@ import { Input } from '@/components/ui/input';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { DataTable, TimeInput, formatSearchTime } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
+import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { SubTabs, type SubTabDef } from '@/components/common/SubTabs';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, BulkEntryData } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
+import type { CheckInStatus } from '@myk9/core';
 import { useClassResults } from './useClassResults';
 import { getPlacementBadgeClass, formatPlacement } from './utils';
 import { DogInfoTooltip } from './DogInfoTooltip';
@@ -22,6 +25,8 @@ import { StatusBadge } from './StatusBadge';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EntryCardGrid } from './EntryCardGrid';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { useEntryStore } from '@/store/entryStore';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
@@ -71,6 +76,24 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     handleKeyDown,
     handleSubmit,
   } = useClassResults({ entries, classConfig, userPermissions, onResultsSubmit });
+
+  const { isExhibitor, isSecretary, isJudge, user } = useAuthContext();
+  const updateCheckInStatus = useEntryStore(s => s.updateCheckInStatus);
+  const isStaff = isSecretary || isJudge || !isExhibitor;
+
+  const [statusPickerEntry, setStatusPickerEntry] = useState<{
+    entryId: string;
+    armband: string;
+    dogName: string;
+    handlerName: string;
+    currentStatus: CheckInStatus;
+  } | null>(null);
+
+  function handleStatusChange(entryId: string, newStatus: CheckInStatus) {
+    if (user?.id) {
+      updateCheckInStatus(entryId, newStatus, user.id);
+    }
+  }
 
   const entryMap = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
 
@@ -279,7 +302,32 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           return <span className="text-sm">{item.notes || '--'}</span>;
         },
       },
-      // Status
+      // Check-in Status
+      {
+        id: 'checkInStatus',
+        header: 'Check-in',
+        cell: ({ row }) => {
+          const item = row.original;
+          const entry = entryMap.get(item.entryId);
+          const checkInStatus: CheckInStatus = entry?.checkInStatus ?? 'no-status';
+          return (
+            <CheckInStatusBadge
+              status={checkInStatus}
+              size="sm"
+              onClick={() =>
+                setStatusPickerEntry({
+                  entryId: item.entryId,
+                  armband: item.armband ?? '',
+                  dogName: item.dogName ?? 'Unknown',
+                  handlerName: item.handlerName ?? '',
+                  currentStatus: checkInStatus,
+                })
+              }
+            />
+          );
+        },
+      },
+      // Scoring Status
       {
         id: 'status',
         header: 'Status',
@@ -398,7 +446,19 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           />
 
           {effectiveViewMode === 'cards' ? (
-            <EntryCardGrid entries={filteredEntries} classId={classId!} />
+            <EntryCardGrid
+              entries={filteredEntries}
+              classId={classId!}
+              onStatusClick={entry =>
+                setStatusPickerEntry({
+                  entryId: entry.entryId,
+                  armband: entry.armband,
+                  dogName: entry.dogName,
+                  handlerName: entry.handlerName,
+                  currentStatus: entry.status,
+                })
+              }
+            />
           ) : (
             <>
               <DataTable<BulkEntryData>
@@ -436,6 +496,19 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           )}
         </div>
       </div>
+
+      <StatusPickerDialog
+        open={statusPickerEntry !== null}
+        onOpenChange={open => {
+          if (!open) setStatusPickerEntry(null);
+        }}
+        entry={
+          statusPickerEntry ?? { entryId: '', armband: '', dogName: '', handlerName: '' }
+        }
+        currentStatus={statusPickerEntry?.currentStatus ?? 'no-status'}
+        onStatusChange={handleStatusChange}
+        isStaff={isStaff}
+      />
     </TooltipProvider>
   );
 };
@@ -461,7 +534,8 @@ export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProp
       prevEntry.displayInfo?.armband !== nextEntry.displayInfo?.armband ||
       prevEntry.displayInfo?.dogName !== nextEntry.displayInfo?.dogName ||
       prevEntry.displayInfo?.handlerName !== nextEntry.displayInfo?.handlerName ||
-      prevEntry.judgingState?.currentResult !== nextEntry.judgingState?.currentResult
+      prevEntry.judgingState?.currentResult !== nextEntry.judgingState?.currentResult ||
+      prevEntry.checkInStatus !== nextEntry.checkInStatus
     ) {
       return false;
     }

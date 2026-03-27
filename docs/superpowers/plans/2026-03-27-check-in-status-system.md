@@ -16,30 +16,32 @@
 
 ### New Files
 
-| File                                                              | Responsibility                                  |
-| ----------------------------------------------------------------- | ----------------------------------------------- |
-| `supabase/migrations/092_add_check_in_status.sql`                 | DB column, index, RLS policies                  |
-| `apps/myk9show/src/components/common/CheckInStatusBadge.tsx`      | Shared badge rendering from `@myk9/core` config |
-| `apps/myk9show/src/components/common/CheckInStatusBadge.test.tsx` | Badge unit tests                                |
-| `apps/myk9show/src/components/common/StatusPickerDialog.tsx`      | Modal dialog for picking status                 |
-| `apps/myk9show/src/components/common/StatusPickerDialog.test.tsx` | Dialog unit tests                               |
-| `apps/myk9show/src/hooks/useCheckInStatusSubscription.ts`         | Real-time Supabase subscription hook            |
-| `apps/myk9show/src/hooks/useCheckInStatusSubscription.test.ts`    | Subscription hook tests                         |
+| File                                                              | Responsibility                                             |
+| ----------------------------------------------------------------- | ---------------------------------------------------------- |
+| `supabase/migrations/092_add_check_in_status.sql`                 | DB column, index, RLS policies                             |
+| `apps/myk9show/src/components/common/CheckInStatusBadge.tsx`      | Shared badge rendering from `@myk9/core` config            |
+| `apps/myk9show/src/components/common/CheckInStatusBadge.test.tsx` | Badge unit tests                                           |
+| `apps/myk9show/src/components/common/StatusPickerDialog.tsx`      | Modal dialog for picking status                            |
+| `apps/myk9show/src/components/common/StatusPickerDialog.test.tsx` | Dialog unit tests                                          |
+| `apps/myk9show/src/hooks/useCheckInStatusSubscription.ts`         | Real-time Supabase subscription hook                       |
+| `apps/myk9show/src/hooks/useCheckInStatusSubscription.test.ts`    | Subscription hook tests                                    |
+| `apps/myk9show/src/components/common/checkin-icon-map.ts`         | [ADDED] Shared Lucide icon map for check-in statuses (DRY) |
 
 ### Modified Files
 
-| File                                                                    | Change                                                                            |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`      | Add `check_in_status` to `ReplicatedEntry`, `toSupabaseRow`, `fromSupabaseRow`    |
-| `apps/myk9show/src/store/entry-store-types.ts`                          | Add `checkInStatus` field to `ShowEntry`                                          |
-| `apps/myk9show/src/store/entryStore.ts`                                 | Add `updateCheckInStatus` method                                                  |
-| `apps/myk9show/src/components/classes/ClassResultsTable/EntryCard.tsx`  | Replace inline badge with `CheckInStatusBadge`, add onClick for picker            |
-| `apps/myk9show/src/components/classes/ClassResultsTable/index.tsx`      | Add check-in status column to table, wire badge onClick, mount StatusPickerDialog |
-| `apps/myk9show/src/components/trials/TrialDetail/TrialEntriesTable.tsx` | Add check-in status badge column                                                  |
-| `apps/myk9show/src/components/shows/tabs/MyEntriesTab.tsx`              | Add check-in status badge column                                                  |
-| `apps/myk9show/src/pages/ClassDetailsPage/ClassDetailsMain.tsx`         | Mount `useCheckInStatusSubscription`                                              |
-| `apps/myk9show/src/pages/scoring/ScoresheetPage.tsx`                    | Auto-set `in-ring` on entry load                                                  |
-| `apps/myk9show/src/pages/scoring/SecretaryScoringPage.tsx`              | Auto-set `in-ring` on entry load                                                  |
+| File                                                                       | Change                                                                            |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`         | Add `check_in_status` to `ReplicatedEntry`, `toSupabaseRow`, `fromSupabaseRow`    |
+| `apps/myk9show/src/store/entry-store-types.ts`                             | Add `checkInStatus` field to `ShowEntry`                                          |
+| `apps/myk9show/src/store/entryStore.ts`                                    | Add `updateCheckInStatus` method                                                  |
+| `apps/myk9show/src/components/classes/ClassResultsTable/EntryCard.tsx`     | Replace inline badge with `CheckInStatusBadge`, add onClick for picker            |
+| `apps/myk9show/src/components/classes/ClassResultsTable/EntryCardGrid.tsx` | [ADDED] Forward `onStatusClick`, map `checkInStatus` from entry data              |
+| `apps/myk9show/src/components/classes/ClassResultsTable/index.tsx`         | Add check-in status column to table, wire badge onClick, mount StatusPickerDialog |
+| `apps/myk9show/src/components/trials/TrialDetail/TrialEntriesTable.tsx`    | Add check-in status badge column                                                  |
+| `apps/myk9show/src/components/shows/tabs/MyEntriesTab.tsx`                 | Add check-in status badge column                                                  |
+| `apps/myk9show/src/pages/ClassDetailsPage/ClassDetailsMain.tsx`            | Mount `useCheckInStatusSubscription`                                              |
+| `apps/myk9show/src/pages/scoring/ScoresheetPage.tsx`                       | Auto-set `in-ring` on entry load                                                  |
+| `apps/myk9show/src/pages/scoring/SecretaryScoringPage.tsx`                 | Auto-set `in-ring` on entry load                                                  |
 
 ### Deleted Files
 
@@ -95,15 +97,30 @@ BEGIN
   END IF;
 END $$;
 
--- RLS policy: authenticated users can update check_in_status on entries they can access
--- (Existing SELECT policies already gate visibility; this adds UPDATE for the new column)
-CREATE POLICY "entries_update_check_in_status" ON entries
+-- RLS: Staff (secretary, judge, steward, site_admin) can update check_in_status on any
+-- entry in shows they have a role for. Exhibitors can only update their own entries.
+-- [ADDED] Tighter RLS than original plan — exhibitors restricted to own entries server-side.
+CREATE POLICY "entries_checkin_update_staff" ON entries
   FOR UPDATE TO authenticated
-  USING (true)
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_roles ur
+      JOIN roles r ON r.id = ur.role_id
+      WHERE ur.user_id = auth.uid()
+        AND ur.is_active = true
+        AND r.name IN ('site_admin', 'secretary', 'judge', 'steward')
+    )
+  )
   WITH CHECK (true);
--- Note: Fine-grained role restrictions (exhibitor vs staff status values) are enforced
--- client-side via EXHIBITOR_ALLOWED_STATUSES. Server-side, any authenticated user with
--- SELECT access can update. This matches the existing pattern for entry scoring updates.
+
+CREATE POLICY "entries_checkin_update_own" ON entries
+  FOR UPDATE TO authenticated
+  USING (
+    handler_id = (SELECT id FROM people WHERE auth_user_id = auth.uid())
+  )
+  WITH CHECK (
+    handler_id = (SELECT id FROM people WHERE auth_user_id = auth.uid())
+  );
 ```
 
 - [ ] **Step 2: Apply migration locally**
@@ -226,7 +243,6 @@ In `entryStore.ts`, add the method implementation. Follow the same pattern as `u
       };
 
       // Queue mutation through replication layer
-      const replicated = entryToReplicated(updated);
       await replicatedEntriesTable.updateEntry(entryId, {
         checkInStatus,
         check_in_status: checkInStatus,
@@ -241,16 +257,57 @@ In `entryStore.ts`, add the method implementation. Follow the same pattern as `u
     },
 ```
 
-- [ ] **Step 3: Run typecheck**
+- [ ] **Step 3: Write unit test for updateCheckInStatus [ADDED]**
 
-Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck`
-Expected: Pass (may see warnings about unused `replicated` variable — remove if so).
+Add to the entry store test file (or create if needed):
 
-- [ ] **Step 4: Commit**
+```typescript
+// In entryStore.test.ts or a new file
+describe('updateCheckInStatus', () => {
+  it('updates checkInStatus and increments version', async () => {
+    const store = useEntryStore.getState();
+    // Seed an entry first
+    const entry = await store.createEntry(
+      {
+        showId: 'show-1',
+        classId: 'class-1',
+        dogId: 'dog-1',
+        registrationData: {
+          submittedAt: new Date().toISOString(),
+          handler: 'Test',
+          entryFee: 25,
+          paymentStatus: 'paid',
+        },
+      },
+      'user-1'
+    );
+
+    const updated = await store.updateCheckInStatus(entry.id, 'checked-in', 'user-1');
+
+    expect(updated?.checkInStatus).toBe('checked-in');
+    expect(updated?._version).toBe(entry._version + 1);
+    expect(updated?._syncStatus).toBe('pending');
+  });
+
+  it('returns null for non-existent entry', async () => {
+    const result = await useEntryStore
+      .getState()
+      .updateCheckInStatus('nonexistent', 'checked-in', 'user-1');
+    expect(result).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 4: Run typecheck and tests**
+
+Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck && cd apps/myk9show && npx vitest run src/store/entryStore`
+Expected: Pass.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/myk9show/src/store/entry-store-types.ts apps/myk9show/src/store/entryStore.ts
-git commit -m "feat(store): add updateCheckInStatus method to entry store"
+git add apps/myk9show/src/store/entry-store-types.ts apps/myk9show/src/store/entryStore.ts apps/myk9show/src/store/entryStore.test.ts
+git commit -m "feat(store): add updateCheckInStatus method to entry store with tests"
 ```
 
 ---
@@ -328,13 +385,13 @@ describe('CheckInStatusBadge', () => {
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform/apps/myk9show" && npx vitest run src/components/common/CheckInStatusBadge.test.tsx`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement CheckInStatusBadge**
+- [ ] **Step 3: Create shared ICON_MAP [ADDED]**
+
+Create `apps/myk9show/src/components/common/checkin-icon-map.ts`:
 
 ```typescript
-// CheckInStatusBadge.tsx
-import { cn } from '@/lib/utils';
-import type { CheckInStatus } from '@myk9/core';
-import { getCheckinStatusConfig } from '@myk9/core';
+// checkin-icon-map.ts — Single source of truth for check-in status icons.
+// [ADDED] Extracted to avoid duplicating the map in Badge and Dialog.
 import {
   Check,
   Circle,
@@ -347,7 +404,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-const ICON_MAP: Record<string, LucideIcon> = {
+/** Maps @myk9/core icon name strings to Lucide components. */
+export const CHECKIN_ICON_MAP: Record<string, LucideIcon> = {
   Circle,
   Check,
   AlertTriangle,
@@ -357,6 +415,16 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Target,
   CheckCircle,
 };
+```
+
+- [ ] **Step 4: Implement CheckInStatusBadge**
+
+```typescript
+// CheckInStatusBadge.tsx
+import { cn } from '@/lib/utils';
+import type { CheckInStatus } from '@myk9/core';
+import { getCheckinStatusConfig } from '@myk9/core';
+import { CHECKIN_ICON_MAP } from './checkin-icon-map';
 
 interface CheckInStatusBadgeProps {
   status: CheckInStatus;
@@ -374,7 +442,7 @@ export function CheckInStatusBadge({
   const config = getCheckinStatusConfig(status);
   if (!config) return null;
 
-  const Icon = ICON_MAP[config.icon];
+  const Icon = CHECKIN_ICON_MAP[config.icon];
   const sizeClasses = size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-[11px] px-2 py-0.5';
   const iconSize = size === 'sm' ? 10 : 12;
 
@@ -420,16 +488,16 @@ export function CheckInStatusBadge({
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform/apps/myk9show" && npx vitest run src/components/common/CheckInStatusBadge.test.tsx`
 Expected: All 7 tests PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/myk9show/src/components/common/CheckInStatusBadge.tsx apps/myk9show/src/components/common/CheckInStatusBadge.test.tsx
-git commit -m "feat: add CheckInStatusBadge shared component with tests"
+git add apps/myk9show/src/components/common/checkin-icon-map.ts apps/myk9show/src/components/common/CheckInStatusBadge.tsx apps/myk9show/src/components/common/CheckInStatusBadge.test.tsx
+git commit -m "feat: add CheckInStatusBadge shared component with icon map and tests"
 ```
 
 ---
@@ -555,28 +623,7 @@ import {
   EXHIBITOR_ALLOWED_STATUSES,
   CHECKIN_STATUSES,
 } from '@myk9/core';
-import {
-  Check,
-  Circle,
-  AlertTriangle,
-  XCircle,
-  Star,
-  Bell,
-  Target,
-  CheckCircle,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-
-const ICON_MAP: Record<string, LucideIcon> = {
-  Circle,
-  Check,
-  AlertTriangle,
-  XCircle,
-  Star,
-  Bell,
-  Target,
-  CheckCircle,
-};
+import { CHECKIN_ICON_MAP } from './checkin-icon-map'; // [ADDED] DRY — shared with CheckInStatusBadge
 
 interface StatusPickerDialogProps {
   open: boolean;
@@ -630,7 +677,7 @@ export function StatusPickerDialog({
 
         <div className="grid grid-cols-2 gap-2 pt-2">
           {statusConfigs.map(config => {
-            const Icon = ICON_MAP[config.icon];
+            const Icon = CHECKIN_ICON_MAP[config.icon];
             const isActive = config.value === currentStatus;
 
             return (
@@ -1026,7 +1073,55 @@ In the card view rendering section, pass the status click handler through to Ent
 />
 ```
 
-Also update `EntryCardGrid` to accept and forward `onStatusClick` to each `EntryCard`.
+[EXPANDED] Update `EntryCardGrid.tsx` to accept and forward `onStatusClick`, and map `checkInStatus` from entry data. The current `toCardEntry` hardcodes `status: 'no-status'` — fix it to read from entry data:
+
+```typescript
+// Updated EntryCardGrid.tsx
+import { useMemo } from 'react';
+import type { ScentWorkEntry } from '@/types/scent-work-types';
+import { EntryCard, type EntryCardEntry } from './EntryCard';
+import type { CheckInStatus } from '@myk9/core';
+
+interface EntryCardGridProps {
+  entries: ScentWorkEntry[];
+  classId: string;
+  onStatusClick?: (entry: EntryCardEntry) => void;
+}
+
+function toCardEntry(entry: ScentWorkEntry): EntryCardEntry {
+  return {
+    entryId: entry.id,
+    armband: entry.displayInfo.armband,
+    dogName: entry.displayInfo.dogName,
+    dogBreed: entry.displayInfo.dogBreed,
+    handlerName: entry.displayInfo.handlerName,
+    status: (entry.checkInStatus as CheckInStatus) ?? 'no-status',
+  };
+}
+
+export function EntryCardGrid({ entries, classId, onStatusClick }: EntryCardGridProps) {
+  const cardEntries = useMemo(() => entries.map(toCardEntry), [entries]);
+
+  if (cardEntries.length === 0) {
+    return <div className="py-12 text-center text-muted-foreground">No entries in this class.</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+      {cardEntries.map(entry => (
+        <EntryCard
+          key={entry.entryId}
+          entry={entry}
+          scoringRoute={`/scoring/classes/${classId}/entries/${entry.entryId}`}
+          onStatusClick={onStatusClick}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+Note: `entry.checkInStatus` must be added to `ScentWorkEntry` type or the entry data mapping upstream. Check that the data source includes `check_in_status` from the DB query.
 
 - [ ] **Step 4: Add StatusPickerDialog at component bottom**
 
@@ -1221,13 +1316,18 @@ After the entry data is loaded (inside the useEffect that loads entry data, afte
 
 ```typescript
 // Auto-set check-in status to in-ring when scoresheet opens
+// [EXPANDED] Also set ring_entry_time per spec
 const updateCheckInStatus = useEntryStore.getState().updateCheckInStatus;
 if (rawEntry && rawEntry.checkInStatus !== 'completed') {
   updateCheckInStatus(rawEntry.id, 'in-ring', user?.id ?? 'system');
+  // Set ring entry timestamp via replication layer
+  replicatedEntriesTable.updateEntry(rawEntry.id, {
+    ring_entry_time: new Date().toISOString(),
+  });
 }
 ```
 
-Note: Use `useEntryStore.getState()` instead of a hook selector because this runs inside a `useEffect`. Get `user` from `useAuthContext()`.
+Note: Use `useEntryStore.getState()` instead of a hook selector because this runs inside a `useEffect`. Get `user` from `useAuthContext()`. Import `replicatedEntriesTable` from `@/services/replication`.
 
 - [ ] **Step 2: Add auto-set completed on score submit in ScoresheetPage**
 
@@ -1235,26 +1335,72 @@ In the score submission success handler (the `onSuccess` callback around line 12
 
 ```typescript
 // Auto-set check-in status to completed after scoring
+// [EXPANDED] Also set ring_exit_time per spec
 const updateCheckInStatus = useEntryStore.getState().updateCheckInStatus;
 updateCheckInStatus(entryId, 'completed', user?.id ?? 'system');
+replicatedEntriesTable.updateEntry(entryId, {
+  ring_exit_time: new Date().toISOString(),
+});
 ```
 
 - [ ] **Step 3: Apply same changes to SecretaryScoringPage**
 
 Repeat the same two changes in `SecretaryScoringPage.tsx`:
 
-1. Auto-set `in-ring` when entry loads for scoring
-2. Auto-set `completed` after score submission succeeds
+1. Auto-set `in-ring` + `ring_entry_time` when entry loads for scoring
+2. Auto-set `completed` + `ring_exit_time` after score submission succeeds
 
-- [ ] **Step 4: Run typecheck and tests**
+- [ ] **Step 4: Write tests for automatic transitions [ADDED]**
+
+Add tests to verify the scoresheet pages trigger status updates:
+
+```typescript
+// In ScoresheetPage.test.tsx or a new test file
+describe('automatic status transitions', () => {
+  it('sets check-in status to in-ring when scoresheet loads', async () => {
+    const updateCheckInStatus = vi.fn();
+    vi.spyOn(useEntryStore, 'getState').mockReturnValue({
+      ...useEntryStore.getState(),
+      updateCheckInStatus,
+    });
+
+    render(<ScoresheetPage />, { initialRoute: '/scoring/classes/class-1/entries/entry-1' });
+
+    // After entry data loads
+    await waitFor(() => {
+      expect(updateCheckInStatus).toHaveBeenCalledWith('entry-1', 'in-ring', expect.any(String));
+    });
+  });
+
+  it('does not override completed status on scoresheet open', async () => {
+    // Mock entry with completed status
+    const updateCheckInStatus = vi.fn();
+    vi.spyOn(useEntryStore, 'getState').mockReturnValue({
+      ...useEntryStore.getState(),
+      updateCheckInStatus,
+    });
+    // ... set up entry with checkInStatus: 'completed'
+
+    render(<ScoresheetPage />, { initialRoute: '/scoring/classes/class-1/entries/entry-1' });
+
+    await waitFor(() => {
+      expect(updateCheckInStatus).not.toHaveBeenCalled();
+    });
+  });
+});
+```
+
+Adapt mock setup to match the actual entry loading pattern in ScoresheetPage.
+
+- [ ] **Step 5: Run typecheck and tests**
 
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck && cd apps/myk9show && npx vitest run src/pages/scoring/`
 Expected: Pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/myk9show/src/pages/scoring/ScoresheetPage.tsx apps/myk9show/src/pages/scoring/SecretaryScoringPage.tsx
+git add apps/myk9show/src/pages/scoring/ScoresheetPage.tsx apps/myk9show/src/pages/scoring/SecretaryScoringPage.tsx apps/myk9show/src/pages/scoring/ScoresheetPage.test.tsx
 git commit -m "feat: auto-set in-ring on scoresheet open, completed on score submit"
 ```
 

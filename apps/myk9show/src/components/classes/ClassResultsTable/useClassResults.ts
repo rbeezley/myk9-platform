@@ -6,7 +6,6 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
@@ -45,10 +44,7 @@ export function useClassResults({
   // ---------------------------------------------------------------------------
   // Initialize bulk data from raw DB entries
   // ---------------------------------------------------------------------------
-  const rawEntryMap = useMemo(
-    () => new Map(rawEntries.map(r => [r.id, r])),
-    [rawEntries]
-  );
+  const rawEntryMap = useMemo(() => new Map(rawEntries.map(r => [r.id, r])), [rawEntries]);
 
   useEffect(() => {
     setBulkData(() => {
@@ -242,8 +238,6 @@ export function useClassResults({
   // ---------------------------------------------------------------------------
   // Submit results
   // ---------------------------------------------------------------------------
-  const queryClient = useQueryClient();
-
   const handleSubmit = useCallback(async () => {
     if (!userPermissions.canEditEntries) return;
 
@@ -288,17 +282,21 @@ export function useClassResults({
         });
       }
 
-      // Invalidate React Query cache to refresh from DB
-      queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
-
-      // Reset local change tracking
+      // Reset local change tracking. Don't invalidate React Query here — the
+      // replication layer syncs to Supabase asynchronously and fires a
+      // replication:upload-complete event that triggers cache invalidation.
+      // Invalidating now would refetch stale data before the mutation arrives.
       setBulkData(prev =>
-        prev.map(item => ({
-          ...item,
-          hasChanges: false,
-          isCleared: false,
-          modifiedFields: new Set<keyof BulkEntryData>(),
-        }))
+        prev.map(item => {
+          if (!item.hasChanges && !item.isCleared) return item;
+          return {
+            ...item,
+            hasChanges: false,
+            isCleared: false,
+            hadExistingData: item.isCleared ? false : !!(item.searchTime || item.qualification),
+            modifiedFields: new Set<keyof BulkEntryData>(),
+          };
+        })
       );
     } catch (error) {
       logger.error('Submit error:', 'classes', {}, error as Error);
@@ -306,7 +304,7 @@ export function useClassResults({
     } finally {
       setIsSubmitting(false);
     }
-  }, [bulkData, classId, userPermissions, queryClient]);
+  }, [bulkData, classId, userPermissions]);
 
   // ---------------------------------------------------------------------------
   // Ctrl+S / Cmd+S keyboard shortcut

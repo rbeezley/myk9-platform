@@ -18,6 +18,7 @@ import {
   buildScentWorkEntries,
 } from './ClassDetailsMain.helpers';
 import { msToDisplay } from '@/lib/timeUtils';
+import { useCheckInStatusSubscription } from '@/hooks/useCheckInStatusSubscription';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   trials: Calendar,
@@ -40,6 +41,8 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   onResultUpdate,
   onOpenRequirements,
 }) => {
+  useCheckInStatusSubscription(classData?.id);
+
   // Check if this is a Scent Work show
   const isScentWork = isScentWorkShow(parentShow);
 

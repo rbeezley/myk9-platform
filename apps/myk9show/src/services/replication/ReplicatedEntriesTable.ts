@@ -81,6 +81,10 @@ export interface ReplicatedEntry {
   timeLimit2?: string | undefined;
   timeLimit3?: string | undefined;
 
+  // Ring timing (show-day flow)
+  ring_entry_time?: string | undefined;
+  ring_exit_time?: string | undefined;
+
   // Timestamps
   updated_at?: string | undefined;
 
@@ -157,6 +161,10 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
       ? String(dbRow.time_limit_area3_seconds as number)
       : undefined,
 
+    // Ring timing
+    ring_entry_time: (row.ring_entry_time as string | undefined) ?? undefined,
+    ring_exit_time: (row.ring_exit_time as string | undefined) ?? undefined,
+
     // Timestamps
     updated_at: row.updated_at ?? undefined,
   };
@@ -214,6 +222,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       search_time_seconds: entry.searchTimeSeconds ?? null,
       total_score: entry.totalPoints ?? null,
       final_placement: entry.finalPlacement != null ? Number(entry.finalPlacement) : null,
+      ring_entry_time: entry.ring_entry_time ?? null,
+      ring_exit_time: entry.ring_exit_time ?? null,
       updated_at: new Date().toISOString(),
     };
   }

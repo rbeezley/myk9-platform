@@ -32,6 +32,11 @@ describe('deriveSportType', () => {
     expect(deriveSportType('AKC', 'Scent Work')).toBe('akc-scent-work');
   });
 
+  // [ADDED] Nationals has a dedicated scoresheet
+  it('returns akc-scent-work-nationals for AKC + Scent Work Nationals', () => {
+    expect(deriveSportType('AKC', 'Scent Work Nationals')).toBe('akc-scent-work-nationals');
+  });
+
   it('returns akc-fast-cat for AKC + FastCAT', () => {
     expect(deriveSportType('AKC', 'FastCAT')).toBe('akc-fast-cat');
   });
@@ -79,8 +84,10 @@ Add this function to `apps/myk9show/src/pages/scoring/types.ts`, after the exist
  * Inverse of mapSportType() — used when creating/editing trials.
  * Returns null for org/discipline combos without a registered scoresheet.
  */
+// [EXPANDED] Added akc-scent-work-nationals — registered scoresheet exists
 const SPORT_TYPE_BY_ORG_DISCIPLINE: Record<string, string> = {
   'AKC:Scent Work': 'akc-scent-work',
+  'AKC:Scent Work Nationals': 'akc-scent-work-nationals',
   'AKC:FastCAT': 'akc-fast-cat',
   'UKC:Nosework': 'ukc-nosework',
   'UKC:Rally': 'ukc-rally',
@@ -97,7 +104,7 @@ export function deriveSportType(organization: string, trialType: string): string
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd apps/myk9show && npx vitest run src/pages/scoring/__tests__/deriveSportType.test.ts`
-Expected: All 9 tests PASS
+Expected: All 10 tests PASS
 
 - [ ] **Step 5: Commit**
 
@@ -342,7 +349,7 @@ Add a new section to `TO-DOS.md` after the last section:
 ```markdown
 ## Trial sport_type Not Set During Creation — 2026-03-26
 
-- [x] **Fix sport_type not being set on trials** — Done: Added `deriveSportType(org, trialType)` mapping function in scoring types. Added `sportType` to `Trial` and `TrialInput` interfaces. Wizard `createTrials()` now passes `sportType` from wizard state. Trial edit panel derives `sportType` from org + trialType on save. Replaced `SPORT_TYPE_MAP` in wizardStore with `deriveSportType()`. 9 unit tests for the mapping function. Scoresheets now resolve correctly for all supported org/discipline combos.
+- [x] **Fix sport_type not being set on trials** — Done: Added `deriveSportType(org, trialType)` mapping function in scoring types. Added `sportType` to `Trial` and `TrialInput` interfaces. Wizard `createTrials()` now passes `sportType` from wizard state. Trial edit panel derives `sportType` from org + trialType on save. Replaced `SPORT_TYPE_MAP` in wizardStore with `deriveSportType()`. 10 unit tests for the mapping function. Scoresheets now resolve correctly for all supported org/discipline combos.
 ```
 
 - [ ] **Step 2: Commit**

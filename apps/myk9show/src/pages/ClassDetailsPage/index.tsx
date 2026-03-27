@@ -7,7 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Pencil, MoreVertical, Trash2 } from 'lucide-react';
+import { Pencil, MoreVertical, Trash2, ClipboardList } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { replicatedClassesTable } from '@/services/replication';
@@ -222,6 +222,10 @@ const ClassDetailsPage: React.FC = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setRequirementsPanelOpen(true)}>
+              <ClipboardList className="mr-2 h-4 w-4" />
+              Requirements
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Class
@@ -230,7 +234,7 @@ const ClassDetailsPage: React.FC = () => {
         </DropdownMenu>
       </div>
     ),
-    [dialogs.openEditClassPanel, dialogs.openDeleteDialog]
+    [dialogs.openEditClassPanel, dialogs.openDeleteDialog, setRequirementsPanelOpen]
   );
 
   // Early returns for different states
@@ -268,7 +272,6 @@ const ClassDetailsPage: React.FC = () => {
         }}
         onDeleteEntry={handleDeleteEntry}
         onResultUpdate={handleResultUpdate}
-        onOpenRequirements={() => setRequirementsPanelOpen(true)}
       />
 
       {/* Dialogs */}

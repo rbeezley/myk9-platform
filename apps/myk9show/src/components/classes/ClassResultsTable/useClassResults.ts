@@ -5,7 +5,7 @@
  * keyboard navigation, Ctrl+S shortcut, and submit logic.
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { logger } from '@/services/LoggingService';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
@@ -77,22 +77,62 @@ export function useClassResults({
     [rawEntries]
   );
 
+  // Track the last raw version key we initialized from, so we can detect
+  // when raw data actually changes (e.g., initial load, sync complete)
+  // vs. spurious entry store reference changes.
+  const lastInitRawKeyRef = useRef('');
+
   useEffect(() => {
     setBulkData(prev => {
-      // If we already have bulk data for the same entries and the raw data
-      // hasn't changed, keep the current state (preserves user edits).
       const prevIds = prev
         .map(b => b.entryId)
         .sort()
         .join(',');
-      if (prev.length > 0 && prevIds === entryIdKey) {
-        // Only re-init entries that are new (not in prev)
-        const prevMap = new Map(prev.map(b => [b.entryId, b]));
-        const hasAllEntries = entries.every(e => prevMap.has(e.id));
-        if (hasAllEntries && prev.length === entries.length) {
-          return prev; // No change — keep user edits
+
+      // Same entry IDs AND same raw data version → keep user edits
+      if (
+        prev.length > 0 &&
+        prevIds === entryIdKey &&
+        lastInitRawKeyRef.current === rawEntryVersionKey
+      ) {
+        return prev;
+      }
+
+      // If entry IDs match but raw data changed (e.g., raw data arrived after
+      // initial empty load, or sync completed), re-init to pick up DB values.
+      // But preserve any user edits (hasChanges = true).
+      if (
+        prev.length > 0 &&
+        prevIds === entryIdKey &&
+        lastInitRawKeyRef.current !== rawEntryVersionKey
+      ) {
+        const hasUserEdits = prev.some(b => b.hasChanges);
+        if (hasUserEdits) {
+          // Keep entries with user edits, update only untouched ones
+          lastInitRawKeyRef.current = rawEntryVersionKey;
+          return prev.map(b => {
+            if (b.hasChanges) return b; // Preserve user edit
+            const raw = rawEntryMap.get(b.entryId);
+            const entry = entries.find(e => e.id === b.entryId);
+            const qualification = mapResultStatusToQualification(raw?.result_status);
+            const searchTime = dbSecondsToInputFormat(raw?.search_time_seconds);
+            return {
+              ...b,
+              dogName: entry?.displayInfo?.dogName || b.dogName,
+              searchTime,
+              qualification,
+              qualificationReason: raw?.disqualification_reason ?? '',
+              faults: String(raw?.total_faults ?? 0),
+              notes: raw?.judge_notes ?? '',
+              placement: raw?.final_placement ?? null,
+              hadExistingData: !!(searchTime || qualification),
+              isValid: !!(searchTime && qualification),
+            };
+          });
         }
       }
+
+      lastInitRawKeyRef.current = rawEntryVersionKey;
 
       const newData = entries.map(entry => {
         const raw = rawEntryMap.get(entry.id);

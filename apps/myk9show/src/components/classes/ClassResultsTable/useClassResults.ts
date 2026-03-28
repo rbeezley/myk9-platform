@@ -5,7 +5,7 @@
  * Display merges raw + edits. Submit writes to the replication layer.
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
@@ -95,6 +95,12 @@ export function useClassResults({
     });
   }, [entries, rawMap, edits, submittedEdits, justScoredIds, justClearedIds]);
 
+  // Refs for clearEntry to avoid recreating it on every rows/justScoredIds change
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const justScoredIdsRef = useRef(justScoredIds);
+  justScoredIdsRef.current = justScoredIds;
+
   // Edit a field
   const onFieldChange = useCallback(
     (entryId: string, field: keyof ScoringEdit, value: string) => {
@@ -153,9 +159,11 @@ export function useClassResults({
         });
         setJustClearedIds(prev => new Set([...prev, entryId]));
 
-        // Recalculate placements for remaining scored entries
-        const remainingRows = rows.filter(
-          r => r.entryId !== entryId && (r.isScored || justScoredIds.has(r.entryId))
+        // Recalculate placements for remaining scored entries (use refs for stable callback)
+        const currentRows = rowsRef.current;
+        const currentJustScored = justScoredIdsRef.current;
+        const remainingRows = currentRows.filter(
+          r => r.entryId !== entryId && (r.isScored || currentJustScored.has(r.entryId))
         );
         const placements = calculatePlacements(remainingRows);
         for (const row of remainingRows) {
@@ -174,7 +182,7 @@ export function useClassResults({
         notifications.error('Failed to clear entry');
       }
     },
-    [userPermissions.canEditEntries, rows, justScoredIds]
+    [userPermissions.canEditEntries]
   );
 
   // Validate before submit

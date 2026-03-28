@@ -255,8 +255,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           return <span className="text-sm">{item.faults}</span>;
         },
       },
-      // Check-in Status
-      {
+    ];
+
+    // Check-in column — hidden on Completed tab (always "Completed" there)
+    if (scoringTab !== 'completed') {
+      // Insert before the last column (Scoring Status)
+      cols.push({
         id: 'checkInStatus',
         header: 'Check-in',
         cell: ({ row }) => {
@@ -277,14 +281,15 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             />
           );
         },
-      },
-      // Scoring Status
-      {
-        id: 'status',
-        header: 'Status',
-        cell: ({ row }) => <StatusBadge item={row.original} />,
-      },
-    ];
+      });
+    }
+
+    // Scoring Status
+    cols.push({
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => <StatusBadge item={row.original} />,
+    });
 
     // Clear result column
     if (canEdit) {
@@ -342,6 +347,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     handleKeyDown,
     onDeleteEntry,
     onFieldChange,
+    scoringTab,
     showDeleteColumn,
   ]);
 

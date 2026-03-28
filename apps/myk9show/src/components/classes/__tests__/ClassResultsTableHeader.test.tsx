@@ -74,22 +74,6 @@ describe('ClassResultsTable header buttons', () => {
     expect(onOpen).toHaveBeenCalledOnce();
   });
 
-  it('shows Enter Scores button when classId is provided and user can edit', () => {
-    renderTable(makeProps({ classId: 'class-1' }));
-    expect(screen.getByText('Enter Scores')).toBeInTheDocument();
-  });
-
-  it('hides Enter Scores button when classId is not provided', () => {
-    renderTable(makeProps());
-    expect(screen.queryByText('Enter Scores')).not.toBeInTheDocument();
-  });
-
-  it('hides Enter Scores button when user cannot edit entries', () => {
-    const readOnlyPerms = createUserPermissions('exhibitor', 'user-1', 'Test User');
-    renderTable(makeProps({ classId: 'class-1', userPermissions: readOnlyPerms }));
-    expect(screen.queryByText('Enter Scores')).not.toBeInTheDocument();
-  });
-
   it('shows entry count badge in the header', () => {
     renderTable(makeProps());
     // Badge shows "0" for empty entries

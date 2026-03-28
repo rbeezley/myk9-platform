@@ -8,7 +8,6 @@
 // Main pages
 export { ScoringEntryListPage } from './ScoringEntryListPage';
 export { ScoresheetPage } from './ScoresheetPage';
-export { SecretaryScoringPage } from './SecretaryScoringPage';
 
 // Components
 export { ScoringEntryCard, SortableScoringEntryCard } from './components/ScoringEntryCard';

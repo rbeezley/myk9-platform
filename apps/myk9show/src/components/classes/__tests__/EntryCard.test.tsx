@@ -25,7 +25,7 @@ function makeEntry(overrides: Partial<EntryCardEntry> = {}) {
 function renderCard(props: Partial<React.ComponentProps<typeof EntryCard>> = {}) {
   const defaultProps = {
     entry: makeEntry(),
-    scoringRoute: '/scoring/secretary/classes/class-1/entries/entry-1',
+    scoringRoute: '/scoring/classes/class-1/entries/entry-1',
   };
   return render(
     <MemoryRouter>
@@ -71,7 +71,7 @@ describe('EntryCard', () => {
     const user = userEvent.setup();
     renderCard();
     await user.click(screen.getByRole('button'));
-    expect(mockNavigate).toHaveBeenCalledWith('/scoring/secretary/classes/class-1/entries/entry-1');
+    expect(mockNavigate).toHaveBeenCalledWith('/scoring/classes/class-1/entries/entry-1');
   });
 
   it('renders come-to-gate badge with primary color', () => {

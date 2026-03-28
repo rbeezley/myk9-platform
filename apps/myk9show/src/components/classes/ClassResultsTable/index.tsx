@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,7 +40,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   classId,
   onOpenRequirements,
 }) => {
-  const navigate = useNavigate();
   const {
     rows,
     isSubmitting,
@@ -386,17 +384,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 <Button variant="outline" size="sm" onClick={onOpenRequirements}>
                   <ClipboardList className="h-4 w-4" />
                   <span>Requirements</span>
-                </Button>
-              )}
-
-              {classId && userPermissions.canEditEntries && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="myk9-action-button myk9-action-button-primary"
-                  onClick={() => navigate(`/scoring/secretary/classes/${classId}`)}
-                >
-                  Enter Scores
                 </Button>
               )}
 

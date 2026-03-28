@@ -104,6 +104,8 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
         onDeleteEntry={onDeleteEntry}
         onAddEntry={onAddEntry}
         classId={classData?.id}
+        showId={parentShow?.id}
+        trialId={classData?.trialId}
         onOpenRequirements={onOpenRequirements}
       />
     </div>

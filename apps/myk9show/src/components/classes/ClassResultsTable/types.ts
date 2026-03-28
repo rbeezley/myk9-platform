@@ -20,6 +20,8 @@ export interface ClassResultsTableProps {
   onAddEntry?: (() => void) | undefined;
   className?: string | undefined;
   classId?: string | undefined;
+  showId?: string | undefined;
+  trialId?: string | undefined;
   onOpenRequirements?: (() => void) | undefined;
 }
 

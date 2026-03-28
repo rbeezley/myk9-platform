@@ -107,6 +107,8 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
         showId={parentShow?.id}
         trialId={classData?.trialId}
         onOpenRequirements={onOpenRequirements}
+        classStatus={classData?.status}
+        resultsReleasedAt={classData?.results_released_at}
       />
     </div>
   );

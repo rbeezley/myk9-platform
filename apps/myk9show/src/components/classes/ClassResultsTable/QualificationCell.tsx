@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select';
 import type { ScoringRow } from './types';
 import { QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from './constants';
+import { PendingCell } from './PendingCell';
 
 interface QualificationCellProps {
   item: ScoringRow;
@@ -35,7 +36,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
   onUpdate,
 }) => {
   if (!visible) {
-    return <span className="text-sm text-muted-foreground italic">Pending</span>;
+    return <PendingCell />;
   }
 
   if (!canEdit) {

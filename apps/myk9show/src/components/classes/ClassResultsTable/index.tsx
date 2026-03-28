@@ -20,6 +20,7 @@ import { useClassResults } from './useClassResults';
 import { getPlacementBadgeClass, formatPlacement } from './utils';
 import { DogInfoTooltip } from './DogInfoTooltip';
 import { QualificationCell } from './QualificationCell';
+import { PendingCell } from './PendingCell';
 import { StatusBadge } from './StatusBadge';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
@@ -42,6 +43,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   showId,
   trialId,
   onOpenRequirements,
+  classStatus,
+  resultsReleasedAt,
 }) => {
   const {
     rows,
@@ -66,10 +69,10 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const checkInMutation = useCheckInMutation();
   const isStaff = isSecretary || isJudge || !isExhibitor;
 
-  const classState = useMemo(() => {
-    const allScored = rows.length > 0 && rows.every(r => r.isScored);
-    return deriveClassState(allScored ? 'completed' : 'in_progress', null);
-  }, [rows]);
+  const classState = useMemo(
+    () => deriveClassState(classStatus, resultsReleasedAt ?? null),
+    [classStatus, resultsReleasedAt]
+  );
 
   const visibility = useVisibleResultFields(showId, trialId, classId, classState);
 
@@ -163,7 +166,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         cell: ({ row }) => {
           const item = row.original;
           if (!isStaff && !visibility.showPlacement) {
-            return <span className="text-sm text-muted-foreground italic">Pending</span>;
+            return <PendingCell />;
           }
           return item.placement ? (
             <Badge variant="default" className={getPlacementBadgeClass(item.placement)}>
@@ -237,7 +240,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             );
           }
           if (!isStaff && !visibility.showTime) {
-            return <span className="text-sm text-muted-foreground italic">Pending</span>;
+            return <PendingCell />;
           }
           return (
             <div className="text-center">
@@ -270,7 +273,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             );
           }
           if (!isStaff && !visibility.showFaults) {
-            return <span className="text-sm text-muted-foreground italic">Pending</span>;
+            return <PendingCell />;
           }
           return <span className="text-sm">{item.faults}</span>;
         },

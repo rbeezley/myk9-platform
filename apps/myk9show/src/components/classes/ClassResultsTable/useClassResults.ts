@@ -113,12 +113,13 @@ export function useClassResults({
           return prev.map(b => {
             if (b.hasChanges) return b; // Preserve user edit
             const raw = rawEntryMap.get(b.entryId);
-            const entry = entries.find(e => e.id === b.entryId);
             const qualification = mapResultStatusToQualification(raw?.result_status);
             const searchTime = dbSecondsToInputFormat(raw?.search_time_seconds);
             return {
               ...b,
-              dogName: entry?.displayInfo?.dogName || b.dogName,
+              dogName: raw?.dog?.call_name || raw?.dog?.name || b.dogName,
+              handlerName: (raw?.handler as string) || b.handlerName,
+              armband: (raw?.armband as string) || b.armband,
               searchTime,
               qualification,
               qualificationReason: raw?.disqualification_reason ?? '',
@@ -137,25 +138,21 @@ export function useClassResults({
       const newData = entries.map(entry => {
         const raw = rawEntryMap.get(entry.id);
 
-        // Diagnostic logging — remove after confirming fix
-        console.log('[SCORING INIT]', {
-          entryId: entry.id,
-          dogName: entry.displayInfo?.dogName,
-          rawFound: !!raw,
-          rawResultStatus: raw?.result_status,
-          rawSearchTime: raw?.search_time_seconds,
-        });
-
         const qualification = mapResultStatusToQualification(raw?.result_status);
         const searchTime = dbSecondsToInputFormat(raw?.search_time_seconds);
-
         const hadExistingData = !!(searchTime || qualification);
+
+        // Prefer raw DB data for display (always fresh), fall back to entry.displayInfo
+        const dogName =
+          raw?.dog?.call_name || raw?.dog?.name || entry.displayInfo?.dogName || 'Unknown Dog';
+        const handlerName = (raw?.handler as string) || entry.displayInfo?.handlerName || '';
+        const armband = (raw?.armband as string) || entry.displayInfo?.armband || '';
 
         return {
           entryId: entry.id,
-          armband: entry.displayInfo.armband,
-          dogName: entry.displayInfo.dogName,
-          handlerName: entry.displayInfo.handlerName,
+          armband,
+          dogName,
+          handlerName,
           searchTime,
           qualification,
           qualificationReason: raw?.disqualification_reason ?? '',

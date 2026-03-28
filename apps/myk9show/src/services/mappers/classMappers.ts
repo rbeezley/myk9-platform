@@ -230,6 +230,9 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     // Custom fields
     customFields: {},
 
+    // Results release timestamp
+    results_released_at: dbClass.results_released_at ?? null,
+
     // Sync metadata
     _version: 1,
     _lastModified: new Date(dbClass.updated_at || dbClass.created_at || new Date().toISOString()),

@@ -20,12 +20,14 @@ import { useClassResults } from './useClassResults';
 import { getPlacementBadgeClass, formatPlacement } from './utils';
 import { DogInfoTooltip } from './DogInfoTooltip';
 import { QualificationCell } from './QualificationCell';
+import { PendingCell } from './PendingCell';
 import { StatusBadge } from './StatusBadge';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EntryCardGrid } from './EntryCardGrid';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
+import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
@@ -38,7 +40,11 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   onAddEntry,
   className,
   classId,
+  showId,
+  trialId,
   onOpenRequirements,
+  classStatus,
+  resultsReleasedAt,
 }) => {
   const {
     rows,
@@ -62,6 +68,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const { isExhibitor, isSecretary, isJudge } = useAuthContext();
   const checkInMutation = useCheckInMutation();
   const isStaff = isSecretary || isJudge || !isExhibitor;
+
+  const classState = useMemo(
+    () => deriveClassState(classStatus, resultsReleasedAt ?? null),
+    [classStatus, resultsReleasedAt]
+  );
+
+  const visibility = useVisibleResultFields(showId, trialId, classId, classState);
 
   const [statusPickerEntry, setStatusPickerEntry] = useState<{
     entryId: string;
@@ -152,6 +165,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         header: 'Placement',
         cell: ({ row }) => {
           const item = row.original;
+          if (!isStaff && !visibility.showPlacement) {
+            return <PendingCell />;
+          }
           return item.placement ? (
             <Badge variant="default" className={getPlacementBadgeClass(item.placement)}>
               <Trophy className="h-4 w-4" />
@@ -171,6 +187,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           <QualificationCell
             item={row.original}
             canEdit={canEdit}
+            visible={isStaff || visibility.showQualification}
             onUpdate={(id, field, value) => onFieldChange(id, field as keyof ScoringEdit, value)}
           />
         ),
@@ -222,6 +239,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               </div>
             );
           }
+          if (!isStaff && !visibility.showTime) {
+            return <PendingCell />;
+          }
           return (
             <div className="text-center">
               <span className="text-sm font-mono">{item.searchTime || '--'}</span>
@@ -251,6 +271,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 data-field="faults"
               />
             );
+          }
+          if (!isStaff && !visibility.showFaults) {
+            return <PendingCell />;
           }
           return <span className="text-sm">{item.faults}</span>;
         },
@@ -345,10 +368,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     clearEntry,
     entryMap,
     handleKeyDown,
+    isStaff,
     onDeleteEntry,
     onFieldChange,
     scoringTab,
     showDeleteColumn,
+    visibility,
   ]);
 
   return (
@@ -470,6 +495,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         currentStatus={statusPickerEntry?.currentStatus ?? 'no-status'}
         onStatusChange={handleStatusChange}
         isStaff={isStaff}
+        disabled={!isStaff && !visibility.selfCheckinEnabled}
       />
     </TooltipProvider>
   );

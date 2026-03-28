@@ -23,6 +23,7 @@ export interface ClassResult {
   level: string;
   section: string | null;
   trialId: string;
+  resultsReleasedAt: string | null;
   placements: Placement[];
 }
 
@@ -33,10 +34,12 @@ export interface ResultsFilters {
 
 async function fetchShowResults(showId: string): Promise<ClassResult[]> {
   // Fetch scored entries with placements 1–4 for this show
-  const { data, error } = await supabase
+  // TODO: Remove cast after regenerating Supabase types with migration 094
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = (await (supabase as any)
     .from('view_entry_with_results')
     .select(
-      'class_id, class_name, class_element, class_level, trial_id, handler, dog_call_name, dog_breed, armband, final_placement'
+      'class_id, class_name, class_element, class_level, class_results_released_at, trial_id, handler, dog_call_name, dog_breed, armband, final_placement'
     )
     .eq('show_id', showId)
     .eq('is_scored', true)
@@ -44,7 +47,7 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
     .lte('final_placement', 4)
     .order('class_element')
     .order('class_level')
-    .order('final_placement');
+    .order('final_placement')) as { data: Record<string, unknown>[] | null; error: Error | null };
 
   if (error) throw error;
   if (!data || data.length === 0) return [];
@@ -62,6 +65,7 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
         level: (row.class_level as string) || '',
         section: null,
         trialId: (row.trial_id as string) || '',
+        resultsReleasedAt: (row.class_results_released_at as string) ?? null,
         placements: [],
       });
     }

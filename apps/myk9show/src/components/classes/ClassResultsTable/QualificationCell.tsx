@@ -12,10 +12,12 @@ import {
 } from '@/components/ui/select';
 import type { ScoringRow } from './types';
 import { QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from './constants';
+import { PendingCell } from './PendingCell';
 
 interface QualificationCellProps {
   item: ScoringRow;
   canEdit: boolean;
+  visible: boolean;
   onUpdate: (entryId: string, field: string, value: string) => void;
 }
 
@@ -30,8 +32,13 @@ const DISPLAY_LABELS: Record<string, string> = {
 export const QualificationCell: React.FC<QualificationCellProps> = ({
   item,
   canEdit,
+  visible,
   onUpdate,
 }) => {
+  if (!visible) {
+    return <PendingCell />;
+  }
+
   if (!canEdit) {
     return (
       <div>

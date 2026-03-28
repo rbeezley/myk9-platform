@@ -20,7 +20,11 @@ export interface ClassResultsTableProps {
   onAddEntry?: (() => void) | undefined;
   className?: string | undefined;
   classId?: string | undefined;
+  showId?: string | undefined;
+  trialId?: string | undefined;
   onOpenRequirements?: (() => void) | undefined;
+  classStatus?: string | undefined;
+  resultsReleasedAt?: string | null | undefined;
 }
 
 /** Per-entry edits stored in the edit buffer. Only contains fields the user changed. */

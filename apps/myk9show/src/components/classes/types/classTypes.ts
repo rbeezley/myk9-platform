@@ -43,6 +43,8 @@ export interface ClassData {
   customFields?: Record<string, string> | undefined;
   // Template reference
   templateId?: string | undefined;
+  // Results release timestamp (for manual_release visibility timing)
+  results_released_at?: string | null | undefined;
 }
 
 export interface CompetitionResult {

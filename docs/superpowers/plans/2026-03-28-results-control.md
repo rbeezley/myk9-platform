@@ -314,6 +314,7 @@ export function useVisibilitySettings(showId: string | undefined) {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { notifications } from '@/lib/notifications';
 import { visibilityKeys } from '@/hooks/queries/useVisibilitySettings';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
 
@@ -370,6 +371,10 @@ export function useUpdateShowVisibility() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: visibilityKeys.show(variables.showId) });
+      notifications.success('Show visibility updated');
+    },
+    onError: () => {
+      notifications.error('Failed to update show visibility');
     },
   });
 }
@@ -412,6 +417,10 @@ export function useUpdateTrialVisibility() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: visibilityKeys.show(variables.showId) });
+      notifications.success('Trial visibility updated');
+    },
+    onError: () => {
+      notifications.error('Failed to update trial visibility');
     },
   });
 }
@@ -454,6 +463,10 @@ export function useUpdateClassVisibility() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: visibilityKeys.show(variables.showId) });
+      notifications.success('Class visibility updated');
+    },
+    onError: () => {
+      notifications.error('Failed to update class visibility');
     },
   });
 }
@@ -657,6 +670,24 @@ function mapUserRole(auth: {
   if (auth.isSecretary) return 'secretary';
   if (auth.isJudge) return 'judge';
   return 'exhibitor';
+}
+
+/**
+ * Derive ClassState from class data.
+ * 'released' = results_released_at is set (for manual_release timing).
+ * 'completed' = class status is completed but not manually released.
+ * 'in_progress' = everything else.
+ *
+ * [ADDED] — maps results_released_at to the 'released' state that
+ * @myk9/secretary's shouldShowField needs for manual_release timing.
+ */
+export function deriveClassState(
+  classStatus: string | undefined,
+  resultsReleasedAt: string | null | undefined
+): ClassState {
+  if (resultsReleasedAt) return 'released';
+  if (classStatus === 'completed' || classStatus === 'Completed') return 'completed';
+  return 'in_progress';
 }
 
 /**
@@ -1022,24 +1053,20 @@ export function ShowSettingsPanel({
         faultsTiming: config.faults,
         selfCheckinEnabled: showDefaults.selfCheckinEnabled,
       },
-      { onSuccess: () => notifications.success('Show visibility updated') }
     );
   }
 
   function handleShowCheckinToggle(enabled: boolean) {
     const config = PRESET_CONFIGS[showDefaults.preset];
-    updateShow.mutate(
-      {
-        showId,
-        presetName: showDefaults.preset,
-        placementTiming: config.placement,
-        qualificationTiming: config.qualification,
-        timeTiming: config.time,
-        faultsTiming: config.faults,
-        selfCheckinEnabled: enabled,
-      },
-      { onSuccess: () => notifications.success(`Self check-in ${enabled ? 'enabled' : 'disabled'}`) }
-    );
+    updateShow.mutate({
+      showId,
+      presetName: showDefaults.preset,
+      placementTiming: config.placement,
+      qualificationTiming: config.qualification,
+      timeTiming: config.time,
+      faultsTiming: config.faults,
+      selfCheckinEnabled: enabled,
+    });
   }
 
   // Build trial override items
@@ -1234,19 +1261,34 @@ git commit -m "feat: add Show Settings panel to Mission Control"
 
 - [ ] **Step 1: Add visibility hook to ClassResultsTable**
 
-In `index.tsx`, add import:
+[EXPANDED] First, add `showId` and `trialId` to `ClassResultsTableProps` in `types.ts`:
 
 ```typescript
-import { useVisibleResultFields } from '@/hooks/useVisibleResultFields';
+export interface ClassResultsTableProps {
+  // ... existing props ...
+  showId?: string | undefined;
+  trialId?: string | undefined;
+}
 ```
 
-Add hook call (needs `showId` and `trialId` — check if available from props or derive from URL params):
+Thread these from `ClassDetailsMain.tsx` → `ClassDetailsPage` (both have access via props/URL params).
+
+In `index.tsx`, add imports:
 
 ```typescript
+import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
+```
+
+Derive classState and add hook call:
+
+```typescript
+const classState = useMemo(() => {
+  const allScored = rows.length > 0 && rows.every(r => r.isScored);
+  return deriveClassState(allScored ? 'completed' : 'in_progress', null);
+}, [rows]);
+
 const visibility = useVisibleResultFields(showId, trialId, classId, classState);
 ```
-
-Note: `showId` and `trialId` may need to be added to `ClassResultsTableProps` or derived from route params. `classState` should be derived from whether all entries are scored.
 
 - [ ] **Step 2: Wrap field cells with visibility checks**
 
@@ -1451,6 +1493,32 @@ Expected: No errors.
 ```bash
 git add apps/myk9show/src/components/results/ShowResultsTab.tsx
 git commit -m "feat: enforce result visibility on public results tab"
+```
+
+---
+
+## Task 9b: Enforce Visibility in My Entries Tab [ADDED]
+
+**Files:**
+
+- Modify: `apps/myk9show/src/components/exhibitor/MyEntriesTab.tsx` (or equivalent)
+
+- [ ] **Step 1: Apply same visibility filtering as ClassResultsTable**
+
+The My Entries tab shows an exhibitor's own entries with results. Apply `useVisibleResultFields` to hide result fields (qualification, time, faults, placement) based on the class's visibility settings. Use the same pattern as Task 7 — check each field and show "Pending" when hidden.
+
+Since My Entries spans multiple classes, each entry needs its own visibility resolution (different classes may have different settings). Wrap each entry's result display with a per-class visibility check.
+
+- [ ] **Step 2: Run typecheck**
+
+Run: `cd apps/myk9show && pnpm typecheck`
+Expected: No errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/myk9show/src/components/exhibitor/
+git commit -m "feat: enforce result visibility in My Entries tab"
 ```
 
 ---

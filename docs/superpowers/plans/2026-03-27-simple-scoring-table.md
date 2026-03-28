@@ -318,27 +318,42 @@ export function useClassResults({
       });
       const placements = calculatePlacements(allScoredRows);
 
-      // Write each edited entry
+      // [EXPANDED] Write each edited entry, tracking which succeed
+      const succeededIds: string[] = [];
       for (const row of editedRows) {
-        // Only write if there's a qualification (skip entries where only notes changed with no qualification)
         if (!row.qualification && !row.searchTime) continue;
 
-        await replicatedEntriesTable.updateEntry(row.entryId, {
-          resultStatus: mapQualificationToResultStatus(row.qualification),
-          searchTimeSeconds: inputFormatToDbSeconds(row.searchTime),
-          totalFaults: parseInt(row.faults) || 0,
-          judgeNotes: row.notes || null,
-          finalPlacement: placements.get(row.entryId) ?? null,
-          disqualification_reason: row.qualificationReason || null,
-          isScored: true,
-          scoringCompletedAt: new Date().toISOString(),
-        });
+        try {
+          await replicatedEntriesTable.updateEntry(row.entryId, {
+            resultStatus: mapQualificationToResultStatus(row.qualification),
+            searchTimeSeconds: inputFormatToDbSeconds(row.searchTime),
+            totalFaults: parseInt(row.faults) || 0,
+            judgeNotes: row.notes || null,
+            finalPlacement: placements.get(row.entryId) ?? null,
+            disqualification_reason: row.qualificationReason || null,
+            isScored: true,
+            scoringCompletedAt: new Date().toISOString(),
+          });
+          succeededIds.push(row.entryId);
+        } catch (entryErr) {
+          logger.error(
+            'Failed to write entry',
+            'classes',
+            { entryId: row.entryId },
+            entryErr as Error
+          );
+        }
       }
 
-      // Update local state
-      const scoredIds = new Set(editedRows.map(r => r.entryId));
-      setJustScoredIds(prev => new Set([...prev, ...scoredIds]));
-      setEdits(new Map()); // Clear all edits
+      if (succeededIds.length === 0) throw new Error('All entries failed to save');
+
+      // Update local state — only clear edits for entries that succeeded
+      setJustScoredIds(prev => new Set([...prev, ...succeededIds]));
+      setEdits(prev => {
+        const next = new Map(prev);
+        for (const id of succeededIds) next.delete(id);
+        return next;
+      });
 
       notifications.success(
         `${editedRows.length} result${editedRows.length > 1 ? 's' : ''} submitted`
@@ -623,9 +638,25 @@ export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProp
 
 - [ ] **Step 9: Remove dead code**
 
-Remove: `getSubmitLabel` function, `isEntryScored` function at top of file, `SCORED_QUALIFICATIONS` set, old `entryMap` memo, `validationErrors` state, `filteredBulkData` memo, `filteredEntries` memo.
+Remove: `getSubmitLabel` function, `isEntryScored` function at top of file, `SCORED_QUALIFICATIONS` set, `validationErrors` state, `filteredBulkData` memo.
 
-Remove unused imports: old `BulkEntryData`, any removed utilities.
+[ADDED] **Keep `entryMap`** — the DogInfoTooltip column (line ~171) uses `entryMap.get(item.entryId)?.registrations` to show breed/registration data. This comes from `ScentWorkEntry` and has no equivalent in raw DB rows. Keep the memo:
+
+```typescript
+const entryMap = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
+```
+
+[ADDED] **Keep `filteredEntries`** — the card view (`EntryCardGrid`) renders from `entries` (ScentWorkEntry), not from `rows` (ScoringRow). Filter it using the hook's `isEntryScored`:
+
+```typescript
+const filteredEntries = useMemo(() => {
+  if (scoringTab === 'all') return entries;
+  if (scoringTab === 'completed') return entries.filter(e => isEntryScored(e.id));
+  return entries.filter(e => !isEntryScored(e.id));
+}, [entries, scoringTab, isEntryScored]);
+```
+
+Remove unused imports: old `BulkEntryData`, `ResultsSummary`, any removed utilities.
 
 - [ ] **Step 10: Run typecheck**
 
@@ -662,7 +693,11 @@ interface QualificationCellProps {
 }
 ```
 
-Update references: `item.modifiedFields?.has('qualification')` → remove the ring highlight (no more field tracking), or use `item.hasEdits` for a simpler highlight.
+[EXPANDED] Update references: `item.modifiedFields?.has('qualification')` → replace with `item.hasEdits`. If the entry has any unsaved edits, show a subtle ring highlight on all edited fields. This is simpler than per-field tracking:
+
+```typescript
+className={cn('w-28', item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500')}
+```
 
 - [ ] **Step 2: Update StatusBadge**
 

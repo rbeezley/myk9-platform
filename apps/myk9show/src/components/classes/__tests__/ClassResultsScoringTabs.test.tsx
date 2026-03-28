@@ -136,14 +136,14 @@ describe('ClassResultsTable scoring tabs', () => {
 
   it('renders Pending, Completed, and All tabs', () => {
     renderTable(allEntries, allRawEntries);
-    expect(screen.getByText('Pending')).toBeInTheDocument();
-    expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(screen.getByText('All')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Completed/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /All/ })).toBeInTheDocument();
   });
 
   it('defaults to the Pending tab', () => {
     renderTable(allEntries, allRawEntries);
-    const pendingTab = screen.getByText('Pending').closest('[role="tab"]');
+    const pendingTab = screen.getByRole('tab', { name: /Pending/ });
     expect(pendingTab).toHaveAttribute('aria-selected', 'true');
   });
 
@@ -205,9 +205,9 @@ describe('ClassResultsTable scoring tabs', () => {
   it('handles empty entries list', () => {
     renderTable([]);
     // Tabs should still render
-    expect(screen.getByText('Pending')).toBeInTheDocument();
-    expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(screen.getByText('All')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Pending/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Completed/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /All/ })).toBeInTheDocument();
   });
 
   it('detects scored entries via rawEntries is_scored flag', () => {

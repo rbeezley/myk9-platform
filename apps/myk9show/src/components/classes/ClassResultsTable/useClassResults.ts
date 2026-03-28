@@ -48,16 +48,7 @@ export function useClassResults({
   // updates. This prevents the useEffect from overwriting user edits or
   // just-submitted scores with stale raw data.
   // ---------------------------------------------------------------------------
-  const rawEntryMap = useMemo(() => {
-    const map = new Map(rawEntries.map(r => [r.id, r]));
-    console.log('[SCORING RAW]', {
-      rawEntriesCount: rawEntries.length,
-      rawIds: rawEntries.map(r => r.id).slice(0, 5),
-      entriesCount: entries.length,
-      entryIds: entries.map(e => e.id).slice(0, 5),
-    });
-    return map;
-  }, [rawEntries]);
+  const rawEntryMap = useMemo(() => new Map(rawEntries.map(r => [r.id, r])), [rawEntries]);
 
   const entryIdKey = useMemo(
     () =>
@@ -297,21 +288,9 @@ export function useClassResults({
         return;
       }
 
-      // Diagnostic logging — remove after confirming fix
-      console.log('[SCORING SUBMIT]', {
-        scoredCount: scoredItems.length,
-        clearedCount: clearedItems.length,
-        scoredItems: scoredItems.map(i => ({
-          id: i.entryId,
-          qual: i.qualification,
-          time: i.searchTime,
-          faults: i.faults,
-        })),
-      });
-
       // Write scored entries directly to DB columns via replication
       for (const item of scoredItems) {
-        const updatePayload = {
+        await replicatedEntriesTable.updateEntry(item.entryId, {
           resultStatus: mapQualificationToResultStatus(item.qualification),
           searchTimeSeconds: inputFormatToDbSeconds(item.searchTime),
           totalFaults: parseInt(item.faults) || 0,
@@ -319,9 +298,7 @@ export function useClassResults({
           finalPlacement: item.placement != null ? String(item.placement) : undefined,
           isScored: true,
           scoringCompletedAt: new Date().toISOString(),
-        };
-        console.log('[SCORING WRITE]', item.entryId, updatePayload);
-        await replicatedEntriesTable.updateEntry(item.entryId, updatePayload);
+        });
       }
 
       // Clear entries — reset all scoring columns to defaults

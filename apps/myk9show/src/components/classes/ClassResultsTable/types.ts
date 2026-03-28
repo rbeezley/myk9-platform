@@ -1,5 +1,5 @@
 /**
- * Shared types for ClassResultsTable sub-components
+ * Types for ClassResultsTable
  */
 import type {
   ScentWorkEntry,
@@ -9,7 +9,7 @@ import type {
 import type { UserPermissions } from '@/types/user-permissions';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
-/** Props for the top-level ClassResultsTable component */
+/** Props for the ClassResultsTable component */
 export interface ClassResultsTableProps {
   entries: ScentWorkEntry[];
   rawEntries?: RawEntryRow[] | undefined;
@@ -18,44 +18,32 @@ export interface ClassResultsTableProps {
   onDeleteEntry?: ((entryId: string) => void) | undefined;
   onAddEntry?: (() => void) | undefined;
   className?: string | undefined;
-  /** Class ID used for Enter Scores navigation */
   classId?: string | undefined;
-  /** Opens the requirements panel/drawer */
   onOpenRequirements?: (() => void) | undefined;
 }
 
-/** Internal row-level data used by the bulk-edit table */
-export interface BulkEntryData {
+/** Per-entry edits stored in the edit buffer. Only contains fields the user changed. */
+export interface ScoringEdit {
+  qualification?: QualificationStatus | '';
+  qualificationReason?: string;
+  searchTime?: string;
+  faults?: string;
+  notes?: string;
+}
+
+/** A row for display — merges raw DB data with any pending edits. */
+export interface ScoringRow {
   entryId: string;
   armband: string;
   dogName: string;
+  dogBreed: string;
   handlerName: string;
-  searchTime: string;
   qualification: QualificationStatus | '';
   qualificationReason: string;
+  searchTime: string;
   faults: string;
   notes: string;
   placement: number | null;
-  isValid: boolean;
-  hasChanges: boolean;
-  /** Whether this entry had existing result data when initialized */
-  hadExistingData: boolean;
-  /** Whether existing data has been fully cleared (all result fields emptied) */
-  isCleared: boolean;
-  /** Track which fields were modified */
-  modifiedFields?: Set<keyof BulkEntryData> | undefined;
-  /** Who last edited this result */
-  lastEditedBy?: string | undefined;
-  /** When it was last edited */
-  lastEditedAt?: Date | undefined;
-}
-
-/** Summary statistics for the results table */
-export interface ResultsSummary {
-  totalEntries: number;
-  entriesWithData: number;
-  validEntries: number;
-  invalidEntries: number;
-  clearedEntries: number;
-  canSubmit: boolean;
+  isScored: boolean;
+  hasEdits: boolean;
 }

@@ -37,24 +37,35 @@ export function useClassResults({
   classId: _classId,
 }: UseClassResultsParams) {
   const [edits, setEdits] = useState<Map<string, ScoringEdit>>(new Map());
+  const [submittedEdits, setSubmittedEdits] = useState<Map<string, ScoringEdit>>(new Map());
   const [justScoredIds, setJustScoredIds] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const rawMap = useMemo(() => new Map(rawEntries.map(r => [r.id, r])), [rawEntries]);
 
-  // Build display rows by merging raw + edits
+  // Build display rows by merging: pending edits > submitted edits > raw DB
   const rows: ScoringRow[] = useMemo(() => {
     return entries.map(entry => {
       const raw = rawMap.get(entry.id);
       const edit = edits.get(entry.id);
+      const submitted = submittedEdits.get(entry.id);
 
       const qualification =
-        edit?.qualification ?? mapResultStatusToQualification(raw?.result_status);
-      const searchTime = edit?.searchTime ?? dbSecondsToInputFormat(raw?.search_time_seconds);
-      const faults = edit?.faults ?? String(raw?.total_faults ?? 0);
-      const notes = edit?.notes ?? raw?.judge_notes ?? '';
-      const qualificationReason = edit?.qualificationReason ?? raw?.disqualification_reason ?? '';
+        edit?.qualification ??
+        submitted?.qualification ??
+        mapResultStatusToQualification(raw?.result_status);
+      const searchTime =
+        edit?.searchTime ??
+        submitted?.searchTime ??
+        dbSecondsToInputFormat(raw?.search_time_seconds);
+      const faults = edit?.faults ?? submitted?.faults ?? String(raw?.total_faults ?? 0);
+      const notes = edit?.notes ?? submitted?.notes ?? raw?.judge_notes ?? '';
+      const qualificationReason =
+        edit?.qualificationReason ??
+        submitted?.qualificationReason ??
+        raw?.disqualification_reason ??
+        '';
 
       const isScored =
         justScoredIds.has(entry.id) ||
@@ -78,7 +89,7 @@ export function useClassResults({
         hasEdits: edits.has(entry.id),
       };
     });
-  }, [entries, rawMap, edits, justScoredIds]);
+  }, [entries, rawMap, edits, submittedEdits, justScoredIds]);
 
   // Edit a field
   const onFieldChange = useCallback(
@@ -122,6 +133,11 @@ export function useClassResults({
         });
 
         setEdits(prev => {
+          const next = new Map(prev);
+          next.delete(entryId);
+          return next;
+        });
+        setSubmittedEdits(prev => {
           const next = new Map(prev);
           next.delete(entryId);
           return next;
@@ -226,7 +242,17 @@ export function useClassResults({
 
       if (succeededIds.length === 0) throw new Error('All entries failed to save');
 
+      // Move succeeded edits to submittedEdits (display values persist until
+      // raw data refreshes) and remove from pending edits (so editCount drops).
       setJustScoredIds(prev => new Set([...prev, ...succeededIds]));
+      setSubmittedEdits(prev => {
+        const next = new Map(prev);
+        for (const id of succeededIds) {
+          const edit = edits.get(id);
+          if (edit) next.set(id, edit);
+        }
+        return next;
+      });
       setEdits(prev => {
         const next = new Map(prev);
         for (const id of succeededIds) next.delete(id);

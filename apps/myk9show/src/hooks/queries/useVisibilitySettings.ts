@@ -39,30 +39,48 @@ export const visibilityKeys = {
 };
 
 async function fetchVisibilitySettings(showId: string): Promise<VisibilityData> {
-  const [showResult, trialResult, classResult] = await Promise.all([
+  // Step 1: Fetch show defaults + trial IDs for this show in parallel
+  const [showResult, trialsResult] = await Promise.all([
     supabase
       .from('show_result_visibility_defaults')
       .select('*')
       .eq('show_id', showId)
       .maybeSingle(),
-    supabase
-      .from('trial_result_visibility_overrides')
-      .select('*, trials!inner(show_id)')
-      .eq('trials.show_id', showId),
-    supabase
-      .from('class_result_visibility_overrides')
-      .select('*, classes!inner(trial_id, trials!inner(show_id))')
-      .eq('classes.trials.show_id', showId),
+    supabase.from('trials').select('id').eq('show_id', showId),
   ]);
 
   if (showResult.error) throw showResult.error;
-  if (trialResult.error) throw trialResult.error;
-  if (classResult.error) throw classResult.error;
+  if (trialsResult.error) throw trialsResult.error;
+
+  const trialIds = (trialsResult.data ?? []).map(t => t.id as string);
+
+  // Step 2: Fetch trial + class overrides using known trial IDs
+  let trialOverrides: OverrideRow[] = [];
+  let classOverrides: OverrideRow[] = [];
+
+  if (trialIds.length > 0) {
+    const [trialResult, classResult] = await Promise.all([
+      supabase
+        .from('trial_result_visibility_overrides')
+        .select('*')
+        .in('trial_id', trialIds),
+      supabase
+        .from('class_result_visibility_overrides')
+        .select('*, classes!inner(trial_id)')
+        .in('classes.trial_id', trialIds),
+    ]);
+
+    if (trialResult.error) throw trialResult.error;
+    if (classResult.error) throw classResult.error;
+
+    trialOverrides = (trialResult.data ?? []) as unknown as OverrideRow[];
+    classOverrides = (classResult.data ?? []) as unknown as OverrideRow[];
+  }
 
   return {
     showDefaults: showResult.data as ShowVisibilityRow | null,
-    trialOverrides: (trialResult.data ?? []) as unknown as OverrideRow[],
-    classOverrides: (classResult.data ?? []) as unknown as OverrideRow[],
+    trialOverrides,
+    classOverrides,
   };
 }
 

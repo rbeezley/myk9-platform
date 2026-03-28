@@ -21,10 +21,10 @@ interface OverrideItem {
 interface OverrideListProps {
   items: OverrideItem[];
   onPresetChange: (id: string, preset: VisibilityPreset | null) => void;
-  onSelfCheckinChange: (id: string, enabled: boolean | null) => void;
+  onReset: (id: string) => void;
 }
 
-export function OverrideList({ items, onPresetChange, onSelfCheckinChange }: OverrideListProps) {
+export function OverrideList({ items, onPresetChange, onReset }: OverrideListProps) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground py-2">No items to configure.</p>;
   }
@@ -74,10 +74,7 @@ export function OverrideList({ items, onPresetChange, onSelfCheckinChange }: Ove
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  onPresetChange(item.id, null);
-                  onSelfCheckinChange(item.id, null);
-                }}
+                onClick={() => onReset(item.id)}
                 title="Reset to inherited"
               >
                 <RotateCcw className="h-3.5 w-3.5" />

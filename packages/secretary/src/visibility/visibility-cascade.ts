@@ -93,8 +93,8 @@ export function getVisibleResultFields(
   classState: ClassState,
   userRole: VisibilityUserRole
 ): VisibleResultFields {
-  // Judges and admins bypass all restrictions
-  if (userRole === 'judge' || userRole === 'admin') {
+  // Staff bypass all restrictions — they need to see results to manage them
+  if (userRole === 'judge' || userRole === 'admin' || userRole === 'secretary') {
     return {
       showPlacement: true,
       showQualification: true,

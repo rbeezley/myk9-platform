@@ -18,7 +18,7 @@ import {
   type ResultsFilters,
   type ClassResult,
 } from '@/hooks/queries/useShowResults';
-import { useVisibleResultFields } from '@/hooks/useVisibleResultFields';
+import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
 
 interface VisibilityGatedPodiumCardProps {
   cls: ClassResult;
@@ -34,11 +34,12 @@ function VisibilityGatedPodiumCard({ cls, showId }: VisibilityGatedPodiumCardPro
   // Classes with placements are treated as 'completed' — they have scored entries.
   // The visibility hook further checks if results have been manually released when
   // the preset requires it (manual_release timing).
+  const classState = deriveClassState('completed', cls.resultsReleasedAt);
   const { showPlacement, isLoading } = useVisibleResultFields(
     showId,
     cls.trialId,
     cls.classId,
-    'completed'
+    classState
   );
 
   if (isLoading) {

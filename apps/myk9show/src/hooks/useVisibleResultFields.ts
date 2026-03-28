@@ -73,6 +73,15 @@ export function deriveClassState(
   return 'in_progress';
 }
 
+/** Default: all fields visible, check-in enabled. Used during loading. */
+const ALL_VISIBLE: VisibleResultFields & { selfCheckinEnabled: boolean } = {
+  showPlacement: true,
+  showQualification: true,
+  showTime: true,
+  showFaults: true,
+  selfCheckinEnabled: true,
+};
+
 /**
  * Resolve effective visibility for a specific class.
  * Returns field visibility booleans + self check-in flag.
@@ -88,16 +97,7 @@ export function useVisibleResultFields(
   const userRole = mapUserRole(auth);
 
   return useMemo(() => {
-    const allVisible = {
-      showPlacement: true,
-      showQualification: true,
-      showTime: true,
-      showFaults: true,
-      selfCheckinEnabled: true,
-      isLoading,
-    };
-
-    if (!data || isLoading) return allVisible;
+    if (!data || isLoading) return { ...ALL_VISIBLE, isLoading };
 
     const showSettings = data.showDefaults
       ? rowToSettings(data.showDefaults)

@@ -5,7 +5,6 @@ import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PRESET_CONFIGS } from '@myk9/secretary';
 import type { VisibilityPreset } from '@myk9/secretary';
 import { PresetSelector } from './PresetSelector';
 import { OverrideList } from './OverrideList';
@@ -47,29 +46,11 @@ export function ShowSettingsPanel({
     : { preset: 'open' as VisibilityPreset, selfCheckinEnabled: true };
 
   function handleShowPresetChange(preset: VisibilityPreset) {
-    const config = PRESET_CONFIGS[preset];
-    updateShow.mutate({
-      showId,
-      presetName: preset,
-      placementTiming: config.placement,
-      qualificationTiming: config.qualification,
-      timeTiming: config.time,
-      faultsTiming: config.faults,
-      selfCheckinEnabled: showDefaults.selfCheckinEnabled,
-    });
+    updateShow.mutate({ showId, presetName: preset });
   }
 
   function handleShowCheckinToggle(enabled: boolean) {
-    const config = PRESET_CONFIGS[showDefaults.preset];
-    updateShow.mutate({
-      showId,
-      presetName: showDefaults.preset,
-      placementTiming: config.placement,
-      qualificationTiming: config.qualification,
-      timeTiming: config.time,
-      faultsTiming: config.faults,
-      selfCheckinEnabled: enabled,
-    });
+    updateShow.mutate({ showId, selfCheckinEnabled: enabled });
   }
 
   const trialItems = trials.map(t => {
@@ -122,9 +103,7 @@ export function ShowSettingsPanel({
                   onPresetChange={(id, preset) =>
                     updateTrial.mutate({ trialId: id, showId, presetName: preset })
                   }
-                  onSelfCheckinChange={(id, enabled) =>
-                    updateTrial.mutate({ trialId: id, showId, selfCheckinEnabled: enabled })
-                  }
+                  onReset={id => updateTrial.mutate({ trialId: id, showId, reset: true })}
                 />
               </CollapsibleContent>
             </Collapsible>
@@ -144,9 +123,7 @@ export function ShowSettingsPanel({
                   onPresetChange={(id, preset) =>
                     updateClass.mutate({ classIds: [id], showId, presetName: preset })
                   }
-                  onSelfCheckinChange={(id, enabled) =>
-                    updateClass.mutate({ classIds: [id], showId, selfCheckinEnabled: enabled })
-                  }
+                  onReset={id => updateClass.mutate({ classIds: [id], showId, reset: true })}
                 />
               </CollapsibleContent>
             </Collapsible>

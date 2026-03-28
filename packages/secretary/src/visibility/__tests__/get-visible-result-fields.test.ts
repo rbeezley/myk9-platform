@@ -91,11 +91,13 @@ describe('getVisibleResultFields', () => {
     });
   });
 
-  describe('secretary sees same as exhibitor (no bypass)', () => {
-    it('in_progress with standard: only qualification', () => {
+  describe('secretary bypasses all restrictions', () => {
+    it('sees everything regardless of preset or class state', () => {
       const result = getVisibleResultFields(standardSettings, 'in_progress', 'secretary');
       expect(result.showQualification).toBe(true);
-      expect(result.showPlacement).toBe(false);
+      expect(result.showPlacement).toBe(true);
+      expect(result.showTime).toBe(true);
+      expect(result.showFaults).toBe(true);
     });
   });
 });

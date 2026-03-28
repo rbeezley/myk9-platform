@@ -132,3 +132,18 @@ CREATE POLICY "visibility_class_modify" ON class_result_visibility_overrides
         AND r.name IN ('site_admin', 'secretary', 'judge')
     )
   );
+
+-- =============================================================================
+-- UPDATED_AT TRIGGERS
+-- =============================================================================
+CREATE TRIGGER update_show_visibility_updated_at
+  BEFORE UPDATE ON show_result_visibility_defaults
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_trial_visibility_updated_at
+  BEFORE UPDATE ON trial_result_visibility_overrides
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_class_visibility_updated_at
+  BEFORE UPDATE ON class_result_visibility_overrides
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

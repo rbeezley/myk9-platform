@@ -10,13 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { BulkEntryData } from './types';
+import type { ScoringRow } from './types';
 import { QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from './constants';
 
 interface QualificationCellProps {
-  item: BulkEntryData;
+  item: ScoringRow;
   canEdit: boolean;
-  onUpdate: (entryId: string, field: keyof BulkEntryData, value: string) => void;
+  onUpdate: (entryId: string, field: string, value: string) => void;
 }
 
 const DISPLAY_LABELS: Record<string, string> = {
@@ -65,7 +65,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
           <SelectTrigger
             className={cn(
               'w-28',
-              item.modifiedFields?.has('qualification') && 'ring-2 ring-blue-500/30 border-blue-500'
+              item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
             )}
           >
             <SelectValue placeholder="Select">
@@ -102,8 +102,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
           <SelectTrigger
             className={cn(
               'w-28 h-7 text-xs',
-              item.modifiedFields?.has('qualificationReason') &&
-                'ring-2 ring-blue-500/30 border-blue-500'
+              item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
             )}
           >
             <SelectValue placeholder="Reason" />

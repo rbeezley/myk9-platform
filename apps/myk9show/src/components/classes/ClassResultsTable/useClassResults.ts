@@ -128,7 +128,7 @@ export function useClassResults({
           searchTimeSeconds: 0,
           totalFaults: 0,
           judgeNotes: null,
-          finalPlacement: undefined,
+          finalPlacement: null,
           scoringCompletedAt: null,
           disqualification_reason: null,
         });
@@ -161,7 +161,7 @@ export function useClassResults({
           if (newPlacement !== oldPlacement) {
             replicatedEntriesTable
               .updateEntry(row.entryId, {
-                finalPlacement: newPlacement != null ? String(newPlacement) : undefined,
+                finalPlacement: newPlacement != null ? String(newPlacement) : null,
               })
               .catch(() => {}); // Best-effort placement update
           }
@@ -244,7 +244,7 @@ export function useClassResults({
             searchTimeSeconds: inputFormatToDbSeconds(row.searchTime),
             totalFaults: parseInt(row.faults) || 0,
             judgeNotes: row.notes || null,
-            finalPlacement: placement != null ? String(placement) : undefined,
+            finalPlacement: placement != null ? String(placement) : null,
             disqualification_reason: row.qualificationReason || null,
             isScored: true,
             scoringCompletedAt: new Date().toISOString(),
@@ -269,7 +269,7 @@ export function useClassResults({
         if (newPlacement !== oldPlacement && (newPlacement != null || oldPlacement != null)) {
           try {
             await replicatedEntriesTable.updateEntry(row.entryId, {
-              finalPlacement: newPlacement != null ? String(newPlacement) : undefined,
+              finalPlacement: newPlacement != null ? String(newPlacement) : null,
             });
           } catch {
             // Non-critical — placement update for existing entry

@@ -55,7 +55,7 @@ export interface ReplicatedEntry {
   resultText?: string | undefined;
   searchTimeSeconds?: number | undefined;
   totalPoints?: number | undefined;
-  finalPlacement?: string | undefined;
+  finalPlacement?: string | null | undefined;
   dogCallName?: string | undefined;
   dogBreed?: string | undefined;
   handlerName?: string | undefined;
@@ -240,7 +240,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       total_faults: entry.totalFaults ?? entry.total_faults ?? null,
       judge_notes: entry.judgeNotes ?? entry.judge_notes ?? null,
       scoring_completed_at: entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null,
-      final_placement: entry.finalPlacement != null ? Number(entry.finalPlacement) : entry.final_placement != null ? Number(entry.final_placement) : null,
+      final_placement:
+        entry.finalPlacement != null
+          ? Number(entry.finalPlacement)
+          : entry.final_placement != null
+            ? Number(entry.final_placement)
+            : null,
       ring_entry_time: entry.ring_entry_time ?? null,
       ring_exit_time: entry.ring_exit_time ?? null,
       updated_at: new Date().toISOString(),

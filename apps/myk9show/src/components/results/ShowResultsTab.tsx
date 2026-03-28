@@ -7,6 +7,7 @@ import { useState, useMemo } from 'react';
 import { Trophy, Filter, ChevronDown, ChevronRight, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { PodiumCard } from './PodiumCard';
@@ -15,7 +16,59 @@ import {
   filterResults,
   getFilterOptions,
   type ResultsFilters,
+  type ClassResult,
 } from '@/hooks/queries/useShowResults';
+import { useVisibleResultFields } from '@/hooks/useVisibleResultFields';
+
+interface VisibilityGatedPodiumCardProps {
+  cls: ClassResult;
+  showId: string;
+}
+
+/**
+ * Wraps PodiumCard with visibility gating.
+ * If placement visibility is not yet enabled for this class, shows a
+ * "Results pending review" placeholder instead of the actual podium.
+ */
+function VisibilityGatedPodiumCard({ cls, showId }: VisibilityGatedPodiumCardProps) {
+  // Classes with placements are treated as 'completed' — they have scored entries.
+  // The visibility hook further checks if results have been manually released when
+  // the preset requires it (manual_release timing).
+  const { showPlacement, isLoading } = useVisibleResultFields(
+    showId,
+    cls.trialId,
+    cls.classId,
+    'completed'
+  );
+
+  if (isLoading) {
+    return (
+      <Card className="overflow-hidden">
+        <div className="border-b bg-muted/40 px-4 py-2.5">
+          <h3 className="text-sm font-semibold tracking-tight">{cls.className}</h3>
+        </div>
+        <div className="flex items-center justify-center p-6">
+          <LoadingSpinner />
+        </div>
+      </Card>
+    );
+  }
+
+  if (!showPlacement) {
+    return (
+      <Card className="overflow-hidden">
+        <div className="border-b bg-muted/40 px-4 py-2.5">
+          <h3 className="text-sm font-semibold tracking-tight">{cls.className}</h3>
+        </div>
+        <div className="flex items-center justify-center p-6 text-sm text-muted-foreground">
+          Results pending review
+        </div>
+      </Card>
+    );
+  }
+
+  return <PodiumCard classTitle={cls.className} placements={cls.placements} />;
+}
 
 interface ShowResultsTabProps {
   showId: string;
@@ -120,7 +173,7 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
       {withPlacements.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {withPlacements.map(cls => (
-            <PodiumCard key={cls.classId} classTitle={cls.className} placements={cls.placements} />
+            <VisibilityGatedPodiumCard key={cls.classId} cls={cls} showId={showId} />
           ))}
         </div>
       ) : (

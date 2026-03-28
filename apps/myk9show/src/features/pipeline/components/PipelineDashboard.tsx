@@ -5,10 +5,10 @@
  * pipeline progress across 5 columns.
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
-import { Plus } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
@@ -21,6 +21,7 @@ import { CLASS_PIPELINE_STAGES } from '../mission-control-types';
 import type { ClassPipelineStage } from '../mission-control-types';
 import { stageToDefaultStatus } from '../utils/classStageMapping';
 import { AnnouncementsCard } from './AnnouncementsCard';
+import { ShowSettingsPanel } from './ShowSettingsPanel';
 import type { DbClassUpdate } from '@/types/database-mappings';
 import { parseLocalDateString } from '@myk9/core';
 
@@ -35,6 +36,7 @@ export const PipelineDashboard: React.FC = () => {
     handleShowChange,
     handleTrialChange,
     classesByStage,
+    pipelineClasses,
     hasLiveClasses,
     showStats,
     trialStats,
@@ -77,6 +79,8 @@ export const PipelineDashboard: React.FC = () => {
   }, [selectedShow]);
 
   const updateClass = useUpdateClassMutation();
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -132,7 +136,20 @@ export const PipelineDashboard: React.FC = () => {
     <div className="space-y-4 px-6 py-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Mission Control</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Mission Control</h1>
+          {selectedShow && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => setSettingsOpen(true)}
+              title="Show Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         <div className="text-right">
           {timing.text && (
             <div className="flex items-center gap-1.5 justify-end">
@@ -236,6 +253,20 @@ export const PipelineDashboard: React.FC = () => {
             <DragOverlay dropAnimation={null} />
           </DndContext>
         </div>
+      )}
+
+      {selectedShow && (
+        <ShowSettingsPanel
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          showId={selectedShow.id}
+          trials={trials.map(t => ({ id: t.id, name: t.name || `Trial ${t.trialNumber}` }))}
+          classes={pipelineClasses.map(c => ({
+            id: c.id,
+            trialId: '', // trial ID not available on ClassPipelineItem — acceptable for now
+            name: c.name,
+          }))}
+        />
       )}
     </div>
   );

@@ -149,12 +149,29 @@ export function useClassResults({
           return next;
         });
         setJustClearedIds(prev => new Set([...prev, entryId]));
+
+        // Recalculate placements for remaining scored entries
+        const remainingRows = rows.filter(
+          r => r.entryId !== entryId && (r.isScored || justScoredIds.has(r.entryId))
+        );
+        const placements = calculatePlacements(remainingRows);
+        for (const row of remainingRows) {
+          const newPlacement = placements.get(row.entryId);
+          const oldPlacement = row.placement;
+          if (newPlacement !== oldPlacement) {
+            replicatedEntriesTable
+              .updateEntry(row.entryId, {
+                finalPlacement: newPlacement != null ? String(newPlacement) : undefined,
+              })
+              .catch(() => {}); // Best-effort placement update
+          }
+        }
       } catch (error) {
         logger.error('Failed to clear entry', 'classes', { entryId }, error as Error);
         notifications.error('Failed to clear entry');
       }
     },
-    [userPermissions.canEditEntries]
+    [userPermissions.canEditEntries, rows, justScoredIds]
   );
 
   // Validate before submit

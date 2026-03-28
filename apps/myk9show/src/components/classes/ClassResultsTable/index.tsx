@@ -323,6 +323,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         enableSorting: false,
         cell: ({ row }) => {
           const item = row.original;
+          // Hide delete on scored entries — reset first, then delete from Pending
+          if (item.isScored) return null;
           return (
             <Button
               variant="ghost"

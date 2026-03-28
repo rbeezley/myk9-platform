@@ -85,7 +85,10 @@ export function useClassResults({
         searchTime,
         faults,
         notes,
-        placement: justClearedIds.has(entry.id) ? null : (raw?.final_placement ?? null),
+        placement:
+          justClearedIds.has(entry.id) || (submitted && qualification !== 'Qualified')
+            ? null
+            : (raw?.final_placement ?? null),
         isScored,
         hasEdits: edits.has(entry.id),
       };

@@ -240,12 +240,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       total_faults: entry.totalFaults ?? entry.total_faults ?? null,
       judge_notes: entry.judgeNotes ?? entry.judge_notes ?? null,
       scoring_completed_at: entry.scoringCompletedAt ?? entry.scoring_completed_at ?? null,
+      // Only write placement if result is qualified — NQ/absent/etc. should never have a placement
       final_placement:
-        entry.finalPlacement != null
-          ? Number(entry.finalPlacement)
-          : entry.final_placement != null
-            ? Number(entry.final_placement)
-            : null,
+        entry.resultStatus && entry.resultStatus !== 'qualified'
+          ? null
+          : entry.finalPlacement != null
+            ? Number(entry.finalPlacement)
+            : entry.final_placement != null
+              ? Number(entry.final_placement)
+              : null,
       ring_entry_time: entry.ring_entry_time ?? null,
       ring_exit_time: entry.ring_exit_time ?? null,
       updated_at: new Date().toISOString(),

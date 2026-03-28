@@ -14,8 +14,7 @@ import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { SubTabs, type SubTabDef } from '@/components/common/SubTabs';
 import '@/styles/myk9-show-details.css';
-import type { ClassResultsTableProps, BulkEntryData } from './types';
-import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
+import type { ClassResultsTableProps, ScoringRow, ScoringEdit } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
 import type { CheckInStatus } from '@myk9/core';
 import { useClassResults } from './useClassResults';
@@ -31,28 +30,6 @@ import { useEntryStore } from '@/store/entryStore';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
-function isEntryScored(entryId: string, rawEntryMap: Map<string, RawEntryRow>): boolean {
-  const raw = rawEntryMap.get(entryId);
-  if (!raw) return false;
-  if (raw.is_scored === true) return true;
-  return !!raw.result_status && raw.result_status !== 'pending';
-}
-
-function getSubmitLabel(
-  summary: { entriesWithData: number; clearedEntries: number },
-  isSubmitting: boolean
-): string {
-  if (isSubmitting) return 'Submitting...';
-  if (summary.clearedEntries > 0 && summary.entriesWithData === 0) {
-    const n = summary.clearedEntries;
-    return `Clear ${n} Result${n !== 1 ? 's' : ''}`;
-  }
-  if (summary.clearedEntries > 0) {
-    return `Submit ${summary.entriesWithData} / Clear ${summary.clearedEntries}`;
-  }
-  return `Submit ${summary.entriesWithData} Results`;
-}
-
 export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   entries,
   rawEntries,
@@ -66,14 +43,16 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 }) => {
   const navigate = useNavigate();
   const {
-    bulkData,
+    rows,
     isSubmitting,
     submitError,
-    validationErrors,
-    summary,
-    updateBulkData,
+    editCount,
+    canSubmit,
+    onFieldChange,
+    clearEntry,
     handleKeyDown,
     handleSubmit,
+    isEntryScored,
   } = useClassResults({
     entries,
     rawEntries: rawEntries ?? [],
@@ -112,21 +91,15 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   // Scoring status tab filtering (Pending / Completed / All)
   const [scoringTab, setScoringTab] = useState<ScoringStatusTab>('pending');
 
-  /** Entry IDs that are scored, derived from raw DB entries. */
-  const rawEntryMap = useMemo(
-    () => new Map((rawEntries ?? []).map(r => [r.id, r])),
-    [rawEntries]
-  );
-
   const scoredEntryIds = useMemo(
-    () => new Set(entries.filter(e => isEntryScored(e.id, rawEntryMap)).map(e => e.id)),
-    [entries, rawEntryMap]
+    () => new Set(rows.filter(r => r.isScored).map(r => r.entryId)),
+    [rows]
   );
 
   const tabCounts = useMemo(() => {
     const completed = scoredEntryIds.size;
-    return { pending: entries.length - completed, completed };
-  }, [entries.length, scoredEntryIds]);
+    return { pending: rows.length - completed, completed };
+  }, [rows.length, scoredEntryIds]);
 
   const scoringTabs: SubTabDef[] = useMemo(
     () => [
@@ -137,22 +110,21 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     [tabCounts.pending, tabCounts.completed]
   );
 
-  /** Bulk data filtered by the active scoring tab. */
-  const filteredBulkData = useMemo(() => {
-    if (scoringTab === 'all') return bulkData;
-    if (scoringTab === 'completed') return bulkData.filter(d => scoredEntryIds.has(d.entryId));
-    return bulkData.filter(d => !scoredEntryIds.has(d.entryId));
-  }, [bulkData, scoringTab, scoredEntryIds]);
+  const filteredRows = useMemo(() => {
+    if (scoringTab === 'all') return rows;
+    if (scoringTab === 'completed') return rows.filter(r => r.isScored);
+    return rows.filter(r => !r.isScored);
+  }, [rows, scoringTab]);
 
   /** Source entries filtered by the active scoring tab (for card view). */
   const filteredEntries = useMemo(() => {
     if (scoringTab === 'all') return entries;
-    if (scoringTab === 'completed') return entries.filter(e => scoredEntryIds.has(e.id));
-    return entries.filter(e => !scoredEntryIds.has(e.id));
-  }, [entries, scoringTab, scoredEntryIds]);
+    if (scoringTab === 'completed') return entries.filter(e => isEntryScored(e.id));
+    return entries.filter(e => !isEntryScored(e.id));
+  }, [entries, scoringTab, isEntryScored]);
 
-  const columns: ColumnDef<BulkEntryData, unknown>[] = useMemo(() => {
-    const cols: ColumnDef<BulkEntryData, unknown>[] = [
+  const columns: ColumnDef<ScoringRow, unknown>[] = useMemo(() => {
+    const cols: ColumnDef<ScoringRow, unknown>[] = [
       // Armband
       {
         id: 'armband',
@@ -200,7 +172,11 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         accessorKey: 'qualification',
         header: 'Qualification',
         cell: ({ row }) => (
-          <QualificationCell item={row.original} canEdit={canEdit} onUpdate={updateBulkData} />
+          <QualificationCell
+            item={row.original}
+            canEdit={canEdit}
+            onUpdate={(id, field, value) => onFieldChange(id, field as keyof ScoringEdit, value)}
+          />
         ),
       },
       // Time
@@ -216,14 +192,14 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 <div
                   className={cn(
                     'inline-block rounded-md',
-                    item.modifiedFields?.has('searchTime') && 'ring-2 ring-blue-500/30'
+                    item.hasEdits && 'ring-2 ring-blue-500/30'
                   )}
                 >
                   <div className="flex items-center gap-1">
                     <TimeInput
                       value={item.searchTime}
                       onChange={digits =>
-                        updateBulkData(item.entryId, 'searchTime', formatSearchTime(digits))
+                        onFieldChange(item.entryId, 'searchTime', formatSearchTime(digits))
                       }
                       onCommit={() => {
                         const next = document.querySelector(
@@ -239,7 +215,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                         type="button"
                         className="text-muted-foreground hover:text-foreground"
                         onMouseDown={e => e.preventDefault()}
-                        onClick={() => updateBulkData(item.entryId, 'searchTime', '')}
+                        onClick={() => onFieldChange(item.entryId, 'searchTime', '')}
                         title="Clear time"
                       >
                         <X className="h-3 w-3" />
@@ -269,14 +245,14 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               <Input
                 type="number"
                 value={item.faults}
-                onChange={e => updateBulkData(item.entryId, 'faults', e.target.value)}
+                onChange={e => onFieldChange(item.entryId, 'faults', e.target.value)}
                 onFocus={e => e.target.select()}
                 onKeyDown={e => handleKeyDown(e, row.index, 'faults')}
                 min="0"
                 max="99"
                 className={cn(
                   'w-16',
-                  item.modifiedFields?.has('faults') && 'ring-2 ring-blue-500/30 border-blue-500'
+                  item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
                 )}
                 data-index={row.index}
                 data-field="faults"
@@ -297,12 +273,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             return (
               <Input
                 value={item.notes}
-                onChange={e => updateBulkData(item.entryId, 'notes', e.target.value)}
+                onChange={e => onFieldChange(item.entryId, 'notes', e.target.value)}
                 onKeyDown={e => handleKeyDown(e, row.index, 'notes')}
                 placeholder="Optional notes"
                 className={cn(
                   'w-40',
-                  item.modifiedFields?.has('notes') && 'ring-2 ring-blue-500/30 border-blue-500'
+                  item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
                 )}
                 data-index={row.index}
                 data-field="notes"
@@ -341,10 +317,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
       {
         id: 'status',
         header: 'Status',
-        cell: ({ row }) => {
-          const item = row.original;
-          return <StatusBadge item={item} validationError={validationErrors.get(item.entryId)} />;
-        },
+        cell: ({ row }) => <StatusBadge item={row.original} />,
       },
     ];
 
@@ -355,19 +328,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         header: '',
         cell: ({ row }) => {
           const item = row.original;
-          if (!item.hadExistingData && !item.hasChanges) return null;
+          if (!item.isScored && !item.hasEdits) return null;
           return (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => {
-                updateBulkData(item.entryId, 'qualification', '');
-                updateBulkData(item.entryId, 'searchTime', '');
-                updateBulkData(item.entryId, 'faults', '0');
-                updateBulkData(item.entryId, 'notes', '');
-                updateBulkData(item.entryId, 'qualificationReason', '');
-              }}
+              onClick={() => clearEntry(item.entryId)}
               title="Clear result"
             >
               <Eraser className="h-3.5 w-3.5" />
@@ -403,12 +370,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     return cols;
   }, [
     canEdit,
+    clearEntry,
     entryMap,
     handleKeyDown,
     onDeleteEntry,
+    onFieldChange,
     showDeleteColumn,
-    updateBulkData,
-    validationErrors,
   ]);
 
   return (
@@ -500,34 +467,30 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             />
           ) : (
             <>
-              <DataTable<BulkEntryData>
+              <DataTable<ScoringRow>
                 tableId="classResults"
                 columns={columns}
-                data={filteredBulkData}
+                data={filteredRows}
                 getRowId={row => row.entryId}
                 pageSize={9999}
-                getRowClassName={row =>
-                  row.isCleared
-                    ? 'bg-amber-50 dark:bg-amber-950/20'
-                    : row.hasChanges && !row.isValid
-                      ? 'bg-red-50 dark:bg-red-950/20'
-                      : ''
-                }
               />
 
               {userPermissions.canEditEntries && (
                 <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
                   <div className="text-sm text-muted-foreground">
-                    Press Enter or Tab to move between fields quickly &bull; Placements calculated
-                    automatically
+                    Press Enter or Tab to move between fields &bull; Placements calculated on submit
                   </div>
                   <Button
                     onClick={handleSubmit}
-                    disabled={!summary.canSubmit || isSubmitting}
+                    disabled={!canSubmit}
                     className="myk9-action-button myk9-action-button-primary"
                   >
                     <Save className="h-4 w-4" />
-                    <span>{getSubmitLabel(summary, isSubmitting)}</span>
+                    <span>
+                      {isSubmitting
+                        ? 'Submitting...'
+                        : `Submit ${editCount} Result${editCount !== 1 ? 's' : ''}`}
+                    </span>
                   </Button>
                 </div>
               )}
@@ -554,8 +517,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProps, nextProps) => {
   if (prevProps.rawEntries !== nextProps.rawEntries) return false;
   if (prevProps.entries !== nextProps.entries) return false;
-  if (prevProps.entries.length !== nextProps.entries.length) return false;
   if (prevProps.userPermissions !== nextProps.userPermissions) return false;
-  if (prevProps.classConfig !== nextProps.classConfig) return false;
   return true;
 });

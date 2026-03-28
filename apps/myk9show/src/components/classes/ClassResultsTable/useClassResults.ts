@@ -1,12 +1,13 @@
 /**
- * useClassResults - Custom hook for ClassResultsTable state management
+ * useClassResults — Simple edit-buffer-over-raw-DB-rows hook.
  *
- * Encapsulates bulk entry data state, validation, placement calculation,
- * keyboard navigation, Ctrl+S shortcut, and submit logic.
+ * Raw DB rows are the source of truth. User edits go into a Map.
+ * Display merges raw + edits. Submit writes to the replication layer.
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
@@ -17,9 +18,8 @@ import {
   dbSecondsToInputFormat,
   inputFormatToDbSeconds,
 } from '@/utils/scoringMappings';
-import type { BulkEntryData, ResultsSummary } from './types';
+import type { ScoringEdit, ScoringRow } from './types';
 import { STATUSES_REQUIRING_REASON, NAVIGABLE_FIELDS } from './constants';
-import { calculatePlacements, validateEntry } from './utils';
 
 interface UseClassResultsParams {
   entries: ScentWorkEntry[];
@@ -34,292 +34,83 @@ export function useClassResults({
   rawEntries,
   classConfig: _classConfig,
   userPermissions,
-  classId,
+  classId: _classId,
 }: UseClassResultsParams) {
-  const [bulkData, setBulkData] = useState<BulkEntryData[]>([]);
+  const [edits, setEdits] = useState<Map<string, ScoringEdit>>(new Map());
+  const [justScoredIds, setJustScoredIds] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [validationErrors] = useState<Map<string, string>>(new Map());
 
-  // ---------------------------------------------------------------------------
-  // Initialize bulk data from raw DB entries.
-  // Only re-initialize when the set of entry IDs changes (new class, entries
-  // added/removed) — NOT when entry objects get new references from store
-  // updates. This prevents the useEffect from overwriting user edits or
-  // just-submitted scores with stale raw data.
-  // ---------------------------------------------------------------------------
-  const rawEntryMap = useMemo(() => new Map(rawEntries.map(r => [r.id, r])), [rawEntries]);
+  const rawMap = useMemo(() => new Map(rawEntries.map(r => [r.id, r])), [rawEntries]);
 
-  const entryIdKey = useMemo(
-    () =>
-      entries
-        .map(e => e.id)
-        .sort()
-        .join(','),
-    [entries]
-  );
+  // Build display rows by merging raw + edits
+  const rows: ScoringRow[] = useMemo(() => {
+    return entries.map(entry => {
+      const raw = rawMap.get(entry.id);
+      const edit = edits.get(entry.id);
 
-  const rawEntryVersionKey = useMemo(
-    () =>
-      rawEntries
-        .map(r => `${r.id}:${r.result_status ?? ''}:${r.search_time_seconds ?? ''}`)
-        .sort()
-        .join(','),
-    [rawEntries]
-  );
+      const qualification =
+        edit?.qualification ?? mapResultStatusToQualification(raw?.result_status);
+      const searchTime = edit?.searchTime ?? dbSecondsToInputFormat(raw?.search_time_seconds);
+      const faults = edit?.faults ?? String(raw?.total_faults ?? 0);
+      const notes = edit?.notes ?? raw?.judge_notes ?? '';
+      const qualificationReason = edit?.qualificationReason ?? raw?.disqualification_reason ?? '';
 
-  useEffect(() => {
-    if (entries.length === 0) return;
+      const isScored =
+        justScoredIds.has(entry.id) ||
+        raw?.is_scored === true ||
+        (!!raw?.result_status && raw.result_status !== 'pending');
 
-    setBulkData(prev => {
-      // Preserve entries with user edits — only update untouched entries
-      const prevMap = new Map(prev.map(b => [b.entryId, b]));
-
-      const newData = entries.map(entry => {
-        const existing = prevMap.get(entry.id);
-
-        // If user has made edits to this entry, keep their edits
-        if (existing?.hasChanges) return existing;
-        const raw = rawEntryMap.get(entry.id);
-
-        const qualification = mapResultStatusToQualification(raw?.result_status);
-        const searchTime = dbSecondsToInputFormat(raw?.search_time_seconds);
-        const hadExistingData = !!(searchTime || qualification);
-
-        // Prefer raw DB data for display (always fresh), fall back to entry.displayInfo
-        const dogName =
-          raw?.dog?.call_name || raw?.dog?.name || entry.displayInfo?.dogName || 'Unknown Dog';
-        const handlerName = (raw?.handler as string) || entry.displayInfo?.handlerName || '';
-        const armband = (raw?.armband as string) || entry.displayInfo?.armband || '';
-
-        return {
-          entryId: entry.id,
-          armband,
-          dogName,
-          handlerName,
-          searchTime,
-          qualification,
-          qualificationReason: raw?.disqualification_reason ?? '',
-          faults: String(raw?.total_faults ?? 0),
-          notes: raw?.judge_notes ?? '',
-          placement: raw?.final_placement ?? null,
-          isValid:
-            !qualification ||
-            validateEntry({
-              entryId: entry.id,
-              armband,
-              dogName,
-              handlerName,
-              searchTime,
-              qualification,
-              qualificationReason: raw?.disqualification_reason ?? '',
-              faults: String(raw?.total_faults ?? 0),
-              notes: raw?.judge_notes ?? '',
-              placement: raw?.final_placement ?? null,
-              hasChanges: !!(searchTime || qualification),
-              hadExistingData,
-              isCleared: false,
-            } as BulkEntryData).isValid,
-          hasChanges: false,
-          hadExistingData,
-          isCleared: false,
-          modifiedFields: new Set<keyof BulkEntryData>(),
-        } satisfies BulkEntryData;
-      });
-
-      return calculatePlacements(newData);
+      return {
+        entryId: entry.id,
+        armband: (raw?.armband as string) || entry.displayInfo?.armband || '',
+        dogName:
+          raw?.dog?.call_name || raw?.dog?.name || entry.displayInfo?.dogName || 'Unknown Dog',
+        dogBreed: raw?.dog?.breed || entry.displayInfo?.dogBreed || '',
+        handlerName: (raw?.handler as string) || entry.displayInfo?.handlerName || '',
+        qualification,
+        qualificationReason,
+        searchTime,
+        faults,
+        notes,
+        placement: raw?.final_placement ?? null,
+        isScored,
+        hasEdits: edits.has(entry.id),
+      };
     });
-  }, [entryIdKey, rawEntryVersionKey, entries, rawEntryMap]);
+  }, [entries, rawMap, edits, justScoredIds]);
 
-  // ---------------------------------------------------------------------------
-  // Summary statistics
-  // ---------------------------------------------------------------------------
-  const summary: ResultsSummary = useMemo(() => {
-    let clearedEntries = 0;
-    let entriesWithData = 0;
-    let validEntries = 0;
-    let invalidEntries = 0;
-    for (const item of bulkData) {
-      if (item.isCleared) clearedEntries++;
-      else if (item.hasChanges && item.isValid) entriesWithData++;
-      if (item.isValid) validEntries++;
-      if (item.hasChanges && !item.isValid) invalidEntries++;
-    }
-    const hasSubmittableWork = (entriesWithData > 0 || clearedEntries > 0) && invalidEntries === 0;
+  // Edit a field
+  const onFieldChange = useCallback(
+    (entryId: string, field: keyof ScoringEdit, value: string) => {
+      if (!userPermissions.canEditEntries) return;
 
-    return {
-      totalEntries: bulkData.length,
-      entriesWithData,
-      validEntries,
-      invalidEntries,
-      clearedEntries,
-      canSubmit: hasSubmittableWork && userPermissions.canEditEntries,
-    };
-  }, [bulkData, userPermissions.canEditEntries]);
+      setEdits(prev => {
+        const next = new Map(prev);
+        const existing = next.get(entryId) ?? {};
+        const updated = { ...existing, [field]: value };
 
-  // ---------------------------------------------------------------------------
-  // Update bulk data and validate
-  // ---------------------------------------------------------------------------
-  const updateBulkData = useCallback(
-    (entryId: string, field: keyof BulkEntryData, value: string) => {
-      if (!userPermissions.canEditEntries) {
-        return;
-      }
-
-      setBulkData(prev => {
-        const index = prev.findIndex(d => d.entryId === entryId);
-        if (index === -1) return prev;
-        const newData = [...prev];
-        const item = { ...newData[index] };
-
-        // Track field modification
-        if (!item.modifiedFields) {
-          item.modifiedFields = new Set<keyof BulkEntryData>();
-        }
-
-        // Check if value actually changed
-        const oldValue = (item as Record<string, unknown>)[field];
-        if (oldValue !== value) {
-          item.modifiedFields.add(field);
-        }
-
-        (item as Record<string, unknown>)[field] = value;
-
-        // Check if entry has meaningful changes (not just empty or default values)
-        const hasTime = item.searchTime && item.searchTime.trim() !== '';
-        const hasQualification = item.qualification && item.qualification.length > 0;
-        const hasQualificationReason =
-          item.qualificationReason && item.qualificationReason.trim() !== '';
-        const hasFaults = item.faults !== '0';
-        const hasNotes = item.notes && item.notes.trim() !== '';
-        item.hasChanges = !!(
-          hasTime ||
-          hasQualification ||
-          hasQualificationReason ||
-          hasFaults ||
-          hasNotes
-        );
-
-        if (
-          item.hadExistingData &&
-          !hasTime &&
-          !hasQualification &&
-          !hasQualificationReason &&
-          !hasFaults &&
-          !hasNotes
-        ) {
-          item.isCleared = true;
-          item.hasChanges = true;
-        } else {
-          item.isCleared = false;
-        }
-
-        const validation = validateEntry(item);
-        item.isValid = validation.isValid;
-
-        newData[index] = item;
-
-        // Clear qualification reason if qualification changes to one that doesn't need a reason
         if (field === 'qualification') {
           const needsReason = STATUSES_REQUIRING_REASON.includes(value);
           if (!needsReason) {
-            item.qualificationReason = '';
+            updated.qualificationReason = '';
           }
         }
 
-        // Recalculate placements when relevant fields change
-        if (field === 'searchTime' || field === 'qualification' || field === 'faults') {
-          return calculatePlacements(newData);
-        }
-
-        return newData;
+        next.set(entryId, updated);
+        return next;
       });
     },
     [userPermissions.canEditEntries]
   );
 
-  // ---------------------------------------------------------------------------
-  // Keyboard navigation (Enter / Tab between fields)
-  // ---------------------------------------------------------------------------
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, index: number, field: string) => {
+  // Clear a single entry
+  const clearEntry = useCallback(
+    async (entryId: string) => {
       if (!userPermissions.canEditEntries) return;
 
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-
-        const fields = NAVIGABLE_FIELDS;
-        const currentFieldIndex = fields.indexOf(field as (typeof fields)[number]);
-
-        let nextIndex = index;
-        let nextFieldIndex = currentFieldIndex;
-
-        if (e.shiftKey) {
-          // Move backwards
-          if (currentFieldIndex > 0) {
-            nextFieldIndex = currentFieldIndex - 1;
-          } else if (index > 0) {
-            nextIndex = index - 1;
-            nextFieldIndex = fields.length - 1;
-          }
-        } else {
-          // Move forwards
-          if (currentFieldIndex < fields.length - 1) {
-            nextFieldIndex = currentFieldIndex + 1;
-          } else if (index < bulkData.length - 1) {
-            nextIndex = index + 1;
-            nextFieldIndex = 0;
-          }
-        }
-
-        const nextField = fields[nextFieldIndex];
-        const nextElement = document.querySelector(
-          `[data-index="${nextIndex}"][data-field="${nextField}"]`
-        ) as HTMLElement;
-        if (nextElement) {
-          nextElement.focus();
-        }
-      }
-    },
-    [userPermissions.canEditEntries, bulkData.length]
-  );
-
-  // ---------------------------------------------------------------------------
-  // Submit results
-  // ---------------------------------------------------------------------------
-  const handleSubmit = useCallback(async () => {
-    if (!userPermissions.canEditEntries) return;
-
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      const scoredItems = bulkData.filter(
-        item => item.hasChanges && item.isValid && !item.isCleared
-      );
-      const clearedItems = bulkData.filter(item => item.isCleared);
-
-      if (scoredItems.length === 0 && clearedItems.length === 0) {
-        setSubmitError('No valid results to submit');
-        return;
-      }
-
-      // Write scored entries directly to DB columns via replication
-      for (const item of scoredItems) {
-        await replicatedEntriesTable.updateEntry(item.entryId, {
-          resultStatus: mapQualificationToResultStatus(item.qualification),
-          searchTimeSeconds: inputFormatToDbSeconds(item.searchTime),
-          totalFaults: parseInt(item.faults) || 0,
-          judgeNotes: item.notes || null,
-          finalPlacement: item.placement != null ? String(item.placement) : undefined,
-          isScored: true,
-          scoringCompletedAt: new Date().toISOString(),
-        });
-      }
-
-      // Clear entries — reset all scoring columns to defaults
-      for (const item of clearedItems) {
-        await replicatedEntriesTable.updateEntry(item.entryId, {
+      try {
+        await replicatedEntriesTable.updateEntry(entryId, {
           resultStatus: 'pending',
           isScored: false,
           searchTimeSeconds: 0,
@@ -329,59 +120,197 @@ export function useClassResults({
           scoringCompletedAt: null,
           disqualification_reason: null,
         });
+
+        setEdits(prev => {
+          const next = new Map(prev);
+          next.delete(entryId);
+          return next;
+        });
+        setJustScoredIds(prev => {
+          const next = new Set(prev);
+          next.delete(entryId);
+          return next;
+        });
+      } catch (error) {
+        logger.error('Failed to clear entry', 'classes', { entryId }, error as Error);
+        notifications.error('Failed to clear entry');
+      }
+    },
+    [userPermissions.canEditEntries]
+  );
+
+  // Validate before submit
+  function validate(editedRows: ScoringRow[]): string | null {
+    for (const row of editedRows) {
+      if (row.qualification === 'Qualified' && !row.searchTime) {
+        return `${row.dogName}: Qualified entries require a time`;
+      }
+      if (STATUSES_REQUIRING_REASON.includes(row.qualification) && !row.qualificationReason) {
+        return `${row.dogName}: ${row.qualification} requires a reason`;
+      }
+      if (row.searchTime && !row.qualification) {
+        return `${row.dogName}: Time entered without qualification`;
+      }
+      if (row.searchTime && !/^\d{1,2}:[0-5]\d\.\d{2}$/.test(row.searchTime)) {
+        return `${row.dogName}: Invalid time format (use M:SS.HH)`;
+      }
+    }
+    return null;
+  }
+
+  // Calculate placements for Qualified entries
+  function calculatePlacements(allRows: ScoringRow[]): Map<string, number> {
+    const qualified = allRows
+      .filter(r => r.qualification === 'Qualified' && r.searchTime)
+      .map(r => ({
+        entryId: r.entryId,
+        faults: parseInt(r.faults) || 0,
+        time: inputFormatToDbSeconds(r.searchTime),
+      }))
+      .sort((a, b) => a.faults - b.faults || a.time - b.time);
+
+    const placements = new Map<string, number>();
+    qualified.forEach((q, i) => placements.set(q.entryId, i + 1));
+    return placements;
+  }
+
+  // Submit
+  const handleSubmit = useCallback(async () => {
+    if (!userPermissions.canEditEntries) return;
+
+    const editedRows = rows.filter(r => edits.has(r.entryId));
+    if (editedRows.length === 0) {
+      setSubmitError('No changes to submit');
+      return;
+    }
+
+    const error = validate(editedRows);
+    if (error) {
+      setSubmitError(error);
+      notifications.error(error);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const placements = calculatePlacements(rows);
+
+      const succeededIds: string[] = [];
+      for (const row of editedRows) {
+        if (!row.qualification && !row.searchTime) continue;
+
+        try {
+          const placement = placements.get(row.entryId);
+          await replicatedEntriesTable.updateEntry(row.entryId, {
+            resultStatus: mapQualificationToResultStatus(row.qualification),
+            searchTimeSeconds: inputFormatToDbSeconds(row.searchTime),
+            totalFaults: parseInt(row.faults) || 0,
+            judgeNotes: row.notes || null,
+            finalPlacement: placement != null ? String(placement) : undefined,
+            disqualification_reason: row.qualificationReason || null,
+            isScored: true,
+            scoringCompletedAt: new Date().toISOString(),
+          });
+          succeededIds.push(row.entryId);
+        } catch (entryErr) {
+          logger.error(
+            'Failed to write entry',
+            'classes',
+            { entryId: row.entryId },
+            entryErr as Error
+          );
+        }
       }
 
-      // Reset local change tracking. Don't invalidate React Query here — the
-      // replication layer syncs to Supabase asynchronously and fires a
-      // replication:upload-complete event that triggers cache invalidation.
-      // Invalidating now would refetch stale data before the mutation arrives.
-      setBulkData(prev =>
-        prev.map(item => {
-          if (!item.hasChanges && !item.isCleared) return item;
-          return {
-            ...item,
-            hasChanges: false,
-            isCleared: false,
-            hadExistingData: item.isCleared ? false : !!(item.searchTime || item.qualification),
-            modifiedFields: new Set<keyof BulkEntryData>(),
-          };
-        })
+      if (succeededIds.length === 0) throw new Error('All entries failed to save');
+
+      setJustScoredIds(prev => new Set([...prev, ...succeededIds]));
+      setEdits(prev => {
+        const next = new Map(prev);
+        for (const id of succeededIds) next.delete(id);
+        return next;
+      });
+
+      notifications.success(
+        `${succeededIds.length} result${succeededIds.length !== 1 ? 's' : ''} submitted`
       );
-    } catch (error) {
-      logger.error('Submit error:', 'classes', {}, error as Error);
-      setSubmitError(error instanceof Error ? error.message : 'Failed to submit results');
+    } catch (err) {
+      logger.error('Submit error:', 'classes', {}, err as Error);
+      setSubmitError(err instanceof Error ? err.message : 'Failed to submit results');
+      notifications.error('Failed to submit results');
     } finally {
       setIsSubmitting(false);
     }
-  }, [bulkData, classId, userPermissions]);
+  }, [rows, edits, userPermissions]);
 
-  // ---------------------------------------------------------------------------
-  // Ctrl+S / Cmd+S keyboard shortcut
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    const handleKeyboardShortcut = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        if (summary.canSubmit && !isSubmitting) {
-          handleSubmit();
+  // Keyboard navigation
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent, index: number, field: string) => {
+      if (!userPermissions.canEditEntries) return;
+      if (e.key !== 'Enter' && e.key !== 'Tab') return;
+
+      e.preventDefault();
+      const fields = NAVIGABLE_FIELDS;
+      const currentFieldIndex = fields.indexOf(field as (typeof fields)[number]);
+
+      let nextIndex = index;
+      let nextFieldIndex = currentFieldIndex;
+
+      if (e.shiftKey) {
+        if (currentFieldIndex > 0) nextFieldIndex = currentFieldIndex - 1;
+        else if (index > 0) {
+          nextIndex = index - 1;
+          nextFieldIndex = fields.length - 1;
+        }
+      } else {
+        if (currentFieldIndex < fields.length - 1) nextFieldIndex = currentFieldIndex + 1;
+        else if (index < rows.length - 1) {
+          nextIndex = index + 1;
+          nextFieldIndex = 0;
         }
       }
-    };
 
-    document.addEventListener('keydown', handleKeyboardShortcut);
-    return () => {
-      document.removeEventListener('keydown', handleKeyboardShortcut);
+      const nextElement = document.querySelector(
+        `[data-index="${nextIndex}"][data-field="${fields[nextFieldIndex]}"]`
+      ) as HTMLElement;
+      nextElement?.focus();
+    },
+    [userPermissions.canEditEntries, rows.length]
+  );
+
+  // Ctrl+S shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (edits.size > 0 && !isSubmitting) handleSubmit();
+      }
     };
-  }, [summary.canSubmit, isSubmitting, handleSubmit]);
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [edits.size, isSubmitting, handleSubmit]);
+
+  const editCount = edits.size;
+  const canSubmit = editCount > 0 && userPermissions.canEditEntries && !isSubmitting;
 
   return {
-    bulkData,
+    rows,
     isSubmitting,
     submitError,
-    validationErrors,
-    summary,
-    updateBulkData,
+    editCount,
+    canSubmit,
+    onFieldChange,
+    clearEntry,
     handleKeyDown,
     handleSubmit,
+    isEntryScored: useCallback(
+      (entryId: string) =>
+        justScoredIds.has(entryId) ||
+        rawMap.get(entryId)?.is_scored === true ||
+        (!!rawMap.get(entryId)?.result_status && rawMap.get(entryId)?.result_status !== 'pending'),
+      [justScoredIds, rawMap]
+    ),
   };
 }

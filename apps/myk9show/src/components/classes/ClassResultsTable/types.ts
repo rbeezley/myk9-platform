@@ -6,6 +6,7 @@ import type {
   ScentWorkClassConfig,
   QualificationStatus,
 } from '@/types/scent-work-types';
+import type { CheckInStatus } from '@myk9/core';
 import type { UserPermissions } from '@/types/user-permissions';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
@@ -44,6 +45,7 @@ export interface ScoringRow {
   faults: string;
   notes: string;
   placement: number | null;
+  checkInStatus: CheckInStatus;
   isScored: boolean;
   hasEdits: boolean;
 }

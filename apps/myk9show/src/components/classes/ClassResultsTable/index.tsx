@@ -26,7 +26,7 @@ import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EntryCardGrid } from './EntryCardGrid';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useEntryStore } from '@/store/entryStore';
+import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
@@ -61,8 +61,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     classId: classId ?? '',
   });
 
-  const { isExhibitor, isSecretary, isJudge, user } = useAuthContext();
-  const updateCheckInStatus = useEntryStore(s => s.updateCheckInStatus);
+  const { isExhibitor, isSecretary, isJudge } = useAuthContext();
+  const checkInMutation = useCheckInMutation();
   const isStaff = isSecretary || isJudge || !isExhibitor;
 
   const [statusPickerEntry, setStatusPickerEntry] = useState<{
@@ -74,9 +74,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   } | null>(null);
 
   function handleStatusChange(entryId: string, newStatus: CheckInStatus) {
-    if (user?.id) {
-      updateCheckInStatus(entryId, newStatus, user.id);
-    }
+    checkInMutation.mutate({ entryId, newStatus, classId });
   }
 
   const entryMap = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
@@ -265,11 +263,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         header: 'Check-in',
         cell: ({ row }) => {
           const item = row.original;
-          const entry = entryMap.get(item.entryId);
-          const checkInStatus: CheckInStatus = entry?.checkInStatus ?? 'no-status';
           return (
             <CheckInStatusBadge
-              status={checkInStatus}
+              status={item.checkInStatus}
               size="sm"
               onClick={() =>
                 setStatusPickerEntry({
@@ -277,7 +273,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                   armband: item.armband ?? '',
                   dogName: item.dogName ?? 'Unknown',
                   handlerName: item.handlerName ?? '',
-                  currentStatus: checkInStatus,
+                  currentStatus: item.checkInStatus,
                 })
               }
             />

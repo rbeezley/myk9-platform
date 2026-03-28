@@ -13,16 +13,17 @@ import type { ShowDayDetailRow } from '@/types/show-day-types';
 interface CheckInMutationInput {
   entryId: string;
   newStatus: CheckInStatus;
+  classId?: string | undefined;
 }
 
 /**
  * Persist check-in status to Supabase.
- * Updates `entry_status` column (the unified status field used by both apps).
+ * Updates `check_in_status` column (show-day check-in tracking).
  */
 async function updateCheckInStatus({ entryId, newStatus }: CheckInMutationInput): Promise<void> {
   const { error } = await supabase
     .from('entries')
-    .update({ entry_status: newStatus, updated_at: new Date().toISOString() })
+    .update({ check_in_status: newStatus, updated_at: new Date().toISOString() })
     .eq('id', entryId);
 
   if (error) throw new Error(`Check-in update failed: ${error.message}`);
@@ -34,10 +35,12 @@ export function useCheckInMutation() {
   return useMutation({
     mutationFn: updateCheckInStatus,
 
-    onMutate: async ({ entryId, newStatus }) => {
+    onMutate: async ({ entryId, newStatus, classId }) => {
       // Cancel in-flight queries to avoid overwriting our optimistic update
-      await queryClient.cancelQueries({ queryKey: ['show-day'] });
-      await queryClient.cancelQueries({ queryKey: queryKeys.entries });
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['show-day'] }),
+        queryClient.cancelQueries({ queryKey: queryKeys.entries }),
+      ]);
 
       // Snapshot showDayDetails cache for rollback
       const previousShowDay = queryClient.getQueriesData<ShowDayDetailRow[]>({
@@ -49,24 +52,44 @@ export function useCheckInMutation() {
         queryKey: queryKeys.entries,
       });
 
-      // Optimistically update showDayDetails cache (ShowDayDetailRow uses entry_status)
+      // Snapshot class entries cache for rollback
+      const previousClassEntries = classId
+        ? queryClient.getQueriesData({
+            queryKey: ['classes', classId, 'entries'],
+          })
+        : [];
+
+      // Optimistically update showDayDetails cache
       queryClient.setQueriesData<ShowDayDetailRow[]>({ queryKey: ['show-day', 'details'] }, old => {
         if (!old) return old;
-        return old.map(row => (row.id === entryId ? { ...row, entry_status: newStatus } : row));
+        return old.map(row => (row.id === entryId ? { ...row, check_in_status: newStatus } : row));
       });
 
-      // Also update entries cache for non-show-day views
+      // Update entries cache for non-show-day views
       queryClient.setQueriesData<Record<string, unknown>[]>(
         { queryKey: queryKeys.entries },
         old => {
           if (!old) return old;
           return old.map(row =>
-            (row.id as string) === entryId ? { ...row, entry_status: newStatus } : row
+            (row.id as string) === entryId ? { ...row, check_in_status: newStatus } : row
           );
         }
       );
 
-      return { previousShowDay, previousEntries };
+      // Optimistically update class entries cache (used by ClassResultsTable)
+      if (classId) {
+        queryClient.setQueriesData<Record<string, unknown>[]>(
+          { queryKey: ['classes', classId, 'entries'] },
+          old => {
+            if (!old) return old;
+            return old.map(row =>
+              (row.id as string) === entryId ? { ...row, check_in_status: newStatus } : row
+            );
+          }
+        );
+      }
+
+      return { previousShowDay, previousEntries, previousClassEntries };
     },
 
     onError: (_err, _vars, context) => {
@@ -81,12 +104,23 @@ export function useCheckInMutation() {
           queryClient.setQueryData(key, data);
         }
       }
+      if (context?.previousClassEntries) {
+        for (const [key, data] of context.previousClassEntries) {
+          queryClient.setQueryData(key, data);
+        }
+      }
     },
 
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       // Refetch to get server truth
       queryClient.invalidateQueries({ queryKey: ['show-day'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.entries });
+      // Also invalidate class entries (used by ClassResultsTable via useClassEntriesRaw)
+      if (variables.classId) {
+        queryClient.invalidateQueries({
+          queryKey: ['classes', variables.classId, 'entries'],
+        });
+      }
     },
   });
 }

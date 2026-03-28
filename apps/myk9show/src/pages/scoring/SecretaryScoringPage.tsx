@@ -17,7 +17,7 @@ import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { useAuthContext } from '@/hooks/useAuthContext';
+
 import { logger } from '@/services/LoggingService';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
 import { getScoresheetComponent, buildResolvedClassRules } from '@myk9/scoring-ui';
@@ -45,7 +45,6 @@ export function SecretaryScoringPage() {
     entryId: string;
   }>();
   const navigate = useNavigate();
-  const { user } = useAuthContext();
 
   const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
 
@@ -107,7 +106,7 @@ export function SecretaryScoringPage() {
         // Auto-set check-in status to in-ring when scoresheet opens
         const rawEntry = rawEntries.find(e => e.id === entryId);
         if (rawEntry) {
-          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, user?.id ?? 'system');
+          transitionToInRing(rawEntry.id, rawEntry.checkInStatus);
         }
 
         setAllEntries(scoringEntries);
@@ -154,7 +153,7 @@ export function SecretaryScoringPage() {
         setEntry(prev => (prev ? { ...prev, isScored: true, status: 'scored' } : null));
 
         // Auto-set check-in status to completed after scoring
-        transitionToCompleted(entry.entryId, user?.id ?? 'system');
+        transitionToCompleted(entry.entryId);
       },
       onError: err => {
         logger.error('Secretary score submission failed:', 'pages', {}, err as Error);

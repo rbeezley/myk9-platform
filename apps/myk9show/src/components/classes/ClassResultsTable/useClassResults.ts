@@ -11,6 +11,8 @@ import { notifications } from '@/lib/notifications';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
+import type { CheckInStatus } from '@myk9/core';
+import { CHECKIN_STATUS } from '@myk9/core';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import {
   mapResultStatusToQualification,
@@ -89,6 +91,7 @@ export function useClassResults({
           justClearedIds.has(entry.id) || (submitted && qualification !== 'Qualified')
             ? null
             : (raw?.final_placement ?? null),
+        checkInStatus: (raw?.check_in_status as CheckInStatus) ?? 'no-status',
         isScored,
         hasEdits: edits.has(entry.id),
       };
@@ -259,6 +262,8 @@ export function useClassResults({
             disqualification_reason: row.qualificationReason || null,
             isScored: true,
             scoringCompletedAt: new Date().toISOString(),
+            checkInStatus: CHECKIN_STATUS.COMPLETED.value,
+            ring_exit_time: new Date().toISOString(),
           });
           succeededIds.push(row.entryId);
         } catch (entryErr) {

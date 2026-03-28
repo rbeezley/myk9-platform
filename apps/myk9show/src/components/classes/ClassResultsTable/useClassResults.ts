@@ -48,7 +48,16 @@ export function useClassResults({
   // updates. This prevents the useEffect from overwriting user edits or
   // just-submitted scores with stale raw data.
   // ---------------------------------------------------------------------------
-  const rawEntryMap = useMemo(() => new Map(rawEntries.map(r => [r.id, r])), [rawEntries]);
+  const rawEntryMap = useMemo(() => {
+    const map = new Map(rawEntries.map(r => [r.id, r]));
+    console.log('[SCORING RAW]', {
+      rawEntriesCount: rawEntries.length,
+      rawIds: rawEntries.map(r => r.id).slice(0, 5),
+      entriesCount: entries.length,
+      entryIds: entries.map(e => e.id).slice(0, 5),
+    });
+    return map;
+  }, [rawEntries]);
 
   const entryIdKey = useMemo(
     () =>

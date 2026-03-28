@@ -63,10 +63,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
           data-field="qualification"
         >
           <SelectTrigger
-            className={cn(
-              'w-28',
-              item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
-            )}
+            className={cn('w-32', item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500')}
           >
             <SelectValue placeholder="Select">
               {DISPLAY_LABELS[item.qualification] || item.qualification}
@@ -101,7 +98,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
         >
           <SelectTrigger
             className={cn(
-              'w-28 h-7 text-xs',
+              'w-44 h-7 text-xs',
               item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
             )}
           >

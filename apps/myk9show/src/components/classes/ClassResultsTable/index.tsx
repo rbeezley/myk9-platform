@@ -250,42 +250,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 onKeyDown={e => handleKeyDown(e, row.index, 'faults')}
                 min="0"
                 max="99"
-                className={cn(
-                  'w-16',
-                  item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
-                )}
+                className={cn('w-16', item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500')}
                 data-index={row.index}
                 data-field="faults"
               />
             );
           }
           return <span className="text-sm">{item.faults}</span>;
-        },
-      },
-      // Notes
-      {
-        id: 'notes',
-        accessorKey: 'notes',
-        header: 'Notes',
-        cell: ({ row }) => {
-          const item = row.original;
-          if (canEdit) {
-            return (
-              <Input
-                value={item.notes}
-                onChange={e => onFieldChange(item.entryId, 'notes', e.target.value)}
-                onKeyDown={e => handleKeyDown(e, row.index, 'notes')}
-                placeholder="Optional notes"
-                className={cn(
-                  'w-40',
-                  item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
-                )}
-                data-index={row.index}
-                data-field="notes"
-              />
-            );
-          }
-          return <span className="text-sm">{item.notes || '--'}</span>;
         },
       },
       // Check-in Status

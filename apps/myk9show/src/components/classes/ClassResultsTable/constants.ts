@@ -34,5 +34,4 @@ export const NAVIGABLE_FIELDS = [
   'qualificationReason',
   'searchTime',
   'faults',
-  'notes',
 ] as const;

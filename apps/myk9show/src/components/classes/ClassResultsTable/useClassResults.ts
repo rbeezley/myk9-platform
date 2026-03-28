@@ -213,6 +213,7 @@ export function useClassResults({
     try {
       const placements = calculatePlacements(rows);
 
+      // Write edited entries
       const succeededIds: string[] = [];
       for (const row of editedRows) {
         if (!row.qualification && !row.searchTime) continue;
@@ -237,6 +238,23 @@ export function useClassResults({
             { entryId: row.entryId },
             entryErr as Error
           );
+        }
+      }
+
+      // Update placements for previously-scored entries that weren't in this batch
+      // (their placement may have changed due to new entries)
+      for (const row of rows) {
+        if (edits.has(row.entryId)) continue; // Already written above
+        const newPlacement = placements.get(row.entryId);
+        const oldPlacement = row.placement;
+        if (newPlacement !== oldPlacement && (newPlacement != null || oldPlacement != null)) {
+          try {
+            await replicatedEntriesTable.updateEntry(row.entryId, {
+              finalPlacement: newPlacement != null ? String(newPlacement) : undefined,
+            });
+          } catch {
+            // Non-critical — placement update for existing entry
+          }
         }
       }
 

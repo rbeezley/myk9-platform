@@ -39,6 +39,7 @@ export function useClassResults({
   const [edits, setEdits] = useState<Map<string, ScoringEdit>>(new Map());
   const [submittedEdits, setSubmittedEdits] = useState<Map<string, ScoringEdit>>(new Map());
   const [justScoredIds, setJustScoredIds] = useState<Set<string>>(new Set());
+  const [justClearedIds, setJustClearedIds] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -84,12 +85,12 @@ export function useClassResults({
         searchTime,
         faults,
         notes,
-        placement: raw?.final_placement ?? null,
+        placement: justClearedIds.has(entry.id) ? null : (raw?.final_placement ?? null),
         isScored,
         hasEdits: edits.has(entry.id),
       };
     });
-  }, [entries, rawMap, edits, submittedEdits, justScoredIds]);
+  }, [entries, rawMap, edits, submittedEdits, justScoredIds, justClearedIds]);
 
   // Edit a field
   const onFieldChange = useCallback(
@@ -147,6 +148,7 @@ export function useClassResults({
           next.delete(entryId);
           return next;
         });
+        setJustClearedIds(prev => new Set([...prev, entryId]));
       } catch (error) {
         logger.error('Failed to clear entry', 'classes', { entryId }, error as Error);
         notifications.error('Failed to clear entry');
@@ -263,6 +265,11 @@ export function useClassResults({
       // Move succeeded edits to submittedEdits (display values persist until
       // raw data refreshes) and remove from pending edits (so editCount drops).
       setJustScoredIds(prev => new Set([...prev, ...succeededIds]));
+      setJustClearedIds(prev => {
+        const next = new Set(prev);
+        for (const id of succeededIds) next.delete(id);
+        return next;
+      });
       setSubmittedEdits(prev => {
         const next = new Map(prev);
         for (const id of succeededIds) {

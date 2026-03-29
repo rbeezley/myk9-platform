@@ -24,15 +24,23 @@ import {
   PRESET_CONFIGS,
   type VisibilityPreset,
   type VisibilityTiming,
+  type VisibilityOverride,
 } from '@myk9/secretary';
 import { TIMING_LABELS } from '@/components/secretary/settingsConstants';
-import type { ShowSettings, TrialOverrideEntry } from '@/hooks/queries/useShowSettingsDatabase';
+import type {
+  ShowSettings,
+  TrialOverrideEntry,
+  ClassOverrideEntry,
+} from '@/hooks/queries/useShowSettingsDatabase';
 import {
   useUpdateShowVisibility,
   useUpdateTrialOverride,
+  useUpdateClassOverride,
   useResetOverride,
 } from '@/hooks/mutations/useShowSettingsMutations';
 import type { SyncableTrial } from '@/store/trial-store-types';
+import type { SyncableClassData } from '@/store/classStore';
+import { getClassName } from '@/components/classes/types/classTypes';
 
 // --- helpers ---
 
@@ -44,6 +52,17 @@ const PRESET_ICONS: Record<VisibilityPreset, React.ReactNode> = {
 
 const ALL_TIMINGS: VisibilityTiming[] = ['immediate', 'class_complete', 'manual_release'];
 const PLACEMENT_TIMINGS: VisibilityTiming[] = ['class_complete', 'manual_release'];
+
+/** Check if an override has any visibility field set (non-null) */
+function hasVisibilityOverride(ov: VisibilityOverride): boolean {
+  return (
+    ov.preset !== undefined ||
+    ov.placement !== undefined ||
+    ov.qualification !== undefined ||
+    ov.time !== undefined ||
+    ov.faults !== undefined
+  );
+}
 
 /** Detect which preset (if any) matches the given field timings */
 function detectPreset(timings: FieldTimings): VisibilityPreset | null {
@@ -108,14 +127,18 @@ interface ResultsVisibilitySectionProps {
   showId: string;
   settings: ShowSettings;
   trialOverrides: TrialOverrideEntry[];
+  classOverrides: ClassOverrideEntry[];
   trials: SyncableTrial[];
+  classes: SyncableClassData[];
 }
 
 export function ResultsVisibilitySection({
   showId,
   settings,
   trialOverrides,
+  classOverrides,
   trials,
+  classes,
 }: ResultsVisibilitySectionProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
@@ -145,6 +168,7 @@ export function ResultsVisibilitySection({
 
   const updateVisibility = useUpdateShowVisibility();
   const updateTrialOverride = useUpdateTrialOverride();
+  const updateClassOverride = useUpdateClassOverride();
   const resetOverride = useResetOverride();
 
   function applyPreset(preset: VisibilityPreset) {
@@ -210,6 +234,36 @@ export function ResultsVisibilitySection({
       {
         onSuccess: () => toast.success('Trial reset to show defaults'),
         onError: () => toast.error('Failed to reset trial override'),
+      }
+    );
+  }
+
+  function handleClassPreset(classId: string, trialId: string, preset: VisibilityPreset) {
+    const cfg = PRESET_CONFIGS[preset];
+    updateClassOverride.mutate(
+      {
+        classId,
+        trialId,
+        showId,
+        preset,
+        placementTiming: cfg.placement,
+        qualificationTiming: cfg.qualification,
+        timeTiming: cfg.time,
+        faultsTiming: cfg.faults,
+      },
+      {
+        onSuccess: () => toast.success('Class override saved'),
+        onError: () => toast.error('Failed to save class override'),
+      }
+    );
+  }
+
+  function handleResetClass(classId: string) {
+    resetOverride.mutate(
+      { entityId: classId, showId, level: 'class' },
+      {
+        onSuccess: () => toast.success('Class reset to inherited settings'),
+        onError: () => toast.error('Failed to reset class override'),
       }
     );
   }
@@ -290,14 +344,7 @@ export function ResultsVisibilitySection({
           <h3 className="text-sm font-semibold">Trial Overrides</h3>
           {trials.map(trial => {
             const override = trialOverrides.find(o => o.trialId === trial.id);
-            const hasOverride =
-              override &&
-              (override.override.preset !== undefined ||
-                override.override.placement !== undefined ||
-                override.override.qualification !== undefined ||
-                override.override.time !== undefined ||
-                override.override.faults !== undefined);
-
+            const hasOverride = override && hasVisibilityOverride(override.override);
             const currentPreset = override?.override.preset ?? null;
 
             return (
@@ -342,6 +389,96 @@ export function ResultsVisibilitySection({
                   )}
                 </div>
               </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Class overrides */}
+      {classes.length > 0 && (
+        <div className="space-y-3">
+          <Separator />
+          <h3 className="text-sm font-semibold">Class Overrides</h3>
+          {trials.map(trial => {
+            const trialClasses = classes.filter(c => c.trialId === trial.id);
+            if (trialClasses.length === 0) return null;
+
+            const trialHasOverride = trialOverrides.some(o => o.trialId === trial.id);
+            const overrideCount = trialClasses.filter(c =>
+              classOverrides.some(o => o.classId === c.id && hasVisibilityOverride(o.override))
+            ).length;
+
+            return (
+              <Collapsible key={trial.id}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex w-full items-center justify-between px-3 py-2"
+                  >
+                    <span className="text-sm font-medium">{trial.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {trialClasses.length} classes
+                      {overrideCount > 0 && ` · ${overrideCount} overridden`}
+                    </span>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-1 pl-3 pt-1">
+                  {trialClasses.map(cls => {
+                    const override = classOverrides.find(o => o.classId === cls.id);
+                    const hasOverride = override && hasVisibilityOverride(override.override);
+                    const currentPreset = override?.override.preset ?? null;
+
+                    return (
+                      <div
+                        key={cls.id}
+                        className="flex items-center justify-between rounded-md border px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{getClassName(cls)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {hasOverride
+                              ? `Override: ${currentPreset ?? 'custom'}`
+                              : trialHasOverride
+                                ? 'Inheriting from trial'
+                                : 'Inheriting from show'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={currentPreset ?? ''}
+                            onValueChange={v =>
+                              handleClassPreset(cls.id, trial.id, v as VisibilityPreset)
+                            }
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="Inherit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.keys(PRESET_INFO) as VisibilityPreset[]).map(p => (
+                                <SelectItem key={p} value={p}>
+                                  {PRESET_INFO[p].title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {hasOverride && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Reset to inherited settings"
+                              onClick={() => handleResetClass(cls.id)}
+                              disabled={resetOverride.isPending}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
             );
           })}
         </div>

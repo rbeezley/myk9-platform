@@ -31,6 +31,7 @@ export const settingsQueryKeys = {
   trials: (showId: string) => [...settingsQueryKeys.all, 'trials', showId] as const,
   trialOverride: (trialId: string) => [...settingsQueryKeys.all, 'trial', trialId] as const,
   classOverride: (classId: string) => [...settingsQueryKeys.all, 'class', classId] as const,
+  classOverrides: (showId: string) => [...settingsQueryKeys.all, 'classOverrides', showId] as const,
 };
 
 /** DB row shape for show_visibility_settings */
@@ -166,6 +167,52 @@ export function useTrialOverrides(showId: string | null) {
   return useQuery({
     queryKey: settingsQueryKeys.trials(showId!),
     queryFn: () => fetchTrialOverrides(showId!),
+    enabled: !!showId,
+    ...cacheStrategies.moderate,
+  });
+}
+
+/** All class overrides for a show (for the settings page list) */
+export interface ClassOverrideEntry {
+  classId: string;
+  trialId: string;
+  override: VisibilityOverride;
+  selfCheckinEnabled: boolean | null;
+}
+
+async function fetchClassOverrides(showId: string): Promise<ClassOverrideEntry[]> {
+  // Get all classes for this show's trials in one query
+  const { data: classes, error: classesError } = await supabase
+    .from('classes')
+    .select('id, trial_id, trials!inner(show_id)')
+    .eq('trials.show_id', showId);
+
+  if (classesError) throw classesError;
+  if (!classes?.length) return [];
+
+  const classIds = classes.map(c => c.id);
+  const { data: overrides, error } = await untypedSupabase
+    .from('class_visibility_overrides')
+    .select('*')
+    .in('class_id', classIds);
+
+  if (error) throw error;
+  if (!overrides) return [];
+
+  const classTrialMap = new Map(classes.map(c => [c.id, c.trial_id]));
+
+  return (overrides as OverrideRow[]).map(row => ({
+    classId: row.class_id!,
+    trialId: classTrialMap.get(row.class_id!) ?? '',
+    override: rowToOverride(row),
+    selfCheckinEnabled: row.self_checkin_enabled,
+  }));
+}
+
+export function useClassOverrides(showId: string | null) {
+  return useQuery({
+    queryKey: settingsQueryKeys.classOverrides(showId!),
+    queryFn: () => fetchClassOverrides(showId!),
     enabled: !!showId,
     ...cacheStrategies.moderate,
   });

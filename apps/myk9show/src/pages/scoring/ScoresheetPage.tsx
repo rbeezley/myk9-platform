@@ -15,6 +15,7 @@ import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 
 import { logger } from '@/services/LoggingService';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
@@ -50,6 +51,8 @@ export function ScoresheetPage() {
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [rules, setRules] = useState<ResolvedClassRules | null>(null);
   const [trialSportType, setTrialSportType] = useState<string | undefined>(undefined);
+  const [trialDate, setTrialDate] = useState<string | undefined>(undefined);
+  const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,10 +78,17 @@ export function ScoresheetPage() {
           return;
         }
 
-        // Derive sport type from show organization + trial type
-        const derived = await resolveSportTypeForClass(cls.trialId);
+        // Load trial info for header display and sport type derivation
+        const [derived, trial] = await Promise.all([
+          resolveSportTypeForClass(cls.trialId),
+          cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : null,
+        ]);
         if (derived) {
           setTrialSportType(derived);
+        }
+        if (trial) {
+          setTrialDate(trial.date || trial.trial_date);
+          setTrialNumber(trial.trialNumber);
         }
 
         // Find target entry from the list
@@ -213,7 +223,7 @@ export function ScoresheetPage() {
       )}
       <LiveScoresheet
         entry={toScoresheetEntry(entry, classInfo)}
-        classInfo={toScoresheetClassInfo(classInfo)}
+        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber)}
         rules={rules}
         onSubmit={handleSubmit}
         onBack={handleBack}

@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -192,6 +192,15 @@ function AnnouncementSubscriptionInitializer() {
   return null;
 }
 
+/** Routes where the app header is hidden (fullscreen scoring UI) */
+const HEADERLESS_ROUTE_PATTERN = /^\/scoring\/classes\/[^/]+\/entries\/[^/]+/;
+
+function ConditionalAppHeader() {
+  const { pathname } = useLocation();
+  if (HEADERLESS_ROUTE_PATTERN.test(pathname)) return null;
+  return <AppHeader />;
+}
+
 function App() {
   // Initialize global error handler - deferred to not block initial render
   React.useEffect(() => {
@@ -238,7 +247,7 @@ function App() {
                       >
                         <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                           <PWAInstallBanner />
-                          <AppHeader />
+                          <ConditionalAppHeader />
                           <NotificationCenter />
                           <Routes>
                             {/* Public routes */}

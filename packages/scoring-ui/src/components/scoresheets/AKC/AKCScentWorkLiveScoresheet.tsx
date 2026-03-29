@@ -134,12 +134,18 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     return '#22c55e';
   };
 
-  const ringSize = 40;
-  const strokeWidth = 4;
-  const radius = (ringSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = maxTimeMs > 0 ? Math.max(0, remainingTimeMs / maxTimeMs) : 1;
-  const dashOffset = circumference * (1 - progress);
+  const progressPct = maxTimeMs > 0 ? Math.max(0, remainingTimeMs / maxTimeMs) * 100 : 100;
+
+  // Build header title from trial date + number, fallback to sport name
+  const headerTitle = (() => {
+    if (!classInfo.trialDate) return 'AKC Scent Work';
+    const formatted = new Date(classInfo.trialDate + 'T00:00:00').toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return classInfo.trialNumber ? `${formatted} — Trial ${classInfo.trialNumber}` : formatted;
+  })();
 
   return (
     <>
@@ -153,10 +159,11 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             <div className="flex-1">
               <h1 className="text-lg font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />
-                AKC Scent Work
+                {headerTitle}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {classInfo.element} {classInfo.level}
+                {classInfo.element}
+                {classInfo.level && classInfo.level !== 'Unknown' ? ` ${classInfo.level}` : ''}
               </p>
             </div>
           </header>
@@ -179,42 +186,11 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </div>
             </Card>
 
-            {/* Timer Card - gradient background matching myK9Q */}
-            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md overflow-hidden">
-              {/* Countdown ring - top left corner (myK9Q position) */}
-              {maxTimeMs > 0 && (
-                <svg
-                  className="absolute top-3 left-3"
-                  width={ringSize}
-                  height={ringSize}
-                  viewBox={`0 0 ${ringSize} ${ringSize}`}
-                >
-                  <circle
-                    cx={ringSize / 2}
-                    cy={ringSize / 2}
-                    r={radius}
-                    fill="none"
-                    stroke="rgba(255, 255, 255, 0.2)"
-                    strokeWidth={strokeWidth}
-                  />
-                  <circle
-                    cx={ringSize / 2}
-                    cy={ringSize / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={getRingColor()}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={dashOffset}
-                    transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
-                  />
-                </svg>
-              )}
-
+            {/* Timer Card */}
+            <Card className="relative p-6 overflow-hidden">
               {/* Reset button - top right corner */}
               <button
-                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/20 border-0 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={stopwatch.reset}
                 disabled={stopwatch.isRunning}
                 title={
@@ -224,10 +200,10 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <RotateCcw className="h-5 w-5" />
               </button>
 
-              <div className="text-center pt-4">
+              <div className="text-center">
                 <div
                   className={cn(
-                    'text-5xl font-bold text-white tabular-nums tracking-tight transition-colors duration-300',
+                    'text-5xl font-bold text-foreground tabular-nums tracking-tight transition-colors duration-300',
                     stopwatch.shouldShow30SecondWarning() && 'text-amber-400',
                     stopwatch.isTimeExpired() && 'text-red-500 animate-pulse'
                   )}
@@ -235,13 +211,23 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
 
-                <div className="text-base text-white/90 mt-2 mb-4">
+                <div className="text-base text-muted-foreground mt-2">
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (
                     <>Max Time: {maxTimeStr}</>
                   )}
                 </div>
+
+                {/* Time remaining progress bar */}
+                {maxTimeMs > 0 && (
+                  <div className="w-full h-1.5 rounded-full bg-muted mt-3 mb-4 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300 ease-linear"
+                      style={{ width: `${progressPct}%`, backgroundColor: getRingColor() }}
+                    />
+                  </div>
+                )}
 
                 {/* Pill-shaped control buttons matching myK9Q */}
                 <div className="flex justify-center">
@@ -270,7 +256,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     <button
                       className={cn(
                         timerButtonBase,
-                        'w-48 h-[72px] bg-white !text-indigo-500 hover:-translate-y-0.5 hover:shadow-xl active:scale-95'
+                        'w-48 h-[72px] bg-teal-500 hover:brightness-110 hover:scale-105 active:scale-95'
                       )}
                       onClick={stopwatch.start}
                       data-testid="timer-start"
@@ -280,7 +266,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   )}
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Warning */}
             {warningMessage && (
@@ -441,7 +427,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             <div>
               <h2 className="text-xl font-semibold">Score Confirmation</h2>
               <p className="text-sm text-muted-foreground">
-                {classInfo.element} {classInfo.level}
+                {classInfo.element}
+                {classInfo.level && classInfo.level !== 'Unknown' ? ` ${classInfo.level}` : ''}
               </p>
             </div>
 

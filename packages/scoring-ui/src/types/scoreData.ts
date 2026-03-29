@@ -48,6 +48,8 @@ export interface ScoresheetClassInfo {
   element: string;
   level: string;
   section?: string;
+  trialDate?: string;
+  trialNumber?: string;
 }
 
 /** Sport type identifier */

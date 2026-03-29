@@ -246,7 +246,9 @@ export function deriveSportType(organization: string, trialType: string): string
 }
 
 /** Resolve sport type for a class by walking trial → show → deriveSportType. */
-export async function resolveSportTypeForClass(trialId: string | undefined): Promise<string | null> {
+export async function resolveSportTypeForClass(
+  trialId: string | undefined
+): Promise<string | null> {
   if (!trialId) return null;
   const trial = await replicatedTrialsTable.getTrialById(trialId);
   if (!trial?.showId || !trial.trialType) return null;
@@ -341,10 +343,16 @@ export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): Sc
 }
 
 /** Convert ClassInfo to ScoresheetClassInfo for scoresheet props. */
-export function toScoresheetClassInfo(info: ClassInfo): ScoresheetClassInfo {
+export function toScoresheetClassInfo(
+  info: ClassInfo,
+  trialDate?: string,
+  trialNumber?: string
+): ScoresheetClassInfo {
   return {
     element: info.element || '',
     level: info.level || '',
+    ...(trialDate && { trialDate }),
+    ...(trialNumber && { trialNumber }),
   };
 }
 

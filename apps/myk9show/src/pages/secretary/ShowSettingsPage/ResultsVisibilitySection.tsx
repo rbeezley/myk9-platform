@@ -24,6 +24,7 @@ import {
   PRESET_CONFIGS,
   type VisibilityPreset,
   type VisibilityTiming,
+  type VisibilityOverride,
 } from '@myk9/secretary';
 import { TIMING_LABELS } from '@/components/secretary/settingsConstants';
 import type {

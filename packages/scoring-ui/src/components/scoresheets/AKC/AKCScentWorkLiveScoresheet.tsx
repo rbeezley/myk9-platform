@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from 'react';
-import { ArrowLeft, ClipboardCheck, X } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, X, RotateCcw } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
@@ -16,15 +16,44 @@ import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
 
+/** Lookup map for result display text in confirmation dialog */
+const RESULT_LABELS: Record<string, string> = {
+  Q: 'Qualified',
+  NQ: 'NQ',
+  ABS: 'Absent',
+  EX: 'Excused',
+};
+
+/** Shared base classes for pill-shaped timer control buttons (Start/Stop/Resume) */
+const timerButtonBase =
+  'rounded-full border-0 text-white text-[1.375rem] font-semibold cursor-pointer transition-all duration-200 shadow-lg';
+
+/** Shared base classes for submit/cancel action buttons */
+const actionButtonBase =
+  'flex-1 h-14 rounded-xl border-0 text-white text-lg font-semibold cursor-pointer transition-all duration-200';
+
 const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
     value: 'Q',
     label: 'Qualified',
-    activeClass: 'bg-green-600 hover:bg-green-700 border-green-600',
+    activeClass: 'bg-blue-600 hover:bg-blue-700 border-blue-600 shadow-lg shadow-blue-600/20',
   },
-  { value: 'NQ', label: 'NQ', activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500' },
-  { value: 'ABS', label: 'Absent', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
-  { value: 'EX', label: 'Excused', activeClass: 'bg-red-600 hover:bg-red-700 border-red-600' },
+  {
+    value: 'NQ',
+    label: 'NQ',
+    activeClass: 'bg-red-600 hover:bg-red-700 border-red-600 shadow-lg shadow-red-600/20',
+  },
+  {
+    value: 'ABS',
+    label: 'Absent',
+    activeClass:
+      'bg-purple-600 hover:bg-purple-700 border-purple-600 shadow-lg shadow-purple-600/20',
+  },
+  {
+    value: 'EX',
+    label: 'Excused',
+    activeClass: 'bg-red-700 hover:bg-red-800 border-red-700 shadow-lg shadow-red-700/20',
+  },
 ];
 
 const NQ_REASONS = [
@@ -132,25 +161,30 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </div>
           </header>
 
-          <div className="p-4 space-y-4">
-            {/* Dog Info */}
+          <div className="p-4 space-y-3">
+            {/* Dog Info Card - matches myK9Q layout */}
             <Card className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-lg font-bold text-primary">#{entry.armband}</span>
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-500/30">
+                  <span className="text-xl font-bold text-white">{entry.armband}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xl font-semibold truncate">{entry.dogName}</div>
-                  <div className="text-sm text-muted-foreground">Handler: {entry.handlerName}</div>
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  <div className="text-lg font-semibold truncate leading-tight">
+                    {entry.dogName}
+                  </div>
+                  <div className="text-[13px] text-muted-foreground">
+                    Handler: {entry.handlerName}
+                  </div>
                 </div>
               </div>
             </Card>
 
-            {/* Timer */}
-            <Card className="p-6 relative overflow-hidden">
+            {/* Timer Card - gradient background matching myK9Q */}
+            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md overflow-hidden">
+              {/* Countdown ring - top left corner (myK9Q position) */}
               {maxTimeMs > 0 && (
                 <svg
-                  className="absolute top-3 right-3"
+                  className="absolute top-3 left-3"
                   width={ringSize}
                   height={ringSize}
                   viewBox={`0 0 ${ringSize} ${ringSize}`}
@@ -160,9 +194,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     cy={ringSize / 2}
                     r={radius}
                     fill="none"
-                    stroke="currentColor"
+                    stroke="rgba(255, 255, 255, 0.2)"
                     strokeWidth={strokeWidth}
-                    className="text-muted/20"
                   />
                   <circle
                     cx={ringSize / 2}
@@ -179,18 +212,30 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 </svg>
               )}
 
-              <div className="text-center pt-8">
+              {/* Reset button - top right corner */}
+              <button
+                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/20 border-0 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed"
+                onClick={stopwatch.reset}
+                disabled={stopwatch.isRunning}
+                title={
+                  stopwatch.isRunning ? 'Reset disabled while timer is running' : 'Reset timer'
+                }
+              >
+                <RotateCcw className="h-5 w-5" />
+              </button>
+
+              <div className="text-center pt-4">
                 <div
                   className={cn(
-                    'text-5xl font-mono font-bold tracking-tight',
-                    stopwatch.shouldShow30SecondWarning() && 'text-amber-500',
-                    stopwatch.isTimeExpired() && 'text-destructive'
+                    'text-5xl font-bold text-white tabular-nums tracking-tight transition-colors duration-300',
+                    stopwatch.shouldShow30SecondWarning() && 'text-amber-400',
+                    stopwatch.isTimeExpired() && 'text-red-500 animate-pulse'
                   )}
                 >
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
 
-                <div className="text-sm text-muted-foreground mt-2">
+                <div className="text-base text-white/90 mt-2 mb-4">
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (
@@ -198,166 +243,189 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   )}
                 </div>
 
-                <div className="mt-6">
+                {/* Pill-shaped control buttons matching myK9Q */}
+                <div className="flex justify-center">
                   {stopwatch.isRunning ? (
-                    <Button
-                      size="lg"
-                      variant="destructive"
-                      className="w-32 h-12 text-lg font-semibold"
+                    <button
+                      className={cn(
+                        timerButtonBase,
+                        'w-48 h-[72px] bg-red-500 hover:brightness-110 hover:scale-105 active:scale-95'
+                      )}
                       onClick={handleStopTimer}
                       data-testid="timer-stop"
                     >
                       Stop
-                    </Button>
-                  ) : stopwatch.time > 0 && stopwatch.isTimeExpired() ? (
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="w-32 h-12 text-lg font-semibold"
-                      onClick={stopwatch.reset}
-                    >
-                      Reset
-                    </Button>
+                    </button>
                   ) : stopwatch.time > 0 ? (
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      className="w-32 h-12 text-lg font-semibold"
+                    <button
+                      className={cn(
+                        timerButtonBase,
+                        'w-48 h-[72px] bg-teal-500 hover:brightness-110 hover:scale-105 active:scale-95'
+                      )}
                       onClick={stopwatch.start}
                     >
                       Resume
-                    </Button>
+                    </button>
                   ) : (
-                    <Button
-                      size="lg"
-                      className="w-32 h-12 text-lg font-semibold bg-green-600 hover:bg-green-700"
+                    <button
+                      className={cn(
+                        timerButtonBase,
+                        'w-48 h-[72px] bg-white !text-indigo-500 hover:-translate-y-0.5 hover:shadow-xl active:scale-95'
+                      )}
                       onClick={stopwatch.start}
                       data-testid="timer-start"
                     >
                       Start
-                    </Button>
+                    </button>
                   )}
                 </div>
               </div>
-            </Card>
+            </div>
 
             {/* Warning */}
             {warningMessage && (
               <div
                 className={cn(
-                  'px-4 py-3 rounded-lg text-center font-medium',
+                  'px-4 py-3 rounded-lg text-center font-semibold text-sm border',
                   warningMessage === 'Time Expired'
-                    ? 'bg-destructive/10 text-destructive'
-                    : 'bg-amber-500/10 text-amber-600'
+                    ? 'bg-red-500/10 border-red-500 text-red-600'
+                    : 'bg-amber-400/10 border-amber-400 text-amber-500'
                 )}
               >
                 {warningMessage}
               </div>
             )}
 
-            {/* Area Times */}
+            {/* Area Times - compact card style */}
             {scoring.areas.map((area, index) => (
-              <Card key={index} className="p-4">
-                <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                  {area.areaName}
-                </label>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={area.time}
-                    onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
-                    placeholder="0:00.00"
-                    className="text-center text-xl font-mono pr-10"
-                    aria-label={`${area.areaName} time`}
-                  />
-                  {area.time && (
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+              <Card key={index} className="p-3">
+                <div className="flex items-center justify-center gap-3">
+                  {scoring.areas.length > 1 && (
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-shrink-0">
+                      {area.areaName}
+                    </span>
                   )}
+                  <div className="relative flex-1 max-w-48">
+                    <Input
+                      type="text"
+                      value={area.time}
+                      onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
+                      placeholder="0:00.00"
+                      className="text-center text-base font-mono font-medium pr-8 h-12 rounded-xl border-2 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      aria-label={`${area.areaName} time`}
+                    />
+                    {area.time && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                        onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">
+                    Max: {maxTimeStr}
+                  </span>
                 </div>
               </Card>
             ))}
 
-            {/* Result Chips */}
+            {/* Result Choice Chips - pill-shaped, matching myK9Q */}
             <Card className="p-4 space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="flex gap-1.5 justify-center">
                 {RESULT_OPTIONS.map(opt => (
-                  <Button
+                  <button
                     key={opt.value}
-                    variant={scoring.qualifying === opt.value ? 'default' : 'outline'}
-                    className={cn('h-12', scoring.qualifying === opt.value && opt.activeClass)}
+                    className={cn(
+                      'px-3 py-2 rounded-full border-2 text-sm font-semibold cursor-pointer transition-all duration-200',
+                      'hover:-translate-y-px active:scale-[0.98]',
+                      scoring.qualifying === opt.value
+                        ? cn('text-white -translate-y-px', opt.activeClass)
+                        : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground'
+                    )}
                     onClick={() => handleResultSelect(opt.value)}
                     data-testid={`result-${opt.value}`}
                   >
                     {opt.label}
-                  </Button>
+                  </button>
                 ))}
               </div>
 
-              {/* Faults */}
+              {/* Fault Counter - circular buttons matching myK9Q */}
               {scoring.qualifying === 'Q' && (
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <span className="font-medium">Faults:</span>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="icon"
+                <div className="flex flex-col items-center gap-3 py-2">
+                  <h3 className="text-base font-semibold text-center">Faults Count</h3>
+                  <div className="flex items-center justify-center gap-5">
+                    <button
+                      className="w-11 h-11 rounded-full border-2 border-border bg-primary text-primary-foreground text-xl font-semibold flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
                       onClick={() => scoring.setFaultCount(Math.max(0, scoring.faultCount - 1))}
+                      disabled={scoring.faultCount === 0}
                     >
                       -
-                    </Button>
-                    <span className="text-xl font-bold w-8 text-center">{scoring.faultCount}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
+                    </button>
+                    <span className="text-2xl font-bold w-10 text-center tabular-nums">
+                      {scoring.faultCount}
+                    </span>
+                    <button
+                      className="w-11 h-11 rounded-full border-2 border-border bg-primary text-primary-foreground text-xl font-semibold flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-px"
                       onClick={() => scoring.setFaultCount(scoring.faultCount + 1)}
                     >
                       +
-                    </Button>
+                    </button>
                   </div>
                 </div>
               )}
 
-              {/* NQ Reason */}
+              {/* NQ Reason - choice chips matching myK9Q */}
               {scoring.qualifying === 'NQ' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="nq-reason-select">
-                    NQ Reason:
-                  </label>
-                  <select
-                    id="nq-reason-select"
-                    value={scoring.nonQualifyingReason}
-                    onChange={e => scoring.setNonQualifyingReason(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                  >
+                <div className="flex flex-col items-center gap-3 py-2">
+                  <h3 className="text-base font-semibold text-center">Non-Qualifying Reason</h3>
+                  <div className="flex gap-2 justify-center flex-wrap">
                     {NQ_REASONS.map(reason => (
-                      <option key={reason} value={reason}>
+                      <button
+                        key={reason}
+                        className={cn(
+                          'px-4 py-2 rounded-full border-2 text-sm font-semibold cursor-pointer transition-all duration-200',
+                          'hover:-translate-y-px active:scale-[0.98]',
+                          scoring.nonQualifyingReason === reason
+                            ? 'bg-primary text-white border-primary shadow-md'
+                            : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground'
+                        )}
+                        onClick={() => scoring.setNonQualifyingReason(reason)}
+                      >
                         {reason}
-                      </option>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
             </Card>
 
             {/* Submit */}
-            <div className="flex gap-3 pt-2 pb-8">
-              <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
+            <div className="flex gap-3 pt-1 pb-8">
+              <button
+                className={cn(
+                  actionButtonBase,
+                  'bg-gray-500/80 hover:bg-gray-500 hover:scale-[1.02] active:scale-[0.98]'
+                )}
+                onClick={onBack}
+              >
                 Cancel
-              </Button>
-              <Button
-                className="flex-1 h-12"
+              </button>
+              <button
+                className={cn(
+                  actionButtonBase,
+                  'bg-primary hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]',
+                  (scoring.isSubmitting || !scoring.qualifying) &&
+                    'opacity-40 cursor-not-allowed hover:scale-100 hover:brightness-100'
+                )}
                 onClick={handleSubmitClick}
                 disabled={scoring.isSubmitting || !scoring.qualifying}
                 data-testid="submit-btn"
               >
                 {scoring.isSubmitting ? 'Saving...' : 'Save'}
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -377,9 +445,9 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </p>
             </div>
 
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-bold text-primary">#{entry.armband}</span>
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm">
+                <span className="text-sm font-bold text-white">{entry.armband}</span>
               </div>
               <div>
                 <div className="font-medium">{entry.dogName}</div>
@@ -393,13 +461,13 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <span
                   className={cn(
                     'font-semibold',
-                    scoring.qualifying === 'Q' && 'text-green-600',
-                    scoring.qualifying === 'NQ' && 'text-amber-500',
-                    scoring.qualifying === 'ABS' && 'text-gray-500',
-                    scoring.qualifying === 'EX' && 'text-red-600'
+                    scoring.qualifying === 'Q' && 'text-blue-600',
+                    scoring.qualifying === 'NQ' && 'text-red-600',
+                    scoring.qualifying === 'ABS' && 'text-purple-600',
+                    scoring.qualifying === 'EX' && 'text-red-700'
                   )}
                 >
-                  {scoring.qualifying}
+                  {RESULT_LABELS[scoring.qualifying ?? ''] ?? scoring.qualifying}
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-border">
@@ -409,9 +477,18 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               {scoring.faultCount > 0 && (
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-muted-foreground">Faults</span>
-                  <span className="font-semibold text-amber-500">{scoring.faultCount}</span>
+                  <span className="font-semibold text-red-500">{scoring.faultCount}</span>
                 </div>
               )}
+              {scoring.nonQualifyingReason &&
+                (scoring.qualifying === 'NQ' || scoring.qualifying === 'EX') && (
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">
+                      {scoring.qualifying === 'EX' ? 'Excused' : 'NQ'} Reason
+                    </span>
+                    <span className="font-semibold">{scoring.nonQualifyingReason}</span>
+                  </div>
+                )}
             </div>
 
             <div className="flex gap-3 pt-2">

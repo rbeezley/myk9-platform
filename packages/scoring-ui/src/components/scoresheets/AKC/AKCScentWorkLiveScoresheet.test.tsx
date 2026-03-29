@@ -48,6 +48,7 @@ vi.mock('lucide-react', () => ({
   ArrowLeft: () => <span data-testid="icon-arrow-left" />,
   ClipboardCheck: () => <span data-testid="icon-clipboard" />,
   X: () => <span data-testid="icon-x" />,
+  RotateCcw: () => <span data-testid="icon-rotate-ccw" />,
 }));
 
 const defaultProps = {
@@ -63,7 +64,7 @@ describe('AKCScentWorkLiveScoresheet', () => {
     render(<AKCScentWorkLiveScoresheet {...defaultProps} />);
 
     expect(screen.getByText('Rex')).toBeInTheDocument();
-    expect(screen.getByText('#42')).toBeInTheDocument();
+    expect(screen.getByText('42')).toBeInTheDocument();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 

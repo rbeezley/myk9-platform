@@ -42,11 +42,17 @@ const mockUseTrialOverrides = vi.fn();
 vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
   useShowSettings: (...args: unknown[]) => mockUseShowSettings(...args),
   useTrialOverrides: (...args: unknown[]) => mockUseTrialOverrides(...args),
+  useClassOverrides: () => ({ data: [], isLoading: false }),
   settingsQueryKeys: {
     all: ['showSettings'],
     show: (id: string) => ['showSettings', 'show', id],
     trials: (id: string) => ['showSettings', 'trials', id],
+    classOverrides: (id: string) => ['showSettings', 'classOverrides', id],
   },
+}));
+
+vi.mock('@/store/classStore', () => ({
+  useClassStore: () => ({ classes: [] }),
 }));
 
 // --- Mutation hook mocks ---
@@ -71,6 +77,10 @@ vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   }),
   useResetOverride: () => ({
     mutate: mockResetOverrideMutate,
+    isPending: false,
+  }),
+  useUpdateClassOverride: () => ({
+    mutate: vi.fn(),
     isPending: false,
   }),
 }));

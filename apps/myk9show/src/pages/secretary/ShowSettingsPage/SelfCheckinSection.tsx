@@ -178,6 +178,9 @@ export function SelfCheckinSection({
             const trialClasses = classes.filter(c => c.trialId === trial.id);
             if (trialClasses.length === 0) return null;
 
+            const trialOverride = trialOverrides.find(o => o.trialId === trial.id);
+            const trialCheckin = trialOverride?.selfCheckinEnabled ?? null;
+            const trialHasOverride = trialCheckin !== null;
             const overrideCount = trialClasses.filter(c =>
               classOverrides.some(o => o.classId === c.id && o.selfCheckinEnabled !== null)
             ).length;
@@ -201,14 +204,8 @@ export function SelfCheckinSection({
                   {trialClasses.map(cls => {
                     const override = classOverrides.find(o => o.classId === cls.id);
                     const hasOverride = override && override.selfCheckinEnabled !== null;
-
-                    // Resolve effective value: class ?? trial ?? show
-                    const trialOverride = trialOverrides.find(o => o.trialId === trial.id);
-                    const trialCheckin = trialOverride?.selfCheckinEnabled ?? null;
                     const effective =
                       override?.selfCheckinEnabled ?? trialCheckin ?? settings.selfCheckinEnabled;
-
-                    const trialHasOverride = trialCheckin !== null;
 
                     return (
                       <div

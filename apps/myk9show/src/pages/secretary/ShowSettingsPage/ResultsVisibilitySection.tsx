@@ -52,6 +52,17 @@ const PRESET_ICONS: Record<VisibilityPreset, React.ReactNode> = {
 const ALL_TIMINGS: VisibilityTiming[] = ['immediate', 'class_complete', 'manual_release'];
 const PLACEMENT_TIMINGS: VisibilityTiming[] = ['class_complete', 'manual_release'];
 
+/** Check if an override has any visibility field set (non-null) */
+function hasVisibilityOverride(ov: VisibilityOverride): boolean {
+  return (
+    ov.preset !== undefined ||
+    ov.placement !== undefined ||
+    ov.qualification !== undefined ||
+    ov.time !== undefined ||
+    ov.faults !== undefined
+  );
+}
+
 /** Detect which preset (if any) matches the given field timings */
 function detectPreset(timings: FieldTimings): VisibilityPreset | null {
   for (const [name, cfg] of Object.entries(PRESET_CONFIGS)) {
@@ -156,6 +167,7 @@ export function ResultsVisibilitySection({
 
   const updateVisibility = useUpdateShowVisibility();
   const updateTrialOverride = useUpdateTrialOverride();
+  const updateClassOverride = useUpdateClassOverride();
   const resetOverride = useResetOverride();
 
   function applyPreset(preset: VisibilityPreset) {
@@ -224,8 +236,6 @@ export function ResultsVisibilitySection({
       }
     );
   }
-
-  const updateClassOverride = useUpdateClassOverride();
 
   function handleClassPreset(classId: string, trialId: string, preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
@@ -333,14 +343,7 @@ export function ResultsVisibilitySection({
           <h3 className="text-sm font-semibold">Trial Overrides</h3>
           {trials.map(trial => {
             const override = trialOverrides.find(o => o.trialId === trial.id);
-            const hasOverride =
-              override &&
-              (override.override.preset !== undefined ||
-                override.override.placement !== undefined ||
-                override.override.qualification !== undefined ||
-                override.override.time !== undefined ||
-                override.override.faults !== undefined);
-
+            const hasOverride = override && hasVisibilityOverride(override.override);
             const currentPreset = override?.override.preset ?? null;
 
             return (
@@ -399,18 +402,9 @@ export function ResultsVisibilitySection({
             const trialClasses = classes.filter(c => c.trialId === trial.id);
             if (trialClasses.length === 0) return null;
 
+            const trialHasOverride = trialOverrides.some(o => o.trialId === trial.id);
             const overrideCount = trialClasses.filter(c =>
-              classOverrides.some(o => {
-                if (o.classId !== c.id) return false;
-                const ov = o.override;
-                return (
-                  ov.preset !== undefined ||
-                  ov.placement !== undefined ||
-                  ov.qualification !== undefined ||
-                  ov.time !== undefined ||
-                  ov.faults !== undefined
-                );
-              })
+              classOverrides.some(o => o.classId === c.id && hasVisibilityOverride(o.override))
             ).length;
 
             return (
@@ -431,16 +425,8 @@ export function ResultsVisibilitySection({
                 <CollapsibleContent className="space-y-1 pl-3 pt-1">
                   {trialClasses.map(cls => {
                     const override = classOverrides.find(o => o.classId === cls.id);
-                    const hasOverride =
-                      override &&
-                      (override.override.preset !== undefined ||
-                        override.override.placement !== undefined ||
-                        override.override.qualification !== undefined ||
-                        override.override.time !== undefined ||
-                        override.override.faults !== undefined);
-
+                    const hasOverride = override && hasVisibilityOverride(override.override);
                     const currentPreset = override?.override.preset ?? null;
-                    const trialHasOverride = trialOverrides.some(o => o.trialId === trial.id);
 
                     return (
                       <div

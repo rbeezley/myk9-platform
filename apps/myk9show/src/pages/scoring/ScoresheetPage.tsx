@@ -125,16 +125,17 @@ export function ScoresheetPage() {
     if (!entry || !classInfo) return;
 
     await submitScoreOptimistically({
-      entryId: parseInt(entry.entryId, 10),
-      classId: parseInt(classInfo.id, 10),
+      entryId: entry.entryId,
+      classId: classInfo.id,
       armband: entry.armband,
       className: classInfo.name,
       scoreData: toOptimisticScorePayload(scoreData),
       onSuccess: () => {
-        setEntry(prev => (prev ? { ...prev, isScored: true, status: 'scored' } : null));
-
         // Auto-set check-in status to completed after scoring
         transitionToCompleted(entry.entryId);
+
+        // Navigate back to entry list
+        navigate(`/scoring/classes/${classId}/entries`);
       },
       onError: err => {
         logger.error('Score submission failed:', 'pages', {}, err as Error);

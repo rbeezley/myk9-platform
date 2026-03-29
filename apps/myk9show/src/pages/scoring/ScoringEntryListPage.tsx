@@ -8,15 +8,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import {
-  DndContext,
-  closestCenter,
-  DragOverlay,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useEntryListFilters, useDragAndDropEntries } from '@myk9/scoring-ui';
 import { cn } from '@/lib/utils';
 import {
@@ -43,15 +36,14 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Replication
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import type { CheckInStatus } from '@myk9/core';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 
 // Local components and types
-import {
-  SortableScoringEntryCard,
-} from './components/ScoringEntryCard';
+import { SortableScoringEntryCard } from './components/ScoringEntryCard';
 import type { ScoringEntry, ClassInfo } from './types';
-import { toScoringEntry, toClassInfo } from './types';
+import { toScoringEntry, toClassInfo, calculatePlacements } from './types';
 
 /**
  * Main scoring entry list page
@@ -70,6 +62,23 @@ export function ScoringEntryListPage() {
   const [manualOrder, setManualOrder] = useState<ScoringEntry[]>([]);
   const isDraggingRef = useRef(false);
 
+  // Load entries with dog data from replicated tables
+  const loadEntriesWithDogs = async (cId: string): Promise<ScoringEntry[]> => {
+    const rawEntries = await replicatedEntriesTable.getEntriesByClass(cId);
+    const dogsMap = new Map();
+    for (const entry of rawEntries) {
+      if (entry.dogId && !dogsMap.has(entry.dogId)) {
+        const dog = await replicatedDogsTable.get(entry.dogId);
+        if (dog) dogsMap.set(entry.dogId, dog);
+      }
+    }
+    const scoringEntries = rawEntries.map((entry, index) => {
+      const dog = entry.dogId ? dogsMap.get(entry.dogId) : null;
+      return toScoringEntry(entry, dog, index);
+    });
+    return calculatePlacements(scoringEntries);
+  };
+
   // Load data from replicated tables
   useEffect(() => {
     async function loadData() {
@@ -79,33 +88,13 @@ export function ScoringEntryListPage() {
       setError(null);
 
       try {
-        // Load class info
         const cls = await replicatedClassesTable.getClassById(classId);
         if (!cls) {
           setError('Class not found');
           return;
         }
 
-        // Load entries for this class
-        const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
-
-        // Load dogs for each entry
-        const dogsMap = new Map();
-        for (const entry of rawEntries) {
-          if (entry.dogId) {
-            const dog = await replicatedDogsTable.get(entry.dogId);
-            if (dog) {
-              dogsMap.set(entry.dogId, dog);
-            }
-          }
-        }
-
-        // Convert to ScoringEntry
-        const scoringEntries = rawEntries.map((entry, index) => {
-          const dog = entry.dogId ? dogsMap.get(entry.dogId) : null;
-          return toScoringEntry(entry, dog, index);
-        });
-
+        const scoringEntries = await loadEntriesWithDogs(classId);
         setEntries(scoringEntries);
         setClassInfo(toClassInfo(cls, scoringEntries.length));
       } catch (err) {
@@ -145,18 +134,13 @@ export function ScoringEntryListPage() {
   }, [activeTab, pendingEntries, completedEntries]);
 
   // Drag and drop hook
-  const {
-    sensors,
-    handleDragStart,
-    handleDragEnd,
-    isDragging,
-  } = useDragAndDropEntries({
+  const { sensors, handleDragStart, handleDragEnd, isDragging } = useDragAndDropEntries({
     localEntries: entries,
     setLocalEntries: setEntries,
     currentEntries,
     isDraggingRef,
     setManualOrder,
-    onUpdateOrder: async (reorderedEntries) => {
+    onUpdateOrder: async reorderedEntries => {
       // Update run order in database
       for (const entry of reorderedEntries) {
         await replicatedEntriesTable.updateEntry(entry.entryId, {
@@ -171,17 +155,34 @@ export function ScoringEntryListPage() {
     navigate(`/scoring/classes/${classId}/entries/${entry.entryId}`);
   };
 
+  // Reset score — clears result_status and moves entry back to Pending
+  const handleResetScore = async (entry: ScoringEntry) => {
+    try {
+      await replicatedEntriesTable.updateEntry(entry.entryId, {
+        result_status: 'pending',
+        resultStatus: 'pending',
+        search_time_seconds: 0,
+        searchTimeSeconds: 0,
+        total_faults: 0,
+        totalFaults: 0,
+        checkInStatus: 'checked-in' as CheckInStatus,
+        check_in_status: 'checked-in' as CheckInStatus,
+      });
+      // Reload entries with dog data
+      setEntries(await loadEntriesWithDogs(classId!));
+    } catch (err) {
+      logger.error('Failed to reset score', 'scoring', {}, err as Error);
+    }
+  };
+
   // Refresh data
   const handleRefresh = async () => {
     if (!classId) return;
     setIsLoading(true);
     try {
-      // Trigger sync
+      // Trigger sync then reload with dog data
       await replicatedEntriesTable.sync(classId);
-      // Reload from cache
-      const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
-      // ... convert entries (simplified for now)
-      setEntries(rawEntries.map((e, i) => toScoringEntry(e, null, i)));
+      setEntries(await loadEntriesWithDogs(classId));
     } catch (err) {
       logger.error('Refresh failed:', 'pages', {}, err as Error);
     } finally {
@@ -283,13 +284,13 @@ export function ScoringEntryListPage() {
           <Input
             placeholder="Search by armband, name, handler..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="pl-9"
           />
         </div>
 
         {/* Sort */}
-        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+        <Select value={sortBy} onValueChange={v => setSortBy(v as typeof sortBy)}>
           <SelectTrigger className="w-full sm:w-40">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Sort by" />
@@ -305,7 +306,7 @@ export function ScoringEntryListPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+      <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="pending" className="gap-2">
             Pending
@@ -330,18 +331,19 @@ export function ScoringEntryListPage() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={currentEntries.map((e) => e.id)}
+          items={currentEntries.map(e => e.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-3">
             {currentEntries.length === 0 ? (
               <EmptyState tab={activeTab} searchTerm={searchTerm} />
             ) : (
-              currentEntries.map((entry) => (
+              currentEntries.map(entry => (
                 <SortableScoringEntryCard
-                  key={entry.id}
+                  key={entry.entryId}
                   entry={entry}
                   onSelect={handleSelectEntry}
+                  onResetScore={handleResetScore}
                 />
               ))
             )}
@@ -365,23 +367,13 @@ export function ScoringEntryListPage() {
 /**
  * Empty state component
  */
-function EmptyState({
-  tab,
-  searchTerm,
-}: {
-  tab: 'pending' | 'completed';
-  searchTerm: string;
-}) {
+function EmptyState({ tab, searchTerm }: { tab: 'pending' | 'completed'; searchTerm: string }) {
   if (searchTerm) {
     return (
       <div className="text-center py-12">
         <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">
-          No Results Found
-        </h3>
-        <p className="text-muted-foreground">
-          No entries match "{searchTerm}"
-        </p>
+        <h3 className="text-lg font-semibold text-foreground mb-2">No Results Found</h3>
+        <p className="text-muted-foreground">No entries match "{searchTerm}"</p>
       </div>
     );
   }
@@ -393,9 +385,7 @@ function EmptyState({
         {tab === 'pending' ? 'No Pending Entries' : 'No Completed Entries'}
       </h3>
       <p className="text-muted-foreground">
-        {tab === 'pending'
-          ? 'All entries have been scored!'
-          : 'No entries have been scored yet.'}
+        {tab === 'pending' ? 'All entries have been scored!' : 'No entries have been scored yet.'}
       </p>
     </div>
   );

@@ -1,10 +1,23 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 
-export type QualifyingResult = 'Q' | 'NQ' | 'EX' | 'DQ' | 'E' | 'ABS' | 'WD' | 'Qualified' | 'Excused' | 'Withdrawn' | 'Eliminated' | 'Absent' | null;
-export type CompetitionType = 
+export type QualifyingResult =
+  | 'Q'
+  | 'NQ'
+  | 'EX'
+  | 'DQ'
+  | 'E'
+  | 'ABS'
+  | 'WD'
+  | 'Qualified'
+  | 'Excused'
+  | 'Withdrawn'
+  | 'Eliminated'
+  | 'Absent'
+  | null;
+export type CompetitionType =
   | 'UKC_OBEDIENCE'
-  | 'UKC_RALLY' 
+  | 'UKC_RALLY'
   | 'UKC_NOSEWORK'
   | 'AKC_SCENT_WORK'
   | 'AKC_SCENT_WORK_NATIONAL'
@@ -12,7 +25,7 @@ export type CompetitionType =
   | 'ASCA_SCENT_DETECTION';
 
 interface Score {
-  entryId: number;
+  entryId: string | number;
   armband: number;
   points?: number;
   time?: string;
@@ -47,7 +60,7 @@ interface ScoringState {
   currentSession: ScoringSession | null;
   isScoring: boolean;
   lastScoredEntry: Score | null;
-  
+
   // Actions
   startScoringSession: (
     classId: number,
@@ -56,9 +69,9 @@ interface ScoringState {
     judgeId: string,
     totalEntries: number
   ) => void;
-  
+
   submitScore: (score: Omit<Score, 'scoredAt' | 'syncStatus'>) => void;
-  updateScoreSync: (entryId: number, syncStatus: 'synced' | 'error') => void;
+  updateScoreSync: (entryId: string | number, syncStatus: 'synced' | 'error') => void;
   undoLastScore: () => void;
   moveToNextEntry: () => void;
   moveToPreviousEntry: () => void;
@@ -69,7 +82,7 @@ interface ScoringState {
 export const useScoringStore = create<ScoringState>()(
   devtools(
     persist(
-      (set) => ({
+      set => ({
         currentSession: null,
         isScoring: false,
         lastScoredEntry: null,
@@ -84,36 +97,36 @@ export const useScoringStore = create<ScoringState>()(
               startedAt: new Date().toISOString(),
               currentEntryIndex: 0,
               totalEntries,
-              scores: []
+              scores: [],
             },
             isScoring: true,
-            lastScoredEntry: null
+            lastScoredEntry: null,
           });
         },
 
-        submitScore: (scoreData) => {
+        submitScore: scoreData => {
           const score: Score = {
             ...scoreData,
             scoredAt: new Date().toISOString(),
-            syncStatus: 'pending'
+            syncStatus: 'pending',
           };
 
-          set((state) => {
+          set(state => {
             if (!state.currentSession) return state;
 
             return {
               ...state,
               currentSession: {
                 ...state.currentSession,
-                scores: [...state.currentSession.scores, score]
+                scores: [...state.currentSession.scores, score],
               },
-              lastScoredEntry: score
+              lastScoredEntry: score,
             };
           });
         },
 
         updateScoreSync: (entryId, syncStatus) => {
-          set((state) => {
+          set(state => {
             if (!state.currentSession) return state;
 
             const updatedScores = state.currentSession.scores.map(score =>
@@ -124,14 +137,14 @@ export const useScoringStore = create<ScoringState>()(
               ...state,
               currentSession: {
                 ...state.currentSession,
-                scores: updatedScores
-              }
+                scores: updatedScores,
+              },
             };
           });
         },
 
         undoLastScore: () => {
-          set((state) => {
+          set(state => {
             if (!state.currentSession || state.currentSession.scores.length === 0) {
               return state;
             }
@@ -144,15 +157,15 @@ export const useScoringStore = create<ScoringState>()(
               currentSession: {
                 ...state.currentSession,
                 scores,
-                currentEntryIndex: Math.max(0, state.currentSession.currentEntryIndex - 1)
+                currentEntryIndex: Math.max(0, state.currentSession.currentEntryIndex - 1),
               },
-              lastScoredEntry: scores[scores.length - 1] || null
+              lastScoredEntry: scores[scores.length - 1] || null,
             };
           });
         },
 
         moveToNextEntry: () => {
-          set((state) => {
+          set(state => {
             if (!state.currentSession) return state;
 
             const nextIndex = Math.min(
@@ -164,14 +177,14 @@ export const useScoringStore = create<ScoringState>()(
               ...state,
               currentSession: {
                 ...state.currentSession,
-                currentEntryIndex: nextIndex
-              }
+                currentEntryIndex: nextIndex,
+              },
             };
           });
         },
 
         moveToPreviousEntry: () => {
-          set((state) => {
+          set(state => {
             if (!state.currentSession) return state;
 
             const prevIndex = Math.max(0, state.currentSession.currentEntryIndex - 1);
@@ -180,15 +193,15 @@ export const useScoringStore = create<ScoringState>()(
               ...state,
               currentSession: {
                 ...state.currentSession,
-                currentEntryIndex: prevIndex
-              }
+                currentEntryIndex: prevIndex,
+              },
             };
           });
         },
 
         endScoringSession: () => {
           set({
-            isScoring: false
+            isScoring: false,
           });
         },
 
@@ -196,16 +209,16 @@ export const useScoringStore = create<ScoringState>()(
           set({
             currentSession: null,
             isScoring: false,
-            lastScoredEntry: null
+            lastScoredEntry: null,
           });
-        }
+        },
       }),
       {
         name: 'scoring-storage',
-        partialize: (state) => ({
+        partialize: state => ({
           currentSession: state.currentSession,
-          lastScoredEntry: state.lastScoredEntry
-        })
+          lastScoredEntry: state.lastScoredEntry,
+        }),
       }
     ),
     { enabled: import.meta.env.DEV } // Only enable devtools in development

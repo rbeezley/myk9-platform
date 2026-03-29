@@ -5,7 +5,7 @@
  * Uses Tailwind styling consistent with myK9Show.
  */
 
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,8 @@ import {
   AlertCircle,
   Trophy,
   ChevronRight,
+  MoreVertical,
+  RotateCcw,
 } from 'lucide-react';
 import type { ScoringEntry } from '../types';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
@@ -23,6 +25,7 @@ import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 interface ScoringEntryCardProps {
   entry: ScoringEntry;
   onSelect?: (entry: ScoringEntry) => void;
+  onResetScore?: (entry: ScoringEntry) => void;
   isDragging?: boolean;
   className?: string;
 }
@@ -71,26 +74,47 @@ function getStatusDisplay(entry: ScoringEntry) {
  * Base entry card component
  */
 export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps>(
-  ({ entry, onSelect, isDragging, className, ...props }, ref) => {
+  ({ entry, onSelect, onResetScore, isDragging, className, ...props }, ref) => {
     const status = getStatusDisplay(entry);
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    const handleClick = () => {
+      if (!entry.isScored) {
+        onSelect?.(entry);
+      }
+    };
+
+    const handleMenuToggle = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setMenuOpen(prev => !prev);
+    };
+
+    const handleResetScore = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setMenuOpen(false);
+      onResetScore?.(entry);
+    };
 
     return (
       <div
         ref={ref}
-        onClick={() => onSelect?.(entry)}
+        onClick={handleClick}
         className={cn(
-          'group relative flex items-center gap-3 p-4 bg-card border rounded-xl cursor-pointer',
-          'hover:bg-accent/50 hover:border-accent transition-colors',
+          'group relative flex items-center gap-3 p-4 bg-card border rounded-xl',
+          !entry.isScored && 'cursor-pointer hover:bg-accent/50 hover:border-accent',
+          'transition-colors',
           isDragging && 'shadow-lg ring-2 ring-primary opacity-90',
           entry.isScored && 'bg-muted/30',
           className
         )}
         {...props}
       >
-        {/* Drag Handle */}
-        <div className="shrink-0 touch-none">
-          <GripVertical className="h-5 w-5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
-        </div>
+        {/* Drag Handle (pending only) */}
+        {!entry.isScored && (
+          <div className="shrink-0 touch-none">
+            <GripVertical className="h-5 w-5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
+          </div>
+        )}
 
         {/* Armband Badge */}
         <ArmbandBadge armband={entry.armband} />
@@ -107,8 +131,23 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
               </span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground truncate">{entry.breed}</p>
-          <p className="text-xs text-muted-foreground truncate">Handler: {entry.handler}</p>
+          {entry.isScored && entry.result ? (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              {entry.result.time > 0 && (
+                <span className="font-mono">{formatTime(entry.result.time)}</span>
+              )}
+              {entry.result.qualification === 'Qualified' && entry.result.faults > 0 && (
+                <span>
+                  {entry.result.faults} fault{entry.result.faults !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground truncate">{entry.breed}</p>
+              <p className="text-xs text-muted-foreground truncate">Handler: {entry.handler}</p>
+            </>
+          )}
         </div>
 
         {/* Placement (if scored) */}
@@ -127,15 +166,34 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
           </div>
         )}
 
-        {/* Time (if scored) */}
-        {entry.result?.time && (
-          <div className="shrink-0 text-sm font-mono text-muted-foreground">
-            {formatTime(entry.result.time)}
+        {/* Trailing: Chevron for pending, 3-dot menu for completed */}
+        {entry.isScored ? (
+          <div className="relative shrink-0">
+            <button
+              onClick={handleMenuToggle}
+              className="p-1.5 rounded-full hover:bg-accent transition-colors"
+              aria-label="Entry actions"
+            >
+              <MoreVertical className="h-5 w-5 text-muted-foreground" />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={handleMenuToggle} />
+                <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px]">
+                  <button
+                    onClick={handleResetScore}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset Score
+                  </button>
+                </div>
+              </>
+            )}
           </div>
+        ) : (
+          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
         )}
-
-        {/* Chevron */}
-        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
       </div>
     );
   }
@@ -146,9 +204,10 @@ ScoringEntryCard.displayName = 'ScoringEntryCard';
 /**
  * Sortable wrapper for drag-and-drop
  */
-export function SortableScoringEntryCard({ entry, onSelect }: ScoringEntryCardProps) {
+export function SortableScoringEntryCard({ entry, onSelect, onResetScore }: ScoringEntryCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
+    disabled: entry.isScored,
   });
 
   const style = {
@@ -158,10 +217,11 @@ export function SortableScoringEntryCard({ entry, onSelect }: ScoringEntryCardPr
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...(!entry.isScored && listeners)}>
       <ScoringEntryCard
         entry={entry}
         {...(onSelect !== undefined && { onSelect })}
+        {...(onResetScore !== undefined && { onResetScore })}
         isDragging={isDragging}
       />
     </div>

@@ -18,8 +18,8 @@ import { useScoringStore, type QualifyingResult } from '@/stores/scoringStore';
 import { logger } from '@/services/LoggingService';
 
 export interface ScoreSubmissionData {
-  entryId: number;
-  classId: number;
+  entryId: string | number;
+  classId: string | number;
   armband: number;
   className: string;
   scoreData: {
@@ -43,11 +43,11 @@ export interface ScoreSubmissionData {
 
 export interface OptimisticScoringOptions {
   /** Entry ID to score */
-  entryId: number;
+  entryId: string | number;
   /** Score data to submit */
   scoreData: ScoreSubmissionData['scoreData'];
   /** Class ID for offline queue */
-  classId?: number;
+  classId?: string | number;
   /** Armband for offline queue */
   armband?: number;
   /** Class name for offline queue */
@@ -90,7 +90,9 @@ function convertTimeToSeconds(timeStr: string): number {
 export function useOptimisticScoring() {
   const { update, isSyncing, hasError, error, retryCount, clearError } = useOptimisticUpdate();
   const { submitScore: addScoreToSession } = useScoringStore();
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
 
   // Listen for online/offline events
   useEffect(() => {
@@ -123,12 +125,21 @@ export function useOptimisticScoring() {
         await replicatedEntriesTable.updateEntry(String(entryId), {
           result_status: resultStatus,
           search_time_seconds: searchTimeSeconds,
+          total_faults: scoreData.faultCount ?? 0,
         });
 
-        logger.debug(`✅ [useOptimisticScoring] Updated local cache for entry ${entryId}`, 'scoring');
+        logger.debug(
+          `✅ [useOptimisticScoring] Updated local cache for entry ${entryId}`,
+          'scoring'
+        );
       } catch (cacheError) {
         // Non-fatal: cache update failed but we can continue
-        logger.warn('⚠️ [useOptimisticScoring] Failed to update local cache', 'scoring', {}, cacheError as Error);
+        logger.warn(
+          '⚠️ [useOptimisticScoring] Failed to update local cache',
+          'scoring',
+          {},
+          cacheError as Error
+        );
       }
 
       // Add to scoring session for local tracking
@@ -138,7 +149,9 @@ export function useOptimisticScoring() {
         time: scoreData.searchTime || '0:00.00',
         qualifying: optimisticResult as QualifyingResult,
         areas: scoreData.areas || {},
-        ...(scoreData.nonQualifyingReason !== undefined && { nonQualifyingReason: scoreData.nonQualifyingReason }),
+        ...(scoreData.nonQualifyingReason !== undefined && {
+          nonQualifyingReason: scoreData.nonQualifyingReason,
+        }),
         ...(scoreData.faultCount !== undefined && { faults: scoreData.faultCount }),
       });
 
@@ -160,7 +173,7 @@ export function useOptimisticScoring() {
         onSuccess: () => {
           onSuccess?.();
         },
-        onError: (err) => {
+        onError: err => {
           logger.error('❌ Score submission failed', 'scoring', {}, err);
 
           // If offline, we already saved it locally, so allow navigation

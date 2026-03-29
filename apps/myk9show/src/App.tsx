@@ -193,7 +193,7 @@ function AnnouncementSubscriptionInitializer() {
 }
 
 /** Routes where the app header is hidden (fullscreen scoring UI) */
-const HEADERLESS_ROUTE_PATTERN = /^\/scoring\/classes\/[^/]+\/entries\/[^/]+/;
+const HEADERLESS_ROUTE_PATTERN = /^\/scoring\/classes\/[^/]+\/entries/;
 
 function ConditionalAppHeader() {
   const { pathname } = useLocation();

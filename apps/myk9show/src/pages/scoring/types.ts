@@ -84,9 +84,24 @@ export function toScoringEntry(
   const armband = parseInt(entry.armband || '0', 10) || 0;
   const status = mapEntryStatus(entry.status);
 
+  // Check result_status/resultStatus to detect scored entries (set by optimistic scoring)
+  // Exclude 'pending' — that's the DB default for unscored entries
+  const resultStatus = entry.result_status || entry.resultStatus || '';
+  const hasResult = !!resultStatus && resultStatus !== 'pending';
+  const isScored = status === 'scored' || hasResult;
+
+  // Build result object from replicated entry fields
+  const result: ScoringResult | undefined = hasResult
+    ? {
+        time: (entry.search_time_seconds || entry.searchTimeSeconds || 0) * 1000,
+        faults: entry.total_faults ?? entry.totalFaults ?? 0,
+        qualification: mapResultStatusToQualification(resultStatus),
+      }
+    : undefined;
+
   return {
-    // BaseEntry required fields (numeric id for hooks — entries use auto-increment integers)
-    id: parseInt(entry.id, 10) || index + 1,
+    // BaseEntry required fields — hash UUID to unique integer for DnD
+    id: hashStringToInt(entry.id),
 
     // String IDs for database operations
     entryId: entry.id,
@@ -100,13 +115,76 @@ export function toScoringEntry(
     armband,
 
     // Status
-    status,
-    inRing: status === 'in-ring',
-    isScored: status === 'scored',
+    status: isScored ? 'scored' : status,
+    inRing: !isScored && status === 'in-ring',
+    isScored,
     exhibitorOrder: entry.runOrder || armband || index + 1,
+    ...(result && { result }),
     // Note: section is optional and not available on ReplicatedEntry
     // It would need to be passed from class data if needed
   };
+}
+
+/**
+ * Calculate placements for scored entries.
+ * Qualified dogs ranked by: fewest faults first, then fastest time.
+ * NQ/Absent/Excused entries get no placement.
+ */
+export function calculatePlacements(entries: ScoringEntry[]): ScoringEntry[] {
+  const qualified = entries
+    .filter(e => e.isScored && e.result?.qualification === 'Qualified' && e.result.time > 0)
+    .sort((a, b) => {
+      const faultsA = a.result?.faults ?? 0;
+      const faultsB = b.result?.faults ?? 0;
+      if (faultsA !== faultsB) return faultsA - faultsB;
+      return (a.result?.time ?? Infinity) - (b.result?.time ?? Infinity);
+    });
+
+  // Assign placements
+  const placementMap = new Map<string, number>();
+  qualified.forEach((entry, index) => {
+    placementMap.set(entry.entryId, index + 1);
+  });
+
+  return entries.map(entry => {
+    const placement = placementMap.get(entry.entryId);
+    return placement ? { ...entry, placement } : entry;
+  });
+}
+
+/**
+ * Hash a string (UUID) to a stable positive integer for DnD IDs
+ */
+function hashStringToInt(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) || 1;
+}
+
+/**
+ * Map result_status values to qualification display text
+ */
+function mapResultStatusToQualification(resultStatus: string): ScoringResult['qualification'] {
+  switch (resultStatus.toLowerCase()) {
+    case 'qualified':
+    case 'q':
+      return 'Qualified';
+    case 'not_qualified':
+    case 'nq':
+      return 'Not Qualified';
+    case 'absent':
+    case 'abs':
+      return 'Absent';
+    case 'excused':
+    case 'ex':
+      return 'Excused';
+    case 'withdrawn':
+      return 'Withdrawn';
+    default:
+      return 'Not Qualified';
+  }
 }
 
 /**

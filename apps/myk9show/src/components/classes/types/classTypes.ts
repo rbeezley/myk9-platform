@@ -67,10 +67,10 @@ export type EntryData = CompetitionResult;
 
 /** Build display name from element/level/section fields */
 export function getClassName(cls: {
-  element?: string;
-  level?: string;
-  section?: string;
-  className?: string;
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+  className?: string | undefined;
 }): string {
   const parts = [cls.element, cls.level, cls.section].filter(Boolean);
   return parts.length > 0 ? parts.join(' ') : cls.className || 'Unnamed Class';

@@ -1,6 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
+import {
+  Save,
+  AlertCircle,
+  ClipboardList,
+  Eraser,
+  Plus,
+  Search,
+  Trophy,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +26,7 @@ import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, ScoringRow, ScoringEdit } from './types';
 import type { ScentWorkEntry } from '@/types/scent-work-types';
 import type { CheckInStatus } from '@myk9/core';
+import { matchesAny } from '@myk9/core';
 import { useClassResults } from './useClassResults';
 import { getPlacementBadgeClass, formatPlacement } from './utils';
 import { DogInfoTooltip } from './DogInfoTooltip';
@@ -99,6 +110,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
   // Scoring status tab filtering (Pending / Completed / All)
   const [scoringTab, setScoringTab] = useState<ScoringStatusTab>('pending');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const scoredEntryIds = useMemo(
     () => new Set(rows.filter(r => r.isScored).map(r => r.entryId)),
@@ -120,17 +132,32 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   );
 
   const filteredRows = useMemo(() => {
-    if (scoringTab === 'all') return rows;
-    if (scoringTab === 'completed') return rows.filter(r => r.isScored);
-    return rows.filter(r => !r.isScored);
-  }, [rows, scoringTab]);
+    let result = rows;
+    if (scoringTab === 'completed') result = result.filter(r => r.isScored);
+    else if (scoringTab === 'pending') result = result.filter(r => !r.isScored);
+    if (searchQuery) {
+      result = result.filter(r =>
+        matchesAny([r.dogName, r.handlerName, r.armband], searchQuery)
+      );
+    }
+    return result;
+  }, [rows, scoringTab, searchQuery]);
 
-  /** Source entries filtered by the active scoring tab (for card view). */
+  /** Source entries filtered by the active scoring tab + search (for card view). */
   const filteredEntries = useMemo(() => {
-    if (scoringTab === 'all') return entries;
-    if (scoringTab === 'completed') return entries.filter(e => isEntryScored(e.id));
-    return entries.filter(e => !isEntryScored(e.id));
-  }, [entries, scoringTab, isEntryScored]);
+    let result = entries;
+    if (scoringTab === 'completed') result = result.filter(e => isEntryScored(e.id));
+    else if (scoringTab === 'pending') result = result.filter(e => !isEntryScored(e.id));
+    if (searchQuery) {
+      result = result.filter(e =>
+        matchesAny(
+          [e.displayInfo.dogName, e.displayInfo.handlerName, e.displayInfo.armband],
+          searchQuery
+        )
+      );
+    }
+    return result;
+  }, [entries, scoringTab, isEntryScored, searchQuery]);
 
   const columns: ColumnDef<ScoringRow, unknown>[] = useMemo(() => {
     const cols: ColumnDef<ScoringRow, unknown>[] = [
@@ -437,6 +464,30 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             onValueChange={v => setScoringTab(v as ScoringStatusTab)}
             className="px-4 pt-3"
           />
+
+          {/* Search toolbar */}
+          <div className="px-4 pt-3">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by dog, handler, or armband..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 pr-8 text-sm"
+                aria-label="Search entries"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
 
           {effectiveViewMode === 'cards' ? (
             <EntryCardGrid

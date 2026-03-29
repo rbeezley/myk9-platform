@@ -217,6 +217,9 @@ export function useUpdateClassOverride() {
         queryKey: settingsQueryKeys.classOverride(variables.classId),
       });
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverrides(variables.showId),
+      });
     },
   });
 }
@@ -255,6 +258,9 @@ export function useResetOverride() {
       });
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.classOverride(variables.entityId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverrides(variables.showId),
       });
     },
   });

@@ -10,7 +10,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, UserCheck, Settings } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
-import { useShowSettings, useTrialOverrides } from '@/hooks/queries/useShowSettingsDatabase';
+import {
+  useShowSettings,
+  useTrialOverrides,
+  useClassOverrides,
+} from '@/hooks/queries/useShowSettingsDatabase';
+import { useClassStore } from '@/store/classStore';
 import { ResultsVisibilitySection } from './ResultsVisibilitySection';
 import { SelfCheckinSection } from './SelfCheckinSection';
 
@@ -25,8 +30,13 @@ export default function ShowSettingsPage() {
   const { data: trialOverrides = [], isLoading: overridesLoading } = useTrialOverrides(
     selectedShowId || null
   );
+  const { data: classOverrides = [], isLoading: classOverridesLoading } = useClassOverrides(
+    selectedShowId || null
+  );
+  const { classes } = useClassStore();
+  const showClasses = classes.filter(c => showTrials.some(t => t.id === c.trialId));
 
-  const isLoading = settingsLoading || overridesLoading;
+  const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
 
   if (!selectedShowId) {
     return (
@@ -67,7 +77,9 @@ export default function ShowSettingsPage() {
               showId={selectedShowId}
               settings={settings}
               trialOverrides={trialOverrides}
+              classOverrides={classOverrides}
               trials={showTrials}
+              classes={showClasses}
             />
           )}
         </CardContent>
@@ -92,7 +104,9 @@ export default function ShowSettingsPage() {
               showId={selectedShowId}
               settings={settings}
               trialOverrides={trialOverrides}
+              classOverrides={classOverrides}
               trials={showTrials}
+              classes={showClasses}
             />
           )}
         </CardContent>

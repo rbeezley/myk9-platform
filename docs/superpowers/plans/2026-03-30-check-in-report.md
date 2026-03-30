@@ -764,10 +764,15 @@ describe('CheckInClassRow', () => {
     expect(screen.getByRole('button', { name: /check in/i })).toBeInTheDocument();
   });
 
-  it('shows checkmark and attribution when checked in', () => {
+  it('shows "Self check-in" attribution when checked in by exhibitor', () => {
     render(<CheckInClassRow {...defaultProps} checkInStatus="checked-in" />);
     expect(screen.queryByRole('button', { name: /check in/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/checked in/i)).toBeInTheDocument();
+    expect(screen.getByText(/Self check-in/)).toBeInTheDocument();
+  });
+
+  it('shows "Secretary" attribution when checked in by secretary [ADDED]', () => {
+    render(<CheckInClassRow {...defaultProps} checkInStatus="checked-in" checkedBySecretary />);
+    expect(screen.getByText(/Secretary/)).toBeInTheDocument();
   });
 
   it('shows status label for other statuses (at-gate, in-ring, etc)', () => {
@@ -809,6 +814,8 @@ interface CheckInClassRowProps {
   className: string;
   checkInStatus: string;
   onCheckIn: (entryId: string) => void;
+  /** [ADDED] Whether this entry was checked in by the secretary this session */
+  checkedBySecretary?: boolean;
 }
 
 export function CheckInClassRow({
@@ -816,6 +823,7 @@ export function CheckInClassRow({
   className,
   checkInStatus,
   onCheckIn,
+  checkedBySecretary = false,
 }: CheckInClassRowProps) {
   const config = getCheckinStatusConfig(checkInStatus);
   const isNone = checkInStatus === 'no-status' || !checkInStatus;
@@ -847,7 +855,10 @@ export function CheckInClassRow({
           className="text-xs"
           style={{ color: `var(${colorVar})` }}
         >
-          {checkInStatus === 'checked-in' ? '✓ ' : ''}{label}
+          {/* [ADDED] Attribution: show who checked in */}
+          {checkInStatus === 'checked-in'
+            ? checkedBySecretary ? '✓ Secretary' : '✓ Self check-in'
+            : label}
         </span>
       )}
     </div>
@@ -997,12 +1008,15 @@ interface CheckInExhibitorCardProps {
   group: ExhibitorCheckInGroup;
   onCheckIn: (entryId: string) => void;
   onCheckInAll: (entryIds: string[]) => void;
+  /** [ADDED] Entry IDs checked in by the secretary this session */
+  secretaryCheckedIds?: Set<string>;
 }
 
 export function CheckInExhibitorCard({
   group,
   onCheckIn,
   onCheckInAll,
+  secretaryCheckedIds = new Set(),
 }: CheckInExhibitorCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -1073,6 +1087,7 @@ export function CheckInExhibitorCard({
               className={entry.className}
               checkInStatus={entry.checkInStatus}
               onCheckIn={onCheckIn}
+              checkedBySecretary={secretaryCheckedIds.has(entry.entryId)}
             />
           ))}
         </div>
@@ -1229,6 +1244,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
+import { notifications } from '@/lib/notifications'; // [ADDED] Error feedback
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 
 type StatusFilter = 'needs-action' | 'done' | 'all';
@@ -1317,26 +1333,69 @@ export default function CheckInReportPage() {
     return { checkedIn, partial, none, total };
   }, [groups]);
 
-  // Check-in mutation
+  // Check-in mutation [EXPANDED: added error toasts + optimistic updates]
   const handleCheckIn = async (entryId: string) => {
+    // Optimistic: update cache immediately
+    const previousData = queryClient.getQueryData<ExhibitorCheckInGroup[]>(
+      queryKeys.checkInReport(selectedShowId!)
+    );
+    queryClient.setQueryData<ExhibitorCheckInGroup[]>(
+      queryKeys.checkInReport(selectedShowId!),
+      (old) => old?.map(g => ({
+        ...g,
+        entries: g.entries.map(e =>
+          e.entryId === entryId ? { ...e, checkInStatus: 'checked-in' } : e
+        ),
+        checkedInCount: g.entries.filter(e =>
+          e.entryId === entryId ? true : (e.checkInStatus !== 'no-status' && !!e.checkInStatus)
+        ).length,
+        summaryStatus: undefined as never, // recalculated below
+      }))
+    );
+
     const { error } = await supabase
       .from('entries')
       .update({ check_in_status: 'checked-in' })
       .eq('id', entryId);
 
-    if (!error) {
+    if (error) {
+      // Rollback on error
+      queryClient.setQueryData(queryKeys.checkInReport(selectedShowId!), previousData);
+      notifications.error('Failed to check in entry');
+    } else {
       setSecretaryCheckedIds(prev => new Set(prev).add(entryId));
+      // Refetch for authoritative data
       queryClient.invalidateQueries({ queryKey: queryKeys.checkInReport(selectedShowId!) });
     }
   };
 
   const handleCheckInAll = async (entryIds: string[]) => {
+    const entryIdSet = new Set(entryIds);
+    // Optimistic: update cache immediately
+    const previousData = queryClient.getQueryData<ExhibitorCheckInGroup[]>(
+      queryKeys.checkInReport(selectedShowId!)
+    );
+    queryClient.setQueryData<ExhibitorCheckInGroup[]>(
+      queryKeys.checkInReport(selectedShowId!),
+      (old) => old?.map(g => ({
+        ...g,
+        entries: g.entries.map(e =>
+          entryIdSet.has(e.entryId) ? { ...e, checkInStatus: 'checked-in' } : e
+        ),
+        checkedInCount: g.entries.length, // all checked in after batch
+        summaryStatus: 'checked-in' as const,
+      }))
+    );
+
     const { error } = await supabase
       .from('entries')
       .update({ check_in_status: 'checked-in' })
       .in('id', entryIds);
 
-    if (!error) {
+    if (error) {
+      queryClient.setQueryData(queryKeys.checkInReport(selectedShowId!), previousData);
+      notifications.error('Failed to check in entries');
+    } else {
       setSecretaryCheckedIds(prev => {
         const next = new Set(prev);
         entryIds.forEach(id => next.add(id));
@@ -1402,11 +1461,17 @@ export default function CheckInReportPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Trials</SelectItem>
-            {showTrials.map(trial => (
-              <SelectItem key={trial.id} value={trial.id}>
-                T{trial.trialNumber}
-              </SelectItem>
-            ))}
+            {/* [EXPANDED] Show day abbreviation + trial number */}
+            {showTrials.map(trial => {
+              const dayAbbrevs = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              const day = new Date(trial.trialDate + 'T00:00:00');
+              const label = `${dayAbbrevs[day.getDay()]} T${trial.trialNumber}`;
+              return (
+                <SelectItem key={trial.id} value={trial.id}>
+                  {label}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
 
@@ -1448,6 +1513,7 @@ export default function CheckInReportPage() {
               group={group}
               onCheckIn={handleCheckIn}
               onCheckInAll={handleCheckInAll}
+              secretaryCheckedIds={secretaryCheckedIds}
             />
           ))}
         </div>

@@ -46,9 +46,11 @@ describe('computeSummaryStats', () => {
   it('returns zeroed stats for empty array', () => {
     const stats = computeSummaryStats([]);
     expect(stats.totalEntries).toBe(0);
+    expect(stats.scoredEntries).toBe(0);
     expect(stats.qualifiedCount).toBe(0);
     expect(stats.qualificationRate).toBe(0);
     expect(stats.bestTime).toBeNull();
+    expect(stats.bestTimeDogName).toBeNull();
     expect(stats.avgTime).toBeNull();
     expect(stats.medianTime).toBeNull();
   });
@@ -61,6 +63,7 @@ describe('computeSummaryStats', () => {
     ];
     const stats = computeSummaryStats(entries);
     expect(stats.totalEntries).toBe(3);
+    expect(stats.scoredEntries).toBe(2);
     expect(stats.qualifiedCount).toBe(1);
     // Q rate = 1 / 2 scored = 0.5
     expect(stats.qualificationRate).toBe(0.5);
@@ -68,14 +71,15 @@ describe('computeSummaryStats', () => {
 
   it('computes best/avg/median times from qualified entries only', () => {
     const entries = [
-      makeEntry({ id: 'e1', resultText: 'Q', searchTimeSeconds: 30 }),
-      makeEntry({ id: 'e2', resultText: 'Q', searchTimeSeconds: 50 }),
-      makeEntry({ id: 'e3', resultText: 'Q', searchTimeSeconds: 40 }),
-      makeEntry({ id: 'e4', resultText: 'NQ', searchTimeSeconds: 10 }), // excluded (NQ)
-      makeEntry({ id: 'e5', resultText: 'Q', searchTimeSeconds: null }), // excluded (null time)
+      makeEntry({ id: 'e1', dogCallName: 'Rex', resultText: 'Q', searchTimeSeconds: 30 }),
+      makeEntry({ id: 'e2', dogCallName: 'Rex', resultText: 'Q', searchTimeSeconds: 50 }),
+      makeEntry({ id: 'e3', dogCallName: 'Rex', resultText: 'Q', searchTimeSeconds: 40 }),
+      makeEntry({ id: 'e4', dogCallName: 'Rex', resultText: 'NQ', searchTimeSeconds: 10 }), // excluded (NQ)
+      makeEntry({ id: 'e5', dogCallName: 'Rex', resultText: 'Q', searchTimeSeconds: null }), // excluded (null time)
     ];
     const stats = computeSummaryStats(entries);
     expect(stats.bestTime).toBe(30);
+    expect(stats.bestTimeDogName).toBe('Rex');
     expect(stats.avgTime).toBe(40); // (30+50+40)/3
     expect(stats.medianTime).toBe(40); // middle of [30,40,50]
   });
@@ -96,8 +100,21 @@ describe('computeSummaryStats', () => {
     ];
     const stats = computeSummaryStats(entries);
     expect(stats.totalEntries).toBe(2);
+    expect(stats.scoredEntries).toBe(0);
     expect(stats.qualificationRate).toBe(0);
     expect(stats.bestTime).toBeNull();
+    expect(stats.bestTimeDogName).toBeNull();
+  });
+
+  it('tracks bestTimeDogName correctly across multiple dogs', () => {
+    const entries = [
+      makeEntry({ id: 'e1', dogCallName: 'Rex', resultText: 'Q', searchTimeSeconds: 50 }),
+      makeEntry({ id: 'e2', dogCallName: 'Bella', resultText: 'Q', searchTimeSeconds: 25 }),
+      makeEntry({ id: 'e3', dogCallName: 'Max', resultText: 'Q', searchTimeSeconds: 35 }),
+    ];
+    const stats = computeSummaryStats(entries);
+    expect(stats.bestTime).toBe(25);
+    expect(stats.bestTimeDogName).toBe('Bella');
   });
 });
 
@@ -113,14 +130,19 @@ describe('computePerDogStats', () => {
     expect(result).toHaveLength(3);
     const rex = result.find((d) => d.dogId === 'dog-1');
     expect(rex).toBeDefined();
-    expect(rex!.entriesCount).toBe(3);
+    expect(rex!.entries).toBe(3);
   });
 
-  it('computes Q rate excluding pending entries', () => {
+  it('computes Q rate and qualifiedCount excluding pending entries', () => {
     const result = computePerDogStats(mixedEntries);
     const bella = result.find((d) => d.dogId === 'dog-2');
     // Bella: 1 Q, 1 pending → scored = 1 → rate = 1.0
+    expect(bella!.qualifiedCount).toBe(1);
     expect(bella!.qualificationRate).toBe(1);
+
+    const rex = result.find((d) => d.dogId === 'dog-1');
+    // Rex: 2Q, 1NQ → qualifiedCount = 2
+    expect(rex!.qualifiedCount).toBe(2);
   });
 
   it('sets isCleanSweep true when all scored entries are Q', () => {

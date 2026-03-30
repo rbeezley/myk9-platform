@@ -21,9 +21,11 @@ export interface StatsEntry {
 
 export interface SummaryStats {
   totalEntries: number;
+  scoredEntries: number;
   qualifiedCount: number;
   qualificationRate: number;
   bestTime: number | null;
+  bestTimeDogName: string | null;
   avgTime: number | null;
   medianTime: number | null;
 }
@@ -31,7 +33,8 @@ export interface SummaryStats {
 export interface DogStats {
   dogId: string;
   dogCallName: string;
-  entriesCount: number;
+  entries: number;
+  qualifiedCount: number;
   qualificationRate: number;
   bestTime: number | null;
   avgTime: number | null;
@@ -107,9 +110,11 @@ export function computeSummaryStats(entries: StatsEntry[]): SummaryStats {
   if (entries.length === 0) {
     return {
       totalEntries: 0,
+      scoredEntries: 0,
       qualifiedCount: 0,
       qualificationRate: 0,
       bestTime: null,
+      bestTimeDogName: null,
       avgTime: null,
       medianTime: null,
     };
@@ -117,13 +122,19 @@ export function computeSummaryStats(entries: StatsEntry[]): SummaryStats {
 
   const scored = entries.filter(isScored);
   const qualified = entries.filter(isQualified);
-  const times = qualifiedTimes(entries).sort((a, b) => a - b);
+  const qualifiedWithTimes = entries
+    .filter((e) => isQualified(e) && e.searchTimeSeconds != null)
+    .sort((a, b) => a.searchTimeSeconds! - b.searchTimeSeconds!);
+  const times = qualifiedWithTimes.map((e) => e.searchTimeSeconds!);
+  const bestEntry = qualifiedWithTimes.length > 0 ? qualifiedWithTimes[0]! : null;
 
   return {
     totalEntries: entries.length,
+    scoredEntries: scored.length,
     qualifiedCount: qualified.length,
     qualificationRate: qRate(scored),
     bestTime: times.length > 0 ? times[0]! : null,
+    bestTimeDogName: bestEntry ? bestEntry.dogCallName : null,
     avgTime:
       times.length > 0
         ? times.reduce((sum, t) => sum + t, 0) / times.length
@@ -151,7 +162,8 @@ export function computePerDogStats(entries: StatsEntry[]): DogStats[] {
     results.push({
       dogId,
       dogCallName: dogEntries[0]!.dogCallName,
-      entriesCount: dogEntries.length,
+      entries: dogEntries.length,
+      qualifiedCount,
       qualificationRate: qRate(scored),
       bestTime: times.length > 0 ? times[0]! : null,
       avgTime:

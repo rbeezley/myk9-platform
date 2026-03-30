@@ -50,16 +50,16 @@ function TrendTooltip({
 }
 
 function toChartData(data: TrendPoint[]) {
-  return data.map((point) => ({
+  return data.map(point => ({
     ...point,
     qualificationRatePct: Math.round(point.qualificationRate * 100),
   }));
 }
 
 export function QualificationTrendChart({ data }: QualificationTrendChartProps) {
-  if (data.length === 0) return null;
-
   const chartData = useMemo(() => toChartData(data), [data]);
+
+  if (data.length === 0) return null;
 
   return (
     <Card>

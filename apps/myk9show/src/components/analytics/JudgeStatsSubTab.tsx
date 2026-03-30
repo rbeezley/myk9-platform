@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Scale } from 'lucide-react';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { useJudgeShowStats } from '@/hooks/queries/useJudgeShowStats';
@@ -23,13 +23,10 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
   const { data: judges = [], isLoading: judgesLoading } = useShowJudges(showId);
   const [selectedJudgeId, setSelectedJudgeId] = useState<string | undefined>();
 
-  useEffect(() => {
-    if (judges.length > 0 && !selectedJudgeId) {
-      setSelectedJudgeId(judges[0].id);
-    }
-  }, [judges, selectedJudgeId]);
+  // Derive effective judge ID — fall back to first judge if none explicitly selected
+  const effectiveJudgeId = selectedJudgeId ?? judges[0]?.id;
 
-  const { data: entries, isLoading: entriesLoading } = useJudgeShowStats(selectedJudgeId, showId);
+  const { data: entries, isLoading: entriesLoading } = useJudgeShowStats(effectiveJudgeId, showId);
 
   const summary = useMemo(() => computeSummaryStats(entries || []), [entries]);
   const distribution = useMemo(() => computeResultDistribution(entries || []), [entries]);
@@ -56,14 +53,14 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
     );
   }
 
-  const selectedJudge = judges.find(j => j.id === selectedJudgeId);
+  const selectedJudge = judges.find(j => j.id === effectiveJudgeId);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Scale className="h-4 w-4 text-muted-foreground" />
         <select
-          value={selectedJudgeId || ''}
+          value={effectiveJudgeId || ''}
           onChange={e => setSelectedJudgeId(e.target.value)}
           className="h-9 rounded-md border bg-background px-3 text-sm font-medium"
           aria-label="Select judge"

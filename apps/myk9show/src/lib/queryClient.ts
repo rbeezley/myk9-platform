@@ -241,6 +241,13 @@ export const queryKeys = {
   // Check-In Report
   checkInReport: (showId: string) => ['check-in-report', showId] as const,
 
+  // Volunteers
+  volunteers: (showId: string) => ['volunteers', showId] as const,
+  volunteerClassAssignments: (showId: string) =>
+    ['volunteer-assignments', 'class', showId] as const,
+  volunteerGeneralAssignments: (showId: string) =>
+    ['volunteer-assignments', 'general', showId] as const,
+
   // Legacy aliases for backward compatibility with existing showEntries key
   classEntries: (classId: string) => ['entries', 'class', classId] as const,
   dogEntries: (dogId: string) => ['entries', 'dog', dogId] as const,

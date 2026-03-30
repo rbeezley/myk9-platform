@@ -7,6 +7,7 @@ import {
   ListChecks,
   ClipboardList,
   Medal,
+  BarChart3,
   Trash2,
   Pencil,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
+import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
@@ -132,7 +134,7 @@ const ShowDetailsPage: React.FC = () => {
   const allowedTabs = useMemo(
     () =>
       isAuthenticated
-        ? ['overview', 'trials', 'classes', 'my-entries', 'results']
+        ? ['overview', 'trials', 'classes', 'my-entries', 'my-stats', 'results']
         : ['overview', 'trials', 'classes', 'results'],
     [isAuthenticated]
   );
@@ -213,11 +215,14 @@ const ShowDetailsPage: React.FC = () => {
       { id: 'trials', label: 'Trials', icon: Trophy, count: associatedTrials.length },
       { id: 'classes', label: 'Classes', icon: ListChecks, count: showClasses.length },
       ...(isAuthenticated
-        ? [{ id: 'my-entries', label: 'Entries', icon: ClipboardList, count: userEntries.length }]
+        ? [
+            { id: 'my-entries', label: 'Entries', icon: ClipboardList, count: userEntries.length },
+            ...(hasUserEntries ? [{ id: 'my-stats', label: 'My Stats', icon: BarChart3 }] : []),
+          ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
     ],
-    [isAuthenticated, associatedTrials.length, showClasses.length, userEntries.length]
+    [isAuthenticated, hasUserEntries, associatedTrials.length, showClasses.length, userEntries.length]
   );
 
   // Loading state
@@ -330,6 +335,12 @@ const ShowDetailsPage: React.FC = () => {
           {isAuthenticated && (
             <TabsContent value="my-entries">
               <MyEntriesTab showId={actualCurrentShow.id} />
+            </TabsContent>
+          )}
+
+          {isAuthenticated && hasUserEntries && (
+            <TabsContent value="my-stats">
+              <MyShowStatsTab showId={actualCurrentShow.id} />
             </TabsContent>
           )}
 

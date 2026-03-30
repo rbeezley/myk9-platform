@@ -54,6 +54,14 @@ export interface GeneralAssignment {
   volunteerName: string;
 }
 
+/** Minimal class info for volunteer scheduling display */
+export interface ClassInfo {
+  id: string;
+  name: string;
+  trialId: string;
+  meta: string;
+}
+
 /**
  * Format a full name as "First L." for compact display.
  * "Sarah Miller" → "Sarah M."

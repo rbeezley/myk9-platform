@@ -3,6 +3,8 @@ import type { Volunteer, GeneralAssignment } from '@/types/volunteer';
 import { VolunteerChip } from './VolunteerChip';
 import { AssignVolunteerPopover } from './AssignVolunteerPopover';
 
+const EMPTY_CONFLICT_SET = new Set<string>();
+
 interface GeneralDutyCardProps {
   roleName: string;
   assignments: GeneralAssignment[];
@@ -32,7 +34,7 @@ export function GeneralDutyCard({
         <AssignVolunteerPopover
           volunteers={volunteers}
           excludeIds={excludeIds}
-          conflictIds={new Set()}
+          conflictIds={EMPTY_CONFLICT_SET}
           onAssign={onAssign}
         />
       </CardContent>

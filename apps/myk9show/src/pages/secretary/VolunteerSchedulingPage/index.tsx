@@ -7,6 +7,7 @@ import {
   useVolunteerClassAssignments,
   useVolunteerGeneralAssignments,
   useVolunteerConflicts,
+  useShowClassesForVolunteers,
   useAddVolunteer,
   useUpdateVolunteer,
   useDeleteVolunteer,
@@ -15,9 +16,6 @@ import {
   useAssignToGeneralDuty,
   useUnassignFromGeneralDuty,
 } from '@/hooks/queries/volunteerQueries';
-import { useQuery } from '@tanstack/react-query';
-import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { supabase } from '@/services/database/supabaseClient';
 import { VolunteerPool } from '@/components/volunteers/VolunteerPool';
 import { VolunteerDialog } from '@/components/volunteers/VolunteerDialog';
 import { ClassVolunteerCard } from '@/components/volunteers/ClassVolunteerCard';
@@ -33,69 +31,24 @@ import {
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useVolunteerFilters } from './useVolunteerFilters';
-import type { Volunteer } from '@/types/volunteer';
-
-interface ClassInfo {
-  id: string;
-  name: string;
-  trialId: string;
-  meta: string;
-}
-
-function useShowClasses(showId: string | undefined) {
-  return useQuery({
-    queryKey: queryKeys.showClasses(showId ?? ''),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('classes')
-        .select(
-          'id, name, element, level, start_time, trial:trials!inner(id, trial_date, trial_number, show_id)'
-        )
-        .eq('trial.show_id' as string, showId!);
-      if (error) throw error;
-      return (data ?? []).map((row): ClassInfo => {
-        const trial = row.trial as unknown as Record<string, unknown>;
-        const displayName = [row.element, row.level].filter(Boolean).join(' ') || row.name;
-        const metaParts = [row.start_time ?? null].filter(Boolean);
-        return {
-          id: row.id,
-          name: displayName,
-          trialId: trial.id as string,
-          meta: metaParts.join(' \u2022 '),
-        };
-      });
-    },
-    enabled: !!showId,
-    ...cacheStrategies.dynamic,
-  });
-}
+import type { Volunteer, ClassInfo } from '@/types/volunteer';
 
 export default function VolunteerSchedulingPage() {
   const { selectedShowId } = useShowStore();
   const { trials } = useTrialStore();
+  const showId = selectedShowId || undefined;
   const showTrials = trials.filter(t => t.showId === selectedShowId);
 
-  // Data fetching
-  const { data: volunteers = [], isLoading: loadingVols } = useVolunteers(
-    selectedShowId || undefined
-  );
-  const { data: classAssignments = [], isLoading: loadingCA } = useVolunteerClassAssignments(
-    selectedShowId || undefined
-  );
-  const { data: generalAssignments = [], isLoading: loadingGA } = useVolunteerGeneralAssignments(
-    selectedShowId || undefined
-  );
-  const { data: classInfos = [], isLoading: loadingClasses } = useShowClasses(
-    selectedShowId || undefined
-  );
-  const { data: conflictMap = new Map() } = useVolunteerConflicts(
-    selectedShowId || undefined,
-    volunteers
-  );
+  const { data: volunteers = [], isLoading: loadingVols } = useVolunteers(showId);
+  const { data: classAssignments = [], isLoading: loadingCA } =
+    useVolunteerClassAssignments(showId);
+  const { data: generalAssignments = [], isLoading: loadingGA } =
+    useVolunteerGeneralAssignments(showId);
+  const { data: classInfos = [], isLoading: loadingClasses } = useShowClassesForVolunteers(showId);
+  const { data: conflictMap = new Map() } = useVolunteerConflicts(showId, volunteers);
 
   const isLoading = loadingVols || loadingCA || loadingGA || loadingClasses;
 
-  // Mutations
   const addVolunteer = useAddVolunteer();
   const updateVolunteer = useUpdateVolunteer();
   const deleteVolunteer = useDeleteVolunteer();
@@ -104,7 +57,6 @@ export default function VolunteerSchedulingPage() {
   const assignToGeneralDuty = useAssignToGeneralDuty(selectedShowId ?? '');
   const unassignFromGeneralDuty = useUnassignFromGeneralDuty(selectedShowId ?? '');
 
-  // Filtering
   const {
     search,
     setSearch,
@@ -116,11 +68,27 @@ export default function VolunteerSchedulingPage() {
     filteredDutyRoles,
   } = useVolunteerFilters({ classes: classInfos, classAssignments, generalAssignments });
 
-  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
 
-  // Group classes by trial
+  const assignmentsByClass = useMemo(() => {
+    const map = new Map<string, typeof classAssignments>();
+    for (const a of classAssignments) {
+      if (!map.has(a.classId)) map.set(a.classId, []);
+      map.get(a.classId)!.push(a);
+    }
+    return map;
+  }, [classAssignments]);
+
+  const assignmentsByDuty = useMemo(() => {
+    const map = new Map<string, typeof generalAssignments>();
+    for (const a of generalAssignments) {
+      if (!map.has(a.roleName)) map.set(a.roleName, []);
+      map.get(a.roleName)!.push(a);
+    }
+    return map;
+  }, [generalAssignments]);
+
   const classesByTrial = useMemo(() => {
     const map = new Map<string, ClassInfo[]>();
     for (const cls of filteredClasses) {
@@ -130,7 +98,6 @@ export default function VolunteerSchedulingPage() {
     return map;
   }, [filteredClasses]);
 
-  // Handlers
   function handleAddClick() {
     setEditingVolunteer(null);
     setDialogOpen(true);
@@ -165,7 +132,6 @@ export default function VolunteerSchedulingPage() {
     await deleteVolunteer.mutateAsync({ id, showId: selectedShowId! });
   }
 
-  // Guard: no show selected
   if (!selectedShowId) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -182,14 +148,12 @@ export default function VolunteerSchedulingPage() {
     <div className="space-y-6 p-4 md:p-6">
       <h1 className="text-xl font-bold">Volunteer Scheduling</h1>
 
-      {/* Volunteer Pool */}
       <VolunteerPool
         volunteers={volunteers}
         onAddClick={handleAddClick}
         onEditClick={handleEditClick}
       />
 
-      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         <SearchBar
           value={search}
@@ -221,7 +185,6 @@ export default function VolunteerSchedulingPage() {
         </label>
       </div>
 
-      {/* Loading state */}
       {isLoading && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -230,7 +193,6 @@ export default function VolunteerSchedulingPage() {
         </div>
       )}
 
-      {/* Empty state */}
       {!isLoading && classesByTrial.size === 0 && filteredDutyRoles.length === 0 && (
         <div className="py-12 text-center">
           <p className="text-muted-foreground">
@@ -241,7 +203,6 @@ export default function VolunteerSchedulingPage() {
         </div>
       )}
 
-      {/* Class cards grouped by trial */}
       {!isLoading &&
         Array.from(classesByTrial.entries()).map(([trialId, trialClasses]) => {
           const trial = showTrials.find(t => t.id === trialId);
@@ -257,7 +218,7 @@ export default function VolunteerSchedulingPage() {
                     classId={cls.id}
                     className={cls.name}
                     classMeta={cls.meta}
-                    assignments={classAssignments.filter(a => a.classId === cls.id)}
+                    assignments={assignmentsByClass.get(cls.id) ?? []}
                     volunteers={volunteers}
                     conflictMap={conflictMap}
                     onAssign={(volId, classId, roleName) =>
@@ -271,7 +232,6 @@ export default function VolunteerSchedulingPage() {
           );
         })}
 
-      {/* General Duties */}
       {!isLoading && filteredDutyRoles.length > 0 && (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">General Duties</h2>
@@ -280,7 +240,7 @@ export default function VolunteerSchedulingPage() {
               <GeneralDutyCard
                 key={role}
                 roleName={role}
-                assignments={generalAssignments.filter(a => a.roleName === role)}
+                assignments={assignmentsByDuty.get(role) ?? []}
                 volunteers={volunteers}
                 onAssign={volId =>
                   assignToGeneralDuty.mutate({
@@ -296,7 +256,6 @@ export default function VolunteerSchedulingPage() {
         </section>
       )}
 
-      {/* Dialog */}
       <VolunteerDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}

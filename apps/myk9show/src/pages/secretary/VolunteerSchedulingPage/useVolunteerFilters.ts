@@ -1,13 +1,6 @@
 import { useState, useMemo } from 'react';
 import { RING_ROLES, GENERAL_DUTY_ROLES } from '@/types/volunteer';
-import type { ClassAssignment, GeneralAssignment } from '@/types/volunteer';
-
-interface ClassInfo {
-  id: string;
-  name: string;
-  trialId: string;
-  meta: string;
-}
+import type { ClassInfo, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
 
 interface UseVolunteerFiltersInput {
   classes: ClassInfo[];
@@ -24,36 +17,42 @@ export function useVolunteerFilters({
   const [trialFilter, setTrialFilter] = useState('all');
   const [unfilledOnly, setUnfilledOnly] = useState(false);
 
+  const assignmentsByClass = useMemo(() => {
+    const map = new Map<string, ClassAssignment[]>();
+    for (const a of classAssignments) {
+      if (!map.has(a.classId)) map.set(a.classId, []);
+      map.get(a.classId)!.push(a);
+    }
+    return map;
+  }, [classAssignments]);
+
   const filteredClasses = useMemo(() => {
     let result = classes;
 
-    // Trial filter
     if (trialFilter !== 'all') {
       result = result.filter(c => c.trialId === trialFilter);
     }
 
-    // Search filter — match class name or assigned volunteer name
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(c => {
         if (c.name.toLowerCase().includes(q)) return true;
         if (c.meta.toLowerCase().includes(q)) return true;
-        const classAssigns = classAssignments.filter(a => a.classId === c.id);
+        const classAssigns = assignmentsByClass.get(c.id) ?? [];
         return classAssigns.some(a => a.volunteerName.toLowerCase().includes(q));
       });
     }
 
-    // Unfilled-only — hide classes where all ring roles have at least one assignment
     if (unfilledOnly) {
       result = result.filter(c => {
-        const classAssigns = classAssignments.filter(a => a.classId === c.id);
+        const classAssigns = assignmentsByClass.get(c.id) ?? [];
         const filledRoles = new Set(classAssigns.map(a => a.roleName));
         return RING_ROLES.some(role => !filledRoles.has(role));
       });
     }
 
     return result;
-  }, [classes, classAssignments, search, trialFilter, unfilledOnly]);
+  }, [classes, assignmentsByClass, search, trialFilter, unfilledOnly]);
 
   const filteredDutyRoles = useMemo(() => {
     let roles = [...GENERAL_DUTY_ROLES] as string[];

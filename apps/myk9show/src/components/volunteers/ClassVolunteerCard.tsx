@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RING_ROLES } from '@/types/volunteer';
 import type { Volunteer, ClassAssignment } from '@/types/volunteer';
@@ -25,6 +26,14 @@ export function ClassVolunteerCard({
   onAssign,
   onUnassign,
 }: ClassVolunteerCardProps) {
+  const classConflictIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [volId, classIds] of conflictMap) {
+      if (classIds.has(classId)) ids.add(volId);
+    }
+    return ids;
+  }, [conflictMap, classId]);
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -35,10 +44,6 @@ export function ClassVolunteerCard({
         {RING_ROLES.map(role => {
           const roleAssignments = assignments.filter(a => a.roleName === role);
           const excludeIds = roleAssignments.map(a => a.volunteerId);
-          const classConflictIds = new Set<string>();
-          for (const [volId, classIds] of conflictMap) {
-            if (classIds.has(classId)) classConflictIds.add(volId);
-          }
 
           return (
             <div key={role} className="flex items-center gap-2">

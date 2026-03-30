@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
-import type { Volunteer, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
+import type { Volunteer, ClassInfo, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
 
 // Note: show_id on volunteers table is added by migration 095 but not yet
 // in the generated supabase types. We use type assertions where needed.
@@ -158,7 +158,7 @@ export function useVolunteerConflicts(showId: string | undefined, volunteers: Vo
         .from('entries')
         .select('handler_id, class_id, class:classes!inner(trial:trials!inner(show_id))')
         .eq('class.trial.show_id' as string, showId!)
-        .not('handler_id', 'is', null);
+        .in('handler_id', personIds);
       if (error) throw error;
 
       // Build person→volunteer lookup
@@ -183,6 +183,45 @@ export function useVolunteerConflicts(showId: string | undefined, volunteers: Vo
     enabled: !!showId && personIds.length > 0,
     ...cacheStrategies.moderate,
   });
+}
+
+export function useShowClassesForVolunteers(showId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.showClasses(showId ?? ''),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('classes')
+        .select(
+          'id, name, element, level, start_time, trial:trials!inner(id, trial_date, trial_number, show_id)'
+        )
+        .eq('trial.show_id' as string, showId!);
+      if (error) throw error;
+      return (data ?? []).map((row): ClassInfo => {
+        const trial = row.trial as unknown as Record<string, unknown>;
+        const displayName = [row.element, row.level].filter(Boolean).join(' ') || row.name;
+        const metaParts = [row.start_time ?? null].filter(Boolean);
+        return {
+          id: row.id,
+          name: displayName,
+          trialId: trial.id as string,
+          meta: metaParts.join(' \u2022 '),
+        };
+      });
+    },
+    enabled: !!showId,
+    ...cacheStrategies.dynamic,
+  });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function lookupVolunteerName(
+  queryClient: ReturnType<typeof useQueryClient>,
+  showId: string,
+  volunteerId: string
+): string {
+  const volunteers = queryClient.getQueryData<Volunteer[]>(queryKeys.volunteers(showId));
+  return volunteers?.find(v => v.id === volunteerId)?.name ?? '';
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
@@ -311,7 +350,7 @@ export function useAssignToClass(showId: string) {
           status: 'assigned',
           notes: null,
           createdAt: new Date().toISOString(),
-          volunteerName: '',
+          volunteerName: lookupVolunteerName(queryClient, showId, input.volunteerId),
         },
       ]);
       return { previous };
@@ -393,7 +432,7 @@ export function useAssignToGeneralDuty(showId: string) {
           status: 'assigned',
           notes: null,
           createdAt: new Date().toISOString(),
-          volunteerName: '',
+          volunteerName: lookupVolunteerName(queryClient, showId, input.volunteerId),
         },
       ]);
       return { previous };

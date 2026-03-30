@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -21,10 +21,13 @@ export function AssignVolunteerPopover({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  const excludeSet = new Set(excludeIds);
-  const filtered = volunteers
-    .filter(v => !excludeSet.has(v.id))
-    .filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = useMemo(() => {
+    const excludeSet = new Set(excludeIds);
+    const q = search.toLowerCase();
+    return volunteers
+      .filter(v => !excludeSet.has(v.id))
+      .filter(v => !search || v.name.toLowerCase().includes(q));
+  }, [volunteers, excludeIds, search]);
 
   function handleSelect(volunteerId: string) {
     onAssign(volunteerId);

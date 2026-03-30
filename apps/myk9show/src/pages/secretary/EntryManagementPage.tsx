@@ -9,42 +9,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import { EntryStatus } from '@/types/show-registration-types';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import {
   Calendar,
   Users,
   AlertCircle,
-  Mail,
   Download,
   Hash,
   Loader2,
   Plus,
   RefreshCw,
-  ArrowUpCircle,
-  XCircle,
-  CheckCircle2,
-  List,
-  Table2,
 } from 'lucide-react';
-import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
-import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
-import { toast } from 'sonner';
-import { useEmailStatus } from '@/hooks/useEmailStatus';
-import { supabase } from '@/lib/supabase';
 
 // Extracted hooks
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
@@ -61,15 +40,12 @@ import {
   ArmbandDialog,
   AutoArmbandDialog,
   BulkCheckInDialog,
-  EntryStatsCards,
-  EntryFiltersCard,
-  EntryListCard,
-  EntriesTableView,
   CompEntryDialog,
   FilterBreadcrumb,
   TrialClassFilters,
   TrialRosterView,
   ScoringModeWrapper,
+  RegistrationView,
 } from '@/components/entries/management';
 
 // Extracted utilities
@@ -185,42 +161,6 @@ const EntryManagementPage: React.FC = () => {
       checkInStatus: row.check_in_status || null,
     }));
   }, [trialEntryRows]);
-
-  // View mode state
-  const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
-
-  // Email status tracking
-  const registrationIds = useMemo(
-    () => [...new Set(entries.map(e => e.registrationId).filter(Boolean))],
-    [entries]
-  );
-  const { data: emailStatusMap } = useEmailStatus(registrationIds);
-
-  // Resend cooldown state (registrationId -> cooldown expiry timestamp)
-  const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
-
-  const handleResendEmail = async (registrationId: string) => {
-    // Set cooldown immediately to prevent double-clicks during the request
-    setResendCooldowns(prev => ({ ...prev, [registrationId]: Date.now() + 60_000 }));
-    try {
-      const { error } = await supabase.functions.invoke('send-registration-email', {
-        body: { registrationId },
-      });
-      if (error) throw error;
-      toast.success('Confirmation email resent');
-    } catch {
-      // Clear cooldown on failure so user can retry immediately
-      setResendCooldowns(prev => {
-        const next = { ...prev };
-        delete next[registrationId];
-        return next;
-      });
-      toast.error('Failed to resend email');
-    }
-  };
-
-  const isResendDisabled = (registrationId: string) =>
-    (resendCooldowns[registrationId] || 0) > Date.now();
 
   // Comp dialog state
   const [compDialog, setCompDialog] = useState<{
@@ -419,211 +359,49 @@ const EntryManagementPage: React.FC = () => {
 
           {/* Registration view: stats, filters, bulk actions, entries tabs */}
           {viewMode === 'registration' && (
-            <>
-              {/* Stats Overview */}
-              <EntryStatsCards stats={stats} />
-
-              {/* Filters */}
-              <EntryFiltersCard
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                statusFilter={statusFilter}
-                setStatusFilter={setStatusFilter}
-                paymentFilter={paymentFilter}
-                setPaymentFilter={setPaymentFilter}
-                onClearFilters={clearFilters}
-              />
-
-              {/* Bulk Actions */}
-              {selectedEntries.size > 0 && (
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">
-                        {selectedEntries.size} entries selected
-                      </span>
-                      <div className="flex gap-2">
-                        <Dialog
-                          open={
-                            bulkActionDialog.open &&
-                            bulkActionDialog.action === 'status_change'
-                          }
-                          onOpenChange={open =>
-                            setBulkActionDialog({ ...bulkActionDialog, open })
-                          }
-                        >
-                          <DialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                setBulkActionDialog({ open: true, action: 'status_change' })
-                              }
-                            >
-                              Change Status
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Bulk Status Change</DialogTitle>
-                              <DialogDescription>
-                                Change status for {selectedEntries.size} selected entries
-                              </DialogDescription>
-                            </DialogHeader>
-                            <Select
-                              onValueChange={value =>
-                                handleBulkAction({
-                                  type: 'status_change',
-                                  data: { status: value },
-                                })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select new status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={EntryStatus.ACCEPTED}>Accept</SelectItem>
-                                <SelectItem value={EntryStatus.WAITLIST}>
-                                  Move to Waitlist
-                                </SelectItem>
-                                <SelectItem value={EntryStatus.REJECTED}>Reject</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </DialogContent>
-                        </Dialog>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setBulkActionDialog({ open: true, action: 'check_in' })
-                          }
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Bulk Check-In
-                        </Button>
-
-                        <Button size="sm" variant="outline">
-                          <Mail className="h-4 w-4 mr-2" />
-                          Send Email
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Entries Tabs */}
-              <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-                <div className="flex items-center justify-between gap-4 mb-2">
-                  <TabsList className="grid w-full grid-cols-7">
-                    <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
-                    <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
-                    <TabsTrigger value="accepted">
-                      Accepted ({tabCounts.accepted})
-                    </TabsTrigger>
-                    <TabsTrigger value="waitlist">
-                      Waitlist ({tabCounts.waitlist})
-                    </TabsTrigger>
-                    <TabsTrigger value="move-ups">
-                      <ArrowUpCircle className="h-4 w-4 mr-1" />
-                      Move-Ups
-                    </TabsTrigger>
-                    <TabsTrigger value="scratches">
-                      <XCircle className="h-4 w-4 mr-1" />
-                      Scratches
-                    </TabsTrigger>
-                    <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
-                  </TabsList>
-
-                  <div className="flex bg-muted/50 rounded-lg p-1 flex-shrink-0">
-                    <Button
-                      variant={entryViewMode === 'list' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setEntryViewMode('list')}
-                      className="h-8 px-2"
-                    >
-                      <List className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={entryViewMode === 'table' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setEntryViewMode('table')}
-                      className="h-8 px-2"
-                    >
-                      <Table2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <TabsContent value={selectedTab} className="mt-6">
-                  {entryViewMode === 'table' ? (
-                    <EntriesTableView
-                      entries={filteredEntries}
-                      emailStatusMap={emailStatusMap}
-                      onResendEmail={handleResendEmail}
-                      isResendDisabled={isResendDisabled}
-                    />
-                  ) : (
-                    <EntryListCard
-                      entries={filteredEntries}
-                      selectedEntries={selectedEntries}
-                      onSelectEntry={handleSelectEntry}
-                      onSelectAll={handleSelectAll}
-                      onStatusChange={handleStatusChange}
-                      onOpenCheckInDialog={(entry, classEntry) =>
-                        setCheckInDialog({ open: true, entry, classEntry })
-                      }
-                      onOpenArmbandDialog={entry =>
-                        setArmbandDialog({
-                          open: true,
-                          entry,
-                          value: entry.armbandNumber || '',
-                        })
-                      }
-                      onCompEntry={entryId => {
-                        const entry = entries.find(e => e.id === entryId);
-                        if (entry) {
-                          setCompDialog({
-                            open: true,
-                            entryId,
-                            entryNumber: entry.entryNumber,
-                            dogName: entry.dogName,
-                          });
-                        }
-                      }}
-                      onUncompEntry={handleUncompEntry}
-                      emailStatusMap={emailStatusMap}
-                      onResendEmail={handleResendEmail}
-                      isResendDisabled={isResendDisabled}
-                    />
-                  )}
-                </TabsContent>
-
-                {/* Move-Ups Tab Content */}
-                <TabsContent value="move-ups" className="mt-6">
-                  <Card>
-                    <CardContent className="pt-6">
-                      <MoveUpRequestsTab
-                        showId={selectedShowId}
-                        onRefresh={() => loadEntries(selectedShowId)}
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Scratches Tab Content */}
-                <TabsContent value="scratches" className="mt-6">
-                  <Card>
-                    <CardContent className="pt-6">
-                      <ScratchManagementTab
-                        showId={selectedShowId}
-                        onRefresh={() => loadEntries(selectedShowId)}
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </>
+            <RegistrationView
+              stats={stats}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              paymentFilter={paymentFilter}
+              setPaymentFilter={setPaymentFilter}
+              onClearFilters={clearFilters}
+              selectedEntries={selectedEntries}
+              bulkActionDialog={bulkActionDialog}
+              setBulkActionDialog={setBulkActionDialog}
+              onBulkAction={handleBulkAction}
+              selectedTab={selectedTab}
+              setSelectedTab={setSelectedTab}
+              tabCounts={tabCounts}
+              filteredEntries={filteredEntries}
+              entries={entries}
+              onSelectEntry={handleSelectEntry}
+              onSelectAll={handleSelectAll}
+              onStatusChange={handleStatusChange}
+              onOpenCheckInDialog={(entry, classEntry) =>
+                setCheckInDialog({ open: true, entry, classEntry })
+              }
+              onOpenArmbandDialog={entry =>
+                setArmbandDialog({
+                  open: true,
+                  entry,
+                  value: entry.armbandNumber || '',
+                })
+              }
+              onOpenCompDialog={entry =>
+                setCompDialog({
+                  open: true,
+                  entryId: entry.id,
+                  entryNumber: entry.entryNumber,
+                  dogName: entry.dogName,
+                })
+              }
+              onUncompEntry={handleUncompEntry}
+              showId={selectedShowId}
+              onRefresh={() => loadEntries(selectedShowId)}
+            />
           )}
 
           {/* Roster view: trial entries grouped by class */}

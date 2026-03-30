@@ -42,7 +42,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isSecretary, isAdmin } = useAuthContext();
 
   // Data hook
   const {
@@ -185,6 +185,20 @@ const ClassDetailsPage: React.FC = () => {
   const headerActions = useMemo(
     () => (
       <div className="flex items-center gap-2">
+        {(isSecretary || isAdmin) && parentShow?.id && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              navigate(
+                `/secretary/entries/${parentShow.id}?trial=${trialId || currentClass?.trialId}${classId ? `&class=${classId}` : ''}`
+              )
+            }
+          >
+            <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
+            Manage Entries
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
           <Pencil className="mr-1.5 h-3.5 w-3.5" />
           Edit
@@ -208,7 +222,7 @@ const ClassDetailsPage: React.FC = () => {
         </DropdownMenu>
       </div>
     ),
-    [dialogs.openEditClassPanel, dialogs.openDeleteDialog, setRequirementsPanelOpen]
+    [dialogs.openEditClassPanel, dialogs.openDeleteDialog, setRequirementsPanelOpen, isSecretary, isAdmin, parentShow, trialId, currentClass?.trialId, classId, navigate]
   );
 
   // Early returns for different states

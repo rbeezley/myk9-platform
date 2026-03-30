@@ -68,7 +68,7 @@ const TrialDetailsPage: React.FC = () => {
     updateTrial,
     deleteTrial: deleteTrialAsync,
   } = useTrialStore();
-  const { user } = useAuthContext();
+  const { user, isSecretary, isAdmin } = useAuthContext();
   const { templates } = useTemplateStore();
   const { shows } = useShowStore();
 
@@ -326,6 +326,20 @@ const TrialDetailsPage: React.FC = () => {
             secondaryActions={
               <div className="flex items-center gap-2">
                 {showTrials.length > 1 && prevNextNav}
+                {(isSecretary || isAdmin) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      navigate(
+                        `/secretary/entries/${currentTrial?.showId || showId}?trial=${trialId}`
+                      )
+                    }
+                  >
+                    <ClipboardList className="h-4 w-4 mr-2" />
+                    Manage Entries
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={handleEditTrial}>
                   <Pencil className="h-4 w-4 mr-2" />
                   Edit

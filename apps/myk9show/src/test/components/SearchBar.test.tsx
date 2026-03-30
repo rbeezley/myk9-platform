@@ -30,4 +30,29 @@ describe('SearchBar', () => {
     render(<SearchBar value="scent work" onChange={vi.fn()} placeholder="Search..." />);
     expect(screen.getByDisplayValue('scent work')).toBeInTheDocument();
   });
+
+  it('shows clear button when value is non-empty', () => {
+    render(<SearchBar value="agility" onChange={vi.fn()} placeholder="Search..." />);
+    expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
+  });
+
+  it('does not show clear button when value is empty', () => {
+    render(<SearchBar value="" onChange={vi.fn()} placeholder="Search..." />);
+    expect(screen.queryByLabelText('Clear search')).not.toBeInTheDocument();
+  });
+
+  it('calls onChange with empty string when clear button is clicked', () => {
+    const onChange = vi.fn();
+    render(<SearchBar value="agility" onChange={onChange} placeholder="Search..." />);
+    fireEvent.click(screen.getByLabelText('Clear search'));
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('renders compact size with sm prop', () => {
+    const { container } = render(
+      <SearchBar value="" onChange={vi.fn()} placeholder="Search..." size="sm" />
+    );
+    const input = container.querySelector('input') as HTMLElement;
+    expect(input.className).toMatch(/h-8/);
+  });
 });

@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Eraser,
   Plus,
-  Search,
   Trophy,
   Trash2,
   X,
@@ -19,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 import { DataTable, TimeInput, formatSearchTime } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { SearchBar } from '@/components/common/SearchBar';
 import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { SubTabs, type SubTabDef } from '@/components/common/SubTabs';
@@ -465,28 +465,14 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             className="px-4 pt-3"
           />
 
-          {/* Search toolbar */}
           <div className="px-4 pt-3">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by dog, handler, or armband..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="h-8 pl-8 pr-8 text-sm"
-                aria-label="Search entries"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setSearchQuery('')}
-                  aria-label="Clear search"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search by dog, handler, or armband..."
+              size="sm"
+              className="max-w-sm"
+            />
           </div>
 
           {effectiveViewMode === 'cards' ? (

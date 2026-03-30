@@ -303,7 +303,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Standardize Entries Table Across Detail Pages - 2026-03-26 17:00
 
-- [ ] **Enhance Entry Management page with trial/class filters + inline scoring** — Phase 1 done (Tasks 1-7): cascading trial/class filter dropdowns with URL sync, trial roster view with class grouping and scoring progress, filter breadcrumb navigation, deep links from Trial/Class detail pages, view-mode switching (registration/roster/scoring). Scoring mode is a placeholder — Phase 2 will wire `ClassResultsTable` via a `ScoringModeWrapper` data bridge. 37 new tests across 5 files. Design: `docs/plans/2026-03-29-entry-management-scoring-design.md`. Plan: `docs/plans/2026-03-29-entry-management-scoring-plan.md`.
+- [x] **Enhance Entry Management page with trial/class filters + inline scoring** — Done: Cascading trial/class filter dropdowns with URL sync, trial roster view with class grouping and scoring progress, inline scoring via ScoringModeWrapper (bridges ClassResultsTable with data from class queries), filter breadcrumb navigation, deep links from Trial/Class detail pages. Extracted RegistrationView to keep page under 500 lines (493). 46 tests across 6 files. Design: `docs/plans/2026-03-29-entry-management-scoring-design.md`. Plan: `docs/plans/2026-03-29-entry-management-scoring-plan.md`.
 
 ---
 

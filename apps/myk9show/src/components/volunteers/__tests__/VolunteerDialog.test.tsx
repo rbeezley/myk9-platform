@@ -115,6 +115,7 @@ describe('VolunteerDialog', () => {
       createdAt: '',
       updatedAt: '',
     };
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = render(<VolunteerDialog {...defaultProps} volunteer={volunteer} />);
     await user.click(screen.getByRole('button', { name: /delete/i }));
     expect(defaultProps.onDelete).toHaveBeenCalledWith('v-1');

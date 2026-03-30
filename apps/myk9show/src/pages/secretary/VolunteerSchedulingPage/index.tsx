@@ -33,6 +33,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useVolunteerFilters } from './useVolunteerFilters';
 import type { Volunteer, ClassInfo } from '@/types/volunteer';
 
+const EMPTY_CONFLICT_MAP = new Map<string, Set<string>>();
+
 export default function VolunteerSchedulingPage() {
   const { selectedShowId } = useShowStore();
   const { trials } = useTrialStore();
@@ -45,7 +47,7 @@ export default function VolunteerSchedulingPage() {
   const { data: generalAssignments = [], isLoading: loadingGA } =
     useVolunteerGeneralAssignments(showId);
   const { data: classInfos = [], isLoading: loadingClasses } = useShowClassesForVolunteers(showId);
-  const { data: conflictMap = new Map() } = useVolunteerConflicts(showId, volunteers);
+  const { data: conflictMap = EMPTY_CONFLICT_MAP } = useVolunteerConflicts(showId, volunteers);
 
   const isLoading = loadingVols || loadingCA || loadingGA || loadingClasses;
 
@@ -114,22 +116,24 @@ export default function VolunteerSchedulingPage() {
     notes: string | null;
     personId: string | null;
   }) {
+    if (!selectedShowId) return;
     if (editingVolunteer) {
       await updateVolunteer.mutateAsync({
         id: editingVolunteer.id,
-        showId: selectedShowId!,
+        showId: selectedShowId,
         ...data,
       });
     } else {
       await addVolunteer.mutateAsync({
-        showId: selectedShowId!,
+        showId: selectedShowId,
         ...data,
       });
     }
   }
 
   async function handleDelete(id: string) {
-    await deleteVolunteer.mutateAsync({ id, showId: selectedShowId! });
+    if (!selectedShowId) return;
+    await deleteVolunteer.mutateAsync({ id, showId: selectedShowId });
   }
 
   if (!selectedShowId) {

@@ -122,10 +122,11 @@ export function useSearchPeople(query: string) {
   return useQuery({
     queryKey: queryKeys.peopleSearch(query),
     queryFn: async () => {
+      const sanitized = query.replace(/[%_\\]/g, c => `\\${c}`);
       const { data, error } = await supabase
         .from('people')
         .select('id, first_name, last_name, phone')
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
+        .or(`first_name.ilike.%${sanitized}%,last_name.ilike.%${sanitized}%`)
         .limit(20);
       if (error) throw error;
       return (data ?? []).map(
@@ -161,21 +162,24 @@ export function useVolunteerConflicts(showId: string | undefined, volunteers: Vo
         .in('handler_id', personIds);
       if (error) throw error;
 
-      // Build person→volunteer lookup
-      const personToVolunteer = new Map<string, string>();
+      const personToVolunteers = new Map<string, string[]>();
       for (const v of volunteers) {
-        if (v.personId) personToVolunteer.set(v.personId, v.id);
+        if (v.personId) {
+          if (!personToVolunteers.has(v.personId)) personToVolunteers.set(v.personId, []);
+          personToVolunteers.get(v.personId)!.push(v.id);
+        }
       }
 
-      // Build conflict map
       const conflicts = new Map<string, Set<string>>();
       for (const row of data ?? []) {
         const handlerId = (row as Record<string, unknown>).handler_id as string;
         const classId = (row as Record<string, unknown>).class_id as string;
-        const volunteerId = personToVolunteer.get(handlerId);
-        if (volunteerId) {
-          if (!conflicts.has(volunteerId)) conflicts.set(volunteerId, new Set());
-          conflicts.get(volunteerId)!.add(classId);
+        const volIds = personToVolunteers.get(handlerId);
+        if (volIds) {
+          for (const volId of volIds) {
+            if (!conflicts.has(volId)) conflicts.set(volId, new Set());
+            conflicts.get(volId)!.add(classId);
+          }
         }
       }
       return conflicts;
@@ -343,7 +347,7 @@ export function useAssignToClass(showId: string) {
       queryClient.setQueryData<ClassAssignment[]>(qk, old => [
         ...(old ?? []),
         {
-          id: `optimistic-${Date.now()}`,
+          id: `optimistic-${crypto.randomUUID()}`,
           volunteerId: input.volunteerId,
           classId: input.classId,
           roleName: input.roleName,
@@ -423,7 +427,7 @@ export function useAssignToGeneralDuty(showId: string) {
       queryClient.setQueryData<GeneralAssignment[]>(qk, old => [
         ...(old ?? []),
         {
-          id: `optimistic-${Date.now()}`,
+          id: `optimistic-${crypto.randomUUID()}`,
           volunteerId: input.volunteerId,
           showId: input.showId,
           roleName: input.roleName,

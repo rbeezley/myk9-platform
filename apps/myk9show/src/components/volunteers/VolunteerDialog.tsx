@@ -86,6 +86,8 @@ export function VolunteerDialog({
         personId,
       });
       onClose();
+    } catch {
+      // Mutation onError handles the toast; keep dialog open for retry
     } finally {
       setSaving(false);
     }
@@ -93,6 +95,12 @@ export function VolunteerDialog({
 
   async function handleDelete() {
     if (!volunteer || !onDelete) return;
+    if (
+      !window.confirm(
+        `Delete volunteer "${volunteer.name}"? This will also remove all their assignments.`
+      )
+    )
+      return;
     setSaving(true);
     try {
       await onDelete(volunteer.id);
@@ -120,6 +128,10 @@ export function VolunteerDialog({
                   onChange={e => {
                     setPeopleQuery(e.target.value);
                     setShowSuggestions(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onFocus={() => {
+                    if (searchResults.length > 0) setShowSuggestions(true);
                   }}
                   placeholder="Type to search... (optional)"
                 />

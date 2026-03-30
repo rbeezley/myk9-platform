@@ -1,7 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+import { msToDisplay } from '@/lib/timeUtils';
 import type { FastestTimeEntry } from './analytics-utils';
-import { formatTime } from './analytics-formatting';
+
+function formatTime(seconds: number | null): string {
+  if (seconds == null) return '—';
+  return msToDisplay(seconds * 1000, 'hundredths');
+}
 
 interface FastestTimesTableProps {
   times: FastestTimeEntry[];

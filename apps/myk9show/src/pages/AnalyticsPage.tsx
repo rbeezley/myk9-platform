@@ -37,7 +37,6 @@ export default function AnalyticsPage() {
   const [selectedDog, setSelectedDog] = useState<string>('all');
   const [selectedOrg, setSelectedOrg] = useState<string>('all');
 
-  // Derive filter options from the data
   const dogOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const entry of allEntries) {
@@ -56,7 +55,6 @@ export default function AnalyticsPage() {
     return Array.from(set).sort();
   }, [allEntries]);
 
-  // Apply client-side filters
   const filteredEntries = useMemo(() => {
     let entries: StatsEntry[] = allEntries;
     if (selectedDog !== 'all') {
@@ -68,7 +66,6 @@ export default function AnalyticsPage() {
     return entries;
   }, [allEntries, selectedDog, selectedOrg]);
 
-  // Compute all derived stats from filtered entries
   const summary = useMemo(
     () => computeSummaryStats(filteredEntries),
     [filteredEntries],

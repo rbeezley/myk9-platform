@@ -13,7 +13,6 @@ vi.mock('recharts', async () => {
   };
 });
 
-import { formatTime } from '../analytics-formatting';
 import { StatsSummaryCards, StatsSummaryCardsSkeleton } from '../StatsSummaryCards';
 import { ResultDistributionChart } from '../ResultDistributionChart';
 import { DogBreakdownCards } from '../DogBreakdownCards';
@@ -33,7 +32,7 @@ const mockSummary: SummaryStats = {
   totalEntries: 20,
   scoredEntries: 18,
   qualifiedCount: 12,
-  qualificationRate: 67,
+  qualificationRate: 0.67,
   bestTime: 85.43,
   bestTimeDogName: 'Rex',
   avgTime: 102.5,
@@ -51,7 +50,7 @@ const mockDogs: DogStats[] = [
     dogCallName: 'Rex',
     entries: 10,
     qualifiedCount: 10,
-    qualificationRate: 100,
+    qualificationRate: 1.0,
     bestTime: 85.43,
     avgTime: 95.2,
     isCleanSweep: true,
@@ -61,7 +60,7 @@ const mockDogs: DogStats[] = [
     dogCallName: 'Bella',
     entries: 8,
     qualifiedCount: 4,
-    qualificationRate: 50,
+    qualificationRate: 0.5,
     bestTime: 92.1,
     avgTime: 110.5,
     isCleanSweep: false,
@@ -129,26 +128,6 @@ const mockTrend: TrendPoint[] = [
     qualificationRate: 0.625,
   },
 ];
-
-// ── formatTime ───────────────────────────────────────────────────────
-
-describe('formatTime', () => {
-  it('returns dash for null', () => {
-    expect(formatTime(null)).toBe('\u2014');
-  });
-
-  it('formats seconds correctly', () => {
-    expect(formatTime(85.43)).toBe('1:25.43');
-  });
-
-  it('formats zero', () => {
-    expect(formatTime(0)).toBe('0:00.00');
-  });
-
-  it('pads seconds and hundredths', () => {
-    expect(formatTime(3.5)).toBe('0:03.50');
-  });
-});
 
 // ── StatsSummaryCards ────────────────────────────────────────────────
 

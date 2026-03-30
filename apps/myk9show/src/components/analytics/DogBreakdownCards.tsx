@@ -1,8 +1,13 @@
 import { Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+import { msToDisplay } from '@/lib/timeUtils';
 import type { DogStats } from './analytics-utils';
-import { formatTime } from './analytics-formatting';
+
+function formatTime(seconds: number | null): string {
+  if (seconds == null) return '—';
+  return msToDisplay(seconds * 1000, 'hundredths');
+}
 
 interface DogBreakdownCardsProps {
   dogs: DogStats[];
@@ -53,12 +58,12 @@ export function DogBreakdownCards({ dogs, onDogClick }: DogBreakdownCardsProps) 
               <div className="mt-2">
                 <div className="flex items-center justify-between text-xs">
                   <span>Q Rate</span>
-                  <span className="font-medium">{dog.qualificationRate}%</span>
+                  <span className="font-medium">{Math.round(dog.qualificationRate * 100)}%</span>
                 </div>
                 <div className="mt-1 h-[3px] overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(0, dog.qualificationRate))}%` }}
+                    style={{ width: `${Math.min(100, Math.max(0, Math.round(dog.qualificationRate * 100)))}%` }}
                   />
                 </div>
               </div>

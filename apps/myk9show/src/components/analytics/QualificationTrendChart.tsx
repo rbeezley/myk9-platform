@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   AreaChart,
   Area,
@@ -48,7 +49,6 @@ function TrendTooltip({
   );
 }
 
-// Transform data so qualificationRate is 0-100 for the chart
 function toChartData(data: TrendPoint[]) {
   return data.map((point) => ({
     ...point,
@@ -59,7 +59,7 @@ function toChartData(data: TrendPoint[]) {
 export function QualificationTrendChart({ data }: QualificationTrendChartProps) {
   if (data.length === 0) return null;
 
-  const chartData = toChartData(data);
+  const chartData = useMemo(() => toChartData(data), [data]);
 
   return (
     <Card>

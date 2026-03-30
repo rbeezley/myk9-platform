@@ -1,7 +1,3 @@
-/**
- * Hook for fetching the current user's entries in a specific show.
- * Returns StatsEntry[] for use with analytics computation functions.
- */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
@@ -58,16 +54,13 @@ async function fetchMyShowEntries(
   );
 }
 
-/**
- * Fetches entries for the current user's dogs in a specific show.
- * Returns StatsEntry[] for analytics computation.
- */
 export function useMyShowStats(showId: string | undefined) {
   const { data: dogs = [] } = useDogsQuery();
   const dogIds = dogs.map((d: Record<string, unknown>) => d.id as string);
+  const sortedIds = dogIds.slice().sort();
 
   return useQuery({
-    queryKey: queryKeys.myShowStats(showId || ''),
+    queryKey: [...queryKeys.myShowStats(showId || ''), sortedIds],
     queryFn: () => fetchMyShowEntries(showId!, dogIds),
     enabled: !!showId && dogIds.length > 0,
     ...cacheStrategies.moderate,

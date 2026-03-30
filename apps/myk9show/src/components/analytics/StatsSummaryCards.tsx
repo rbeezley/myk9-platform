@@ -3,8 +3,13 @@ import { Award, Clock, ClipboardList, Timer } from 'lucide-react';
 import { StatCard, StatCardSkeleton } from '@myk9/ui';
 import { StatsGrid } from '@myk9/ui';
 
+import { msToDisplay } from '@/lib/timeUtils';
 import type { SummaryStats } from './analytics-utils';
-import { formatTime } from './analytics-formatting';
+
+function formatTime(seconds: number | null): string {
+  if (seconds == null) return '—';
+  return msToDisplay(seconds * 1000, 'hundredths');
+}
 
 interface StatsSummaryCardsProps {
   stats: SummaryStats;
@@ -23,9 +28,9 @@ export function StatsSummaryCards({ stats }: StatsSummaryCardsProps) {
       <StatCard
         icon={Award}
         title="Q Rate"
-        value={`${stats.qualificationRate}%`}
+        value={`${Math.round(stats.qualificationRate * 100)}%`}
         subtitle={`${stats.qualifiedCount} of ${stats.scoredEntries} qualified`}
-        progress={stats.qualificationRate}
+        progress={Math.round(stats.qualificationRate * 100)}
         color="emerald"
       />
       <StatCard

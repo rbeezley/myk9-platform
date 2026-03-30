@@ -1,6 +1,3 @@
-// Pure computation functions for exhibitor analytics.
-// No React or Supabase dependencies — designed for unit testing in isolation.
-
 export interface StatsEntry {
   id: string;
   dogId: string;
@@ -23,6 +20,7 @@ export interface SummaryStats {
   totalEntries: number;
   scoredEntries: number;
   qualifiedCount: number;
+  /** 0–1 fraction (multiply by 100 for display) */
   qualificationRate: number;
   bestTime: number | null;
   bestTimeDogName: string | null;
@@ -35,6 +33,7 @@ export interface DogStats {
   dogCallName: string;
   entries: number;
   qualifiedCount: number;
+  /** 0–1 fraction */
   qualificationRate: number;
   bestTime: number | null;
   avgTime: number | null;
@@ -65,6 +64,7 @@ export interface TrendPoint {
   showDate: string;
   totalEntries: number;
   qualifiedCount: number;
+  /** 0–1 fraction */
   qualificationRate: number;
 }
 
@@ -74,8 +74,6 @@ export interface CleanSweepDog {
   totalEntries: number;
   qualifiedCount: number;
 }
-
-// ── Helpers ────────────────────────────────────────────────────────────
 
 function isScored(entry: StatsEntry): boolean {
   return entry.resultText !== 'pending';
@@ -93,53 +91,59 @@ function median(sorted: number[]): number {
   return sorted[mid]!;
 }
 
-function qRate(scored: StatsEntry[]): number {
-  if (scored.length === 0) return 0;
-  return scored.filter(isQualified).length / scored.length;
-}
-
-function qualifiedTimes(entries: StatsEntry[]): number[] {
-  return entries
-    .filter((e) => isQualified(e) && e.searchTimeSeconds != null)
-    .map((e) => e.searchTimeSeconds!);
-}
-
-// ── Public functions ───────────────────────────────────────────────────
+const EMPTY_SUMMARY: SummaryStats = {
+  totalEntries: 0,
+  scoredEntries: 0,
+  qualifiedCount: 0,
+  qualificationRate: 0,
+  bestTime: null,
+  bestTimeDogName: null,
+  avgTime: null,
+  medianTime: null,
+};
 
 export function computeSummaryStats(entries: StatsEntry[]): SummaryStats {
-  if (entries.length === 0) {
-    return {
-      totalEntries: 0,
-      scoredEntries: 0,
-      qualifiedCount: 0,
-      qualificationRate: 0,
-      bestTime: null,
-      bestTimeDogName: null,
-      avgTime: null,
-      medianTime: null,
-    };
+  if (entries.length === 0) return EMPTY_SUMMARY;
+
+  // Single pass: count scored/qualified and collect qualified times
+  let scoredCount = 0;
+  let qualifiedCount = 0;
+  const qualifiedTimes: number[] = [];
+  let bestTimeDogName: string | null = null;
+
+  for (const e of entries) {
+    if (!isScored(e)) continue;
+    scoredCount++;
+    if (isQualified(e)) {
+      qualifiedCount++;
+      if (e.searchTimeSeconds != null) {
+        qualifiedTimes.push(e.searchTimeSeconds);
+      }
+    }
   }
 
-  const scored = entries.filter(isScored);
-  const qualified = entries.filter(isQualified);
-  const qualifiedWithTimes = entries
-    .filter((e) => isQualified(e) && e.searchTimeSeconds != null)
-    .sort((a, b) => a.searchTimeSeconds! - b.searchTimeSeconds!);
-  const times = qualifiedWithTimes.map((e) => e.searchTimeSeconds!);
-  const bestEntry = qualifiedWithTimes.length > 0 ? qualifiedWithTimes[0]! : null;
+  qualifiedTimes.sort((a, b) => a - b);
+
+  if (qualifiedTimes.length > 0) {
+    const bestTime = qualifiedTimes[0]!;
+    bestTimeDogName =
+      entries.find(
+        (e) => isQualified(e) && e.searchTimeSeconds === bestTime,
+      )?.dogCallName ?? null;
+  }
 
   return {
     totalEntries: entries.length,
-    scoredEntries: scored.length,
-    qualifiedCount: qualified.length,
-    qualificationRate: qRate(scored),
-    bestTime: times.length > 0 ? times[0]! : null,
-    bestTimeDogName: bestEntry ? bestEntry.dogCallName : null,
+    scoredEntries: scoredCount,
+    qualifiedCount,
+    qualificationRate: scoredCount > 0 ? qualifiedCount / scoredCount : 0,
+    bestTime: qualifiedTimes.length > 0 ? qualifiedTimes[0]! : null,
+    bestTimeDogName,
     avgTime:
-      times.length > 0
-        ? times.reduce((sum, t) => sum + t, 0) / times.length
+      qualifiedTimes.length > 0
+        ? qualifiedTimes.reduce((sum, t) => sum + t, 0) / qualifiedTimes.length
         : null,
-    medianTime: times.length > 0 ? median(times) : null,
+    medianTime: qualifiedTimes.length > 0 ? median(qualifiedTimes) : null,
   };
 }
 
@@ -155,22 +159,33 @@ export function computePerDogStats(entries: StatsEntry[]): DogStats[] {
 
   const results: DogStats[] = [];
   for (const [dogId, dogEntries] of grouped) {
-    const scored = dogEntries.filter(isScored);
-    const times = qualifiedTimes(dogEntries).sort((a, b) => a - b);
-    const qualifiedCount = scored.filter(isQualified).length;
+    let scoredCount = 0;
+    let qualifiedCount = 0;
+    const times: number[] = [];
+
+    for (const e of dogEntries) {
+      if (!isScored(e)) continue;
+      scoredCount++;
+      if (isQualified(e)) {
+        qualifiedCount++;
+        if (e.searchTimeSeconds != null) times.push(e.searchTimeSeconds);
+      }
+    }
+
+    times.sort((a, b) => a - b);
 
     results.push({
       dogId,
       dogCallName: dogEntries[0]!.dogCallName,
       entries: dogEntries.length,
       qualifiedCount,
-      qualificationRate: qRate(scored),
+      qualificationRate: scoredCount > 0 ? qualifiedCount / scoredCount : 0,
       bestTime: times.length > 0 ? times[0]! : null,
       avgTime:
         times.length > 0
           ? times.reduce((sum, t) => sum + t, 0) / times.length
           : null,
-      isCleanSweep: scored.length > 0 && qualifiedCount === scored.length,
+      isCleanSweep: scoredCount > 0 && qualifiedCount === scoredCount,
     });
   }
 
@@ -244,48 +259,38 @@ export function computeQualificationTrend(
 
   const points: TrendPoint[] = [];
   for (const [showId, showEntries] of grouped) {
-    const scored = showEntries.filter(isScored);
-    const qualifiedCount = scored.filter(isQualified).length;
+    let scoredCount = 0;
+    let qualifiedCount = 0;
+    for (const e of showEntries) {
+      if (!isScored(e)) continue;
+      scoredCount++;
+      if (isQualified(e)) qualifiedCount++;
+    }
 
     points.push({
       showId,
       showName: showEntries[0]!.showName,
       showDate: showEntries[0]!.showDate,
-      totalEntries: scored.length,
+      totalEntries: scoredCount,
       qualifiedCount,
-      qualificationRate: scored.length > 0 ? qualifiedCount / scored.length : 0,
+      qualificationRate: scoredCount > 0 ? qualifiedCount / scoredCount : 0,
     });
   }
 
-  return points.sort(
-    (a, b) => new Date(a.showDate).getTime() - new Date(b.showDate).getTime(),
+  // ISO dates (YYYY-MM-DD) are lexicographically sortable
+  return points.sort((a, b) =>
+    a.showDate < b.showDate ? -1 : a.showDate > b.showDate ? 1 : 0,
   );
 }
 
+/** @deprecated Use `computePerDogStats(entries).filter(d => d.isCleanSweep)` instead */
 export function findCleanSweepDogs(entries: StatsEntry[]): CleanSweepDog[] {
-  if (entries.length === 0) return [];
-
-  const grouped = new Map<string, StatsEntry[]>();
-  for (const entry of entries) {
-    const list = grouped.get(entry.dogId) ?? [];
-    list.push(entry);
-    grouped.set(entry.dogId, list);
-  }
-
-  const results: CleanSweepDog[] = [];
-  for (const [dogId, dogEntries] of grouped) {
-    const scored = dogEntries.filter(isScored);
-    const qualifiedCount = scored.filter(isQualified).length;
-
-    if (scored.length > 0 && qualifiedCount === scored.length) {
-      results.push({
-        dogId,
-        dogCallName: dogEntries[0]!.dogCallName,
-        totalEntries: dogEntries.length,
-        qualifiedCount,
-      });
-    }
-  }
-
-  return results;
+  return computePerDogStats(entries)
+    .filter((d) => d.isCleanSweep)
+    .map((d) => ({
+      dogId: d.dogId,
+      dogCallName: d.dogCallName,
+      totalEntries: d.entries,
+      qualifiedCount: d.qualifiedCount,
+    }));
 }

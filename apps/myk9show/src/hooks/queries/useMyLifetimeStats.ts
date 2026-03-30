@@ -1,7 +1,3 @@
-/**
- * Hook for fetching the current user's entries across all shows.
- * Returns StatsEntry[] for use with analytics computation functions.
- */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
@@ -69,16 +65,13 @@ async function fetchMyLifetimeEntries(
   );
 }
 
-/**
- * Fetches entries for the current user's dogs across all shows.
- * Returns StatsEntry[] for lifetime analytics computation.
- */
 export function useMyLifetimeStats() {
   const { data: dogs = [] } = useDogsQuery();
   const dogIds = dogs.map((d: Record<string, unknown>) => d.id as string);
+  const sortedIds = dogIds.slice().sort();
 
   return useQuery({
-    queryKey: queryKeys.myLifetimeStats(),
+    queryKey: [...queryKeys.myLifetimeStats(), sortedIds],
     queryFn: () => fetchMyLifetimeEntries(dogIds),
     enabled: dogIds.length > 0,
     ...cacheStrategies.moderate,

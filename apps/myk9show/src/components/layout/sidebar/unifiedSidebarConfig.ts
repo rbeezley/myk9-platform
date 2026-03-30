@@ -231,6 +231,12 @@ export function buildUnifiedSidebarConfig(
           description: 'Check-in status and management',
         },
         {
+          title: 'Volunteers',
+          href: '/secretary/volunteers',
+          icon: Users,
+          description: 'Schedule and manage volunteers',
+        },
+        {
           title: 'Tasks',
           href: '/secretary/tasks',
           icon: KanbanSquare,

@@ -23,8 +23,8 @@ export function AssignVolunteerPopover({
 
   const excludeSet = new Set(excludeIds);
   const filtered = volunteers
-    .filter((v) => !excludeSet.has(v.id))
-    .filter((v) => !search || v.name.toLowerCase().includes(search.toLowerCase()));
+    .filter(v => !excludeSet.has(v.id))
+    .filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
 
   function handleSelect(volunteerId: string) {
     onAssign(volunteerId);
@@ -43,14 +43,14 @@ export function AssignVolunteerPopover({
         <Input
           placeholder="Search volunteers..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
           className="mb-2 h-8 text-sm"
         />
         <div className="max-h-48 overflow-y-auto">
           {filtered.length === 0 && (
             <p className="py-2 text-center text-xs text-muted-foreground">No volunteers found</p>
           )}
-          {filtered.map((vol) => (
+          {filtered.map(vol => (
             <button
               key={vol.id}
               type="button"
@@ -59,10 +59,9 @@ export function AssignVolunteerPopover({
               className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
             >
               {conflictIds.has(vol.id) && (
-                <AlertTriangle
-                  className="h-3.5 w-3.5 shrink-0 text-amber-500"
-                  title="Conflict: entered in this class"
-                />
+                <span title="Conflict: entered in this class">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                </span>
               )}
               <span className="truncate">{vol.name}</span>
               {!vol.personId && (

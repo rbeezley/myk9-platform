@@ -1,4 +1,4 @@
-import { render, screen, userEvent } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 import { VolunteerDialog } from '../VolunteerDialog';
 import type { Volunteer } from '@/types/volunteer';
 

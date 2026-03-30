@@ -20,7 +20,9 @@ export function VolunteerChip({ name, hasConflict = false, onRemove }: Volunteer
       )}
     >
       {hasConflict && (
-        <AlertTriangle className="h-3 w-3" title="Conflict: volunteer is entered in this class" />
+        <span title="Conflict: volunteer is entered in this class">
+          <AlertTriangle className="h-3 w-3" />
+        </span>
       )}
       {formatVolunteerDisplayName(name)}
       <button

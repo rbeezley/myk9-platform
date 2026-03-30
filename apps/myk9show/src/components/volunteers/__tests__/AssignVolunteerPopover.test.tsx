@@ -1,52 +1,45 @@
-import { render, screen, userEvent } from '@/test/utils/testUtils';
+import React, {
+  createContext,
+  useContext,
+  isValidElement,
+  cloneElement,
+  createElement,
+} from 'react';
+import { render, screen } from '@/test/utils/testUtils';
 import { AssignVolunteerPopover } from '../AssignVolunteerPopover';
 import type { Volunteer } from '@/types/volunteer';
 
 // Mock popover to avoid floating-ui ResizeObserver issues in jsdom
-const PopoverContext = (() => {
-  const React = require('react');
-  return React.createContext<{ open: boolean; onOpenChange: (v: boolean) => void }>({
-    open: false,
-    onOpenChange: () => {},
-  });
-})();
-
-vi.mock('@/components/ui/popover', () => {
-  const React = require('react');
-  return {
-    Popover: ({
-      open,
-      onOpenChange,
-      children,
-    }: {
-      open: boolean;
-      onOpenChange: (v: boolean) => void;
-      children: React.ReactNode;
-    }) => {
-      return React.createElement(
-        PopoverContext.Provider,
-        { value: { open, onOpenChange } },
-        children
-      );
-    },
-    PopoverTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => {
-      const React = require('react');
-      const { onOpenChange, open } = React.useContext(PopoverContext);
-      if (asChild && React.isValidElement(children)) {
-        return React.cloneElement(children, {
-          onClick: () => onOpenChange(!open),
-        });
-      }
-      return React.createElement('div', { onClick: () => onOpenChange(!open) }, children);
-    },
-    PopoverContent: ({ children }: { children: React.ReactNode }) => {
-      const React = require('react');
-      const { open } = React.useContext(PopoverContext);
-      if (!open) return null;
-      return React.createElement('div', { 'data-testid': 'popover-content' }, children);
-    },
-  };
+const PopoverContext = createContext<{ open: boolean; onOpenChange: (v: boolean) => void }>({
+  open: false,
+  onOpenChange: () => {},
 });
+
+vi.mock('@/components/ui/popover', () => ({
+  Popover: ({
+    open,
+    onOpenChange,
+    children,
+  }: {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    children: React.ReactNode;
+  }) => createElement(PopoverContext.Provider, { value: { open, onOpenChange } }, children),
+  PopoverTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => {
+    const { onOpenChange, open } = useContext(PopoverContext);
+    if (asChild && isValidElement(children)) {
+      return cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        onClick: () => onOpenChange(!open),
+      });
+    }
+    return createElement('div', { onClick: () => onOpenChange(!open) }, children);
+  },
+  PopoverContent: ({ children }: { children: React.ReactNode }) => {
+    const { open } = useContext(PopoverContext);
+    if (!open) return null;
+    return createElement('div', { 'data-testid': 'popover-content' }, children);
+  },
+}));
 
 const makeVol = (overrides: Partial<Volunteer> = {}): Volunteer => ({
   id: 'v-1',
@@ -125,7 +118,6 @@ describe('AssignVolunteerPopover', () => {
   it('shows "(walk-up)" for volunteers without personId', async () => {
     const { user } = render(<AssignVolunteerPopover {...defaultProps} />);
     await user.click(screen.getByRole('button', { name: /assign/i }));
-    // Sarah and Tom have no personId
     const walkUpLabels = screen.getAllByText(/walk-up/);
     expect(walkUpLabels.length).toBe(2);
   });

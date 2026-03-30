@@ -59,13 +59,12 @@ export function useVolunteers(showId: string | undefined) {
   return useQuery({
     queryKey: queryKeys.volunteers(showId ?? ''),
     queryFn: async () => {
-      const { data, error } = await (
-        supabase.from('volunteers') as ReturnType<typeof supabase.from>
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('volunteers') as any)
         .select('*')
-        .eq('show_id' as string, showId!);
+        .eq('show_id', showId!);
       if (error) throw error;
-      return (data ?? []).map(row => mapVolunteerRow(row as Record<string, unknown>));
+      return ((data ?? []) as Record<string, unknown>[]).map(mapVolunteerRow);
     },
     enabled: !!showId,
     ...cacheStrategies.dynamic,
@@ -200,16 +199,15 @@ export function useAddVolunteer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: AddVolunteerInput) => {
-      const { data, error } = await (
-        supabase.from('volunteers') as ReturnType<typeof supabase.from>
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('volunteers') as any)
         .insert({
           name: input.name,
           show_id: input.showId,
           phone: input.phone,
           notes: input.notes,
           person_id: input.personId,
-        } as Record<string, unknown>)
+        })
         .select()
         .single();
       if (error) throw error;

@@ -1,15 +1,25 @@
 /**
  * ShowResultsTab — renders inside ShowDetailsPage's "Results" tab.
- * Fetches finalized results, shows podium cards with element/level filters.
+ * Contains sub-tabs: Podium (existing results), Show Stats, Judge Stats.
  */
 
 import { useState, useMemo } from 'react';
-import { Trophy, Filter, ChevronDown, ChevronRight, Clock } from 'lucide-react';
+import {
+  Trophy,
+  Filter,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  BarChart3,
+  Scale,
+  Medal,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
+import { SubTabs, SubTabsContent, type SubTabDef } from '@/components/common/SubTabs';
 import { PodiumCard } from './PodiumCard';
 import {
   useShowResults,
@@ -19,21 +29,17 @@ import {
   type ClassResult,
 } from '@/hooks/queries/useShowResults';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
+import { useShowStats } from '@/hooks/queries/useShowStats';
+import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import { ShowStatsSubTab } from '@/components/analytics/ShowStatsSubTab';
+import { JudgeStatsSubTab } from '@/components/analytics/JudgeStatsSubTab';
 
 interface VisibilityGatedPodiumCardProps {
   cls: ClassResult;
   showId: string;
 }
 
-/**
- * Wraps PodiumCard with visibility gating.
- * If placement visibility is not yet enabled for this class, shows a
- * "Results pending review" placeholder instead of the actual podium.
- */
 function VisibilityGatedPodiumCard({ cls, showId }: VisibilityGatedPodiumCardProps) {
-  // Classes with placements are treated as 'completed' — they have scored entries.
-  // The visibility hook further checks if results have been manually released when
-  // the preset requires it (manual_release timing).
   const classState = deriveClassState('completed', cls.resultsReleasedAt);
   const { showPlacement, isLoading } = useVisibleResultFields(
     showId,
@@ -71,11 +77,11 @@ function VisibilityGatedPodiumCard({ cls, showId }: VisibilityGatedPodiumCardPro
   return <PodiumCard classTitle={cls.className} placements={cls.placements} />;
 }
 
-interface ShowResultsTabProps {
+interface PodiumContentProps {
   showId: string;
 }
 
-export function ShowResultsTab({ showId }: ShowResultsTabProps) {
+function PodiumContent({ showId }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
   const [filters, setFilters] = useState<ResultsFilters>({ element: null, level: null });
   const [pendingExpanded, setPendingExpanded] = useState(false);
@@ -214,5 +220,48 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
         </div>
       )}
     </div>
+  );
+}
+
+interface ShowResultsTabProps {
+  showId: string;
+}
+
+export function ShowResultsTab({ showId }: ShowResultsTabProps) {
+  const { data: showEntries } = useShowStats(showId);
+  const { data: judges } = useShowJudges(showId);
+
+  const hasScoredEntries = (showEntries || []).some(e => e.resultText !== 'pending');
+  const hasJudges = (judges || []).length > 0;
+
+  const subTabDefs: SubTabDef[] = useMemo(
+    () => [
+      { id: 'podium', label: 'Podium', icon: Medal },
+      ...(hasScoredEntries ? [{ id: 'show-stats', label: 'Show Stats', icon: BarChart3 }] : []),
+      ...(hasJudges ? [{ id: 'judge-stats', label: 'Judge Stats', icon: Scale }] : []),
+    ],
+    [hasScoredEntries, hasJudges]
+  );
+
+  const [activeSubTab, setActiveSubTab] = useState('podium');
+
+  return (
+    <SubTabs tabs={subTabDefs} value={activeSubTab} onValueChange={setActiveSubTab}>
+      <SubTabsContent value="podium">
+        <PodiumContent showId={showId} />
+      </SubTabsContent>
+
+      {hasScoredEntries && (
+        <SubTabsContent value="show-stats">
+          <ShowStatsSubTab showId={showId} />
+        </SubTabsContent>
+      )}
+
+      {hasJudges && (
+        <SubTabsContent value="judge-stats">
+          <JudgeStatsSubTab showId={showId} />
+        </SubTabsContent>
+      )}
+    </SubTabs>
   );
 }

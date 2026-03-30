@@ -232,6 +232,12 @@ export const queryKeys = {
   myShowStats: (showId: string) => ['analytics', 'show', showId] as const,
   myLifetimeStats: () => ['analytics', 'lifetime'] as const,
 
+  // Public Show & Judge Analytics
+  showStats: (showId: string) => ['analytics', 'show-stats', showId] as const,
+  showJudges: (showId: string) => ['analytics', 'show-judges', showId] as const,
+  judgeShowStats: (judgeId: string, showId: string) =>
+    ['analytics', 'judge-show-stats', judgeId, showId] as const,
+
   // Legacy aliases for backward compatibility with existing showEntries key
   classEntries: (classId: string) => ['entries', 'class', classId] as const,
   dogEntries: (dogId: string) => ['entries', 'dog', dogId] as const,

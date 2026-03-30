@@ -8,6 +8,9 @@
 export { PerformanceGraphs } from './PerformanceGraphs';
 export { UserActivityMonitor } from './UserActivityMonitor';
 export { EnhancedAnalyticsDashboard } from './EnhancedAnalyticsDashboard';
+export { ShowStatsSubTab } from './ShowStatsSubTab';
+export { JudgeStatsSubTab } from './JudgeStatsSubTab';
+export { ClassBreakdownTable } from './ClassBreakdownTable';
 
 // Re-export types for convenience
 export type {
@@ -20,5 +23,5 @@ export type {
   ResourceUsage,
   PerformanceBenchmark,
   StorageMetrics,
-  SyncQueueMetrics
+  SyncQueueMetrics,
 } from '@/types/analytics-types';

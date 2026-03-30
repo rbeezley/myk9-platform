@@ -14,6 +14,8 @@ export interface StatsEntry {
   totalFaults: number | null;
   finalPlacement: number | null;
   organization?: string | undefined;
+  trialDate?: string | undefined;
+  trialNumber?: string | undefined;
 }
 
 export interface SummaryStats {
@@ -127,9 +129,7 @@ export function computeSummaryStats(entries: StatsEntry[]): SummaryStats {
   if (qualifiedTimes.length > 0) {
     const bestTime = qualifiedTimes[0]!;
     bestTimeDogName =
-      entries.find(
-        (e) => isQualified(e) && e.searchTimeSeconds === bestTime,
-      )?.dogCallName ?? null;
+      entries.find(e => isQualified(e) && e.searchTimeSeconds === bestTime)?.dogCallName ?? null;
   }
 
   return {
@@ -181,10 +181,7 @@ export function computePerDogStats(entries: StatsEntry[]): DogStats[] {
       qualifiedCount,
       qualificationRate: scoredCount > 0 ? qualifiedCount / scoredCount : 0,
       bestTime: times.length > 0 ? times[0]! : null,
-      avgTime:
-        times.length > 0
-          ? times.reduce((sum, t) => sum + t, 0) / times.length
-          : null,
+      avgTime: times.length > 0 ? times.reduce((sum, t) => sum + t, 0) / times.length : null,
       isCleanSweep: scoredCount > 0 && qualifiedCount === scoredCount,
     });
   }
@@ -204,9 +201,7 @@ const RESULT_CONFIG: {
   { status: 'WD', label: 'Withdrawn', color: '#6b7280' },
 ];
 
-export function computeResultDistribution(
-  entries: StatsEntry[],
-): ResultDistributionItem[] {
+export function computeResultDistribution(entries: StatsEntry[]): ResultDistributionItem[] {
   const scored = entries.filter(isScored);
   if (scored.length === 0) return [];
 
@@ -215,22 +210,17 @@ export function computeResultDistribution(
     counts.set(entry.resultText, (counts.get(entry.resultText) ?? 0) + 1);
   }
 
-  return RESULT_CONFIG.filter((cfg) => (counts.get(cfg.status) ?? 0) > 0).map(
-    (cfg) => ({
-      status: cfg.status,
-      label: cfg.label,
-      count: counts.get(cfg.status)!,
-      color: cfg.color,
-    }),
-  );
+  return RESULT_CONFIG.filter(cfg => (counts.get(cfg.status) ?? 0) > 0).map(cfg => ({
+    status: cfg.status,
+    label: cfg.label,
+    count: counts.get(cfg.status)!,
+    color: cfg.color,
+  }));
 }
 
-export function computeFastestTimes(
-  entries: StatsEntry[],
-  limit: number,
-): FastestTimeEntry[] {
+export function computeFastestTimes(entries: StatsEntry[], limit: number): FastestTimeEntry[] {
   return entries
-    .filter((e) => isQualified(e) && e.searchTimeSeconds != null)
+    .filter(e => isQualified(e) && e.searchTimeSeconds != null)
     .sort((a, b) => a.searchTimeSeconds! - b.searchTimeSeconds!)
     .slice(0, limit)
     .map((e, i) => ({
@@ -245,9 +235,7 @@ export function computeFastestTimes(
     }));
 }
 
-export function computeQualificationTrend(
-  entries: StatsEntry[],
-): TrendPoint[] {
+export function computeQualificationTrend(entries: StatsEntry[]): TrendPoint[] {
   if (entries.length === 0) return [];
 
   const grouped = new Map<string, StatsEntry[]>();
@@ -278,16 +266,88 @@ export function computeQualificationTrend(
   }
 
   // ISO dates (YYYY-MM-DD) are lexicographically sortable
-  return points.sort((a, b) =>
-    a.showDate < b.showDate ? -1 : a.showDate > b.showDate ? 1 : 0,
-  );
+  return points.sort((a, b) => (a.showDate < b.showDate ? -1 : a.showDate > b.showDate ? 1 : 0));
+}
+
+export interface ClassBreakdownEntry {
+  classId: string;
+  className: string;
+  classElement: string | null;
+  classLevel: string | null;
+  trialDate: string;
+  trialNumber: string;
+  entryCount: number;
+  scoredCount: number;
+  qualifiedCount: number;
+  /** 0–1 fraction */
+  qualificationRate: number;
+  bestTime: number | null;
+  avgTime: number | null;
+}
+
+export function computeClassBreakdown(entries: StatsEntry[]): ClassBreakdownEntry[] {
+  if (entries.length === 0) return [];
+
+  const grouped = new Map<string, StatsEntry[]>();
+  for (const entry of entries) {
+    const list = grouped.get(entry.classId) ?? [];
+    list.push(entry);
+    grouped.set(entry.classId, list);
+  }
+
+  const results: ClassBreakdownEntry[] = [];
+  for (const [classId, classEntries] of grouped) {
+    let scoredCount = 0;
+    let qualifiedCount = 0;
+    const qualifiedTimes: number[] = [];
+
+    for (const e of classEntries) {
+      if (!isScored(e)) continue;
+      scoredCount++;
+      if (isQualified(e)) {
+        qualifiedCount++;
+        if (e.searchTimeSeconds != null) qualifiedTimes.push(e.searchTimeSeconds);
+      }
+    }
+
+    qualifiedTimes.sort((a, b) => a - b);
+    const first = classEntries[0]!;
+
+    results.push({
+      classId,
+      className: first.className,
+      classElement: first.classElement,
+      classLevel: first.classLevel,
+      trialDate: first.trialDate || '',
+      trialNumber: first.trialNumber || '',
+      entryCount: classEntries.length,
+      scoredCount,
+      qualifiedCount,
+      qualificationRate: scoredCount > 0 ? qualifiedCount / scoredCount : 0,
+      bestTime: qualifiedTimes.length > 0 ? qualifiedTimes[0]! : null,
+      avgTime:
+        qualifiedTimes.length > 0
+          ? qualifiedTimes.reduce((sum, t) => sum + t, 0) / qualifiedTimes.length
+          : null,
+    });
+  }
+
+  return results.sort((a, b) => {
+    const dateCompare = a.trialDate.localeCompare(b.trialDate);
+    if (dateCompare !== 0) return dateCompare;
+    const numCompare = a.trialNumber.localeCompare(b.trialNumber);
+    if (numCompare !== 0) return numCompare;
+    const elCompare = (a.classElement || '').localeCompare(b.classElement || '');
+    if (elCompare !== 0) return elCompare;
+    return (a.classLevel || '').localeCompare(b.classLevel || '');
+  });
 }
 
 /** @deprecated Use `computePerDogStats(entries).filter(d => d.isCleanSweep)` instead */
 export function findCleanSweepDogs(entries: StatsEntry[]): CleanSweepDog[] {
   return computePerDogStats(entries)
-    .filter((d) => d.isCleanSweep)
-    .map((d) => ({
+    .filter(d => d.isCleanSweep)
+    .map(d => ({
       dogId: d.dogId,
       dogCallName: d.dogCallName,
       totalEntries: d.entries,

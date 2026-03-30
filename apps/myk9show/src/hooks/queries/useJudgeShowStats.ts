@@ -5,6 +5,7 @@ import type { StatsEntry } from '@/components/analytics/analytics-utils';
 import { mapRowToStatsEntry, STATS_ENTRY_SELECT } from './statsEntryMapper';
 
 async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<StatsEntry[]> {
+  // Use direct show_id on judge_assignments (no deep path filter needed)
   const { data: assignments, error: assignError } = await supabase
     .from('judge_assignments')
     .select(
@@ -12,12 +13,12 @@ async function fetchJudgeShowEntries(judgeId: string, showId: string): Promise<S
       class_id,
       classes!inner(
         trial_id,
-        trials!inner(show_id, trial_date, trial_number)
+        trials!inner(trial_date, trial_number)
       )
     `
     )
     .eq('person_id', judgeId)
-    .eq('classes.trials.show_id', showId);
+    .eq('show_id', showId);
 
   if (assignError) throw assignError;
   if (!assignments || assignments.length === 0) return [];

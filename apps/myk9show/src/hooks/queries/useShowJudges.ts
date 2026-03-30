@@ -13,11 +13,10 @@ async function fetchShowJudges(showId: string): Promise<ShowJudge[]> {
     .select(
       `
       person_id,
-      people!inner(id, first_name, last_name),
-      classes!inner(trial_id, trials!inner(show_id))
+      people!inner(id, first_name, last_name)
     `
     )
-    .eq('classes.trials.show_id', showId);
+    .eq('show_id', showId);
 
   if (error) throw error;
 

@@ -11,3 +11,4 @@ export { EntryFiltersCard } from './EntryFiltersCard';
 export { EntryListCard } from './EntryListCard';
 export { EntriesTableView } from './EntriesTableView';
 export { CompEntryDialog } from './CompEntryDialog';
+export { FilterBreadcrumb } from './FilterBreadcrumb';

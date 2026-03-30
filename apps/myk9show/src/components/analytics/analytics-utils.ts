@@ -16,7 +16,7 @@ export interface StatsEntry {
   searchTimeSeconds: number | null;
   totalFaults: number | null;
   finalPlacement: number | null;
-  organization?: string;
+  organization?: string | undefined;
 }
 
 export interface SummaryStats {

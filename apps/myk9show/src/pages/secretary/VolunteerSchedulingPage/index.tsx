@@ -249,7 +249,7 @@ export default function VolunteerSchedulingPage() {
                 onAssign={volId =>
                   assignToGeneralDuty.mutate({
                     volunteerId: volId,
-                    showId: selectedShowId!,
+                    showId: selectedShowId,
                     roleName: role,
                   })
                 }

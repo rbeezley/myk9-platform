@@ -105,6 +105,8 @@ export function VolunteerDialog({
     try {
       await onDelete(volunteer.id);
       onClose();
+    } catch {
+      // Mutation onError handles the toast; keep dialog open for retry
     } finally {
       setSaving(false);
     }

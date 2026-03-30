@@ -4,9 +4,6 @@ import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
 import type { Volunteer, ClassInfo, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
 
-// Note: show_id on volunteers table is added by migration 095 but not yet
-// in the generated supabase types. We use type assertions where needed.
-
 // ── Mappers ──────────────────────────────────────────────────────────────────
 
 function mapVolunteerRow(row: Record<string, unknown>): Volunteer {
@@ -59,12 +56,9 @@ export function useVolunteers(showId: string | undefined) {
   return useQuery({
     queryKey: queryKeys.volunteers(showId ?? ''),
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('volunteers') as any)
-        .select('*')
-        .eq('show_id', showId!);
+      const { data, error } = await supabase.from('volunteers').select('*').eq('show_id', showId!);
       if (error) throw error;
-      return ((data ?? []) as Record<string, unknown>[]).map(mapVolunteerRow);
+      return (data ?? []).map(row => mapVolunteerRow(row as Record<string, unknown>));
     },
     enabled: !!showId,
     ...cacheStrategies.dynamic,
@@ -151,7 +145,7 @@ export function useVolunteerConflicts(showId: string | undefined, volunteers: Vo
   const personIds = volunteers.filter(v => v.personId !== null).map(v => v.personId!);
 
   return useQuery({
-    queryKey: ['volunteer-conflicts', showId, personIds.sort().join(',')],
+    queryKey: ['volunteer-conflicts', showId, [...personIds].sort().join(',')],
     queryFn: async () => {
       if (personIds.length === 0) return new Map<string, Set<string>>();
 
@@ -242,8 +236,8 @@ export function useAddVolunteer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: AddVolunteerInput) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('volunteers') as any)
+      const { data, error } = await supabase
+        .from('volunteers')
         .insert({
           name: input.name,
           show_id: input.showId,

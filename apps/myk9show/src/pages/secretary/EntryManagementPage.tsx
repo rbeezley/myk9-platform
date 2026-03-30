@@ -51,6 +51,11 @@ import { useEntryManagementData } from '@/hooks/useEntryManagementData';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
 import { useEntryManagementActions } from '@/hooks/useEntryManagementActions';
 
+// Trial/class filter hooks
+import { useShowTrials } from '@/hooks/queries/useShowTrials';
+import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
+import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
+
 // Extracted components
 import {
   ArmbandDialog,
@@ -61,6 +66,9 @@ import {
   EntryListCard,
   EntriesTableView,
   CompEntryDialog,
+  FilterBreadcrumb,
+  TrialClassFilters,
+  TrialRosterView,
 } from '@/components/entries/management';
 
 // Extracted utilities
@@ -103,13 +111,18 @@ const EntryManagementPage: React.FC = () => {
     setPaymentFilter,
     selectedTab,
     setSelectedTab,
+    trialFilter,
+    classFilter,
+    viewMode,
+    setTrialFilter,
+    setClassFilter,
     selectedEntries,
     setSelectedEntries,
     handleSelectEntry,
     handleSelectAll,
     filteredEntries,
     clearFilters,
-  } = useEntryManagementFilters({ entries, tabCounts });
+  } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
 
   // Actions hook
   const {
@@ -141,6 +154,36 @@ const EntryManagementPage: React.FC = () => {
     setSelectedEntries,
     user,
   });
+
+  // Trial/class data for filter dropdowns and roster view
+  const { data: trials = [], isLoading: isLoadingTrials } = useShowTrials(selectedShowId);
+  const { data: trialClasses = [], isLoading: isLoadingClasses } = useClassesByTrialQuery(
+    trialFilter || '',
+    !!trialFilter
+  );
+  const { data: trialEntryRows = [], isLoading: isLoadingTrialEntries } = useTrialEntries(
+    trialFilter || ''
+  );
+
+  // Map trial entry rows to roster entries for TrialRosterView
+  const rosterEntries = useMemo(() => {
+    if (!trialEntryRows.length) return [];
+    return trialEntryRows.map(row => ({
+      id: row.id,
+      armband: row.armband,
+      dogName: row.dog?.call_name || row.dog?.name || 'Unknown Dog',
+      breed: row.dog?.breed || null,
+      handlerName:
+        row.handler ||
+        (row.dog?.owner
+          ? `${row.dog.owner.first_name || ''} ${row.dog.owner.last_name || ''}`.trim()
+          : 'Unknown'),
+      className: row.class?.name || 'Unknown Class',
+      classId: row.class_id,
+      isScored: false, // scoring status not yet available on trial entry rows
+      checkInStatus: row.check_in_status || null,
+    }));
+  }, [trialEntryRows]);
 
   // View mode state
   const [entryViewMode, setEntryViewMode] = useState<'list' | 'table'>('list');
@@ -339,187 +382,270 @@ const EntryManagementPage: React.FC = () => {
       {/* Main Content - Only show when a show is selected and not loading */}
       {selectedShowId && !isLoading && (
         <>
-          {/* Stats Overview */}
-          <EntryStatsCards stats={stats} />
-
-          {/* Filters */}
-          <EntryFiltersCard
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            paymentFilter={paymentFilter}
-            setPaymentFilter={setPaymentFilter}
-            onClearFilters={clearFilters}
+          {/* Trial / Class Filters */}
+          <TrialClassFilters
+            trials={trials}
+            classes={trialClasses}
+            trialFilter={trialFilter}
+            classFilter={classFilter}
+            onTrialChange={setTrialFilter}
+            onClassChange={setClassFilter}
+            isLoadingTrials={isLoadingTrials}
+            isLoadingClasses={isLoadingClasses}
           />
 
-          {/* Bulk Actions */}
-          {selectedEntries.size > 0 && (
-            <Card className="border-blue-200 bg-blue-50">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">{selectedEntries.size} entries selected</span>
-                  <div className="flex gap-2">
-                    <Dialog
-                      open={bulkActionDialog.open && bulkActionDialog.action === 'status_change'}
-                      onOpenChange={open => setBulkActionDialog({ ...bulkActionDialog, open })}
-                    >
-                      <DialogTrigger asChild>
+          {/* Filter Breadcrumb */}
+          <FilterBreadcrumb
+            trialName={
+              trialFilter
+                ? (() => {
+                    const t = trials.find(tr => tr.id === trialFilter);
+                    return t ? (t.name || `Trial ${t.trial_number}`) : null;
+                  })()
+                : null
+            }
+            className={
+              classFilter
+                ? (() => {
+                    const c = trialClasses.find(cl => cl.id === classFilter);
+                    return c?.name || null;
+                  })()
+                : null
+            }
+            onClearTrial={() => setTrialFilter(null)}
+            onClearClass={() => setClassFilter(null)}
+          />
+
+          {/* Registration view: stats, filters, bulk actions, entries tabs */}
+          {viewMode === 'registration' && (
+            <>
+              {/* Stats Overview */}
+              <EntryStatsCards stats={stats} />
+
+              {/* Filters */}
+              <EntryFiltersCard
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                paymentFilter={paymentFilter}
+                setPaymentFilter={setPaymentFilter}
+                onClearFilters={clearFilters}
+              />
+
+              {/* Bulk Actions */}
+              {selectedEntries.size > 0 && (
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">
+                        {selectedEntries.size} entries selected
+                      </span>
+                      <div className="flex gap-2">
+                        <Dialog
+                          open={
+                            bulkActionDialog.open &&
+                            bulkActionDialog.action === 'status_change'
+                          }
+                          onOpenChange={open =>
+                            setBulkActionDialog({ ...bulkActionDialog, open })
+                          }
+                        >
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                setBulkActionDialog({ open: true, action: 'status_change' })
+                              }
+                            >
+                              Change Status
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Bulk Status Change</DialogTitle>
+                              <DialogDescription>
+                                Change status for {selectedEntries.size} selected entries
+                              </DialogDescription>
+                            </DialogHeader>
+                            <Select
+                              onValueChange={value =>
+                                handleBulkAction({
+                                  type: 'status_change',
+                                  data: { status: value },
+                                })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select new status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={EntryStatus.ACCEPTED}>Accept</SelectItem>
+                                <SelectItem value={EntryStatus.WAITLIST}>
+                                  Move to Waitlist
+                                </SelectItem>
+                                <SelectItem value={EntryStatus.REJECTED}>Reject</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </DialogContent>
+                        </Dialog>
+
                         <Button
                           size="sm"
+                          variant="outline"
                           onClick={() =>
-                            setBulkActionDialog({ open: true, action: 'status_change' })
+                            setBulkActionDialog({ open: true, action: 'check_in' })
                           }
                         >
-                          Change Status
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Bulk Check-In
                         </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Bulk Status Change</DialogTitle>
-                          <DialogDescription>
-                            Change status for {selectedEntries.size} selected entries
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Select
-                          onValueChange={value =>
-                            handleBulkAction({ type: 'status_change', data: { status: value } })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select new status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={EntryStatus.ACCEPTED}>Accept</SelectItem>
-                            <SelectItem value={EntryStatus.WAITLIST}>Move to Waitlist</SelectItem>
-                            <SelectItem value={EntryStatus.REJECTED}>Reject</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </DialogContent>
-                    </Dialog>
 
+                        <Button size="sm" variant="outline">
+                          <Mail className="h-4 w-4 mr-2" />
+                          Send Email
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Entries Tabs */}
+              <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <TabsList className="grid w-full grid-cols-7">
+                    <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
+                    <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
+                    <TabsTrigger value="accepted">
+                      Accepted ({tabCounts.accepted})
+                    </TabsTrigger>
+                    <TabsTrigger value="waitlist">
+                      Waitlist ({tabCounts.waitlist})
+                    </TabsTrigger>
+                    <TabsTrigger value="move-ups">
+                      <ArrowUpCircle className="h-4 w-4 mr-1" />
+                      Move-Ups
+                    </TabsTrigger>
+                    <TabsTrigger value="scratches">
+                      <XCircle className="h-4 w-4 mr-1" />
+                      Scratches
+                    </TabsTrigger>
+                    <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
+                  </TabsList>
+
+                  <div className="flex bg-muted/50 rounded-lg p-1 flex-shrink-0">
                     <Button
+                      variant={entryViewMode === 'list' ? 'default' : 'ghost'}
                       size="sm"
-                      variant="outline"
-                      onClick={() => setBulkActionDialog({ open: true, action: 'check_in' })}
+                      onClick={() => setEntryViewMode('list')}
+                      className="h-8 px-2"
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Bulk Check-In
+                      <List className="h-4 w-4" />
                     </Button>
-
-                    <Button size="sm" variant="outline">
-                      <Mail className="h-4 w-4 mr-2" />
-                      Send Email
+                    <Button
+                      variant={entryViewMode === 'table' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setEntryViewMode('table')}
+                      className="h-8 px-2"
+                    >
+                      <Table2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+
+                <TabsContent value={selectedTab} className="mt-6">
+                  {entryViewMode === 'table' ? (
+                    <EntriesTableView
+                      entries={filteredEntries}
+                      emailStatusMap={emailStatusMap}
+                      onResendEmail={handleResendEmail}
+                      isResendDisabled={isResendDisabled}
+                    />
+                  ) : (
+                    <EntryListCard
+                      entries={filteredEntries}
+                      selectedEntries={selectedEntries}
+                      onSelectEntry={handleSelectEntry}
+                      onSelectAll={handleSelectAll}
+                      onStatusChange={handleStatusChange}
+                      onOpenCheckInDialog={(entry, classEntry) =>
+                        setCheckInDialog({ open: true, entry, classEntry })
+                      }
+                      onOpenArmbandDialog={entry =>
+                        setArmbandDialog({
+                          open: true,
+                          entry,
+                          value: entry.armbandNumber || '',
+                        })
+                      }
+                      onCompEntry={entryId => {
+                        const entry = entries.find(e => e.id === entryId);
+                        if (entry) {
+                          setCompDialog({
+                            open: true,
+                            entryId,
+                            entryNumber: entry.entryNumber,
+                            dogName: entry.dogName,
+                          });
+                        }
+                      }}
+                      onUncompEntry={handleUncompEntry}
+                      emailStatusMap={emailStatusMap}
+                      onResendEmail={handleResendEmail}
+                      isResendDisabled={isResendDisabled}
+                    />
+                  )}
+                </TabsContent>
+
+                {/* Move-Ups Tab Content */}
+                <TabsContent value="move-ups" className="mt-6">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <MoveUpRequestsTab
+                        showId={selectedShowId}
+                        onRefresh={() => loadEntries(selectedShowId)}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Scratches Tab Content */}
+                <TabsContent value="scratches" className="mt-6">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <ScratchManagementTab
+                        showId={selectedShowId}
+                        onRefresh={() => loadEntries(selectedShowId)}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </>
           )}
 
-          {/* Entries Tabs */}
-          <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <div className="flex items-center justify-between gap-4 mb-2">
-              <TabsList className="grid w-full grid-cols-7">
-                <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
-                <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
-                <TabsTrigger value="accepted">Accepted ({tabCounts.accepted})</TabsTrigger>
-                <TabsTrigger value="waitlist">Waitlist ({tabCounts.waitlist})</TabsTrigger>
-                <TabsTrigger value="move-ups">
-                  <ArrowUpCircle className="h-4 w-4 mr-1" />
-                  Move-Ups
-                </TabsTrigger>
-                <TabsTrigger value="scratches">
-                  <XCircle className="h-4 w-4 mr-1" />
-                  Scratches
-                </TabsTrigger>
-                <TabsTrigger value="issues">Issues ({tabCounts.issues})</TabsTrigger>
-              </TabsList>
+          {/* Roster view: trial entries grouped by class */}
+          {viewMode === 'roster' && (
+            <TrialRosterView
+              entries={rosterEntries}
+              onClassClick={classId => setClassFilter(classId)}
+              isLoading={isLoadingTrialEntries}
+            />
+          )}
 
-              <div className="flex bg-muted/50 rounded-lg p-1 flex-shrink-0">
-                <Button
-                  variant={entryViewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setEntryViewMode('list')}
-                  className="h-8 px-2"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={entryViewMode === 'table' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setEntryViewMode('table')}
-                  className="h-8 px-2"
-                >
-                  <Table2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <TabsContent value={selectedTab} className="mt-6">
-              {entryViewMode === 'table' ? (
-                <EntriesTableView
-                  entries={filteredEntries}
-                  emailStatusMap={emailStatusMap}
-                  onResendEmail={handleResendEmail}
-                  isResendDisabled={isResendDisabled}
-                />
-              ) : (
-                <EntryListCard
-                  entries={filteredEntries}
-                  selectedEntries={selectedEntries}
-                  onSelectEntry={handleSelectEntry}
-                  onSelectAll={handleSelectAll}
-                  onStatusChange={handleStatusChange}
-                  onOpenCheckInDialog={(entry, classEntry) =>
-                    setCheckInDialog({ open: true, entry, classEntry })
-                  }
-                  onOpenArmbandDialog={entry =>
-                    setArmbandDialog({ open: true, entry, value: entry.armbandNumber || '' })
-                  }
-                  onCompEntry={entryId => {
-                    const entry = entries.find(e => e.id === entryId);
-                    if (entry) {
-                      setCompDialog({
-                        open: true,
-                        entryId,
-                        entryNumber: entry.entryNumber,
-                        dogName: entry.dogName,
-                      });
-                    }
-                  }}
-                  onUncompEntry={handleUncompEntry}
-                  emailStatusMap={emailStatusMap}
-                  onResendEmail={handleResendEmail}
-                  isResendDisabled={isResendDisabled}
-                />
-              )}
-            </TabsContent>
-
-            {/* Move-Ups Tab Content */}
-            <TabsContent value="move-ups" className="mt-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <MoveUpRequestsTab
-                    showId={selectedShowId}
-                    onRefresh={() => loadEntries(selectedShowId)}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Scratches Tab Content */}
-            <TabsContent value="scratches" className="mt-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <ScratchManagementTab
-                    showId={selectedShowId}
-                    onRefresh={() => loadEntries(selectedShowId)}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          {/* Scoring view: placeholder for future inline scoring */}
+          {viewMode === 'scoring' && (
+            <Card className="p-8 text-center">
+              <h3 className="text-lg font-medium mb-2">Scoring Mode</h3>
+              <p className="text-muted-foreground mb-4">
+                Inline scoring for this class will be wired in a future task.
+              </p>
+              <Button variant="outline" onClick={() => setClassFilter(null)}>
+                Back to Trial Roster
+              </Button>
+            </Card>
+          )}
 
           {/* Check-In Status Dialog */}
           {checkInDialog.entry && checkInDialog.classEntry && (

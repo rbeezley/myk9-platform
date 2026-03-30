@@ -1,11 +1,10 @@
 /**
  * Analytics Components Index
- * 
- * Exports all analytics dashboard and monitoring components for Phase 5.2.4
- * implementation of performance graphs and user activity monitoring.
+ *
+ * Exports admin monitoring components (PerformanceGraphs, UserActivityMonitor,
+ * EnhancedAnalyticsDashboard) and re-exports shared analytics types.
  */
 
-export { AnalyticsDashboard } from './AnalyticsDashboard';
 export { PerformanceGraphs } from './PerformanceGraphs';
 export { UserActivityMonitor } from './UserActivityMonitor';
 export { EnhancedAnalyticsDashboard } from './EnhancedAnalyticsDashboard';

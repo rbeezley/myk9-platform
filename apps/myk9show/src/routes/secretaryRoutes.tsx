@@ -50,6 +50,7 @@ const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistMana
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 const SecretaryTasksPage = lazy(() => import('@/pages/secretary/SecretaryTasksPage'));
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
+const CheckInReportPage = lazy(() => import('@/pages/secretary/CheckInReportPage'));
 
 const ShowEditRedirect = () => {
   const { showId } = useParams<{ showId: string }>();
@@ -167,6 +168,18 @@ export const SecretaryRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <DayOfOperationsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/check-in"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <CheckInReportPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

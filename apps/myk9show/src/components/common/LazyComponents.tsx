@@ -28,10 +28,6 @@ export const RichTextEditor = lazy(() =>
 );
 
 // Analytics Components (recharts dependency)
-export const AnalyticsDashboard = lazy(() =>
-  import('@/components/analytics/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard }))
-);
-
 export const EnhancedAnalyticsDashboard = lazy(() =>
   import('@/components/analytics/EnhancedAnalyticsDashboard').then(m => ({
     default: m.EnhancedAnalyticsDashboard,
@@ -94,7 +90,7 @@ export function preloadHeavyComponents(): void {
 
     // Stagger preloading to avoid overwhelming the main thread
     const components = [
-      () => AnalyticsDashboard,
+      () => EnhancedAnalyticsDashboard,
       () => ShowCalendar,
       () => TrendChart,
       () => PrintManager,
@@ -122,7 +118,7 @@ export function preloadByRole(userRole?: string): void {
   if (!userRole) return;
 
   const roleComponents = {
-    admin: [AnalyticsDashboard, SyncMonitoringDashboard],
+    admin: [EnhancedAnalyticsDashboard, SyncMonitoringDashboard],
     secretary: [ShowCalendar, PrintManager],
     judge: [ClassEntriesTable, ClassResultsTable],
     exhibitor: [ShowCalendar],

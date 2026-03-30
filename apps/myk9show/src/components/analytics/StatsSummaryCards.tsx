@@ -37,16 +37,16 @@ export function StatsSummaryCards({ stats }: StatsSummaryCardsProps) {
         icon={Timer}
         title="Best Time"
         value={formatTime(stats.bestTime)}
-        subtitle={stats.bestTimeDogName || undefined}
+        {...(stats.bestTimeDogName ? { subtitle: stats.bestTimeDogName } : {})}
         color="amber"
       />
       <StatCard
         icon={Clock}
         title="Avg Time"
         value={formatTime(stats.avgTime)}
-        subtitle={
-          stats.medianTime != null ? 'Median: ' + formatTime(stats.medianTime) : undefined
-        }
+        {...(stats.medianTime != null
+          ? { subtitle: 'Median: ' + formatTime(stats.medianTime) }
+          : {})}
         color="primary"
       />
     </StatsGrid>

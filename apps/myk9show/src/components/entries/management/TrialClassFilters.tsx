@@ -5,7 +5,7 @@ interface TrialClassFiltersProps {
     id: string;
     name: string | null;
     date: string | null;
-    trial_number: number | null;
+    trial_number: string | number | null;
   }>;
   classes: Array<{ id: string; name: string | null }>;
   trialFilter: string | null;
@@ -50,7 +50,7 @@ export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
       <select
         aria-label="Trial filter"
         value={trialFilter ?? ''}
-        onChange={(e) => onTrialChange(e.target.value || null)}
+        onChange={e => onTrialChange(e.target.value || null)}
         className={selectClassName}
         disabled={isTrialDisabled}
       >
@@ -61,7 +61,7 @@ export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
         ) : (
           <>
             <option value="">All Trials</option>
-            {trials.map((trial) => (
+            {trials.map(trial => (
               <option key={trial.id} value={trial.id}>
                 {formatTrialLabel(trial)}
               </option>
@@ -73,7 +73,7 @@ export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
       <select
         aria-label="Class filter"
         value={classFilter ?? ''}
-        onChange={(e) => onClassChange(e.target.value || null)}
+        onChange={e => onClassChange(e.target.value || null)}
         className={selectClassName}
         disabled={isClassDisabled}
       >
@@ -82,7 +82,7 @@ export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
         ) : (
           <>
             <option value="">All Classes</option>
-            {classes.map((cls) => (
+            {classes.map(cls => (
               <option key={cls.id} value={cls.id}>
                 {cls.name ?? 'Unnamed Class'}
               </option>

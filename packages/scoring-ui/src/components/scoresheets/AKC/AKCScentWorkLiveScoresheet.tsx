@@ -13,8 +13,8 @@ import { Button, Input, Card, cn } from '@myk9/ui';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
-import type { LiveScoresheetProps } from '../../../types/scoreData';
-import type { ExtendedResult } from '../../../types/scoreData';
+import { ResultChoiceChips } from '../../ResultChoiceChips';
+import type { LiveScoresheetProps, QualifyingResult } from '../../../types/scoreData';
 
 /** Lookup map for result display text in confirmation dialog */
 const RESULT_LABELS: Record<string, string> = {
@@ -31,38 +31,6 @@ const timerButtonBase =
 /** Shared base classes for submit/cancel action buttons */
 const actionButtonBase =
   'flex-1 h-14 rounded-xl border-0 text-white text-lg font-semibold cursor-pointer transition-all duration-200';
-
-const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
-  {
-    value: 'Q',
-    label: 'Qualified',
-    activeClass: 'bg-blue-600 hover:bg-blue-700 border-blue-600 shadow-lg shadow-blue-600/20',
-  },
-  {
-    value: 'NQ',
-    label: 'NQ',
-    activeClass: 'bg-red-600 hover:bg-red-700 border-red-600 shadow-lg shadow-red-600/20',
-  },
-  {
-    value: 'ABS',
-    label: 'Absent',
-    activeClass:
-      'bg-purple-600 hover:bg-purple-700 border-purple-600 shadow-lg shadow-purple-600/20',
-  },
-  {
-    value: 'EX',
-    label: 'Excused',
-    activeClass: 'bg-red-700 hover:bg-red-800 border-red-700 shadow-lg shadow-red-700/20',
-  },
-];
-
-const NQ_REASONS = [
-  'Incorrect Call',
-  'Max Time',
-  'Point to Hide',
-  'Harsh Correction',
-  'Significant Disruption',
-];
 
 export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
@@ -103,7 +71,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     }
   };
 
-  const handleResultSelect = (value: ExtendedResult) => {
+  const handleResultSelect = (value: QualifyingResult) => {
     scoring.setQualifying(value);
     if (value === 'NQ') scoring.setNonQualifyingReason('Incorrect Call');
     else if (value === 'ABS') scoring.setNonQualifyingReason('Absent');
@@ -317,75 +285,25 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </Card>
             ))}
 
-            {/* Result Choice Chips - pill-shaped, matching myK9Q */}
-            <Card className="p-4 space-y-4">
-              <div className="flex gap-1.5 justify-center">
-                {RESULT_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    className={cn(
-                      'px-3 py-2 rounded-full border-2 text-sm font-semibold cursor-pointer transition-all duration-200',
-                      'hover:-translate-y-px active:scale-[0.98]',
-                      scoring.qualifying === opt.value
-                        ? cn('text-white -translate-y-px', opt.activeClass)
-                        : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground'
-                    )}
-                    onClick={() => handleResultSelect(opt.value)}
-                    data-testid={`result-${opt.value}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Fault Counter - circular buttons matching myK9Q */}
-              {scoring.qualifying === 'Q' && (
-                <div className="flex flex-col items-center gap-3 py-2">
-                  <h3 className="text-base font-semibold text-center">Faults Count</h3>
-                  <div className="flex items-center justify-center gap-5">
-                    <button
-                      className="w-11 h-11 rounded-full border-2 border-border bg-primary text-primary-foreground text-xl font-semibold flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed"
-                      onClick={() => scoring.setFaultCount(Math.max(0, scoring.faultCount - 1))}
-                      disabled={scoring.faultCount === 0}
-                    >
-                      -
-                    </button>
-                    <span className="text-2xl font-bold w-10 text-center tabular-nums">
-                      {scoring.faultCount}
-                    </span>
-                    <button
-                      className="w-11 h-11 rounded-full border-2 border-border bg-primary text-primary-foreground text-xl font-semibold flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-px"
-                      onClick={() => scoring.setFaultCount(scoring.faultCount + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* NQ Reason - choice chips matching myK9Q */}
-              {scoring.qualifying === 'NQ' && (
-                <div className="flex flex-col items-center gap-3 py-2">
-                  <h3 className="text-base font-semibold text-center">Non-Qualifying Reason</h3>
-                  <div className="flex gap-2 justify-center flex-wrap">
-                    {NQ_REASONS.map(reason => (
-                      <button
-                        key={reason}
-                        className={cn(
-                          'px-4 py-2 rounded-full border-2 text-sm font-semibold cursor-pointer transition-all duration-200',
-                          'hover:-translate-y-px active:scale-[0.98]',
-                          scoring.nonQualifyingReason === reason
-                            ? 'bg-primary text-white border-primary shadow-md'
-                            : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground'
-                        )}
-                        onClick={() => scoring.setNonQualifyingReason(reason)}
-                      >
-                        {reason}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {/* Result Choice Chips */}
+            <Card className="p-4">
+              <ResultChoiceChips
+                selectedResult={
+                  scoring.qualifying === 'Q' ||
+                  scoring.qualifying === 'NQ' ||
+                  scoring.qualifying === 'ABS' ||
+                  scoring.qualifying === 'EX'
+                    ? scoring.qualifying
+                    : null
+                }
+                onResultChange={handleResultSelect}
+                faultCount={scoring.faultCount}
+                onFaultCountChange={scoring.setFaultCount}
+                nqReason={scoring.nonQualifyingReason}
+                onNQReasonChange={scoring.setNonQualifyingReason}
+                excusedReason={scoring.nonQualifyingReason}
+                onExcusedReasonChange={scoring.setNonQualifyingReason}
+              />
             </Card>
 
             {/* Submit */}

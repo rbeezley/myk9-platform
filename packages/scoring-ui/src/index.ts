@@ -135,6 +135,12 @@ export type {
   EntryScoresheetProps,
 } from './types';
 
+// Components
+export {
+  ResultChoiceChips,
+  type ResultChoiceChipsProps,
+} from './components/ResultChoiceChips';
+
 // Scoresheets - AKC
 export { AKCScentWorkLiveScoresheet } from './components/scoresheets/AKC/AKCScentWorkLiveScoresheet';
 export { AKCScentWorkEntryScoresheet } from './components/scoresheets/AKC/AKCScentWorkEntryScoresheet';

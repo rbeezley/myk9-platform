@@ -57,8 +57,14 @@ export function useTrackSectionView(
           trackedKeys.add(key);
           observer.disconnect();
 
-          supabase
-            .from('analytics_events')
+          // analytics_events table is not in generated types yet — cast to bypass
+          (
+            supabase.from as unknown as (table: string) => {
+              insert: (
+                row: Record<string, unknown>
+              ) => Promise<{ error: { message: string } | null }>;
+            }
+          )('analytics_events')
             .insert({
               user_id: user.id,
               event_type: 'section_view',
@@ -66,7 +72,7 @@ export function useTrackSectionView(
               page,
               metadata: null,
             })
-            .then(({ error }: { error: { message: string } | null }) => {
+            .then(({ error }) => {
               if (error) {
                 logger.debug('Analytics event insert failed', 'analytics', {
                   sectionName,

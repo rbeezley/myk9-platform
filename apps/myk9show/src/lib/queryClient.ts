@@ -228,6 +228,10 @@ export const queryKeys = {
   showDayRingProgress: (userId: string, classIds: string[]) =>
     ['show-day', 'ring-progress', userId, classIds] as const,
 
+  // Exhibitor Analytics
+  myShowStats: (showId: string) => ['analytics', 'show', showId] as const,
+  myLifetimeStats: () => ['analytics', 'lifetime'] as const,
+
   // Legacy aliases for backward compatibility with existing showEntries key
   classEntries: (classId: string) => ['entries', 'class', classId] as const,
   dogEntries: (dogId: string) => ['entries', 'dog', dogId] as const,

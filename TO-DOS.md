@@ -20,7 +20,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 - [x] **Secretary Kanban board** — Done: Ported drag-and-drop Kanban board from myK9Q. Three columns (To Do, In Progress, Done) with task cards supporting priority, due date, and assignee. Uses @dnd-kit, shadcn Dialog, Tailwind. Persists to localStorage per show. Route at `/secretary/tasks`, sidebar entry under Secretary section. 8 unit tests.
 - [ ] **Volunteer scheduling page** — myK9Q has VolunteerChip/VolunteerDialog/VolunteerPool for steward/volunteer assignment. Build equivalent in myK9Show.
-- [ ] **Check-in status report** — myK9Q's TrialSecretary has a check-in status tab. Add to myK9Show secretary tools.
+- [x] **Check-in status report** — Done: dedicated `/secretary/check-in` page with expandable exhibitor cards, per-class status, real-time Supabase subscription, optimistic mutations, search/trial/status filters, secretary attribution. 34 unit tests. PR #31.
 - [ ] **Results control / publishing** — myK9Q has a results control tab for managing result visibility and publishing. Port to myK9Show.
 
 ### Live Event / Spectator

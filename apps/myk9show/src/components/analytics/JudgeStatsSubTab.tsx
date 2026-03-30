@@ -14,6 +14,7 @@ import { ResultDistributionChart } from './ResultDistributionChart';
 import { DogBreakdownCards } from './DogBreakdownCards';
 import { FastestTimesTable } from './FastestTimesTable';
 import { ClassBreakdownTable } from './ClassBreakdownTable';
+import { EmptyState } from '@/components/common/EmptyState';
 
 interface JudgeStatsSubTabProps {
   showId: string;
@@ -23,18 +24,21 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
   const { data: judges = [], isLoading: judgesLoading } = useShowJudges(showId);
   const [selectedJudgeId, setSelectedJudgeId] = useState<string | undefined>();
 
-  // Derive effective judge ID — fall back to first judge if none explicitly selected
   const effectiveJudgeId = selectedJudgeId ?? judges[0]?.id;
 
   const { data: entries, isLoading: entriesLoading } = useJudgeShowStats(effectiveJudgeId, showId);
 
-  const summary = useMemo(() => computeSummaryStats(entries || []), [entries]);
-  const distribution = useMemo(() => computeResultDistribution(entries || []), [entries]);
-  const dogStats = useMemo(() => computePerDogStats(entries || []), [entries]);
-  const fastestTimes = useMemo(() => computeFastestTimes(entries || [], 10), [entries]);
-  const classBreakdown = useMemo(() => computeClassBreakdown(entries || []), [entries]);
+  const stats = useMemo(() => {
+    const e = entries || [];
+    return {
+      summary: computeSummaryStats(e),
+      distribution: computeResultDistribution(e),
+      dogStats: computePerDogStats(e),
+      fastestTimes: computeFastestTimes(e, 10),
+      classBreakdown: computeClassBreakdown(e),
+    };
+  }, [entries]);
 
-  const hasScoredEntries = summary.scoredEntries > 0;
   const isLoading = judgesLoading || entriesLoading;
 
   if (judgesLoading) {
@@ -43,13 +47,11 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
 
   if (judges.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <Scale className="h-12 w-12 text-muted-foreground/50 mb-4" />
-        <h3 className="text-lg font-semibold text-foreground">No Judge Assignments</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Judge statistics will appear here once judges are assigned to classes.
-        </p>
-      </div>
+      <EmptyState
+        icon={Scale}
+        title="No Judge Assignments"
+        description="Judge statistics will appear here once judges are assigned to classes."
+      />
     );
   }
 
@@ -73,33 +75,33 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
         </select>
         {selectedJudge && (
           <span className="text-sm text-muted-foreground">
-            {classBreakdown.length} class{classBreakdown.length !== 1 ? 'es' : ''}
+            {stats.classBreakdown.length} class
+            {stats.classBreakdown.length !== 1 ? 'es' : ''}
           </span>
         )}
       </div>
 
       {isLoading && <StatsSummaryCardsSkeleton />}
 
-      {!isLoading && !hasScoredEntries && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Scale className="h-10 w-10 text-muted-foreground/50 mb-3" />
-          <h3 className="text-base font-semibold text-foreground">No Scored Entries</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Statistics will appear once scoring begins for this judge&apos;s classes.
-          </p>
-        </div>
+      {!isLoading && stats.summary.scoredEntries === 0 && (
+        <EmptyState
+          icon={Scale}
+          title="No Scored Entries"
+          description="Statistics will appear once scoring begins for this judge's classes."
+          size="sm"
+        />
       )}
 
-      {!isLoading && hasScoredEntries && (
+      {!isLoading && stats.summary.scoredEntries > 0 && (
         <>
-          <StatsSummaryCards stats={summary} />
-          <ClassBreakdownTable classes={classBreakdown} />
+          <StatsSummaryCards stats={stats.summary} />
+          <ClassBreakdownTable classes={stats.classBreakdown} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ResultDistributionChart data={distribution} />
-            <DogBreakdownCards dogs={dogStats} />
+            <ResultDistributionChart data={stats.distribution} />
+            <DogBreakdownCards dogs={stats.dogStats} />
           </div>
-          {fastestTimes.length > 0 && (
-            <FastestTimesTable times={fastestTimes} showShowColumn={false} />
+          {stats.fastestTimes.length > 0 && (
+            <FastestTimesTable times={stats.fastestTimes} showShowColumn={false} />
           )}
         </>
       )}

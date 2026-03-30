@@ -11,6 +11,7 @@ import { StatsSummaryCards, StatsSummaryCardsSkeleton } from './StatsSummaryCard
 import { ResultDistributionChart } from './ResultDistributionChart';
 import { DogBreakdownCards } from './DogBreakdownCards';
 import { FastestTimesTable } from './FastestTimesTable';
+import { EmptyState } from '@/components/common/EmptyState';
 
 interface ShowStatsSubTabProps {
   showId: string;
@@ -19,39 +20,42 @@ interface ShowStatsSubTabProps {
 export function ShowStatsSubTab({ showId }: ShowStatsSubTabProps) {
   const { data: entries, isLoading } = useShowStats(showId);
 
-  const summary = useMemo(() => computeSummaryStats(entries || []), [entries]);
-  const distribution = useMemo(() => computeResultDistribution(entries || []), [entries]);
-  const dogStats = useMemo(() => computePerDogStats(entries || []), [entries]);
-  const fastestTimes = useMemo(() => computeFastestTimes(entries || [], 10), [entries]);
-
-  const hasScoredEntries = summary.scoredEntries > 0;
+  const stats = useMemo(() => {
+    const e = entries || [];
+    return {
+      summary: computeSummaryStats(e),
+      distribution: computeResultDistribution(e),
+      dogStats: computePerDogStats(e),
+      fastestTimes: computeFastestTimes(e, 10),
+    };
+  }, [entries]);
 
   if (isLoading) {
     return <StatsSummaryCardsSkeleton />;
   }
 
-  if (!hasScoredEntries) {
+  if (stats.summary.scoredEntries === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <BarChart3 className="h-12 w-12 text-muted-foreground/50 mb-4" />
-        <h3 className="text-lg font-semibold text-foreground">No Scored Entries</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Show statistics will appear here once scoring begins.
-        </p>
-      </div>
+      <EmptyState
+        icon={BarChart3}
+        title="No Scored Entries"
+        description="Show statistics will appear here once scoring begins."
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <StatsSummaryCards stats={summary} />
+      <StatsSummaryCards stats={stats.summary} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ResultDistributionChart data={distribution} />
-        <DogBreakdownCards dogs={dogStats} />
+        <ResultDistributionChart data={stats.distribution} />
+        <DogBreakdownCards dogs={stats.dogStats} />
       </div>
 
-      {fastestTimes.length > 0 && <FastestTimesTable times={fastestTimes} showShowColumn={false} />}
+      {stats.fastestTimes.length > 0 && (
+        <FastestTimesTable times={stats.fastestTimes} showShowColumn={false} />
+      )}
     </div>
   );
 }

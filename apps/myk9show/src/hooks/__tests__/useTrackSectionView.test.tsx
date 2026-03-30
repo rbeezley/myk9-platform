@@ -1,17 +1,11 @@
-import { renderHook, act } from '@testing-library/react';
+import { render, renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   useTrackSectionView,
   TRACKED_SECTIONS,
   _resetTrackedSections,
 } from '../useTrackSectionView';
-
-// Mock supabase
-const mockInsert = vi.fn(() => Promise.resolve({ error: null }));
-const mockFrom = vi.fn(() => ({ insert: mockInsert }));
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { from: mockFrom },
-}));
+import { mockSupabase } from '@/test/mocks/supabase';
 
 // Mock useAuth — default: authenticated user
 const mockUser = { id: 'user-123' };
@@ -29,57 +23,77 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+// Mock LoggingService
+vi.mock('@/services/LoggingService', () => ({
+  logger: { debug: vi.fn() },
+}));
+
 // IntersectionObserver mock
 type ObserverCallback = (entries: Partial<IntersectionObserverEntry>[]) => void;
 let observerCallback: ObserverCallback;
 let observerDisconnect: ReturnType<typeof vi.fn>;
+let observerObserve: ReturnType<typeof vi.fn>;
+
+// Track insert calls
+let insertSpy: ReturnType<typeof vi.fn>;
+
+/** Test component that attaches the ref to a real DOM element */
+function TrackedSection({ section, page }: { section: string; page: string }) {
+  const ref = useTrackSectionView(section, page);
+  return <div ref={ref} data-testid="tracked-section" />;
+}
 
 beforeEach(() => {
   observerDisconnect = vi.fn();
-  vi.stubGlobal(
-    'IntersectionObserver',
-    vi.fn((callback: ObserverCallback) => {
+  observerObserve = vi.fn();
+  // Override the global IntersectionObserver mock — use a class so `new` works
+  global.IntersectionObserver = class MockObserver {
+    constructor(callback: ObserverCallback) {
       observerCallback = callback;
-      return {
-        observe: vi.fn(),
-        unobserve: vi.fn(),
-        disconnect: observerDisconnect,
-      };
-    })
-  );
-  mockFrom.mockClear();
-  mockInsert.mockClear();
+    }
+    observe = observerObserve;
+    unobserve = vi.fn();
+    disconnect = observerDisconnect;
+    root = null;
+    rootMargin = '';
+    thresholds = [];
+    takeRecords = vi.fn().mockReturnValue([]);
+  } as unknown as typeof IntersectionObserver;
+
+  insertSpy = vi.fn(() => Promise.resolve({ error: null }));
+  mockSupabase.from.mockReturnValue({ insert: insertSpy });
+
   _resetTrackedSections();
   mockPathname = '/analytics';
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
+afterEach(async () => {
+  mockSupabase.from.mockReset();
+  // Restore useAuth mock to default (authenticated user)
+  const { useAuth } = await import('@/hooks/useAuth');
+  vi.mocked(useAuth).mockReturnValue({ user: mockUser } as ReturnType<typeof useAuth>);
 });
 
 describe('useTrackSectionView', () => {
   it('inserts an event on first intersection', () => {
-    const { result } = renderHook(() =>
-      useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics')
-    );
+    render(<TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />);
 
     act(() => {
       observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
     });
 
-    expect(mockFrom).toHaveBeenCalledWith('analytics_events');
-    expect(mockInsert).toHaveBeenCalledWith({
+    expect(mockSupabase.from).toHaveBeenCalledWith('analytics_events');
+    expect(insertSpy).toHaveBeenCalledWith({
       user_id: 'user-123',
       event_type: 'section_view',
       section_name: 'qualification_trend_chart',
       page: 'analytics',
       metadata: null,
     });
-    expect(result.current.current).toBeNull();
   });
 
   it('deduplicates — second intersection does not insert', () => {
-    renderHook(() => useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics'));
+    render(<TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />);
 
     act(() => {
       observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
@@ -88,23 +102,25 @@ describe('useTrackSectionView', () => {
       observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
     });
 
-    expect(mockInsert).toHaveBeenCalledTimes(1);
+    expect(insertSpy).toHaveBeenCalledTimes(1);
   });
 
   it('does not insert when not intersecting', () => {
-    renderHook(() => useTrackSectionView(TRACKED_SECTIONS.DOG_BREAKDOWN, 'analytics'));
+    render(<TrackedSection section={TRACKED_SECTIONS.DOG_BREAKDOWN} page="analytics" />);
 
     act(() => {
       observerCallback([{ isIntersecting: false, intersectionRatio: 0 }]);
     });
 
-    expect(mockInsert).not.toHaveBeenCalled();
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it('does not fire when ref is never attached to a DOM element', () => {
+    // renderHook doesn't attach ref to DOM — observer never created
     renderHook(() => useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics'));
 
-    expect(mockInsert).not.toHaveBeenCalled();
+    expect(observerObserve).not.toHaveBeenCalled();
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it('no-ops for unauthenticated users', async () => {
@@ -120,39 +136,38 @@ describe('useTrackSectionView', () => {
       updateProfile: vi.fn(),
     } as ReturnType<typeof useAuth>);
 
-    renderHook(() => useTrackSectionView(TRACKED_SECTIONS.FASTEST_TIMES, 'analytics'));
+    render(<TrackedSection section={TRACKED_SECTIONS.FASTEST_TIMES} page="analytics" />);
 
-    act(() => {
-      observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
-    });
-
-    expect(mockInsert).not.toHaveBeenCalled();
+    // Observer should not be created for unauth users
+    expect(observerObserve).not.toHaveBeenCalled();
+    expect(insertSpy).not.toHaveBeenCalled();
   });
 
   it('resets tracking set when pathname changes', () => {
-    const { rerender } = renderHook(() =>
-      useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics')
+    const { rerender } = render(
+      <TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />
     );
 
     act(() => {
       observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
     });
-    expect(mockInsert).toHaveBeenCalledTimes(1);
+    expect(insertSpy).toHaveBeenCalledTimes(1);
 
+    // Navigate away and back
     mockPathname = '/dogs';
-    rerender();
+    rerender(<TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />);
     mockPathname = '/analytics';
-    rerender();
+    rerender(<TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />);
 
     act(() => {
       observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
     });
-    expect(mockInsert).toHaveBeenCalledTimes(2);
+    expect(insertSpy).toHaveBeenCalledTimes(2);
   });
 
   it('disconnects observer on unmount', () => {
-    const { unmount } = renderHook(() =>
-      useTrackSectionView(TRACKED_SECTIONS.LIFETIME_PAGE, 'analytics')
+    const { unmount } = render(
+      <TrackedSection section={TRACKED_SECTIONS.LIFETIME_PAGE} page="analytics" />
     );
 
     unmount();

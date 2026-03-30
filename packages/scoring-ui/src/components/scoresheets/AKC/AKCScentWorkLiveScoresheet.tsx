@@ -24,14 +24,6 @@ const RESULT_LABELS: Record<string, string> = {
   EX: 'Excused',
 };
 
-/** Shared base classes for pill-shaped timer control buttons (Start/Stop/Resume) */
-const timerButtonBase =
-  'rounded-full border-0 text-white text-[1.375rem] font-semibold cursor-pointer transition-all duration-200 shadow-lg';
-
-/** Shared base classes for submit/cancel action buttons */
-const actionButtonBase =
-  'flex-1 h-14 rounded-xl border-0 text-white text-lg font-semibold cursor-pointer transition-all duration-200';
-
 export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
   classInfo,
@@ -156,9 +148,10 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
             {/* Timer Card */}
             <Card className="relative p-6 overflow-hidden">
-              {/* Reset button - top right corner */}
-              <button
-                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-3 right-3 rounded-full"
                 onClick={stopwatch.reset}
                 disabled={stopwatch.isRunning}
                 title={
@@ -166,7 +159,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 }
               >
                 <RotateCcw className="h-5 w-5" />
-              </button>
+              </Button>
 
               <div className="text-center">
                 <div
@@ -197,40 +190,24 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   </div>
                 )}
 
-                {/* Pill-shaped control buttons matching myK9Q */}
                 <div className="flex justify-center">
                   {stopwatch.isRunning ? (
-                    <button
-                      className={cn(
-                        timerButtonBase,
-                        'w-48 h-[72px] bg-red-500 hover:brightness-110 hover:scale-105 active:scale-95'
-                      )}
+                    <Button
+                      variant="destructive"
+                      className="w-48 h-[72px] rounded-full text-[1.375rem] font-semibold shadow-lg hover:brightness-110 hover:scale-105 active:scale-95"
                       onClick={handleStopTimer}
                       data-testid="timer-stop"
                     >
                       Stop
-                    </button>
-                  ) : stopwatch.time > 0 ? (
-                    <button
-                      className={cn(
-                        timerButtonBase,
-                        'w-48 h-[72px] bg-teal-500 hover:brightness-110 hover:scale-105 active:scale-95'
-                      )}
-                      onClick={stopwatch.start}
-                    >
-                      Resume
-                    </button>
+                    </Button>
                   ) : (
-                    <button
-                      className={cn(
-                        timerButtonBase,
-                        'w-48 h-[72px] bg-teal-500 hover:brightness-110 hover:scale-105 active:scale-95'
-                      )}
+                    <Button
+                      className="w-48 h-[72px] rounded-full text-[1.375rem] font-semibold shadow-lg hover:brightness-110 hover:scale-105 active:scale-95"
                       onClick={stopwatch.start}
-                      data-testid="timer-start"
+                      data-testid={stopwatch.time > 0 ? undefined : 'timer-start'}
                     >
-                      Start
-                    </button>
+                      {stopwatch.time > 0 ? 'Resume' : 'Start'}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -269,13 +246,13 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                       aria-label={`${area.areaName} time`}
                     />
                     {area.time && (
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                      <Button
+                        variant="ghost"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                         onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
                       >
                         <X className="h-4 w-4" />
-                      </button>
+                      </Button>
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">
@@ -306,30 +283,24 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               />
             </Card>
 
-            {/* Submit */}
             <div className="flex gap-3 pt-1 pb-8">
-              <button
-                className={cn(
-                  actionButtonBase,
-                  'bg-gray-500/80 hover:bg-gray-500 hover:scale-[1.02] active:scale-[0.98]'
-                )}
+              <Button
+                variant="secondary"
+                size="xl"
+                className="flex-1 rounded-xl"
                 onClick={onBack}
               >
                 Cancel
-              </button>
-              <button
-                className={cn(
-                  actionButtonBase,
-                  'bg-primary hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]',
-                  (scoring.isSubmitting || !scoring.qualifying) &&
-                    'opacity-40 cursor-not-allowed hover:scale-100 hover:brightness-100'
-                )}
+              </Button>
+              <Button
+                size="xl"
+                className="flex-1 rounded-xl hover:brightness-110"
                 onClick={handleSubmitClick}
                 disabled={scoring.isSubmitting || !scoring.qualifying}
                 data-testid="submit-btn"
               >
                 {scoring.isSubmitting ? 'Saving...' : 'Save'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

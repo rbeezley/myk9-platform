@@ -58,6 +58,7 @@ export const buttonVariants = cva(
         default: 'h-10 px-6 py-2', // Comfortable touch target
         sm: 'h-8 px-4 text-xs', // Compact areas
         lg: 'h-11 px-8 text-base', // Full touch compliance (44px)
+        xl: 'h-14 px-8 text-lg', // Tall action bar buttons
         icon: 'h-10 w-10', // Square touch target
         'icon-lg': 'h-11 w-11 min-w-[44px] min-h-[44px]', // Accessible 44px touch target
       },

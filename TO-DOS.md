@@ -19,9 +19,9 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 ### Secretary / Operations
 
 - [x] **Secretary Kanban board** — Done: Ported drag-and-drop Kanban board from myK9Q. Three columns (To Do, In Progress, Done) with task cards supporting priority, due date, and assignee. Uses @dnd-kit, shadcn Dialog, Tailwind. Persists to localStorage per show. Route at `/secretary/tasks`, sidebar entry under Secretary section. 8 unit tests.
-- [ ] **Volunteer scheduling page** — myK9Q has VolunteerChip/VolunteerDialog/VolunteerPool for steward/volunteer assignment. Build equivalent in myK9Show.
+- [x] **Volunteer scheduling page** — Done: Ported steward/volunteer assignment from myK9Q. DB migration 094-095 (volunteer_assignments table + RLS). VolunteerPool, VolunteerChip, VolunteerDialog components. Hardened for injection, edge cases, and state bugs. Code review simplifications applied. Route at `/secretary/volunteers`.
 - [x] **Check-in status report** — Done: dedicated `/secretary/check-in` page with expandable exhibitor cards, per-class status, real-time Supabase subscription, optimistic mutations, search/trial/status filters, secretary attribution. 34 unit tests. PR #31.
-- [ ] **Results control / publishing** — myK9Q has a results control tab for managing result visibility and publishing. Port to myK9Show.
+- [ ] **Results control / publishing** — Secretary admin panel for controlling when result fields (placement, qualification, time, faults) become visible to exhibitors. myK9Q has 3 presets (Open/Standard/Locked), cascading hierarchy (Show → Trial → Class overrides), bulk operations, and role-based visibility. myK9Show has partial hooks (`useVisibilitySettings`, `useVisibilityMutations`) but no UI. Port ResultsControlTab, visibility presets, and bulk operations from myK9Q.
 
 ### Live Event / Spectator
 
@@ -349,3 +349,9 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 - [x] **Recompose scoresheet around existing `ResultChoiceChips` and `TimerDisplay`** — Done (ResultChoiceChips only; timer deferred — different designs): Created `ResultChoiceChips` in `@myk9/scoring-ui` with Tailwind styling, haptic feedback, sport-specific NQ/Excused reasons (AKC default + ASCA), ASCA fault limits, and excused reason selection. Replaced ~70 lines of inline result chips, fault counter, and NQ reasons in AKCScentWorkLiveScoresheet with `<ResultChoiceChips>`. Deleted dead duplicate copies from both apps (neither was imported anywhere). Exported `ResultChoiceChips`, `ResultChoiceChipsProps`, `ResultChipValue`, `ScoringUISportType` from package. 278 scoring-ui tests passing.
 
 - [x] **Add clear button to shared `SearchBar` component** — Done: Added clear (X) button that appears when value is non-empty, plus `size` prop (`'default' | 'sm'`) for compact toolbar use. Replaced inline search in ClassResultsTable with `<SearchBar size="sm">`. Removed `Search` from ClassResultsTable's lucide imports. 9 tests passing (4 new: clear button visibility, clear click, no clear when empty, sm size).
+
+---
+
+## Scoring Pages Missing Navigation Back to Show/Trial/Class - 2026-03-30 15:08
+
+- [x] **Add breadcrumb or nav links to scoring pages** — Done: Added `useScoringBreadcrumb` hook that fetches class → trial → show hierarchy from replicated tables. Both `ScoringEntryListPage` and `ScoresheetPage` now show `Show Name › Trial N › Class Name` breadcrumb using the existing `Breadcrumb` component. Replaced unreliable `navigate(-1)` back button on entry list page. Error state falls back to show link when available.

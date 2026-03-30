@@ -12,15 +12,7 @@ import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useEntryListFilters, useDragAndDropEntries } from '@myk9/scoring-ui';
 import { cn } from '@/lib/utils';
-import {
-  ArrowLeft,
-  Search,
-  Filter,
-  GripVertical,
-  AlertCircle,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react';
+import { Search, Filter, GripVertical, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -44,6 +36,8 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { SortableScoringEntryCard } from './components/ScoringEntryCard';
 import type { ScoringEntry, ClassInfo } from './types';
 import { toScoringEntry, toClassInfo, calculatePlacements } from './types';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 
 /**
  * Main scoring entry list page
@@ -51,6 +45,7 @@ import { toScoringEntry, toClassInfo, calculatePlacements } from './types';
 export function ScoringEntryListPage() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
+  const breadcrumb = useScoringBreadcrumb(classId);
 
   // Data state
   const [entries, setEntries] = useState<ScoringEntry[]>([]);
@@ -205,7 +200,12 @@ export function ScoringEntryListPage() {
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-lg font-medium text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => navigate(-1)}>
+        <Button
+          variant="outline"
+          onClick={() =>
+            breadcrumb.showId ? navigate(`/shows/${breadcrumb.showId}`) : navigate(-1)
+          }
+        >
           Go Back
         </Button>
       </div>
@@ -216,17 +216,20 @@ export function ScoringEntryListPage() {
     <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <header className="space-y-4">
+        {!breadcrumb.isLoading && (
+          <Breadcrumb
+            items={[
+              ...(breadcrumb.showName
+                ? [{ label: breadcrumb.showName, href: `/shows/${breadcrumb.showId}` }]
+                : []),
+              ...(breadcrumb.trialLabel
+                ? [{ label: breadcrumb.trialLabel, href: `/shows/${breadcrumb.showId}` }]
+                : []),
+              { label: classInfo?.name || 'Class', isCurrentPage: true },
+            ]}
+          />
+        )}
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="shrink-0"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-foreground truncate">
               {classInfo?.name || 'Class Entries'}

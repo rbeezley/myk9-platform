@@ -37,6 +37,8 @@ import {
   toScoresheetClassInfo,
   toOptimisticScorePayload,
 } from './types';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 
 /**
  * Main scoresheet page - routes to correct scoresheet component
@@ -44,6 +46,7 @@ import {
 export function ScoresheetPage() {
   const { classId, entryId } = useParams<{ classId: string; entryId: string }>();
   const navigate = useNavigate();
+  const breadcrumb = useScoringBreadcrumb(classId);
 
   const { submitScoreOptimistically, isSyncing, hasError: hasSyncError } = useOptimisticScoring();
 
@@ -182,16 +185,28 @@ export function ScoresheetPage() {
   if (!LiveScoresheet) {
     return (
       <div className="container max-w-2xl mx-auto px-4 py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={handleBack} aria-label="Go back">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Scoresheet</h1>
-            <p className="text-muted-foreground">
-              {organization} {sportType} - Not yet implemented
-            </p>
-          </div>
+        {!breadcrumb.isLoading && (
+          <Breadcrumb
+            className="mb-4"
+            items={[
+              ...(breadcrumb.showName
+                ? [{ label: breadcrumb.showName, href: `/shows/${breadcrumb.showId}` }]
+                : []),
+              ...(breadcrumb.trialLabel
+                ? [{ label: breadcrumb.trialLabel, href: `/shows/${breadcrumb.showId}` }]
+                : []),
+              {
+                label: classInfo?.name || 'Class',
+                href: `/scoring/classes/${classId}/entries`,
+              },
+            ]}
+          />
+        )}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Scoresheet</h1>
+          <p className="text-muted-foreground">
+            {organization} {sportType} - Not yet implemented
+          </p>
         </div>
         <div className="rounded-xl border bg-card p-6 text-center">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -206,6 +221,24 @@ export function ScoresheetPage() {
 
   return (
     <>
+      {!breadcrumb.isLoading && (
+        <div className="container max-w-2xl mx-auto px-4 pt-4">
+          <Breadcrumb
+            items={[
+              ...(breadcrumb.showName
+                ? [{ label: breadcrumb.showName, href: `/shows/${breadcrumb.showId}` }]
+                : []),
+              ...(breadcrumb.trialLabel
+                ? [{ label: breadcrumb.trialLabel, href: `/shows/${breadcrumb.showId}` }]
+                : []),
+              {
+                label: classInfo?.name || 'Class',
+                href: `/scoring/classes/${classId}/entries`,
+              },
+            ]}
+          />
+        </div>
+      )}
       {(isSyncing || hasSyncError) && (
         <div className="fixed top-0 left-0 right-0 z-50 px-4 py-2 text-center text-sm">
           {isSyncing && (

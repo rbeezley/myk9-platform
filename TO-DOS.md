@@ -36,7 +36,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ### Data & Analytics
 
-- [ ] **Trial statistics / analytics** — myK9Q has `/stats` and `/stats/:trialId/class/:classId` with detailed trial & class performance analytics. myK9Show's AnalyticsPage is limited.
+- [x] **Trial statistics / analytics** — Done: Replaced mock AnalyticsDashboard (793 lines deleted) with real exhibitor-focused analytics. Two views: (1) "My Stats" tab on ShowDetailsPage (conditional on user having entries), (2) rebuilt `/analytics` lifetime page with dog/org filters. Both use shared visualization components: StatsSummaryCards (4 metric cards via @myk9/ui), ResultDistributionChart (Recharts pie), DogBreakdownCards (per-dog grid with clean sweep badges), FastestTimesTable (ranked with medals), QualificationTrendChart (area chart, lifetime only). Data from `view_entry_with_results` via `useMyShowStats`/`useMyLifetimeStats` hooks; stats computed client-side by 6 pure utility functions. Feature gate removed. 74 tests across 5 files. Design: `docs/plans/2026-03-29-exhibitor-analytics-design.md`. Plan: `docs/plans/2026-03-29-exhibitor-analytics-plan.md`.
 - [x] **Public results display** — Done: Replaced placeholder Results tab on ShowDetailsPage with live podium cards showing 1st–4th placements per class. Results now visible to both authenticated and unauthenticated users. Includes element/level filters, pending results collapsible section. PodiumCard/PodiumPosition components with Tailwind. Data via React Query from `view_entry_with_results`. 15 unit tests.
 
 ### UX / Quality of Life

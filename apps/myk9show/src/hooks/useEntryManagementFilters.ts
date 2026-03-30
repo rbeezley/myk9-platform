@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   isPendingEntry,
@@ -18,7 +19,10 @@ interface TabCounts {
 interface UseEntryManagementFiltersProps {
   entries: EntryManagementEntry[];
   tabCounts: TabCounts;
+  showId?: string;
 }
+
+type ViewMode = 'registration' | 'roster' | 'scoring';
 
 interface UseEntryManagementFiltersReturn {
   // Filter state
@@ -30,6 +34,13 @@ interface UseEntryManagementFiltersReturn {
   setPaymentFilter: (payment: string) => void;
   selectedTab: string;
   setSelectedTab: (tab: string) => void;
+
+  // Trial/class filters
+  trialFilter: string | null;
+  setTrialFilter: (id: string | null) => void;
+  classFilter: string | null;
+  setClassFilter: (id: string | null) => void;
+  viewMode: ViewMode;
 
   // Selection
   selectedEntries: Set<string>;
@@ -54,12 +65,80 @@ interface UseEntryManagementFiltersReturn {
 export function useEntryManagementFilters({
   entries,
   tabCounts,
+  showId,
 }: UseEntryManagementFiltersProps): UseEntryManagementFiltersReturn {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [selectedTab, setSelectedTab] = useState('all');
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
+
+  // Trial/class filters — read from URL search params
+  const trialFilter = searchParams.get('trial');
+  const classFilter = searchParams.get('class');
+
+  // Derived view mode
+  const viewMode: ViewMode = useMemo(() => {
+    if (trialFilter && classFilter) return 'scoring';
+    if (trialFilter) return 'roster';
+    return 'registration';
+  }, [trialFilter, classFilter]);
+
+  const setTrialFilter = useCallback(
+    (id: string | null) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (id) {
+            next.set('trial', id);
+          } else {
+            next.delete('trial');
+          }
+          // Always clear class when trial changes
+          next.delete('class');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const setClassFilter = useCallback(
+    (id: string | null) => {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          if (id) {
+            next.set('class', id);
+          } else {
+            next.delete('class');
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  // Reset trial/class filters when showId changes (but not on initial mount)
+  const prevShowIdRef = useRef(showId);
+  useEffect(() => {
+    if (prevShowIdRef.current !== showId) {
+      prevShowIdRef.current = showId;
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.delete('trial');
+          next.delete('class');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [showId, setSearchParams]);
 
   // Derive filtered entries from current filter state
   const filteredEntries = useMemo(() => {
@@ -131,7 +210,16 @@ export function useEntryManagementFilters({
     setSearchTerm('');
     setStatusFilter('all');
     setPaymentFilter('all');
-  }, []);
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('trial');
+        next.delete('class');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
 
   return {
     searchTerm,
@@ -142,6 +230,11 @@ export function useEntryManagementFilters({
     setPaymentFilter,
     selectedTab,
     setSelectedTab,
+    trialFilter,
+    setTrialFilter,
+    classFilter,
+    setClassFilter,
+    viewMode,
     selectedEntries,
     setSelectedEntries,
     handleSelectEntry,

@@ -91,6 +91,10 @@ Add to `useEntryManagementFilters.ts`:
 - Update `clearFilters()` to also clear trial/class
 - Import `useSearchParams` from react-router-dom
 
+[ADDED] **Reset on show change:** Add a `useEffect` that clears `trialFilter` and `classFilter` when the entries array identity changes (proxy for show change), or accept `showId` as a prop and reset on change.
+
+[ADDED] **Filter stacking test:** Add test that verifies existing status/payment filters still apply when trial filter is active — `filteredEntries` should respect all filters simultaneously.
+
 **Step 4: Run tests to verify they pass**
 
 Run: `cd apps/myk9show && npx vitest run src/test/hooks/useEntryManagementFilters.test.ts`
@@ -241,6 +245,10 @@ describe('TrialClassFilters', () => {
 
 Two `<select>` dropdowns styled consistently with the existing `EntryFiltersCard` pattern. Trial dropdown lists trials with formatted date. Class dropdown lists classes for the selected trial, disabled when no trial. Uses existing `Select` component or plain `<select>` matching the filter card pattern.
 
+[ADDED] **Loading state:** Show skeleton/spinner in trial dropdown while `useShowTrials` is loading. Show skeleton in class dropdown while `useClassesByTrialQuery` is loading.
+
+[ADDED] **Empty state:** If no trials exist for the show, show "No trials" in the dropdown. If no classes for the trial, show "No classes" in the class dropdown.
+
 **Step 4: Run tests, verify pass**
 
 **Step 5: Commit**
@@ -367,9 +375,15 @@ describe('TrialRosterView', () => {
 
 **Step 3: Implement**
 
-Uses `DataTable` with columns: Armband (ArmbandBadge), Dog (name), Handler, Class (clickable button that calls `onClassClick(classId)`), Check-In (CheckInStatusBadge), Scoring (Badge: "Scored" green / "Pending" muted). Read-only — no editing. Stats cards at top show trial totals.
+Uses `DataTable` with columns: Armband (ArmbandBadge), Dog (name), Handler, Class (clickable button that calls `onClassClick(classId)`), Check-In (CheckInStatusBadge), Scoring (Badge: "Scored" green / "Pending" muted). Read-only — no editing.
 
 Data comes from `useTrialEntries(trialId)` — the hook already exists and returns `TrialEntryRow[]`. The component maps these to display rows.
+
+[ADDED] **Class grouping with collapsible headers:** Group entries by `class.id`. Render a collapsible header per class showing `className — 4/12 scored`. Use a `Collapsible` component (already exists in `@myk9/ui`). Default all groups expanded.
+
+[ADDED] **Empty state:** If `entries` is empty, render `EmptyState` with "No entries for this trial" message.
+
+[ADDED] **Loading state:** Accept an `isLoading` prop. When true, render `LoadingSkeleton`.
 
 **Step 4: Run tests, verify pass**
 
@@ -406,13 +420,40 @@ In `EntryManagementPage.tsx`:
   - `'scoring'` → `ClassResultsTable` (reused from class detail page)
 - Hide registration tabs when `viewMode !== 'registration'`
 
-**Step 3: Wire ClassResultsTable for scoring mode**
+[ADDED] **Step 2b: Update stats cards for view mode**
+
+`EntryStatsCards` currently shows: Total, Pending, Accepted, Waitlist, Revenue. Add a `viewMode` prop:
+- `'registration'` → current stats (unchanged)
+- `'roster'` → Total Entries, Scored, Pending, Checked In, Absent (computed from `useTrialEntries` data)
+- `'scoring'` → hide stats cards entirely (ClassResultsTable has its own SubTabs with counts)
+
+**Step 3: Wire ClassResultsTable for scoring mode [EXPANDED]**
 
 When `viewMode === 'scoring'`:
-- Use `useTrialEntries` + filter by `classFilter` to get class entries
-- Use `useClassResults` hook with the filtered entries
-- Render the existing `ClassResultsTable` component (or its internals) with scoring enabled
-- Show "Back to Trial" button and Submit button in the action bar
+
+**Decision: Reuse the full `ClassResultsTable` component** (not just the hook). It already handles SubTabs, SearchBar, ViewToggle, Submit, card/table view, and keyboard navigation. Extracting columns would duplicate this orchestration logic.
+
+**Data bridge — the key challenge:**
+`ClassResultsTable` requires these props (see `ClassResultsTableProps` in `types.ts`):
+- `entries: ScentWorkEntry[]` — mapped from `useClassEntriesWithQuery(classId)`
+- `rawEntries: RawEntryRow[]` — from `useClassEntriesRaw(classId)`
+- `classConfig: ScentWorkClassConfig` — from class metadata (element, level, section, maxTime, etc.)
+- `userPermissions: UserPermissions` — already available in EntryManagementPage via auth context
+- `classId: string` — the `classFilter` value
+- `classStatus`, `resultsReleasedAt` — from class metadata
+
+**Approach:** Create a wrapper component `ScoringModeWrapper` that:
+1. Calls `useClassEntriesWithQuery(classFilter)` and `useClassEntriesRaw(classFilter)` to get entries in the right shape
+2. Calls `useClassStoreCompat()` to get class metadata → build `classConfig`
+3. Builds `userPermissions` from auth context (secretary = canEditEntries + canViewResults)
+4. Passes all props to `ClassResultsTable`
+5. Shows loading state while data loads, error state on failure
+
+This wrapper is ~50 lines — it's a data adapter, not new UI.
+
+**Action bar:** Above `ClassResultsTable`, render a row with "Back to Trial" button (calls `setClassFilter(null)`) and the class name as a heading. The Submit button is inside `ClassResultsTable` already.
+
+[ADDED] **Error handling:** If `useClassEntriesRaw` or `useClassEntriesWithQuery` returns an error, render an error card with "Failed to load entries" + retry button. Don't render ClassResultsTable with partial data.
 
 **Step 4: Run typecheck and existing tests**
 
@@ -486,11 +527,17 @@ git commit -m "test(entries): add integration tests for Entry Management scoring
 
 | Task | Description | Estimated Complexity |
 |------|-------------|---------------------|
-| 1 | Trial/class filter state + URL sync | Low |
+| 1 | Trial/class filter state + URL sync + show-change reset | Low |
 | 2 | useShowTrials query hook | Low |
-| 3 | TrialClassFilters dropdown component | Low |
+| 3 | TrialClassFilters dropdown component (with loading/empty states) | Low |
 | 4 | FilterBreadcrumb component | Low |
-| 5 | TrialRosterView component | Medium |
-| 6 | Wire everything into EntryManagementPage | Medium-High |
+| 5 | TrialRosterView component (with class grouping, empty/loading states) | Medium |
+| 6 | Wire views + ScoringModeWrapper data bridge + stats cards | High |
 | 7 | Deep links from detail pages | Low |
 | 8 | Integration tests and polish | Medium |
+
+## Verification Notes
+
+[ADDED] Key risk: Task 6's `ScoringModeWrapper` is the critical integration point. It must correctly provide `ScentWorkEntry[]`, `RawEntryRow[]`, and `ScentWorkClassConfig` to `ClassResultsTable`. Verify by testing that inline scoring works end-to-end (edit a time field, submit, verify replication layer write). If the data shapes don't align, the scoring will silently fail or crash.
+
+[ADDED] The `useClassEntriesWithQuery` and `useClassEntriesRaw` hooks both take `classId` and handle their own fetching — the wrapper just needs to call them and pass results through. The class metadata (for `classConfig`) can come from the class store or a direct query.

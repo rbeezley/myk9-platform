@@ -69,6 +69,7 @@ import {
   FilterBreadcrumb,
   TrialClassFilters,
   TrialRosterView,
+  ScoringModeWrapper,
 } from '@/components/entries/management';
 
 // Extracted utilities
@@ -634,17 +635,13 @@ const EntryManagementPage: React.FC = () => {
             />
           )}
 
-          {/* Scoring view: placeholder for future inline scoring */}
-          {viewMode === 'scoring' && (
-            <Card className="p-8 text-center">
-              <h3 className="text-lg font-medium mb-2">Scoring Mode</h3>
-              <p className="text-muted-foreground mb-4">
-                Inline scoring for this class will be wired in a future task.
-              </p>
-              <Button variant="outline" onClick={() => setClassFilter(null)}>
-                Back to Trial Roster
-              </Button>
-            </Card>
+          {viewMode === 'scoring' && classFilter && (
+            <ScoringModeWrapper
+              classId={classFilter}
+              showId={selectedShowId}
+              trialId={trialFilter || ''}
+              onBack={() => setClassFilter(null)}
+            />
           )}
 
           {/* Check-In Status Dialog */}

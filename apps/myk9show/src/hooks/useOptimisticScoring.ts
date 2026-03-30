@@ -123,9 +123,17 @@ export function useOptimisticScoring() {
           : 0;
 
         await replicatedEntriesTable.updateEntry(String(entryId), {
+          // Write both camelCase and snake_case so toSupabaseRow() picks up the values
+          resultStatus: resultStatus,
           result_status: resultStatus,
+          isScored: resultStatus !== 'pending',
+          is_scored: resultStatus !== 'pending',
+          searchTimeSeconds: searchTimeSeconds,
           search_time_seconds: searchTimeSeconds,
+          totalFaults: scoreData.faultCount ?? 0,
           total_faults: scoreData.faultCount ?? 0,
+          scoringCompletedAt: new Date().toISOString(),
+          scoring_completed_at: new Date().toISOString(),
         });
 
         logger.debug(

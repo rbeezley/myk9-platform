@@ -19,7 +19,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@/lib/notifications';
-import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
+import { DAY_ABBREVS, type ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 
 type StatusFilter = 'needs-action' | 'done' | 'all';
 
@@ -108,27 +108,36 @@ export default function CheckInReportPage() {
   }, [groups]);
 
   const handleCheckIn = async (entryId: string) => {
+    if (!selectedShowId) return;
     const previousData = queryClient.getQueryData<ExhibitorCheckInGroup[]>(
       queryKeys.checkInReport(selectedShowId)
     );
     queryClient.setQueryData<ExhibitorCheckInGroup[]>(
       queryKeys.checkInReport(selectedShowId),
       old =>
-        old?.map(g => ({
-          ...g,
-          entries: g.entries.map(e =>
+        old?.map(g => {
+          const hasMatch = g.entries.some(e => e.entryId === entryId);
+          if (!hasMatch) return g;
+          const updatedEntries = g.entries.map(e =>
             e.entryId === entryId ? { ...e, checkInStatus: 'checked-in' } : e
-          ),
-          checkedInCount: g.entries.filter(e =>
-            e.entryId === entryId ? true : e.checkInStatus !== 'no-status' && !!e.checkInStatus
-          ).length,
-          summaryStatus: g.summaryStatus,
-        }))
+          );
+          const checkedInCount = updatedEntries.filter(
+            e => e.checkInStatus !== 'no-status' && !!e.checkInStatus
+          ).length;
+          const allCheckedIn = checkedInCount === updatedEntries.length;
+          const noneCheckedIn = checkedInCount === 0;
+          return {
+            ...g,
+            entries: updatedEntries,
+            checkedInCount,
+            summaryStatus: allCheckedIn ? 'checked-in' : noneCheckedIn ? 'none' : 'partial',
+          };
+        })
     );
 
     const { error } = await supabase
       .from('entries')
-      .update({ check_in_status: 'checked-in' })
+      .update({ check_in_status: 'checked-in' } as Record<string, unknown>)
       .eq('id', entryId);
 
     if (error) {
@@ -143,6 +152,7 @@ export default function CheckInReportPage() {
   };
 
   const handleCheckInAll = async (entryIds: string[]) => {
+    if (!selectedShowId) return;
     const entryIdSet = new Set(entryIds);
     const previousData = queryClient.getQueryData<ExhibitorCheckInGroup[]>(
       queryKeys.checkInReport(selectedShowId)
@@ -150,19 +160,23 @@ export default function CheckInReportPage() {
     queryClient.setQueryData<ExhibitorCheckInGroup[]>(
       queryKeys.checkInReport(selectedShowId),
       old =>
-        old?.map(g => ({
-          ...g,
-          entries: g.entries.map(e =>
-            entryIdSet.has(e.entryId) ? { ...e, checkInStatus: 'checked-in' } : e
-          ),
-          checkedInCount: g.entries.length,
-          summaryStatus: 'checked-in' as const,
-        }))
+        old?.map(g => {
+          const hasMatch = g.entries.some(e => entryIdSet.has(e.entryId));
+          if (!hasMatch) return g;
+          return {
+            ...g,
+            entries: g.entries.map(e =>
+              entryIdSet.has(e.entryId) ? { ...e, checkInStatus: 'checked-in' } : e
+            ),
+            checkedInCount: g.entries.length,
+            summaryStatus: 'checked-in' as const,
+          };
+        })
     );
 
     const { error } = await supabase
       .from('entries')
-      .update({ check_in_status: 'checked-in' })
+      .update({ check_in_status: 'checked-in' } as Record<string, unknown>)
       .in('id', entryIds);
 
     if (error) {
@@ -231,9 +245,8 @@ export default function CheckInReportPage() {
           <SelectContent>
             <SelectItem value="all">All Trials</SelectItem>
             {showTrials.map(trial => {
-              const dayAbbrevs = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
               const day = new Date(trial.trialDate + 'T00:00:00');
-              const label = `${dayAbbrevs[day.getDay()]} T${trial.trialNumber}`;
+              const label = `${DAY_ABBREVS[day.getDay()]} T${trial.trialNumber}`;
               return (
                 <SelectItem key={trial.id} value={trial.id}>
                   {label}

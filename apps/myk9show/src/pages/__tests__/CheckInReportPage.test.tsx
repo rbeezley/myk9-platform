@@ -29,6 +29,7 @@ vi.mock('@/store/trialStore', () => ({
 }));
 
 vi.mock('@/hooks/queries/useCheckInReport', () => ({
+  DAY_ABBREVS: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   useCheckInReport: vi.fn(() => ({
     data: [
       {

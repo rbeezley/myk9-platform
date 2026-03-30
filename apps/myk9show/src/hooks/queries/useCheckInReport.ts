@@ -44,7 +44,7 @@ export interface ExhibitorCheckInGroup {
 }
 
 // Pure Functions (exported for testing)
-const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const DAY_ABBREVS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function buildClassDisplayName(params: {
   element: string | null;

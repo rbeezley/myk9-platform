@@ -8,6 +8,7 @@ export interface TrialEntryRow {
   class_id: string;
   entry_status: string | null;
   check_in_status?: string | null;
+  is_scored?: boolean | null;
   handler: string | null;
   armband: string | null;
   created_at: string | null;

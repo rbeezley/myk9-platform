@@ -19,33 +19,25 @@ export function FilterBreadcrumb({
 
   return (
     <nav className="flex items-center gap-1.5 px-4 py-2" aria-label="Filter breadcrumb">
-      <span
-        className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+      <button
+        type="button"
+        className="text-sm text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-0 p-0"
         onClick={onClearTrial}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onClearTrial();
-        }}
       >
         All Entries
-      </span>
+      </button>
 
       {trialName && (
         <>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
           {className ? (
-            <span
-              className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+            <button
+              type="button"
+              className="text-sm text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-0 p-0"
               onClick={onClearClass}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') onClearClass();
-              }}
             >
               {trialName}
-            </span>
+            </button>
           ) : (
             <span className="text-sm text-foreground font-medium">{trialName}</span>
           )}

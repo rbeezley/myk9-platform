@@ -157,7 +157,7 @@ const EntryManagementPage: React.FC = () => {
           : 'Unknown'),
       className: row.class?.name || 'Unknown Class',
       classId: row.class_id,
-      isScored: false, // scoring status not yet available on trial entry rows
+      isScored: row.is_scored === true,
       checkInStatus: row.check_in_status || null,
     }));
   }, [trialEntryRows]);

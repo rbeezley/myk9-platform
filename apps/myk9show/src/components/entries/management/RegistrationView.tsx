@@ -82,8 +82,8 @@ interface RegistrationViewProps {
   /** All entries (for looking up entry by id in comp handler) */
   entries: EntryManagementEntry[];
   /** Selection handlers */
-  onSelectEntry: (id: string) => void;
-  onSelectAll: () => void;
+  onSelectEntry: (entryId: string, checked: boolean) => void;
+  onSelectAll: (checked: boolean) => void;
   /** Status change handler */
   onStatusChange: (entryId: string, status: EntryStatus) => void;
   /** Dialog openers */
@@ -287,7 +287,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
             <EntriesTableView
               entries={filteredEntries}
               emailStatusMap={emailStatusMap}
-              onResendEmail={onResendEmail}
+              onResendEmail={handleResendEmail}
               isResendDisabled={isResendDisabled}
             />
           ) : (
@@ -309,7 +309,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
               }}
               onUncompEntry={onUncompEntry}
               emailStatusMap={emailStatusMap}
-              onResendEmail={onResendEmail}
+              onResendEmail={handleResendEmail}
               isResendDisabled={isResendDisabled}
             />
           )}

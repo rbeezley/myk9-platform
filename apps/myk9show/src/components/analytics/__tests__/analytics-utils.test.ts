@@ -6,6 +6,7 @@ import {
   computeFastestTimes,
   computeQualificationTrend,
   findCleanSweepDogs,
+  computeClassBreakdown,
   type StatsEntry,
 } from '../analytics-utils';
 
@@ -27,17 +28,67 @@ function makeEntry(overrides: Partial<StatsEntry> = {}): StatsEntry {
     searchTimeSeconds: 45.2,
     totalFaults: 0,
     finalPlacement: 1,
+    trialDate: '2026-04-01',
+    trialNumber: '1',
     ...overrides,
   };
 }
 
 const mixedEntries: StatsEntry[] = [
-  makeEntry({ id: 'e1', dogId: 'dog-1', dogCallName: 'Rex', resultText: 'Q', searchTimeSeconds: 30, showId: 'show-1', showDate: '2026-01-01' }),
-  makeEntry({ id: 'e2', dogId: 'dog-1', dogCallName: 'Rex', resultText: 'Q', searchTimeSeconds: 50, showId: 'show-1', showDate: '2026-01-01' }),
-  makeEntry({ id: 'e3', dogId: 'dog-1', dogCallName: 'Rex', resultText: 'NQ', searchTimeSeconds: 60, showId: 'show-2', showDate: '2026-02-01' }),
-  makeEntry({ id: 'e4', dogId: 'dog-2', dogCallName: 'Bella', resultText: 'Q', searchTimeSeconds: 25, showId: 'show-2', showDate: '2026-02-01' }),
-  makeEntry({ id: 'e5', dogId: 'dog-2', dogCallName: 'Bella', resultText: 'pending', searchTimeSeconds: null, showId: 'show-2', showDate: '2026-02-01' }),
-  makeEntry({ id: 'e6', dogId: 'dog-3', dogCallName: 'Max', resultText: 'ABS', searchTimeSeconds: null, showId: 'show-1', showDate: '2026-01-01' }),
+  makeEntry({
+    id: 'e1',
+    dogId: 'dog-1',
+    dogCallName: 'Rex',
+    resultText: 'Q',
+    searchTimeSeconds: 30,
+    showId: 'show-1',
+    showDate: '2026-01-01',
+  }),
+  makeEntry({
+    id: 'e2',
+    dogId: 'dog-1',
+    dogCallName: 'Rex',
+    resultText: 'Q',
+    searchTimeSeconds: 50,
+    showId: 'show-1',
+    showDate: '2026-01-01',
+  }),
+  makeEntry({
+    id: 'e3',
+    dogId: 'dog-1',
+    dogCallName: 'Rex',
+    resultText: 'NQ',
+    searchTimeSeconds: 60,
+    showId: 'show-2',
+    showDate: '2026-02-01',
+  }),
+  makeEntry({
+    id: 'e4',
+    dogId: 'dog-2',
+    dogCallName: 'Bella',
+    resultText: 'Q',
+    searchTimeSeconds: 25,
+    showId: 'show-2',
+    showDate: '2026-02-01',
+  }),
+  makeEntry({
+    id: 'e5',
+    dogId: 'dog-2',
+    dogCallName: 'Bella',
+    resultText: 'pending',
+    searchTimeSeconds: null,
+    showId: 'show-2',
+    showDate: '2026-02-01',
+  }),
+  makeEntry({
+    id: 'e6',
+    dogId: 'dog-3',
+    dogCallName: 'Max',
+    resultText: 'ABS',
+    searchTimeSeconds: null,
+    showId: 'show-1',
+    showDate: '2026-01-01',
+  }),
 ];
 
 // ── computeSummaryStats ────────────────────────────────────────────────
@@ -128,27 +179,27 @@ describe('computePerDogStats', () => {
   it('groups entries by dogId correctly', () => {
     const result = computePerDogStats(mixedEntries);
     expect(result).toHaveLength(3);
-    const rex = result.find((d) => d.dogId === 'dog-1');
+    const rex = result.find(d => d.dogId === 'dog-1');
     expect(rex).toBeDefined();
     expect(rex!.entries).toBe(3);
   });
 
   it('computes Q rate and qualifiedCount excluding pending entries', () => {
     const result = computePerDogStats(mixedEntries);
-    const bella = result.find((d) => d.dogId === 'dog-2');
+    const bella = result.find(d => d.dogId === 'dog-2');
     // Bella: 1 Q, 1 pending → scored = 1 → rate = 1.0
     expect(bella!.qualifiedCount).toBe(1);
     expect(bella!.qualificationRate).toBe(1);
 
-    const rex = result.find((d) => d.dogId === 'dog-1');
+    const rex = result.find(d => d.dogId === 'dog-1');
     // Rex: 2Q, 1NQ → qualifiedCount = 2
     expect(rex!.qualifiedCount).toBe(2);
   });
 
   it('sets isCleanSweep true when all scored entries are Q', () => {
     const result = computePerDogStats(mixedEntries);
-    const rex = result.find((d) => d.dogId === 'dog-1');
-    const bella = result.find((d) => d.dogId === 'dog-2');
+    const rex = result.find(d => d.dogId === 'dog-1');
+    const bella = result.find(d => d.dogId === 'dog-2');
     // Rex: 2Q, 1NQ → not clean sweep
     expect(rex!.isCleanSweep).toBe(false);
     // Bella: 1Q, 1 pending → clean sweep (pending excluded)
@@ -157,7 +208,7 @@ describe('computePerDogStats', () => {
 
   it('computes best and avg times from qualified entries with times', () => {
     const result = computePerDogStats(mixedEntries);
-    const rex = result.find((d) => d.dogId === 'dog-1');
+    const rex = result.find(d => d.dogId === 'dog-1');
     // Rex Q times: 30, 50
     expect(rex!.bestTime).toBe(30);
     expect(rex!.avgTime).toBe(40);
@@ -165,7 +216,7 @@ describe('computePerDogStats', () => {
 
   it('returns null times when dog has no qualified entries with times', () => {
     const result = computePerDogStats(mixedEntries);
-    const max = result.find((d) => d.dogId === 'dog-3');
+    const max = result.find(d => d.dogId === 'dog-3');
     expect(max!.bestTime).toBeNull();
     expect(max!.avgTime).toBeNull();
   });
@@ -200,7 +251,7 @@ describe('computeResultDistribution', () => {
       makeEntry({ id: 'e2', resultText: 'NQ' }),
     ];
     const result = computeResultDistribution(entries);
-    const statuses = result.map((r) => r.status);
+    const statuses = result.map(r => r.status);
     expect(statuses).toContain('Q');
     expect(statuses).toContain('NQ');
     expect(statuses).not.toContain('EX');
@@ -217,7 +268,7 @@ describe('computeResultDistribution', () => {
       makeEntry({ id: 'e5', resultText: 'EX' }),
     ];
     const result = computeResultDistribution(entries);
-    const statuses = result.map((r) => r.status);
+    const statuses = result.map(r => r.status);
     expect(statuses).toEqual(['Q', 'NQ', 'EX', 'ABS', 'WD']);
   });
 
@@ -235,7 +286,7 @@ describe('computeResultDistribution', () => {
       makeEntry({ id: 'e3', resultText: 'NQ' }),
     ];
     const result = computeResultDistribution(entries);
-    const q = result.find((r) => r.status === 'Q');
+    const q = result.find(r => r.status === 'Q');
     expect(q!.count).toBe(2);
   });
 });
@@ -335,14 +386,16 @@ describe('computeQualificationTrend', () => {
   it('uses scored-only entries for rates (excludes pending)', () => {
     const result = computeQualificationTrend(mixedEntries);
     // show-2: e3(NQ), e4(Q), e5(pending) → scored=2, qualified=1
-    const show2 = result.find((t) => t.showId === 'show-2');
+    const show2 = result.find(t => t.showId === 'show-2');
     expect(show2!.totalEntries).toBe(2);
     expect(show2!.qualifiedCount).toBe(1);
     expect(show2!.qualificationRate).toBe(0.5);
   });
 
   it('includes showName and showDate', () => {
-    const entries = [makeEntry({ showId: 's1', showName: 'My Show', showDate: '2026-05-01', resultText: 'Q' })];
+    const entries = [
+      makeEntry({ showId: 's1', showName: 'My Show', showDate: '2026-05-01', resultText: 'Q' }),
+    ];
     const result = computeQualificationTrend(entries);
     expect(result[0]!.showName).toBe('My Show');
     expect(result[0]!.showDate).toBe('2026-05-01');
@@ -368,7 +421,7 @@ describe('findCleanSweepDogs', () => {
 
   it('finds dogs where all scored entries are Q', () => {
     const result = findCleanSweepDogs(mixedEntries);
-    const ids = result.map((d) => d.dogId);
+    const ids = result.map(d => d.dogId);
     // Bella: 1Q, 1 pending → clean sweep
     expect(ids).toContain('dog-2');
     // Rex: 2Q, 1NQ → not clean sweep
@@ -399,10 +452,135 @@ describe('findCleanSweepDogs', () => {
   });
 
   it('includes dogCallName in results', () => {
-    const entries = [
-      makeEntry({ id: 'e1', dogId: 'dog-a', dogCallName: 'Ace', resultText: 'Q' }),
-    ];
+    const entries = [makeEntry({ id: 'e1', dogId: 'dog-a', dogCallName: 'Ace', resultText: 'Q' })];
     const result = findCleanSweepDogs(entries);
     expect(result[0]!.dogCallName).toBe('Ace');
+  });
+});
+
+// ── computeClassBreakdown ──────────────────────────────────────────────
+
+describe('computeClassBreakdown', () => {
+  it('returns empty array for empty entries', () => {
+    expect(computeClassBreakdown([])).toEqual([]);
+  });
+
+  it('groups entries by classId and computes per-class stats', () => {
+    const entries: StatsEntry[] = [
+      makeEntry({
+        id: 'e1',
+        classId: 'c1',
+        className: 'Containers Novice',
+        classElement: 'Containers',
+        classLevel: 'Novice',
+        resultText: 'Q',
+        searchTimeSeconds: 30,
+      }),
+      makeEntry({
+        id: 'e2',
+        classId: 'c1',
+        className: 'Containers Novice',
+        classElement: 'Containers',
+        classLevel: 'Novice',
+        resultText: 'Q',
+        searchTimeSeconds: 45,
+      }),
+      makeEntry({
+        id: 'e3',
+        classId: 'c1',
+        className: 'Containers Novice',
+        classElement: 'Containers',
+        classLevel: 'Novice',
+        resultText: 'NQ',
+        searchTimeSeconds: 60,
+      }),
+      makeEntry({
+        id: 'e4',
+        classId: 'c2',
+        className: 'Interiors Excellent',
+        classElement: 'Interiors',
+        classLevel: 'Excellent',
+        resultText: 'Q',
+        searchTimeSeconds: 20,
+      }),
+    ];
+    const result = computeClassBreakdown(entries);
+
+    expect(result).toHaveLength(2);
+
+    const c1 = result.find(r => r.classId === 'c1')!;
+    expect(c1.className).toBe('Containers Novice');
+    expect(c1.entryCount).toBe(3);
+    expect(c1.qualifiedCount).toBe(2);
+    expect(c1.qualificationRate).toBeCloseTo(2 / 3);
+    expect(c1.bestTime).toBe(30);
+    expect(c1.avgTime).toBeCloseTo(37.5);
+
+    const c2 = result.find(r => r.classId === 'c2')!;
+    expect(c2.entryCount).toBe(1);
+    expect(c2.qualifiedCount).toBe(1);
+    expect(c2.qualificationRate).toBe(1);
+    expect(c2.bestTime).toBe(20);
+    expect(c2.avgTime).toBe(20);
+  });
+
+  it('handles classes with no qualified entries', () => {
+    const entries: StatsEntry[] = [
+      makeEntry({ id: 'e1', classId: 'c1', resultText: 'NQ', searchTimeSeconds: 50 }),
+      makeEntry({ id: 'e2', classId: 'c1', resultText: 'ABS', searchTimeSeconds: null }),
+    ];
+    const result = computeClassBreakdown(entries);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].qualifiedCount).toBe(0);
+    expect(result[0].qualificationRate).toBe(0);
+    expect(result[0].bestTime).toBeNull();
+    expect(result[0].avgTime).toBeNull();
+  });
+
+  it('sorts by trialDate, then trialNumber, then element, then level', () => {
+    const entries: StatsEntry[] = [
+      makeEntry({
+        id: 'e1',
+        classId: 'c2',
+        classElement: 'Interiors',
+        classLevel: 'Novice',
+        trialDate: '2026-04-01',
+        trialNumber: '1',
+      }),
+      makeEntry({
+        id: 'e2',
+        classId: 'c1',
+        classElement: 'Containers',
+        classLevel: 'Novice',
+        trialDate: '2026-04-01',
+        trialNumber: '1',
+      }),
+      makeEntry({
+        id: 'e3',
+        classId: 'c3',
+        classElement: 'Containers',
+        classLevel: 'Novice',
+        trialDate: '2026-03-31',
+        trialNumber: '2',
+      }),
+    ];
+    const result = computeClassBreakdown(entries);
+
+    expect(result[0].classId).toBe('c3'); // earliest date
+    expect(result[1].classId).toBe('c1'); // same date, Containers < Interiors
+    expect(result[2].classId).toBe('c2');
+  });
+
+  it('includes pending (unscored) entries in entry count but not Q rate', () => {
+    const entries: StatsEntry[] = [
+      makeEntry({ id: 'e1', classId: 'c1', resultText: 'Q', searchTimeSeconds: 30 }),
+      makeEntry({ id: 'e2', classId: 'c1', resultText: 'pending', searchTimeSeconds: null }),
+    ];
+    const result = computeClassBreakdown(entries);
+
+    expect(result[0].entryCount).toBe(2);
+    expect(result[0].qualifiedCount).toBe(1);
+    expect(result[0].qualificationRate).toBe(1); // 1/1 scored
   });
 });

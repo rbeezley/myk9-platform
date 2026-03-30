@@ -1,7 +1,11 @@
 -- Migration 094: Add results_released_at to view_entry_with_results
 -- Needed for manual_release visibility timing in the results control feature.
+-- Must DROP and recreate (not CREATE OR REPLACE) because e.* column set changed
+-- since the view was originally created, causing column name conflicts.
 
-CREATE OR REPLACE VIEW view_entry_with_results AS
+DROP VIEW IF EXISTS view_entry_with_results;
+
+CREATE VIEW view_entry_with_results AS
 SELECT
   e.*,
   CASE

@@ -50,16 +50,18 @@ CREATE POLICY "Secretary can manage volunteers"
   USING (
     EXISTS (
       SELECT 1 FROM user_roles
+      JOIN roles ON roles.id = user_roles.role_id
       WHERE user_roles.user_id = auth.uid()
-        AND user_roles.role_name IN ('secretary', 'site_admin')
+        AND roles.name IN ('secretary', 'site_admin')
         AND user_roles.is_active = true
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM user_roles
+      JOIN roles ON roles.id = user_roles.role_id
       WHERE user_roles.user_id = auth.uid()
-        AND user_roles.role_name IN ('secretary', 'site_admin')
+        AND roles.name IN ('secretary', 'site_admin')
         AND user_roles.is_active = true
     )
   );
@@ -69,16 +71,18 @@ CREATE POLICY "Secretary can manage class assignments"
   USING (
     EXISTS (
       SELECT 1 FROM user_roles
+      JOIN roles ON roles.id = user_roles.role_id
       WHERE user_roles.user_id = auth.uid()
-        AND user_roles.role_name IN ('secretary', 'site_admin')
+        AND roles.name IN ('secretary', 'site_admin')
         AND user_roles.is_active = true
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM user_roles
+      JOIN roles ON roles.id = user_roles.role_id
       WHERE user_roles.user_id = auth.uid()
-        AND user_roles.role_name IN ('secretary', 'site_admin')
+        AND roles.name IN ('secretary', 'site_admin')
         AND user_roles.is_active = true
     )
   );
@@ -88,16 +92,18 @@ CREATE POLICY "Secretary can manage general assignments"
   USING (
     EXISTS (
       SELECT 1 FROM user_roles
+      JOIN roles ON roles.id = user_roles.role_id
       WHERE user_roles.user_id = auth.uid()
-        AND user_roles.role_name IN ('secretary', 'site_admin')
+        AND roles.name IN ('secretary', 'site_admin')
         AND user_roles.is_active = true
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM user_roles
+      JOIN roles ON roles.id = user_roles.role_id
       WHERE user_roles.user_id = auth.uid()
-        AND user_roles.role_name IN ('secretary', 'site_admin')
+        AND roles.name IN ('secretary', 'site_admin')
         AND user_roles.is_active = true
     )
   );

@@ -399,7 +399,6 @@ export type Database = {
           deleted_by: string | null;
           description: string | null;
           distraction_count: number | null;
-          division: string | null;
           dogs_ahead_notification_count: number | null;
           element: string | null;
           entry_fee: number | null;
@@ -424,6 +423,7 @@ export type Database = {
           qualifying_threshold: number | null;
           results_released_at: string | null;
           scored_count: number | null;
+          section: string | null;
           start_time: string | null;
           status: string | null;
           time_limit_seconds: number | null;
@@ -447,7 +447,6 @@ export type Database = {
           deleted_by?: string | null;
           description?: string | null;
           distraction_count?: number | null;
-          division?: string | null;
           dogs_ahead_notification_count?: number | null;
           element?: string | null;
           entry_fee?: number | null;
@@ -472,6 +471,7 @@ export type Database = {
           qualifying_threshold?: number | null;
           results_released_at?: string | null;
           scored_count?: number | null;
+          section?: string | null;
           start_time?: string | null;
           status?: string | null;
           time_limit_seconds?: number | null;
@@ -495,7 +495,6 @@ export type Database = {
           deleted_by?: string | null;
           description?: string | null;
           distraction_count?: number | null;
-          division?: string | null;
           dogs_ahead_notification_count?: number | null;
           element?: string | null;
           entry_fee?: number | null;
@@ -520,6 +519,7 @@ export type Database = {
           qualifying_threshold?: number | null;
           results_released_at?: string | null;
           scored_count?: number | null;
+          section?: string | null;
           start_time?: string | null;
           status?: string | null;
           time_limit_seconds?: number | null;
@@ -939,6 +939,7 @@ export type Database = {
           area4_time_seconds: number | null;
           armband: string | null;
           bonus_points: number | null;
+          check_in_status: string | null;
           class_id: string | null;
           comped: boolean | null;
           comped_reason: string | null;
@@ -1010,6 +1011,7 @@ export type Database = {
           area4_time_seconds?: number | null;
           armband?: string | null;
           bonus_points?: number | null;
+          check_in_status?: string | null;
           class_id?: string | null;
           comped?: boolean | null;
           comped_reason?: string | null;
@@ -1081,6 +1083,7 @@ export type Database = {
           area4_time_seconds?: number | null;
           armband?: string | null;
           bonus_points?: number | null;
+          check_in_status?: string | null;
           class_id?: string | null;
           comped?: boolean | null;
           comped_reason?: string | null;
@@ -1783,6 +1786,7 @@ export type Database = {
           expiration_date: string | null;
           id: string;
           is_active: boolean | null;
+          judge_number: string | null;
           notes: string | null;
           organization: string;
           person_id: string;
@@ -1800,6 +1804,7 @@ export type Database = {
           expiration_date?: string | null;
           id?: string;
           is_active?: boolean | null;
+          judge_number?: string | null;
           notes?: string | null;
           organization: string;
           person_id: string;
@@ -1817,6 +1822,7 @@ export type Database = {
           expiration_date?: string | null;
           id?: string;
           is_active?: boolean | null;
+          judge_number?: string | null;
           notes?: string | null;
           organization?: string;
           person_id?: string;
@@ -2497,12 +2503,10 @@ export type Database = {
           email: string | null;
           first_name: string;
           id: string;
-          judge_number: string | null;
           last_name: string;
           license_key: string | null;
           phone: string | null;
           profile_image: string | null;
-          roles: string[] | null;
           state: string | null;
           status: string;
           street_address: string | null;
@@ -2520,12 +2524,10 @@ export type Database = {
           email?: string | null;
           first_name: string;
           id?: string;
-          judge_number?: string | null;
           last_name: string;
           license_key?: string | null;
           phone?: string | null;
           profile_image?: string | null;
-          roles?: string[] | null;
           state?: string | null;
           status?: string;
           street_address?: string | null;
@@ -2543,12 +2545,10 @@ export type Database = {
           email?: string | null;
           first_name?: string;
           id?: string;
-          judge_number?: string | null;
           last_name?: string;
           license_key?: string | null;
           phone?: string | null;
           profile_image?: string | null;
-          roles?: string[] | null;
           state?: string | null;
           status?: string;
           street_address?: string | null;
@@ -3400,6 +3400,7 @@ export type Database = {
           results_visible_to_all: boolean | null;
           secretary: string | null;
           start_date: string;
+          starting_armband_number: number;
           state: string | null;
           status: string | null;
           updated_at: string | null;
@@ -3437,6 +3438,7 @@ export type Database = {
           results_visible_to_all?: boolean | null;
           secretary?: string | null;
           start_date: string;
+          starting_armband_number?: number;
           state?: string | null;
           status?: string | null;
           updated_at?: string | null;
@@ -3474,6 +3476,7 @@ export type Database = {
           results_visible_to_all?: boolean | null;
           secretary?: string | null;
           start_date?: string;
+          starting_armband_number?: number;
           state?: string | null;
           status?: string | null;
           updated_at?: string | null;
@@ -4176,8 +4179,8 @@ export type Database = {
           actual_end_time: string | null;
           actual_start_time: string | null;
           allow_self_checkin: boolean | null;
-          created_at: string | null;
           category: string | null;
+          created_at: string | null;
           date: string;
           deleted_at: string | null;
           deleted_by: string | null;
@@ -4201,8 +4204,8 @@ export type Database = {
           actual_end_time?: string | null;
           actual_start_time?: string | null;
           allow_self_checkin?: boolean | null;
-          created_at?: string | null;
           category?: string | null;
+          created_at?: string | null;
           date: string;
           deleted_at?: string | null;
           deleted_by?: string | null;
@@ -4226,8 +4229,8 @@ export type Database = {
           actual_end_time?: string | null;
           actual_start_time?: string | null;
           allow_self_checkin?: boolean | null;
-          created_at?: string | null;
           category?: string | null;
+          created_at?: string | null;
           date?: string;
           deleted_at?: string | null;
           deleted_by?: string | null;
@@ -4653,6 +4656,7 @@ export type Database = {
           notes: string | null;
           person_id: string | null;
           phone: string | null;
+          show_id: string | null;
           updated_at: string | null;
         };
         Insert: {
@@ -4665,6 +4669,7 @@ export type Database = {
           notes?: string | null;
           person_id?: string | null;
           phone?: string | null;
+          show_id?: string | null;
           updated_at?: string | null;
         };
         Update: {
@@ -4677,6 +4682,7 @@ export type Database = {
           notes?: string | null;
           person_id?: string | null;
           phone?: string | null;
+          show_id?: string | null;
           updated_at?: string | null;
         };
         Relationships: [
@@ -4685,6 +4691,13 @@ export type Database = {
             columns: ['person_id'];
             isOneToOne: false;
             referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'volunteers_show_id_fkey';
+            columns: ['show_id'];
+            isOneToOne: false;
+            referencedRelation: 'shows';
             referencedColumns: ['id'];
           },
         ];
@@ -4779,11 +4792,18 @@ export type Database = {
           area4_time_seconds: number | null;
           armband: string | null;
           bonus_points: number | null;
+          check_in_status: string | null;
           class_element: string | null;
           class_id: string | null;
           class_level: string | null;
           class_name: string | null;
+          class_results_released_at: string | null;
+          comped: boolean | null;
+          comped_reason: string | null;
           created_at: string | null;
+          deleted_at: string | null;
+          deleted_by: string | null;
+          discount_amount: number | null;
           disqualification_reason: string | null;
           dog_breed: string | null;
           dog_call_name: string | null;
@@ -4812,6 +4832,8 @@ export type Database = {
           points_earned: number | null;
           points_possible: number | null;
           preferred_judge: string | null;
+          promo_code_id: string | null;
+          registration_id: string | null;
           result_status: string | null;
           result_text: string | null;
           ring_entry_time: string | null;
@@ -4854,6 +4876,20 @@ export type Database = {
             columns: ['handler_id'];
             isOneToOne: false;
             referencedRelation: 'people';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entries_promo_code_id_fkey';
+            columns: ['promo_code_id'];
+            isOneToOne: false;
+            referencedRelation: 'promo_codes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entries_registration_id_fkey';
+            columns: ['registration_id'];
+            isOneToOne: false;
+            referencedRelation: 'registrations';
             referencedColumns: ['id'];
           },
           {
@@ -4900,6 +4936,10 @@ export type Database = {
           isOneToOne: true;
           isSetofReturn: false;
         };
+      };
+      assign_armband: {
+        Args: { p_dog_id: string; p_show_id: string };
+        Returns: number;
       };
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean };
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean };
@@ -4984,10 +5024,12 @@ export type Database = {
           user_role_id: string;
         }[];
       };
+      hard_delete_show: { Args: { p_show_id: string }; Returns: undefined };
       has_role: {
         Args: { role_name: string; scope_club_id?: string };
         Returns: boolean;
       };
+      increment_promo_usage: { Args: { promo_id: string }; Returns: undefined };
       is_club_admin: { Args: { check_club_id?: string }; Returns: boolean };
       is_dog_owner: { Args: { check_dog_id: string }; Returns: boolean };
       is_platform_admin: { Args: never; Returns: boolean };

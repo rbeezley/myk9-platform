@@ -10,7 +10,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ### Secretary / Operations
 
-- [ ] **Results control / publishing** — Secretary admin panel for controlling when result fields (placement, qualification, time, faults) become visible to exhibitors. myK9Q has 3 presets (Open/Standard/Locked), cascading hierarchy (Show > Trial > Class overrides), bulk operations, and role-based visibility. myK9Show has partial hooks (`useVisibilitySettings`, `useVisibilityMutations`) but no UI. Port ResultsControlTab, visibility presets, and bulk operations from myK9Q.
+- [x] **Results control / publishing** — Done (PR #37). Standalone page at `/secretary/results-control` with PresetSelector, TrialOverrides, ClassOverrides with checkboxes, BulkOperationsBar (batch upsert), SelfCheckinSection, and Release Results. 40 tests. Follow-up cleanup tracked separately.
 
 ### Live Event / Spectator
 

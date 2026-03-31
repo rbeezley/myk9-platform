@@ -134,11 +134,11 @@ describe('useNotificationMonitor', () => {
     mockPreferences.enabled = orig;
   });
 
-  it('creates separate channels for entries and classes per show', () => {
+  it('creates per-show entries channel and single classes channel', () => {
     renderHook(() => useNotificationMonitor());
     const channelFn = vi.mocked(supabase.channel);
     expect(channelFn).toHaveBeenCalledWith('notif-entries:show-1');
-    expect(channelFn).toHaveBeenCalledWith('notif-classes:show-1');
+    expect(channelFn).toHaveBeenCalledWith('notif-classes');
   });
 });
 

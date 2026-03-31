@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -55,8 +55,6 @@ export function useNotificationMonitor(): void {
   const { userWithRoles, user } = useAuthContext();
   const preferences = useNotificationStore(s => s.preferences);
   const { deliver } = useNotificationDelivery();
-  const queryClient = useQueryClient();
-
   // --- Show IDs (same pattern as useAnnouncementSubscription) ---
   const { activeShows } = useShowDayData();
   const selectedShowId = useShowStore(s => s.selectedShowId);
@@ -277,71 +275,59 @@ export function useNotificationMonitor(): void {
   );
 
   // --- Class change handler ---
-  const handleClassChange = useCallback(
-    (payload: RealtimePayload<ClassRow>) => {
-      const newClass = payload.new;
-      const oldClass = payload.old;
-      if (!newClass) return;
+  const handleClassChange = useCallback((payload: RealtimePayload<ClassRow>) => {
+    const newClass = payload.new;
+    const oldClass = payload.old;
+    if (!newClass) return;
 
-      const cls = classContextRef.current.get(newClass.id);
-      if (!cls) return;
+    const cls = classContextRef.current.get(newClass.id);
+    if (!cls) return;
 
-      // Class starting: status changed to In Progress
-      if (
-        newClass.status === 'In Progress' &&
-        oldClass?.status !== 'In Progress' &&
-        !notifiedClassStarting.current.has(newClass.id)
-      ) {
-        notifiedClassStarting.current.add(newClass.id);
+    // Class starting: status changed to In Progress
+    if (
+      newClass.status === 'In Progress' &&
+      oldClass?.status !== 'In Progress' &&
+      !notifiedClassStarting.current.has(newClass.id)
+    ) {
+      notifiedClassStarting.current.add(newClass.id);
 
-        // For each user dog in this class
-        for (const entry of cls.entries) {
-          if (!userDogIdsRef.current.has(entry.dogId)) continue;
+      // One class_starting per class (not per dog). Per-dog check_in_reminder for unchecked dogs.
+      let classStartingSent = false;
+      for (const entry of cls.entries) {
+        if (!userDogIdsRef.current.has(entry.dogId)) continue;
 
-          if (entry.checkInStatus === 'checked-in') {
-            // Class starting notification
-            deliverRef.current(buildClassStartingPayload({ className: cls.className }));
-          } else if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
-            // Check-in reminder for unchecked dogs
-            const dogName = dogNameMap.current.get(entry.dogId) ?? 'Your dog';
-            deliverRef.current(
-              buildCheckInReminderPayload({
-                dogName,
-                className: cls.className,
-              })
-            );
-          }
-        }
-      }
-
-      // Results posted: scoring finalized
-      if (
-        newClass.is_scoring_finalized &&
-        !oldClass?.is_scoring_finalized &&
-        !notifiedResultsPosted.current.has(newClass.id)
-      ) {
-        notifiedResultsPosted.current.add(newClass.id);
-
-        for (const entry of cls.entries) {
-          if (!userDogIdsRef.current.has(entry.dogId)) continue;
-
+        if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
           const dogName = dogNameMap.current.get(entry.dogId) ?? 'Your dog';
-          deliverRef.current(
-            buildResultsPostedPayload({
-              dogName,
-              className: cls.className,
-            })
-          );
+          deliverRef.current(buildCheckInReminderPayload({ dogName, className: cls.className }));
+        } else if (!classStartingSent) {
+          deliverRef.current(buildClassStartingPayload({ className: cls.className }));
+          classStartingSent = true;
         }
       }
+    }
 
-      // Invalidate context data so next poll refreshes
-      queryClient.invalidateQueries({
-        queryKey: ['notification-monitor', 'entries'],
-      });
-    },
-    [queryClient]
-  );
+    // Results posted: scoring finalized
+    if (
+      newClass.is_scoring_finalized &&
+      !oldClass?.is_scoring_finalized &&
+      !notifiedResultsPosted.current.has(newClass.id)
+    ) {
+      notifiedResultsPosted.current.add(newClass.id);
+
+      // One notification per class — join all user dog names
+      const userDogNames = cls.entries
+        .filter(e => userDogIdsRef.current.has(e.dogId))
+        .map(e => dogNameMap.current.get(e.dogId) ?? 'Your dog');
+      if (userDogNames.length > 0) {
+        deliverRef.current(
+          buildResultsPostedPayload({
+            dogName: userDogNames.join(', '),
+            className: cls.className,
+          })
+        );
+      }
+    }
+  }, []);
 
   // --- Realtime subscriptions ---
   useEffect(() => {
@@ -353,8 +339,8 @@ export function useNotificationMonitor(): void {
 
     const channels: ReturnType<typeof supabase.channel>[] = [];
 
+    // Per-show entries channels (filtered by show_id)
     for (const showId of showIds) {
-      // Entries channel
       const entriesChannel = supabase.channel(`notif-entries:${showId}`);
       entriesChannel
         .on(
@@ -372,25 +358,19 @@ export function useNotificationMonitor(): void {
         )
         .subscribe();
       channels.push(entriesChannel);
-
-      // Classes channel — subscribe via trials for this show
-      const classesChannel = supabase.channel(`notif-classes:${showId}`);
-      classesChannel
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'classes',
-          },
-          p => {
-            const typed = p as unknown as { new: ClassRow; old: ClassRow };
-            handleClassChange({ new: typed.new, old: typed.old });
-          }
-        )
-        .subscribe();
-      channels.push(classesChannel);
     }
+
+    // Single classes channel (no show-level filter available — classes don't
+    // have a direct show_id column). classContextRef gate in the handler
+    // ensures only relevant classes trigger notifications.
+    const classesChannel = supabase.channel('notif-classes');
+    classesChannel
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'classes' }, p => {
+        const typed = p as unknown as { new: ClassRow; old: ClassRow };
+        handleClassChange({ new: typed.new, old: typed.old });
+      })
+      .subscribe();
+    channels.push(classesChannel);
 
     return () => {
       for (const channel of channels) {

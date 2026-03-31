@@ -5,7 +5,7 @@
  * self check-in, and releasing results with bulk operations.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, UserCheck, Settings } from 'lucide-react';
@@ -30,6 +30,10 @@ export default function ResultsControlPage() {
   const { classes } = useClassStore();
   const bulkOps = useBulkClassOperations();
 
+  useEffect(() => {
+    bulkOps.clearSelection();
+  }, [selectedShowId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only on show change
+
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
   const showTrials = useMemo(
     () => trials.filter(t => t.showId === selectedShowId),
@@ -52,17 +56,23 @@ export default function ResultsControlPage() {
 
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
 
-  // Resolve effective preset using class > trial > show hierarchy to gate the Release button
+  // Check if any selected class uses manual_release timing on any field
   const hasManualReleaseClasses = useMemo(() => {
+    if (!settings) return false;
     return Array.from(bulkOps.selectedClasses).some(classId => {
-      const override = classOverrides.find(o => o.classId === classId);
+      const classOverride = classOverrides.find(o => o.classId === classId);
       const trialId = showClasses.find(c => c.id === classId)?.trialId;
       const trialOverride = trialId ? trialOverrides.find(o => o.trialId === trialId) : undefined;
 
-      const preset =
-        override?.override.preset ?? trialOverride?.override.preset ?? settings?.visibility.preset;
-
-      return preset === 'review';
+      // Check effective timing for each field through the cascade
+      const timingFields = ['placement', 'qualification', 'time', 'faults'] as const;
+      return timingFields.some(field => {
+        const effective =
+          classOverride?.override[field] ??
+          trialOverride?.override[field] ??
+          settings.visibility[field];
+        return effective === 'manual_release';
+      });
     });
   }, [bulkOps.selectedClasses, classOverrides, trialOverrides, showClasses, settings]);
 

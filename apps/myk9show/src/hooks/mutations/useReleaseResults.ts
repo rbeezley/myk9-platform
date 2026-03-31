@@ -18,6 +18,7 @@ export function useReleaseResults() {
 
   return useMutation({
     mutationFn: async ({ classIds }: ReleaseResultsInput) => {
+      if (classIds.length === 0) return;
       const { error } = await supabase
         .from('classes')
         .update({ results_released_at: new Date().toISOString() })

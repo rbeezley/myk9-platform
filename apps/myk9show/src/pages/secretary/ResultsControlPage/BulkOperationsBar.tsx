@@ -24,6 +24,12 @@ interface BulkOperationsBarProps {
   hasManualReleaseClasses: boolean;
 }
 
+/** Filter selected classes to only those belonging to the current show */
+function getValidClassIds(selectedClasses: Set<string>, allClassIds: string[]): string[] {
+  const validSet = new Set(allClassIds);
+  return Array.from(selectedClasses).filter(id => validSet.has(id));
+}
+
 export function BulkOperationsBar({
   showId,
   selectedClasses,
@@ -37,9 +43,12 @@ export function BulkOperationsBar({
 
   if (selectedClasses.size === 0) return null;
 
+  const isPending = bulkUpdate.isPending || releaseResults.isPending;
+
   function handleBulkPreset(preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
-    const classIds = Array.from(selectedClasses);
+    const classIds = getValidClassIds(selectedClasses, allClassIds);
+    if (classIds.length === 0) return;
     bulkUpdate.mutate(
       {
         classIds,
@@ -63,7 +72,8 @@ export function BulkOperationsBar({
   }
 
   function handleBulkCheckin(enabled: boolean) {
-    const classIds = Array.from(selectedClasses);
+    const classIds = getValidClassIds(selectedClasses, allClassIds);
+    if (classIds.length === 0) return;
     bulkUpdate.mutate(
       { classIds, showId, selfCheckinEnabled: enabled },
       {
@@ -79,7 +89,8 @@ export function BulkOperationsBar({
   }
 
   function handleReleaseResults() {
-    const classIds = Array.from(selectedClasses);
+    const classIds = getValidClassIds(selectedClasses, allClassIds);
+    if (classIds.length === 0) return;
     releaseResults.mutate({ classIds, showId }, { onSuccess: () => onClearSelection() });
   }
 
@@ -100,7 +111,7 @@ export function BulkOperationsBar({
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)}>
+          <Select onValueChange={v => handleBulkPreset(v as VisibilityPreset)} disabled={isPending}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Apply Preset" />
             </SelectTrigger>
@@ -112,16 +123,26 @@ export function BulkOperationsBar({
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => handleBulkCheckin(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleBulkCheckin(true)}
+            disabled={isPending}
+          >
             Enable Check-in
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleBulkCheckin(false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleBulkCheckin(false)}
+            disabled={isPending}
+          >
             Disable Check-in
           </Button>
           <Button
             size="sm"
             onClick={handleReleaseResults}
-            disabled={!hasManualReleaseClasses || releaseResults.isPending}
+            disabled={!hasManualReleaseClasses || isPending}
           >
             Release Results
           </Button>

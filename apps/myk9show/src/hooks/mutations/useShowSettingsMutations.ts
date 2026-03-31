@@ -189,6 +189,9 @@ export function useUpdateTrialOverride() {
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.trialOverride(variables.trialId),
       });
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverrides(variables.showId),
+      });
     },
   });
 }
@@ -241,7 +244,7 @@ export function useBulkUpdateClassOverrides() {
 
   return useMutation({
     mutationFn: async (update: BulkClassOverrideUpdate) => {
-      // Only include fields that were explicitly provided to avoid overwriting existing values with NULL
+      if (update.classIds.length === 0) return;
       const sharedFields: Record<string, unknown> = {
         updated_by: user?.id ?? null,
         updated_at: new Date().toISOString(),

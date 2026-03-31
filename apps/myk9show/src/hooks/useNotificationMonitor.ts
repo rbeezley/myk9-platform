@@ -116,6 +116,24 @@ export function useNotificationMonitor(): void {
     refetchInterval: 30_000,
   });
 
+  // --- Dedup state ---
+  const lastYourTurnAlert = useRef<Map<string, number>>(new Map());
+  const notifiedClassStarting = useRef<Set<string>>(new Set());
+  const notifiedResultsPosted = useRef<Set<string>>(new Set());
+
+  // Stable refs for callbacks — updated via useLayoutEffect so they are
+  // always current before any effect fires, without violating the lint rule
+  // that forbids mutating refs during render.
+  const deliverRef = useRef(deliver);
+  const preferencesRef = useRef(preferences);
+  const userDogIdsRef = useRef(userDogIds);
+
+  useLayoutEffect(() => {
+    deliverRef.current = deliver;
+    preferencesRef.current = preferences;
+    userDogIdsRef.current = userDogIds;
+  });
+
   // --- Build class context map and dog name map ---
   const classContextRef = useRef<Map<string, ClassContext>>(new Map());
   const dogNameMap = useRef<Map<string, string>>(new Map());
@@ -185,25 +203,55 @@ export function useNotificationMonitor(): void {
 
     classContextRef.current = newCtx;
     dogNameMap.current = newDogNames;
+
+    // Catch-up pass: fire missed notifications for classes already in progress
+    // or already finalized when the app opens mid-show.
+    for (const [classId, ctx] of newCtx) {
+      const cls = classLookup.get(classId);
+      if (!cls) continue;
+
+      if (
+        cls.status === 'In Progress' &&
+        !notifiedClassStarting.current.has(classId)
+      ) {
+        notifiedClassStarting.current.add(classId);
+        const userEntries = ctx.entries.filter(e => userDogIdsRef.current.has(e.dogId));
+        if (userEntries.length > 0) {
+          const payload = buildClassStartingPayload({ className: ctx.className });
+          payload.actionUrl = `/classes/${classId}`;
+          deliverRef.current(payload);
+
+          for (const entry of userEntries) {
+            if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
+              const dogName = newDogNames.get(entry.dogId) ?? 'Your dog';
+              const reminder = buildCheckInReminderPayload({ dogName, className: ctx.className });
+              reminder.actionUrl = `/classes/${classId}`;
+              deliverRef.current(reminder);
+            }
+          }
+        }
+      }
+
+      const classRow = classes.find(c => (c as unknown as ClassRow).id === classId) as unknown as ClassRow | undefined;
+      if (
+        classRow?.is_scoring_finalized &&
+        !notifiedResultsPosted.current.has(classId)
+      ) {
+        notifiedResultsPosted.current.add(classId);
+        const userDogNames = ctx.entries
+          .filter(e => userDogIdsRef.current.has(e.dogId))
+          .map(e => newDogNames.get(e.dogId) ?? 'Your dog');
+        if (userDogNames.length > 0) {
+          const resultsPayload = buildResultsPostedPayload({
+            dogName: userDogNames.join(', '),
+            className: ctx.className,
+          });
+          resultsPayload.actionUrl = `/classes/${classId}`;
+          deliverRef.current(resultsPayload);
+        }
+      }
+    }
   }, [showEntriesQuery.data]);
-
-  // --- Dedup state ---
-  const lastYourTurnAlert = useRef<Map<string, number>>(new Map());
-  const notifiedClassStarting = useRef<Set<string>>(new Set());
-  const notifiedResultsPosted = useRef<Set<string>>(new Set());
-
-  // Stable refs for callbacks — updated via useLayoutEffect so they are
-  // always current before any effect fires, without violating the lint rule
-  // that forbids mutating refs during render.
-  const deliverRef = useRef(deliver);
-  const preferencesRef = useRef(preferences);
-  const userDogIdsRef = useRef(userDogIds);
-
-  useLayoutEffect(() => {
-    deliverRef.current = deliver;
-    preferencesRef.current = preferences;
-    userDogIdsRef.current = userDogIds;
-  });
 
   // --- Push gating ---
   const sendPush = useCallback(

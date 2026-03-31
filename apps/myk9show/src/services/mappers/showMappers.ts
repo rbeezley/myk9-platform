@@ -19,9 +19,6 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     pre_entry_fee: parseFloat(input.preEntryFee) || null,
     day_of_show_fee: input.dayOfShowFee ? parseFloat(input.dayOfShowFee) : null,
     club_id: input.clubId,
-    chairman: input.chairman,
-    secretary: input.secretary,
-    chief_steward: input.chiefSteward,
     max_entries_per_dog: null, // Will be set from trials
     max_total_entries: null, // Will be set from trials
     allow_non_owner_handlers: true, // Default to true
@@ -57,9 +54,6 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.dayOfShowFee !== undefined)
     update.day_of_show_fee = input.dayOfShowFee ? parseFloat(input.dayOfShowFee) : null;
   if (input.clubId !== undefined) update.club_id = input.clubId;
-  if (input.chairman !== undefined) update.chairman = input.chairman;
-  if (input.secretary !== undefined) update.secretary = input.secretary;
-  if (input.chiefSteward !== undefined) update.chief_steward = input.chiefSteward;
   if (input.logoUrl !== undefined) update.logo_url = input.logoUrl || null;
   if (input.coverImageUrl !== undefined) update.cover_image_url = input.coverImageUrl || null;
   if (input.accentColor !== undefined) update.accent_color = input.accentColor || null;
@@ -218,9 +212,6 @@ export const mapDatabaseToShow = (
       dbShow.accent_color ||
       ((dbShow.club as Record<string, unknown>)?.accent_color as string) ||
       '',
-    chairman: dbShow.chairman || '',
-    secretary: dbShow.secretary || '',
-    chiefSteward: dbShow.chief_steward || '',
     assignedJudges: assignedJudges, // Mapped from judge_assignment table
     stats: [], // Initialize empty stats - will be calculated separately
     trials: trials,
@@ -278,9 +269,6 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
     clubName: show.clubName,
     clubAddress: show.clubAddress,
     clubEmail: show.clubEmail,
-    chairman: show.chairman,
-    secretary: show.secretary,
-    chiefSteward: show.chiefSteward,
     assignedJudges: show.assignedJudges,
     trials: show.trials,
     confirmationMessage: show.confirmationMessage,
@@ -334,14 +322,6 @@ export const validateShowData = (show: Show | ShowInput): string[] => {
 
   if (!show.clubId?.trim()) {
     errors.push('Club selection is required');
-  }
-
-  if (!show.secretary?.trim()) {
-    errors.push('Secretary is required');
-  }
-
-  if (!show.chairman?.trim()) {
-    errors.push('Chairman is required');
   }
 
   if (!show.entryOpenDate) {
@@ -400,9 +380,6 @@ export const createDefaultShowInput = (): Partial<ShowInput> => {
     clubName: '',
     clubAddress: '',
     clubEmail: '',
-    chairman: '',
-    secretary: '',
-    chiefSteward: '',
     assignedJudges: [],
     trials: [],
   };

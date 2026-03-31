@@ -3370,8 +3370,6 @@ export type Database = {
           accent_color: string | null;
           address: string | null;
           allow_non_owner_handlers: boolean | null;
-          chairman: string | null;
-          chief_steward: string | null;
           city: string | null;
           club_id: string | null;
           confirmation_message: string | null;
@@ -3395,7 +3393,6 @@ export type Database = {
           pre_entry_fee: number | null;
           results_released_at: string | null;
           results_visible_to_all: boolean | null;
-          secretary: string | null;
           start_date: string;
           state: string | null;
           status: string | null;
@@ -3407,8 +3404,6 @@ export type Database = {
           accent_color?: string | null;
           address?: string | null;
           allow_non_owner_handlers?: boolean | null;
-          chairman?: string | null;
-          chief_steward?: string | null;
           city?: string | null;
           club_id?: string | null;
           confirmation_message?: string | null;
@@ -3432,7 +3427,6 @@ export type Database = {
           pre_entry_fee?: number | null;
           results_released_at?: string | null;
           results_visible_to_all?: boolean | null;
-          secretary?: string | null;
           start_date: string;
           state?: string | null;
           status?: string | null;
@@ -3444,8 +3438,6 @@ export type Database = {
           accent_color?: string | null;
           address?: string | null;
           allow_non_owner_handlers?: boolean | null;
-          chairman?: string | null;
-          chief_steward?: string | null;
           city?: string | null;
           club_id?: string | null;
           confirmation_message?: string | null;
@@ -3469,7 +3461,6 @@ export type Database = {
           pre_entry_fee?: number | null;
           results_released_at?: string | null;
           results_visible_to_all?: boolean | null;
-          secretary?: string | null;
           start_date?: string;
           state?: string | null;
           status?: string | null;

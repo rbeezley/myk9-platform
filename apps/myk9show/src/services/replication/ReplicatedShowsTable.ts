@@ -34,9 +34,6 @@ export interface ReplicatedShow {
   preEntryFee?: number | undefined;
   dayOfShowFee?: number | undefined;
   clubId?: string | undefined;
-  chairman?: string | undefined;
-  secretary?: string | undefined;
-  chiefSteward?: string | undefined;
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   allowsNonOwnerHandlers?: boolean | undefined;
@@ -68,9 +65,6 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     preEntryFee: row.pre_entry_fee ?? undefined,
     dayOfShowFee: row.day_of_show_fee ?? undefined,
     clubId: row.club_id ?? undefined,
-    chairman: row.chairman ?? undefined,
-    secretary: row.secretary ?? undefined,
-    chiefSteward: row.chief_steward ?? undefined,
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
     allowsNonOwnerHandlers: row.allow_non_owner_handlers ?? undefined,
@@ -136,9 +130,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       pre_entry_fee: show.preEntryFee ?? null,
       day_of_show_fee: show.dayOfShowFee ?? null,
       club_id: show.clubId ?? null,
-      chairman: show.chairman ?? null,
-      secretary: show.secretary ?? null,
-      chief_steward: show.chiefSteward ?? null,
       max_entries_per_dog: show.maxEntriesPerDog ?? null,
       max_total_entries: show.maxTotalEntries ?? null,
       allow_non_owner_handlers: show.allowsNonOwnerHandlers ?? null,

@@ -26,7 +26,7 @@ async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
       role_id,
       show_id,
       roles!inner(name),
-      people!inner(id, first_name, last_name, email)
+      people!user_roles_user_id_fkey(id, first_name, last_name, email)
     `
     )
     .eq('show_id', showId)

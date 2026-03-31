@@ -146,7 +146,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         mode: 'create',
         preFilledData: { role: 'chairman', roleLabel: 'Chairman' },
         selectionCallback: async (person: Record<string, unknown>) => {
-          updateShowData({ chairman: person.id as string });
+          updateShowData({
+            officials: { ...show.officials, chairman: [person.id as string] },
+          });
           await loadPeople();
           logger.debug('Chairman created and selected', 'wizard', { chairmanId: person.id });
         },
@@ -165,7 +167,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         mode: 'create',
         preFilledData: { role: 'secretary', roleLabel: 'Secretary' },
         selectionCallback: async (person: Record<string, unknown>) => {
-          updateShowData({ secretary: person.id as string });
+          updateShowData({
+            officials: { ...show.officials, secretary: [person.id as string] },
+          });
           await loadPeople();
           logger.debug('Secretary created and selected', 'wizard', { secretaryId: person.id });
         },
@@ -395,8 +399,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
 
         {/* Show Officials */}
         <OfficialsSection
-          chairmanName={getPersonName(people, show.chairman)}
-          secretaryName={getPersonName(people, show.secretary)}
+          chairmanName={getPersonName(people, show.officials.chairman[0])}
+          secretaryName={getPersonName(people, show.officials.secretary[0])}
           filteredChairmen={filteredChairmen}
           filteredSecretaries={filteredSecretaries}
           showChairmanSearch={showChairmanSearch}
@@ -407,8 +411,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           setShowSecretarySearch={setShowSecretarySearch}
           secretarySearchTerm={secretarySearchTerm}
           setSecretarySearchTerm={setSecretarySearchTerm}
-          onSelectChairman={id => updateShowData({ chairman: id })}
-          onSelectSecretary={id => updateShowData({ secretary: id })}
+          onSelectChairman={id =>
+            updateShowData({ officials: { ...show.officials, chairman: [id] } })
+          }
+          onSelectSecretary={id =>
+            updateShowData({ officials: { ...show.officials, secretary: [id] } })
+          }
           onCreateChairman={handleCreateChairman}
           onCreateSecretary={handleCreateSecretary}
         />

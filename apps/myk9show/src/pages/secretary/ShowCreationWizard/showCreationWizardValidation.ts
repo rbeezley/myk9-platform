@@ -11,8 +11,11 @@ interface ShowData {
   clubId: string;
   entryOpenDate: string;
   entryCloseDate: string;
-  chairman: string;
-  secretary: string;
+  officials: {
+    secretary: string[];
+    chairman: string[];
+    steward: string[];
+  };
 }
 
 interface Trial {
@@ -39,8 +42,8 @@ export function getShowDetailsValidationMessages(show: ShowData): string[] {
   if (!show.endDate) messages.push('End date is required');
   if (!show.location?.trim()) messages.push('Location is required');
   if (!show.clubId) messages.push('Club selection is required');
-  if (!show.chairman?.trim()) messages.push('Show chairman is required');
-  if (!show.secretary?.trim()) messages.push('Show secretary is required');
+  if (show.officials.chairman.length === 0) messages.push('Show chairman is required');
+  if (show.officials.secretary.length === 0) messages.push('Show secretary is required');
   if (!show.entryOpenDate) messages.push('Entry open date is required');
   if (!show.entryCloseDate) messages.push('Entry close date is required');
 

@@ -29,8 +29,11 @@ interface WizardState {
     preEntryFee: number;
     dayOfShowFee: number;
     startingArmbandNumber: number;
-    chairman: string;
-    secretary: string;
+    officials: {
+      secretary: string[]; // people.id values
+      chairman: string[];
+      steward: string[];
+    };
     judgeIds: string[]; // Judges assigned to the show
   };
 
@@ -108,8 +111,11 @@ const initialState: WizardState = {
     preEntryFee: 0,
     dayOfShowFee: 0,
     startingArmbandNumber: 100,
-    chairman: '',
-    secretary: '',
+    officials: {
+      secretary: [],
+      chairman: [],
+      steward: [],
+    },
     judgeIds: [],
   },
   trials: [],

@@ -55,8 +55,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     if (!show.startDate || !show.endDate) result.push('Show dates are required');
     if (!show.location?.trim()) result.push('Location is required');
     if (!show.clubId) result.push('Club selection is required');
-    if (!show.chairman?.trim()) result.push('Show chairman is required');
-    if (!show.secretary?.trim()) result.push('Show secretary is required');
+    if (show.officials.chairman.length === 0) result.push('Show chairman is required');
+    if (show.officials.secretary.length === 0) result.push('Show secretary is required');
     if (trials.length === 0) result.push('At least one trial is required');
     if (totalClasses === 0) result.push('At least one class must be configured');
 
@@ -67,8 +67,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     show.endDate,
     show.location,
     show.clubId,
-    show.chairman,
-    show.secretary,
+    show.officials,
     trials,
     totalClasses,
   ]);
@@ -225,14 +224,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 <div>
                   <div className="text-sm text-muted-foreground">Chairman</div>
                   <div className="text-foreground font-medium">
-                    {resolvePersonName(show.chairman)}
+                    {resolvePersonName(show.officials.chairman[0])}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Secretary</div>
                   <div className="text-foreground font-medium">
-                    {resolvePersonName(show.secretary)}
+                    {resolvePersonName(show.officials.secretary[0])}
                   </div>
                 </div>
 

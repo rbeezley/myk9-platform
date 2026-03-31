@@ -279,15 +279,21 @@ export function useShowCreationWizardActions({
           }
         }
 
-        // Auto-grant secretary role to the assigned secretary (fire-and-forget)
-        if (show.secretary && show.clubId) {
-          rbacService
-            .ensureUserHasRole(show.secretary, UserRole.SECRETARY, { clubId: show.clubId })
-            .catch(err =>
-              logger.warn('Failed to auto-grant secretary role', 'wizard', {
-                error: err instanceof Error ? err.message : String(err),
-              })
-            );
+        // Auto-grant official roles scoped to the show (fire-and-forget)
+        const officialGrants = [
+          ...show.officials.secretary.map(id => ({ id, role: UserRole.SECRETARY })),
+          ...show.officials.chairman.map(id => ({ id, role: UserRole.CHAIRMAN })),
+          ...show.officials.steward.map(id => ({ id, role: UserRole.STEWARD })),
+        ];
+
+        for (const grant of officialGrants) {
+          rbacService.ensureUserHasRole(grant.id, grant.role, { showId: realShowId }).catch(err =>
+            logger.warn('Failed to auto-grant official role', 'wizard', {
+              personId: grant.id,
+              role: grant.role,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          );
         }
 
         // Seed React Query cache so pages find the show immediately while sync runs

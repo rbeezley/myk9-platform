@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 097: Migrate show officials to user_roles & harden volunteer RLS
+-- Migration 099: Migrate show officials to user_roles & harden volunteer RLS
 --
 -- 1. Create is_show_secretary() and is_show_official() helper functions
 -- 2. Migrate shows.secretary/chairman/chief_steward data into user_roles rows
@@ -276,4 +276,4 @@ CREATE INDEX IF NOT EXISTS user_roles_show_role_idx
 -- =============================================================================
 -- SUCCESS
 -- =============================================================================
-SELECT 'Migration 097: Officials migrated to user_roles, volunteer RLS hardened' as status;
+SELECT 'Migration 099: Officials migrated to user_roles, volunteer RLS hardened' as status;

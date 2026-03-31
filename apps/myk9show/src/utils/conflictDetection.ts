@@ -38,10 +38,11 @@ export function detectConflicts(
 
     if (dogIndex === -1) continue;
 
-    const referenceIndex = inRingIndex >= 0 ? inRingIndex : -1;
-    const dogsAhead = dogIndex - referenceIndex;
+    // If a dog is in the ring, dogsAhead = distance from that dog.
+    // If no dog is in the ring, dogsAhead = position from front of run order.
+    const dogsAhead = inRingIndex >= 0 ? dogIndex - inRingIndex : dogIndex;
 
-    if (dogsAhead >= 0 && dogsAhead < leadDogs) {
+    if (dogsAhead >= 0 && dogsAhead <= leadDogs) {
       conflicts.push({ className: cls.className, dogsAhead });
     }
   }

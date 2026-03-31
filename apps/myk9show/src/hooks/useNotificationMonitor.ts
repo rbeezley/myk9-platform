@@ -58,21 +58,26 @@ export function useNotificationMonitor(): void {
   // --- Show IDs (same pattern as useAnnouncementSubscription) ---
   const { activeShows } = useShowDayData();
   const selectedShowId = useShowStore(s => s.selectedShowId);
-  const showIds = useMemo(() => {
+  const showIdsKey = useMemo(() => {
     const ids = new Set(activeShows.map(s => s.showId));
     if (selectedShowId) ids.add(selectedShowId);
-    return [...ids];
+    return [...ids].sort().join(',');
   }, [activeShows, selectedShowId]);
+  const showIds = useMemo(() => (showIdsKey ? showIdsKey.split(',') : []), [showIdsKey]);
 
   // --- User's dogs ---
   const dogsQuery = useDogsByOwnerQuery(
     userWithRoles?.databaseUserId ?? '',
     !!userWithRoles?.databaseUserId
   );
-  const userDogIds = useMemo(() => {
+  const dogIdsKey = useMemo(() => {
     const dogs = dogsQuery.data ?? [];
-    return new Set(dogs.map((d: { id: string }) => d.id));
+    return dogs
+      .map((d: { id: string }) => d.id)
+      .sort()
+      .join(',');
   }, [dogsQuery.data]);
+  const userDogIds = useMemo(() => new Set(dogIdsKey ? dogIdsKey.split(',') : []), [dogIdsKey]);
 
   // --- Fetch entries + classes for context ---
   const showEntriesQuery = useQuery({
@@ -230,9 +235,7 @@ export function useNotificationMonitor(): void {
       if (!cls) return;
 
       const runOrder = getRunOrder(cls.entries);
-      const inRingIndex = runOrder.findIndex(
-        e => e.id === newEntry.id || e.checkInStatus === 'in-ring'
-      );
+      const inRingIndex = runOrder.findIndex(e => e.id === newEntry.id);
       if (inRingIndex === -1) return;
 
       const leadDogs = preferencesRef.current.leadDogs;
@@ -291,17 +294,17 @@ export function useNotificationMonitor(): void {
     ) {
       notifiedClassStarting.current.add(newClass.id);
 
-      // One class_starting per class (not per dog). Per-dog check_in_reminder for unchecked dogs.
-      let classStartingSent = false;
-      for (const entry of cls.entries) {
-        if (!userDogIdsRef.current.has(entry.dogId)) continue;
+      const userEntries = cls.entries.filter(e => userDogIdsRef.current.has(e.dogId));
+      if (userEntries.length === 0) return;
 
+      // Always send one class_starting notification
+      deliverRef.current(buildClassStartingPayload({ className: cls.className }));
+
+      // Additionally send per-dog check_in_reminder for unchecked dogs
+      for (const entry of userEntries) {
         if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
           const dogName = dogNameMap.current.get(entry.dogId) ?? 'Your dog';
           deliverRef.current(buildCheckInReminderPayload({ dogName, className: cls.className }));
-        } else if (!classStartingSent) {
-          deliverRef.current(buildClassStartingPayload({ className: cls.className }));
-          classStartingSent = true;
         }
       }
     }

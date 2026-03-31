@@ -120,7 +120,11 @@ Deno.serve(async (req: Request) => {
 
     // Batch-delete expired subscriptions in a single query
     if (expiredEndpoints.length > 0) {
-      await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints);
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', user_id)
+        .in('endpoint', expiredEndpoints);
     }
 
     return new Response(JSON.stringify({ sent, errors: errors.length ? errors : undefined }), {

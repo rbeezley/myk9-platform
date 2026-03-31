@@ -78,4 +78,19 @@ describe('getRunOrder', () => {
     ];
     expect(getRunOrder(entries)).toHaveLength(2);
   });
+
+  it('handles empty string armbands by sorting to front', () => {
+    const entries = [makeEntry({ id: 'e2', armband: '200' }), makeEntry({ id: 'e1', armband: '' })];
+    const result = getRunOrder(entries);
+    expect(result.map(e => e.id)).toEqual(['e1', 'e2']);
+  });
+
+  it('handles non-numeric armbands by sorting to front', () => {
+    const entries = [
+      makeEntry({ id: 'e2', armband: '200' }),
+      makeEntry({ id: 'e1', armband: 'ABC' }),
+    ];
+    const result = getRunOrder(entries);
+    expect(result.map(e => e.id)).toEqual(['e1', 'e2']);
+  });
 });

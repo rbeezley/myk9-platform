@@ -265,6 +265,7 @@ export function useNotificationMonitor(): void {
           armband: entry.registrationData?.armband ?? null,
           ...(conflicts.length > 0 ? { conflicts } : {}),
         });
+        notificationPayload.actionUrl = `/classes/${cls.classId}`;
 
         deliverRef.current(notificationPayload);
 
@@ -298,13 +299,17 @@ export function useNotificationMonitor(): void {
       if (userEntries.length === 0) return;
 
       // Always send one class_starting notification
-      deliverRef.current(buildClassStartingPayload({ className: cls.className }));
+      const classStartingPayload = buildClassStartingPayload({ className: cls.className });
+      classStartingPayload.actionUrl = `/classes/${cls.classId}`;
+      deliverRef.current(classStartingPayload);
 
       // Additionally send per-dog check_in_reminder for unchecked dogs
       for (const entry of userEntries) {
         if (!entry.checkInStatus || entry.checkInStatus === 'no-status') {
           const dogName = dogNameMap.current.get(entry.dogId) ?? 'Your dog';
-          deliverRef.current(buildCheckInReminderPayload({ dogName, className: cls.className }));
+          const reminderPayload = buildCheckInReminderPayload({ dogName, className: cls.className });
+          reminderPayload.actionUrl = `/classes/${cls.classId}`;
+          deliverRef.current(reminderPayload);
         }
       }
     }
@@ -322,12 +327,12 @@ export function useNotificationMonitor(): void {
         .filter(e => userDogIdsRef.current.has(e.dogId))
         .map(e => dogNameMap.current.get(e.dogId) ?? 'Your dog');
       if (userDogNames.length > 0) {
-        deliverRef.current(
-          buildResultsPostedPayload({
-            dogName: userDogNames.join(', '),
-            className: cls.className,
-          })
-        );
+        const resultsPayload = buildResultsPostedPayload({
+          dogName: userDogNames.join(', '),
+          className: cls.className,
+        });
+        resultsPayload.actionUrl = `/classes/${cls.classId}`;
+        deliverRef.current(resultsPayload);
       }
     }
   }, []);

@@ -98,9 +98,6 @@ export const useShowStoreCompat = () => {
           clubName: show.clubName,
           clubAddress: show.clubAddress,
           clubEmail: show.clubEmail,
-          chairman: show.chairman,
-          secretary: show.secretary,
-          chiefSteward: show.chiefSteward,
           assignedJudges: show.assignedJudges,
           trials: show.trials,
         };
@@ -125,9 +122,6 @@ export const useShowStoreCompat = () => {
           clubName: show.clubName,
           clubAddress: show.clubAddress,
           clubEmail: show.clubEmail,
-          chairman: show.chairman,
-          secretary: show.secretary,
-          chiefSteward: show.chiefSteward,
           assignedJudges: show.assignedJudges,
           trials: show.trials,
         };

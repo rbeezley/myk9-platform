@@ -510,9 +510,6 @@ export const masterShows: Show[] = [
     logoUrl: '',
     coverImageUrl: '',
     accentColor: '',
-    chairman: 'Sarah Johnson',
-    secretary: 'Sarah Johnson',
-    chiefSteward: 'Mike Brown',
     assignedJudges: [
       {
         judgeId: 'person-jane-doe',
@@ -553,9 +550,6 @@ export const masterShows: Show[] = [
     logoUrl: '',
     coverImageUrl: '',
     accentColor: '',
-    chairman: 'Sarah Johnson',
-    secretary: 'Sarah Johnson',
-    chiefSteward: 'Mike Brown',
     assignedJudges: [
       {
         judgeId: 'person-john-smith',
@@ -589,9 +583,6 @@ export const masterShows: Show[] = [
     logoUrl: '',
     coverImageUrl: '',
     accentColor: '',
-    chairman: 'Sarah Johnson',
-    secretary: 'Sarah Johnson',
-    chiefSteward: 'Mike Brown',
     assignedJudges: [
       {
         judgeId: 'person-michael-johnson',

@@ -9,16 +9,8 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import { useEditPanel } from './useEditPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Users, UserCheck, DollarSign } from 'lucide-react';
-import { FormField } from '@/components/common/FormField';
 import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -98,15 +90,6 @@ export const ShowEditForm: React.FC = () => {
 
     return Array.from(showTypesSet).sort();
   }, [templates]);
-
-  // Get all people for personnel selection
-  const allPeople = useMemo(() => {
-    return people.map(person => ({
-      id: person.id,
-      name: `${person.firstName} ${person.lastName}`,
-      email: person.email,
-    }));
-  }, [people]);
 
   // Filter judges who have active qualifications for this show's organization
   const availableJudges = useMemo(() => {
@@ -205,97 +188,10 @@ export const ShowEditForm: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField label="Chairman" fieldId="chairman">
-                  <Select value={data.chairman} onValueChange={handleSelectChange('chairman')}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select chairman">
-                        {data.chairman
-                          ? (allPeople.find(p => p.id === data.chairman)?.name ?? 'Loading...')
-                          : undefined}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allPeople.length > 0 ? (
-                        allPeople.map(person => (
-                          <SelectItem key={person.id} value={person.id}>
-                            {person.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem
-                          value="no-people"
-                          disabled
-                          className="text-sm text-muted-foreground italic"
-                        >
-                          No people available. Add people in the Users section.
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-
-                <FormField label="Secretary" fieldId="secretary">
-                  <Select value={data.secretary} onValueChange={handleSelectChange('secretary')}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select secretary">
-                        {data.secretary
-                          ? (allPeople.find(p => p.id === data.secretary)?.name ?? 'Loading...')
-                          : undefined}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allPeople.length > 0 ? (
-                        allPeople.map(person => (
-                          <SelectItem key={person.id} value={person.id}>
-                            {person.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem
-                          value="no-people"
-                          disabled
-                          className="text-sm text-muted-foreground italic"
-                        >
-                          No people available. Add people in the Users section.
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-
-                <FormField label="Chief Steward" fieldId="chiefSteward">
-                  <Select
-                    value={data.chiefSteward}
-                    onValueChange={handleSelectChange('chiefSteward')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select chief steward">
-                        {data.chiefSteward
-                          ? (allPeople.find(p => p.id === data.chiefSteward)?.name ?? 'Loading...')
-                          : undefined}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allPeople.length > 0 ? (
-                        allPeople.map(person => (
-                          <SelectItem key={person.id} value={person.id}>
-                            {person.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem
-                          value="no-people"
-                          disabled
-                          className="text-sm text-muted-foreground italic"
-                        >
-                          No people available. Add people in the Users section.
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
+              {/* Officials managed via user_roles — see ShowOfficials component */}
+              <p className="text-sm text-muted-foreground">
+                Officials (Chairman, Secretary, Chief Steward) are managed through role assignments.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

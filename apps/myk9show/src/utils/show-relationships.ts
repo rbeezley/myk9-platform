@@ -55,16 +55,11 @@ export function getUserManagedShows(
   const hasGlobalClubAdmin = userRoles.includes('club_admin') && adminClubIds.size === 0;
 
   return shows.filter(show => {
-    // Direct secretary assignment
-    if (show.secretary === userId) return true;
-
     // Club admin for the show's club (scoped or global)
+    // Officials (secretary/chairman) are now managed via user_roles — RLS enforces access at DB level
     if (show.clubId && (hasGlobalClubAdmin || adminClubIds.has(show.clubId))) {
       return true;
     }
-
-    // Show chairman
-    if (show.chairman === userId) return true;
 
     return false;
   });

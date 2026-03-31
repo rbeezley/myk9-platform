@@ -42,14 +42,14 @@ export class ShowManagementTracker {
   addRelationship(relationship: ShowManagementRelationship): void {
     const key = `${relationship.showId}-${relationship.userId}`;
     const existing = this.relationships.get(key) || [];
-    
+
     // Deactivate any existing relationships of the same type
-    const updated = existing.map(rel => 
+    const updated = existing.map(rel =>
       rel.role === relationship.role && rel.isActive
         ? { ...rel, isActive: false, endDate: new Date().toISOString() }
         : rel
     );
-    
+
     // Add new relationship
     updated.push(relationship);
     this.relationships.set(key, updated);
@@ -62,7 +62,7 @@ export class ShowManagementTracker {
   getActiveRelationships(showId: string, userId: string): ShowManagementRelationship[] {
     const key = `${showId}-${userId}`;
     const relationships = this.relationships.get(key) || [];
-    
+
     return relationships.filter(rel => rel.isActive);
   }
 
@@ -110,41 +110,8 @@ export function extractManagementRelationships(
   const userId = user.id;
   const userRoles = user.roles || [];
 
-  // Secretary relationship
-  if (show.secretary === userId) {
-    relationships.push({
-      showId: show.id,
-      userId,
-      role: 'secretary',
-      startDate: new Date().toISOString(), // TODO: Get actual start date from show data
-      permissions: ['show:update', 'show:manage_entries', 'show:generate_reports'],
-      isActive: true
-    });
-  }
-
-  // Chairman relationship
-  if (show.chairman === userId) {
-    relationships.push({
-      showId: show.id,
-      userId,
-      role: 'chairman',
-      startDate: new Date().toISOString(),
-      permissions: ['show:update', 'show:manage_entries', 'show:approve'],
-      isActive: true
-    });
-  }
-
-  // Chief Steward relationship
-  if (show.chiefSteward === userId) {
-    relationships.push({
-      showId: show.id,
-      userId,
-      role: 'chief_steward',
-      startDate: new Date().toISOString(),
-      permissions: ['show:manage_entries', 'show:check_in'],
-      isActive: true
-    });
-  }
+  // Secretary, chairman, and chief steward relationships are now managed via user_roles.
+  // RLS enforces access at the DB level — do not derive from show fields.
 
   // Judge relationships
   if (show.assignedJudges) {
@@ -156,7 +123,7 @@ export function extractManagementRelationships(
         role: 'judge',
         startDate: judgeAssignment.assignedDate,
         permissions: ['judge:view_assignments', 'judge:enter_results'],
-        isActive: true
+        isActive: true,
       });
     }
   }
@@ -170,7 +137,7 @@ export function extractManagementRelationships(
       role: 'club_admin',
       startDate: new Date().toISOString(),
       permissions: ['show:create', 'show:update', 'show:delete', 'show:manage_entries'],
-      isActive: true
+      isActive: true,
     });
   }
 
@@ -188,14 +155,17 @@ export function getEnhancedShowContext(
   if (!user) return null;
 
   const userRelationships = extractManagementRelationships(show, user);
-  const userEntries = entries.filter(entry => 
-    entry.showId === show.id && 
-    (entry.registrationData.handler === user.id || entry.dogId.includes(user.id))
+  const userEntries = entries.filter(
+    entry =>
+      entry.showId === show.id &&
+      (entry.registrationData.handler === user.id || entry.dogId.includes(user.id))
   );
 
   // Determine permissions based on relationships
   const allPermissions = userRelationships.flatMap(rel => rel.permissions);
-  const canManage = allPermissions.some(p => p.includes('show:manage') || p.includes('show:update'));
+  const canManage = allPermissions.some(
+    p => p.includes('show:manage') || p.includes('show:update')
+  );
   const canJudge = allPermissions.some(p => p.includes('judge:'));
   const canEdit = allPermissions.some(p => p.includes('show:update'));
   const canDelete = allPermissions.some(p => p.includes('show:delete'));
@@ -209,7 +179,7 @@ export function getEnhancedShowContext(
     canJudge,
     canEdit,
     canDelete,
-    canViewPrivateData
+    canViewPrivateData,
   };
 }
 
@@ -217,10 +187,7 @@ export function getEnhancedShowContext(
  * Real-time relationship synchronization
  * This function can be called when show data changes to update relationships
  */
-export function syncShowRelationships(
-  shows: Show[],
-  user: UserWithRoles | null
-): void {
+export function syncShowRelationships(shows: Show[], user: UserWithRoles | null): void {
   if (!user) return;
 
   // Clear existing relationships for this user
@@ -238,34 +205,28 @@ export function syncShowRelationships(
 /**
  * Get shows that user can manage
  */
-export function getManagedShows(
-  shows: Show[],
-  user: UserWithRoles | null
-): Show[] {
+export function getManagedShows(shows: Show[], user: UserWithRoles | null): Show[] {
   if (!user) return [];
 
   return shows.filter(show => {
+    // Officials (secretary/chairman) are now managed via user_roles — RLS enforces access at DB level
     const relationships = showManagementTracker.getActiveRelationships(show.id, user.id);
-    return relationships.length > 0 || 
-           show.secretary === user.id || 
-           show.chairman === user.id ||
-           user.roles?.includes(UserRole.SITE_ADMIN);
+    return relationships.length > 0 || user.roles?.includes(UserRole.SITE_ADMIN);
   });
 }
 
 /**
  * Get shows that user is judging
  */
-export function getJudgingShows(
-  shows: Show[],
-  user: UserWithRoles | null
-): Show[] {
+export function getJudgingShows(shows: Show[], user: UserWithRoles | null): Show[] {
   if (!user) return [];
 
   return shows.filter(show => {
     const relationships = showManagementTracker.getActiveRelationships(show.id, user.id);
-    return relationships.some(rel => rel.role === 'judge') ||
-           show.assignedJudges?.some(j => j.judgeId === user.id);
+    return (
+      relationships.some(rel => rel.role === 'judge') ||
+      show.assignedJudges?.some(j => j.judgeId === user.id)
+    );
   });
 }
 
@@ -279,7 +240,8 @@ export class RelationshipPerformanceMonitor {
 
   constructor() {
     // Only enable in development or when explicitly requested
-    this.enabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_PERFORMANCE_MONITORING === 'true';
+    this.enabled =
+      import.meta.env.DEV || import.meta.env.VITE_ENABLE_PERFORMANCE_MONITORING === 'true';
   }
 
   static getInstance(): RelationshipPerformanceMonitor {
@@ -292,15 +254,15 @@ export class RelationshipPerformanceMonitor {
   recordOperation(operation: string, duration: number): void {
     // Skip recording if monitoring is disabled for better performance
     if (!this.enabled) return;
-    
+
     const existing = this.metrics.get(operation) || [];
     existing.push(duration);
-    
+
     // Keep only last 100 measurements
     if (existing.length > 100) {
       existing.shift();
     }
-    
+
     this.metrics.set(operation, existing);
   }
 
@@ -311,14 +273,14 @@ export class RelationshipPerformanceMonitor {
 
   getMetrics(): Record<string, { average: number; count: number }> {
     const result: Record<string, { average: number; count: number }> = {};
-    
+
     for (const [operation, times] of this.metrics) {
       result[operation] = {
         average: this.getAverageTime(operation),
-        count: times.length
+        count: times.length,
       };
     }
-    
+
     return result;
   }
 }

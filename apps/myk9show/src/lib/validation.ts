@@ -131,9 +131,6 @@ export const showSchemas = {
         .regex(/^\$?\d+(\.\d{2})?$/, 'Please enter a valid fee amount')
         .optional()
         .or(z.literal('')),
-      chairman: commonValidations.optionalString,
-      secretary: commonValidations.optionalString,
-      chiefSteward: commonValidations.optionalString,
     })
     .refine(
       data => {
@@ -158,9 +155,6 @@ export const showSchemas = {
       startDate: z.string().min(1, 'Please select a start date'),
       endDate: z.string().min(1, 'Please select an end date'),
       location: z.string(),
-      chairman: z.string(),
-      secretary: z.string(),
-      chiefSteward: z.string(),
       entryOpenDate: z.string(),
       entryCloseDate: z.string(),
       preEntryFee: z.string().refine(

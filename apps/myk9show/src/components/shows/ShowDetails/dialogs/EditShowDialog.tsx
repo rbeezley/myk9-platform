@@ -27,9 +27,6 @@ export interface ShowFormData {
   clubId: string; // ✅ Added club selection
   startDate: string;
   endDate: string;
-  chairman: string;
-  secretary: string;
-  chiefSteward: string;
   entryOpenDate: string;
   entryCloseDate: string;
   preEntryFee: string;
@@ -61,20 +58,6 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
 
   // Get people who are judges
   const { people, loadUsers } = useUserStore();
-
-  // Get all people for personnel selection (chairman, secretary, steward)
-  const allPeople = React.useMemo(() => {
-    logger.debug('EditShowDialog people data', 'shows', {
-      peopleLength: people?.length || 0,
-      hasFirstPerson: !!people?.[0],
-    });
-
-    return people.map(person => ({
-      id: person.id,
-      name: `${person.firstName} ${person.lastName}`,
-      email: person.email,
-    }));
-  }, [people]);
 
   // Query judges with active qualifications for the selected show type (organization)
   const [availableJudges, setAvailableJudges] = React.useState<
@@ -321,100 +304,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   </SelectContent>
                 </Select>
               </FormField>
-              <FormField label="Chairman" fieldId="chairman">
-                <Select
-                  value={formData.chairman || ''}
-                  onValueChange={value => handleInputChange('chairman', value)}
-                >
-                  <SelectTrigger className="form-select h-10">
-                    <SelectValue placeholder="Select chairman">
-                      {formData.chairman
-                        ? (allPeople.find(p => p.id === formData.chairman)?.name ?? 'Loading...')
-                        : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allPeople.length > 0 ? (
-                      allPeople.map(person => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem
-                        value="no-people"
-                        disabled
-                        className="text-sm text-muted-foreground italic"
-                      >
-                        No people available. Add people in the Users section.
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Secretary" fieldId="secretary">
-                <Select
-                  value={formData.secretary || ''}
-                  onValueChange={value => handleInputChange('secretary', value)}
-                >
-                  <SelectTrigger className="form-select h-10">
-                    <SelectValue placeholder="Select secretary">
-                      {formData.secretary
-                        ? (allPeople.find(p => p.id === formData.secretary)?.name ?? 'Loading...')
-                        : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allPeople.length > 0 ? (
-                      allPeople.map(person => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem
-                        value="no-people"
-                        disabled
-                        className="text-sm text-muted-foreground italic"
-                      >
-                        No people available. Add people in the Users section.
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Chief Steward" fieldId="chief-steward">
-                <Select
-                  value={formData.chiefSteward || ''}
-                  onValueChange={value => handleInputChange('chiefSteward', value)}
-                >
-                  <SelectTrigger className="form-select h-10">
-                    <SelectValue placeholder="Select chief steward">
-                      {formData.chiefSteward
-                        ? (allPeople.find(p => p.id === formData.chiefSteward)?.name ??
-                          'Loading...')
-                        : undefined}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allPeople.length > 0 ? (
-                      allPeople.map(person => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.name}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem
-                        value="no-people"
-                        disabled
-                        className="text-sm text-muted-foreground italic"
-                      >
-                        No people available. Add people in the Users section.
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </FormField>
+              {/* Officials managed via user_roles — see ShowOfficials component */}
             </div>
           </div>
 
@@ -589,9 +479,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
                   id="startingArmbandNumber"
                   type="number"
                   value={formData.startingArmbandNumber ?? 100}
-                  onChange={e =>
-                    handleInputChange('startingArmbandNumber', e.target.value)
-                  }
+                  onChange={e => handleInputChange('startingArmbandNumber', e.target.value)}
                   placeholder="100"
                   min={1}
                   className="form-input h-10"
@@ -606,7 +494,11 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
           {/* Confirmation Message Section */}
           <div className="mt-6">
             <h3 className="form-section-title">Email Settings</h3>
-            <FormField label="Confirmation Message" fieldId="confirmationMessage" hint="This message will be included in registration confirmation emails sent to exhibitors.">
+            <FormField
+              label="Confirmation Message"
+              fieldId="confirmationMessage"
+              hint="This message will be included in registration confirmation emails sent to exhibitors."
+            >
               <textarea
                 id="confirmationMessage"
                 value={formData.confirmationMessage || ''}

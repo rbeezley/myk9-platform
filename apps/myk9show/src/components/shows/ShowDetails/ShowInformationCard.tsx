@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { formatFee } from '@/utils/format';
 
 import type { ShowFormData } from './dialogs/EditShowDialog';
@@ -19,8 +18,6 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({
   handleEditShow,
   setShowDeleteDialog,
 }) => {
-  const resolvePersonName = useResolvePersonName();
-
   return (
     <div className="col-span-1 lg:col-span-2 w-full">
       <div className="p-6 bg-card dark:bg-card rounded-xl shadow-sm">
@@ -102,41 +99,10 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({
         </div>
         <div className="border-t border-gray-200 dark:border-zinc-700 pt-6 mb-8">
           <h3 className="text-lg font-semibold text-muted-foreground mb-4">Key Personnel</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-card-secondary p-4 rounded-xl">
-              <h4 className="text-sm font-medium text-muted-foreground mb-1">Chairman</h4>
-              <p className="text-muted-foreground">{resolvePersonName(showData.chairman)}</p>
-              <a
-                href="mailto:thomas.green@nationalkennelclub.com"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1 break-all"
-              >
-                <i className="fas fa-envelope text-xs flex-shrink-0"></i>
-                thomas.green@nationalkennelclub.com
-              </a>
-            </div>
-            <div className="bg-card-secondary p-4 rounded-xl">
-              <h4 className="text-sm font-medium text-muted-foreground mb-1">Secretary</h4>
-              <p className="text-muted-foreground">{resolvePersonName(showData.secretary)}</p>
-              <a
-                href="mailto:jennifer.white@nationalkennelclub.com"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1 break-all"
-              >
-                <i className="fas fa-envelope text-xs flex-shrink-0"></i>
-                jennifer.white@nationalkennelclub.com
-              </a>
-            </div>
-            <div className="bg-card-secondary p-4 rounded-xl">
-              <h4 className="text-sm font-medium text-muted-foreground mb-1">Chief Steward</h4>
-              <p className="text-muted-foreground">{resolvePersonName(showData.chiefSteward)}</p>
-              <a
-                href="mailto:david.miller@nationalkennelclub.com"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1 break-all"
-              >
-                <i className="fas fa-envelope text-xs flex-shrink-0"></i>
-                david.miller@nationalkennelclub.com
-              </a>
-            </div>
-          </div>
+          {/* Officials managed via user_roles — see ShowOfficials component */}
+          <p className="text-sm text-muted-foreground">
+            Officials are managed through role assignments.
+          </p>
         </div>
         <div className="border-t border-gray-200 dark:border-zinc-700 pt-6">
           <h3 className="text-lg font-semibold text-muted-foreground mb-4">Entry Information</h3>

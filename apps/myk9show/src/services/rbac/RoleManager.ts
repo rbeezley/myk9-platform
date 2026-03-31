@@ -83,6 +83,22 @@ export class RoleManager {
    */
   async assignRole(request: AssignRoleRequest): Promise<string> {
     try {
+      // Validate that userId references a people.id row (not an auth UUID)
+      const { data: person, error: personError } = await supabase
+        .from('people')
+        .select('id')
+        .eq('id', request.userId)
+        .maybeSingle();
+
+      if (personError || !person) {
+        throw new RoleError(
+          `Invalid user_id: '${request.userId}' does not match a people record. ` +
+            'Use people.id (not auth.uid()) for role assignments.',
+          request.roleName ?? '',
+          request.userId
+        );
+      }
+
       let roleId = request.roleId;
       let roleName = request.roleName;
 

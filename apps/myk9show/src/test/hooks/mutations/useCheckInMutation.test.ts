@@ -90,7 +90,7 @@ describe('useCheckInMutation', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        entry_status: 'checked-in',
+        check_in_status: 'checked-in',
         updated_at: expect.any(String),
       })
     );

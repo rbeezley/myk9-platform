@@ -218,7 +218,7 @@ const ShowCreationWizardPage: React.FC = () => {
           };
         });
 
-        loadDraft({
+        const draft = {
           show: {
             name: existingShow.name,
             organization: existingShow.organization as 'AKC' | 'UKC' | 'Other',
@@ -231,11 +231,11 @@ const ShowCreationWizardPage: React.FC = () => {
             preEntryFee: parseFloat(existingShow.preEntryFee) || 0,
             dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
             startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
-            officials: await getShowOfficials(existingShow.id).then(o => ({
-              secretary: o.secretaries.map(s => s.personId),
-              chairman: o.chairmen.map(c => c.personId),
-              steward: o.stewards.map(s => s.personId),
-            })).catch(() => ({ secretary: [], chairman: [], steward: [] })),
+            officials: {
+              secretary: [] as string[],
+              chairman: [] as string[],
+              steward: [] as string[],
+            },
             judgeIds: showJudges.map(j => j.judgeId),
           },
           trials: wizardTrials,
@@ -243,7 +243,28 @@ const ShowCreationWizardPage: React.FC = () => {
           currentStep: editMode.mode === 'add-trials' ? 1 : editMode.mode === 'add-classes' ? 2 : 0,
           completedSteps:
             editMode.mode === 'add-trials' ? [0] : editMode.mode === 'add-classes' ? [0, 1] : [],
-        });
+        };
+
+        // Load draft immediately with empty officials, then backfill asynchronously
+        loadDraft(draft);
+
+        getShowOfficials(existingShow.id)
+          .then(o => {
+            loadDraft({
+              ...draft,
+              show: {
+                ...draft.show,
+                officials: {
+                  secretary: o.secretaries.map(s => s.personId),
+                  chairman: o.chairmen.map(c => c.personId),
+                  steward: o.stewards.map(s => s.personId),
+                },
+              },
+            });
+          })
+          .catch(() => {
+            // Officials fetch failed — keep empty defaults
+          });
       }
     }
   }, [editMode, allShows, existingTrials, loadDraft, people, existingClasses]);

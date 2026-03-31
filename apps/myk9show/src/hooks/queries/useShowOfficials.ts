@@ -18,28 +18,45 @@ export interface ShowOfficials {
 
 const OFFICIAL_ROLES = ['secretary', 'chairman', 'steward'];
 
+// Cached role name → id map (roles table is static)
+let officialRoleIds: Map<string, string> | null = null;
+
+async function getOfficialRoleIds(): Promise<Map<string, string>> {
+  if (officialRoleIds) return officialRoleIds;
+  const { data, error } = await supabase
+    .from('roles')
+    .select('id, name')
+    .in('name', OFFICIAL_ROLES);
+  if (error) throw error;
+  officialRoleIds = new Map((data || []).map(r => [r.id, r.name]));
+  return officialRoleIds;
+}
+
 async function fetchShowOfficials(showId: string): Promise<ShowOfficials> {
+  const roleMap = await getOfficialRoleIds();
+  const roleIds = Array.from(roleMap.keys());
+
   const { data, error } = await supabase
     .from('user_roles')
     .select(
       `
       role_id,
-      show_id,
-      roles!inner(name),
       people!user_roles_user_id_fkey(id, first_name, last_name, email)
     `
     )
     .eq('show_id', showId)
-    .in('roles.name', OFFICIAL_ROLES)
-    .not('is_active', 'eq', false);
+    .eq('is_active', true)
+    .in('role_id', roleIds);
 
   if (error) throw error;
 
   const result: ShowOfficials = { secretaries: [], chairmen: [], stewards: [] };
 
   for (const row of data || []) {
-    const role = (row.roles as Record<string, unknown>).name as string;
+    const role = roleMap.get(row.role_id as string);
+    if (!role) continue;
     const person = row.people as Record<string, unknown>;
+    if (!person) continue;
     const official: ShowOfficial = {
       personId: person.id as string,
       firstName: (person.first_name as string) || '',

@@ -63,7 +63,7 @@ export function ShowOfficials({ showId }: ShowOfficialsProps) {
           <OfficialCard key={o.personId} official={o} role="Secretary" />
         ))}
         {officials.stewards.map(o => (
-          <OfficialCard key={o.personId} official={o} role="Chief Steward" />
+          <OfficialCard key={o.personId} official={o} role="Steward" />
         ))}
       </div>
     </Card>

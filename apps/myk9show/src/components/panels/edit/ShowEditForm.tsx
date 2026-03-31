@@ -15,6 +15,7 @@ import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
+import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
@@ -188,10 +189,13 @@ export const ShowEditForm: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Officials managed via user_roles — see ShowOfficials component */}
-              <p className="text-sm text-muted-foreground">
-                Officials (Chairman, Secretary, Chief Steward) are managed through role assignments.
-              </p>
+              {data.id ? (
+                <ShowOfficials showId={data.id as string} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Save the show first to assign officials.
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -282,7 +282,7 @@ export function useShowCreationWizardActions({
         // Auto-grant secretary role to the assigned secretary (fire-and-forget)
         if (show.secretary && show.clubId) {
           rbacService
-            .ensureUserHasRole(show.secretary, UserRole.SECRETARY, show.clubId)
+            .ensureUserHasRole(show.secretary, UserRole.SECRETARY, { clubId: show.clubId })
             .catch(err =>
               logger.warn('Failed to auto-grant secretary role', 'wizard', {
                 error: err instanceof Error ? err.message : String(err),

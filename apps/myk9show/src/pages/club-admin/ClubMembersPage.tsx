@@ -176,7 +176,7 @@ const ClubMembersPage: React.FC = () => {
   const toggleShowAccessMutation = useMutation({
     mutationFn: async ({ personId, grant }: { personId: string; grant: boolean }) => {
       if (grant) {
-        await rbacService.ensureUserHasRole(personId, UserRole.SECRETARY, clubId!);
+        await rbacService.ensureUserHasRole(personId, UserRole.SECRETARY, { clubId: clubId! });
       } else {
         await rbacService.revokeRole({
           userId: personId,

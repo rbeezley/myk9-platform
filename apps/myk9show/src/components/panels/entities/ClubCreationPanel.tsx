@@ -211,7 +211,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
 
         // Auto-grant club admin role to the selected person (fire-and-forget)
         if (clubAdminId) {
-          rbacService.ensureUserHasRole(clubAdminId, UserRole.CLUB_ADMIN, clubId).catch(err => {
+          rbacService.ensureUserHasRole(clubAdminId, UserRole.CLUB_ADMIN, { clubId }).catch(err => {
             logger.warn('Failed to auto-grant club admin role', 'clubs', {
               error: err instanceof Error ? err.message : String(err),
             });

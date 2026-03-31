@@ -94,15 +94,6 @@ const mockClasses: SyncableClassData[] = [
 const emptyTrialOverrides: TrialOverrideEntry[] = [];
 const emptyClassOverrides: ClassOverrideEntry[] = [];
 
-const classOverrideWithPreset: ClassOverrideEntry[] = [
-  {
-    classId: 'class-1',
-    trialId: 'trial-1',
-    override: { preset: 'open' },
-    selfCheckinEnabled: null,
-  },
-];
-
 const classOverrideWithCheckin: ClassOverrideEntry[] = [
   {
     classId: 'class-1',

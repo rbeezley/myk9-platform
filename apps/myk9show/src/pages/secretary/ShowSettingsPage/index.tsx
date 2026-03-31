@@ -1,42 +1,24 @@
 /**
  * Show Settings Page
  *
- * Secretary page for configuring results visibility and self check-in settings,
- * with per-trial override controls.
+ * Summary page with links to detailed settings pages.
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye, UserCheck, Settings } from 'lucide-react';
+import { Eye, UserCheck, Settings, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
-import { useTrialStore } from '@/store/trialStore';
-import {
-  useShowSettings,
-  useTrialOverrides,
-  useClassOverrides,
-} from '@/hooks/queries/useShowSettingsDatabase';
-import { useClassStore } from '@/store/classStore';
-import { ResultsVisibilitySection } from './ResultsVisibilitySection';
-import { SelfCheckinSection } from './SelfCheckinSection';
+import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
+import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
 
 export default function ShowSettingsPage() {
   const { selectedShowId, shows } = useShowStore();
-  const { trials } = useTrialStore();
+  const navigate = useNavigate();
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
-  const showTrials = trials.filter(t => t.showId === selectedShowId);
-
-  const { data: settings, isLoading: settingsLoading } = useShowSettings(selectedShowId || null);
-  const { data: trialOverrides = [], isLoading: overridesLoading } = useTrialOverrides(
-    selectedShowId || null
-  );
-  const { data: classOverrides = [], isLoading: classOverridesLoading } = useClassOverrides(
-    selectedShowId || null
-  );
-  const { classes } = useClassStore();
-  const showClasses = classes.filter(c => showTrials.some(t => t.id === c.trialId));
-
-  const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
+  const { data: settings, isLoading } = useShowSettings(selectedShowId || null);
 
   if (!selectedShowId) {
     return (
@@ -49,67 +31,69 @@ export default function ShowSettingsPage() {
     );
   }
 
+  const presetName = settings?.visibility.preset as VisibilityPreset | undefined;
+  const presetLabel = presetName ? PRESET_INFO[presetName]?.title : 'Custom';
+
   return (
     <div className="container mx-auto py-6 space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Show Settings</h1>
         {selectedShow && <p className="text-muted-foreground">{selectedShow.name}</p>}
       </div>
 
-      {/* Results Visibility */}
+      {/* Results Visibility Summary */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Eye className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Results Visibility</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <CardTitle>Results Visibility</CardTitle>
+                <CardDescription>
+                  {isLoading ? <Skeleton className="h-4 w-32" /> : `Current preset: ${presetLabel}`}
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/secretary/results-control')}
+            >
+              Manage <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          {isLoading || !settings ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-          ) : (
-            <ResultsVisibilitySection
-              showId={selectedShowId}
-              settings={settings}
-              trialOverrides={trialOverrides}
-              classOverrides={classOverrides}
-              trials={showTrials}
-              classes={showClasses}
-            />
-          )}
-        </CardContent>
       </Card>
 
-      {/* Self Check-In */}
+      {/* Self Check-In Summary */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Self Check-In</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <CardTitle>Self Check-In</CardTitle>
+                <CardDescription>
+                  {isLoading ? (
+                    <Skeleton className="h-4 w-32" />
+                  ) : settings?.selfCheckinEnabled ? (
+                    'Enabled'
+                  ) : (
+                    'Disabled'
+                  )}
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/secretary/results-control')}
+            >
+              Manage <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          {isLoading || !settings ? (
-            <div className="space-y-3">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : (
-            <SelfCheckinSection
-              showId={selectedShowId}
-              settings={settings}
-              trialOverrides={trialOverrides}
-              classOverrides={classOverrides}
-              trials={showTrials}
-              classes={showClasses}
-            />
-          )}
-        </CardContent>
+        <CardContent />
       </Card>
     </div>
   );

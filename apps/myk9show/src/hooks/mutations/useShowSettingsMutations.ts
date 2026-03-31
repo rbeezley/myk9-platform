@@ -9,6 +9,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
+import { notifications } from '@/lib/notifications';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
 import { settingsQueryKeys, type ShowSettings } from '../queries/useShowSettingsDatabase';
 
@@ -189,6 +190,9 @@ export function useUpdateTrialOverride() {
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.trialOverride(variables.trialId),
       });
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverrides(variables.showId),
+      });
     },
   });
 }
@@ -220,6 +224,57 @@ export function useUpdateClassOverride() {
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.classOverrides(variables.showId),
       });
+    },
+  });
+}
+
+interface BulkClassOverrideUpdate {
+  classIds: string[];
+  showId: string;
+  preset?: VisibilityPreset | null;
+  placementTiming?: VisibilityTiming | null;
+  qualificationTiming?: VisibilityTiming | null;
+  timeTiming?: VisibilityTiming | null;
+  faultsTiming?: VisibilityTiming | null;
+  selfCheckinEnabled?: boolean | null;
+}
+
+export function useBulkUpdateClassOverrides() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (update: BulkClassOverrideUpdate) => {
+      if (update.classIds.length === 0) return;
+      const sharedFields: Record<string, unknown> = {
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      };
+      if (update.preset !== undefined) sharedFields.preset = update.preset;
+      if (update.placementTiming !== undefined)
+        sharedFields.placement_timing = update.placementTiming;
+      if (update.qualificationTiming !== undefined)
+        sharedFields.qualification_timing = update.qualificationTiming;
+      if (update.timeTiming !== undefined) sharedFields.time_timing = update.timeTiming;
+      if (update.faultsTiming !== undefined) sharedFields.faults_timing = update.faultsTiming;
+      if (update.selfCheckinEnabled !== undefined)
+        sharedFields.self_checkin_enabled = update.selfCheckinEnabled;
+
+      const rows = update.classIds.map(classId => ({
+        class_id: classId,
+        ...sharedFields,
+      }));
+      const { error } = await untypedSupabase.from('class_visibility_overrides').upsert(rows);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverrides(variables.showId),
+      });
+      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
+    },
+    onError: () => {
+      notifications.error('Failed to update class overrides');
     },
   });
 }

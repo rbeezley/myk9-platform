@@ -8,6 +8,7 @@ import type {
 } from '@/hooks/queries/useShowSettingsDatabase';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { SyncableClassData } from '@/store/classStore';
+import { ClassOverrides } from '../ResultsControlPage/ClassOverrides';
 
 // Mock mutations
 const mockUpdateClassOverride = { mutate: vi.fn(), isPending: false };
@@ -93,15 +94,6 @@ const mockClasses: SyncableClassData[] = [
 const emptyTrialOverrides: TrialOverrideEntry[] = [];
 const emptyClassOverrides: ClassOverrideEntry[] = [];
 
-const classOverrideWithPreset: ClassOverrideEntry[] = [
-  {
-    classId: 'class-1',
-    trialId: 'trial-1',
-    override: { preset: 'open' },
-    selfCheckinEnabled: null,
-  },
-];
-
 const classOverrideWithCheckin: ClassOverrideEntry[] = [
   {
     classId: 'class-1',
@@ -110,116 +102,6 @@ const classOverrideWithCheckin: ClassOverrideEntry[] = [
     selfCheckinEnabled: false,
   },
 ];
-
-describe('ResultsVisibilitySection — Class Overrides', () => {
-  let ResultsVisibilitySection: typeof import('../ShowSettingsPage/ResultsVisibilitySection').ResultsVisibilitySection;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    const mod = await import('../ShowSettingsPage/ResultsVisibilitySection');
-    ResultsVisibilitySection = mod.ResultsVisibilitySection;
-  });
-
-  it('renders class overrides section with trial grouping', () => {
-    render(
-      <ResultsVisibilitySection
-        showId="show-1"
-        settings={mockSettings}
-        trialOverrides={emptyTrialOverrides}
-        classOverrides={emptyClassOverrides}
-        trials={mockTrials}
-        classes={mockClasses}
-      />
-    );
-
-    expect(screen.getByText('Class Overrides')).toBeInTheDocument();
-    // The collapsible trigger button contains "Saturday Trial 1" as a span
-    expect(screen.getByRole('button', { name: /Saturday Trial 1.*classes/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /2 classes/ })).toBeInTheDocument();
-  });
-
-  it('shows class names from element/level/section after expanding', async () => {
-    const { user } = render(
-      <ResultsVisibilitySection
-        showId="show-1"
-        settings={mockSettings}
-        trialOverrides={emptyTrialOverrides}
-        classOverrides={emptyClassOverrides}
-        trials={mockTrials}
-        classes={mockClasses}
-      />
-    );
-
-    // Expand the trial collapsible — target the button role for the class-overrides trigger
-    await user.click(screen.getByRole('button', { name: /Saturday Trial 1.*classes/ }));
-
-    expect(screen.getByText('Container Novice A')).toBeInTheDocument();
-    expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-  });
-
-  it('shows override indicator when class has visibility override', async () => {
-    const { user } = render(
-      <ResultsVisibilitySection
-        showId="show-1"
-        settings={mockSettings}
-        trialOverrides={emptyTrialOverrides}
-        classOverrides={classOverrideWithPreset}
-        trials={mockTrials}
-        classes={mockClasses}
-      />
-    );
-
-    expect(screen.getByText(/1 overridden/)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /Saturday Trial 1.*classes/ }));
-
-    expect(screen.getByText('Override: open')).toBeInTheDocument();
-    // class-2 has no override and no trial override, so it shows "Inheriting from show"
-    expect(screen.getAllByText('Inheriting from show').length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('shows reset button only for overridden classes', async () => {
-    const { user } = render(
-      <ResultsVisibilitySection
-        showId="show-1"
-        settings={mockSettings}
-        trialOverrides={emptyTrialOverrides}
-        classOverrides={classOverrideWithPreset}
-        trials={mockTrials}
-        classes={mockClasses}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: /Saturday Trial 1.*classes/ }));
-
-    // Only class-1 has override, so only 1 reset button in class section
-    const resetButtons = screen.getAllByTitle('Reset to inherited settings');
-    expect(resetButtons.length).toBe(1);
-  });
-
-  it('calls resetOverride with level class on reset click', async () => {
-    const { user } = render(
-      <ResultsVisibilitySection
-        showId="show-1"
-        settings={mockSettings}
-        trialOverrides={emptyTrialOverrides}
-        classOverrides={classOverrideWithPreset}
-        trials={mockTrials}
-        classes={mockClasses}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: /Saturday Trial 1.*classes/ }));
-
-    const resetButton = screen.getByTitle('Reset to inherited settings');
-    await user.click(resetButton);
-
-    expect(mockResetOverride.mutate).toHaveBeenCalledWith(
-      { entityId: 'class-1', showId: 'show-1', level: 'class' },
-      expect.any(Object)
-    );
-  });
-});
 
 describe('SelfCheckinSection — Class Overrides', () => {
   let SelfCheckinSection: typeof import('../ShowSettingsPage/SelfCheckinSection').SelfCheckinSection;
@@ -295,5 +177,86 @@ describe('SelfCheckinSection — Class Overrides', () => {
       }),
       expect.any(Object)
     );
+  });
+});
+
+// ─── New ClassOverrides component tests ───────────────────────────────────────
+
+const newTrials: SyncableTrial[] = [
+  {
+    id: 'trial-1',
+    name: 'Trial A',
+    showId: 'show-1',
+    _version: 1,
+    _lastModified: new Date(),
+    _lastModifiedBy: '',
+    _syncStatus: 'synced',
+  } as SyncableTrial,
+];
+
+const newClasses: SyncableClassData[] = [
+  {
+    id: 'class-1',
+    trialId: 'trial-1',
+    element: 'Standard',
+    level: 'Novice',
+  } as SyncableClassData,
+  {
+    id: 'class-2',
+    trialId: 'trial-1',
+    element: 'Standard',
+    level: 'Open',
+  } as SyncableClassData,
+];
+
+function renderClassOverridesComponent(overrides?: {
+  selectedClasses?: Set<string>;
+  onToggleClass?: (id: string) => void;
+  onToggleAllInTrial?: (trialId: string, classIds: string[]) => void;
+}) {
+  const selectedClasses = overrides?.selectedClasses ?? new Set<string>();
+  return render(
+    <ClassOverrides
+      showId="show-1"
+      trials={newTrials}
+      classes={newClasses}
+      classOverrides={[]}
+      trialOverrides={[]}
+      selectedClasses={selectedClasses}
+      onToggleClass={overrides?.onToggleClass ?? vi.fn()}
+      onToggleAllInTrial={overrides?.onToggleAllInTrial ?? vi.fn()}
+    />
+  );
+}
+
+describe('ClassOverrides', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders class names grouped by trial', async () => {
+    const { user } = renderClassOverridesComponent();
+    // Expand the trial collapsible
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    expect(screen.getByText(/novice/i)).toBeInTheDocument();
+    expect(screen.getByText(/open/i)).toBeInTheDocument();
+  });
+
+  it('calls onToggleClass when checkbox is clicked', async () => {
+    const onToggle = vi.fn();
+    const { user } = renderClassOverridesComponent({ onToggleClass: onToggle });
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    const checkboxes = screen.getAllByRole('checkbox');
+    await user.click(checkboxes[1]); // first class checkbox (index 0 is select-all)
+    expect(onToggle).toHaveBeenCalledWith('class-1');
+  });
+
+  it('calls onToggleAllInTrial when select-all checkbox is clicked', async () => {
+    const onToggleAll = vi.fn();
+    const { user } = renderClassOverridesComponent({ onToggleAllInTrial: onToggleAll });
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    const checkboxes = screen.getAllByRole('checkbox');
+    await user.click(checkboxes[0]); // select-all checkbox
+    expect(onToggleAll).toHaveBeenCalledWith('trial-1', ['class-1', 'class-2']);
   });
 });

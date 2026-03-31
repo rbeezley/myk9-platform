@@ -20,6 +20,12 @@
 -- 1. Helper functions
 -- =============================================================================
 
+-- Drop existing overloads to avoid parameter name conflicts.
+-- CASCADE drops dependent policies; we recreate is_show_secretary below
+-- and the dependent policies will be recreated by their original migrations
+-- or are replaced later in this migration.
+DROP FUNCTION IF EXISTS is_show_secretary(UUID) CASCADE;
+
 CREATE OR REPLACE FUNCTION is_show_secretary(check_show_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -272,6 +278,35 @@ CREATE POLICY "secretary_update_show_officials" ON user_roles
 CREATE INDEX IF NOT EXISTS user_roles_show_role_idx
   ON user_roles(show_id, role_id)
   WHERE show_id IS NOT NULL AND is_active = true;
+
+-- =============================================================================
+-- 7. Recreate policies dropped by CASCADE on is_show_secretary(UUID)
+-- =============================================================================
+
+-- people_insert: originally from migration 020, uses is_show_secretary() with no args.
+-- The new function requires a show_id arg, so replace with has_role('secretary').
+DROP POLICY IF EXISTS "people_insert" ON public.people;
+CREATE POLICY "people_insert" ON public.people
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        (auth_user_id = (SELECT auth.uid()))
+        OR (SELECT public.has_role('secretary'))
+        OR (SELECT public.is_platform_admin())
+    );
+
+-- email_log_select: originally from migration 061, uses is_show_secretary(s.id).
+-- Replace with is_show_official(s.id) which uses the new function signature.
+DROP POLICY IF EXISTS "email_log_select" ON email_log;
+CREATE POLICY email_log_select ON email_log
+  FOR SELECT USING (
+    (SELECT public.is_platform_admin())
+    OR EXISTS (
+      SELECT 1 FROM public.registrations r
+      JOIN public.shows s ON s.id = r.show_id
+      WHERE r.id = email_log.related_id
+      AND (SELECT public.is_show_official(s.id))
+    )
+  );
 
 -- =============================================================================
 -- SUCCESS

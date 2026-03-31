@@ -23,6 +23,7 @@ DROP POLICY IF EXISTS "people_update" ON public.people;
 -- The WITH CHECK ensures that after the update, `status` still equals its
 -- pre-update value. Postgres evaluates the subquery against the row being
 -- checked, so `id` refers to the row's own primary key.
+DROP POLICY IF EXISTS "people_update_own" ON public.people;
 CREATE POLICY "people_update_own" ON public.people
     FOR UPDATE TO authenticated
     USING (
@@ -38,6 +39,7 @@ CREATE POLICY "people_update_own" ON public.people
 -- Policy 2: Admins can update any row including status.
 -- Note: is_show_secretary() excluded here due to overloaded function signature.
 -- The secretary-scoping migration will replace this with show-scoped checks.
+DROP POLICY IF EXISTS "people_update_privileged" ON public.people;
 CREATE POLICY "people_update_privileged" ON public.people
     FOR UPDATE TO authenticated
     USING (

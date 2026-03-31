@@ -26,7 +26,7 @@ CREATE UNIQUE INDEX idx_registrations_show_handler ON registrations(show_id, han
 -- CONFIRMATION NUMBER SEQUENCE + TRIGGER
 -- ==========================================================================
 
-CREATE SEQUENCE registration_confirmation_seq START 1;
+CREATE SEQUENCE IF NOT EXISTS registration_confirmation_seq START 1;
 
 CREATE OR REPLACE FUNCTION generate_confirmation_number()
 RETURNS TRIGGER AS $$

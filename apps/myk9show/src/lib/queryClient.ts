@@ -241,6 +241,9 @@ export const queryKeys = {
   // Check-In Report
   checkInReport: (showId: string) => ['check-in-report', showId] as const,
 
+  // Show Officials
+  showOfficials: (showId: string) => ['shows', showId, 'officials'] as const,
+
   // Volunteers
   volunteers: (showId: string) => ['volunteers', showId] as const,
   volunteerClassAssignments: (showId: string) =>

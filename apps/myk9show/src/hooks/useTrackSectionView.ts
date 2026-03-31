@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/services/database/supabaseClient';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 
 export const TRACKED_SECTIONS = {
@@ -13,15 +13,13 @@ export const TRACKED_SECTIONS = {
 export type TrackedSection = (typeof TRACKED_SECTIONS)[keyof typeof TRACKED_SECTIONS];
 
 /** Fire-and-forget insert into analytics_events. Isolated to contain the type cast. */
-function insertAnalyticsEvent(userId: string, sectionName: string, page: string) {
-  // analytics_events table is not in generated types yet — cast isolated here
+function insertAnalyticsEvent(sectionName: string, page: string) {
   (
     supabase.from as unknown as (table: string) => {
       insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
     }
   )('analytics_events')
     .insert({
-      user_id: userId,
       event_type: 'section_view',
       section_name: sectionName,
       page,
@@ -35,24 +33,33 @@ function insertAnalyticsEvent(userId: string, sectionName: string, page: string)
           error: error.message,
         });
       }
+    })
+    .catch(() => {
+      // Network failure — non-critical telemetry, silently drop
     });
 }
 
 /**
- * Tracks when a section scrolls into view (50% visible).
+ * Tracks when a section scrolls into view (10% visible).
  * Fires one Supabase insert per section per page session.
  * No-ops for unauthenticated users. Fire-and-forget — non-critical telemetry.
  */
 export function useTrackSectionView(
   sectionName: TrackedSection,
   page: string
-): React.RefObject<HTMLDivElement | null> {
-  const ref = useRef<HTMLDivElement | null>(null);
+): (node: HTMLDivElement | null) => void {
+  const elementRef = useRef<HTMLDivElement | null>(null);
   const trackedRef = useRef(new Set<string>());
-  const { user } = useAuth();
+  const { user } = useAuthContext();
+  const [attached, setAttached] = useState(false);
+
+  const callbackRef = useCallback((node: HTMLDivElement | null) => {
+    elementRef.current = node;
+    setAttached(node !== null);
+  }, []);
 
   useEffect(() => {
-    const element = ref.current;
+    const element = elementRef.current;
     if (!element || !user) return;
 
     const key = `${page}:${sectionName}`;
@@ -66,14 +73,14 @@ export function useTrackSectionView(
 
         trackedRef.current.add(key);
         observer.disconnect();
-        insertAnalyticsEvent(user.id, sectionName, page);
+        insertAnalyticsEvent(sectionName, page);
       },
-      { threshold: 0.5 }
+      { threshold: 0.1 }
     );
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [user, sectionName, page]);
+  }, [user, sectionName, page, attached]);
 
-  return ref;
+  return callbackRef;
 }

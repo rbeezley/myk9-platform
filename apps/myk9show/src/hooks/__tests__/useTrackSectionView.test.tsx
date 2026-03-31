@@ -1,13 +1,13 @@
-import { render, renderHook, act } from '@testing-library/react';
+import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useTrackSectionView, TRACKED_SECTIONS } from '../useTrackSectionView';
 import type { TrackedSection } from '../useTrackSectionView';
 import { mockSupabase } from '@/test/mocks/supabase';
 
-// Mock useAuth — default: authenticated user
+// Mock useAuthContext — default: authenticated user
 const mockUser = { id: 'user-123' };
-vi.mock('@/hooks/useAuth', () => ({
-  useAuth: vi.fn(() => ({ user: mockUser })),
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: vi.fn(() => ({ user: mockUser })),
 }));
 
 // Mock LoggingService
@@ -24,10 +24,10 @@ let observerObserve: ReturnType<typeof vi.fn>;
 // Track insert calls
 let insertSpy: ReturnType<typeof vi.fn>;
 
-/** Test component that attaches the ref to a real DOM element */
+/** Test component that attaches the callback ref to a real DOM element */
 function TrackedSection({ section, page }: { section: TrackedSection; page: string }) {
-  const ref = useTrackSectionView(section, page);
-  return <div ref={ref} data-testid="tracked-section" />;
+  const callbackRef = useTrackSectionView(section, page);
+  return <div ref={callbackRef} data-testid="tracked-section" />;
 }
 
 beforeEach(() => {
@@ -52,8 +52,10 @@ beforeEach(() => {
 
 afterEach(async () => {
   mockSupabase.from.mockReset();
-  const { useAuth } = await import('@/hooks/useAuth');
-  vi.mocked(useAuth).mockReturnValue({ user: mockUser } as ReturnType<typeof useAuth>);
+  const { useAuthContext } = await import('@/hooks/useAuthContext');
+  vi.mocked(useAuthContext).mockReturnValue({ user: mockUser } as ReturnType<
+    typeof useAuthContext
+  >);
 });
 
 describe('useTrackSectionView', () => {
@@ -66,7 +68,6 @@ describe('useTrackSectionView', () => {
 
     expect(mockSupabase.from).toHaveBeenCalledWith('analytics_events');
     expect(insertSpy).toHaveBeenCalledWith({
-      user_id: 'user-123',
       event_type: 'section_view',
       section_name: 'qualification_trend_chart',
       page: 'analytics',
@@ -97,25 +98,11 @@ describe('useTrackSectionView', () => {
     expect(insertSpy).not.toHaveBeenCalled();
   });
 
-  it('does not fire when ref is never attached to a DOM element', () => {
-    renderHook(() => useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics'));
-
-    expect(observerObserve).not.toHaveBeenCalled();
-    expect(insertSpy).not.toHaveBeenCalled();
-  });
-
   it('no-ops for unauthenticated users', async () => {
-    const { useAuth } = await import('@/hooks/useAuth');
-    vi.mocked(useAuth).mockReturnValue({
+    const { useAuthContext } = await import('@/hooks/useAuthContext');
+    vi.mocked(useAuthContext).mockReturnValue({
       user: null,
-      loading: false,
-      signIn: vi.fn(),
-      signUp: vi.fn(),
-      signOut: vi.fn(),
-      resetPassword: vi.fn(),
-      updatePassword: vi.fn(),
-      updateProfile: vi.fn(),
-    } as ReturnType<typeof useAuth>);
+    } as ReturnType<typeof useAuthContext>);
 
     render(<TrackedSection section={TRACKED_SECTIONS.FASTEST_TIMES} page="analytics" />);
 

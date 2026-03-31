@@ -5,6 +5,7 @@
  * self check-in, and releasing results with bulk operations.
  */
 
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, UserCheck, Settings } from 'lucide-react';
@@ -30,9 +31,16 @@ export default function ResultsControlPage() {
   const bulkOps = useBulkClassOperations();
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
-  const showTrials = trials.filter(t => t.showId === selectedShowId);
-  const showClasses = classes.filter(c => showTrials.some(t => t.id === c.trialId));
-  const allClassIds = showClasses.map(c => c.id);
+  const showTrials = useMemo(
+    () => trials.filter(t => t.showId === selectedShowId),
+    [trials, selectedShowId]
+  );
+  const showTrialIds = useMemo(() => new Set(showTrials.map(t => t.id)), [showTrials]);
+  const showClasses = useMemo(
+    () => classes.filter(c => showTrialIds.has(c.trialId)),
+    [classes, showTrialIds]
+  );
+  const allClassIds = useMemo(() => showClasses.map(c => c.id), [showClasses]);
 
   const { data: settings, isLoading: settingsLoading } = useShowSettings(selectedShowId ?? null);
   const { data: trialOverrides = [], isLoading: overridesLoading } = useTrialOverrides(
@@ -44,18 +52,19 @@ export default function ResultsControlPage() {
 
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
 
-  // Check if any selected class has manual_release timing (for Release Results button)
-  const hasManualReleaseClasses = Array.from(bulkOps.selectedClasses).some(classId => {
-    const override = classOverrides.find(o => o.classId === classId);
-    const trialId = showClasses.find(c => c.id === classId)?.trialId;
-    const trialOverride = trialId ? trialOverrides.find(o => o.trialId === trialId) : undefined;
+  // Resolve effective preset using class > trial > show hierarchy to gate the Release button
+  const hasManualReleaseClasses = useMemo(() => {
+    return Array.from(bulkOps.selectedClasses).some(classId => {
+      const override = classOverrides.find(o => o.classId === classId);
+      const trialId = showClasses.find(c => c.id === classId)?.trialId;
+      const trialOverride = trialId ? trialOverrides.find(o => o.trialId === trialId) : undefined;
 
-    // Check class override first, then trial, then show
-    const preset =
-      override?.override.preset ?? trialOverride?.override.preset ?? settings?.visibility.preset;
+      const preset =
+        override?.override.preset ?? trialOverride?.override.preset ?? settings?.visibility.preset;
 
-    return preset === 'review';
-  });
+      return preset === 'review';
+    });
+  }, [bulkOps.selectedClasses, classOverrides, trialOverrides, showClasses, settings]);
 
   if (!selectedShowId) {
     return (

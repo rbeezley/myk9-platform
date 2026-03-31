@@ -32,7 +32,6 @@ export function BulkOperationsBar({
   onClearSelection,
   hasManualReleaseClasses,
 }: BulkOperationsBarProps) {
-  // [EXPANDED] Use batch mutation instead of N individual mutations
   const bulkUpdate = useBulkUpdateClassOverrides();
   const releaseResults = useReleaseResults();
 

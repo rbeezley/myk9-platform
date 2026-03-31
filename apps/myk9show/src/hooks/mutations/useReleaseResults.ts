@@ -5,7 +5,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
-import { toast } from 'sonner';
+import { notifications } from '@/lib/notifications';
 import { settingsQueryKeys } from '../queries/useShowSettingsDatabase';
 
 interface ReleaseResultsInput {
@@ -26,16 +26,16 @@ export function useReleaseResults() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      toast.success(
+      notifications.success(
         `Results released for ${variables.classIds.length} class${variables.classIds.length === 1 ? '' : 'es'}`
       );
       queryClient.invalidateQueries({
         queryKey: settingsQueryKeys.classOverrides(variables.showId),
       });
-      queryClient.invalidateQueries({ queryKey: ['classes'] });
+      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
     },
     onError: () => {
-      toast.error('Failed to release results');
+      notifications.error('Failed to release results');
     },
   });
 }

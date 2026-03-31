@@ -224,7 +224,6 @@ export function useUpdateClassOverride() {
   });
 }
 
-// [ADDED] Batch upsert for bulk class operations — single DB call instead of N
 interface BulkClassOverrideUpdate {
   classIds: string[];
   showId: string;
@@ -242,16 +241,24 @@ export function useBulkUpdateClassOverrides() {
 
   return useMutation({
     mutationFn: async (update: BulkClassOverrideUpdate) => {
-      const rows = update.classIds.map(classId => ({
-        class_id: classId,
-        preset: update.preset,
-        placement_timing: update.placementTiming,
-        qualification_timing: update.qualificationTiming,
-        time_timing: update.timeTiming,
-        faults_timing: update.faultsTiming,
-        self_checkin_enabled: update.selfCheckinEnabled,
+      // Only include fields that were explicitly provided to avoid overwriting existing values with NULL
+      const sharedFields: Record<string, unknown> = {
         updated_by: user?.id ?? null,
         updated_at: new Date().toISOString(),
+      };
+      if (update.preset !== undefined) sharedFields.preset = update.preset;
+      if (update.placementTiming !== undefined)
+        sharedFields.placement_timing = update.placementTiming;
+      if (update.qualificationTiming !== undefined)
+        sharedFields.qualification_timing = update.qualificationTiming;
+      if (update.timeTiming !== undefined) sharedFields.time_timing = update.timeTiming;
+      if (update.faultsTiming !== undefined) sharedFields.faults_timing = update.faultsTiming;
+      if (update.selfCheckinEnabled !== undefined)
+        sharedFields.self_checkin_enabled = update.selfCheckinEnabled;
+
+      const rows = update.classIds.map(classId => ({
+        class_id: classId,
+        ...sharedFields,
       }));
       const { error } = await untypedSupabase.from('class_visibility_overrides').upsert(rows);
       if (error) throw error;

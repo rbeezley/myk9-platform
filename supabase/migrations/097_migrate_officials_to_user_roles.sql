@@ -205,7 +205,42 @@ CREATE POLICY "Secretary can manage general assignments"
   );
 
 -- =============================================================================
--- 5. Index for show-scoped role lookups
+-- 5. Allow secretaries to grant show-scoped official roles
+-- =============================================================================
+-- Migration 079 restricts user_roles INSERT to is_platform_admin() only.
+-- Secretaries need to grant official roles (secretary, chairman, steward)
+-- scoped to shows. For the initial show creation, is_show_secretary() would
+-- fail (no secretary exists yet), so we allow any user with a secretary role
+-- (global or scoped) to grant show-scoped official roles. The constraint is:
+-- must be show-scoped (show_id NOT NULL) and role must be an official role.
+
+CREATE POLICY "secretary_grant_show_officials" ON user_roles
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    show_id IS NOT NULL
+    AND (SELECT public.has_role('secretary') OR public.is_platform_admin())
+    AND EXISTS (
+      SELECT 1 FROM public.roles r
+      WHERE r.id = role_id
+        AND r.name IN ('secretary', 'chairman', 'steward')
+    )
+  );
+
+-- Allow secretaries to update (reactivate) show-scoped official roles
+CREATE POLICY "secretary_update_show_officials" ON user_roles
+  FOR UPDATE TO authenticated
+  USING (
+    show_id IS NOT NULL
+    AND (SELECT public.has_role('secretary') OR public.is_platform_admin())
+    AND EXISTS (
+      SELECT 1 FROM public.roles r
+      WHERE r.id = role_id
+        AND r.name IN ('secretary', 'chairman', 'steward')
+    )
+  );
+
+-- =============================================================================
+-- 6. Index for show-scoped role lookups
 -- =============================================================================
 
 CREATE INDEX IF NOT EXISTS user_roles_show_role_idx

@@ -146,8 +146,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         mode: 'create',
         preFilledData: { role: 'chairman', roleLabel: 'Chairman' },
         selectionCallback: async (person: Record<string, unknown>) => {
+          const latest = useWizardStore.getState().show.officials;
           updateShowData({
-            officials: { ...show.officials, chairman: [person.id as string] },
+            officials: { ...latest, chairman: [person.id as string] },
           });
           await loadPeople();
           logger.debug('Chairman created and selected', 'wizard', { chairmanId: person.id });
@@ -167,8 +168,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         mode: 'create',
         preFilledData: { role: 'secretary', roleLabel: 'Secretary' },
         selectionCallback: async (person: Record<string, unknown>) => {
+          const latest = useWizardStore.getState().show.officials;
           updateShowData({
-            officials: { ...show.officials, secretary: [person.id as string] },
+            officials: { ...latest, secretary: [person.id as string] },
           });
           await loadPeople();
           logger.debug('Secretary created and selected', 'wizard', { secretaryId: person.id });

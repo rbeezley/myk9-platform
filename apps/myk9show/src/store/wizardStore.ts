@@ -253,6 +253,17 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         judgeAssignments: state.judgeAssignments,
         judgeDetails: state.judgeDetails,
       }),
+      merge: (persisted, current) => {
+        const state = { ...current, ...(persisted as Partial<WizardState>) };
+        // Ensure officials field exists for drafts saved before this field was added
+        if (!state.show.officials) {
+          state.show = {
+            ...state.show,
+            officials: { secretary: [], chairman: [], steward: [] },
+          };
+        }
+        return state;
+      },
     }
   )
 );

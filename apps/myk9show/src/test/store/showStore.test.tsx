@@ -30,9 +30,6 @@ const mockShows: Show[] = [
     clubName: 'Test Club',
     clubAddress: '456 Club St',
     clubEmail: 'club@test.com',
-    chairman: 'Jane Smith',
-    secretary: 'Bob Jones',
-    chiefSteward: 'Alice Brown',
     assignedJudges: [],
     trials: [],
     stats: [],
@@ -205,9 +202,6 @@ describe('showStore (with database integration)', () => {
         clubName: 'Test Club',
         clubAddress: '456 Club St',
         clubEmail: 'club@test.com',
-        chairman: 'Jane Smith',
-        secretary: 'Bob Jones',
-        chiefSteward: 'Alice Brown',
       };
 
       await act(async () => {

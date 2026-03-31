@@ -8,8 +8,8 @@ vi.mock('@/components/shows/overview/ScheduleSummary', () => ({
   ScheduleSummary: () => <div data-testid="schedule-summary" />,
 }));
 vi.mock('@/components/shows/overview/ShowOfficials', () => ({
-  ShowOfficials: ({ chairmanId }: { chairmanId?: string }) =>
-    chairmanId ? <div data-testid="show-officials" /> : null,
+  ShowOfficials: ({ showId }: { showId?: string }) =>
+    showId ? <div data-testid="show-officials" /> : null,
 }));
 vi.mock('@/components/shows/overview/JudgesList', () => ({
   JudgesList: ({ judges }: { judges?: unknown[] }) => (
@@ -48,16 +48,13 @@ const fullShow: Show = {
   logoUrl: '',
   coverImageUrl: '',
   accentColor: '',
-  chairman: 'person-1',
-  secretary: 'person-2',
-  chiefSteward: '',
   assignedJudges: [{ judgeId: 'j1', judgeName: 'Judge One', assignedDate: '2026-03-21' }],
   stats: [],
   trials: [],
 };
 
 describe('ShowOverviewTab', () => {
-  it('renders ShowOfficials when chairman exists', () => {
+  it('renders ShowOfficials when showId exists', () => {
     render(<ShowOverviewTab show={fullShow} />);
     expect(screen.getByTestId('show-officials')).toBeInTheDocument();
   });

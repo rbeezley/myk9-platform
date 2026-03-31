@@ -32,9 +32,6 @@ function createMockShow(overrides: Partial<Show> = {}): Show {
     logoUrl: '',
     coverImageUrl: '',
     accentColor: '',
-    chairman: 'Jane Doe',
-    secretary: 'John Smith',
-    chiefSteward: 'Bob Wilson',
     assignedJudges: [],
     stats: [],
     trials: [

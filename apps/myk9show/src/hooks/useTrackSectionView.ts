@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { logger } from '@/services/LoggingService';
@@ -11,14 +10,32 @@ export const TRACKED_SECTIONS = {
   LIFETIME_PAGE: 'lifetime_analytics_page',
 } as const;
 
-/** Module-level set for one-per-session dedup. Keyed by `page:sectionName`. */
-let trackedKeys = new Set<string>();
-let lastPathname = '';
+export type TrackedSection = (typeof TRACKED_SECTIONS)[keyof typeof TRACKED_SECTIONS];
 
-/** Exported for test cleanup only. */
-export function _resetTrackedSections() {
-  trackedKeys = new Set();
-  lastPathname = '';
+/** Fire-and-forget insert into analytics_events. Isolated to contain the type cast. */
+function insertAnalyticsEvent(userId: string, sectionName: string, page: string) {
+  // analytics_events table is not in generated types yet — cast isolated here
+  (
+    supabase.from as unknown as (table: string) => {
+      insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+    }
+  )('analytics_events')
+    .insert({
+      user_id: userId,
+      event_type: 'section_view',
+      section_name: sectionName,
+      page,
+      metadata: null,
+    })
+    .then(({ error }) => {
+      if (error) {
+        logger.debug('Analytics event insert failed', 'analytics', {
+          sectionName,
+          page,
+          error: error.message,
+        });
+      }
+    });
 }
 
 /**
@@ -27,63 +44,29 @@ export function _resetTrackedSections() {
  * No-ops for unauthenticated users. Fire-and-forget — non-critical telemetry.
  */
 export function useTrackSectionView(
-  sectionName: string,
+  sectionName: TrackedSection,
   page: string
 ): React.RefObject<HTMLDivElement | null> {
   const ref = useRef<HTMLDivElement | null>(null);
+  const trackedRef = useRef(new Set<string>());
   const { user } = useAuth();
-  const { pathname } = useLocation();
-
-  // Reset tracked set on navigation
-  useEffect(() => {
-    if (pathname !== lastPathname) {
-      trackedKeys = new Set();
-      lastPathname = pathname;
-    }
-  }, [pathname]);
 
   useEffect(() => {
     const element = ref.current;
     if (!element || !user) return;
 
+    const key = `${page}:${sectionName}`;
+    if (trackedRef.current.has(key)) return;
+
     const observer = new IntersectionObserver(
       entries => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        if (trackedRef.current.has(key)) return;
 
-          const key = `${page}:${sectionName}`;
-          if (trackedKeys.has(key)) continue;
-
-          trackedKeys.add(key);
-          observer.disconnect();
-
-          // analytics_events table is not in generated types yet — cast to bypass
-          (
-            supabase.from as unknown as (table: string) => {
-              insert: (
-                row: Record<string, unknown>
-              ) => Promise<{ error: { message: string } | null }>;
-            }
-          )('analytics_events')
-            .insert({
-              user_id: user.id,
-              event_type: 'section_view',
-              section_name: sectionName,
-              page,
-              metadata: null,
-            })
-            .then(({ error }) => {
-              if (error) {
-                logger.debug('Analytics event insert failed', 'analytics', {
-                  sectionName,
-                  page,
-                  error: error.message,
-                });
-              }
-            });
-
-          break;
-        }
+        trackedRef.current.add(key);
+        observer.disconnect();
+        insertAnalyticsEvent(user.id, sectionName, page);
       },
       { threshold: 0.5 }
     );

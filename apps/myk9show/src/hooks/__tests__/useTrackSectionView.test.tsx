@@ -1,10 +1,7 @@
 import { render, renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  useTrackSectionView,
-  TRACKED_SECTIONS,
-  _resetTrackedSections,
-} from '../useTrackSectionView';
+import { useTrackSectionView, TRACKED_SECTIONS } from '../useTrackSectionView';
+import type { TrackedSection } from '../useTrackSectionView';
 import { mockSupabase } from '@/test/mocks/supabase';
 
 // Mock useAuth — default: authenticated user
@@ -12,16 +9,6 @@ const mockUser = { id: 'user-123' };
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(() => ({ user: mockUser })),
 }));
-
-// Mock react-router useLocation
-let mockPathname = '/analytics';
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useLocation: vi.fn(() => ({ pathname: mockPathname })),
-  };
-});
 
 // Mock LoggingService
 vi.mock('@/services/LoggingService', () => ({
@@ -38,7 +25,7 @@ let observerObserve: ReturnType<typeof vi.fn>;
 let insertSpy: ReturnType<typeof vi.fn>;
 
 /** Test component that attaches the ref to a real DOM element */
-function TrackedSection({ section, page }: { section: string; page: string }) {
+function TrackedSection({ section, page }: { section: TrackedSection; page: string }) {
   const ref = useTrackSectionView(section, page);
   return <div ref={ref} data-testid="tracked-section" />;
 }
@@ -46,7 +33,6 @@ function TrackedSection({ section, page }: { section: string; page: string }) {
 beforeEach(() => {
   observerDisconnect = vi.fn();
   observerObserve = vi.fn();
-  // Override the global IntersectionObserver mock — use a class so `new` works
   global.IntersectionObserver = class MockObserver {
     constructor(callback: ObserverCallback) {
       observerCallback = callback;
@@ -62,14 +48,10 @@ beforeEach(() => {
 
   insertSpy = vi.fn(() => Promise.resolve({ error: null }));
   mockSupabase.from.mockReturnValue({ insert: insertSpy });
-
-  _resetTrackedSections();
-  mockPathname = '/analytics';
 });
 
 afterEach(async () => {
   mockSupabase.from.mockReset();
-  // Restore useAuth mock to default (authenticated user)
   const { useAuth } = await import('@/hooks/useAuth');
   vi.mocked(useAuth).mockReturnValue({ user: mockUser } as ReturnType<typeof useAuth>);
 });
@@ -116,7 +98,6 @@ describe('useTrackSectionView', () => {
   });
 
   it('does not fire when ref is never attached to a DOM element', () => {
-    // renderHook doesn't attach ref to DOM — observer never created
     renderHook(() => useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics'));
 
     expect(observerObserve).not.toHaveBeenCalled();
@@ -138,31 +119,8 @@ describe('useTrackSectionView', () => {
 
     render(<TrackedSection section={TRACKED_SECTIONS.FASTEST_TIMES} page="analytics" />);
 
-    // Observer should not be created for unauth users
     expect(observerObserve).not.toHaveBeenCalled();
     expect(insertSpy).not.toHaveBeenCalled();
-  });
-
-  it('resets tracking set when pathname changes', () => {
-    const { rerender } = render(
-      <TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />
-    );
-
-    act(() => {
-      observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
-    });
-    expect(insertSpy).toHaveBeenCalledTimes(1);
-
-    // Navigate away and back
-    mockPathname = '/dogs';
-    rerender(<TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />);
-    mockPathname = '/analytics';
-    rerender(<TrackedSection section={TRACKED_SECTIONS.QUALIFICATION_TREND} page="analytics" />);
-
-    act(() => {
-      observerCallback([{ isIntersecting: true, intersectionRatio: 0.5 }]);
-    });
-    expect(insertSpy).toHaveBeenCalledTimes(2);
   });
 
   it('disconnects observer on unmount', () => {

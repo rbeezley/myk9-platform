@@ -78,6 +78,17 @@ function NotificationItem({
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold leading-tight">{payload.title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{payload.body}</p>
+          {Array.isArray(payload.data?.conflicts) && (
+            <div className="mt-1 space-y-0.5">
+              {(payload.data!.conflicts as Array<{ className: string; dogsAhead: number }>).map(
+                (conflict, i) => (
+                  <p key={i} className="text-[11px] font-medium text-amber-500">
+                    ⚠ Also {conflict.dogsAhead} dogs away in {conflict.className}
+                  </p>
+                )
+              )}
+            </div>
+          )}
           <div className="mt-1.5 flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground/60">
               {formatRelativeTime(new Date(payload.timestamp))}

@@ -51,9 +51,6 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     logoUrl: replicated.logoUrl || '',
     coverImageUrl: replicated.coverImageUrl || '',
     accentColor: replicated.accentColor || '',
-    chairman: replicated.chairman || '',
-    secretary: replicated.secretary || '',
-    chiefSteward: replicated.chiefSteward || '',
     assignedJudges: [], // Populated by judge_assignments subscription
     trials: [], // Local-only: managed by trialStore
     stats: [], // Local-only: calculated
@@ -106,9 +103,6 @@ export interface ShowInput {
   clubName: string;
   clubAddress: string;
   clubEmail: string;
-  chairman: string;
-  secretary: string;
-  chiefSteward: string;
   startingArmbandNumber?: number | undefined;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?:
@@ -184,9 +178,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         preEntryFee: showData.preEntryFee ? parseFloat(showData.preEntryFee) : undefined,
         dayOfShowFee: showData.dayOfShowFee ? parseFloat(showData.dayOfShowFee) : undefined,
         clubId: showData.clubId || undefined,
-        chairman: showData.chairman || undefined,
-        secretary: showData.secretary || undefined,
-        chiefSteward: showData.chiefSteward || undefined,
       });
 
       // Create full Show with local-only fields
@@ -310,9 +301,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.dayOfShowFee !== undefined)
         replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
       if (updates.clubId !== undefined) replicatedUpdates.clubId = updates.clubId;
-      if (updates.chairman !== undefined) replicatedUpdates.chairman = updates.chairman;
-      if (updates.secretary !== undefined) replicatedUpdates.secretary = updates.secretary;
-      if (updates.chiefSteward !== undefined) replicatedUpdates.chiefSteward = updates.chiefSteward;
       if ('logoUrl' in updates) replicatedUpdates.logoUrl = updates.logoUrl as string;
       if ('coverImageUrl' in updates)
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
@@ -340,9 +328,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.clubName !== undefined) definedUpdates.clubName = updates.clubName;
       if (updates.clubAddress !== undefined) definedUpdates.clubAddress = updates.clubAddress;
       if (updates.clubEmail !== undefined) definedUpdates.clubEmail = updates.clubEmail;
-      if (updates.chairman !== undefined) definedUpdates.chairman = updates.chairman;
-      if (updates.secretary !== undefined) definedUpdates.secretary = updates.secretary;
-      if (updates.chiefSteward !== undefined) definedUpdates.chiefSteward = updates.chiefSteward;
       if ('logoUrl' in updates) definedUpdates.logoUrl = updates.logoUrl as string;
       if ('coverImageUrl' in updates)
         definedUpdates.coverImageUrl = updates.coverImageUrl as string;

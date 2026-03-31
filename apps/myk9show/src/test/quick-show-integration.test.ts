@@ -135,9 +135,6 @@ describe('Show Integration - Type Mapping Validation', () => {
       clubName: 'Test Club',
       clubAddress: '123 Test St',
       clubEmail: 'test@club.com',
-      chairman: 'John Chairman',
-      secretary: 'Jane Secretary',
-      chiefSteward: 'Bob Steward',
     };
 
     const result = mapShowInputToInsert(testInput);
@@ -155,9 +152,6 @@ describe('Show Integration - Type Mapping Validation', () => {
     expect(result.pre_entry_fee).toBe(25);
     expect(result.day_of_show_fee).toBe(30);
     expect(result.club_id).toBe('test-club-id');
-    expect(result.chairman).toBe('John Chairman');
-    expect(result.secretary).toBe('Jane Secretary');
-    expect(result.chief_steward).toBe('Bob Steward');
   });
 
   it('should map database show to Show type correctly', async () => {
@@ -183,9 +177,6 @@ describe('Show Integration - Type Mapping Validation', () => {
       club_name: 'Test Club',
       club_address: '123 Test St',
       club_email: 'test@club.com',
-      chairman: 'John Chairman',
-      secretary: 'Jane Secretary',
-      chief_steward: 'Bob Steward',
       assigned_judges: '[]',
       max_entries_per_dog: null,
       max_total_entries: null,
@@ -215,9 +206,6 @@ describe('Show Integration - Type Mapping Validation', () => {
     expect(result.clubName).toBe('Test Club');
     expect(result.clubAddress).toBe('123 Test St');
     expect(result.clubEmail).toBe('test@club.com');
-    expect(result.chairman).toBe('John Chairman');
-    expect(result.secretary).toBe('Jane Secretary');
-    expect(result.chiefSteward).toBe('Bob Steward');
     expect(result.assignedJudges).toEqual([]);
     expect(result.stats).toEqual([]);
     expect(result.trials).toEqual([]);

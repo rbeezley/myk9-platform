@@ -37,11 +37,7 @@ export function ShowOverviewTab({ show }: ShowOverviewTabProps) {
 
         {/* Sidebar — on mobile, appears above main content */}
         <div className="space-y-6 order-1 md:order-2">
-          <ShowOfficials
-            chairmanId={show.chairman}
-            secretaryId={show.secretary}
-            chiefStewardId={show.chiefSteward}
-          />
+          <ShowOfficials showId={show.id} />
           <JudgesList judges={show.assignedJudges} />
           <ShareEvent shareData={shareData} />
         </div>

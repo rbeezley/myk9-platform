@@ -19,6 +19,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { getShowOfficials } from '@/hooks/queries/useShowOfficials';
 import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
@@ -230,8 +231,11 @@ const ShowCreationWizardPage: React.FC = () => {
             preEntryFee: parseFloat(existingShow.preEntryFee) || 0,
             dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
             startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
-            chairman: existingShow.chairman,
-            secretary: existingShow.secretary,
+            officials: await getShowOfficials(existingShow.id).then(o => ({
+              secretary: o.secretaries.map(s => s.personId),
+              chairman: o.chairmen.map(c => c.personId),
+              steward: o.stewards.map(s => s.personId),
+            })).catch(() => ({ secretary: [], chairman: [], steward: [] })),
             judgeIds: showJudges.map(j => j.judgeId),
           },
           trials: wizardTrials,

@@ -82,10 +82,6 @@ export interface Show {
   logoUrl: string;
   coverImageUrl: string;
   accentColor: string;
-  // Key personnel
-  chairman: string;
-  secretary: string;
-  chiefSteward: string;
   // Judge assignments
   assignedJudges: ShowJudgeAssignment[];
   // Show statistics
@@ -133,9 +129,6 @@ export interface ShowInput {
   logoUrl?: string | undefined;
   coverImageUrl?: string | undefined;
   accentColor?: string | undefined;
-  chairman: string;
-  secretary: string;
-  chiefSteward: string;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?: ShowTrial[] | undefined;
   // Optional message included in registration confirmation emails

@@ -51,20 +51,28 @@ export function getUserManagedShows(
       .map(s => s.scopeId)
   );
 
+  // Build a set of show IDs where the user has an official role (secretary/chairman/steward)
+  const officialShowIds = new Set(
+    scopes
+      .filter(
+        s =>
+          s.scopeType === ScopeType.SHOW &&
+          ['secretary', 'chairman', 'steward'].includes(s.roleId)
+      )
+      .map(s => s.scopeId)
+  );
+
   // If user has global club_admin (no specific scope), they admin all clubs
   const hasGlobalClubAdmin = userRoles.includes('club_admin') && adminClubIds.size === 0;
 
   return shows.filter(show => {
-    // Direct secretary assignment
-    if (show.secretary === userId) return true;
+    // Show official (secretary/chairman/steward) via user_roles
+    if (officialShowIds.has(show.id)) return true;
 
     // Club admin for the show's club (scoped or global)
     if (show.clubId && (hasGlobalClubAdmin || adminClubIds.has(show.clubId))) {
       return true;
     }
-
-    // Show chairman
-    if (show.chairman === userId) return true;
 
     return false;
   });

@@ -18,9 +18,6 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     startDate: show.startDate || '',
     endDate: show.endDate || '',
     location: show.location || '',
-    chairman: show.chairman || '',
-    secretary: show.secretary || '',
-    chiefSteward: show.chiefSteward || '',
     entryOpenDate: show.entryOpenDate || '',
     entryCloseDate: show.entryCloseDate || '',
     preEntryFee: show.preEntryFee || '',
@@ -53,9 +50,6 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   // Conditionally include optional string fields only when non-empty
   // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
   ...(formData.location && { location: formData.location }),
-  ...(formData.chairman && { chairman: formData.chairman }),
-  ...(formData.secretary && { secretary: formData.secretary }),
-  ...(formData.chiefSteward && { chiefSteward: formData.chiefSteward }),
   ...(formData.entryOpenDate && { entryOpenDate: formData.entryOpenDate }),
   ...(formData.entryCloseDate && { entryCloseDate: formData.entryCloseDate }),
   ...(formData.preEntryFee && { preEntryFee: formData.preEntryFee }),

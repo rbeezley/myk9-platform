@@ -38,9 +38,6 @@ describe('Permission Validation Security Tests', () => {
     clubName: 'Test Club',
     clubAddress: 'Test Address',
     clubEmail: 'test@testclub.com',
-    chairman: 'chairman-user-id',
-    secretary: 'secretary-user-id',
-    chiefSteward: 'steward-user-id',
     assignedJudges: [
       {
         judgeId: 'judge-user-id',
@@ -136,7 +133,7 @@ describe('Permission Validation Security Tests', () => {
     });
 
     it('should allow secretaries to edit shows they manage', () => {
-      const show = createShowWithRelationship(createMockShow({ secretary: secretary.id }), {
+      const show = createShowWithRelationship(createMockShow(), {
         userCanManage: true,
       });
 
@@ -144,7 +141,7 @@ describe('Permission Validation Security Tests', () => {
     });
 
     it("should restrict secretaries from editing shows they don't manage", () => {
-      const show = createShowWithRelationship(createMockShow({ secretary: 'other-user' }), {
+      const show = createShowWithRelationship(createMockShow(), {
         userCanManage: false,
       });
 
@@ -152,7 +149,7 @@ describe('Permission Validation Security Tests', () => {
     });
 
     it('should allow secretaries to manage entries for their shows', () => {
-      const show = createShowWithRelationship(createMockShow({ secretary: secretary.id }), {
+      const show = createShowWithRelationship(createMockShow(), {
         userCanManage: true,
       });
 

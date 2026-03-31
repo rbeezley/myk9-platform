@@ -291,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .filter(ur => ur.scope_type && ur.scope_id)
           .map(ur => ({
             userId: auth.user!.id,
-            roleId: ur.role_id,
+            roleId: ur.role?.name || ur.role_id,
             scopeType: ur.scope_type! as ScopeType,
             scopeId: ur.scope_id!,
             createdAt: new Date(ur.assigned_at || Date.now()),

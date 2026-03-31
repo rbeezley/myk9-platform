@@ -19,8 +19,11 @@ interface WizardShowData {
   preEntryFee: number;
   dayOfShowFee: number;
   startingArmbandNumber: number;
-  chairman: string;
-  secretary: string;
+  officials: {
+    secretary: string[];
+    chairman: string[];
+    steward: string[];
+  };
   judgeIds: string[];
 }
 
@@ -184,9 +187,6 @@ export function showToShowInput(show: Show): ShowInput {
     clubName: show.clubName,
     clubAddress: show.clubAddress,
     clubEmail: show.clubEmail,
-    chairman: show.chairman,
-    secretary: show.secretary,
-    chiefSteward: show.chiefSteward,
     assignedJudges: show.assignedJudges,
     trials: show.trials,
     startingArmbandNumber: show.startingArmbandNumber,
@@ -269,9 +269,6 @@ export function transformWizardDataToShow(
     logoUrl: '',
     coverImageUrl: '',
     accentColor: '',
-    chairman: show.chairman,
-    secretary: show.secretary,
-    chiefSteward: '',
     assignedJudges,
     stats: [],
     trials: showTrials,

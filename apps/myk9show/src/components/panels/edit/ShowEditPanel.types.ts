@@ -25,9 +25,6 @@ export interface ShowEditFormData extends Record<string, unknown> {
   startDate: string;
   endDate: string;
   location: string;
-  chairman: string;
-  secretary: string;
-  chiefSteward: string;
   entryOpenDate: string;
   entryCloseDate: string;
   preEntryFee: string;

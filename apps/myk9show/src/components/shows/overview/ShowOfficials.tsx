@@ -1,32 +1,30 @@
-import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Mail } from 'lucide-react';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
-import { useResolvePerson, type ResolvedPerson } from '@/hooks/useResolvePerson';
-import { getUserById } from '@/services/database/queries/userQueries';
-import { mapDatabaseToUser } from '@/services/mappers/userMappers';
+import { useShowOfficials, type ShowOfficial } from '@/hooks/queries/useShowOfficials';
 
 interface OfficialCardProps {
-  person: ResolvedPerson;
+  official: ShowOfficial;
   role: string;
 }
 
-function OfficialCard({ person, role }: OfficialCardProps) {
+function OfficialCard({ official, role }: OfficialCardProps) {
+  const name = `${official.firstName} ${official.lastName}`.trim() || 'Unknown';
   return (
     <div className="flex flex-col items-center text-center gap-2 p-4">
-      <PersonAvatar name={person.name} avatarUrl={person.profileImage} size="lg" />
+      <PersonAvatar name={name} size="lg" />
       <div>
-        <div className="font-semibold text-foreground">{person.name}</div>
+        <div className="font-semibold text-foreground">{name}</div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">{role}</div>
       </div>
-      {person.email && (
+      {official.email && (
         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           <a
-            href={`mailto:${person.email}`}
+            href={`mailto:${official.email}`}
             className="flex items-center gap-1.5 hover:text-foreground"
           >
             <Mail className="h-3 w-3" />
-            {person.email}
+            {official.email}
           </a>
         </div>
       )}
@@ -34,45 +32,21 @@ function OfficialCard({ person, role }: OfficialCardProps) {
   );
 }
 
-/** Resolve a person by ID — tries Zustand store first, falls back to DB query. */
-function useResolveOfficial(personId: string | null | undefined): ResolvedPerson | null {
-  const resolvePerson = useResolvePerson();
-  const storePerson = resolvePerson(personId);
-  const isUnresolved = !!personId && storePerson?.name === personId;
-
-  const { data: fetchedPerson } = useQuery({
-    queryKey: ['person', personId],
-    queryFn: async () => {
-      const { data } = await getUserById(personId!);
-      if (!data) return null;
-      const user = mapDatabaseToUser(data);
-      return {
-        name: `${user.firstName} ${user.lastName}`,
-        profileImage: user.profileImage,
-        email: user.email,
-        phone: user.phone,
-      } as ResolvedPerson;
-    },
-    enabled: isUnresolved,
-    staleTime: 30 * 60 * 1000, // 30 min — people don't change often
-  });
-
-  if (!personId) return null;
-  return isUnresolved && fetchedPerson ? fetchedPerson : storePerson;
-}
-
 interface ShowOfficialsProps {
-  chairmanId?: string | null;
-  secretaryId?: string | null;
-  chiefStewardId?: string | null;
+  showId: string;
 }
 
-export function ShowOfficials({ chairmanId, secretaryId, chiefStewardId }: ShowOfficialsProps) {
-  const chairman = useResolveOfficial(chairmanId);
-  const secretary = useResolveOfficial(secretaryId);
-  const chiefSteward = useResolveOfficial(chiefStewardId);
+export function ShowOfficials({ showId }: ShowOfficialsProps) {
+  const { data: officials } = useShowOfficials(showId);
 
-  if (!chairman && !secretary && !chiefSteward) return null;
+  if (!officials) return null;
+
+  const hasAny =
+    officials.secretaries.length > 0 ||
+    officials.chairmen.length > 0 ||
+    officials.stewards.length > 0;
+
+  if (!hasAny) return null;
 
   return (
     <Card>
@@ -82,9 +56,15 @@ export function ShowOfficials({ chairmanId, secretaryId, chiefStewardId }: ShowO
         </h3>
       </div>
       <div className="divide-y divide-border/30">
-        {chairman && <OfficialCard person={chairman} role="Chairman" />}
-        {secretary && <OfficialCard person={secretary} role="Secretary" />}
-        {chiefSteward && <OfficialCard person={chiefSteward} role="Chief Steward" />}
+        {officials.chairmen.map(o => (
+          <OfficialCard key={o.personId} official={o} role="Chairman" />
+        ))}
+        {officials.secretaries.map(o => (
+          <OfficialCard key={o.personId} official={o} role="Secretary" />
+        ))}
+        {officials.stewards.map(o => (
+          <OfficialCard key={o.personId} official={o} role="Steward" />
+        ))}
       </div>
     </Card>
   );

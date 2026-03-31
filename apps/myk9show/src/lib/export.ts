@@ -1,5 +1,4 @@
 // Export utilities for various formats
-import { resolvePersonNameFromStore } from '@/hooks/useResolvePersonName';
 
 export interface ExportOptions {
   filename?: string;
@@ -142,21 +141,32 @@ export const entityExports = {
     );
   },
 
-  shows: (shows: Array<Record<string, unknown>>, options?: ExportOptions) => {
-    const exportData = shows.map(show => ({
-      Name: show.name,
-      Organization: show.organization,
-      'Start Date': show.startDate,
-      'End Date': show.endDate,
-      Location: show.location,
-      Status: show.status || '',
-      'Entry Open': show.entryOpenDate || '',
-      'Entry Close': show.entryCloseDate || '',
-      'Pre-Entry Fee': show.preEntryFee || '',
-      Chairman: resolvePersonNameFromStore(show.chairman as string),
-      Secretary: resolvePersonNameFromStore(show.secretary as string),
-      'Chief Steward': resolvePersonNameFromStore(show.chiefSteward as string),
-    }));
+  shows: async (shows: Array<Record<string, unknown>>, options?: ExportOptions) => {
+    const { getShowOfficials } = await import('@/hooks/queries/useShowOfficials');
+    const formatName = (o: { firstName: string; lastName: string }) =>
+      `${o.firstName} ${o.lastName}`.trim();
+
+    const exportData = await Promise.all(
+      shows.map(async show => {
+        const officials = show.id
+          ? await getShowOfficials(show.id as string).catch(() => null)
+          : null;
+        return {
+          Name: show.name,
+          Organization: show.organization,
+          'Start Date': show.startDate,
+          'End Date': show.endDate,
+          Location: show.location,
+          Status: show.status || '',
+          'Entry Open': show.entryOpenDate || '',
+          'Entry Close': show.entryCloseDate || '',
+          'Pre-Entry Fee': show.preEntryFee || '',
+          Chairman: officials?.chairmen.map(formatName).join(', ') || '',
+          Secretary: officials?.secretaries.map(formatName).join(', ') || '',
+          'Chief Steward': officials?.stewards.map(formatName).join(', ') || '',
+        };
+      })
+    );
 
     exportToCSV(
       exportData,

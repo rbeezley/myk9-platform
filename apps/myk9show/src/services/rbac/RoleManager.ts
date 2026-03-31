@@ -159,10 +159,17 @@ export class RoleManager {
   }
 
   /**
-   * Ensure a user has a role, optionally scoped to a club.
+   * Ensure a user has a role, optionally scoped to a club and/or show.
    * No-op if the role assignment already exists. Returns true if a new role was granted.
    */
-  async ensureUserHasRole(userId: string, roleName: string, clubId?: string): Promise<boolean> {
+  async ensureUserHasRole(
+    userId: string,
+    roleName: string,
+    scopeOptions?: { clubId?: string; showId?: string }
+  ): Promise<boolean> {
+    const clubId = scopeOptions?.clubId;
+    const showId = scopeOptions?.showId;
+
     // Look up the role ID
     const { data: role, error: roleError } = await supabase
       .from('roles')
@@ -188,6 +195,12 @@ export class RoleManager {
       query = query.is('club_id', null);
     }
 
+    if (showId) {
+      query = query.eq('show_id', showId);
+    } else {
+      query = query.is('show_id', null);
+    }
+
     const { data: existing } = await query.limit(1);
 
     if (existing && existing.length > 0) {
@@ -201,10 +214,21 @@ export class RoleManager {
           throw new Error(`Failed to reactivate role: ${reactivateError.message}`);
         }
         this.clearUserCache(userId);
-        logger.info('Reactivated role', 'rbac', { userId, roleName, clubId });
+        logger.info('Reactivated role', 'rbac', { userId, roleName, clubId, showId });
         return true;
       }
       return false; // Already has this active role
+    }
+
+    // Determine scope type
+    let scopeType: string | undefined;
+    let scopeId: string | undefined;
+    if (showId) {
+      scopeType = 'show';
+      scopeId = showId;
+    } else if (clubId) {
+      scopeType = 'club';
+      scopeId = clubId;
     }
 
     // Grant the role (catch unique constraint violations from concurrent calls)
@@ -213,8 +237,8 @@ export class RoleManager {
         userId,
         roleName,
         roleId: role.id,
-        scopeType: clubId ? 'club' : undefined,
-        scopeId: clubId,
+        scopeType,
+        scopeId,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -224,7 +248,7 @@ export class RoleManager {
       throw err;
     }
 
-    logger.info('Auto-granted role', 'rbac', { userId, roleName, clubId });
+    logger.info('Auto-granted role', 'rbac', { userId, roleName, clubId, showId });
     return true;
   }
 

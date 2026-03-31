@@ -52,13 +52,8 @@ export function canEditShow(user: UserWithRoles | null, show: ShowWithRelationsh
   // Check if user has general show update permission
   if (!permissions.includes(PERMISSIONS.SHOW_UPDATE)) return false;
 
-  // Check if user has management relationship with the show
-  return (
-    show.userCanManage ||
-    show.secretary === user.id ||
-    show.chairman === user.id ||
-    (show.assignedJudges && show.assignedJudges.some(j => j.judgeId === user.id))
-  );
+  // Check if user has management relationship with the show (secretary/chairman/steward via user_roles)
+  return show.userCanManage;
 }
 
 /**
@@ -76,8 +71,8 @@ export function canDeleteShow(user: UserWithRoles | null, show: ShowWithRelation
   if (!permissions.includes(PERMISSIONS.SHOW_DELETE)) return false;
 
   // Additional checks for non-admin users
-  // Must be the show secretary or chairman
-  return show.secretary === user.id || show.chairman === user.id;
+  // Officials (secretary/chairman) are now managed via user_roles — RLS enforces access at DB level
+  return show.userCanManage;
 }
 
 /**
@@ -96,12 +91,8 @@ export function canManageEntries(user: UserWithRoles | null, show: ShowWithRelat
   if (!permissions.includes(PERMISSIONS.SHOW_MANAGE_ENTRIES)) return false;
 
   // Check management relationship
-  return (
-    show.userCanManage ||
-    show.secretary === user.id ||
-    show.chairman === user.id ||
-    show.chiefSteward === user.id
-  );
+  // Officials (secretary/chairman/chiefSteward) are now managed via user_roles — RLS enforces access at DB level
+  return show.userCanManage;
 }
 
 /**

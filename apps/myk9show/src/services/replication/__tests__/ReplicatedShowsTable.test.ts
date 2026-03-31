@@ -128,9 +128,6 @@ describe('ReplicatedShowsTable', () => {
           preEntryFee: 35.0,
           dayOfShowFee: 45.0,
           clubId: 'club-123',
-          chairman: 'John Smith',
-          secretary: 'Jane Doe',
-          chiefSteward: 'Bob Johnson',
           maxEntriesPerDog: 3,
           maxTotalEntries: 150,
           allowsNonOwnerHandlers: true,
@@ -139,9 +136,6 @@ describe('ReplicatedShowsTable', () => {
         await table.set('show-1', show);
 
         const result = await table.get('show-1');
-        expect(result?.chairman).toBe('John Smith');
-        expect(result?.secretary).toBe('Jane Doe');
-        expect(result?.chiefSteward).toBe('Bob Johnson');
         expect(result?.preEntryFee).toBe(35.0);
         expect(result?.dayOfShowFee).toBe(45.0);
         expect(result?.maxEntriesPerDog).toBe(3);
@@ -594,7 +588,7 @@ describe('ReplicatedShowsTable', () => {
       expect(result?.dayOfShowFee).toBe(45.0);
     });
 
-    it('should update show officials', async () => {
+    it('should update show entry limits', async () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
@@ -605,15 +599,13 @@ describe('ReplicatedShowsTable', () => {
 
       await table.set('show-1', show);
       await table.updateShow('show-1', {
-        chairman: 'Alice Smith',
-        secretary: 'Bob Jones',
-        chiefSteward: 'Carol Williams',
+        maxEntriesPerDog: 2,
+        maxTotalEntries: 100,
       });
 
       const result = await table.get('show-1');
-      expect(result?.chairman).toBe('Alice Smith');
-      expect(result?.secretary).toBe('Bob Jones');
-      expect(result?.chiefSteward).toBe('Carol Williams');
+      expect(result?.maxEntriesPerDog).toBe(2);
+      expect(result?.maxTotalEntries).toBe(100);
     });
 
     it('should update entry limits', async () => {
@@ -692,17 +684,11 @@ describe('ReplicatedShowsTable', () => {
         preEntryFee: 40.0,
         dayOfShowFee: 50.0,
         clubId: 'club-456',
-        chairman: 'David Lee',
-        secretary: 'Emma Brown',
-        chiefSteward: 'Frank Miller',
         maxEntriesPerDog: 5,
         maxTotalEntries: 250,
         allowsNonOwnerHandlers: false,
       });
 
-      expect(result.chairman).toBe('David Lee');
-      expect(result.secretary).toBe('Emma Brown');
-      expect(result.chiefSteward).toBe('Frank Miller');
       expect(result.maxEntriesPerDog).toBe(5);
       expect(result.maxTotalEntries).toBe(250);
       expect(result.allowsNonOwnerHandlers).toBe(false);
@@ -757,9 +743,6 @@ describe('ReplicatedShowsTable', () => {
           pre_entry_fee: 35,
           day_of_show_fee: 45,
           club_id: 'club-123',
-          chairman: 'John Doe',
-          secretary: 'Jane Smith',
-          chief_steward: 'Bob Wilson',
           max_entries_per_dog: 3,
           max_total_entries: 150,
           allow_non_owner_handlers: true,
@@ -794,7 +777,6 @@ describe('ReplicatedShowsTable', () => {
       expect(show?.organization).toBe('Obedience');
       expect(show?.startDate).toBe('2024-06-15');
       expect(show?.endDate).toBe('2024-06-16');
-      expect(show?.chairman).toBe('John Doe');
       expect(show?.preEntryFee).toBe(35);
       expect(show?.maxEntriesPerDog).toBe(3);
     });
@@ -1123,9 +1105,6 @@ describe('ReplicatedShowsTable', () => {
         pre_entry_fee: 35,
         day_of_show_fee: 45,
         club_id: 'club-123',
-        chairman: 'Chairman Name',
-        secretary: 'Secretary Name',
-        chief_steward: 'Steward Name',
         max_entries_per_dog: 3,
         max_total_entries: 150,
         allow_non_owner_handlers: true,
@@ -1157,7 +1136,6 @@ describe('ReplicatedShowsTable', () => {
       expect(show?.preEntryFee).toBe(35);
       expect(show?.dayOfShowFee).toBe(45);
       expect(show?.clubId).toBe('club-123');
-      expect(show?.chiefSteward).toBe('Steward Name');
       expect(show?.maxEntriesPerDog).toBe(3);
       expect(show?.maxTotalEntries).toBe(150);
       expect(show?.allowsNonOwnerHandlers).toBe(true);
@@ -1177,9 +1155,6 @@ describe('ReplicatedShowsTable', () => {
         pre_entry_fee: null,
         day_of_show_fee: null,
         club_id: null,
-        chairman: null,
-        secretary: null,
-        chief_steward: null,
         max_entries_per_dog: null,
         max_total_entries: null,
         allow_non_owner_handlers: null,
@@ -1210,7 +1185,6 @@ describe('ReplicatedShowsTable', () => {
       expect(show?.status).toBeUndefined();
       expect(show?.entryOpenDate).toBeUndefined();
       expect(show?.clubId).toBeUndefined();
-      expect(show?.chairman).toBeUndefined();
     });
   });
 
@@ -1398,7 +1372,6 @@ describe('ReplicatedShowsTable', () => {
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         location: 'Park "North" & Recreation Center',
-        chairman: "O'Brien",
       };
 
       await table.set('show-1', show);
@@ -1406,7 +1379,6 @@ describe('ReplicatedShowsTable', () => {
       const result = await table.get('show-1');
       expect(result?.name).toBe("Annual Show <2024> & Dog's Day");
       expect(result?.location).toBe('Park "North" & Recreation Center');
-      expect(result?.chairman).toBe("O'Brien");
     });
 
     it('should handle very large entry limits', async () => {
@@ -1482,13 +1454,11 @@ describe('ReplicatedShowsTable', () => {
         entryOpenDate: '2024-05-01',
         entryCloseDate: '2024-06-10',
         preEntryFee: 35.0,
-        chairman: 'John Smith',
         maxTotalEntries: 150,
       });
 
       let result = await table.get(show.id);
       expect(result?.location).toBe('Central Park');
-      expect(result?.chairman).toBe('John Smith');
 
       // 3. Activate show
       await table.updateShow(show.id, { status: 'active' });

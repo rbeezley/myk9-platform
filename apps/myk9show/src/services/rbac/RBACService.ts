@@ -134,8 +134,12 @@ export class RBACService {
     return this.roleManager.assignRole(request);
   }
 
-  async ensureUserHasRole(userId: string, roleName: string, clubId?: string): Promise<boolean> {
-    return this.roleManager.ensureUserHasRole(userId, roleName, clubId);
+  async ensureUserHasRole(
+    userId: string,
+    roleName: string,
+    scopeOptions?: { clubId?: string; showId?: string }
+  ): Promise<boolean> {
+    return this.roleManager.ensureUserHasRole(userId, roleName, scopeOptions);
   }
 
   async revokeRole(request: RevokeRoleRequest): Promise<boolean> {

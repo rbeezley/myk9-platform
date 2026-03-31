@@ -39,11 +39,12 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Require service role key — this function is internal-only,
-    // called by push-trigger-* edge functions via supabase.functions.invoke()
+    // Auth: accept either service role key (server-to-server)
+    // or user JWT (client sends push to themselves)
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
-    if (token !== supabaseServiceKey) {
+
+    if (!token) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -57,6 +58,27 @@ Deno.serve(async (req: Request) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // If not service role key, verify as JWT and enforce self-send only
+    if (token !== supabaseServiceKey) {
+      const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey);
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseAuth.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Invalid token' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (user.id !== user_id) {
+        return new Response(JSON.stringify({ error: 'Cannot send push to other users' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -98,14 +120,18 @@ Deno.serve(async (req: Request) => {
 
     // Batch-delete expired subscriptions in a single query
     if (expiredEndpoints.length > 0) {
-      await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints);
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', user_id)
+        .in('endpoint', expiredEndpoints);
     }
 
     return new Response(JSON.stringify({ sent, errors: errors.length ? errors : undefined }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+  } catch {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

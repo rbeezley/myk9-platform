@@ -6,6 +6,7 @@ interface YourTurnInput {
   dogsAhead: number;
   armband: string | null;
   ringNumber?: number;
+  conflicts?: Array<{ className: string; dogsAhead: number }>;
 }
 
 interface ClassStartingInput {
@@ -59,6 +60,7 @@ export function buildYourTurnPayload(input: YourTurnInput): NotificationPayload 
       dogsAhead: input.dogsAhead,
       armband: input.armband,
       ringNumber: input.ringNumber ?? null,
+      ...(input.conflicts?.length ? { conflicts: input.conflicts } : {}),
     },
   });
 }

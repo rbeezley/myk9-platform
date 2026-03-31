@@ -84,6 +84,51 @@ describe('buildCheckInReminderPayload', () => {
   });
 });
 
+describe('buildYourTurnPayload — conflicts', () => {
+  it('includes conflict data when provided', () => {
+    const payload = buildYourTurnPayload({
+      dogName: 'Buddy',
+      className: 'Novice A',
+      dogsAhead: 2,
+      armband: '100',
+      conflicts: [{ className: 'Excellent B', dogsAhead: 4 }],
+    });
+    expect(payload.data?.conflicts).toEqual([{ className: 'Excellent B', dogsAhead: 4 }]);
+  });
+
+  it('omits conflicts when not provided', () => {
+    const payload = buildYourTurnPayload({
+      dogName: 'Buddy',
+      className: 'Novice A',
+      dogsAhead: 2,
+      armband: '100',
+    });
+    expect(payload.data?.conflicts).toBeUndefined();
+  });
+
+  it('omits conflicts when empty array is provided', () => {
+    const payload = buildYourTurnPayload({
+      dogName: 'Buddy',
+      className: 'Novice A',
+      dogsAhead: 2,
+      armband: '100',
+      conflicts: [],
+    });
+    expect(payload.data?.conflicts).toBeUndefined();
+  });
+
+  it('sets urgent priority', () => {
+    const payload = buildYourTurnPayload({
+      dogName: 'Buddy',
+      className: 'Novice A',
+      dogsAhead: 0,
+      armband: '100',
+    });
+    expect(payload.priority).toBe('urgent');
+    expect(payload.title).toBe("Buddy — You're up!");
+  });
+});
+
 describe('buildAnnouncementPayload', () => {
   it('builds normal priority by default', () => {
     const payload = buildAnnouncementPayload({

@@ -42,6 +42,7 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
+import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
 import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
 import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
@@ -192,6 +193,11 @@ function AnnouncementSubscriptionInitializer() {
   return null;
 }
 
+function NotificationMonitorInitializer() {
+  useNotificationMonitor();
+  return null;
+}
+
 /** Routes where the app header is hidden (fullscreen scoring UI) */
 const HEADERLESS_ROUTE_PATTERN = /^\/scoring\/classes\/[^/]+\/entries/;
 
@@ -234,6 +240,7 @@ function App() {
             <AuthProvider>
               <UserDataInitializer />
               <AnnouncementSubscriptionInitializer />
+              <NotificationMonitorInitializer />
               <AudioSettingsProvider>
                 <PanelProvider>
                   <AlertInitializer>

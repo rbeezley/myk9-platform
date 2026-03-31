@@ -37,6 +37,14 @@
 -- with proper people join, is_active, and expires_at checks.
 -- =============================================================================
 
+-- [ADDED] Dependency guard: verify can_manage_show() exists before proceeding.
+-- If this fails, migration 038 was not applied — stop and investigate.
+DO $$ BEGIN
+  PERFORM can_manage_show(NULL);
+EXCEPTION WHEN undefined_function THEN
+  RAISE EXCEPTION 'DEPENDENCY MISSING: can_manage_show() from migration 038 must exist before applying this migration';
+END $$;
+
 -- 1. Helper: resolve show_id from a volunteer record
 --    Needed because volunteer_class_assignments has no show_id column.
 CREATE OR REPLACE FUNCTION volunteer_show_id(vol_id UUID)
@@ -98,7 +106,46 @@ Reuse can_manage_show() to fix 5 issues in migration 095:
 
 ---
 
-### Task 2: Update TO-DOS.md
+### Task 2: Verify policies work [ADDED]
+
+**Files:** None (SQL verification queries)
+
+- [ ] **Step 1: Verify the function and policies exist**
+
+After pushing the migration (or in local Supabase), run these verification queries:
+
+```sql
+-- Verify volunteer_show_id function exists
+SELECT proname, prosecdef FROM pg_proc WHERE proname = 'volunteer_show_id';
+-- Expected: volunteer_show_id | true (SECURITY DEFINER)
+
+-- Verify old policies are gone
+SELECT policyname FROM pg_policies
+WHERE tablename IN ('volunteers', 'volunteer_class_assignments', 'volunteer_general_assignments')
+  AND policyname LIKE 'Secretary can manage%';
+-- Expected: 0 rows
+
+-- Verify new policies exist
+SELECT tablename, policyname FROM pg_policies
+WHERE tablename IN ('volunteers', 'volunteer_class_assignments', 'volunteer_general_assignments')
+  AND policyname LIKE 'Show managers%';
+-- Expected: 3 rows (one per table)
+```
+
+- [ ] **Step 2: Verify show scoping works**
+
+```sql
+-- Verify can_manage_show(NULL) returns false for non-admins
+-- (tests the NULL show_id edge case)
+SELECT can_manage_show(NULL);
+-- Expected: false (unless logged in as platform admin)
+```
+
+Manual smoke test in the app: as a secretary for a specific show, verify you can create/edit volunteers for that show but not for another show.
+
+---
+
+### Task 3: Update TO-DOS.md
 
 **Files:**
 
@@ -117,7 +164,7 @@ git commit -m "docs: mark volunteer RLS hardening as done in TO-DOS.md"
 
 ---
 
-### Task 3: Push migration to hosted Supabase
+### Task 4: Push migration to hosted Supabase
 
 **Files:** None (remote operation)
 

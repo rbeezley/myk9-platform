@@ -462,6 +462,17 @@ describe('Privilege Escalation Security Tests', () => {
       });
 
       mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi
+                  .fn()
+                  .mockResolvedValue({ data: { id: REGULAR_USER_ID }, error: null }),
+              }),
+            }),
+          };
+        }
         if (table === 'roles') {
           return {
             select: vi.fn().mockReturnValue({

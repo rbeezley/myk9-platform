@@ -124,6 +124,15 @@ describe('RBACService', () => {
 
       // Mock getRole call (from.select.eq.single for roles table)
       mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'user123' }, error: null }),
+              }),
+            }),
+          };
+        }
         if (table === 'roles') {
           return {
             select: vi.fn().mockReturnValue({
@@ -161,12 +170,26 @@ describe('RBACService', () => {
     });
 
     it('should throw when role is not found by name', async () => {
-      mockSupabase.from.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
+      // Mock escalation validation to pass (rpc returns true for permission check)
+      mockSupabase.rpc.mockResolvedValue({ data: true, error: null });
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'user123' }, error: null }),
+              }),
+            }),
+          };
+        }
+        // roles table returns not found
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
+            }),
           }),
-        }),
+        };
       });
 
       await expect(
@@ -178,6 +201,23 @@ describe('RBACService', () => {
     });
 
     it('should throw when neither roleName nor roleId is provided', async () => {
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'user123' }, error: null }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi
+            .fn()
+            .mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+        };
+      });
+
       await expect(
         rbacService.assignRole({
           userId: 'user123',

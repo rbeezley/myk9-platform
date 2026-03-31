@@ -5,6 +5,7 @@
  * Delegates to specialized modules for different concerns.
  */
 
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import {
   Role,
@@ -107,6 +108,23 @@ export class RBACService {
   // ==========================================================================
 
   async assignRole(request: AssignRoleRequest): Promise<string> {
+    // Validate escalation before delegating to RoleManager
+    const roleName = request.roleName ?? '';
+    if (roleName) {
+      const {
+        data: { user: actor },
+      } = await supabase.auth.getUser();
+      if (actor) {
+        const validation = await this.securityValidator.validatePermissionEscalation(
+          actor.id,
+          request.userId,
+          roleName
+        );
+        if (!validation.isValid) {
+          throw new Error(`Role assignment denied: ${validation.reason}`);
+        }
+      }
+    }
     return this.roleManager.assignRole(request);
   }
 

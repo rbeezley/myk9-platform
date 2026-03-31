@@ -18,6 +18,7 @@ import { ResultDistributionChart } from '@/components/analytics/ResultDistributi
 import { DogBreakdownCards } from '@/components/analytics/DogBreakdownCards';
 import { FastestTimesTable } from '@/components/analytics/FastestTimesTable';
 import { QualificationTrendChart } from '@/components/analytics/QualificationTrendChart';
+import { useTrackSectionView, TRACKED_SECTIONS } from '@/hooks/useTrackSectionView';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
@@ -58,34 +59,27 @@ export default function AnalyticsPage() {
   const filteredEntries = useMemo(() => {
     let entries: StatsEntry[] = allEntries;
     if (selectedDog !== 'all') {
-      entries = entries.filter((e) => e.dogId === selectedDog);
+      entries = entries.filter(e => e.dogId === selectedDog);
     }
     if (selectedOrg !== 'all') {
-      entries = entries.filter((e) => e.organization === selectedOrg);
+      entries = entries.filter(e => e.organization === selectedOrg);
     }
     return entries;
   }, [allEntries, selectedDog, selectedOrg]);
 
-  const summary = useMemo(
-    () => computeSummaryStats(filteredEntries),
-    [filteredEntries],
-  );
-  const dogStats = useMemo(
-    () => computePerDogStats(filteredEntries),
-    [filteredEntries],
-  );
-  const distribution = useMemo(
-    () => computeResultDistribution(filteredEntries),
-    [filteredEntries],
-  );
+  const summary = useMemo(() => computeSummaryStats(filteredEntries), [filteredEntries]);
+  const dogStats = useMemo(() => computePerDogStats(filteredEntries), [filteredEntries]);
+  const distribution = useMemo(() => computeResultDistribution(filteredEntries), [filteredEntries]);
   const fastestTimes = useMemo(
     () => computeFastestTimes(filteredEntries, FASTEST_TIMES_LIMIT),
-    [filteredEntries],
+    [filteredEntries]
   );
-  const trend = useMemo(
-    () => computeQualificationTrend(filteredEntries),
-    [filteredEntries],
-  );
+  const trend = useMemo(() => computeQualificationTrend(filteredEntries), [filteredEntries]);
+
+  const pageRef = useTrackSectionView(TRACKED_SECTIONS.LIFETIME_PAGE, 'analytics');
+  const trendRef = useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics');
+  const dogBreakdownRef = useTrackSectionView(TRACKED_SECTIONS.DOG_BREAKDOWN, 'analytics');
+  const fastestTimesRef = useTrackSectionView(TRACKED_SECTIONS.FASTEST_TIMES, 'analytics');
 
   const hasData = allEntries.length > 0;
   const hasFilteredData = filteredEntries.length > 0;
@@ -98,7 +92,7 @@ export default function AnalyticsPage() {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Dogs</SelectItem>
-          {dogOptions.map((dog) => (
+          {dogOptions.map(dog => (
             <SelectItem key={dog.id} value={dog.id}>
               {dog.name}
             </SelectItem>
@@ -111,7 +105,7 @@ export default function AnalyticsPage() {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Organizations</SelectItem>
-          {orgOptions.map((org) => (
+          {orgOptions.map(org => (
             <SelectItem key={org} value={org}>
               {org}
             </SelectItem>
@@ -142,21 +136,26 @@ export default function AnalyticsPage() {
       )}
 
       {!isLoading && hasFilteredData && (
-        <div className="space-y-6">
+        <div ref={pageRef} className="space-y-6">
           <StatsSummaryCards stats={summary} />
 
-          {trend.length > 1 && <QualificationTrendChart data={trend} />}
+          {trend.length > 1 && (
+            <div ref={trendRef}>
+              <QualificationTrendChart data={trend} />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ResultDistributionChart data={distribution} />
-            <DogBreakdownCards
-              dogs={dogStats}
-              onDogClick={(dogId) => navigate(`/dogs/${dogId}`)}
-            />
+            <div ref={dogBreakdownRef}>
+              <DogBreakdownCards dogs={dogStats} onDogClick={dogId => navigate(`/dogs/${dogId}`)} />
+            </div>
           </div>
 
           {fastestTimes.length > 0 && (
-            <FastestTimesTable times={fastestTimes} showShowColumn />
+            <div ref={fastestTimesRef}>
+              <FastestTimesTable times={fastestTimes} showShowColumn />
+            </div>
           )}
         </div>
       )}

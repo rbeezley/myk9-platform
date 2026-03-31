@@ -28,7 +28,7 @@ No schema changes. Uses existing tables from migration 093:
 
 All tables have `self_checkin_enabled` column. Cascade: class override > trial override > show default.
 
-Release Results uses the existing `results_released_at` and `results_released_by` columns on the `classes` table.
+Release Results uses the existing `results_released_at` column on the `classes` table. Note: `results_released_by` does not exist in the shared schema — audit trail for who released is not tracked (acceptable for MVP; can add via migration later if needed).
 
 `updated_by` on all visibility writes = `auth.user.id` from `useAuthContext()`.
 
@@ -161,7 +161,7 @@ Selection state + batch mutations:
 
 New React Query mutation:
 
-- Updates `classes` table: `{ results_released_at: new Date().toISOString(), results_released_by: user.id }`
+- Updates `classes` table: `{ results_released_at: new Date().toISOString() }`
 - Accepts array of class IDs
 - Invalidates visibility settings + class queries on success
 - Toast: "Results released for X classes"

@@ -32,6 +32,7 @@
 | `pages/secretary/__tests__/BulkOperationsBar.test.tsx`      | Unit tests for BulkOperationsBar                  |
 | `pages/secretary/__tests__/useBulkClassOperations.test.ts`  | Hook test for bulk operations                     |
 | `pages/secretary/__tests__/useReleaseResults.test.ts`       | Hook test for release results mutation            |
+| `pages/secretary/__tests__/TrialOverrides.test.tsx`         | Unit tests for TrialOverrides [ADDED]             |
 
 ### Modified files
 
@@ -591,6 +592,89 @@ Expected: PASS
 ```bash
 git add apps/myk9show/src/pages/secretary/ResultsControlPage/TrialOverrides.tsx
 git commit -m "feat: add TrialOverrides component"
+```
+
+- [ ] **Step 4: [ADDED] Write TrialOverrides test**
+
+```typescript
+// apps/myk9show/src/pages/secretary/__tests__/TrialOverrides.test.tsx
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TrialOverrides } from '../ResultsControlPage/TrialOverrides';
+import type { SyncableTrial } from '@/store/trial-store-types';
+import type { TrialOverrideEntry } from '@/hooks/queries/useShowSettingsDatabase';
+
+const mockTrialMutate = vi.fn();
+const mockResetMutate = vi.fn();
+vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
+  useUpdateTrialOverride: () => ({ mutate: mockTrialMutate, isPending: false }),
+  useResetOverride: () => ({ mutate: mockResetMutate, isPending: false }),
+}));
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
+const trials: SyncableTrial[] = [
+  { id: 'trial-1', name: 'Trial A', showId: 'show-1', _version: 1, _lastModified: new Date(), _lastModifiedBy: '', _syncStatus: 'synced' } as SyncableTrial,
+  { id: 'trial-2', name: 'Trial B', showId: 'show-1', _version: 1, _lastModified: new Date(), _lastModifiedBy: '', _syncStatus: 'synced' } as SyncableTrial,
+];
+
+function renderTrialOverrides(overrides: TrialOverrideEntry[] = []) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <TrialOverrides showId="show-1" trials={trials} trialOverrides={overrides} />
+    </QueryClientProvider>
+  );
+}
+
+describe('TrialOverrides', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('renders all trial names', () => {
+    renderTrialOverrides();
+    expect(screen.getByText('Trial A')).toBeInTheDocument();
+    expect(screen.getByText('Trial B')).toBeInTheDocument();
+  });
+
+  it('shows "Inheriting from show" when no override', () => {
+    renderTrialOverrides();
+    const labels = screen.getAllByText(/inheriting from show/i);
+    expect(labels).toHaveLength(2);
+  });
+
+  it('shows reset button when override exists', () => {
+    const overrides: TrialOverrideEntry[] = [
+      { trialId: 'trial-1', override: { preset: 'open' }, selfCheckinEnabled: null },
+    ];
+    renderTrialOverrides(overrides);
+    expect(screen.getByTitle('Reset to show defaults')).toBeInTheDocument();
+  });
+
+  it('returns null when no trials', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <TrialOverrides showId="show-1" trials={[]} trialOverrides={[]} />
+      </QueryClientProvider>
+    );
+    expect(container.innerHTML).toBe('');
+  });
+});
+```
+
+- [ ] **Step 5: [ADDED] Run TrialOverrides test**
+
+Run: `cd apps/myk9show && npx vitest run src/pages/secretary/__tests__/TrialOverrides.test.tsx`
+Expected: PASS — all 4 tests
+
+- [ ] **Step 6: [ADDED] Commit test**
+
+```bash
+git add apps/myk9show/src/pages/secretary/__tests__/TrialOverrides.test.tsx
+git commit -m "test: add TrialOverrides component tests"
 ```
 
 ---
@@ -1258,7 +1342,54 @@ describe('BulkOperationsBar', () => {
 Run: `cd apps/myk9show && npx vitest run src/pages/secretary/__tests__/BulkOperationsBar.test.tsx`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write BulkOperationsBar component**
+- [ ] **Step 3: [ADDED] Add useBulkUpdateClassOverrides to mutations file**
+
+Add this mutation to `apps/myk9show/src/hooks/mutations/useShowSettingsMutations.ts` after the existing `useUpdateClassOverride`:
+
+```typescript
+// [ADDED] Batch upsert for bulk class operations — single DB call instead of N
+interface BulkClassOverrideUpdate {
+  classIds: string[];
+  showId: string;
+  preset?: VisibilityPreset | null;
+  placementTiming?: VisibilityTiming | null;
+  qualificationTiming?: VisibilityTiming | null;
+  timeTiming?: VisibilityTiming | null;
+  faultsTiming?: VisibilityTiming | null;
+  selfCheckinEnabled?: boolean | null;
+}
+
+export function useBulkUpdateClassOverrides() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (update: BulkClassOverrideUpdate) => {
+      const rows = update.classIds.map(classId => ({
+        class_id: classId,
+        preset: update.preset,
+        placement_timing: update.placementTiming,
+        qualification_timing: update.qualificationTiming,
+        time_timing: update.timeTiming,
+        faults_timing: update.faultsTiming,
+        self_checkin_enabled: update.selfCheckinEnabled,
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      }));
+      const { error } = await untypedSupabase.from('class_visibility_overrides').upsert(rows);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverrides(variables.showId),
+      });
+      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
+    },
+  });
+}
+```
+
+- [ ] **Step 4: Write BulkOperationsBar component**
 
 ```typescript
 // apps/myk9show/src/pages/secretary/ResultsControlPage/BulkOperationsBar.tsx
@@ -1276,7 +1407,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secretary';
-import { useUpdateClassOverride } from '@/hooks/mutations/useShowSettingsMutations';
+import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 
 interface BulkOperationsBarProps {
@@ -1296,7 +1427,8 @@ export function BulkOperationsBar({
   onClearSelection,
   hasManualReleaseClasses,
 }: BulkOperationsBarProps) {
-  const updateClassOverride = useUpdateClassOverride();
+  // [EXPANDED] Use batch mutation instead of N individual mutations
+  const bulkUpdate = useBulkUpdateClassOverrides();
   const releaseResults = useReleaseResults();
 
   if (selectedClasses.size === 0) return null;
@@ -1304,58 +1436,38 @@ export function BulkOperationsBar({
   function handleBulkPreset(preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
     const classIds = Array.from(selectedClasses);
-    const promises = classIds.map(classId =>
-      new Promise<void>((resolve, reject) => {
-        updateClassOverride.mutate(
-          {
-            classId,
-            trialId: '', // trial ID not needed for cache invalidation at show level
-            showId,
-            preset,
-            placementTiming: cfg.placement,
-            qualificationTiming: cfg.qualification,
-            timeTiming: cfg.time,
-            faultsTiming: cfg.faults,
-          },
-          {
-            onSuccess: () => resolve(),
-            onError: (err) => reject(err),
-          }
-        );
-      })
+    bulkUpdate.mutate(
+      {
+        classIds,
+        showId,
+        preset,
+        placementTiming: cfg.placement,
+        qualificationTiming: cfg.qualification,
+        timeTiming: cfg.time,
+        faultsTiming: cfg.faults,
+      },
+      {
+        onSuccess: () => {
+          toast.success(`Applied "${PRESET_INFO[preset].title}" to ${classIds.length} class${classIds.length === 1 ? '' : 'es'}`);
+          onClearSelection();
+        },
+        onError: () => toast.error('Failed to apply preset'),
+      }
     );
-    Promise.all(promises)
-      .then(() => {
-        toast.success(`Applied "${PRESET_INFO[preset].title}" to ${classIds.length} class${classIds.length === 1 ? '' : 'es'}`);
-        onClearSelection();
-      })
-      .catch(() => toast.error('Failed to apply preset to some classes'));
   }
 
   function handleBulkCheckin(enabled: boolean) {
     const classIds = Array.from(selectedClasses);
-    const promises = classIds.map(classId =>
-      new Promise<void>((resolve, reject) => {
-        updateClassOverride.mutate(
-          {
-            classId,
-            trialId: '',
-            showId,
-            selfCheckinEnabled: enabled,
-          },
-          {
-            onSuccess: () => resolve(),
-            onError: (err) => reject(err),
-          }
-        );
-      })
+    bulkUpdate.mutate(
+      { classIds, showId, selfCheckinEnabled: enabled },
+      {
+        onSuccess: () => {
+          toast.success(`Self check-in ${enabled ? 'enabled' : 'disabled'} for ${classIds.length} class${classIds.length === 1 ? '' : 'es'}`);
+          onClearSelection();
+        },
+        onError: () => toast.error('Failed to update check-in'),
+      }
     );
-    Promise.all(promises)
-      .then(() => {
-        toast.success(`Self check-in ${enabled ? 'enabled' : 'disabled'} for ${classIds.length} class${classIds.length === 1 ? '' : 'es'}`);
-        onClearSelection();
-      })
-      .catch(() => toast.error('Failed to update check-in for some classes'));
   }
 
   function handleReleaseResults() {
@@ -1423,16 +1535,16 @@ export function BulkOperationsBar({
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd apps/myk9show && npx vitest run src/pages/secretary/__tests__/BulkOperationsBar.test.tsx`
 Expected: PASS — all 5 tests
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/myk9show/src/pages/secretary/ResultsControlPage/BulkOperationsBar.tsx apps/myk9show/src/pages/secretary/__tests__/BulkOperationsBar.test.tsx
-git commit -m "feat: add BulkOperationsBar with preset, check-in, and release actions"
+git add apps/myk9show/src/hooks/mutations/useShowSettingsMutations.ts apps/myk9show/src/pages/secretary/ResultsControlPage/BulkOperationsBar.tsx apps/myk9show/src/pages/secretary/__tests__/BulkOperationsBar.test.tsx
+git commit -m "feat: add bulk class mutation and BulkOperationsBar component"
 ```
 
 ---
@@ -1666,16 +1778,24 @@ Add the route element after the `/secretary/settings` route (around line 224):
 />
 ```
 
-- [ ] **Step 3: Run typecheck**
+- [ ] **Step 3: [ADDED] Add route to routeRegistry.ts**
+
+In `apps/myk9show/src/routes/routeRegistry.ts`, add to `secretaryRouteComponents`:
+
+```typescript
+'/secretary/results-control': () => import('@/pages/secretary/ResultsControlPage'),
+```
+
+- [ ] **Step 4: Run typecheck**
 
 Run: `cd apps/myk9show && pnpm typecheck`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/myk9show/src/pages/secretary/ResultsControlPage/index.tsx apps/myk9show/src/routes/secretaryRoutes.tsx
-git commit -m "feat: add ResultsControlPage with route"
+git add apps/myk9show/src/pages/secretary/ResultsControlPage/index.tsx apps/myk9show/src/routes/secretaryRoutes.tsx apps/myk9show/src/routes/routeRegistry.ts
+git commit -m "feat: add ResultsControlPage with route and preloading"
 ```
 
 ---
@@ -2021,12 +2141,30 @@ Search for any remaining direct imports of the old file (the file still exists s
 Run: `grep -r "from.*ShowSettingsPage/ResultsVisibilitySection" apps/myk9show/src/pages/secretary/ResultsControlPage/`
 Expected: No matches
 
-- [ ] **Step 5: Run full test suite**
+- [ ] **Step 5: [ADDED] Delete old ResultsVisibilitySection**
+
+The old `apps/myk9show/src/pages/secretary/ShowSettingsPage/ResultsVisibilitySection.tsx` (488 lines) is now dead code — `ShowSettingsPage` no longer imports it. Delete it:
+
+```bash
+git rm apps/myk9show/src/pages/secretary/ShowSettingsPage/ResultsVisibilitySection.tsx
+```
+
+Verify no other files import it:
+
+Run: `grep -r "ResultsVisibilitySection" apps/myk9show/src/ --include="*.ts" --include="*.tsx"`
+Expected: No matches (or only the test file which should also be removed if it exists)
+
+- [ ] **Step 6: [ADDED] Also include TrialOverrides test in the test run**
+
+Run: `cd apps/myk9show && npx vitest run src/pages/secretary/__tests__/TrialOverrides.test.tsx`
+Expected: PASS
+
+- [ ] **Step 7: Run full test suite**
 
 Run: `cd apps/myk9show && pnpm test`
 Expected: All tests pass (existing + new). If tests hang beyond 30 seconds, stop and report.
 
-- [ ] **Step 6: Commit any remaining fixes, then final commit**
+- [ ] **Step 8: Commit any remaining fixes, then final commit**
 
 ```bash
 git add -A

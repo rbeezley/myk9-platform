@@ -339,15 +339,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // When a scope is provided, verify THIS permission is granted at THIS scope
-        // (not just that the user has any role at that scope)
+        // or granted globally (global grants satisfy any scope check)
         if (scope) {
           const scopeType = (scope as { type: string }).type;
           const scopeId = (scope as { id: string }).id;
           return rbacData.scopedPermissions.some(
             sp =>
               sp.permission_code === permCode &&
-              sp.scope_type === scopeType &&
-              sp.scope_id === scopeId
+              (sp.scope_type === 'global' ||
+                (sp.scope_type === scopeType && sp.scope_id === scopeId))
           );
         }
 

@@ -112,6 +112,9 @@ describe('RBACService', () => {
 
   describe('Role Assignment', () => {
     it('should assign role to user successfully using roleId', async () => {
+      // Mock escalation validation to pass (rpc returns true for permission check)
+      mockSupabase.rpc.mockResolvedValue({ data: true, error: null });
+
       const mockRole = {
         id: 'role123',
         name: 'secretary',
@@ -134,11 +137,13 @@ describe('RBACService', () => {
           };
         }
         if (table === 'roles') {
+          const eqChain = {
+            single: vi.fn().mockResolvedValue({ data: mockRole, error: null }),
+          };
           return {
             select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: mockRole, error: null }),
-              }),
+              eq: vi.fn().mockReturnValue(eqChain),
+              order: vi.fn().mockResolvedValue({ data: [mockRole], error: null }),
             }),
           };
         }

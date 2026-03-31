@@ -109,7 +109,13 @@ export class RBACService {
 
   async assignRole(request: AssignRoleRequest): Promise<string> {
     // Validate escalation before delegating to RoleManager
-    const roleName = request.roleName ?? '';
+    // Resolve roleName from roleId if only roleId was provided
+    let roleName = request.roleName ?? '';
+    if (!roleName && request.roleId) {
+      const role = await this.roleManager.getRole(request.roleId);
+      roleName = role.name;
+    }
+
     if (roleName) {
       const {
         data: { user: actor },

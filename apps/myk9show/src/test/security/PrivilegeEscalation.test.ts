@@ -454,12 +454,13 @@ describe('Privilege Escalation Security Tests', () => {
 
   describe('Role Assignment Security', () => {
     it('should complete concurrent role assignments without throwing', async () => {
-      // assignRole(roleId only) → getRole(roleId) → from('roles').select('*').eq('id', ...).single()
-      // then from('user_roles').insert(...).select('id').single() → returns data.id
-      // auth.getUser() is also called to get granted_by
+      // assignRole(roleId only) → getRole(roleId) → validateEscalation → from('user_roles').insert(...)
+      // auth.getUser() is called for escalation validation and granted_by
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: { id: ADMIN_USER_ID } },
       });
+      // Mock escalation validation to pass (rpc returns true for permission check)
+      mockSupabase.rpc.mockResolvedValue({ data: true, error: null });
 
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'people') {
@@ -474,21 +475,21 @@ describe('Privilege Escalation Security Tests', () => {
           };
         }
         if (table === 'roles') {
+          const mockRole = {
+            id: 'role1',
+            name: 'member',
+            is_system: false,
+            permissions: [],
+            description: null,
+            created_at: '',
+          };
+          const eqChain = {
+            single: vi.fn().mockResolvedValue({ data: mockRole, error: null }),
+          };
           return {
             select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'role1',
-                    name: 'member',
-                    is_system: false,
-                    permissions: [],
-                    description: null,
-                    created_at: '',
-                  },
-                  error: null,
-                }),
-              }),
+              eq: vi.fn().mockReturnValue(eqChain),
+              order: vi.fn().mockResolvedValue({ data: [mockRole], error: null }),
             }),
           };
         }
@@ -504,7 +505,11 @@ describe('Privilege Escalation Security Tests', () => {
             }),
           };
         }
-        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        };
       });
 
       // Attempt concurrent role assignments

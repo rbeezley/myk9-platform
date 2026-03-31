@@ -60,14 +60,14 @@ export function detectPreset(timings: FieldTimings): VisibilityPreset | null {
   return null;
 }
 
-/** Check if an override has any visibility field set (non-null) */
+/** Check if an override has any visibility field set (non-null/non-undefined) */
 export function hasVisibilityOverride(ov: VisibilityOverride): boolean {
   return (
-    ov.preset !== undefined ||
-    ov.placement !== undefined ||
-    ov.qualification !== undefined ||
-    ov.time !== undefined ||
-    ov.faults !== undefined
+    ov.preset != null ||
+    ov.placement != null ||
+    ov.qualification != null ||
+    ov.time != null ||
+    ov.faults != null
   );
 }
 

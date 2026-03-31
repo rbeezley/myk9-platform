@@ -92,10 +92,22 @@ GRANT EXECUTE ON FUNCTION is_show_official(UUID) TO authenticated;
 -- 2. Migrate existing show official data into user_roles
 -- =============================================================================
 
+-- [EXPANDED] Safe UUID cast helper — returns NULL for non-UUID text values
+-- This handles cases where shows.secretary contains a name string instead of a UUID
+CREATE OR REPLACE FUNCTION pg_temp.safe_uuid(val TEXT)
+RETURNS UUID
+LANGUAGE plpgsql IMMUTABLE AS $$
+BEGIN
+  RETURN val::uuid;
+EXCEPTION WHEN invalid_text_representation THEN
+  RETURN NULL;
+END;
+$$;
+
 -- Secretary: shows.secretary stores a people.id as TEXT
 INSERT INTO user_roles (user_id, role_id, show_id, is_active, granted_at)
 SELECT
-  s.secretary::uuid,
+  pg_temp.safe_uuid(s.secretary),
   r.id,
   s.id,
   true,
@@ -106,12 +118,13 @@ WHERE r.name = 'secretary'
   AND s.secretary IS NOT NULL
   AND s.secretary != ''
   AND s.deleted_at IS NULL
+  AND pg_temp.safe_uuid(s.secretary) IS NOT NULL
   -- Only migrate if the person actually exists
-  AND EXISTS (SELECT 1 FROM people p WHERE p.id = s.secretary::uuid)
+  AND EXISTS (SELECT 1 FROM people p WHERE p.id = pg_temp.safe_uuid(s.secretary))
   -- Skip if user_roles row already exists for this person+role+show
   AND NOT EXISTS (
     SELECT 1 FROM user_roles ur
-    WHERE ur.user_id = s.secretary::uuid
+    WHERE ur.user_id = pg_temp.safe_uuid(s.secretary)
       AND ur.role_id = r.id
       AND ur.show_id = s.id
   );
@@ -119,7 +132,7 @@ WHERE r.name = 'secretary'
 -- Chairman: shows.chairman stores a people.id as TEXT
 INSERT INTO user_roles (user_id, role_id, show_id, is_active, granted_at)
 SELECT
-  s.chairman::uuid,
+  pg_temp.safe_uuid(s.chairman),
   r.id,
   s.id,
   true,
@@ -130,10 +143,11 @@ WHERE r.name = 'chairman'
   AND s.chairman IS NOT NULL
   AND s.chairman != ''
   AND s.deleted_at IS NULL
-  AND EXISTS (SELECT 1 FROM people p WHERE p.id = s.chairman::uuid)
+  AND pg_temp.safe_uuid(s.chairman) IS NOT NULL
+  AND EXISTS (SELECT 1 FROM people p WHERE p.id = pg_temp.safe_uuid(s.chairman))
   AND NOT EXISTS (
     SELECT 1 FROM user_roles ur
-    WHERE ur.user_id = s.chairman::uuid
+    WHERE ur.user_id = pg_temp.safe_uuid(s.chairman)
       AND ur.role_id = r.id
       AND ur.show_id = s.id
   );
@@ -141,7 +155,7 @@ WHERE r.name = 'chairman'
 -- Chief Steward: shows.chief_steward stores a people.id as TEXT → steward role
 INSERT INTO user_roles (user_id, role_id, show_id, is_active, granted_at)
 SELECT
-  s.chief_steward::uuid,
+  pg_temp.safe_uuid(s.chief_steward),
   r.id,
   s.id,
   true,
@@ -152,10 +166,11 @@ WHERE r.name = 'steward'
   AND s.chief_steward IS NOT NULL
   AND s.chief_steward != ''
   AND s.deleted_at IS NULL
-  AND EXISTS (SELECT 1 FROM people p WHERE p.id = s.chief_steward::uuid)
+  AND pg_temp.safe_uuid(s.chief_steward) IS NOT NULL
+  AND EXISTS (SELECT 1 FROM people p WHERE p.id = pg_temp.safe_uuid(s.chief_steward))
   AND NOT EXISTS (
     SELECT 1 FROM user_roles ur
-    WHERE ur.user_id = s.chief_steward::uuid
+    WHERE ur.user_id = pg_temp.safe_uuid(s.chief_steward)
       AND ur.role_id = r.id
       AND ur.show_id = s.id
   );
@@ -177,30 +192,44 @@ DROP POLICY IF EXISTS "Secretary can manage volunteers" ON volunteers;
 DROP POLICY IF EXISTS "Secretary can manage class assignments" ON volunteer_class_assignments;
 DROP POLICY IF EXISTS "Secretary can manage general assignments" ON volunteer_general_assignments;
 
--- Volunteers: secretary must be assigned to this show
+-- [EXPANDED] Volunteers: secretary must be assigned to this show.
+-- Legacy myK9Q rows with NULL show_id fall back to global secretary/admin check.
 CREATE POLICY "Secretary can manage volunteers"
   ON volunteers FOR ALL TO authenticated
-  USING ((SELECT public.is_show_secretary(show_id)));
+  USING (
+    CASE
+      WHEN show_id IS NOT NULL THEN (SELECT public.is_show_secretary(show_id))
+      ELSE (SELECT public.has_role('secretary')) OR (SELECT public.is_platform_admin())
+    END
+  );
 
--- Class assignments: scope through parent volunteer's show_id
+-- [EXPANDED] Class assignments: scope through parent volunteer's show_id.
+-- Same NULL show_id fallback for legacy myK9Q rows.
 CREATE POLICY "Secretary can manage class assignments"
   ON volunteer_class_assignments FOR ALL TO authenticated
   USING (
     EXISTS (
       SELECT 1 FROM public.volunteers v
       WHERE v.id = volunteer_id
-        AND (SELECT public.is_show_secretary(v.show_id))
+        AND CASE
+          WHEN v.show_id IS NOT NULL THEN (SELECT public.is_show_secretary(v.show_id))
+          ELSE (SELECT public.has_role('secretary')) OR (SELECT public.is_platform_admin())
+        END
     )
   );
 
--- General assignments: scope through parent volunteer's show_id
+-- [EXPANDED] General assignments: scope through parent volunteer's show_id.
+-- Same NULL show_id fallback for legacy myK9Q rows.
 CREATE POLICY "Secretary can manage general assignments"
   ON volunteer_general_assignments FOR ALL TO authenticated
   USING (
     EXISTS (
       SELECT 1 FROM public.volunteers v
       WHERE v.id = volunteer_id
-        AND (SELECT public.is_show_secretary(v.show_id))
+        AND CASE
+          WHEN v.show_id IS NOT NULL THEN (SELECT public.is_show_secretary(v.show_id))
+          ELSE (SELECT public.has_role('secretary')) OR (SELECT public.is_platform_admin())
+        END
     )
   );
 
@@ -579,23 +608,23 @@ In `apps/myk9show/src/services/rbac/RBACService.ts`, update the `ensureUserHasRo
   }
 ```
 
-- [ ] **Step 3: Fix existing callers that pass clubId as third arg**
+- [ ] **Step 3: Fix existing callers that pass clubId as third arg [EXPANDED]**
 
-Search for all callers of `ensureUserHasRole` and update them to use the new options object:
+Search for all callers of `ensureUserHasRole` and update them to use the new options object.
 
 In `apps/myk9show/src/hooks/useAuth.ts`, the two calls pass no clubId (just `(personId, 'exhibitor')`) — these are fine, no change needed.
 
-In `apps/myk9show/src/pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts` (line 285), change:
+In `apps/myk9show/src/pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts` (line 285), the old call passes `clubId` as a bare string third arg. This **must** be fixed now — otherwise typecheck will fail between this commit and Task 7. Change:
 
 ```typescript
 // OLD:
 rbacService.ensureUserHasRole(show.secretary, UserRole.SECRETARY, show.clubId);
 
-// NEW (this line will be rewritten in Task 7, but for now fix the signature):
-// This call will be completely rewritten in Task 7 when we change the wizard data flow
+// NEW (interim fix — Task 7 will rewrite this entire block):
+rbacService.ensureUserHasRole(show.secretary, UserRole.SECRETARY, { clubId: show.clubId });
 ```
 
-Actually, leave this caller for Task 7 — it will be rewritten entirely when we change the wizard to use show-scoped role grants instead of reading `show.secretary`.
+This keeps the existing behavior (club-scoped) until Task 7 changes it to show-scoped.
 
 - [ ] **Step 4: Run typecheck**
 
@@ -1094,6 +1123,38 @@ if (show.officials.secretary.length === 0) errors.push('Secretary is required');
 
 Update display (lines 226-237) to resolve person names for `show.officials.chairman[0]` and `show.officials.secretary[0]` instead of `show.chairman` and `show.secretary`.
 
+- [ ] **Step 5a: [ADDED] Populate officials in edit mode**
+
+When the wizard opens in edit mode (editing an existing show), the officials arrays start empty because `transformShowToWizard()` can't read them from the Show object anymore. The wizard page or `ShowDetailsStep` must fetch existing officials from `user_roles` and populate the wizard state.
+
+In `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx`, add a `useEffect` that runs in edit mode to populate officials:
+
+```typescript
+import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
+
+// Inside the component, after existing state:
+const { data: existingOfficials } = useShowOfficials(editMode ? show.id : undefined);
+
+// Populate wizard state when officials load for the first time in edit mode
+useEffect(() => {
+  if (!editMode || !existingOfficials) return;
+  // Only populate if officials are currently empty (avoid overwriting user edits)
+  const current = show.officials;
+  if (current.secretary.length > 0 || current.chairman.length > 0 || current.steward.length > 0)
+    return;
+
+  updateShowData({
+    officials: {
+      secretary: existingOfficials.secretaries.map(o => o.personId),
+      chairman: existingOfficials.chairmen.map(o => o.personId),
+      steward: existingOfficials.stewards.map(o => o.personId),
+    },
+  });
+}, [editMode, existingOfficials, show.officials, updateShowData]);
+```
+
+This requires the wizard to pass `editMode` and `show.id` to `ShowDetailsStep`, or for the step to derive it from wizard state. Check the existing prop flow and adapt.
+
 - [ ] **Step 6: Run typecheck**
 
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck`
@@ -1165,24 +1226,69 @@ Update `formDataToShow()` (lines 56-58) — remove the three conditional spreads
 ...(formData.chiefSteward && { chiefSteward: formData.chiefSteward }),
 ```
 
-- [ ] **Step 3: Update ShowEditForm.tsx**
+- [ ] **Step 3: Update ShowEditForm.tsx [EXPANDED]**
 
 In `apps/myk9show/src/components/panels/edit/ShowEditForm.tsx`:
 
-Replace the three SelectField components for chairman/secretary/chiefSteward (lines 209-297) with an Officials section that:
+Replace the three SelectField components for chairman/secretary/chiefSteward (lines 209-297) with an Officials section. The section reads current officials via the hook and mutates `user_roles` directly:
 
-- Reads current officials via `useShowOfficials(showId)`
-- Renders person selectors for each role
-- On change, calls `rbacService.ensureUserHasRole(personId, role, { showId })` to add
-- On remove, calls `rbacService.revokeRole(...)` to remove
+```typescript
+import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
+import { rbacService } from '@/services/rbac/RBACService';
+import { UserRole } from '@/types/auth-types';
 
-The exact UI implementation depends on the existing SelectField pattern. Use the same people list and selection pattern as the current code, but write to `user_roles` instead of updating form data.
+// Inside the component (showId must be available as a prop or from form context):
+const { data: officials } = useShowOfficials(showId);
+const queryClient = useQueryClient();
 
-- [ ] **Step 4: Update EditShowDialog.tsx**
+async function handleOfficialChange(role: UserRole, newPersonId: string | null, oldPersonId: string | null) {
+  if (oldPersonId) {
+    await rbacService.revokeRole({ userId: oldPersonId, roleName: role, scopeType: 'show', scopeId: showId });
+  }
+  if (newPersonId) {
+    await rbacService.ensureUserHasRole(newPersonId, role, { showId });
+  }
+  queryClient.invalidateQueries({ queryKey: queryKeys.showOfficials(showId) });
+}
+
+// Then in the Personnel tab JSX, replace the three SelectFields with:
+// Chairman selector
+<SelectField
+  label="Chairman"
+  value={officials?.chairmen[0]?.personId || ''}
+  onChange={(val) => handleOfficialChange(UserRole.CHAIRMAN, val || null, officials?.chairmen[0]?.personId || null)}
+  options={peopleOptions}
+/>
+// Secretary selector
+<SelectField
+  label="Secretary"
+  value={officials?.secretaries[0]?.personId || ''}
+  onChange={(val) => handleOfficialChange(UserRole.SECRETARY, val || null, officials?.secretaries[0]?.personId || null)}
+  options={peopleOptions}
+/>
+// Chief Steward selector
+<SelectField
+  label="Chief Steward"
+  value={officials?.stewards[0]?.personId || ''}
+  onChange={(val) => handleOfficialChange(UserRole.STEWARD, val || null, officials?.stewards[0]?.personId || null)}
+  options={peopleOptions}
+/>
+```
+
+Remove `chairman`, `secretary`, `chiefSteward` from form state — officials are now managed independently via `user_roles`, not submitted with the show form.
+
+- [ ] **Step 4: Update EditShowDialog.tsx [EXPANDED]**
 
 In `apps/myk9show/src/components/shows/ShowDetails/dialogs/EditShowDialog.tsx`:
 
-Apply the same changes as ShowEditForm — remove chairman/secretary/chiefSteward from `ShowFormData` interface (lines 30-32) and replace the three SelectField components (lines 324-417) with an Officials section that manages `user_roles` rows.
+Apply the same pattern as ShowEditForm:
+
+1. Remove `chairman`, `secretary`, `chiefSteward` from `ShowFormData` interface (lines 30-32)
+2. Replace the three SelectField components (lines 324-417) with the same `useShowOfficials` + `handleOfficialChange` pattern
+3. The dialog already has `showId` available — pass it to `useShowOfficials`
+4. Remove the old fields from the `initialValues` and `onSubmit` handler
 
 - [ ] **Step 5: Run typecheck**
 
@@ -1205,59 +1311,128 @@ git commit -m "refactor(edit): officials section manages user_roles instead of s
 - Modify: `apps/myk9show/src/utils/permissionValidation.ts:58-59,80,101-103`
 - Modify: `apps/myk9show/src/utils/show-management-tracking.ts:114-142,250-251`
 
-- [ ] **Step 1: Fix show-relationships.ts**
+- [ ] **Step 0: [ADDED] Create useOfficialShowIds hook for synchronous permission checks**
+
+Several permission utilities need to synchronously check "is this user an official for this show?" The cleanest approach is a small hook that queries `user_roles` once for the current user's show-scoped official roles and returns a `Set<string>` of show IDs.
+
+Create `apps/myk9show/src/hooks/queries/useOfficialShowIds.ts`:
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/services/database/supabaseClient';
+import { useAuth } from '@/context/AuthContext';
+
+/**
+ * Returns the set of show IDs where the current user holds an official role
+ * (secretary, chairman, or steward). Used by synchronous permission checks.
+ */
+export function useOfficialShowIds(): Set<string> {
+  const { personId } = useAuth();
+
+  const { data } = useQuery({
+    queryKey: ['officialShowIds', personId],
+    queryFn: async () => {
+      if (!personId) return [];
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('show_id, roles!inner(name)')
+        .eq('user_id', personId)
+        .eq('is_active', true)
+        .not('show_id', 'is', null)
+        .in('roles.name', ['secretary', 'chairman', 'steward']);
+
+      if (error) throw error;
+      return (data || []).map(r => r.show_id).filter(Boolean) as string[];
+    },
+    enabled: !!personId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return new Set(data || []);
+}
+```
+
+This hook is called at the page level and the Set is passed down to permission utilities.
+
+- [ ] **Step 1: Fix show-relationships.ts [EXPANDED]**
 
 In `apps/myk9show/src/utils/show-relationships.ts`, the `getUserManagedShows` function checks `show.secretary === userId` (line 59) and `show.chairman === userId` (line 67). These fields no longer exist on Show.
 
-This function filters shows from the local store. We need a way to check if a user is an official for a show without the field on the Show object. Options:
-
-1. Query `user_roles` for the user's show-scoped roles and build a Set of show IDs
-2. Add a prefetched `managedShowIds` set from an initial query
-
-The cleanest approach is to refactor this function to accept a `managedShowIds: Set<string>` parameter (precomputed from a `user_roles` query) and check membership. Update the call site to pass this set.
-
-Replace the `show.secretary === userId` and `show.chairman === userId` checks:
+Add `officialShowIds: Set<string>` as a parameter:
 
 ```typescript
-// OLD:
+// OLD signature:
+export function getUserManagedShows(shows: Show[], userId: string): Show[];
+
+// NEW signature:
+export function getUserManagedShows(
+  shows: Show[],
+  userId: string,
+  officialShowIds: Set<string>
+): Show[];
+
+// OLD body checks:
 if (show.secretary === userId) return true;
 // ...
 if (show.chairman === userId) return true;
 
 // NEW:
-if (managedShowIds.has(show.id)) return true;
+if (officialShowIds.has(show.id)) return true;
 ```
 
-If refactoring the function signature is too invasive, an alternative is to do an inline Supabase query. But the function is synchronous, so the `managedShowIds` approach is better.
+Update call sites to pass the set from `useOfficialShowIds()`.
 
-- [ ] **Step 2: Fix permissionValidation.ts**
+- [ ] **Step 2: Fix permissionValidation.ts [EXPANDED]**
 
 In `apps/myk9show/src/utils/permissionValidation.ts`:
 
-The `canEditShow`, `canDeleteShow`, and `canManageEntries` functions check `show.secretary === user.id` etc. Replace with RLS-based permission checks.
-
-Since these functions need to be synchronous (they're called in render), the cleanest approach is to:
-
-1. Add an `isShowOfficial` flag computed from `user_roles` and passed down via context or props
-2. Or change these to async and use the DB function
-
-The practical fix: these functions are used as client-side guards alongside DB-level RLS. Since RLS now handles the real security, simplify these to check `isAdmin || isSecretary` (from AuthContext roles) as a UI hint, and let RLS enforce the actual scoping. Remove the `show.secretary === user.id` checks entirely.
+Add `officialShowIds?: Set<string>` as an optional parameter to `canEditShow`, `canDeleteShow`, and `canManageEntries`:
 
 ```typescript
-// In canEditShow, REPLACE:
-show.secretary === user.id ||
-show.chairman === user.id ||
+// canEditShow — add parameter, replace field checks:
+export function canEditShow(show: Show, user: User, officialShowIds?: Set<string>): boolean {
+  // Keep existing isAdmin check
+  if (isAdmin(user)) return true;
+  // Replace show.secretary/chairman checks:
+  if (officialShowIds?.has(show.id)) return true;
+  // ... rest unchanged
+}
 
-// WITH: (remove these lines — RLS handles it, and isAdmin/isSecretary from AuthContext covers the UI gate)
+// canDeleteShow:
+export function canDeleteShow(show: Show, user: User, officialShowIds?: Set<string>): boolean {
+  if (isAdmin(user)) return true;
+  return officialShowIds?.has(show.id) ?? false;
+}
+
+// canManageEntries:
+export function canManageEntries(show: Show, user: User, officialShowIds?: Set<string>): boolean {
+  if (isAdmin(user)) return true;
+  if (officialShowIds?.has(show.id)) return true;
+  // ... rest unchanged
+}
 ```
 
-- [ ] **Step 3: Fix show-management-tracking.ts**
+Update call sites to pass the set. Where `officialShowIds` is not available (non-React context), the parameter is optional — the function falls back to admin-only, and RLS handles the real enforcement.
+
+- [ ] **Step 3: Fix show-management-tracking.ts [EXPANDED]**
 
 In `apps/myk9show/src/utils/show-management-tracking.ts`:
 
-The `extractManagementRelationships` function (lines 114-142) checks `show.secretary === userId` etc to build relationship data. Remove these checks and the relationship entries they produce. If this function is used for navigation/display, it should query `user_roles` instead.
+`extractManagementRelationships` (lines 114-142) — add `officialShowIds: Set<string>` parameter. Replace the three `show.secretary === userId` / `show.chairman === userId` / `show.chiefSteward === userId` checks with a single:
 
-Similarly, `getManagedShows` (lines 250-251) checks `show.secretary === user.id`. Remove and replace with the `managedShowIds` set approach.
+```typescript
+if (officialShowIds.has(show.id)) {
+  relationships.push({
+    showId: show.id,
+    role: 'official', // generic — specific role can be fetched from user_roles if needed
+    showName: show.name,
+  });
+}
+```
+
+`getManagedShows` (lines 250-251) — same pattern: add parameter, replace field checks with `officialShowIds.has(show.id)`.
+
+Update call sites to pass the set.
 
 - [ ] **Step 4: Run typecheck**
 

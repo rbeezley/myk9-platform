@@ -35,14 +35,16 @@ CREATE POLICY "people_update_own" ON public.people
         )
     );
 
--- Policy 2: Admins and secretaries can update any row including status.
+-- Policy 2: Admins can update any row including status.
+-- Note: is_show_secretary() excluded here due to overloaded function signature.
+-- The secretary-scoping migration will replace this with show-scoped checks.
 CREATE POLICY "people_update_privileged" ON public.people
     FOR UPDATE TO authenticated
     USING (
-        is_show_secretary() OR is_platform_admin()
+        is_platform_admin()
     )
     WITH CHECK (
-        is_show_secretary() OR is_platform_admin()
+        is_platform_admin()
     );
 
 COMMIT;

@@ -1,15 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import {
-  Save,
-  AlertCircle,
-  ClipboardList,
-  Eraser,
-  Plus,
-  Trophy,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -136,9 +127,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     if (scoringTab === 'completed') result = result.filter(r => r.isScored);
     else if (scoringTab === 'pending') result = result.filter(r => !r.isScored);
     if (searchQuery) {
-      result = result.filter(r =>
-        matchesAny([r.dogName, r.handlerName, r.armband], searchQuery)
-      );
+      result = result.filter(r => matchesAny([r.dogName, r.handlerName, r.armband], searchQuery));
     }
     return result;
   }, [rows, scoringTab, searchQuery]);
@@ -470,6 +459,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder="Search by dog, handler, or armband..."
+              aria-label="Search entries"
               size="sm"
               className="max-w-sm"
             />

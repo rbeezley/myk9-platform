@@ -6,6 +6,8 @@ interface SearchBarProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  /** Accessible label for the search input */
+  'aria-label'?: string;
   /** Compact size for inline/toolbar use */
   size?: 'default' | 'sm';
 }
@@ -28,6 +30,7 @@ export function SearchBar({
   onChange,
   placeholder = 'Search...',
   className,
+  'aria-label': ariaLabel,
   size = 'default',
 }: SearchBarProps) {
   const styles = sizeConfig[size];
@@ -45,6 +48,7 @@ export function SearchBar({
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
+        aria-label={ariaLabel ?? placeholder}
         className={cn(
           'w-full bg-card shadow-card focus:shadow-card-hover focus:ring-2 focus:ring-primary/20 outline-none transition-all',
           styles.input

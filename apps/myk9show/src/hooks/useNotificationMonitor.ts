@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -189,13 +189,18 @@ export function useNotificationMonitor(): void {
   const notifiedClassStarting = useRef<Set<string>>(new Set());
   const notifiedResultsPosted = useRef<Set<string>>(new Set());
 
-  // Stable refs for callbacks
+  // Stable refs for callbacks — updated via useLayoutEffect so they are
+  // always current before any effect fires, without violating the lint rule
+  // that forbids mutating refs during render.
   const deliverRef = useRef(deliver);
-  deliverRef.current = deliver;
   const preferencesRef = useRef(preferences);
-  preferencesRef.current = preferences;
   const userDogIdsRef = useRef(userDogIds);
-  userDogIdsRef.current = userDogIds;
+
+  useLayoutEffect(() => {
+    deliverRef.current = deliver;
+    preferencesRef.current = preferences;
+    userDogIdsRef.current = userDogIds;
+  });
 
   // --- Push gating ---
   const sendPush = useCallback(
@@ -210,10 +215,12 @@ export function useNotificationMonitor(): void {
         /* non-fatal */
       }
     },
-    [user?.id]
+    [user]
   );
   const sendPushRef = useRef(sendPush);
-  sendPushRef.current = sendPush;
+  useLayoutEffect(() => {
+    sendPushRef.current = sendPush;
+  });
 
   // --- Entry change handler ---
   const handleEntryChange = useCallback(

@@ -1,23 +1,25 @@
 import { renderHook } from '@testing-library/react';
 import { vi } from 'vitest';
 
-const { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences } = vi.hoisted(() => {
-  const mockChannel = {
-    on: vi.fn().mockReturnThis(),
-    subscribe: vi.fn().mockReturnThis(),
-  };
-  const mockRemoveChannel = vi.fn();
-  const mockDeliver = vi.fn();
-  const mockPreferences = {
-    enabled: true,
-    leadDogs: 3,
-    soundEnabled: true,
-    voiceEnabled: false,
-    vibrationEnabled: true,
-    pushEnabled: false,
-  };
-  return { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences };
-});
+const { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences, mockUseShowDayData } =
+  vi.hoisted(() => {
+    const mockChannel = {
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn().mockReturnThis(),
+    };
+    const mockRemoveChannel = vi.fn();
+    const mockDeliver = vi.fn();
+    const mockPreferences = {
+      enabled: true,
+      leadDogs: 3,
+      soundEnabled: true,
+      voiceEnabled: false,
+      vibrationEnabled: true,
+      pushEnabled: false,
+    };
+    const mockUseShowDayData = vi.fn(() => ({ activeShows: [{ showId: 'show-1' }] }));
+    return { mockChannel, mockRemoveChannel, mockDeliver, mockPreferences, mockUseShowDayData };
+  });
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -42,7 +44,7 @@ vi.mock('@/store/notificationStore', () => ({
 }));
 
 vi.mock('@/hooks/queries/useShowDayData', () => ({
-  useShowDayData: () => ({ activeShows: [{ showId: 'show-1' }] }),
+  useShowDayData: mockUseShowDayData,
 }));
 
 vi.mock('@/store/showStore', () => ({
@@ -88,6 +90,23 @@ vi.mock('@/utils/conflictDetection', () => ({
 import { useNotificationMonitor } from '../useNotificationMonitor';
 import { supabase } from '@/lib/supabase';
 
+/**
+ * Extracts the callback registered via `mockChannel.on` for a given table.
+ * The `.on()` call signature is: on(event, { table, ... }, callback)
+ */
+function getRealtimeCallback(table: string) {
+  const call = mockChannel.on.mock.calls.find(
+    (c: unknown[]) => (c[1] as Record<string, unknown>).table === table
+  );
+  return call?.[2] as
+    | ((payload: {
+        eventType: string;
+        new: Record<string, unknown>;
+        old: Record<string, unknown>;
+      }) => void)
+    | undefined;
+}
+
 describe('useNotificationMonitor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -120,5 +139,105 @@ describe('useNotificationMonitor', () => {
     const channelFn = vi.mocked(supabase.channel);
     expect(channelFn).toHaveBeenCalledWith('notif-entries:show-1');
     expect(channelFn).toHaveBeenCalledWith('notif-classes:show-1');
+  });
+});
+
+describe('your_turn alerts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockChannel.on.mockReturnValue(mockChannel);
+    mockChannel.subscribe.mockReturnValue(mockChannel);
+  });
+
+  it('does not fire when event is not check_in_status change to in-ring', () => {
+    renderHook(() => useNotificationMonitor());
+    const cb = getRealtimeCallback('entries');
+    expect(cb).toBeDefined();
+    // Non-in-ring status change
+    cb!({
+      eventType: 'UPDATE',
+      new: { id: 'e1', class_id: 'c1', check_in_status: 'checked-in' },
+      old: { check_in_status: 'no-status' },
+    });
+    expect(mockDeliver).not.toHaveBeenCalled();
+  });
+
+  it('ignores non-UPDATE events', () => {
+    renderHook(() => useNotificationMonitor());
+    const cb = getRealtimeCallback('entries');
+    // The realtime wrapper only forwards new/old; class context is empty so bails early
+    cb!({
+      eventType: 'INSERT',
+      new: { id: 'e1', class_id: 'c1', check_in_status: 'in-ring' },
+      old: {},
+    });
+    expect(mockDeliver).not.toHaveBeenCalled();
+  });
+
+  it('bails when class context not populated', () => {
+    renderHook(() => useNotificationMonitor());
+    const cb = getRealtimeCallback('entries');
+    // in-ring change but class not in context (useQuery returns null so context stays empty)
+    cb!({
+      eventType: 'UPDATE',
+      new: { id: 'e1', class_id: 'unknown-class', check_in_status: 'in-ring' },
+      old: { check_in_status: 'at-gate' },
+    });
+    expect(mockDeliver).not.toHaveBeenCalled();
+  });
+});
+
+describe('class_starting / check_in_reminder', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockChannel.on.mockReturnValue(mockChannel);
+    mockChannel.subscribe.mockReturnValue(mockChannel);
+  });
+
+  it('ignores class status changes that are not to In Progress', () => {
+    renderHook(() => useNotificationMonitor());
+    const cb = getRealtimeCallback('classes');
+    expect(cb).toBeDefined();
+    cb!({
+      eventType: 'UPDATE',
+      new: { id: 'c1', status: 'Completed', is_scoring_finalized: false },
+      old: { status: 'In Progress', is_scoring_finalized: false },
+    });
+    expect(mockDeliver).not.toHaveBeenCalled();
+  });
+});
+
+describe('results_posted', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockChannel.on.mockReturnValue(mockChannel);
+    mockChannel.subscribe.mockReturnValue(mockChannel);
+  });
+
+  it('ignores when is_scoring_finalized was already true', () => {
+    renderHook(() => useNotificationMonitor());
+    const cb = getRealtimeCallback('classes');
+    cb!({
+      eventType: 'UPDATE',
+      new: { id: 'c1', status: 'Completed', is_scoring_finalized: true },
+      old: { status: 'Completed', is_scoring_finalized: true },
+    });
+    expect(mockDeliver).not.toHaveBeenCalled();
+  });
+});
+
+describe('early returns', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockChannel.on.mockReturnValue(mockChannel);
+    mockChannel.subscribe.mockReturnValue(mockChannel);
+  });
+
+  it('does not subscribe when showIds is empty', () => {
+    mockUseShowDayData.mockReturnValueOnce({ activeShows: [] });
+
+    renderHook(() => useNotificationMonitor());
+    // No channels should be created when there are no active shows
+    expect(mockChannel.on).not.toHaveBeenCalled();
   });
 });

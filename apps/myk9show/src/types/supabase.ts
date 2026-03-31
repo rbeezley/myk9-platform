@@ -399,6 +399,7 @@ export type Database = {
           deleted_by: string | null;
           description: string | null;
           distraction_count: number | null;
+          division: string | null;
           dogs_ahead_notification_count: number | null;
           element: string | null;
           entry_fee: number | null;
@@ -423,7 +424,6 @@ export type Database = {
           qualifying_threshold: number | null;
           results_released_at: string | null;
           scored_count: number | null;
-          section: string | null;
           start_time: string | null;
           status: string | null;
           time_limit_seconds: number | null;
@@ -447,6 +447,7 @@ export type Database = {
           deleted_by?: string | null;
           description?: string | null;
           distraction_count?: number | null;
+          division?: string | null;
           dogs_ahead_notification_count?: number | null;
           element?: string | null;
           entry_fee?: number | null;
@@ -471,7 +472,6 @@ export type Database = {
           qualifying_threshold?: number | null;
           results_released_at?: string | null;
           scored_count?: number | null;
-          section?: string | null;
           start_time?: string | null;
           status?: string | null;
           time_limit_seconds?: number | null;
@@ -495,6 +495,7 @@ export type Database = {
           deleted_by?: string | null;
           description?: string | null;
           distraction_count?: number | null;
+          division?: string | null;
           dogs_ahead_notification_count?: number | null;
           element?: string | null;
           entry_fee?: number | null;
@@ -519,7 +520,6 @@ export type Database = {
           qualifying_threshold?: number | null;
           results_released_at?: string | null;
           scored_count?: number | null;
-          section?: string | null;
           start_time?: string | null;
           status?: string | null;
           time_limit_seconds?: number | null;

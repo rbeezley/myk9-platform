@@ -29,20 +29,21 @@ self.addEventListener('push', (event: PushEvent) => {
   }
 });
 
-// Handle notification click — focus or open the app
+// Handle notification click — focus existing window and navigate, or open new window
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   event.notification.close();
 
+  const targetUrl = (event.notification.data as { actionUrl?: string } | undefined)?.actionUrl || '/';
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      // Focus existing window if available
       for (const client of clients) {
-        if ('focus' in client) {
-          return client.focus();
+        if ('focus' in client && 'navigate' in client) {
+          client.focus();
+          return (client as WindowClient).navigate(targetUrl);
         }
       }
-      // Otherwise open new window
-      return self.clients.openWindow('/');
+      return self.clients.openWindow(targetUrl);
     })
   );
 });

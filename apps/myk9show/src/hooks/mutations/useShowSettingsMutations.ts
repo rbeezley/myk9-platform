@@ -224,6 +224,47 @@ export function useUpdateClassOverride() {
   });
 }
 
+// [ADDED] Batch upsert for bulk class operations — single DB call instead of N
+interface BulkClassOverrideUpdate {
+  classIds: string[];
+  showId: string;
+  preset?: VisibilityPreset | null;
+  placementTiming?: VisibilityTiming | null;
+  qualificationTiming?: VisibilityTiming | null;
+  timeTiming?: VisibilityTiming | null;
+  faultsTiming?: VisibilityTiming | null;
+  selfCheckinEnabled?: boolean | null;
+}
+
+export function useBulkUpdateClassOverrides() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (update: BulkClassOverrideUpdate) => {
+      const rows = update.classIds.map(classId => ({
+        class_id: classId,
+        preset: update.preset,
+        placement_timing: update.placementTiming,
+        qualification_timing: update.qualificationTiming,
+        time_timing: update.timeTiming,
+        faults_timing: update.faultsTiming,
+        self_checkin_enabled: update.selfCheckinEnabled,
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+      }));
+      const { error } = await untypedSupabase.from('class_visibility_overrides').upsert(rows);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.classOverrides(variables.showId),
+      });
+      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
+    },
+  });
+}
+
 /**
  * Reset an override row by setting all nullable columns to NULL (not DELETE).
  * Spec: "No DELETE — rows are upserted, not removed (reset = set columns to NULL)."

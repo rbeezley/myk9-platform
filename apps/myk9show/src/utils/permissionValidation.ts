@@ -52,12 +52,8 @@ export function canEditShow(user: UserWithRoles | null, show: ShowWithRelationsh
   // Check if user has general show update permission
   if (!permissions.includes(PERMISSIONS.SHOW_UPDATE)) return false;
 
-  // Check if user has management relationship with the show
-  // Officials (secretary/chairman) are now managed via user_roles — RLS enforces access at DB level
-  return (
-    show.userCanManage ||
-    (show.assignedJudges && show.assignedJudges.some(j => j.judgeId === user.id))
-  );
+  // Check if user has management relationship with the show (secretary/chairman/steward via user_roles)
+  return show.userCanManage;
 }
 
 /**

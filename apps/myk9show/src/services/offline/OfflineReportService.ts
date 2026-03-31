@@ -164,7 +164,7 @@ class OfflineReportService {
     yPosition += 30;
 
     // Show information
-    yPosition = this.addShowInformation(doc, data.show, yPosition);
+    yPosition = await this.addShowInformation(doc, data.show, yPosition);
     yPosition += 10;
 
     // Entry statistics
@@ -248,7 +248,7 @@ class OfflineReportService {
     yPosition += 30;
 
     // Show information
-    yPosition = this.addShowInformation(doc, data.show, yPosition);
+    yPosition = await this.addShowInformation(doc, data.show, yPosition);
     yPosition += 10;
 
     // Schedule table
@@ -377,7 +377,7 @@ class OfflineReportService {
     yPosition += 30;
 
     // Show information
-    yPosition = this.addShowInformation(doc, data.show, yPosition);
+    yPosition = await this.addShowInformation(doc, data.show, yPosition);
     yPosition += 10;
 
     // Results by class
@@ -446,7 +446,7 @@ class OfflineReportService {
     yPosition += 30;
 
     // Show information
-    yPosition = this.addShowInformation(doc, data.show, yPosition);
+    yPosition = await this.addShowInformation(doc, data.show, yPosition);
     yPosition += 15;
 
     // Summary statistics
@@ -531,7 +531,13 @@ class OfflineReportService {
     return yPosition + 20;
   }
 
-  private addShowInformation(doc: jsPDF, show: Show, yPosition: number): number {
+  private async addShowInformation(doc: jsPDF, show: Show, yPosition: number): Promise<number> {
+    const { getShowOfficials } = await import('@/hooks/queries/useShowOfficials');
+    const officials = await getShowOfficials(show.id).catch(() => null);
+    const formatName = (o: { firstName: string; lastName: string }) =>
+      `${o.firstName} ${o.lastName}`.trim();
+    const secretaryNames = officials?.secretaries.map(formatName).join(', ') || 'N/A';
+
     doc.setFontSize(12);
     doc.text('SHOW INFORMATION', 20, yPosition);
     yPosition += 10;
@@ -541,7 +547,7 @@ class OfflineReportService {
       `Date: ${new Date(show.startDate).toLocaleDateString()}`,
       `Location: ${show.location}`,
       `Club: ${show.clubName}`,
-      `Secretary: N/A`, // Officials managed via user_roles — see ShowOfficials component
+      `Secretary: ${secretaryNames}`,
       `Organization: ${show.organization || 'AKC'}`,
     ];
 

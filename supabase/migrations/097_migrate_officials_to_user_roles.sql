@@ -165,13 +165,13 @@ DROP POLICY IF EXISTS "Secretary can manage volunteers" ON volunteers;
 DROP POLICY IF EXISTS "Secretary can manage class assignments" ON volunteer_class_assignments;
 DROP POLICY IF EXISTS "Secretary can manage general assignments" ON volunteer_general_assignments;
 
--- Volunteers: secretary must be assigned to this show.
+-- Volunteers: show official (secretary/chairman/steward) can manage.
 -- Legacy myK9Q rows with NULL show_id fall back to global secretary/admin check.
 CREATE POLICY "Secretary can manage volunteers"
   ON volunteers FOR ALL TO authenticated
   USING (
     CASE
-      WHEN show_id IS NOT NULL THEN (SELECT public.is_show_secretary(show_id))
+      WHEN show_id IS NOT NULL THEN (SELECT public.is_show_official(show_id))
       ELSE (SELECT public.has_role('secretary')) OR (SELECT public.is_platform_admin())
     END
   );
@@ -184,7 +184,7 @@ CREATE POLICY "Secretary can manage class assignments"
       SELECT 1 FROM public.volunteers v
       WHERE v.id = volunteer_id
         AND CASE
-          WHEN v.show_id IS NOT NULL THEN (SELECT public.is_show_secretary(v.show_id))
+          WHEN v.show_id IS NOT NULL THEN (SELECT public.is_show_official(v.show_id))
           ELSE (SELECT public.has_role('secretary')) OR (SELECT public.is_platform_admin())
         END
     )
@@ -198,7 +198,7 @@ CREATE POLICY "Secretary can manage general assignments"
       SELECT 1 FROM public.volunteers v
       WHERE v.id = volunteer_id
         AND CASE
-          WHEN v.show_id IS NOT NULL THEN (SELECT public.is_show_secretary(v.show_id))
+          WHEN v.show_id IS NOT NULL THEN (SELECT public.is_show_official(v.show_id))
           ELSE (SELECT public.has_role('secretary')) OR (SELECT public.is_platform_admin())
         END
     )
@@ -209,33 +209,59 @@ CREATE POLICY "Secretary can manage general assignments"
 -- =============================================================================
 -- Migration 079 restricts user_roles INSERT to is_platform_admin() only.
 -- Secretaries need to grant official roles (secretary, chairman, steward)
--- scoped to shows. For the initial show creation, is_show_secretary() would
--- fail (no secretary exists yet), so we allow any user with a secretary role
--- (global or scoped) to grant show-scoped official roles. The constraint is:
--- must be show-scoped (show_id NOT NULL) and role must be an official role.
+-- scoped to shows. Three cases are allowed:
+-- 1. Platform admin (can always grant)
+-- 2. Existing show secretary (can manage their show's officials)
+-- 3. Bootstrap: no secretary exists yet for the show (initial creation)
 
 CREATE POLICY "secretary_grant_show_officials" ON user_roles
   FOR INSERT TO authenticated
   WITH CHECK (
     show_id IS NOT NULL
-    AND (SELECT public.has_role('secretary') OR public.is_platform_admin())
     AND EXISTS (
       SELECT 1 FROM public.roles r
       WHERE r.id = role_id
         AND r.name IN ('secretary', 'chairman', 'steward')
     )
+    AND (
+      (SELECT public.is_platform_admin())
+      OR (SELECT public.is_show_official(show_id))
+      OR NOT EXISTS (
+        SELECT 1 FROM public.user_roles ur2
+        JOIN public.roles r2 ON r2.id = ur2.role_id
+        WHERE ur2.show_id = user_roles.show_id
+          AND r2.name = 'secretary'
+          AND ur2.is_active = true
+      )
+    )
   );
 
--- Allow secretaries to update (reactivate) show-scoped official roles
+-- Allow secretaries to update (reactivate) show-scoped official roles.
+-- WITH CHECK prevents show_id mutation on existing rows.
 CREATE POLICY "secretary_update_show_officials" ON user_roles
   FOR UPDATE TO authenticated
   USING (
     show_id IS NOT NULL
-    AND (SELECT public.has_role('secretary') OR public.is_platform_admin())
     AND EXISTS (
       SELECT 1 FROM public.roles r
       WHERE r.id = role_id
         AND r.name IN ('secretary', 'chairman', 'steward')
+    )
+    AND (
+      (SELECT public.is_platform_admin())
+      OR (SELECT public.is_show_official(show_id))
+    )
+  )
+  WITH CHECK (
+    show_id IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM public.roles r
+      WHERE r.id = role_id
+        AND r.name IN ('secretary', 'chairman', 'steward')
+    )
+    AND (
+      (SELECT public.is_platform_admin())
+      OR (SELECT public.is_show_official(show_id))
     )
   );
 

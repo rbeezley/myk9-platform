@@ -372,6 +372,14 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ---
 
+## Fix Pre-Existing Test Failures — 2026-03-30 19:01
+
+- **Fix useCheckInMutation test failure** — 1 test failing in check-in mutation hook. **Problem:** `useCheckInMutation > should call supabase to update entry_status` fails — likely stale mock or changed API shape after check-in status system was added (migration 092). **Files:** `apps/myk9show/src/test/hooks/mutations/useCheckInMutation.test.ts`, `apps/myk9show/src/hooks/mutations/` (source hook).
+
+- **Fix ClassResultsTable search-filter test failures** — 10 tests failing in search/filter test suite. **Problem:** All tests in `search-filter.test.tsx` fail — renders search input, placeholder, dog/handler/armband filtering, case sensitivity, clear button, tab filtering, no-results state. Likely caused by component restructuring (SubTabs, SearchBar, ViewToggle additions) that changed the DOM structure the tests expect. **Files:** `apps/myk9show/src/components/classes/ClassResultsTable/__tests__/search-filter.test.tsx`, `apps/myk9show/src/components/classes/ClassResultsTable/index.tsx`.
+
+---
+
 ## Port AskQ AI Assistant to myK9Show - 2026-03-30 18:11
 
 - **Port AskQ (Ask Queue) from myK9Q to myK9Show** — AI-powered assistant that answers rule questions via full-text search and natural language show data queries (e.g., "How did my dog Buddy do today?"). **Problem:** myK9Show has no equivalent — users cannot ask rule questions or query their show data conversationally. myK9Q's implementation uses Claude Haiku with 5 Supabase-backed tools (`search_rules`, `get_class_summary`, `get_entry_results`, `get_trial_overview`, `search_entries`), a chatbot UI with source attribution, FAQ browsing with offline IndexedDB cache, response caching (5min rules / 30s data), query analytics logging, and user ratings. myK9Show's authenticated model is an advantage over myK9Q's passcode model — queries can be scoped to the user's own entries without favorites. **Files:** Edge function: `apps/myk9q/supabase/functions/ask-myk9q/` (7 files: index.ts, promptBuilder.ts, toolDefinitions.ts, toolExecutor.ts, ruleLookup.ts, responseFormatter.ts, types.ts). Frontend components: `apps/myk9q/src/components/chatbot/` (7 files: AskMyK9Q.tsx, AnswerSection.tsx, SourcesSection.tsx, ChatInputFooter.tsx, FAQSection.tsx, chatbotUtils.ts, AskMyK9Q.css). Services: `apps/myk9q/src/services/chatbotService.ts`, `apps/myk9q/src/services/faq/` (4 files). DB tables: `rules`, `askq_knowledge_base`, `faq_categories`, `chatbot_query_log`. **Solution:** Reuse the existing `ask-myk9q` Edge Function (or fork as `ask-myk9show` with auth-aware scoping). Port frontend components to myK9Show using shadcn/Tailwind (replace myK9Q's semantic CSS). Leverage authenticated user context to auto-scope "my dog" queries to the user's entries. Consider placing as a floating chat button or dedicated route.

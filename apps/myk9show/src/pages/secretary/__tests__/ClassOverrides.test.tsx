@@ -8,6 +8,7 @@ import type {
 } from '@/hooks/queries/useShowSettingsDatabase';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { SyncableClassData } from '@/store/classStore';
+import { ClassOverrides } from '../ResultsControlPage/ClassOverrides';
 
 // Mock mutations
 const mockUpdateClassOverride = { mutate: vi.fn(), isPending: false };
@@ -295,5 +296,86 @@ describe('SelfCheckinSection — Class Overrides', () => {
       }),
       expect.any(Object)
     );
+  });
+});
+
+// ─── New ClassOverrides component tests ───────────────────────────────────────
+
+const newTrials: SyncableTrial[] = [
+  {
+    id: 'trial-1',
+    name: 'Trial A',
+    showId: 'show-1',
+    _version: 1,
+    _lastModified: new Date(),
+    _lastModifiedBy: '',
+    _syncStatus: 'synced',
+  } as SyncableTrial,
+];
+
+const newClasses: SyncableClassData[] = [
+  {
+    id: 'class-1',
+    trialId: 'trial-1',
+    element: 'Standard',
+    level: 'Novice',
+  } as SyncableClassData,
+  {
+    id: 'class-2',
+    trialId: 'trial-1',
+    element: 'Standard',
+    level: 'Open',
+  } as SyncableClassData,
+];
+
+function renderClassOverridesComponent(overrides?: {
+  selectedClasses?: Set<string>;
+  onToggleClass?: (id: string) => void;
+  onToggleAllInTrial?: (trialId: string, classIds: string[]) => void;
+}) {
+  const selectedClasses = overrides?.selectedClasses ?? new Set<string>();
+  return render(
+    <ClassOverrides
+      showId="show-1"
+      trials={newTrials}
+      classes={newClasses}
+      classOverrides={[]}
+      trialOverrides={[]}
+      selectedClasses={selectedClasses}
+      onToggleClass={overrides?.onToggleClass ?? vi.fn()}
+      onToggleAllInTrial={overrides?.onToggleAllInTrial ?? vi.fn()}
+    />
+  );
+}
+
+describe('ClassOverrides', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders class names grouped by trial', async () => {
+    const { user } = renderClassOverridesComponent();
+    // Expand the trial collapsible
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    expect(screen.getByText(/novice/i)).toBeInTheDocument();
+    expect(screen.getByText(/open/i)).toBeInTheDocument();
+  });
+
+  it('calls onToggleClass when checkbox is clicked', async () => {
+    const onToggle = vi.fn();
+    const { user } = renderClassOverridesComponent({ onToggleClass: onToggle });
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    const checkboxes = screen.getAllByRole('checkbox');
+    await user.click(checkboxes[1]); // first class checkbox (index 0 is select-all)
+    expect(onToggle).toHaveBeenCalledWith('class-1');
+  });
+
+  it('calls onToggleAllInTrial when select-all checkbox is clicked', async () => {
+    const onToggleAll = vi.fn();
+    const { user } = renderClassOverridesComponent({ onToggleAllInTrial: onToggleAll });
+    await user.click(screen.getByRole('button', { name: /trial a/i }));
+    const checkboxes = screen.getAllByRole('checkbox');
+    await user.click(checkboxes[0]); // select-all checkbox
+    expect(onToggleAll).toHaveBeenCalledWith('trial-1', ['class-1', 'class-2']);
   });
 });

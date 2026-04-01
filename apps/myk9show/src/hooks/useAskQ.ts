@@ -48,7 +48,7 @@ export function useAskQ() {
       }));
 
       try {
-        const request: AskQRequest = { message, showId };
+        const request: AskQRequest = showId ? { message, showId } : { message };
         const stream = await sendAskQQuery(request);
 
         let answer = '';

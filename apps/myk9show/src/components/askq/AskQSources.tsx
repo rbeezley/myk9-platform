@@ -62,9 +62,9 @@ function SourceItem({ type, item }: { type: string; item: Record<string, unknown
       return (
         <div className="text-xs bg-background rounded px-2.5 py-2 border">
           <p className="font-medium">{item.title as string}</p>
-          {item.section && (
-            <p className="text-muted-foreground mt-0.5">Section {item.section as string}</p>
-          )}
+          {item.section ? (
+            <p className="text-muted-foreground mt-0.5">Section {String(item.section)}</p>
+          ) : null}
         </div>
       );
     case 'entries':
@@ -72,10 +72,10 @@ function SourceItem({ type, item }: { type: string; item: Record<string, unknown
         <div className="text-xs bg-background rounded px-2.5 py-2 border flex items-center justify-between">
           <span className="font-medium">{item.dog_name as string}</span>
           <div className="flex items-center gap-2">
-            {item.placement && (
-              <span className="text-muted-foreground">#{item.placement as number}</span>
-            )}
-            {item.qualification_status && (
+            {item.placement ? (
+              <span className="text-muted-foreground">#{String(item.placement)}</span>
+            ) : null}
+            {item.qualification_status ? (
               <span
                 className={
                   item.qualification_status === 'Q'
@@ -83,9 +83,9 @@ function SourceItem({ type, item }: { type: string; item: Record<string, unknown
                     : 'text-muted-foreground'
                 }
               >
-                {item.qualification_status as string}
+                {String(item.qualification_status)}
               </span>
-            )}
+            ) : null}
           </div>
         </div>
       );

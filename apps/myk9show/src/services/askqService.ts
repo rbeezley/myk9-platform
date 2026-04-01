@@ -98,7 +98,10 @@ export async function parseSSEStream(
 }
 
 export async function submitFeedback(feedback: AskQFeedback): Promise<void> {
-  const { error } = await supabase.from('chatbot_feedback').insert({
+  // Table will exist after migration; bypass generated types until schema is regenerated
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = supabase as any;
+  const { error } = await client.from('chatbot_feedback').insert({
     query_log_id: feedback.queryLogId,
     rating: feedback.rating,
     report_text: feedback.reportText,

@@ -30,7 +30,7 @@ export function AskQPanel() {
     (query: string) => {
       askq.submitQuery(query, showId);
     },
-    [askq.submitQuery, showId]
+    [askq, showId]
   );
 
   const isInputDisabled = askq.status === 'streaming' || askq.status === 'rate-limited';

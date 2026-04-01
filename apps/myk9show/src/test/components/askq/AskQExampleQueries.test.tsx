@@ -1,6 +1,6 @@
 // apps/myk9show/src/test/components/askq/AskQExampleQueries.test.tsx
 import { screen } from '@testing-library/react';
-import { render, userEvent } from '@/test/utils/testUtils';
+import { render } from '@/test/utils/testUtils';
 import { AskQExampleQueries } from '@/components/askq/AskQExampleQueries';
 
 describe('AskQExampleQueries', () => {

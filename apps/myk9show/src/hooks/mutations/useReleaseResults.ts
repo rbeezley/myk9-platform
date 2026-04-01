@@ -6,6 +6,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
+import { useAuth } from '@/hooks/useAuth';
 import { settingsQueryKeys } from '../queries/useShowSettingsDatabase';
 
 interface ReleaseResultsInput {
@@ -15,13 +16,17 @@ interface ReleaseResultsInput {
 
 export function useReleaseResults() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ classIds }: ReleaseResultsInput) => {
       if (classIds.length === 0) return;
       const { error } = await supabase
         .from('classes')
-        .update({ results_released_at: new Date().toISOString() })
+        .update({
+          results_released_at: new Date().toISOString(),
+          results_released_by: user?.id ?? null,
+        })
         .in('id', classIds);
 
       if (error) throw error;

@@ -21,7 +21,9 @@ vi.mock('@/hooks/useAuth', () => ({
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 
 function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
@@ -41,7 +43,10 @@ describe('useReleaseResults', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ results_released_at: expect.any(String) })
+      expect.objectContaining({
+        results_released_at: expect.any(String),
+        results_released_by: 'user-123',
+      })
     );
     expect(mockIn).toHaveBeenCalledWith('id', ['class-1', 'class-2']);
   });

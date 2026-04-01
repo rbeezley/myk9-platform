@@ -178,6 +178,7 @@ export const showSchemas = {
         val => Array.isArray(val),
         { message: 'Invalid judge assignments' }
       ),
+      startingArmbandNumber: z.number().int().min(1).optional(),
       maxEntriesPerDog: z.number().optional(),
       maxTotalEntries: z.number().optional(),
       allowNonOwnerHandlers: z.boolean().optional(),

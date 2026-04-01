@@ -155,6 +155,9 @@ export const showSchemas = {
       startDate: z.string().min(1, 'Please select a start date'),
       endDate: z.string().min(1, 'Please select an end date'),
       location: z.string(),
+      chairman: z.string(),
+      secretary: z.string(),
+      chiefSteward: z.string(),
       entryOpenDate: z.string(),
       entryCloseDate: z.string(),
       preEntryFee: z.string().refine(

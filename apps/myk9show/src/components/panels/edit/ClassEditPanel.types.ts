@@ -11,6 +11,7 @@ export interface ClassEditPanelProps {
   onSave?: (classData: Partial<ClassData | TrialClass>) => Promise<void>;
   enableAutoSave?: boolean;
   showId?: string;
+  mode?: 'full' | 'simple'; // 'full' for ClassData with tabs, 'simple' for TrialClass
 }
 
 // Form data interface for ClassData
@@ -46,4 +47,16 @@ export interface ClassEditFormData extends Record<string, unknown> {
   // Fee structure
   preEntryFee?: number;
   dayOfShowFee?: number;
+}
+
+// Form data interface for simple TrialClass
+export interface TrialClassEditFormData extends Record<string, unknown> {
+  element: string;
+  level: string;
+  section: string;
+  judgeId: string;
+  judgeName?: string;
+  startTime: string;
+  status: ClassStatusValue;
+  entries: number;
 }

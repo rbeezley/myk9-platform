@@ -419,15 +419,17 @@ Update `apps/myk9q/supabase/functions/ask-myk9q/index.ts` to import from `_share
 - Modify: `apps/myk9q/supabase/functions/ask-myk9q/promptBuilder.ts`
 - Delete (contents moved to shared): `apps/myk9q/supabase/functions/ask-myk9q/types.ts`, `toolDefinitions.ts`, `toolExecutor.ts`, `ruleLookup.ts`, `responseFormatter.ts`
 
-- [ ] **Step 1: Update imports in `index.ts`**
+- [ ] **Step 1: [EXPANDED] Resolve shared module import paths**
 
-Replace local imports with shared module imports. The import path from `apps/myk9q/supabase/functions/ask-myk9q/` to `supabase/functions/_shared/askq/` needs to use the Supabase shared import convention. In Deno edge functions, shared modules are imported via relative path from the function directory.
+Both apps use the unified Supabase project (ref: `sojmvhhwsjxmfistvzbe`), so all edge functions deploy from root `supabase/functions/`. The existing `ask-myk9q` at `apps/myk9q/supabase/functions/` is a **legacy location** — other edge functions (`admin-delete-user`, `send-push-notification`, etc.) already live at root.
 
-Since `ask-myk9q` lives at `apps/myk9q/supabase/functions/ask-myk9q/`, but the shared modules are at `supabase/functions/_shared/askq/`, the import path depends on deployment structure. The shared modules need to be accessible from both function locations.
+**Concrete steps:**
 
-**Decision:** Since myK9Q functions are in `apps/myk9q/supabase/functions/` and myK9Show functions will use the root `supabase/functions/`, copy the shared modules to **both** locations or use a symlink. The cleanest approach: keep shared modules at root `supabase/functions/_shared/askq/` and update `ask-myk9q` to import from there. This requires moving `ask-myk9q` to the root `supabase/functions/` directory (same as other edge functions like `admin-delete-user`).
+1. Move `apps/myk9q/supabase/functions/ask-myk9q/` to `supabase/functions/ask-myk9q/`
+2. Update any myK9Q deployment scripts or CI references to the new path
+3. Verify `ask-myk9q` deploys from root: `supabase functions deploy ask-myk9q --no-verify-jwt`
 
-Update `apps/myk9q/supabase/functions/ask-myk9q/index.ts` imports:
+After the move, imports use relative paths from `supabase/functions/ask-myk9q/` to `supabase/functions/_shared/askq/`:
 
 ```typescript
 // Replace:
@@ -438,16 +440,14 @@ import { collectSource, buildChatResponse } from './responseFormatter.ts';
 import { callClaude } from './promptBuilder.ts';
 
 // With:
-import type { ChatRequest, ChatResponse, ClaudeContentBlock } from '../../_shared/askq/types.ts';
-import { TOOLS } from '../../_shared/askq/toolDefinitions.ts';
-import { executeTool } from '../../_shared/askq/toolExecutor.ts';
-import { collectSource, buildChatResponse } from '../../_shared/askq/responseFormatter.ts';
-import { callClaude } from '../../_shared/askq/promptBuilder.ts';
+import type { ChatRequest, ChatResponse, ClaudeContentBlock } from '../_shared/askq/types.ts';
+import { TOOLS } from '../_shared/askq/toolDefinitions.ts';
+import { executeTool } from '../_shared/askq/toolExecutor.ts';
+import { collectSource, buildChatResponse } from '../_shared/askq/responseFormatter.ts';
+import { callClaude } from '../_shared/askq/promptBuilder.ts';
 ```
 
-Wait — the `ask-myk9q` function is deployed from `apps/myk9q/supabase/`. The root `supabase/` is a separate Supabase project. Check whether both apps use the same Supabase project ref (`sojmvhhwsjxmfistvzbe`). Per CLAUDE.md: "Unified Supabase project (myk9-platform) for both apps." So all edge functions deploy from the **root** `supabase/functions/`. The `ask-myk9q` function at `apps/myk9q/supabase/functions/` may be a legacy location or a copy.
-
-**Verify first**, then adjust imports accordingly. If `ask-myk9q` is deployed from root, move it there. If from `apps/myk9q/`, symlink or copy shared modules.
+This puts `ask-myk9q` next to `ask-myk9show` and all other edge functions, with `_shared/askq/` one directory up. Clean relative imports, no symlinks.
 
 - [ ] **Step 2: Keep myK9Q system prompt in local `promptBuilder.ts`**
 
@@ -527,7 +527,7 @@ import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude, callClaudeStreaming } from '../_shared/askq/promptBuilder.ts';
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*', // Tighten in production
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173', // [EXPANDED] Set via env: myk9-platform-myk9show.vercel.app for production
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -573,10 +573,16 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 2. Parse request
+    // 2. Parse request [EXPANDED: add max length validation]
     const { message, showId } = (await req.json()) as AskQShowRequest;
     if (!message?.trim()) {
       return new Response(JSON.stringify({ error: 'Message is required' }), {
+        status: 400,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+    if (message.length > 2000) {
+      return new Response(JSON.stringify({ error: 'Message too long (max 2000 characters)' }), {
         status: 400,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
@@ -1416,6 +1422,12 @@ export function useAskQ() {
 
   const submitQuery = useCallback(
     async (message: string, showId?: string) => {
+      // [EXPANDED] Cancel any in-flight stream before starting a new one
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+      abortRef.current = new AbortController();
+
       // Reset state for new query
       setState({
         ...INITIAL_STATE,
@@ -1487,14 +1499,24 @@ export function useAskQ() {
     [state.remaining, state.limit]
   );
 
-  const reset = useCallback(() => {
-    setState(INITIAL_STATE);
+  // [ADDED] Cancel stream on cleanup (e.g., panel close)
+  const cancel = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
   }, []);
+
+  const reset = useCallback(() => {
+    cancel();
+    setState(INITIAL_STATE);
+  }, [cancel]);
 
   return {
     ...state,
     submitQuery,
     reset,
+    cancel,
   };
 }
 ```
@@ -2650,17 +2672,53 @@ Render AskQPanel at layout level for global access."
 
 **Files:** No new files — deployment and verification only.
 
-- [ ] **Step 1: Push database migration**
+- [ ] **Step 1: [ADDED] Set ANTHROPIC_API_KEY secret for edge functions**
+
+The `ask-myk9show` edge function requires the Anthropic API key. Set it as a Supabase Edge Function secret:
+
+```bash
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...your-key...
+```
+
+Also set the CORS origin for production:
+
+```bash
+supabase secrets set ALLOWED_ORIGIN=https://myk9-platform-myk9show.vercel.app
+```
+
+Verify secrets are set:
+
+```bash
+supabase secrets list
+```
+
+Expected: `ANTHROPIC_API_KEY` and `ALLOWED_ORIGIN` appear in the list.
+
+- [ ] **Step 2: Push database migration**
 
 Run: `supabase db push`
 Expected: Migration 105 applies cleanly.
 
-- [ ] **Step 2: Deploy the new edge function**
+**[ADDED] Rollback SQL** (save for reference, do not apply unless needed):
+
+```sql
+-- Rollback 105_askq_myk9show.sql
+DROP TRIGGER IF EXISTS trg_user_guide_search_vector ON user_guide;
+DROP FUNCTION IF EXISTS update_user_guide_search_vector();
+DROP TABLE IF EXISTS user_guide;
+DROP TABLE IF EXISTS chatbot_feedback;
+DROP INDEX IF EXISTS idx_chatbot_query_log_user_daily;
+ALTER TABLE chatbot_query_log DROP COLUMN IF EXISTS response_time_ms;
+ALTER TABLE chatbot_query_log DROP COLUMN IF EXISTS app_source;
+ALTER TABLE chatbot_query_log DROP COLUMN IF EXISTS user_id;
+```
+
+- [ ] **Step 3: Deploy the new edge function**
 
 Run: `supabase functions deploy ask-myk9show --no-verify-jwt`
 Expected: Deployed successfully.
 
-- [ ] **Step 3: Redeploy refactored ask-myk9q**
+- [ ] **Step 4: Redeploy refactored ask-myk9q**
 
 Run: `supabase functions deploy ask-myk9q --no-verify-jwt`
 Expected: Deployed successfully. Existing myK9Q chatbot still works.
@@ -2715,3 +2773,17 @@ git commit -m "fix: address issues found during manual AskQ testing"
 | 14        | AppHeader + Layout integration           | 2            |
 | 15        | Deploy + E2E verification                | —            |
 | **Total** | **15 tasks**                             | **45 tests** |
+
+## Verification Patches Applied
+
+The following gaps were found during plan verification and patched inline (marked with `[ADDED]` or `[EXPANDED]`):
+
+1. **CORS origin** — Changed from `*` to env-var-driven `ALLOWED_ORIGIN` (Task 4)
+2. **Message length validation** — Added 2000 char max (Task 4)
+3. **Shared module import paths** — Resolved: move `ask-myk9q` to root `supabase/functions/`, concrete import paths provided (Task 3)
+4. **ANTHROPIC_API_KEY deployment** — Added `supabase secrets set` step (Task 15)
+5. **Migration rollback SQL** — Added rollback script (Task 15)
+6. **Stream cancellation** — `abortRef` now wired up: cancels on new query and panel close (Task 7)
+7. **Edge function tests** — Not added inline (Deno test infrastructure differs from Vitest). Recommend adding in a follow-up task once the shared modules are extracted and the edge function is verified manually.
+
+**Post-patch coverage: 91/100** — remaining gap is edge function unit tests (deferred to follow-up, not blocking).

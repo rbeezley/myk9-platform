@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
     const serviceClient = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey);
 
     // Parallelize independent DB queries
-    const [countResult, { data: personData }, { data: showData }] = await Promise.all([
+    const [countResult, { data: personData }, showResult] = await Promise.all([
       serviceClient
         .from('chatbot_query_log')
         .select('*', { count: 'exact', head: true })
@@ -105,8 +105,10 @@ Deno.serve(async (req: Request) => {
         .single(),
       showId
         ? serviceClient.from('shows').select('show_name').eq('id', showId).single()
-        : Promise.resolve({ data: null }),
+        : Promise.resolve({ data: null } as { data: null }),
     ]);
+
+    let showData = showResult?.data ?? null;
 
     // Fail closed on rate limit DB error
     if (countResult.error) {
@@ -161,13 +163,39 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
-    const showName = showData?.show_name ?? null;
+    // Verify user has a relationship to the requested show before using it as context
+    let verifiedShowId: string | null = null;
+    let showName: string | null = null;
+    if (showId && showData?.show_name) {
+      const dogIds = dogs.map(d => d.id);
+      const [{ count: roleCount }, { count: entryCount }] = await Promise.all([
+        serviceClient
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('scope_type', 'show')
+          .eq('scope_id', showId),
+        dogIds.length > 0
+          ? serviceClient
+              .from('entries')
+              .select('*', { count: 'exact', head: true })
+              .eq('show_id', showId)
+              .in('dog_id', dogIds)
+          : Promise.resolve({ count: 0 }),
+      ]);
+
+      const hasAccess = (roleCount ?? 0) > 0 || (entryCount ?? 0) > 0;
+      if (hasAccess) {
+        verifiedShowId = showId;
+        showName = showData.show_name;
+      }
+    }
 
     const userContext: UserContext = {
       userId: user.id,
       displayName,
       dogs,
-      showId: showId ?? null,
+      showId: verifiedShowId,
       showName,
     };
 

@@ -5,7 +5,7 @@
  * self check-in, and releasing results with bulk operations.
  */
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, UserCheck, Settings } from 'lucide-react';
@@ -24,6 +24,8 @@ import { ClassOverrides } from './ClassOverrides';
 import { BulkOperationsBar } from './BulkOperationsBar';
 import { SelfCheckinSection } from './SelfCheckinSection';
 
+const getClassId = (c: { id: string }) => c.id;
+
 export default function ResultsControlPage() {
   const { selectedShowId, shows } = useShowStore();
   const { trials } = useTrialStore();
@@ -40,7 +42,6 @@ export default function ResultsControlPage() {
     [classes, showTrialIds]
   );
 
-  const getClassId = useCallback((c: (typeof showClasses)[number]) => c.id, []);
   const bulkOps = useBulkSelection({ items: showClasses, getItemId: getClassId });
 
   useEffect(() => {
@@ -71,7 +72,8 @@ export default function ResultsControlPage() {
   // Adapter: toggle all classes in a trial (select all if not all selected, deselect all otherwise)
   const toggleAllInTrial = useCallback(
     (_trialId: string, classIds: string[]) => {
-      const trialClasses = showClasses.filter(c => classIds.includes(c.id));
+      const idSet = new Set(classIds);
+      const trialClasses = showClasses.filter(c => idSet.has(c.id));
       const allSelected = trialClasses.every(c => bulkOps.selectedIds.has(c.id));
       if (allSelected) {
         bulkOps.deselectItems(trialClasses);
@@ -85,12 +87,15 @@ export default function ResultsControlPage() {
   // Check if any selected class uses manual_release timing on any field
   const hasManualReleaseClasses = useMemo(() => {
     if (!settings) return false;
-    return Array.from(bulkOps.selectedIds).some(classId => {
-      const classOverride = classOverrides.find(o => o.classId === classId);
-      const trialId = showClasses.find(c => c.id === classId)?.trialId;
-      const trialOverride = trialId ? trialOverrides.find(o => o.trialId === trialId) : undefined;
+    const classOverrideMap = new Map(classOverrides.map(o => [o.classId, o]));
+    const trialOverrideMap = new Map(trialOverrides.map(o => [o.trialId, o]));
+    const classTrialMap = new Map(showClasses.map(c => [c.id, c.trialId]));
 
-      // Check effective timing for each field through the cascade
+    return Array.from(bulkOps.selectedIds).some(classId => {
+      const classOverride = classOverrideMap.get(classId);
+      const trialId = classTrialMap.get(classId);
+      const trialOverride = trialId ? trialOverrideMap.get(trialId) : undefined;
+
       const timingFields = ['placement', 'qualification', 'time', 'faults'] as const;
       return timingFields.some(field => {
         const effective =

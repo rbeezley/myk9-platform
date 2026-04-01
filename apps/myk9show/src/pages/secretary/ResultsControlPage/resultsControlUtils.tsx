@@ -11,19 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Zap, Clock, Lock } from 'lucide-react';
-import {
-  type VisibilityPreset,
-  type VisibilityTiming,
-  type FieldTimings,
-  detectPreset,
-  fieldTimingsFromVisibility,
-  hasVisibilityOverride,
-} from '@myk9/secretary';
+import { type VisibilityPreset, type VisibilityTiming } from '@myk9/secretary';
 import { TIMING_LABELS } from '@/components/secretary/settingsConstants';
-
-// Re-export shared logic so existing imports from this file still work
-export { detectPreset, fieldTimingsFromVisibility, hasVisibilityOverride };
-export type { FieldTimings };
 
 export const PRESET_ICONS: Record<VisibilityPreset, ReactNode> = {
   open: <Zap className="h-5 w-5 text-green-500" />,

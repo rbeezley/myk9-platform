@@ -50,7 +50,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 - [ ] **Reconcile dual visibility table schema (migration 060 vs 093)** — Migration 060 created `show_visibility_settings`, `trial_visibility_overrides`, `class_visibility_overrides`. Migration 093 created a parallel set: `show_result_visibility_defaults`, `trial_result_visibility_overrides`, `class_result_visibility_overrides`. All mutations write to the 060 tables. The 093 tables have separate RLS policies (including judge write access) and may be read by other code paths. **Problem:** Data written via the Results Control Page is invisible to any consumer reading the 093 tables. Judges can write to 093 tables directly via the API, bypassing frontend role guards. **Files:** `supabase/migrations/060_show_settings.sql`, `supabase/migrations/093_result_visibility_tables.sql`. **Solution:** Drop one set of tables and migrate data to the other. Keep the 060 tables (actively used by mutations), drop 093 tables, and update any consumers that reference the 093 table names.
 
-- [ ] **Add `results_released_by` audit column to `classes` table** — `useReleaseResults` sets `results_released_at` but there is no `results_released_by` column in the shared schema. **Problem:** When results are released prematurely or disputed, there is no database record of who performed the action. **Files:** `supabase/migrations/002_shows_and_events.sql` (schema), `apps/myk9show/src/hooks/mutations/useReleaseResults.ts` (mutation). **Solution:** Add migration: `ALTER TABLE classes ADD COLUMN results_released_by UUID REFERENCES auth.users(id)`. Update `useReleaseResults` to write `results_released_by: user.id` alongside `results_released_at`.
+- [x] **Add `results_released_by` audit column to `classes` table** — Done. Migration `100_add_results_released_by.sql` adds column; `useReleaseResults` writes user ID.
 
 ---
 
@@ -70,9 +70,9 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Results Control Page — Follow-up Cleanup (2026-03-31)
 
-- [ ] **Move `detectPreset` and `hasVisibilityOverride` to `@myk9/secretary`** — Both are pure domain logic currently in `ResultsControlPage/resultsControlUtils.tsx`. `detectPreset` reverse-maps field timings to a preset name (useful to both apps). `hasVisibilityOverride` checks whether an override has any non-null field (duplicates internal cascade guard). **Files:** Move from `apps/myk9show/src/pages/secretary/ResultsControlPage/resultsControlUtils.tsx` to `packages/secretary/src/visibility/visibility-presets.ts`, re-export from `packages/secretary/src/index.ts`, update imports in myK9Show.
+- [x] **Move `detectPreset` and `hasVisibilityOverride` to `@myk9/secretary`** — Done. Functions + `FieldTimings` type moved to `packages/secretary/src/visibility/`. Consumers updated.
 
-- [ ] **Replace `useBulkClassOperations` with existing `useBulkSelection<T>`** — `useBulkClassOperations` (in `hooks/useBulkClassOperations.ts`) reimplements Set-based toggle/selectAll/clearSelection that already exists as a generic `useBulkSelection<T>` in `hooks/useBulkSelection.ts`. **Files:** Delete `useBulkClassOperations.ts`, update `ResultsControlPage/index.tsx` to use `useBulkSelection({ items: showClasses, getItemId: c => c.id })`, adapt `toggleClass` → `toggleItem` and `toggleAllInTrial` → `selectItems`/`deselectItems`. Update tests accordingly.
+- [x] **Replace `useBulkClassOperations` with existing `useBulkSelection<T>`** — Done. Redundant hook deleted; `ResultsControlPage` now uses `useBulkSelection`.
 
 ---
 

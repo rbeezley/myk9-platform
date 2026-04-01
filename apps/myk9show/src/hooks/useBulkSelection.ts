@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 
 export interface UseBulkSelectionOptions<T> {
   items: T[];
@@ -19,9 +19,12 @@ export function useBulkSelection<T>({
   }, [items, selectedIds, getItemId]);
 
   // Selection state checks
-  const isSelected = useCallback((item: T) => {
-    return selectedIds.has(getItemId(item));
-  }, [selectedIds, getItemId]);
+  const isSelected = useCallback(
+    (item: T) => {
+      return selectedIds.has(getItemId(item));
+    },
+    [selectedIds, getItemId]
+  );
 
   const isAllSelected = useMemo(() => {
     return items.length > 0 && items.every(item => selectedIds.has(getItemId(item)));
@@ -32,31 +35,40 @@ export function useBulkSelection<T>({
   }, [selectedIds.size, isAllSelected]);
 
   // Selection actions
-  const selectItem = useCallback((item: T) => {
-    const id = getItemId(item);
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      newSet.add(id);
-      return newSet;
-    });
-  }, [getItemId]);
+  const selectItem = useCallback(
+    (item: T) => {
+      const id = getItemId(item);
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(id);
+        return newSet;
+      });
+    },
+    [getItemId]
+  );
 
-  const deselectItem = useCallback((item: T) => {
-    const id = getItemId(item);
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(id);
-      return newSet;
-    });
-  }, [getItemId]);
+  const deselectItem = useCallback(
+    (item: T) => {
+      const id = getItemId(item);
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    },
+    [getItemId]
+  );
 
-  const toggleItem = useCallback((item: T) => {
-    if (isSelected(item)) {
-      deselectItem(item);
-    } else {
-      selectItem(item);
-    }
-  }, [isSelected, selectItem, deselectItem]);
+  const toggleItem = useCallback(
+    (item: T) => {
+      if (isSelected(item)) {
+        deselectItem(item);
+      } else {
+        selectItem(item);
+      }
+    },
+    [isSelected, selectItem, deselectItem]
+  );
 
   const selectAll = useCallback(() => {
     const allIds = items.map(getItemId);
@@ -75,23 +87,29 @@ export function useBulkSelection<T>({
     }
   }, [isAllSelected, selectAll, deselectAll]);
 
-  const selectItems = useCallback((itemsToSelect: T[]) => {
-    const idsToSelect = itemsToSelect.map(getItemId);
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      idsToSelect.forEach(id => newSet.add(id));
-      return newSet;
-    });
-  }, [getItemId]);
+  const selectItems = useCallback(
+    (itemsToSelect: T[]) => {
+      const idsToSelect = itemsToSelect.map(getItemId);
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        idsToSelect.forEach(id => newSet.add(id));
+        return newSet;
+      });
+    },
+    [getItemId]
+  );
 
-  const deselectItems = useCallback((itemsToDeselect: T[]) => {
-    const idsToDeselect = itemsToDeselect.map(getItemId);
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      idsToDeselect.forEach(id => newSet.delete(id));
-      return newSet;
-    });
-  }, [getItemId]);
+  const deselectItems = useCallback(
+    (itemsToDeselect: T[]) => {
+      const idsToDeselect = itemsToDeselect.map(getItemId);
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        idsToDeselect.forEach(id => newSet.delete(id));
+        return newSet;
+      });
+    },
+    [getItemId]
+  );
 
   // Clear selection
   const clearSelection = useCallback(() => {
@@ -99,7 +117,7 @@ export function useBulkSelection<T>({
   }, []);
 
   // Call onSelectionChange when selection changes
-  useMemo(() => {
+  useEffect(() => {
     onSelectionChange?.(selectedItems);
   }, [selectedItems, onSelectionChange]);
 

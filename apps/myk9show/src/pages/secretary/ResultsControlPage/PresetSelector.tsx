@@ -8,18 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secretary';
-import { useUpdateShowVisibility } from '@/hooks/mutations/useShowSettingsMutations';
-import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import {
-  PRESET_ICONS,
-  ALL_TIMINGS,
-  PLACEMENT_TIMINGS,
-  TimingSelect,
+  PRESET_INFO,
+  PRESET_CONFIGS,
+  type VisibilityPreset,
+  type FieldTimings,
   detectPreset,
   fieldTimingsFromVisibility,
-  type FieldTimings,
-} from './resultsControlUtils';
+} from '@myk9/secretary';
+import { useUpdateShowVisibility } from '@/hooks/mutations/useShowSettingsMutations';
+import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
+import { PRESET_ICONS, ALL_TIMINGS, PLACEMENT_TIMINGS, TimingSelect } from './resultsControlUtils';
 
 interface PresetSelectorProps {
   showId: string;

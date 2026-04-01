@@ -96,16 +96,8 @@ Deno.serve(async (req: Request) => {
     }
     audienceIds.delete(announcement.author_id);
 
-    const exhibitorCount = exhibitors
-      ? new Set(
-          exhibitors
-            .map(e => e.dog?.owner?.auth_user_id)
-            .filter((id): id is string => id !== null && id !== undefined)
-        ).size
-      : 0;
-
     console.log(
-      `push-trigger-announcement: show=${announcement.show_id} priority=${announcement.priority} audience=${audienceIds.size} (${exhibitorCount} exhibitors, ${audienceIds.size - exhibitorCount} officials-only)`
+      `push-trigger-announcement: show=${announcement.show_id} priority=${announcement.priority} audience=${audienceIds.size}`
     );
 
     if (audienceIds.size === 0) {

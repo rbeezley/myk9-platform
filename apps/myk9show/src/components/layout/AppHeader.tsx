@@ -17,6 +17,7 @@ import {
   Palette,
   ShoppingCart,
   Info,
+  MessageSquare,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -41,6 +42,7 @@ import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount } from '@/stores/cartStore';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -52,6 +54,7 @@ const AppHeader: React.FC = () => {
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const cartItemCount = useCartItemCount();
+  const { toggle: toggleAskQ } = useAskQPanelStore();
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
 
@@ -229,6 +232,17 @@ const AppHeader: React.FC = () => {
                   )}
                 </Button>
 
+                {/* AskQ Assistant */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAskQ}
+                  className="p-1.5 rounded-lg"
+                  aria-label="AskQ Assistant"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+
                 {/* Profile Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -306,6 +320,13 @@ const AppHeader: React.FC = () => {
                     >
                       <Palette className="h-4 w-4" />
                       Preferences
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={toggleAskQ}
+                      className="w-full flex items-center gap-2 cursor-pointer"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      AskQ Assistant
                     </DropdownMenuItem>
 
                     {/* Role-specific menu items */}

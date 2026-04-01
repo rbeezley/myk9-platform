@@ -17,6 +17,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole, ScopeType } from '@/types/auth-types';
 import type { RoleScope } from '@/types/auth-types';
 import { useClubStore } from '@/store/clubStore';
+import { AskQPanel } from '@/components/askq/AskQPanel';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
 import type { ClubContext } from './sidebar/unifiedSidebarConfig';
 
@@ -56,23 +57,33 @@ export const UnifiedAppLayout: React.FC = () => {
 
   // Guest users see content without sidebar
   if (!user) {
-    return <Outlet />;
+    return (
+      <>
+        <Outlet />
+        {/* AskQ AI Assistant Panel */}
+        <AskQPanel />
+      </>
+    );
   }
 
   return (
-    <SidebarLayout
-      sidebar={<RoleSidebar config={sidebarConfig} />}
-      sidebarWidth={240}
-      collapsedWidth={56}
-      isCollapsible
-      isCollapsed
-      hoverToExpand
-      mobileMenuLabel="Navigation"
-      mobileOpen={mobileOpen}
-      onMobileOpenChange={setMobileOpen}
-    >
-      <Outlet />
-    </SidebarLayout>
+    <>
+      <SidebarLayout
+        sidebar={<RoleSidebar config={sidebarConfig} />}
+        sidebarWidth={240}
+        collapsedWidth={56}
+        isCollapsible
+        isCollapsed
+        hoverToExpand
+        mobileMenuLabel="Navigation"
+        mobileOpen={mobileOpen}
+        onMobileOpenChange={setMobileOpen}
+      >
+        <Outlet />
+      </SidebarLayout>
+      {/* AskQ AI Assistant Panel */}
+      <AskQPanel />
+    </>
   );
 };
 

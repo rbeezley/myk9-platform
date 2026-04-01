@@ -80,25 +80,6 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
             needed.
           </p>
 
-          <div className="max-w-[200px]">
-            <FormField label="Starting Armband Number" fieldId="startingArmbandNumber">
-              <Input
-                id="startingArmbandNumber"
-                type="number"
-                value={data.startingArmbandNumber ?? 100}
-                onChange={handleInputChange('startingArmbandNumber')}
-                onBlur={() => form?.touchField('startingArmbandNumber')}
-                placeholder="100"
-                min="1"
-              />
-            </FormField>
-            <p className="text-xs text-muted-foreground mt-1">
-              First dog registered will receive this armband number.
-            </p>
-          </div>
-
-          <Separator />
-
           <div className="space-y-4">
             <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Armband Settings

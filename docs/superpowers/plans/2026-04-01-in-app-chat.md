@@ -25,8 +25,7 @@
 
 ### Store & Hooks
 
-- `apps/myk9show/src/store/messageStore.ts` — Zustand store with realtime subscription (mirrors announcementStore pattern)
-- `apps/myk9show/src/hooks/queries/useMessages.ts` — React Query hooks for threads and messages
+- `apps/myk9show/src/store/messageStore.ts` — Zustand store with realtime subscription, data fetching with name enrichment (mirrors announcementStore pattern)
 - `apps/myk9show/src/hooks/mutations/useMessageMutations.ts` — Send message, mark read, send targeted
 
 ### UI Components
@@ -611,32 +610,43 @@ serve(async (req: Request) => {
       ? `Sent to all Class ${classInfo.class_number} (${classInfo.class_name}) exhibitors`
       : `Sent to all class exhibitors`;
 
-    // For each recipient: upsert thread, insert message
-    let sentCount = 0;
-    for (const recipientId of recipientIds) {
-      // Upsert thread
-      const { data: thread } = await supabase
-        .from('show_message_threads')
-        .upsert(
-          { show_id, participant_id: recipientId, last_message_at: new Date().toISOString() },
-          { onConflict: 'show_id,participant_id' }
-        )
-        .select('id')
-        .single();
+    // [EXPANDED] Batch upsert threads, then batch insert messages (avoids N+1)
+    const now = new Date().toISOString();
 
-      if (!thread) continue;
+    // Step 1: Batch upsert all threads
+    const threadUpserts = recipientIds.map(recipientId => ({
+      show_id,
+      participant_id: recipientId,
+      last_message_at: now,
+    }));
 
-      // Insert message
-      const { error: msgError } = await supabase.from('show_messages').insert({
-        show_id,
-        thread_id: thread.id,
-        sender_id: user.id,
-        body: body.trim(),
-        group_label: classLabel,
-      });
+    const { data: upsertedThreads, error: upsertError } = await supabase
+      .from('show_message_threads')
+      .upsert(threadUpserts, { onConflict: 'show_id,participant_id' })
+      .select('id, participant_id');
 
-      if (!msgError) sentCount++;
+    if (upsertError || !upsertedThreads) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to create threads', details: upsertError?.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    // Step 2: Batch insert messages into all threads
+    const messageInserts = upsertedThreads.map(thread => ({
+      show_id,
+      thread_id: thread.id,
+      sender_id: user.id,
+      body: body.trim(),
+      group_label: classLabel,
+    }));
+
+    const { data: insertedMessages, error: insertError } = await supabase
+      .from('show_messages')
+      .insert(messageInserts)
+      .select('id');
+
+    const sentCount = insertError ? 0 : (insertedMessages?.length ?? 0);
 
     return new Response(
       JSON.stringify({
@@ -1041,31 +1051,108 @@ export const useMessageStore = create<MessageState & MessageActions>((set, get) 
     set({ channels: [], currentShowIds: [] });
   },
 
+  // [EXPANDED] fetchThreads joins people table for participant name + latest message preview
   fetchThreads: async (showId: string) => {
     const { data, error } = await supabase
       .from('show_message_threads')
-      .select('*')
+      .select(
+        `
+        *,
+        participant:auth_user_id_fk(
+          people!inner(first_name, last_name)
+        )
+      `
+      )
       .eq('show_id', showId)
       .order('last_message_at', { ascending: false });
+
+    if (error) {
+      // Fallback: fetch without join if the relationship isn't set up
+      const { data: fallback } = await supabase
+        .from('show_message_threads')
+        .select('*')
+        .eq('show_id', showId)
+        .order('last_message_at', { ascending: false });
+      if (fallback) {
+        // Enrich with people lookup
+        const enriched = await Promise.all(
+          fallback.map(async (thread: any) => {
+            const { data: person } = await supabase
+              .from('people')
+              .select('first_name, last_name')
+              .eq('auth_user_id', thread.participant_id)
+              .single();
+            return {
+              ...thread,
+              participant_name: person
+                ? `${person.first_name} ${person.last_name}`.trim()
+                : 'Unknown',
+            };
+          })
+        );
+        set(s => {
+          const existingIds = new Set(s.threads.map(t => t.id));
+          const newThreads = enriched.filter((t: MessageThread) => !existingIds.has(t.id));
+          return { threads: [...s.threads, ...newThreads] };
+        });
+      }
+      return;
+    }
+
+    // Map joined data to flat structure
+    const enriched = (data || []).map((t: any) => ({
+      ...t,
+      participant_name: t.participant?.people
+        ? `${t.participant.people.first_name} ${t.participant.people.last_name}`.trim()
+        : 'Unknown',
+    }));
+
+    set(s => {
+      const existingIds = new Set(s.threads.map(t => t.id));
+      const newThreads = enriched.filter((t: MessageThread) => !existingIds.has(t.id));
+      return { threads: [...s.threads, ...newThreads] };
+    });
+  },
+
+  // [EXPANDED] fetchMessages joins people table for sender name
+  fetchMessages: async (threadId: string) => {
+    const { data: rawMessages, error } = await supabase
+      .from('show_messages')
+      .select('*')
+      .eq('thread_id', threadId)
+      .order('created_at', { ascending: true });
 
     if (error) {
       set({ error: error.message });
       return;
     }
 
-    set(s => {
-      const existingIds = new Set(s.threads.map(t => t.id));
-      const newThreads = (data || []).filter((t: MessageThread) => !existingIds.has(t.id));
-      return { threads: [...s.threads, ...newThreads] };
-    });
-  },
+    // Enrich with sender names — batch-fetch unique sender_ids
+    const messages = rawMessages || [];
+    const senderIds = [...new Set(messages.map((m: any) => m.sender_id))];
+    const senderMap = new Map<string, string>();
 
-  fetchMessages: async (threadId: string) => {
-    const { data, error } = await supabase
-      .from('show_messages')
-      .select('*')
-      .eq('thread_id', threadId)
-      .order('created_at', { ascending: true });
+    if (senderIds.length > 0) {
+      const { data: people } = await supabase
+        .from('people')
+        .select('auth_user_id, first_name, last_name')
+        .in('auth_user_id', senderIds);
+      (people || []).forEach((p: any) => {
+        senderMap.set(p.auth_user_id, `${p.first_name} ${p.last_name}`.trim());
+      });
+    }
+
+    const enriched = messages.map((m: any) => ({
+      ...m,
+      sender_name: senderMap.get(m.sender_id) || 'Unknown',
+    }));
+
+    const { data: enrichedData, error: enrichError } = { data: enriched, error: null };
+    void enrichError; // suppress unused
+
+    set(s => ({
+      messagesByThread: { ...s.messagesByThread, [threadId]: enriched },
+    }));
 
     if (error) {
       set({ error: error.message });
@@ -2858,7 +2945,17 @@ useEffect(() => {
 
 Adapt `activeShowIds` to however the app currently determines which shows the user is associated with.
 
-- [ ] **Step 4: Run typecheck**
+- [ ] **Step 4: [ADDED] Verify push notification dedup in service worker**
+
+Check `apps/myk9show/src/sw-custom.ts` to verify it handles the `chat_message` notification type. The existing service worker should already navigate to `actionUrl` on click. Verify:
+
+1. The `push` event handler in `sw-custom.ts` can display notifications with the payload shape from Task 2 (`{ title, body, data: { type, actionUrl, ... } }`)
+2. The `notificationclick` handler navigates to `data.actionUrl`
+3. If the existing `useNotificationMonitor` has dedup logic that suppresses push when the app is in the foreground, verify it covers the `chat_message` type. If dedup is tied to specific notification types, add `chat_message` to the list.
+
+If the service worker already handles arbitrary push payloads generically (which is the common pattern), no changes are needed. If it checks `data.type`, add `chat_message` as a handled type.
+
+- [ ] **Step 5: Run typecheck**
 
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck`
 
@@ -2938,3 +3035,14 @@ These are not part of the implementation tasks but are needed to go live:
    ```
 
 3. **Verify `app.settings.edge_function_base_url`** is configured in Supabase dashboard (needed by the `notify_chat_message` database trigger). This should already be set from the announcement push trigger.
+
+4. **[ADDED] Verify VAPID environment variables** are set for the `push-trigger-chat-message` function: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`. These should already be configured from the announcement push function but confirm they're available to the new function.
+
+---
+
+## [ADDED] Known Limitations (v1)
+
+- **No message/thread pagination** — `fetchMessages` loads all messages for a thread; `fetchThreads` loads all threads for a show. Acceptable for typical show sizes (50-200 participants, <100 messages per thread). Add cursor-based pagination if shows grow larger.
+- **No E2E tests** — v1 relies on unit tests + manual smoke testing. E2E tests should be added once the feature stabilizes (exhibitor sends → secretary receives → secretary replies → exhibitor sees).
+- **No message deletion** — Users cannot delete or edit sent messages. Add if requested.
+- **Sender role not displayed** — Messages show sender name but not their role badge (would require joining to `user_roles` during enrichment). The thread list shows participant role for secretary context; message-level role display can be added later.

@@ -1,4 +1,3 @@
-// apps/myk9show/src/components/askq/AskQExampleQueries.tsx
 import { EXAMPLE_QUERIES, CATEGORY_LABELS, type ExampleQuery } from './askq-config';
 
 interface AskQExampleQueriesProps {

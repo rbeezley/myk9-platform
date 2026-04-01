@@ -31,6 +31,8 @@ const INITIAL_STATE: AskQState = {
 export function useAskQ() {
   const [state, setState] = useState<AskQState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
+  const answerRef = useRef('');
+  const rafRef = useRef<number | null>(null);
 
   const submitQuery = useCallback(
     async (message: string, showId?: string) => {
@@ -38,6 +40,12 @@ export function useAskQ() {
         abortRef.current.abort();
       }
       abortRef.current = new AbortController();
+
+      answerRef.current = '';
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
 
       setState(prev => ({
         ...INITIAL_STATE,
@@ -67,7 +75,14 @@ export function useAskQ() {
               break;
             case 'token':
               answer += data as string;
-              setState(prev => ({ ...prev, answer }));
+              answerRef.current = answer;
+              // Batch token renders to animation frames to avoid ~100 re-renders per response
+              if (!rafRef.current) {
+                rafRef.current = requestAnimationFrame(() => {
+                  setState(prev => ({ ...prev, answer: answerRef.current }));
+                  rafRef.current = null;
+                });
+              }
               break;
             case 'meta': {
               const meta = data as {
@@ -85,7 +100,12 @@ export function useAskQ() {
               break;
             }
             case 'done':
-              setState(prev => ({ ...prev, status: 'done' }));
+              // Flush any pending token render
+              if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+              }
+              setState(prev => ({ ...prev, answer: answerRef.current, status: 'done' }));
               break;
           }
         });

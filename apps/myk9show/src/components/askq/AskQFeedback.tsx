@@ -1,4 +1,3 @@
-// apps/myk9show/src/components/askq/AskQFeedback.tsx
 import { useState } from 'react';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { submitFeedback } from '@/services/askqService';

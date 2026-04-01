@@ -1,4 +1,3 @@
-// apps/myk9show/src/components/askq/AskQInput.tsx
 import { useState, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
 

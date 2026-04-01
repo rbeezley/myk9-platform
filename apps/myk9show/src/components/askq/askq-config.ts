@@ -22,3 +22,20 @@ export const RATE_LIMIT_DEFAULTS = {
   free: 10,
   premium: 50,
 };
+
+export const TOOL_LABELS: Record<string, string> = {
+  search_rules: 'Rules',
+  get_class_summary: 'Classes',
+  get_entry_results: 'Results',
+  get_trial_overview: 'Trials',
+  search_entries: 'Entries',
+  search_user_guide: 'Guide',
+};
+
+export const SOURCE_LABELS: Record<string, string> = {
+  rules: 'Rules',
+  classes: 'Classes',
+  entries: 'Entries',
+  trials: 'Trials',
+  guide: 'Guide',
+};

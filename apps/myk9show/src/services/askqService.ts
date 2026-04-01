@@ -105,7 +105,7 @@ export async function submitFeedback(feedback: AskQFeedback): Promise<void> {
     query_log_id: feedback.queryLogId,
     rating: feedback.rating,
     report_text: feedback.reportText,
-    user_id: (await supabase.auth.getUser()).data.user?.id,
+    user_id: (await supabase.auth.getSession()).data.session?.user?.id,
   });
 
   if (error) {

@@ -77,17 +77,22 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { count: todayCount } = await serviceClient
-      .from('chatbot_query_log')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', new Date().toISOString().split('T')[0]);
-
-    const { data: personData } = await serviceClient
-      .from('people')
-      .select('id, first_name, last_name, subscription_tier')
-      .eq('auth_user_id', user.id)
-      .single();
+    // Parallelize independent DB queries: rate limit count, person, and show name
+    const [{ count: todayCount }, { data: personData }, { data: showData }] = await Promise.all([
+      serviceClient
+        .from('chatbot_query_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', new Date().toISOString().split('T')[0]),
+      serviceClient
+        .from('people')
+        .select('id, first_name, last_name, subscription_tier')
+        .eq('auth_user_id', user.id)
+        .single(),
+      showId
+        ? serviceClient.from('shows').select('show_name').eq('id', showId).single()
+        : Promise.resolve({ data: null }),
+    ]);
 
     const tier = personData?.subscription_tier === 'premium' ? 'premium' : 'free';
     const limit = RATE_LIMITS[tier];
@@ -108,12 +113,12 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 4. Resolve user context
     const personId = personData?.id;
     const displayName = personData
       ? [personData.first_name, personData.last_name].filter(Boolean).join(' ')
       : null;
 
+    // Dogs query depends on personId — runs after the parallel batch
     let dogs: UserContext['dogs'] = [];
     if (personId) {
       const { data: dogData } = await serviceClient
@@ -129,15 +134,7 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
-    let showName: string | null = null;
-    if (showId) {
-      const { data: showData } = await serviceClient
-        .from('shows')
-        .select('show_name')
-        .eq('id', showId)
-        .single();
-      showName = showData?.show_name ?? null;
-    }
+    const showName = showData?.show_name ?? null;
 
     const userContext: UserContext = {
       userId: user.id,
@@ -167,9 +164,12 @@ Deno.serve(async (req: Request) => {
         if (block.type === 'tool_use') {
           toolsUsed.push(block.name!);
           const toolResult = await executeTool(
-            serviceClient,
             block.name!,
             block.input!,
+            serviceClient,
+            '', // no licenseKey for myK9Show (auth-scoped instead)
+            undefined,
+            undefined,
             userContext
           );
           collectSource(block.name!, toolResult, sources);

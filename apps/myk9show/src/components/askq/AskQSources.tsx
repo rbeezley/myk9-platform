@@ -1,18 +1,10 @@
-// apps/myk9show/src/components/askq/AskQSources.tsx
 import { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { SOURCE_LABELS } from './askq-config';
 
 interface AskQSourcesProps {
   sources: Record<string, unknown[]>;
 }
-
-const SOURCE_LABELS: Record<string, string> = {
-  rules: 'Rules',
-  classes: 'Classes',
-  entries: 'Entries',
-  trials: 'Trials',
-  guide: 'Guide',
-};
 
 export function AskQSources({ sources }: AskQSourcesProps) {
   const [isExpanded, setIsExpanded] = useState(false);

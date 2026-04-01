@@ -1,9 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useAskQ } from '@/hooks/useAskQ';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AskQExampleQueries } from './AskQExampleQueries';
 import { AskQInput } from './AskQInput';
 import { AskQAnswer } from './AskQAnswer';
@@ -17,9 +18,10 @@ export function AskQPanel() {
   const location = useLocation();
   const askq = useAskQ();
 
-  // Extract showId from route if on a show page
-  const showIdMatch = location.pathname.match(/\/(?:secretary\/)?shows\/([^/]+)/);
-  const showId = showIdMatch?.[1] ?? undefined;
+  const showId = useMemo(
+    () => location.pathname.match(/\/(?:secretary\/)?shows\/([^/]+)/)?.[1],
+    [location.pathname]
+  );
 
   const limit = isPremium ? RATE_LIMIT_DEFAULTS.premium : RATE_LIMIT_DEFAULTS.free;
   const remaining = askq.remaining ?? limit;
@@ -32,8 +34,6 @@ export function AskQPanel() {
   );
 
   const isInputDisabled = askq.status === 'streaming' || askq.status === 'rate-limited';
-
-  if (!isOpen) return null;
 
   return (
     <SlideOverPanel
@@ -59,10 +59,8 @@ export function AskQPanel() {
       }
     >
       <div className="space-y-4 p-4">
-        {/* Show example queries when idle */}
         {askq.status === 'idle' && <AskQExampleQueries onSelectQuery={handleSubmit} />}
 
-        {/* Show answer area when query is active */}
         {askq.query && (
           <>
             <AskQAnswer
@@ -81,20 +79,20 @@ export function AskQPanel() {
           </>
         )}
 
-        {/* Error state */}
         {askq.status === 'error' && (
-          <div className="bg-destructive/10 text-destructive text-sm rounded-lg px-3.5 py-2.5">
-            <p>{askq.error}</p>
-            <button
-              onClick={() => askq.submitQuery(askq.query, showId)}
-              className="mt-2 text-xs underline"
-            >
-              Try again
-            </button>
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription className="flex items-center justify-between">
+              <span>{askq.error}</span>
+              <button
+                onClick={() => askq.submitQuery(askq.query, showId)}
+                className="text-xs underline"
+              >
+                Try again
+              </button>
+            </AlertDescription>
+          </Alert>
         )}
 
-        {/* Rate limited state */}
         {askq.status === 'rate-limited' && (
           <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm rounded-lg px-3.5 py-2.5">
             <p>Daily limit reached. Resets at midnight.</p>

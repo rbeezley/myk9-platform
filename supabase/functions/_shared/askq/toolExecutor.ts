@@ -4,6 +4,23 @@ import { executeSearchRules, parseAndResolveDate } from './ruleLookup.ts';
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
+// myK9Q scopes by license_key, myK9Show scopes by show_id
+interface ShowScope {
+  licenseKey?: string;
+  showId?: string;
+}
+
+// Apply the appropriate show scope filter to a query
+function applyShowScope(query: ReturnType<SupabaseClient['from']>, scope: ShowScope) {
+  if (scope.showId) {
+    return query.eq('show_id', scope.showId);
+  }
+  if (scope.licenseKey) {
+    return query.eq('license_key', scope.licenseKey);
+  }
+  return query;
+}
+
 async function executeGetClassSummary(
   params: {
     trial_date?: string;
@@ -12,13 +29,11 @@ async function executeGetClassSummary(
     class_status?: string;
   },
   supabase: SupabaseClient,
-  licenseKey: string
+  scope: ShowScope
 ): Promise<{ data: ClassSummary[]; error?: string }> {
   try {
-    let query = supabase
-      .from('view_class_summary')
-      .select(
-        `
+    let query = supabase.from('view_class_summary').select(
+      `
         class_id,
         element,
         level,
@@ -35,8 +50,9 @@ async function executeGetClassSummary(
         briefing_time,
         start_time
       `
-      )
-      .eq('license_key', licenseKey);
+    );
+
+    query = applyShowScope(query, scope);
 
     if (params.trial_date) {
       query = query.eq('trial_date', params.trial_date);
@@ -79,37 +95,42 @@ async function executeGetEntryResults(
     top_n?: number;
   },
   supabase: SupabaseClient,
-  licenseKey: string
+  scope: ShowScope
 ): Promise<{ data: EntryResult[]; error?: string }> {
   try {
-    // Parse and resolve date (handles US format, day of week, and ISO format)
     let resolvedDate: string | undefined = undefined;
     if (params.trial_date) {
-      const parsed = await parseAndResolveDate(params.trial_date, supabase, licenseKey);
+      const parsed = await parseAndResolveDate(
+        params.trial_date,
+        supabase,
+        scope.licenseKey ?? '',
+        scope.showId
+      );
       if (parsed) {
-        console.log(`Resolved "${params.trial_date}" to ISO date: ${parsed}`);
         resolvedDate = parsed;
-      } else {
-        console.log(`Could not resolve date: ${params.trial_date}`);
       }
     }
 
-    // Step 1: If element, level, or date filter provided, first find matching class IDs
+    // Step 1: If element, level, or date filter provided, find matching class IDs
     let classIds: number[] | null = null;
 
     if (params.element || params.level || resolvedDate) {
-      // Get the show_id first to filter classes
-      const { data: showData } = await supabase
-        .from('shows')
-        .select('id')
-        .eq('license_key', licenseKey)
-        .single();
+      // Resolve show_id for class filtering
+      let showIdForClasses = scope.showId;
+      if (!showIdForClasses && scope.licenseKey) {
+        const { data: showData } = await supabase
+          .from('shows')
+          .select('id')
+          .eq('license_key', scope.licenseKey)
+          .single();
+        showIdForClasses = showData?.id;
+      }
 
-      if (showData) {
+      if (showIdForClasses) {
         let classQuery = supabase
           .from('classes')
           .select('id, element, level, trials!inner(show_id, trial_date)')
-          .eq('trials.show_id', showData.id);
+          .eq('trials.show_id', showIdForClasses);
 
         if (params.element) {
           classQuery = classQuery.ilike('element', `%${params.element}%`);
@@ -129,24 +150,16 @@ async function executeGetEntryResults(
         }
 
         if (!classData || classData.length === 0) {
-          console.log(
-            `No classes found for element=${params.element}, level=${params.level}, date=${resolvedDate}`
-          );
           return { data: [] };
         }
 
         classIds = classData.map((c: { id: number }) => c.id);
-        console.log(
-          `Found ${classIds.length} matching classes for element=${params.element}, level=${params.level}, date=${resolvedDate}: [${classIds.join(', ')}]`
-        );
       }
     }
 
-    // Step 2: Query entries with class_id filter if we have matching classes
-    let query = supabase
-      .from('view_entry_with_results')
-      .select(
-        `
+    // Step 2: Query entries
+    let query = supabase.from('view_entry_with_results').select(
+      `
         armband_number,
         dog_call_name,
         handler_name,
@@ -158,14 +171,13 @@ async function executeGetEntryResults(
         is_scored,
         class_id
       `
-      )
-      .eq('license_key', licenseKey);
+    );
 
-    // Apply class_id filter if we found matching classes
+    query = applyShowScope(query, scope);
+
     if (classIds !== null) {
       query = query.in('class_id', classIds);
     }
-
     if (params.armband_number) {
       query = query.eq('armband_number', params.armband_number);
     }
@@ -178,11 +190,10 @@ async function executeGetEntryResults(
     if (params.result_status) {
       query = query.eq('result_status', params.result_status);
     }
-    if (params.top_n) {
+    if (params.top_n && params.top_n > 0) {
       query = query.not('final_placement', 'is', null).lte('final_placement', params.top_n);
     }
 
-    // Order by placement (nulls last), then by time
     query = query
       .order('final_placement', { ascending: true, nullsFirst: false })
       .order('search_time_seconds', { ascending: true, nullsFirst: false })
@@ -197,7 +208,7 @@ async function executeGetEntryResults(
 
     // Step 3: Get class details for the returned entries
     const entryClassIds = [...new Set((data || []).map((e: { class_id: number }) => e.class_id))];
-    let classMap: Map<number, { element: string; level: string }> = new Map();
+    const classMap: Map<number, { element: string; level: string }> = new Map();
 
     if (entryClassIds.length > 0) {
       const { data: classDetails } = await supabase
@@ -212,7 +223,6 @@ async function executeGetEntryResults(
       }
     }
 
-    // Transform data to match expected interface
     const transformed = (data || []).map((row: Record<string, unknown>) => {
       const classInfo = classMap.get(row.class_id as number);
       return {
@@ -240,13 +250,11 @@ async function executeGetEntryResults(
 async function executeGetTrialOverview(
   params: { trial_date?: string },
   supabase: SupabaseClient,
-  licenseKey: string
+  scope: ShowScope
 ): Promise<{ data: TrialSummary[]; error?: string }> {
   try {
-    let query = supabase
-      .from('view_trial_summary_normalized')
-      .select(
-        `
+    let query = supabase.from('view_trial_summary_normalized').select(
+      `
         trial_id,
         trial_number,
         trial_date,
@@ -254,8 +262,9 @@ async function executeGetTrialOverview(
         competition_type,
         show_name
       `
-      )
-      .eq('license_key', licenseKey);
+    );
+
+    query = applyShowScope(query, scope);
 
     if (params.trial_date) {
       query = query.eq('trial_date', params.trial_date);
@@ -280,18 +289,15 @@ async function executeGetTrialOverview(
 async function executeSearchEntries(
   params: { dog_name?: string; handler_name?: string },
   supabase: SupabaseClient,
-  licenseKey: string
+  scope: ShowScope
 ): Promise<{ data: EntryResult[]; error?: string }> {
   try {
     if (!params.dog_name && !params.handler_name) {
       return { data: [], error: 'Must provide dog_name or handler_name' };
     }
 
-    // Query entries
-    let query = supabase
-      .from('view_entry_with_results')
-      .select(
-        `
+    let query = supabase.from('view_entry_with_results').select(
+      `
         armband_number,
         dog_call_name,
         handler_name,
@@ -303,8 +309,9 @@ async function executeSearchEntries(
         is_scored,
         class_id
       `
-      )
-      .eq('license_key', licenseKey);
+    );
+
+    query = applyShowScope(query, scope);
 
     if (params.dog_name) {
       query = query.ilike('dog_call_name', `%${params.dog_name}%`);
@@ -325,9 +332,8 @@ async function executeSearchEntries(
       return { data: [], error: error.message };
     }
 
-    // Get class details for the returned entries
     const entryClassIds = [...new Set((data || []).map((e: { class_id: number }) => e.class_id))];
-    let classMap: Map<number, { element: string; level: string }> = new Map();
+    const classMap: Map<number, { element: string; level: string }> = new Map();
 
     if (entryClassIds.length > 0) {
       const { data: classDetails } = await supabase
@@ -342,7 +348,6 @@ async function executeSearchEntries(
       }
     }
 
-    // Transform data to match expected interface
     const transformed = (data || []).map((row: Record<string, unknown>) => {
       const classInfo = classMap.get(row.class_id as number);
       return {
@@ -400,7 +405,14 @@ export async function executeTool(
   sportCode?: string,
   userContext?: UserContext | null
 ): Promise<{ result: unknown; error?: string }> {
-  console.log(`Executing tool: ${toolName}`, JSON.stringify(toolInput));
+  // Build scope: prefer showId (myK9Show) over licenseKey (myK9Q)
+  const scope: ShowScope = {};
+  if (userContext?.showId) {
+    scope.showId = userContext.showId;
+  }
+  if (licenseKey) {
+    scope.licenseKey = licenseKey;
+  }
 
   switch (toolName) {
     case 'search_rules':
@@ -420,7 +432,7 @@ export async function executeTool(
           class_status?: string;
         },
         supabase,
-        licenseKey
+        scope
       ).then(r => ({ result: r.data, error: r.error }));
 
     case 'get_entry_results':
@@ -436,21 +448,19 @@ export async function executeTool(
           top_n?: number;
         },
         supabase,
-        licenseKey
+        scope
       ).then(r => ({ result: r.data, error: r.error }));
 
     case 'get_trial_overview':
-      return executeGetTrialOverview(
-        toolInput as { trial_date?: string },
-        supabase,
-        licenseKey
-      ).then(r => ({ result: r.data, error: r.error }));
+      return executeGetTrialOverview(toolInput as { trial_date?: string }, supabase, scope).then(
+        r => ({ result: r.data, error: r.error })
+      );
 
     case 'search_entries':
       return executeSearchEntries(
         toolInput as { dog_name?: string; handler_name?: string },
         supabase,
-        licenseKey
+        scope
       ).then(r => ({ result: r.data, error: r.error }));
 
     case 'search_user_guide':

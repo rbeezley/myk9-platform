@@ -70,7 +70,8 @@ export async function executeSearchRules(
 export async function parseAndResolveDate(
   dateInput: string,
   supabase: ReturnType<typeof createClient>,
-  licenseKey: string
+  licenseKey: string,
+  showId?: string
 ): Promise<string | null> {
   const input = dateInput.trim();
 
@@ -98,11 +99,19 @@ export async function parseAndResolveDate(
     dayNames.some(d => d.startsWith(dayLower)) || shortDayNames.some(d => dayLower.startsWith(d));
 
   if (isDayName) {
-    // Get all trial dates for this show
-    const { data: trials } = await supabase
-      .from('trials')
-      .select('trial_date, shows!inner(license_key)')
-      .eq('shows.license_key', licenseKey);
+    // Get all trial dates for this show — use show_id if available, fall back to license_key
+    let trialsQuery = supabase.from('trials').select('trial_date, show_id');
+    if (showId) {
+      trialsQuery = trialsQuery.eq('show_id', showId);
+    } else if (licenseKey) {
+      trialsQuery = supabase
+        .from('trials')
+        .select('trial_date, shows!inner(license_key)')
+        .eq('shows.license_key', licenseKey);
+    } else {
+      return null;
+    }
+    const { data: trials } = await trialsQuery;
 
     if (!trials || trials.length === 0) return null;
 

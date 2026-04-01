@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
         .eq('auth_user_id', user.id)
         .single(),
       showId
-        ? serviceClient.from('shows').select('show_name, license_key').eq('id', showId).single()
+        ? serviceClient.from('shows').select('show_name').eq('id', showId).single()
         : Promise.resolve({ data: null } as { data: null }),
     ]);
 
@@ -191,9 +191,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Resolve the show's license_key for tool queries (tools filter by license_key)
-    const showLicenseKey = verifiedShowId && showData?.license_key ? showData.license_key : '';
-
     const userContext: UserContext = {
       userId: user.id,
       displayName,
@@ -227,7 +224,7 @@ Deno.serve(async (req: Request) => {
             block.name!,
             block.input!,
             serviceClient,
-            showLicenseKey,
+            '', // myK9Show uses show_id scoping via userContext, not license_key
             undefined,
             undefined,
             userContext

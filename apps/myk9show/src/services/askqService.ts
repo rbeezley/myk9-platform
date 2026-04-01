@@ -102,15 +102,21 @@ export async function parseSSEStream(
 }
 
 export async function submitFeedback(feedback: AskQFeedback): Promise<void> {
-  // Table will exist after migration; bypass generated types until schema is regenerated
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = supabase as any;
-  const { error } = await client.from('chatbot_feedback').insert({
-    query_log_id: feedback.queryLogId,
-    rating: feedback.rating,
-    report_text: feedback.reportText,
-    user_id: (await supabase.auth.getSession()).data.session?.user?.id,
-  });
+  const userId = (await supabase.auth.getSession()).data.session?.user?.id;
+  const { error } = await (
+    supabase as unknown as {
+      from: (table: string) => {
+        insert: (row: Record<string, unknown>) => { error: { message: string } | null };
+      };
+    }
+  )
+    .from('chatbot_feedback')
+    .insert({
+      query_log_id: feedback.queryLogId,
+      rating: feedback.rating,
+      report_text: feedback.reportText,
+      user_id: userId,
+    });
 
   if (error) {
     throw new Error(`Failed to submit feedback: ${error.message}`);

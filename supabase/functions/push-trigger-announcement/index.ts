@@ -1,5 +1,4 @@
-// supabase/functions/push-trigger-announcement/index.ts
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import webpush from 'npm:web-push@3';
 
 interface AnnouncementRecord {
@@ -24,6 +23,9 @@ const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@myk9show.com';
 
+// Chunk size for PostgREST .in() queries to avoid URL length limits
+const CHUNK_SIZE = 100;
+
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
 function truncate(text: string, maxLength: number): string {
@@ -36,7 +38,6 @@ Deno.serve(async (req: Request) => {
     const payload: WebhookPayload = await req.json();
     const announcement = payload.record;
 
-    // Validate payload shape
     if (
       !announcement?.id ||
       !announcement?.show_id ||
@@ -48,91 +49,86 @@ Deno.serve(async (req: Request) => {
       return new Response('Invalid payload', { status: 400 });
     }
 
-    // Only push for high/urgent — normal is in-app only
     if (announcement.priority === 'normal') {
       return new Response('Normal priority — no push needed', { status: 200 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // --- Audience Resolution ---
+    // Run both audience queries in parallel — they're independent
+    const [{ data: exhibitors, error: exhibitorError }, { data: officials, error: officialError }] =
+      await Promise.all([
+        supabase
+          .from('entries')
+          .select('dog:dogs(owner:people!owner_id(auth_user_id))')
+          .eq('show_id', announcement.show_id)
+          .is('deleted_at', null)
+          .not('entry_status', 'in', '("withdrawn","scratched","absent")'),
+        supabase
+          .from('user_roles')
+          .select('person:people!user_id(auth_user_id)')
+          .eq('show_id', announcement.show_id)
+          .or('expires_at.is.null,expires_at.gt.now()'),
+      ]);
 
-    // 1. Exhibitors: entries → dogs (owner_id) → people (auth_user_id)
-    // Filter out soft-deleted and non-active entries
-    const { data: exhibitors, error: exhibitorError } = await supabase
-      .from('entries')
-      .select('dog:dogs(owner:people!owner_id(auth_user_id))')
-      .eq('show_id', announcement.show_id)
-      .is('deleted_at', null)
-      .not('entry_status', 'in', '("withdrawn","scratched","absent")');
-
-    // Log and handle query errors explicitly
     if (exhibitorError) {
       console.error('push-trigger-announcement: exhibitor query failed', exhibitorError.message);
     }
-
-    const exhibitorUserIds = new Set<string>();
-    if (exhibitors) {
-      for (const entry of exhibitors) {
-        const authUserId = entry.dog?.owner?.auth_user_id;
-        if (authUserId) exhibitorUserIds.add(authUserId);
-      }
-    }
-
-    // 2. Officials: user_roles (show_id) → people (auth_user_id)
-    // Filter expired roles
-    const { data: officials, error: officialError } = await supabase
-      .from('user_roles')
-      .select('person:people!user_id(auth_user_id)')
-      .eq('show_id', announcement.show_id)
-      .or('expires_at.is.null,expires_at.gt.now()');
-
-    // Log and handle query errors explicitly
     if (officialError) {
       console.error('push-trigger-announcement: official query failed', officialError.message);
     }
-
-    // If BOTH queries failed, abort rather than silently sending to no one
     if (exhibitorError && officialError) {
-      console.error('push-trigger-announcement: all audience queries failed, aborting');
       return new Response('Audience resolution failed', { status: 500 });
     }
 
-    const officialUserIds = new Set<string>();
+    const audienceIds = new Set<string>();
+    if (exhibitors) {
+      for (const entry of exhibitors) {
+        const authUserId = entry.dog?.owner?.auth_user_id;
+        if (authUserId) audienceIds.add(authUserId);
+      }
+    }
     if (officials) {
       for (const role of officials) {
         const authUserId = role.person?.auth_user_id;
-        if (authUserId) officialUserIds.add(authUserId);
+        if (authUserId) audienceIds.add(authUserId);
       }
     }
+    audienceIds.delete(announcement.author_id);
 
-    // Union and exclude the author
-    const allUserIds = [...new Set([...exhibitorUserIds, ...officialUserIds])].filter(
-      id => id !== announcement.author_id
-    );
+    const exhibitorCount = exhibitors
+      ? new Set(
+          exhibitors
+            .map(e => e.dog?.owner?.auth_user_id)
+            .filter((id): id is string => id !== null && id !== undefined)
+        ).size
+      : 0;
 
-    // Structured logging for debugging
     console.log(
-      `push-trigger-announcement: show=${announcement.show_id} priority=${announcement.priority} audience=${allUserIds.length} (${exhibitorUserIds.size} exhibitors, ${officialUserIds.size} officials)`
+      `push-trigger-announcement: show=${announcement.show_id} priority=${announcement.priority} audience=${audienceIds.size} (${exhibitorCount} exhibitors, ${audienceIds.size - exhibitorCount} officials-only)`
     );
 
-    if (allUserIds.length === 0) {
+    if (audienceIds.size === 0) {
       return new Response('No users to notify', { status: 200 });
     }
 
-    // --- Fetch Push Subscriptions ---
-    // Batch user IDs in chunks of 100 to avoid PostgREST URL length limits
-    const CHUNK_SIZE = 100;
+    const allUserIds = [...audienceIds];
+
+    // Fetch subscriptions in parallel chunks to avoid PostgREST URL length limits
+    const chunkPromises = [];
+    for (let i = 0; i < allUserIds.length; i += CHUNK_SIZE) {
+      chunkPromises.push(
+        supabase
+          .from('push_subscriptions')
+          .select('user_id, endpoint, keys')
+          .in('user_id', allUserIds.slice(i, i + CHUNK_SIZE))
+      );
+    }
+
+    const chunkResults = await Promise.all(chunkPromises);
     const allSubscriptions: { user_id: string; endpoint: string; keys: Record<string, string> }[] =
       [];
-
-    for (let i = 0; i < allUserIds.length; i += CHUNK_SIZE) {
-      const chunk = allUserIds.slice(i, i + CHUNK_SIZE);
-      const { data: subs, error: subError } = await supabase
-        .from('push_subscriptions')
-        .select('user_id, endpoint, keys')
-        .in('user_id', chunk);
-
+    for (const { data: subs, error: subError } of chunkResults) {
       if (subError) {
         console.error(
           'push-trigger-announcement: subscription query failed for chunk',
@@ -147,7 +143,6 @@ Deno.serve(async (req: Request) => {
       return new Response('No push subscriptions found', { status: 200 });
     }
 
-    // --- Build Payload ---
     const pushPayload = JSON.stringify({
       type: 'announcement',
       title: announcement.title,
@@ -162,9 +157,8 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    // --- Send Push Notifications ---
     let sent = 0;
-    const expiredEndpoints: { user_id: string; endpoint: string }[] = [];
+    const expiredEndpoints: string[] = [];
 
     await Promise.allSettled(
       allSubscriptions.map(async sub => {
@@ -174,24 +168,16 @@ Deno.serve(async (req: Request) => {
         } catch (err: unknown) {
           const statusCode = (err as { statusCode?: number }).statusCode;
           if (statusCode === 410 || statusCode === 404) {
-            expiredEndpoints.push({ user_id: sub.user_id, endpoint: sub.endpoint });
+            expiredEndpoints.push(sub.endpoint);
           }
           console.error(`Push failed for ${sub.endpoint}:`, (err as Error).message);
         }
       })
     );
 
-    // --- Cleanup Expired Subscriptions ---
+    // Batch-delete expired subscriptions in a single query
     if (expiredEndpoints.length > 0) {
-      await Promise.allSettled(
-        expiredEndpoints.map(({ user_id, endpoint }) =>
-          supabase
-            .from('push_subscriptions')
-            .delete()
-            .eq('user_id', user_id)
-            .eq('endpoint', endpoint)
-        )
-      );
+      await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints);
     }
 
     console.log(

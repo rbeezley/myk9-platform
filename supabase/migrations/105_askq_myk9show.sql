@@ -1,18 +1,43 @@
 -- 105_askq_myk9show.sql
--- Add user tracking columns to chatbot tables and create user_guide table
+-- Create chatbot tables and user_guide table for AskQ
 
--- 1. Add columns to chatbot_query_log
+-- 1. Create chatbot_query_log if it doesn't exist (originally from myK9Q project)
+CREATE TABLE IF NOT EXISTS chatbot_query_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  query TEXT NOT NULL,
+  tools_used TEXT[] DEFAULT '{}',
+  license_key TEXT,
+  organization_code TEXT,
+  sport_code TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE chatbot_query_log ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'chatbot_query_log' AND policyname = 'Service role can manage chatbot_query_log') THEN
+    CREATE POLICY "Service role can manage chatbot_query_log"
+      ON chatbot_query_log FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_chatbot_query_log_created_at
+  ON chatbot_query_log (created_at DESC);
+
+-- 2. Add myK9Show columns to chatbot_query_log
 ALTER TABLE chatbot_query_log
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS app_source TEXT NOT NULL DEFAULT 'myk9q',
   ADD COLUMN IF NOT EXISTS response_time_ms INTEGER;
 
--- Index for rate limiting queries (user + date)
 CREATE INDEX IF NOT EXISTS idx_chatbot_query_log_user_daily
   ON chatbot_query_log (user_id, created_at)
   WHERE user_id IS NOT NULL;
 
--- 2. Add columns to chatbot_feedback (create if not exists — myK9Q uses rules_feedback)
+-- 3. Create chatbot_feedback table
 CREATE TABLE IF NOT EXISTS chatbot_feedback (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   query_log_id UUID REFERENCES chatbot_query_log(id) ON DELETE CASCADE,

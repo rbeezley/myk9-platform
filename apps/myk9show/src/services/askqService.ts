@@ -15,7 +15,10 @@ export interface AskQFeedback {
 
 type SSECallback = (event: string, data: unknown) => void;
 
-export async function sendAskQQuery(request: AskQRequest): Promise<ReadableStream<Uint8Array>> {
+export async function sendAskQQuery(
+  request: AskQRequest,
+  signal?: AbortSignal
+): Promise<ReadableStream<Uint8Array>> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -31,6 +34,7 @@ export async function sendAskQQuery(request: AskQRequest): Promise<ReadableStrea
       apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
     },
     body: JSON.stringify(request),
+    signal,
   });
 
   if (response.status === 429) {

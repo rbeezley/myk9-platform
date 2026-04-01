@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqService';
 import type { AskQRequest } from '@/services/askqService';
 
@@ -33,6 +33,23 @@ export function useAskQ() {
   const abortRef = useRef<AbortController | null>(null);
   const answerRef = useRef('');
   const rafRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
+
+  // Cleanup on unmount: cancel any in-flight stream and pending rAF
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, []);
 
   const submitQuery = useCallback(
     async (message: string, showId?: string) => {
@@ -40,6 +57,7 @@ export function useAskQ() {
         abortRef.current.abort();
       }
       abortRef.current = new AbortController();
+      const { signal } = abortRef.current;
 
       answerRef.current = '';
       if (rafRef.current) {
@@ -57,13 +75,15 @@ export function useAskQ() {
 
       try {
         const request: AskQRequest = showId ? { message, showId } : { message };
-        const stream = await sendAskQQuery(request);
+        const stream = await sendAskQQuery(request, signal);
 
         let answer = '';
         let toolsUsed: string[] = [];
         let sources: Record<string, unknown[]> = {};
 
         await parseSSEStream(stream, (event, data) => {
+          if (!mountedRef.current || signal.aborted) return;
+
           switch (event) {
             case 'tools_used':
               toolsUsed = data as string[];
@@ -76,10 +96,11 @@ export function useAskQ() {
             case 'token':
               answer += data as string;
               answerRef.current = answer;
-              // Batch token renders to animation frames to avoid ~100 re-renders per response
               if (!rafRef.current) {
                 rafRef.current = requestAnimationFrame(() => {
-                  setState(prev => ({ ...prev, answer: answerRef.current }));
+                  if (mountedRef.current) {
+                    setState(prev => ({ ...prev, answer: answerRef.current }));
+                  }
                   rafRef.current = null;
                 });
               }
@@ -100,7 +121,6 @@ export function useAskQ() {
               break;
             }
             case 'done':
-              // Flush any pending token render
               if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
@@ -110,6 +130,9 @@ export function useAskQ() {
           }
         });
       } catch (err) {
+        if (!mountedRef.current) return;
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+
         if (err instanceof RateLimitError) {
           setState(prev => ({
             ...prev,
@@ -135,6 +158,10 @@ export function useAskQ() {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
+    }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
   }, []);
 

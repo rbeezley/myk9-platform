@@ -37,7 +37,13 @@ Deno.serve(async (req: Request) => {
     const announcement = payload.record;
 
     // Validate payload shape
-    if (!announcement?.id || !announcement?.show_id || !announcement?.priority) {
+    if (
+      !announcement?.id ||
+      !announcement?.show_id ||
+      !announcement?.priority ||
+      !announcement?.title ||
+      !announcement?.content
+    ) {
       console.error('push-trigger-announcement: invalid payload', JSON.stringify(payload));
       return new Response('Invalid payload', { status: 400 });
     }

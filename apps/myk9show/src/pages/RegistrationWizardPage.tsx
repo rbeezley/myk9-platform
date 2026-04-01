@@ -353,8 +353,9 @@ function RegistrationWizardContent() {
         dbRegistrationId = result.dbRegistrationId;
       }
 
+      let createdEntries: Awaited<ReturnType<typeof createMultipleEntries>> = [];
       if (entryInputs.length > 0) {
-        const createdEntries = await createMultipleEntries(
+        createdEntries = await createMultipleEntries(
           entryInputs,
           userId,
           'submitted',
@@ -586,6 +587,7 @@ function RegistrationWizardContent() {
                     registrationId={registrationId}
                     registrationNumber={registrationNumber}
                     currentRegistrationTotalFees={currentRegistration?.totalFees || 0}
+                    armbandAssignments={armbandAssignments}
                     onDogSelectionChange={handleDogSelectionChange}
                     onClassSelectionChange={handleClassSelectionChange}
                     onHandlerAssignmentChange={handleHandlerAssignmentChange}
@@ -600,7 +602,6 @@ function RegistrationWizardContent() {
                     setPaymentStatus={setPaymentStatus}
                     setEntryStatus={setEntryStatus}
                     dogsLoading={dogsLoading}
-                    armbandAssignments={armbandAssignments}
                   />
                 </div>
 

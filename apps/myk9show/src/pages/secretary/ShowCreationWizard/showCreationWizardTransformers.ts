@@ -251,7 +251,6 @@ export function transformWizardDataToShow(
     entryCloseDate: show.entryCloseDate,
     preEntryFee: show.preEntryFee.toString(),
     dayOfShowFee: show.dayOfShowFee.toString(),
-    startingArmbandNumber: show.startingArmbandNumber,
     clubId: show.clubId,
     clubName: selectedClub?.name || 'Unknown Club',
     clubAddress: selectedClub
@@ -272,5 +271,6 @@ export function transformWizardDataToShow(
     assignedJudges,
     stats: [],
     trials: showTrials,
+    startingArmbandNumber: show.startingArmbandNumber ?? 100,
   };
 }

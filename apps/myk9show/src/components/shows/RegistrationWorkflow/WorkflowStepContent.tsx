@@ -38,6 +38,8 @@ interface WorkflowStepContentProps {
   registrationId: string | undefined;
   registrationNumber: string | undefined;
   currentRegistrationTotalFees: number;
+  /** Armband assignments from the RPC call */
+  armbandAssignments?: ArmbandAssignment[];
   onDogSelectionChange: (dogs: string[]) => Promise<void>;
   onClassSelectionChange: (selections: ClassSelectionData[]) => Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => Promise<void>;
@@ -52,8 +54,6 @@ interface WorkflowStepContentProps {
   setEntryStatus: (status: EntryStatus) => void;
   /** True while dogs are loading (used for auto-select loading state) */
   dogsLoading?: boolean;
-  /** Armband assignments from the RPC call */
-  armbandAssignments?: ArmbandAssignment[];
 }
 
 export function WorkflowStepContent({
@@ -65,6 +65,7 @@ export function WorkflowStepContent({
   registrationId,
   registrationNumber,
   currentRegistrationTotalFees,
+  armbandAssignments,
   onDogSelectionChange,
   onClassSelectionChange,
   onHandlerAssignmentChange,
@@ -74,7 +75,6 @@ export function WorkflowStepContent({
   setPaymentStatus,
   setEntryStatus,
   dogsLoading,
-  armbandAssignments,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');

@@ -30,8 +30,8 @@ export interface ShowEditFormData extends Record<string, unknown> {
   preEntryFee: string;
   dayOfShowFee: string;
   assignedJudges: ShowJudgeAssignment[];
-  startingArmbandNumber?: number;
   // Additional optional fields
+  startingArmbandNumber?: number;
   maxEntriesPerDog?: number;
   maxTotalEntries?: number;
   allowNonOwnerHandlers?: boolean;

@@ -222,7 +222,7 @@ export const mapDatabaseToShow = (
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
     startingArmbandNumber:
-      ((dbShow as Record<string, unknown>).starting_armband_number as number) ?? 100,
+      ((dbShow as Record<string, unknown>).starting_armband_number as number | undefined) ?? 100,
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version

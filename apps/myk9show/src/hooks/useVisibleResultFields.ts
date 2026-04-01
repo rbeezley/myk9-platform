@@ -27,8 +27,8 @@ function rowToSettings(
     inheritedFrom: 'show',
     selfCheckinEnabled: row.self_checkin_enabled,
   };
-  if (row.preset_name) {
-    settings.preset = row.preset_name as VisibilityPreset;
+  if (row.preset) {
+    settings.preset = row.preset as VisibilityPreset;
   }
   return settings;
 }
@@ -37,7 +37,7 @@ function rowToOverride(
   row: OverrideRow
 ): VisibilityOverride & { selfCheckinEnabled?: boolean | null } {
   const override: VisibilityOverride & { selfCheckinEnabled?: boolean | null } = {};
-  if (row.preset_name != null) override.preset = row.preset_name as VisibilityPreset;
+  if (row.preset != null) override.preset = row.preset as VisibilityPreset;
   if (row.placement_timing != null) override.placement = row.placement_timing as VisibilityTiming;
   if (row.qualification_timing != null)
     override.qualification = row.qualification_timing as VisibilityTiming;

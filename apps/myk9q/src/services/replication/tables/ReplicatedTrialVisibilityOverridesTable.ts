@@ -53,7 +53,7 @@ interface RawOverrideWithJoins extends Omit<TrialVisibilityOverrides, 'license_k
 
 export class ReplicatedTrialVisibilityOverridesTable extends ReplicatedTable<TrialVisibilityOverrides> {
   constructor() {
-    super('trial_result_visibility_overrides', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
+    super('trial_visibility_overrides', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
   }
 
   /**
@@ -78,8 +78,9 @@ export class ReplicatedTrialVisibilityOverridesTable extends ReplicatedTable<Tri
       // JOIN through trials → shows to filter by license_key
       // (table doesn't have license_key column directly)
       const { data: remoteOverrides, error } = await supabase
-        .from('trial_result_visibility_overrides')
-        .select(`
+        .from('trial_visibility_overrides')
+        .select(
+          `
           *,
           trials!inner(
             show_id,
@@ -87,7 +88,8 @@ export class ReplicatedTrialVisibilityOverridesTable extends ReplicatedTable<Tri
               license_key
             )
           )
-        `)
+        `
+        )
         .eq('trials.shows.license_key', licenseKey)
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });
@@ -198,7 +200,10 @@ export class ReplicatedTrialVisibilityOverridesTable extends ReplicatedTable<Tri
   /**
    * Conflict resolution: Server-authoritative
    */
-  protected resolveConflict(_local: TrialVisibilityOverrides, remote: TrialVisibilityOverrides): TrialVisibilityOverrides {
+  protected resolveConflict(
+    _local: TrialVisibilityOverrides,
+    remote: TrialVisibilityOverrides
+  ): TrialVisibilityOverrides {
     // Server always wins for visibility config
     return remote;
   }
@@ -208,9 +213,10 @@ export class ReplicatedTrialVisibilityOverridesTable extends ReplicatedTable<Tri
    */
   async getByTrialId(trialId: string): Promise<TrialVisibilityOverrides | null> {
     const allOverrides = await this.getAll();
-    return allOverrides.find((override) => override.trial_id === trialId) || null;
+    return allOverrides.find(override => override.trial_id === trialId) || null;
   }
 }
 
 // Singleton export
-export const replicatedTrialVisibilityOverridesTable = new ReplicatedTrialVisibilityOverridesTable();
+export const replicatedTrialVisibilityOverridesTable =
+  new ReplicatedTrialVisibilityOverridesTable();

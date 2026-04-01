@@ -56,7 +56,7 @@ interface RawOverrideWithJoins extends Omit<ClassVisibilityOverrides, 'license_k
 
 export class ReplicatedClassVisibilityOverridesTable extends ReplicatedTable<ClassVisibilityOverrides> {
   constructor() {
-    super('class_result_visibility_overrides', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
+    super('class_visibility_overrides', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
   }
 
   /**
@@ -81,8 +81,9 @@ export class ReplicatedClassVisibilityOverridesTable extends ReplicatedTable<Cla
       // JOIN through classes → trials → shows to filter by license_key
       // (table doesn't have license_key column directly)
       const { data: remoteOverrides, error } = await supabase
-        .from('class_result_visibility_overrides')
-        .select(`
+        .from('class_visibility_overrides')
+        .select(
+          `
           *,
           classes!inner(
             trial_id,
@@ -93,7 +94,8 @@ export class ReplicatedClassVisibilityOverridesTable extends ReplicatedTable<Cla
               )
             )
           )
-        `)
+        `
+        )
         .eq('classes.trials.shows.license_key', licenseKey)
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });
@@ -204,7 +206,10 @@ export class ReplicatedClassVisibilityOverridesTable extends ReplicatedTable<Cla
   /**
    * Conflict resolution: Server-authoritative
    */
-  protected resolveConflict(_local: ClassVisibilityOverrides, remote: ClassVisibilityOverrides): ClassVisibilityOverrides {
+  protected resolveConflict(
+    _local: ClassVisibilityOverrides,
+    remote: ClassVisibilityOverrides
+  ): ClassVisibilityOverrides {
     // Server always wins for visibility config
     return remote;
   }
@@ -214,9 +219,10 @@ export class ReplicatedClassVisibilityOverridesTable extends ReplicatedTable<Cla
    */
   async getByClassId(classId: string): Promise<ClassVisibilityOverrides | null> {
     const allOverrides = await this.getAll();
-    return allOverrides.find((override) => override.class_id === classId) || null;
+    return allOverrides.find(override => override.class_id === classId) || null;
   }
 }
 
 // Singleton export
-export const replicatedClassVisibilityOverridesTable = new ReplicatedClassVisibilityOverridesTable();
+export const replicatedClassVisibilityOverridesTable =
+  new ReplicatedClassVisibilityOverridesTable();

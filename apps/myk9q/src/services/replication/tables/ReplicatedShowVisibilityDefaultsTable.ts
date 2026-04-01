@@ -41,7 +41,7 @@ export interface ShowVisibilityDefaults {
 
 export class ReplicatedShowVisibilityDefaultsTable extends ReplicatedTable<ShowVisibilityDefaults> {
   constructor() {
-    super('show_result_visibility_defaults', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
+    super('show_visibility_settings', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
   }
 
   /**
@@ -64,7 +64,7 @@ export class ReplicatedShowVisibilityDefaultsTable extends ReplicatedTable<ShowV
 
       // Fetch visibility defaults updated since last sync
       const { data: remoteDefaults, error } = await supabase
-        .from('show_result_visibility_defaults')
+        .from('show_visibility_settings')
         .select('*')
         .eq('license_key', licenseKey)
         .gt('updated_at', new Date(lastSync).toISOString())
@@ -161,7 +161,10 @@ export class ReplicatedShowVisibilityDefaultsTable extends ReplicatedTable<ShowV
   /**
    * Conflict resolution: Server-authoritative
    */
-  protected resolveConflict(_local: ShowVisibilityDefaults, remote: ShowVisibilityDefaults): ShowVisibilityDefaults {
+  protected resolveConflict(
+    _local: ShowVisibilityDefaults,
+    remote: ShowVisibilityDefaults
+  ): ShowVisibilityDefaults {
     // Server always wins for visibility config
     return remote;
   }
@@ -171,7 +174,7 @@ export class ReplicatedShowVisibilityDefaultsTable extends ReplicatedTable<ShowV
    */
   async getByShowId(showId: string): Promise<ShowVisibilityDefaults | null> {
     const allDefaults = await this.getAll();
-    return allDefaults.find((def) => def.show_id === showId) || null;
+    return allDefaults.find(def => def.show_id === showId) || null;
   }
 }
 

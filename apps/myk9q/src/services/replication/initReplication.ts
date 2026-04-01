@@ -127,9 +127,9 @@ export async function initializeReplication(): Promise<void> {
     manager.registerTable('class_requirements', replicatedClassRequirementsTable);
 
     // Visibility config tables
-    manager.registerTable('show_result_visibility_defaults', replicatedShowVisibilityDefaultsTable);
-    manager.registerTable('trial_result_visibility_overrides', replicatedTrialVisibilityOverridesTable);
-    manager.registerTable('class_result_visibility_overrides', replicatedClassVisibilityOverridesTable);
+    manager.registerTable('show_visibility_settings', replicatedShowVisibilityDefaultsTable);
+    manager.registerTable('trial_visibility_overrides', replicatedTrialVisibilityOverridesTable);
+    manager.registerTable('class_visibility_overrides', replicatedClassVisibilityOverridesTable);
 
     // Announcements & Push Notifications (Day 16-17)
     manager.registerTable('announcements', replicatedAnnouncementsTable);

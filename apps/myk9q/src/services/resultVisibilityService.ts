@@ -23,12 +23,12 @@ import type {
 } from '@myk9/secretary';
 
 /**
- * Database row from show_result_visibility_defaults
+ * Database row from show_visibility_settings
  * Kept local: uses license_key TEXT PK specific to myK9Q's schema
  */
 interface ShowVisibilityDefault {
   license_key: string;
-  preset_name: VisibilityPreset;
+  preset: VisibilityPreset;
   placement_timing: VisibilityTiming | null;
   qualification_timing: VisibilityTiming | null;
   time_timing: VisibilityTiming | null;
@@ -39,12 +39,12 @@ interface ShowVisibilityDefault {
 }
 
 /**
- * Database row from trial_result_visibility_overrides
+ * Database row from trial_visibility_overrides
  * Kept local: uses trial_id integer FK specific to myK9Q's schema
  */
 interface TrialVisibilityOverride {
   trial_id: number;
-  preset_name: VisibilityPreset | null;
+  preset: VisibilityPreset | null;
   placement_timing: VisibilityTiming | null;
   qualification_timing: VisibilityTiming | null;
   time_timing: VisibilityTiming | null;
@@ -55,12 +55,12 @@ interface TrialVisibilityOverride {
 }
 
 /**
- * Database row from class_result_visibility_overrides
+ * Database row from class_visibility_overrides
  * Kept local: uses class_id integer FK specific to myK9Q's schema
  */
 interface ClassVisibilityOverride {
   class_id: number;
-  preset_name: VisibilityPreset | null;
+  preset: VisibilityPreset | null;
   placement_timing: VisibilityTiming | null;
   qualification_timing: VisibilityTiming | null;
   time_timing: VisibilityTiming | null;
@@ -100,7 +100,7 @@ export async function getClassVisibilitySettings(
   try {
     // 1. Check class-level override (highest precedence)
     const { data: classOverride, error: classError } = await supabase
-      .from('class_result_visibility_overrides')
+      .from('class_visibility_overrides')
       .select('*')
       .eq('class_id', classId)
       .maybeSingle();
@@ -115,7 +115,7 @@ export async function getClassVisibilitySettings(
 
     // 2. Check trial-level override (medium precedence)
     const { data: trialOverride, error: trialError } = await supabase
-      .from('trial_result_visibility_overrides')
+      .from('trial_visibility_overrides')
       .select('*')
       .eq('trial_id', trialId)
       .maybeSingle();
@@ -130,7 +130,7 @@ export async function getClassVisibilitySettings(
 
     // 3. Fall back to show-level default (lowest precedence)
     const { data: showDefault, error: showError } = await supabase
-      .from('show_result_visibility_defaults')
+      .from('show_visibility_settings')
       .select('*')
       .eq('license_key', licenseKey)
       .maybeSingle();
@@ -166,8 +166,8 @@ function resolveSettings(
   source: 'show' | 'trial' | 'class'
 ): VisibilitySettings {
   // If preset is defined, use it as base
-  if (row.preset_name) {
-    const presetSettings = resolvePreset(row.preset_name, source);
+  if (row.preset) {
+    const presetSettings = resolvePreset(row.preset, source);
 
     // Apply granular overrides if specified (NULL means use preset value)
     return {
@@ -176,7 +176,7 @@ function resolveSettings(
       time: row.time_timing || presetSettings.time,
       faults: row.faults_timing || presetSettings.faults,
       inheritedFrom: source,
-      preset: row.preset_name,
+      preset: row.preset,
     };
   }
 
@@ -266,9 +266,9 @@ export async function setShowVisibility(
   preset: VisibilityPreset,
   adminName: string
 ): Promise<void> {
-  const { error } = await supabase.from('show_result_visibility_defaults').upsert({
+  const { error } = await supabase.from('show_visibility_settings').upsert({
     license_key: licenseKey,
-    preset_name: preset,
+    preset: preset,
     // Clear granular overrides when setting preset
     placement_timing: null,
     qualification_timing: null,
@@ -297,9 +297,9 @@ export async function setTrialVisibility(
   preset: VisibilityPreset,
   adminName: string
 ): Promise<void> {
-  const { error } = await supabase.from('trial_result_visibility_overrides').upsert({
+  const { error } = await supabase.from('trial_visibility_overrides').upsert({
     trial_id: trialId,
-    preset_name: preset,
+    preset: preset,
     // Clear granular overrides when setting preset
     placement_timing: null,
     qualification_timing: null,
@@ -328,9 +328,9 @@ export async function setClassVisibility(
   preset: VisibilityPreset,
   adminName: string
 ): Promise<void> {
-  const { error } = await supabase.from('class_result_visibility_overrides').upsert({
+  const { error } = await supabase.from('class_visibility_overrides').upsert({
     class_id: classId,
-    preset_name: preset,
+    preset: preset,
     // Clear granular overrides when setting preset
     placement_timing: null,
     qualification_timing: null,
@@ -353,7 +353,7 @@ export async function setClassVisibility(
  */
 export async function removeTrialVisibilityOverride(trialId: number): Promise<void> {
   const { error } = await supabase
-    .from('trial_result_visibility_overrides')
+    .from('trial_visibility_overrides')
     .delete()
     .eq('trial_id', trialId);
 
@@ -370,7 +370,7 @@ export async function removeTrialVisibilityOverride(trialId: number): Promise<vo
  */
 export async function removeClassVisibilityOverride(classId: number): Promise<void> {
   const { error } = await supabase
-    .from('class_result_visibility_overrides')
+    .from('class_visibility_overrides')
     .delete()
     .eq('class_id', classId);
 
@@ -396,7 +396,7 @@ export async function bulkSetClassVisibility(
 
   const updates = classIds.map(classId => ({
     class_id: classId,
-    preset_name: preset,
+    preset: preset,
     placement_timing: null,
     qualification_timing: null,
     time_timing: null,
@@ -405,7 +405,7 @@ export async function bulkSetClassVisibility(
     updated_at: timestamp,
   }));
 
-  const { error } = await supabase.from('class_result_visibility_overrides').upsert(updates);
+  const { error } = await supabase.from('class_visibility_overrides').upsert(updates);
 
   if (error) {
     logger.error('Error bulk setting class visibility:', error);

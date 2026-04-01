@@ -23,8 +23,8 @@ import { logger } from '@/utils/logger';
  * - classes: license_key via trials → shows
  * - trials: license_key via shows
  * - class_requirements: org-level config (AKC, UKC, etc.), no license_key
- * - trial_result_visibility_overrides: via trials → shows
- * - class_result_visibility_overrides: via classes → trials → shows
+ * - trial_visibility_overrides: via trials → shows
+ * - class_visibility_overrides: via classes → trials → shows
  * - view_stats_summary: database view, not a table
  * - view_audit_log: database view, not a table
  * - event_statistics: dormant table
@@ -36,7 +36,7 @@ const TABLES_WITH_LICENSE_KEY = new Set([
   'announcements',
   'announcement_reads',
   'push_subscriptions',
-  'show_result_visibility_defaults',
+  'show_visibility_settings',
 ]);
 
 /**
@@ -44,10 +44,10 @@ const TABLES_WITH_LICENSE_KEY = new Set([
  * These either don't exist yet (dormant) or are views (can't use postgres_changes).
  */
 const SKIP_REALTIME_SUBSCRIPTION = new Set([
-  'view_stats_summary',      // Database view - can't subscribe to postgres_changes
-  'view_audit_log',          // Database view - can't subscribe to postgres_changes
-  'event_statistics',        // Dormant table - doesn't exist in database yet
-  'nationals_rankings',      // Dormant table - doesn't exist in database yet
+  'view_stats_summary', // Database view - can't subscribe to postgres_changes
+  'view_audit_log', // Database view - can't subscribe to postgres_changes
+  'event_statistics', // Dormant table - doesn't exist in database yet
+  'nationals_rankings', // Dormant table - doesn't exist in database yet
 ]);
 
 /**
@@ -93,10 +93,7 @@ export class ConnectionManager {
   private handleOnline: () => Promise<void>;
   private handleOffline: () => void;
 
-  constructor(
-    config: ConnectionManagerConfig,
-    syncTableCallback: SyncTableCallback
-  ) {
+  constructor(config: ConnectionManagerConfig, syncTableCallback: SyncTableCallback) {
     this.config = config;
     this.syncTableCallback = syncTableCallback;
 
@@ -165,7 +162,9 @@ export class ConnectionManager {
    */
   async waitForSubscriptionsReady(): Promise<void> {
     if (this.subscriptionReadyPromises.size === 0) {
-      logger.log('[ConnectionManager] No subscriptions to wait for (real-time sync may be disabled)');
+      logger.log(
+        '[ConnectionManager] No subscriptions to wait for (real-time sync may be disabled)'
+      );
       return;
     }
 
@@ -194,7 +193,7 @@ export class ConnectionManager {
     try {
       this.broadcastChannel = new BroadcastChannel('replication-sync');
 
-      this.broadcastChannel.onmessage = (event) => {
+      this.broadcastChannel.onmessage = event => {
         const { type, tableName, licenseKey, originTabId } = event.data;
 
         // Ignore our own messages
@@ -209,7 +208,7 @@ export class ConnectionManager {
 
         if (type === 'table-changed') {
           // Trigger incremental sync for this table
-          this.syncTableCallback(tableName, false).catch((error) => {
+          this.syncTableCallback(tableName, false).catch(error => {
             logger.error(`[ConnectionManager] Cross-tab sync failed for ${tableName}:`, error);
           });
         }
@@ -260,23 +259,19 @@ export class ConnectionManager {
 
         const channel = supabase
           .channel(`replication:${tableName}:${this.config.licenseKey}`)
-          .on(
-            'postgres_changes',
-            subscriptionOptions,
-            async (_payload) => {
-              // Trigger incremental sync for this table and WAIT for it to complete
-              // This ensures cache is updated before UI refreshes
-              try {
-                await this.syncTableCallback(tableName, false);
-              } catch (error) {
-                logger.error(`[ConnectionManager] Real-time sync failed for ${tableName}:`, error);
-              }
-
-              // Notify other tabs via BroadcastChannel (AFTER sync completes)
-              this.broadcastTableChange(tableName);
+          .on('postgres_changes', subscriptionOptions, async _payload => {
+            // Trigger incremental sync for this table and WAIT for it to complete
+            // This ensures cache is updated before UI refreshes
+            try {
+              await this.syncTableCallback(tableName, false);
+            } catch (error) {
+              logger.error(`[ConnectionManager] Real-time sync failed for ${tableName}:`, error);
             }
-          )
-          .subscribe((status) => {
+
+            // Notify other tabs via BroadcastChannel (AFTER sync completes)
+            this.broadcastTableChange(tableName);
+          })
+          .subscribe(status => {
             if (status === 'SUBSCRIBED') {
               logger.log(`✅ [ConnectionManager] Real-time subscription active for ${tableName}`);
               resolve(); // Issue #4 Fix: Resolve promise when subscribed
@@ -288,7 +283,10 @@ export class ConnectionManager {
 
         this.realtimeChannels.set(tableName, channel);
       } catch (error) {
-        logger.error(`[ConnectionManager] Failed to subscribe to real-time changes for ${tableName}:`, error);
+        logger.error(
+          `[ConnectionManager] Failed to subscribe to real-time changes for ${tableName}:`,
+          error
+        );
         reject(error);
       }
     });

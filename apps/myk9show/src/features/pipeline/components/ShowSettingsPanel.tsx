@@ -40,7 +40,7 @@ export function ShowSettingsPanel({
 
   const showDefaults = data?.showDefaults
     ? {
-        preset: data.showDefaults.preset_name as VisibilityPreset,
+        preset: data.showDefaults.preset as VisibilityPreset,
         selfCheckinEnabled: data.showDefaults.self_checkin_enabled,
       }
     : { preset: 'open' as VisibilityPreset, selfCheckinEnabled: true };
@@ -58,7 +58,7 @@ export function ShowSettingsPanel({
     return {
       id: t.id,
       label: t.name,
-      presetOverride: (override?.preset_name as VisibilityPreset) ?? null,
+      presetOverride: (override?.preset as VisibilityPreset) ?? null,
       selfCheckinOverride: override?.self_checkin_enabled ?? null,
     };
   });
@@ -68,7 +68,7 @@ export function ShowSettingsPanel({
     return {
       id: c.id,
       label: c.name,
-      presetOverride: (override?.preset_name as VisibilityPreset) ?? null,
+      presetOverride: (override?.preset as VisibilityPreset) ?? null,
       selfCheckinOverride: override?.self_checkin_enabled ?? null,
     };
   });

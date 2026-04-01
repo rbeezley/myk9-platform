@@ -190,16 +190,16 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
       // Load results visibility setting
       // Note: We need to pass trial_id and license_key but we don't have them in this dialog
       // For now, just fetch from the class visibility override table directly
-      // Note: Must select class_id with preset_name to avoid PostgREST 406 error
+      // Note: Must select class_id with preset to avoid PostgREST 406 error
       // when selecting only enum columns
       const { data: visibilityData } = await supabase
-        .from('class_result_visibility_overrides')
-        .select('class_id, preset_name')
+        .from('class_visibility_overrides')
+        .select('class_id, preset')
         .eq('class_id', classData.id)
         .maybeSingle();
 
-      if (visibilityData?.preset_name) {
-        setResultsVisibility(visibilityData.preset_name);
+      if (visibilityData?.preset) {
+        setResultsVisibility(visibilityData.preset);
       }
     } catch (error) {
       logger.error('Exception loading class settings:', error);

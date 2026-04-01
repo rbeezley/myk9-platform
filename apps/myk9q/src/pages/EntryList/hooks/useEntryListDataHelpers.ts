@@ -149,7 +149,7 @@ export async function applyVisibilityToEntries(
 }
 
 /**
- * Fetch visibility preset for a class from class_result_visibility_overrides table
+ * Fetch visibility preset for a class from class_visibility_overrides table
  */
 export async function fetchVisibilityPreset(
   classId: number | string
@@ -157,13 +157,13 @@ export async function fetchVisibilityPreset(
   try {
     // Use maybeSingle() to avoid 406 error when no row exists for this class
     const { data } = await supabase
-      .from('class_result_visibility_overrides')
-      .select('class_id, preset_name')
+      .from('class_visibility_overrides')
+      .select('class_id, preset')
       .eq('class_id', parseInt(String(classId)))
       .maybeSingle();
 
-    if (data?.preset_name && ['open', 'standard', 'review'].includes(data.preset_name)) {
-      return data.preset_name as 'open' | 'standard' | 'review';
+    if (data?.preset && ['open', 'standard', 'review'].includes(data.preset)) {
+      return data.preset as 'open' | 'standard' | 'review';
     }
   } catch {
     // Table might not have a row for this class - default to 'standard'

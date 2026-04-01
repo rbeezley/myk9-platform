@@ -42,7 +42,7 @@ interface CachedClassData {
 
 interface VisibilityOverride {
   class_id: number;
-  preset_name: 'open' | 'standard' | 'review';
+  preset: 'open' | 'standard' | 'review';
 }
 
 export interface ClassEntry {
@@ -55,7 +55,15 @@ export interface ClassEntry {
   judge_name: string;
   entry_count: number;
   completed_count: number;
-  class_status: 'no-status' | 'setup' | 'briefing' | 'break' | 'start_time' | 'in_progress' | 'offline-scoring' | 'completed';
+  class_status:
+    | 'no-status'
+    | 'setup'
+    | 'briefing'
+    | 'break'
+    | 'start_time'
+    | 'in_progress'
+    | 'offline-scoring'
+    | 'completed';
   is_scoring_finalized?: boolean;
   is_favorite: boolean;
   time_limit_seconds?: number;
@@ -139,8 +147,8 @@ async function fetchTrialInfo(
           trial_date: trialData.trial_date,
           trial_number: trialData.trial_number ?? trialData.trialid ?? 0,
           total_classes: classData.length || 0,
-          pending_classes: classData.filter((c) => c.is_scoring_finalized !== true).length || 0,
-          completed_classes: classData.filter((c) => c.is_scoring_finalized === true).length || 0
+          pending_classes: classData.filter(c => c.is_scoring_finalized !== true).length || 0,
+          completed_classes: classData.filter(c => c.is_scoring_finalized === true).length || 0,
         };
       }
     }
@@ -177,7 +185,7 @@ async function fetchTrialInfo(
     trial_number: trialData.trial_number || trialData.trialid,
     total_classes: classData?.length || 0,
     pending_classes: classData?.filter(c => c.is_scoring_finalized !== true).length || 0,
-    completed_classes: classData?.filter(c => c.is_scoring_finalized === true).length || 0
+    completed_classes: classData?.filter(c => c.is_scoring_finalized === true).length || 0,
   };
 
   return trialInfo;
@@ -192,8 +200,8 @@ async function processClassesWithEntries(
   // CRITICAL: Normalize all IDs to strings to prevent type mismatch (number vs string)
   const entriesByClass = new Map<string, Entry[]>();
 
-  entriesData.forEach((entry) => {
-    const classId = String(entry.class_id);  // Normalize to string
+  entriesData.forEach(entry => {
+    const classId = String(entry.class_id); // Normalize to string
     if (!entriesByClass.has(classId)) {
       entriesByClass.set(classId, []);
     }
@@ -201,12 +209,12 @@ async function processClassesWithEntries(
   });
 
   // Process each class
-  const processedClasses = classesData.map((cls) => {
-    const classEntries = entriesByClass.get(String(cls.id)) || [];  // Normalize to string
+  const processedClasses = classesData.map(cls => {
+    const classEntries = entriesByClass.get(String(cls.id)) || []; // Normalize to string
 
     // Process dog entries with custom status priority sorting
     const dogs = classEntries
-      .map((entry) => ({
+      .map(entry => ({
         id: parseInt(entry.id, 10),
         armband: entry.armband_number,
         call_name: entry.dog_call_name,
@@ -217,12 +225,12 @@ async function processClassesWithEntries(
           entry.entry_status === 'checked-in'
             ? 1
             : entry.entry_status === 'conflict'
-            ? 2
-            : entry.entry_status === 'pulled'
-            ? 3
-            : entry.entry_status === 'at-gate'
-            ? 4
-            : 0,
+              ? 2
+              : entry.entry_status === 'pulled'
+                ? 3
+                : entry.entry_status === 'at-gate'
+                  ? 4
+                  : 0,
         is_scored: entry.is_scored || false,
         exhibitor_order: entry.exhibitor_order || 0,
       }))
@@ -255,11 +263,10 @@ async function processClassesWithEntries(
 
     // Count totals
     const entryCount = dogs.length;
-    const completedCount = dogs.filter((dog) => dog.is_scored).length;
+    const completedCount = dogs.filter(dog => dog.is_scored).length;
 
     // Construct class name from element, level, and section
-    const sectionPart =
-      cls.section && cls.section !== '-' ? ` ${cls.section}` : '';
+    const sectionPart = cls.section && cls.section !== '-' ? ` ${cls.section}` : '';
     const className = `${cls.element} ${cls.level}${sectionPart}`.trim();
 
     return {
@@ -336,14 +343,14 @@ async function applyVisibilityPresets(classes: ClassEntry[]): Promise<void> {
   try {
     const classIds = classes.map(c => c.id);
     const { data: visibilityData } = await supabase
-      .from('class_result_visibility_overrides')
-      .select('class_id, preset_name')
+      .from('class_visibility_overrides')
+      .select('class_id, preset')
       .in('class_id', classIds);
 
     // CRITICAL: Use string keys to match cls.id type (prevents silent lookup failures)
     const visibilityMap = new Map<string, 'open' | 'standard' | 'review'>();
-    ((visibilityData || []) as VisibilityOverride[]).forEach((override) => {
-      visibilityMap.set(String(override.class_id), override.preset_name);
+    ((visibilityData || []) as VisibilityOverride[]).forEach(override => {
+      visibilityMap.set(String(override.class_id), override.preset);
     });
 
     // Update classes with their visibility presets
@@ -369,7 +376,7 @@ async function tryLoadFromReplicatedCache(
   // CRITICAL: Pass license_key to filter classes to current show only (multi-tenant isolation)
   const cachedClasses = await classesTable.getAll(licenseKey);
   const trialIdNum = parseInt(trialId, 10);
-  const trialClasses = cachedClasses.filter((cls) => cls.trial_id === trialIdNum);
+  const trialClasses = cachedClasses.filter(cls => cls.trial_id === trialIdNum);
 
   if (trialClasses.length === 0) {
     logger.log('📭 Cache is empty, falling back to Supabase');
@@ -385,11 +392,7 @@ async function tryLoadFromReplicatedCache(
   }
 
   // Process classes with entry data
-  const processedClasses = await processClassesWithEntries(
-    trialClasses,
-    cachedEntries,
-    licenseKey
-  );
+  const processedClasses = await processClassesWithEntries(trialClasses, cachedEntries, licenseKey);
 
   // Fetch and apply visibility presets
   await applyVisibilityPresets(processedClasses);
@@ -452,53 +455,62 @@ async function fetchClasses(
 
   // Load ALL entries for this trial using getClassEntries from entryService
   // This properly queries the results table separately and joins in JavaScript
-  const classIds = classData.map((c) => c.class_id);
+  const classIds = classData.map(c => c.class_id);
   const allTrialEntries = await getClassEntries(classIds, licenseKey);
 
   // Process classes with entry data
-  const processedClasses = classData.map((cls) => {
+  const processedClasses = classData.map(cls => {
     // Filter entries for this specific class using class_id
-    const entryData = allTrialEntries.filter(entry =>
-      entry.classId === cls.class_id
-    );
+    const entryData = allTrialEntries.filter(entry => entry.classId === cls.class_id);
 
     // Process dog entries with custom status priority sorting
-    const dogs = entryData.map(entry => ({
-      id: entry.id,
-      armband: entry.armband,
-      call_name: entry.callName,
-      breed: entry.breed,
-      handler: entry.handler,
-      in_ring: entry.status === 'in-ring',
-      checkin_status: entry.status === 'checked-in' ? 1 : entry.status === 'conflict' ? 2 : entry.status === 'pulled' ? 3 : entry.status === 'at-gate' ? 4 : 0,
-      is_scored: entry.isScored,
-      exhibitor_order: entry.exhibitorOrder || 0
-    })).sort((a, b) => {
-      // Custom sort order: in-ring, at gate, checked-in, conflict, not checked-in, pulled, completed
-      const getStatusPriority = (dog: typeof a) => {
-        if (dog.is_scored) return 7; // Completed (last)
-        if (dog.in_ring) return 1; // In-ring (first)
-        if (dog.checkin_status === 4) return 2; // At gate
-        if (dog.checkin_status === 1) return 3; // Checked-in
-        if (dog.checkin_status === 2) return 4; // Conflict
-        if (dog.checkin_status === 0) return 5; // Not checked-in (pending)
-        if (dog.checkin_status === 3) return 6; // Pulled
-        return 8; // Unknown status
-      };
+    const dogs = entryData
+      .map(entry => ({
+        id: entry.id,
+        armband: entry.armband,
+        call_name: entry.callName,
+        breed: entry.breed,
+        handler: entry.handler,
+        in_ring: entry.status === 'in-ring',
+        checkin_status:
+          entry.status === 'checked-in'
+            ? 1
+            : entry.status === 'conflict'
+              ? 2
+              : entry.status === 'pulled'
+                ? 3
+                : entry.status === 'at-gate'
+                  ? 4
+                  : 0,
+        is_scored: entry.isScored,
+        exhibitor_order: entry.exhibitorOrder || 0,
+      }))
+      .sort((a, b) => {
+        // Custom sort order: in-ring, at gate, checked-in, conflict, not checked-in, pulled, completed
+        const getStatusPriority = (dog: typeof a) => {
+          if (dog.is_scored) return 7; // Completed (last)
+          if (dog.in_ring) return 1; // In-ring (first)
+          if (dog.checkin_status === 4) return 2; // At gate
+          if (dog.checkin_status === 1) return 3; // Checked-in
+          if (dog.checkin_status === 2) return 4; // Conflict
+          if (dog.checkin_status === 0) return 5; // Not checked-in (pending)
+          if (dog.checkin_status === 3) return 6; // Pulled
+          return 8; // Unknown status
+        };
 
-      const priorityA = getStatusPriority(a);
-      const priorityB = getStatusPriority(b);
+        const priorityA = getStatusPriority(a);
+        const priorityB = getStatusPriority(b);
 
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
 
-      // Secondary sort by exhibitor_order (run order), then armband as fallback
-      if (a.exhibitor_order !== b.exhibitor_order) {
-        return a.exhibitor_order - b.exhibitor_order;
-      }
-      return a.armband - b.armband;
-    });
+        // Secondary sort by exhibitor_order (run order), then armband as fallback
+        if (a.exhibitor_order !== b.exhibitor_order) {
+          return a.exhibitor_order - b.exhibitor_order;
+        }
+        return a.armband - b.armband;
+      });
 
     // Count totals
     const entryCount = dogs.length;
@@ -531,7 +543,7 @@ async function fetchClasses(
       start_time: cls.start_time || undefined,
       self_checkin_enabled: cls.self_checkin_enabled ?? true, // Default to true (self check-in)
       visibility_preset: 'standard', // Will be populated below
-      dogs: dogs
+      dogs: dogs,
     };
     return classEntry;
   });
@@ -567,21 +579,21 @@ async function fetchClasses(
 
   // Fetch visibility presets for all classes
   try {
-    const classIds = sortedClasses.map((c) => c.id);
+    const classIds = sortedClasses.map(c => c.id);
     const { data: visibilityData } = await supabase
-      .from('class_result_visibility_overrides')
-      .select('class_id, preset_name')
+      .from('class_visibility_overrides')
+      .select('class_id, preset')
       .in('class_id', classIds);
 
-    // Create map of class_id to preset_name
+    // Create map of class_id to preset
     // CRITICAL: Use string keys to match cls.id type (prevents silent lookup failures)
     const visibilityMap = new Map<string, 'open' | 'standard' | 'review'>();
-    ((visibilityData || []) as VisibilityOverride[]).forEach((override) => {
-      visibilityMap.set(String(override.class_id), override.preset_name);
+    ((visibilityData || []) as VisibilityOverride[]).forEach(override => {
+      visibilityMap.set(String(override.class_id), override.preset);
     });
 
     // Update classes with their visibility presets
-    sortedClasses.forEach((cls) => {
+    sortedClasses.forEach(cls => {
       cls.visibility_preset = visibilityMap.get(String(cls.id)) || 'standard';
     });
   } catch (error) {

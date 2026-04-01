@@ -22,9 +22,9 @@ export type ReplicatedTableName =
   | 'class_requirements'
 
   // Visibility config (Phase 3 Day 15)
-  | 'show_result_visibility_defaults'
-  | 'trial_result_visibility_overrides'
-  | 'class_result_visibility_overrides'
+  | 'show_visibility_settings'
+  | 'trial_visibility_overrides'
+  | 'class_visibility_overrides'
 
   // Announcements (Phase 4 Day 16)
   | 'announcements'
@@ -47,7 +47,7 @@ export type ReplicatedTableName =
  */
 interface TableReplicationConfig {
   priority: 'critical' | 'high' | 'medium' | 'low'; // Sync priority
-  ttl: number;                // Cache TTL in milliseconds
+  ttl: number; // Cache TTL in milliseconds
 }
 
 /**
@@ -78,15 +78,15 @@ const tableConfig: Record<ReplicatedTableName, TableReplicationConfig> = {
   },
 
   // Visibility config - Admin features
-  show_result_visibility_defaults: {
+  show_visibility_settings: {
     priority: 'high',
     ttl: 24 * 60 * 60 * 1000,
   },
-  trial_result_visibility_overrides: {
+  trial_visibility_overrides: {
     priority: 'high',
     ttl: 24 * 60 * 60 * 1000,
   },
-  class_result_visibility_overrides: {
+  class_visibility_overrides: {
     priority: 'high',
     ttl: 24 * 60 * 60 * 1000,
   },

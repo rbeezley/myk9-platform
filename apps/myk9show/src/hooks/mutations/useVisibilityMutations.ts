@@ -6,11 +6,6 @@ import { visibilityKeys } from '@/hooks/queries/useVisibilitySettings';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
 import { PRESET_CONFIGS } from '@myk9/secretary';
 
-// TODO: Remove these casts after regenerating Supabase types with migration 093.
-// The generated types still reference the old table schema.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
-
 interface ShowVisibilityInput {
   showId: string;
   presetName?: VisibilityPreset;
@@ -43,16 +38,13 @@ interface ClassVisibilityInput {
  * Build a complete show row from partial input.
  * If only preset is given, derive timing fields from the preset config.
  */
-function buildShowRow(
-  input: ShowVisibilityInput,
-  userId: string | undefined
-): Record<string, unknown> {
+function buildShowRow(input: ShowVisibilityInput, userId: string | undefined) {
   const preset = input.presetName ?? 'open';
   const config = PRESET_CONFIGS[preset];
 
   return {
     show_id: input.showId,
-    preset_name: preset,
+    preset: preset,
     placement_timing: input.placementTiming ?? config.placement,
     qualification_timing: input.qualificationTiming ?? config.qualification,
     time_timing: input.timeTiming ?? config.time,
@@ -70,7 +62,7 @@ export function useUpdateShowVisibility() {
   return useMutation({
     mutationFn: async (input: ShowVisibilityInput) => {
       const row = buildShowRow(input, user?.id);
-      const { error } = await db.from('show_result_visibility_defaults').upsert(row);
+      const { error } = await supabase.from('show_visibility_settings').upsert(row);
       if (error) throw error;
     },
     onSuccess: (_data: unknown, variables: ShowVisibilityInput) => {
@@ -90,8 +82,8 @@ export function useUpdateTrialVisibility() {
   return useMutation({
     mutationFn: async (input: TrialVisibilityInput) => {
       if (input.reset) {
-        const { error } = await db
-          .from('trial_result_visibility_overrides')
+        const { error } = await supabase
+          .from('trial_visibility_overrides')
           .delete()
           .eq('trial_id', input.trialId);
         if (error) throw error;
@@ -104,7 +96,7 @@ export function useUpdateTrialVisibility() {
       };
 
       if (input.presetName !== undefined) {
-        updates.preset_name = input.presetName;
+        updates.preset = input.presetName;
         if (input.presetName != null) {
           const config = PRESET_CONFIGS[input.presetName];
           updates.placement_timing = config.placement;
@@ -118,18 +110,20 @@ export function useUpdateTrialVisibility() {
       }
 
       // Try update first; if no row exists, insert
-      const { data, error: updateError } = await db
-        .from('trial_result_visibility_overrides')
-        .update(updates)
+      const { data, error: updateError } = await supabase
+        .from('trial_visibility_overrides')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .update(updates as any)
         .eq('trial_id', input.trialId)
         .select('trial_id');
 
       if (updateError) throw updateError;
 
       if (!data || data.length === 0) {
-        const { error: insertError } = await db
-          .from('trial_result_visibility_overrides')
-          .insert({ trial_id: input.trialId, ...updates });
+        const { error: insertError } = await supabase
+          .from('trial_visibility_overrides')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert({ trial_id: input.trialId, ...updates } as any);
         if (insertError) throw insertError;
       }
     },
@@ -150,8 +144,8 @@ export function useUpdateClassVisibility() {
   return useMutation({
     mutationFn: async (input: ClassVisibilityInput) => {
       if (input.reset) {
-        const { error } = await db
-          .from('class_result_visibility_overrides')
+        const { error } = await supabase
+          .from('class_visibility_overrides')
           .delete()
           .in('class_id', input.classIds);
         if (error) throw error;
@@ -164,7 +158,7 @@ export function useUpdateClassVisibility() {
       };
 
       if (input.presetName !== undefined) {
-        updates.preset_name = input.presetName;
+        updates.preset = input.presetName;
         if (input.presetName != null) {
           const config = PRESET_CONFIGS[input.presetName];
           updates.placement_timing = config.placement;
@@ -178,18 +172,20 @@ export function useUpdateClassVisibility() {
       }
 
       for (const classId of input.classIds) {
-        const { data, error: updateError } = await db
-          .from('class_result_visibility_overrides')
-          .update(updates)
+        const { data, error: updateError } = await supabase
+          .from('class_visibility_overrides')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .update(updates as any)
           .eq('class_id', classId)
           .select('class_id');
 
         if (updateError) throw updateError;
 
         if (!data || data.length === 0) {
-          const { error: insertError } = await db
-            .from('class_result_visibility_overrides')
-            .insert({ class_id: classId, ...updates });
+          const { error: insertError } = await supabase
+            .from('class_visibility_overrides')
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .insert({ class_id: classId, ...updates } as any);
           if (insertError) throw insertError;
         }
       }

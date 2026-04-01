@@ -146,12 +146,10 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </div>
             </Card>
 
-            {/* Timer Card */}
-            <Card className="relative p-6 overflow-hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-3 right-3 rounded-full"
+            {/* Timer Card - gradient background matching myK9Q */}
+            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md overflow-hidden">
+              <button
+                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/20 border-0 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={stopwatch.reset}
                 disabled={stopwatch.isRunning}
                 title={
@@ -159,12 +157,12 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 }
               >
                 <RotateCcw className="h-5 w-5" />
-              </Button>
+              </button>
 
               <div className="text-center">
                 <div
                   className={cn(
-                    'text-5xl font-bold text-foreground tabular-nums tracking-tight transition-colors duration-300',
+                    'text-5xl font-bold text-white tabular-nums tracking-tight transition-colors duration-300',
                     stopwatch.shouldShow30SecondWarning() && 'text-amber-400',
                     stopwatch.isTimeExpired() && 'text-red-500 animate-pulse'
                   )}
@@ -172,7 +170,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
 
-                <div className="text-base text-muted-foreground mt-2">
+                <div className="text-base text-white/90 mt-2 mb-4">
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (
@@ -182,7 +180,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
                 {/* Time remaining progress bar */}
                 {maxTimeMs > 0 && (
-                  <div className="w-full h-1.5 rounded-full bg-muted mt-3 mb-4 overflow-hidden">
+                  <div className="w-full h-1.5 rounded-full bg-white/20 mt-3 mb-4 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-300 ease-linear"
                       style={{ width: `${progressPct}%`, backgroundColor: getRingColor() }}
@@ -202,7 +200,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     </Button>
                   ) : (
                     <Button
-                      className="w-48 h-[72px] rounded-full text-[1.375rem] font-semibold shadow-lg hover:brightness-110 hover:scale-105 active:scale-95"
+                      className="w-48 h-[72px] rounded-full text-[1.375rem] font-semibold shadow-lg hover:brightness-110 hover:scale-105 active:scale-95 bg-white text-indigo-600 hover:bg-white/90"
                       onClick={stopwatch.start}
                       data-testid={stopwatch.time > 0 ? undefined : 'timer-start'}
                     >
@@ -211,7 +209,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   )}
                 </div>
               </div>
-            </Card>
+            </div>
 
             {/* Warning */}
             {warningMessage && (
@@ -284,12 +282,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </Card>
 
             <div className="flex gap-3 pt-1 pb-8">
-              <Button
-                variant="secondary"
-                size="xl"
-                className="flex-1 rounded-xl"
-                onClick={onBack}
-              >
+              <Button variant="secondary" size="xl" className="flex-1 rounded-xl" onClick={onBack}>
                 Cancel
               </Button>
               <Button

@@ -66,7 +66,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Add Push Notifications to Announcements - 2026-03-30 18:30
 
-- **Wire announcements into push notification infrastructure** — Currently announcements are in-app only (Supabase Realtime + toast + bell badge). Users miss announcements when the app is closed. **Problem:** Secretary sends an urgent announcement ("Ring 3 moved to Building B") but exhibitors with closed browsers never see it until they reopen the app. High/urgent announcements especially need to reach users immediately. **Files:** `apps/myk9show/src/store/announcementStore.ts:108-118` (current toast-only path for high/urgent), `apps/myk9show/src/components/notifications/NotificationBell.tsx` (in-app badge). **Solution:** Depends on push infrastructure being built by the dog notification pipeline (service worker, push subscription table, server-side web-push, permission prompt UX). Once that lands: (1) add a Supabase database webhook or trigger on `show_announcements` INSERT that fires web-push to all subscribers for that `show_id`, (2) high/urgent priority -> push immediately, normal priority -> in-app only (avoid notification fatigue). VAPID key already configured (`VITE_VAPID_PUBLIC_KEY`).
+- [x] **Wire announcements into push notification infrastructure** — Done (PR #38). New edge function `push-trigger-announcement` sends web-push to show participants (exhibitors + officials) when high/urgent announcements are created. Database trigger via pg_net on `show_announcements` INSERT with `WHEN` clause filtering. Normal priority remains in-app only. Deploy steps: `supabase functions deploy push-trigger-announcement --no-verify-jwt` then `supabase db push`.
 
 ---
 

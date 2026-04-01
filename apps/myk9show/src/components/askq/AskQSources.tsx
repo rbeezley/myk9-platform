@@ -62,20 +62,20 @@ function SourceItem({ type, item }: { type: string; item: Record<string, unknown
     case 'entries':
       return (
         <div className="text-xs bg-background rounded px-2.5 py-2 border flex items-center justify-between">
-          <span className="font-medium">{item.dog_name as string}</span>
+          <span className="font-medium">{(item.call_name ?? item.dog_name ?? '') as string}</span>
           <div className="flex items-center gap-2">
-            {item.placement ? (
-              <span className="text-muted-foreground">#{String(item.placement)}</span>
+            {item.final_placement ? (
+              <span className="text-muted-foreground">#{String(item.final_placement)}</span>
             ) : null}
-            {item.qualification_status ? (
+            {item.result_status ? (
               <span
                 className={
-                  item.qualification_status === 'Q'
+                  item.result_status === 'Q'
                     ? 'text-green-600 dark:text-green-400 font-medium'
                     : 'text-muted-foreground'
                 }
               >
-                {String(item.qualification_status)}
+                {String(item.result_status)}
               </span>
             ) : null}
           </div>

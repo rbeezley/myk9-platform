@@ -36,10 +36,10 @@ CREATE POLICY "Service role can manage chatbot_feedback"
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Authenticated users can insert chatbot_feedback"
+CREATE POLICY "Authenticated users can insert own chatbot_feedback"
   ON chatbot_feedback FOR INSERT
   TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (user_id = auth.uid());
 
 -- 3. Create user_guide table (empty, ready for content)
 CREATE TABLE IF NOT EXISTS user_guide (

@@ -5,7 +5,7 @@
  * self check-in, and releasing results with bulk operations.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, UserCheck, Settings } from 'lucide-react';
@@ -17,7 +17,7 @@ import {
   useTrialOverrides,
   useClassOverrides,
 } from '@/hooks/queries/useShowSettingsDatabase';
-import { useBulkClassOperations } from '@/hooks/useBulkClassOperations';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { PresetSelector } from './PresetSelector';
 import { TrialOverrides } from './TrialOverrides';
 import { ClassOverrides } from './ClassOverrides';
@@ -28,11 +28,6 @@ export default function ResultsControlPage() {
   const { selectedShowId, shows } = useShowStore();
   const { trials } = useTrialStore();
   const { classes } = useClassStore();
-  const bulkOps = useBulkClassOperations();
-
-  useEffect(() => {
-    bulkOps.clearSelection();
-  }, [selectedShowId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only on show change
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
   const showTrials = useMemo(
@@ -44,6 +39,14 @@ export default function ResultsControlPage() {
     () => classes.filter(c => showTrialIds.has(c.trialId)),
     [classes, showTrialIds]
   );
+
+  const getClassId = useCallback((c: (typeof showClasses)[number]) => c.id, []);
+  const bulkOps = useBulkSelection({ items: showClasses, getItemId: getClassId });
+
+  useEffect(() => {
+    bulkOps.clearSelection();
+  }, [selectedShowId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only on show change
+
   const allClassIds = useMemo(() => showClasses.map(c => c.id), [showClasses]);
 
   const { data: settings, isLoading: settingsLoading } = useShowSettings(selectedShowId ?? null);
@@ -56,10 +59,33 @@ export default function ResultsControlPage() {
 
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
 
+  // Adapter: toggle a class by its ID (for ClassOverrides component)
+  const toggleClassById = useCallback(
+    (classId: string) => {
+      const cls = showClasses.find(c => c.id === classId);
+      if (cls) bulkOps.toggleItem(cls);
+    },
+    [showClasses, bulkOps]
+  );
+
+  // Adapter: toggle all classes in a trial (select all if not all selected, deselect all otherwise)
+  const toggleAllInTrial = useCallback(
+    (_trialId: string, classIds: string[]) => {
+      const trialClasses = showClasses.filter(c => classIds.includes(c.id));
+      const allSelected = trialClasses.every(c => bulkOps.selectedIds.has(c.id));
+      if (allSelected) {
+        bulkOps.deselectItems(trialClasses);
+      } else {
+        bulkOps.selectItems(trialClasses);
+      }
+    },
+    [showClasses, bulkOps]
+  );
+
   // Check if any selected class uses manual_release timing on any field
   const hasManualReleaseClasses = useMemo(() => {
     if (!settings) return false;
-    return Array.from(bulkOps.selectedClasses).some(classId => {
+    return Array.from(bulkOps.selectedIds).some(classId => {
       const classOverride = classOverrides.find(o => o.classId === classId);
       const trialId = showClasses.find(c => c.id === classId)?.trialId;
       const trialOverride = trialId ? trialOverrides.find(o => o.trialId === trialId) : undefined;
@@ -74,7 +100,7 @@ export default function ResultsControlPage() {
         return effective === 'manual_release';
       });
     });
-  }, [bulkOps.selectedClasses, classOverrides, trialOverrides, showClasses, settings]);
+  }, [bulkOps.selectedIds, classOverrides, trialOverrides, showClasses, settings]);
 
   if (!selectedShowId) {
     return (
@@ -123,9 +149,9 @@ export default function ResultsControlPage() {
                 classes={showClasses}
                 classOverrides={classOverrides}
                 trialOverrides={trialOverrides}
-                selectedClasses={bulkOps.selectedClasses}
-                onToggleClass={bulkOps.toggleClass}
-                onToggleAllInTrial={bulkOps.toggleAllInTrial}
+                selectedClasses={bulkOps.selectedIds}
+                onToggleClass={toggleClassById}
+                onToggleAllInTrial={toggleAllInTrial}
               />
             </div>
           )}
@@ -161,9 +187,9 @@ export default function ResultsControlPage() {
       {/* Bulk Operations Bar */}
       <BulkOperationsBar
         showId={selectedShowId}
-        selectedClasses={bulkOps.selectedClasses}
+        selectedClasses={bulkOps.selectedIds}
         allClassIds={allClassIds}
-        onSelectAll={() => bulkOps.selectAll(allClassIds)}
+        onSelectAll={bulkOps.selectAll}
         onClearSelection={bulkOps.clearSelection}
         hasManualReleaseClasses={hasManualReleaseClasses}
       />

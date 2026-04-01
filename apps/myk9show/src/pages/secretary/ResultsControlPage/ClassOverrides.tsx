@@ -15,7 +15,12 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secretary';
+import {
+  PRESET_INFO,
+  PRESET_CONFIGS,
+  type VisibilityPreset,
+  hasVisibilityOverride,
+} from '@myk9/secretary';
 import {
   useUpdateClassOverride,
   useResetOverride,
@@ -27,7 +32,6 @@ import type {
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { SyncableClassData } from '@/store/classStore';
 import { getClassName } from '@/components/classes/types/classTypes';
-import { hasVisibilityOverride } from './resultsControlUtils';
 
 interface ClassOverridesProps {
   showId: string;

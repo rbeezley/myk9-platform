@@ -17,10 +17,18 @@ export type {
   VisibilityUserRole,
   VisibilityOverride,
   PresetInfo,
+  FieldTimings,
 } from './visibility/visibility-types';
 
 // Visibility presets
-export { PRESET_CONFIGS, PRESET_INFO, resolvePreset } from './visibility/visibility-presets';
+export {
+  PRESET_CONFIGS,
+  PRESET_INFO,
+  resolvePreset,
+  fieldTimingsFromVisibility,
+  detectPreset,
+  hasVisibilityOverride,
+} from './visibility/visibility-presets';
 
 // Visibility cascade
 export { resolveVisibilityCascade, getVisibleResultFields } from './visibility/visibility-cascade';

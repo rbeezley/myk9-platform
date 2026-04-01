@@ -11,9 +11,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Zap, Clock, Lock } from 'lucide-react';
-import { PRESET_CONFIGS, type VisibilityPreset, type VisibilityTiming } from '@myk9/secretary';
+import {
+  type VisibilityPreset,
+  type VisibilityTiming,
+  type FieldTimings,
+  detectPreset,
+  fieldTimingsFromVisibility,
+  hasVisibilityOverride,
+} from '@myk9/secretary';
 import { TIMING_LABELS } from '@/components/secretary/settingsConstants';
-import type { VisibilityOverride } from '@myk9/secretary';
+
+// Re-export shared logic so existing imports from this file still work
+export { detectPreset, fieldTimingsFromVisibility, hasVisibilityOverride };
+export type { FieldTimings };
 
 export const PRESET_ICONS: Record<VisibilityPreset, ReactNode> = {
   open: <Zap className="h-5 w-5 text-green-500" />,
@@ -23,53 +33,6 @@ export const PRESET_ICONS: Record<VisibilityPreset, ReactNode> = {
 
 export const ALL_TIMINGS: VisibilityTiming[] = ['immediate', 'class_complete', 'manual_release'];
 export const PLACEMENT_TIMINGS: VisibilityTiming[] = ['class_complete', 'manual_release'];
-
-export interface FieldTimings {
-  placement: VisibilityTiming;
-  qualification: VisibilityTiming;
-  time: VisibilityTiming;
-  faults: VisibilityTiming;
-}
-
-export function fieldTimingsFromVisibility(visibility: {
-  placement: VisibilityTiming;
-  qualification: VisibilityTiming;
-  time: VisibilityTiming;
-  faults: VisibilityTiming;
-}): FieldTimings {
-  return {
-    placement: visibility.placement,
-    qualification: visibility.qualification,
-    time: visibility.time,
-    faults: visibility.faults,
-  };
-}
-
-/** Detect which preset (if any) matches the given field timings */
-export function detectPreset(timings: FieldTimings): VisibilityPreset | null {
-  for (const [name, cfg] of Object.entries(PRESET_CONFIGS)) {
-    if (
-      cfg.placement === timings.placement &&
-      cfg.qualification === timings.qualification &&
-      cfg.time === timings.time &&
-      cfg.faults === timings.faults
-    ) {
-      return name as VisibilityPreset;
-    }
-  }
-  return null;
-}
-
-/** Check if an override has any visibility field set (non-null/non-undefined) */
-export function hasVisibilityOverride(ov: VisibilityOverride): boolean {
-  return (
-    ov.preset != null ||
-    ov.placement != null ||
-    ov.qualification != null ||
-    ov.time != null ||
-    ov.faults != null
-  );
-}
 
 interface TimingSelectProps {
   value: VisibilityTiming;

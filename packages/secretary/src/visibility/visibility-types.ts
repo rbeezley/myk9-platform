@@ -48,6 +48,14 @@ export interface VisibilityOverride {
   faults?: VisibilityTiming | null;
 }
 
+/** Extracted field timings for preset detection and comparison */
+export interface FieldTimings {
+  placement: VisibilityTiming;
+  qualification: VisibilityTiming;
+  time: VisibilityTiming;
+  faults: VisibilityTiming;
+}
+
 /** UI metadata for preset cards — each app can extend with icons/styling */
 export interface PresetInfo {
   preset: VisibilityPreset;

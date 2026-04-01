@@ -1,4 +1,10 @@
-import type { VisibilityPreset, VisibilitySettings, PresetInfo } from './visibility-types';
+import type {
+  FieldTimings,
+  VisibilityOverride,
+  VisibilityPreset,
+  VisibilitySettings,
+  PresetInfo,
+} from './visibility-types';
 
 /** Field timings for each preset */
 export const PRESET_CONFIGS: Record<
@@ -62,4 +68,40 @@ export function resolvePreset(
     inheritedFrom: source,
     preset,
   };
+}
+
+/** Extract the four timing fields from a visibility object */
+export function fieldTimingsFromVisibility(visibility: FieldTimings): FieldTimings {
+  return {
+    placement: visibility.placement,
+    qualification: visibility.qualification,
+    time: visibility.time,
+    faults: visibility.faults,
+  };
+}
+
+/** Detect which preset (if any) matches the given field timings */
+export function detectPreset(timings: FieldTimings): VisibilityPreset | null {
+  for (const [name, cfg] of Object.entries(PRESET_CONFIGS)) {
+    if (
+      cfg.placement === timings.placement &&
+      cfg.qualification === timings.qualification &&
+      cfg.time === timings.time &&
+      cfg.faults === timings.faults
+    ) {
+      return name as VisibilityPreset;
+    }
+  }
+  return null;
+}
+
+/** Check if an override has any visibility field set (non-null/non-undefined) */
+export function hasVisibilityOverride(ov: VisibilityOverride): boolean {
+  return (
+    ov.preset != null ||
+    ov.placement != null ||
+    ov.qualification != null ||
+    ov.time != null ||
+    ov.faults != null
+  );
 }

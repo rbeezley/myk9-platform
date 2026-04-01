@@ -13,14 +13,18 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secretary';
+import {
+  PRESET_INFO,
+  PRESET_CONFIGS,
+  type VisibilityPreset,
+  hasVisibilityOverride,
+} from '@myk9/secretary';
 import {
   useUpdateTrialOverride,
   useResetOverride,
 } from '@/hooks/mutations/useShowSettingsMutations';
 import type { TrialOverrideEntry } from '@/hooks/queries/useShowSettingsDatabase';
 import type { SyncableTrial } from '@/store/trial-store-types';
-import { hasVisibilityOverride } from './resultsControlUtils';
 
 interface TrialOverridesProps {
   showId: string;

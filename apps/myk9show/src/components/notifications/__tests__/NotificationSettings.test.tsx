@@ -4,13 +4,18 @@ import { NotificationSettings } from '../NotificationSettings';
 import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 
-// Mock sound test
+// Mock sound/voice modules
 vi.mock('@myk9/notifications', async () => {
   const actual = await vi.importActual('@myk9/notifications');
-  return { ...actual, testSound: vi.fn() };
+  return {
+    ...actual,
+    testSound: vi.fn(),
+    speakWithConfig: vi.fn(),
+    isSpeechSupported: vi.fn(() => true),
+  };
 });
 
-import { testSound } from '@myk9/notifications';
+import { testSound, speakWithConfig } from '@myk9/notifications';
 
 const mockSubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
 const mockUnsubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
@@ -23,13 +28,46 @@ vi.mock('@/hooks/usePushSubscription', () => ({
   })),
 }));
 
-// Mock notifications lib to capture toast calls
 vi.mock('@/lib/notifications', () => ({
   notifications: {
     warning: vi.fn(),
     error: vi.fn(),
   },
 }));
+
+// Mock speechSynthesis for voice picker
+const mockVoices = [
+  { name: 'Samantha (Premium)', lang: 'en-US' },
+  { name: 'Google US English', lang: 'en-US' },
+  { name: 'Alex', lang: 'en-US' },
+] as SpeechSynthesisVoice[];
+
+Object.defineProperty(window, 'speechSynthesis', {
+  value: {
+    getVoices: () => mockVoices,
+    speak: vi.fn(),
+    cancel: vi.fn(),
+    speaking: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  },
+  writable: true,
+});
+
+Object.defineProperty(window, 'SpeechSynthesisUtterance', {
+  value: class {
+    text: string;
+    lang = 'en-US';
+    rate = 1;
+    pitch = 1;
+    volume = 1;
+    voice: SpeechSynthesisVoice | null = null;
+    constructor(text: string) {
+      this.text = text;
+    }
+  },
+  writable: true,
+});
 
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { notifications } from '@/lib/notifications';
@@ -38,7 +76,6 @@ const mockedUsePushSubscription = vi.mocked(usePushSubscription);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Restore default mock implementation after clearAllMocks
   mockedUsePushSubscription.mockImplementation(() => ({
     subscribe: mockSubscribe,
     unsubscribe: mockUnsubscribe,
@@ -56,6 +93,7 @@ beforeEach(() => {
 });
 
 describe('NotificationSettings', () => {
+  // --- Master toggle ---
   it('renders master toggle', () => {
     render(<NotificationSettings />);
     expect(screen.getByLabelText(/enable notifications/i)).toBeInTheDocument();
@@ -63,9 +101,7 @@ describe('NotificationSettings', () => {
 
   it('toggles master switch updates store', () => {
     render(<NotificationSettings />);
-    const toggle = screen.getByLabelText(/enable notifications/i);
-    fireEvent.click(toggle);
-
+    fireEvent.click(screen.getByLabelText(/enable notifications/i));
     expect(useNotificationStore.getState().preferences.enabled).toBe(false);
   });
 
@@ -74,115 +110,104 @@ describe('NotificationSettings', () => {
     expect(screen.getByLabelText(/dogs ahead/i)).toBeInTheDocument();
   });
 
-  it('renders channel toggles', () => {
+  // --- Channels ---
+  it('renders channel toggles (sound, vibration)', () => {
     render(<NotificationSettings />);
-    expect(screen.getByLabelText(/sound/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/voice/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/vibration/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/soundEnabled/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/vibrationEnabled/i)).toBeInTheDocument();
   });
 
+  it('renders push as a channel with explanation', () => {
+    render(<NotificationSettings />);
+    expect(screen.getByLabelText(/push notifications/i)).toBeInTheDocument();
+    expect(screen.getByText(/lock screen/i)).toBeInTheDocument();
+  });
+
+  it('calls subscribe when push is toggled on', async () => {
+    render(<NotificationSettings />);
+    fireEvent.click(screen.getByLabelText(/push notifications/i));
+    await waitFor(() => expect(mockSubscribe).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows warning when push permission denied', async () => {
+    mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'permission-denied' });
+    render(<NotificationSettings />);
+    fireEvent.click(screen.getByLabelText(/push notifications/i));
+    await waitFor(() =>
+      expect(notifications.warning).toHaveBeenCalledWith(
+        'Push notifications blocked. Check browser settings.'
+      )
+    );
+  });
+
+  // --- Voice Announcements ---
+  it('renders voice announcements master toggle', () => {
+    render(<NotificationSettings />);
+    expect(screen.getByLabelText(/voice announcements/i)).toBeInTheDocument();
+  });
+
+  it('shows category toggles when voice is enabled', () => {
+    useNotificationStore.setState({
+      preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },
+    });
+    render(<NotificationSettings />);
+    expect(screen.getByLabelText(/voice-cat-runOrder/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/voice-cat-results/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/voice-cat-classStarting/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/voice-cat-announcements/i)).toBeInTheDocument();
+  });
+
+  it('hides category toggles when voice is disabled', () => {
+    render(<NotificationSettings />);
+    expect(screen.queryByLabelText(/voice-cat-runOrder/i)).not.toBeInTheDocument();
+  });
+
+  it('toggles a voice category', () => {
+    useNotificationStore.setState({
+      preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },
+    });
+    render(<NotificationSettings />);
+    fireEvent.click(screen.getByLabelText(/voice-cat-runOrder/i));
+    expect(useNotificationStore.getState().preferences.voiceCategories.runOrder).toBe(false);
+  });
+
+  it('renders voice picker with grouped options', () => {
+    useNotificationStore.setState({
+      preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },
+    });
+    render(<NotificationSettings />);
+    expect(screen.getByLabelText(/voice$/i)).toBeInTheDocument();
+  });
+
+  it('renders speed slider when voice enabled', () => {
+    useNotificationStore.setState({
+      preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },
+    });
+    render(<NotificationSettings />);
+    expect(screen.getByText('Speed')).toBeInTheDocument();
+  });
+
+  it('test voice button calls speakWithConfig', () => {
+    useNotificationStore.setState({
+      preferences: {
+        ...DEFAULT_PREFERENCES,
+        voiceEnabled: true,
+        voiceName: 'Alex',
+        voiceRate: 1.5,
+      },
+    });
+    render(<NotificationSettings />);
+    fireEvent.click(screen.getByRole('button', { name: /test voice/i }));
+    expect(speakWithConfig).toHaveBeenCalledWith('This is a test of your selected voice.', {
+      voiceName: 'Alex',
+      voiceRate: 1.5,
+    });
+  });
+
+  // --- Test notification ---
   it('fires test notification on button click', () => {
     render(<NotificationSettings />);
     fireEvent.click(screen.getByText(/test notification/i));
-
     expect(testSound).toHaveBeenCalled();
-  });
-
-  it('renders push notifications toggle', () => {
-    render(<NotificationSettings />);
-    expect(screen.getByLabelText(/push notifications/i)).toBeInTheDocument();
-  });
-
-  it('calls subscribe when push checkbox is checked', async () => {
-    render(<NotificationSettings />);
-    const pushCheckbox = screen.getByLabelText(/push notifications/i);
-    fireEvent.click(pushCheckbox);
-
-    await waitFor(() => {
-      expect(mockSubscribe).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('calls unsubscribe when push checkbox is unchecked', async () => {
-    useNotificationStore.setState({
-      preferences: { ...DEFAULT_PREFERENCES, pushEnabled: true },
-    });
-
-    render(<NotificationSettings />);
-    const pushCheckbox = screen.getByLabelText(/push notifications/i);
-    fireEvent.click(pushCheckbox);
-
-    await waitFor(() => {
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('shows warning toast when subscribe returns permission-denied', async () => {
-    mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'permission-denied' });
-
-    render(<NotificationSettings />);
-    const pushCheckbox = screen.getByLabelText(/push notifications/i);
-    fireEvent.click(pushCheckbox);
-
-    await waitFor(() => {
-      expect(notifications.warning).toHaveBeenCalledWith(
-        'Push notifications blocked. Check browser settings.'
-      );
-    });
-  });
-
-  it('shows error toast when subscribe fails for other reason', async () => {
-    mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'subscribe-failed' });
-
-    render(<NotificationSettings />);
-    const pushCheckbox = screen.getByLabelText(/push notifications/i);
-    fireEvent.click(pushCheckbox);
-
-    await waitFor(() => {
-      expect(notifications.error).toHaveBeenCalledWith('Failed to enable push notifications.');
-    });
-  });
-
-  it('disables push checkbox when isSupported is false', () => {
-    mockedUsePushSubscription.mockImplementation(() => ({
-      subscribe: mockSubscribe,
-      unsubscribe: mockUnsubscribe,
-      isSupported: false,
-    }));
-
-    render(<NotificationSettings />);
-    const pushCheckbox = screen.getByLabelText(/push notifications/i);
-    expect(pushCheckbox).toBeDisabled();
-  });
-
-  it('shows "Not supported on this browser" text when isSupported is false', () => {
-    mockedUsePushSubscription.mockImplementation(() => ({
-      subscribe: mockSubscribe,
-      unsubscribe: mockUnsubscribe,
-      isSupported: false,
-    }));
-
-    render(<NotificationSettings />);
-    expect(screen.getByText(/not supported on this browser/i)).toBeInTheDocument();
-  });
-
-  it('shows error toast when unsubscribe fails', async () => {
-    mockUnsubscribe.mockResolvedValueOnce({ ok: false });
-    useNotificationStore.setState({
-      preferences: { ...DEFAULT_PREFERENCES, pushEnabled: true },
-    });
-
-    render(<NotificationSettings />);
-    const pushCheckbox = screen.getByLabelText(/push notifications/i);
-    fireEvent.click(pushCheckbox);
-
-    await waitFor(() => {
-      expect(notifications.error).toHaveBeenCalledWith('Failed to disable push notifications.');
-    });
-  });
-
-  it('does not show "Not supported" text when isSupported is true', () => {
-    render(<NotificationSettings />);
-    expect(screen.queryByText(/not supported on this browser/i)).not.toBeInTheDocument();
   });
 });

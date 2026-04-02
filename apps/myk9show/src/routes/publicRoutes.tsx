@@ -34,6 +34,9 @@ const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
+// TV Display
+const TVDisplay = lazy(() => import('@/pages/TVDisplay'));
+
 // Messages
 const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
 
@@ -423,6 +426,18 @@ export const PublicRoutes = () => (
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
+      }
+    />
+
+    {/* TV Run Order Display — public, no auth required */}
+    <Route
+      path="/tv/:showId"
+      element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <TVDisplay />
+          </PageTransition>
+        </SuspenseWrapper>
       }
     />
 

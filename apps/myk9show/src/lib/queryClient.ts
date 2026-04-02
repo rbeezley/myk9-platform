@@ -255,6 +255,11 @@ export const queryKeys = {
   classEntries: (classId: string) => ['entries', 'class', classId] as const,
   dogEntries: (dogId: string) => ['entries', 'dog', dogId] as const,
   showStatistics: (showId: string) => ['shows', showId, 'statistics'] as const,
+
+  // TV Display
+  tvShow: (showId: string) => ['tv', 'show', showId] as const,
+  tvClasses: (showId: string) => ['tv', 'classes', showId] as const,
+  tvResults: (showId: string) => ['tv', 'results', showId] as const,
 } as const;
 
 // Enhanced cache strategies for different data types

@@ -494,15 +494,50 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
 };
 ```
 
-- [ ] **Step 2: Run package tests to verify nothing broke**
+- [ ] **Step 2: [ADDED] Add migration guard to `notificationStore.ts` for existing users**
+
+Existing users have persisted `NotificationPreferences` without `voiceCategories`, `voiceName`, or `voiceRate`. Zustand's shallow merge will leave nested objects like `voiceCategories` as `undefined`, causing runtime crashes when accessing `preferences.voiceCategories.runOrder`.
+
+Add a `merge` function to the persist config in `apps/myk9show/src/store/notificationStore.ts`:
+
+```typescript
+    {
+      name: 'myk9-notification-preferences',
+      storage: createJSONStorage(() => localStorage),
+      partialize: state => ({
+        preferences: state.preferences,
+      }),
+      merge: (persisted, current) => {
+        const persistedState = persisted as Partial<NotificationState> | undefined;
+        if (!persistedState?.preferences) return current;
+
+        return {
+          ...current,
+          preferences: {
+            ...current.preferences,
+            ...persistedState.preferences,
+            // Deep-merge voiceCategories: fill missing keys from defaults
+            voiceCategories: {
+              ...current.preferences.voiceCategories,
+              ...(persistedState.preferences.voiceCategories ?? {}),
+            },
+          },
+        };
+      },
+    }
+```
+
+This ensures existing users get defaults for new fields while preserving their existing preferences.
+
+- [ ] **Step 3: Run package tests to verify nothing broke**
 
 Run: `cd packages/notifications && npx vitest run`
 Expected: All pass — the new fields are additive with defaults.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add packages/notifications/src/types.ts
+git add packages/notifications/src/types.ts apps/myk9show/src/store/notificationStore.ts
 git commit -m "feat(notifications): add voice category and config fields to preferences"
 ```
 
@@ -1292,7 +1327,25 @@ import { ScoringSettings } from '@/components/preferences/ScoringSettings';
 
 Remove unused `Volume2` from lucide imports (if no longer used elsewhere in the file — check first).
 
-- [ ] **Step 2: Remove voice fields from `settingsStore.ts`**
+- [ ] **Step 2: [ADDED] Grep for all consumers of removed settingsStore fields before deleting**
+
+Before removing fields, find all files that reference them:
+
+Run:
+
+```bash
+cd apps/myk9show && grep -rn 'voiceAnnouncements\|voiceNotifications\|voiceName\|voiceRate' src/ --include='*.ts' --include='*.tsx' | grep -v '__tests__' | grep -v 'ScoringSettings'
+```
+
+For each file found:
+
+- If it reads `voiceAnnouncements` or `voiceNotifications` from `settingsStore`: replace with `voiceEnabled` from `notificationStore`
+- If it reads `voiceName` or `voiceRate` from `settingsStore`: replace with the same fields from `notificationStore.preferences`
+- If it's in a test file: update the mock/setup accordingly
+
+Fix all consumers BEFORE removing the fields from the interface.
+
+- [ ] **Step 3: Remove voice fields from `settingsStore.ts`**
 
 In `apps/myk9show/src/stores/settingsStore.ts`:
 
@@ -1324,20 +1377,20 @@ Also remove `voiceNotifications` from the interface and defaults (this is now `v
 voiceNotifications: boolean;
 ```
 
-- [ ] **Step 3: Delete `ScoringSettings.tsx` and its test**
+- [ ] **Step 4: Delete `ScoringSettings.tsx` and its test**
 
 Delete `apps/myk9show/src/components/preferences/ScoringSettings.tsx`.
 Delete `apps/myk9show/src/components/preferences/__tests__/ScoringSettings.test.tsx`.
 
-- [ ] **Step 4: Run typecheck and tests**
+- [ ] **Step 5: Run typecheck and tests**
 
 Run: `cd apps/myk9show && npx tsc --noEmit && npx vitest run`
 
-If there are compile errors from other files referencing `voiceAnnouncements`, `voiceName`, `voiceRate`, or `voiceNotifications` from settingsStore, fix those references to use `notificationStore` preferences instead.
+All consumer references should already be fixed from Step 2. If any remain, fix them now.
 
 Expected: Typecheck passes, all tests pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add -A

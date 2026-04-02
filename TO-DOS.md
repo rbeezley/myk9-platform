@@ -14,7 +14,7 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 ### Live Event / Spectator
 
-- [ ] **TV run order display** — myK9Q has `/tv/:licenseKey` with live run order, results podium, carousel navigation, real-time class status. Port to myK9Show with mobile-first design.
+- [x] **TV run order display** — Done (PR #41). Public route at `/tv/:showId` with persistent dark grid, podium takeover with staggered reveal/confetti/shimmer, mobile scrollable list, Supabase Realtime subscriptions, QR code on secretary dashboard. Migration 108 adds anon entries RLS + fixes stale status values in shows/trials/classes RLS. 40 tests. Deploy: `supabase db push` for migration 108.
 - [ ] **Voice announcements / settings** — myK9Q has dedicated voice settings for audio feedback and announcements. Port to myK9Show.
 
 ### Data & Analytics

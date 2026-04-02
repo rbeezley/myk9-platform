@@ -128,7 +128,7 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isInTrial).toBe(false);
     });
 
-    it('does NOT activate trial for expired premium (falls through to free)', () => {
+    it('activates trial for expired premium user (treated as free)', () => {
       const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       mockUseExhibitorProfile.mockReturnValue({
         profile: { subscription_tier: 'premium', subscription_expires_at: pastDate },

@@ -10,7 +10,7 @@
  * - Reports and analytics
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/services/LoggingService';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
@@ -36,7 +36,12 @@ import {
   Share,
   Archive,
   Trash2,
+  Tv,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +65,75 @@ interface NavigationItem {
   badge?: string;
   urgent?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// TVDisplaySection — QR code + link for the TV run order display
+// ---------------------------------------------------------------------------
+
+interface TVDisplaySectionProps {
+  showId: string;
+}
+
+function TVDisplaySection({ showId }: TVDisplaySectionProps) {
+  const [copied, setCopied] = useState(false);
+
+  const tvUrl = `${window.location.origin}/tv/${showId}`;
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(tvUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [tvUrl]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Tv className="h-5 w-5" />
+          TV Run Order Display
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col sm:flex-row items-start gap-6">
+          {/* QR Code */}
+          <div className="flex-shrink-0 rounded-lg border bg-white p-3">
+            <QRCodeSVG value={tvUrl} size={128} />
+          </div>
+
+          {/* URL + actions */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              Display the live run order on a TV or large screen at the venue. Scan the QR code or
+              share the link — no login required.
+            </p>
+
+            <div className="flex items-center gap-2 mb-4 p-2 rounded-md bg-muted">
+              <span className="text-sm font-mono truncate flex-1 min-w-0">{tvUrl}</span>
+              <Button variant="ghost" size="sm" onClick={handleCopy} className="flex-shrink-0">
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                <span className="sr-only">{copied ? 'Copied' : 'Copy URL'}</span>
+              </Button>
+            </div>
+
+            <Button asChild variant="outline" size="sm">
+              <a href={tvUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open TV Display
+              </a>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 export function ShowManagementPage({ className }: ShowManagementPageProps) {
   const { showId } = useParams<{ showId: string }>();
@@ -372,25 +446,29 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
         </TabsContent>
 
         <TabsContent value="schedule" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Schedule & Run Order</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Schedule Management</h3>
-                <p className="text-muted-foreground mb-6">
-                  Comprehensive scheduling tools with drag-and-drop interface, conflict detection,
-                  and judge assignment.
-                </p>
-                <Button onClick={() => navigate(`/secretary/shows/${showId}/run-order`)}>
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Open Schedule Management
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Schedule & Run Order</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12">
+                  <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Schedule Management</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Comprehensive scheduling tools with drag-and-drop interface, conflict detection,
+                    and judge assignment.
+                  </p>
+                  <Button onClick={() => navigate(`/secretary/shows/${showId}/run-order`)}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Open Schedule Management
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {showId && <TVDisplaySection showId={showId} />}
+          </div>
         </TabsContent>
 
         <TabsContent value="reports" className="mt-6">

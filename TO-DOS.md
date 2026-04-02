@@ -15,7 +15,7 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 ### Live Event / Spectator
 
 - [x] **TV run order display** — Done (PR #41). Public route at `/tv/:showId` with persistent dark grid, podium takeover with staggered reveal/confetti/shimmer, mobile scrollable list, Supabase Realtime subscriptions, QR code on secretary dashboard. Migration 108 adds anon entries RLS + fixes stale status values in shows/trials/classes RLS. 40 tests. Deploy: `supabase db push` for migration 108.
-- [ ] **Voice announcements / settings** — myK9Q has dedicated voice settings for audio feedback and announcements. Port to myK9Show.
+- [x] **Voice announcements / settings** — Done. NotificationSettings extended with Voice Announcements card: master toggle, 4 per-category toggles (run order, results, class starting, announcements), grouped voice picker (Recommended/Other), enhanced voice nudge with platform-specific download instructions, speed slider, test button. Push moved into Channels card. ScoringSettings removed. `speakWithConfig` in `@myk9/notifications` with localStorage migration guard. 47 package tests + 15 component tests + 16 utility tests.
 
 ### Data & Analytics
 

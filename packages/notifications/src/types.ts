@@ -47,3 +47,26 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
 export interface SuppressionContext {
   isInRing: boolean;
 }
+
+/** Per-category voice toggle map */
+export interface VoiceCategories {
+  runOrder: boolean;
+  results: boolean;
+  classStarting: boolean;
+  announcements: boolean;
+}
+
+/** Voice configuration for speech synthesis */
+export interface VoiceConfig {
+  voiceName: string; // '' = browser default
+  voiceRate: number; // 0.5–2.0
+}
+
+/** Maps NotificationType to VoiceCategories key */
+export const NOTIFICATION_TYPE_TO_VOICE_CATEGORY: Record<string, keyof VoiceCategories | null> = {
+  your_turn: 'runOrder',
+  results_posted: 'results',
+  class_starting: 'classStarting',
+  announcement: 'announcements',
+  check_in_reminder: null,
+};

@@ -41,9 +41,17 @@ export function generateVoiceText(payload: NotificationPayload): VoiceAnnounceme
         priority: 'normal',
       };
 
-    case 'announcement':
-      // Announcements are text-heavy; TTS would be noisy. Skip.
-      return null;
+    case 'announcement': {
+      const title = (payload.title || '')
+        .replace(/^[\u{1F300}-\u{1FAF8}\u{2600}-\u{27BF}]+\s*/u, '')
+        .replace(/^URGENT:\s*/i, '')
+        .trim();
+      if (!title) return null;
+      return {
+        text: title,
+        priority: payload.priority === 'urgent' ? 'high' : 'normal',
+      };
+    }
 
     default:
       return null;

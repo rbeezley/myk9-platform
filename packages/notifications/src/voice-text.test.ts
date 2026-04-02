@@ -82,9 +82,37 @@ describe('generateVoiceText', () => {
     expect(result!.text).toContain('check in');
   });
 
-  it('returns null for announcement type', () => {
-    const result = generateVoiceText(makePayload({ type: 'announcement' }));
+  it('generates announcement text, stripping emoji prefix', () => {
+    const result = generateVoiceText(
+      makePayload({
+        type: 'announcement',
+        title: '🚨 Ring 3 is moving to the south building',
+        body: 'Please adjust accordingly',
+      })
+    );
 
+    expect(result).not.toBeNull();
+    expect(result!.text).toBe('Ring 3 is moving to the south building');
+    expect(result!.priority).toBe('normal');
+  });
+
+  it('generates announcement text, stripping URGENT prefix', () => {
+    const result = generateVoiceText(
+      makePayload({
+        type: 'announcement',
+        title: 'URGENT: Weather delay — all rings paused',
+        body: '',
+        priority: 'urgent',
+      })
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!.text).toBe('Weather delay — all rings paused');
+    expect(result!.priority).toBe('high');
+  });
+
+  it('returns null for announcement with empty title', () => {
+    const result = generateVoiceText(makePayload({ type: 'announcement', title: '' }));
     expect(result).toBeNull();
   });
 

@@ -67,6 +67,19 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isInTrial).toBe(false);
     });
 
+    it('treats premium with null expiry as expired', () => {
+      mockUseExhibitorProfile.mockReturnValue({
+        profile: { subscription_tier: 'premium', subscription_expires_at: null },
+        isLoading: false,
+      });
+
+      const { result } = renderHook(() => useSubscriptionGate());
+
+      expect(result.current.tier).toBe('free');
+      expect(result.current.isPremium).toBe(false);
+      expect(result.current.isExpired).toBe(true);
+    });
+
     it('returns free tier when profile is null', () => {
       mockUseExhibitorProfile.mockReturnValue({
         profile: null,
@@ -121,14 +134,14 @@ describe('useSubscriptionGate', () => {
       expect(result.current.isInTrial).toBe(false);
     });
 
-    it('activates trial for expired premium user (treated as free)', () => {
+    it('does not activate trial for expired premium user', () => {
       mockPremiumProfile(pastDate);
 
       const { result } = renderHook(() => useSubscriptionGate({ trialShowCount: 1 }));
 
-      expect(result.current.tier).toBe('premium');
-      expect(result.current.isPremium).toBe(true);
-      expect(result.current.isInTrial).toBe(true);
+      expect(result.current.tier).toBe('free');
+      expect(result.current.isPremium).toBe(false);
+      expect(result.current.isInTrial).toBe(false);
       expect(result.current.isExpired).toBe(true);
     });
   });

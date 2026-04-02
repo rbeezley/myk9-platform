@@ -23,13 +23,14 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
   const rawTier: PlanType = profile?.subscription_tier ?? 'free';
   const expiresAt = profile?.subscription_expires_at;
 
-  const isExpired = rawTier === 'premium' && expiresAt ? new Date(expiresAt) < new Date() : false;
+  const isExpired = rawTier === 'premium' && (!expiresAt || new Date(expiresAt) < new Date());
 
   const paidTier: PlanType = isExpired ? 'free' : rawTier;
   const isPaidPremium = paidTier === 'premium';
 
   const isInTrial =
     !isPaidPremium &&
+    !isExpired &&
     options?.trialShowCount !== undefined &&
     options.trialShowCount <= TRIAL_SHOW_LIMIT;
 

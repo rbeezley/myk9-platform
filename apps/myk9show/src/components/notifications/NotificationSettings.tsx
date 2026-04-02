@@ -1,15 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNotificationStore } from '@/store/notificationStore';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { notifications } from '@/lib/notifications';
 import { testSound, isSpeechSupported, speakWithConfig } from '@myk9/notifications';
 import type { VoiceCategories } from '@myk9/notifications';
-import {
-  groupVoices,
-  hasRecommendedVoice,
-  detectPlatform,
-  getEnhancedVoiceInstructions,
-} from '@/lib/voice-utils';
+import { groupVoices, detectPlatform, getEnhancedVoiceInstructions } from '@/lib/voice-utils';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
@@ -57,10 +52,12 @@ export function NotificationSettings() {
     return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
   }, [speechSupported, loadVoices]);
 
-  const grouped = groupVoices(voices);
-  const showNudge = speechSupported && voices.length > 0 && !hasRecommendedVoice(voices);
-  const platform = detectPlatform(navigator.userAgent);
-  const instructions = getEnhancedVoiceInstructions(platform);
+  const grouped = useMemo(() => groupVoices(voices), [voices]);
+  const showNudge = speechSupported && voices.length > 0 && grouped.recommended.length === 0;
+  const instructions = useMemo(() => {
+    const platform = detectPlatform(navigator.userAgent);
+    return getEnhancedVoiceInstructions(platform);
+  }, []);
 
   async function handlePushToggle(checked: boolean) {
     setIsPushLoading(true);
@@ -161,7 +158,7 @@ export function NotificationSettings() {
               </div>
               <Switch
                 id={key}
-                aria-label={key}
+                aria-label={label}
                 checked={preferences[key]}
                 onCheckedChange={checked => updatePreferences({ [key]: checked })}
               />
@@ -244,7 +241,7 @@ export function NotificationSettings() {
                   </div>
                   <Switch
                     id={`voice-cat-${key}`}
-                    aria-label={`voice-cat-${key}`}
+                    aria-label={label}
                     checked={preferences.voiceCategories[key]}
                     onCheckedChange={checked => updateVoiceCategory(key, checked)}
                   />
@@ -330,7 +327,7 @@ export function NotificationSettings() {
                   <span className="text-xs text-muted-foreground">0.5x</span>
                   <Slider
                     value={[preferences.voiceRate]}
-                    onValueChange={([value]) => updatePreferences({ voiceRate: value })}
+                    onValueCommit={([value]) => updatePreferences({ voiceRate: value })}
                     min={0.5}
                     max={2.0}
                     step={0.1}

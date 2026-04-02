@@ -113,8 +113,8 @@ describe('NotificationSettings', () => {
   // --- Channels ---
   it('renders channel toggles (sound, vibration)', () => {
     render(<NotificationSettings />);
-    expect(screen.getByLabelText(/soundEnabled/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/vibrationEnabled/i)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /^sound$/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /^vibration$/i })).toBeInTheDocument();
   });
 
   it('renders push as a channel with explanation', () => {
@@ -151,15 +151,15 @@ describe('NotificationSettings', () => {
       preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },
     });
     render(<NotificationSettings />);
-    expect(screen.getByLabelText(/voice-cat-runOrder/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/voice-cat-results/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/voice-cat-classStarting/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/voice-cat-announcements/i)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /run order alerts/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /results posted/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /class starting/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /^announcements$/i })).toBeInTheDocument();
   });
 
   it('hides category toggles when voice is disabled', () => {
     render(<NotificationSettings />);
-    expect(screen.queryByLabelText(/voice-cat-runOrder/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: /run order alerts/i })).not.toBeInTheDocument();
   });
 
   it('toggles a voice category', () => {
@@ -167,7 +167,7 @@ describe('NotificationSettings', () => {
       preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },
     });
     render(<NotificationSettings />);
-    fireEvent.click(screen.getByLabelText(/voice-cat-runOrder/i));
+    fireEvent.click(screen.getByRole('switch', { name: /run order alerts/i }));
     expect(useNotificationStore.getState().preferences.voiceCategories.runOrder).toBe(false);
   });
 

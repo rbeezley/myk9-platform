@@ -139,7 +139,7 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 - [x] **Investigate database data loss** — RESOLVED (2026-04-02). Cause: out-of-order migrations were pushed yesterday, triggering a full db reset. All 107 migrations re-ran from scratch (confirmed via sequential transaction IDs). Seed/reference data survived (populated by migrations), user-generated data did not. Not a Supabase issue.
 
-- [ ] **Configure DNS for Resend email deliverability** — Auth emails (signup confirmation, password reset) go to spam. **Problem:** `myk9show.com` likely lacks SPF, DKIM, and DMARC DNS records for Resend's sending domain. Resend shows `delivered` status but Cox.net spam-folders the email. **Solution:** Add SPF, DKIM, and DMARC records in myk9show.com DNS as specified by Resend dashboard (Settings > Domains). Verify with Resend's domain verification tool.
+- [x] **Configure DNS for Resend email deliverability** — RESOLVED (2026-04-02). Three fixes applied: (1) Set `SITE_URL=https://myk9show.com` on Supabase Edge Functions so confirmation links match the sending domain (was pointing to vercel.app). (2) Added `_dmarc` TXT record in Vercel DNS. (3) Changed FROM_EMAIL from `noreply@` to `notifications@myk9show.com` in all 3 edge functions. SPF + DKIM were already configured. Domain was already verified in Resend.
 
 ---
 

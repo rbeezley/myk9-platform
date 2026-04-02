@@ -96,6 +96,10 @@ export function getDisplayName(dog: TVDogInfo | null): string {
   return dog?.callName ?? dog?.name ?? 'Unknown';
 }
 
+export function formatArmband(armband: string | null): string {
+  return armband ? `#${armband}` : '';
+}
+
 export function formatDisplayTime(searchTime: number | null, totalScore: number | null): string {
   if (searchTime != null) return `${searchTime.toFixed(1)}s`;
   if (totalScore != null) return `${totalScore}`;

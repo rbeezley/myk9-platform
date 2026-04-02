@@ -61,11 +61,13 @@ export function TVPodiumOverlay({ queue, onComplete, soundEnabled }: TVPodiumOve
 
   return (
     <div className="fixed inset-0 bg-zinc-950 z-50 flex flex-col items-center justify-center">
-      <TVConfetti />
+      <TVConfetti key={current.id} />
       <div className="text-center mb-8">
         <div className="text-xs text-zinc-500 uppercase tracking-[0.2em]">Final Results</div>
         <div className="text-2xl font-bold text-zinc-100 mt-1">{current.name}</div>
-        <div className="text-sm text-zinc-600 mt-1">Judge: {current.judgeName}</div>
+        {current.judgeName && (
+          <div className="text-sm text-zinc-600 mt-1">Judge: {current.judgeName}</div>
+        )}
       </div>
       <div className="flex items-end justify-center gap-6 px-10">
         {sorted.map(p => (

@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { type TVCompletedClass, getDisplayName, formatDisplayTime } from './types';
+import { type TVCompletedClass, getDisplayName, formatDisplayTime, formatArmband } from './types';
 
 const MEDAL_EMOJI: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const MEDAL_BORDER: Record<number, string> = {
@@ -36,7 +36,7 @@ export function TVMobileResults({ completedClass }: TVMobileResultsProps) {
             >
               <span>{MEDAL_EMOJI[p.placement] ?? `${p.placement}th`}</span>
               <span className="text-zinc-100 font-semibold ml-1">
-                #{p.armband} {displayName}
+                {formatArmband(p.armband)} {displayName}
               </span>
               <br />
               <span className="text-zinc-500">

@@ -32,10 +32,31 @@ export default function TVDisplay() {
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [shownPodiums, setShownPodiums] = useState<Set<string>>(new Set());
+  const [shownPodiums, setShownPodiums] = useState<Set<string>>(() => {
+    try {
+      const saved = sessionStorage.getItem(`tv-shown-podiums-${showId}`);
+      return saved ? new Set(JSON.parse(saved) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const [highlightedClassId, setHighlightedClassId] = useState<string | null>(null);
   const prevClassesRef = useRef<string>('');
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync fullscreen state with browser (handles Escape key)
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  // Clean up highlight timer on unmount
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    };
+  }, []);
 
   // Derive podium queue from completedClasses minus already-shown ones
   const podiumQueue = useMemo(
@@ -46,7 +67,7 @@ export default function TVDisplay() {
   // Detect class card updates for highlight animation
   const classKey = useMemo(() => classes.map(c => `${c.id}:${c.scoredCount}`).join(','), [classes]);
   useEffect(() => {
-    if (!prevClassesRef.current || prevClassesRef.current === classKey) {
+    if (!prevClassesRef.current || prevClassesRef.current === classKey || !classKey) {
       prevClassesRef.current = classKey;
       return;
     }
@@ -74,17 +95,26 @@ export default function TVDisplay() {
     return () => cancelAnimationFrame(rafId);
   }, [classKey, classes]);
 
-  const handlePodiumComplete = useCallback((classId: string) => {
-    setShownPodiums(prev => new Set(prev).add(classId));
-  }, []);
+  const handlePodiumComplete = useCallback(
+    (classId: string) => {
+      setShownPodiums(prev => {
+        const next = new Set(prev).add(classId);
+        try {
+          sessionStorage.setItem(`tv-shown-podiums-${showId}`, JSON.stringify([...next]));
+        } catch {
+          /* sessionStorage unavailable */
+        }
+        return next;
+      });
+    },
+    [showId]
+  );
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      document.exitFullscreen().catch(() => {});
     } else {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
+      document.documentElement.requestFullscreen().catch(() => {});
     }
   }, []);
 

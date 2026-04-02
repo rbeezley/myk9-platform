@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { TVClass, TVEntry, getStatusBadge, getDisplayName } from './types';
+import { TVClass, TVEntry, getStatusBadge, getDisplayName, formatArmband } from './types';
 
 interface TVClassCardProps {
   tvClass: TVClass;
@@ -13,7 +13,7 @@ function InRingEntry({ entry }: { entry: TVEntry }) {
       <span className="text-blue-400 text-xs font-semibold">IN RING</span>
       <div className="mt-0.5">
         <span className="text-white font-semibold">
-          #{entry.armband} {getDisplayName(entry.dog)}
+          {formatArmband(entry.armband)} {getDisplayName(entry.dog)}
         </span>
         {entry.handler && <span className="text-zinc-400 text-sm ml-1">— {entry.handler}</span>}
       </div>
@@ -29,8 +29,8 @@ function NextUpEntry({ entry, isNext }: { entry: TVEntry; isNext: boolean }) {
         isNext ? 'text-zinc-200' : 'text-zinc-500'
       )}
     >
-      {isNext && <span className="text-amber-500 text-xs font-semibold mr-1.5">NEXT</span>}#
-      {entry.armband} {getDisplayName(entry.dog)}
+      {isNext && <span className="text-amber-500 text-xs font-semibold mr-1.5">NEXT</span>}
+      {formatArmband(entry.armband)} {getDisplayName(entry.dog)}
       {entry.handler && <span className="text-zinc-600"> — {entry.handler}</span>}
     </div>
   );

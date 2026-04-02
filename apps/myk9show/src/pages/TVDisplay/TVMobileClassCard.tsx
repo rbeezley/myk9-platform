@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { TVClass, TVEntry, getStatusBadge, getDisplayName } from './types';
+import { TVClass, TVEntry, getStatusBadge, getDisplayName, formatArmband } from './types';
 
 interface TVMobileClassCardProps {
   tvClass: TVClass;
@@ -20,7 +20,7 @@ function MobileEntry({
       <div className="bg-blue-950 border border-blue-600 rounded px-2.5 py-1.5 mb-1">
         <span className="text-blue-400 text-[9px] font-semibold">IN RING</span>
         <span className="text-white text-sm font-semibold ml-1.5">
-          #{entry.armband} {displayName}
+          {formatArmband(entry.armband)} {displayName}
         </span>
         {entry.handler && <span className="text-zinc-400 text-xs"> — {entry.handler}</span>}
       </div>
@@ -28,8 +28,8 @@ function MobileEntry({
   }
   return (
     <div className="px-2.5 py-0.5 text-xs text-zinc-500">
-      {isNext && <span className="text-amber-500 text-[9px] font-semibold mr-1">NEXT</span>}#
-      {entry.armband} {displayName}
+      {isNext && <span className="text-amber-500 text-[9px] font-semibold mr-1">NEXT</span>}
+      {formatArmband(entry.armband)} {displayName}
       {entry.handler && <span className="text-zinc-600"> — {entry.handler}</span>}
     </div>
   );

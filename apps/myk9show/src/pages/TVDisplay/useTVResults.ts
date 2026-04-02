@@ -6,6 +6,7 @@ import { TVCompletedClass, TVPlacement, mapDogInfo } from './types';
 interface TVResultsResult {
   completedClasses: TVCompletedClass[];
   isLoading: boolean;
+  error: Error | null;
 }
 
 async function fetchTVResults(showId: string, trialId?: string): Promise<TVCompletedClass[]> {
@@ -110,7 +111,7 @@ async function fetchTVResults(showId: string, trialId?: string): Promise<TVCompl
 }
 
 export function useTVResults(showId: string, trialId?: string): TVResultsResult {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: [...queryKeys.tvResults(showId), trialId],
     queryFn: () => fetchTVResults(showId, trialId),
     ...cacheStrategies.realtime,
@@ -120,5 +121,6 @@ export function useTVResults(showId: string, trialId?: string): TVResultsResult 
   return {
     completedClasses: data ?? [],
     isLoading,
+    error: error as Error | null,
   };
 }

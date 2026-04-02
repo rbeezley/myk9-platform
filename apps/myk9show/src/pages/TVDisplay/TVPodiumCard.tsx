@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { DogAvatar } from '@/components/shared/DogAvatar';
-import { type TVPlacement, getDisplayName, formatDisplayTime } from './types';
+import { type TVPlacement, getDisplayName, formatDisplayTime, formatArmband } from './types';
 
 const MEDAL_CONFIG = {
   1: {
@@ -67,7 +67,7 @@ export function TVPodiumCard({ placement, animationDelay, showShimmer }: TVPodiu
       />
 
       <div className="font-bold text-zinc-100 text-base">
-        #{placement.armband} {displayName}
+        {formatArmband(placement.armband)} {displayName}
       </div>
       {placement.handler && <div className="text-zinc-400 text-sm">{placement.handler}</div>}
       {displayTime && <div className={cn('text-sm mt-1', config.textColor)}>{displayTime}</div>}

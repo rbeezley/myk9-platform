@@ -53,11 +53,14 @@ serve(async (req: Request) => {
       });
     }
 
-    // Determine recipients: if sender is participant, notify secretaries; if sender is secretary, notify participant
+    // Determine recipients and actionUrl based on who sent the message
     let recipientUserIds: string[] = [];
+    let actionUrl: string;
 
     if (sender_id === thread.participant_id) {
-      // Exhibitor sent message -> notify secretaries for this show
+      // Exhibitor sent message -> notify secretaries for this show -> secretary route
+      actionUrl = `/secretary/messages/${show_id}`;
+
       const { data: show } = await supabase
         .from('shows')
         .select('club_id')
@@ -84,7 +87,8 @@ serve(async (req: Request) => {
         recipientUserIds = [...new Set(authIds)];
       }
     } else {
-      // Secretary sent message -> notify the participant
+      // Secretary sent message -> notify the participant -> exhibitor route
+      actionUrl = `/messages/${show_id}`;
       recipientUserIds = [thread.participant_id];
     }
 
@@ -142,7 +146,7 @@ serve(async (req: Request) => {
         messageId: id,
         threadId: thread_id,
         showId: show_id,
-        actionUrl: `/messages/${show_id}`,
+        actionUrl,
       },
     });
 

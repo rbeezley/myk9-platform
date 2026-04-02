@@ -38,6 +38,7 @@ export function MessageInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        maxLength={5000}
         className="flex-1"
       />
       <Button

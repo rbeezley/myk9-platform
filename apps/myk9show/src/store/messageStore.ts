@@ -4,32 +4,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Message, MessageThread } from '@/features/messages/types';
 import { useToastStore } from '@/store/toastStore';
 import { logger } from '@/services/LoggingService';
-
-// Raw DB row shapes for tables not yet in the generated Supabase types
-interface DbMessage {
-  id: string;
-  show_id: string;
-  thread_id: string;
-  sender_id: string;
-  body: string;
-  group_label: string | null;
-  read_at: string | null;
-  created_at: string;
-}
-
-interface DbThread {
-  id: string;
-  show_id: string;
-  participant_id: string;
-  last_message_at: string;
-  created_at: string;
-}
-
-interface DbPerson {
-  id: string;
-  full_name: string;
-  role: string;
-}
+import { type DbMessage, type DbThread, type DbPerson, initialState } from './messageStore.types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase.from as (table: string) => any;
@@ -58,18 +33,6 @@ interface MessageState {
   recalculateUnread: () => void;
   reset: () => void;
 }
-
-const initialState = {
-  threads: [] as MessageThread[],
-  messagesByThread: {} as Record<string, Message[]>,
-  unreadCount: 0,
-  isLoading: false,
-  error: null as string | null,
-  currentShowIds: [] as string[],
-  currentUserId: null as string | null,
-  channels: [] as RealtimeChannel[],
-  _subscribing: false as boolean,
-};
 
 export const useMessageStore = create<MessageState>()((set, get) => ({
   ...initialState,
@@ -176,96 +139,53 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
 
   fetchThreads: async (showId: string) => {
     try {
-      // Try join first
-      const { data, error } = (await db('show_message_threads')
-        .select(
-          `
-          id,
-          show_id,
-          participant_id,
-          last_message_at,
-          created_at,
-          people:participant_id (
-            full_name,
-            role
-          ),
-          shows:show_id (
-            name
-          )
-        `
-        )
+      // Fetch threads (no join — participant_id FK points to auth.users, not people)
+      const { data: threadData, error } = (await db('show_message_threads')
+        .select('id, show_id, participant_id, last_message_at, created_at')
         .eq('show_id', showId)
         .order('last_message_at', { ascending: false })) as {
-        data: Array<
-          DbThread & {
-            people: { full_name: string; role: string } | null;
-            shows: { name: string } | null;
-          }
-        > | null;
+        data: DbThread[] | null;
         error: Error | null;
       };
 
       if (error) throw error;
 
-      const threads: MessageThread[] = (data ?? []).map(row => ({
-        id: row.id,
-        show_id: row.show_id,
-        participant_id: row.participant_id,
-        last_message_at: row.last_message_at,
-        created_at: row.created_at,
-        participant_name: row.people?.full_name ?? undefined,
-        participant_role: row.people?.role ?? undefined,
-        show_name: row.shows?.name ?? undefined,
-      })) as MessageThread[];
+      const rows = threadData ?? [];
+
+      // Batch-fetch people by auth_user_id (the FK used by participant_id)
+      const participantIds = [...new Set(rows.map(r => r.participant_id))];
+      const peopleMap = new Map<string, string>();
+      if (participantIds.length > 0) {
+        const { data: peopleData } = (await db('people')
+          .select('auth_user_id, first_name, last_name')
+          .in('auth_user_id', participantIds)) as {
+          data: DbPerson[] | null;
+          error: Error | null;
+        };
+        for (const p of peopleData ?? []) {
+          peopleMap.set(p.auth_user_id, `${p.first_name} ${p.last_name}`.trim());
+        }
+      }
+
+      const threads: MessageThread[] = rows.map(row => {
+        const name = peopleMap.get(row.participant_id);
+        const thread: MessageThread = {
+          id: row.id,
+          show_id: row.show_id,
+          participant_id: row.participant_id,
+          last_message_at: row.last_message_at,
+          created_at: row.created_at,
+        };
+        if (name !== undefined) thread.participant_name = name;
+        return thread;
+      });
 
       set(state => {
         const others = state.threads.filter(t => t.show_id !== showId);
         return { threads: [...others, ...threads] };
       });
     } catch (err) {
-      logger.error('Failed to fetch threads (join):', 'messages', { data: err });
-
-      // Fallback: separate queries
-      try {
-        const { data: threadData, error: threadError } = (await db('show_message_threads')
-          .select('id, show_id, participant_id, last_message_at, created_at')
-          .eq('show_id', showId)
-          .order('last_message_at', { ascending: false })) as {
-          data: DbThread[] | null;
-          error: Error | null;
-        };
-
-        if (threadError) throw threadError;
-
-        const rows = threadData ?? [];
-        const participantIds = [...new Set(rows.map(r => r.participant_id))];
-
-        const { data: peopleData } = (await db('people')
-          .select('id, full_name, role')
-          .in('id', participantIds)) as { data: DbPerson[] | null; error: Error | null };
-
-        const peopleMap = new Map((peopleData ?? []).map(p => [p.id, p]));
-
-        const threads: MessageThread[] = rows.map(row => {
-          const person = peopleMap.get(row.participant_id);
-          return {
-            id: row.id,
-            show_id: row.show_id,
-            participant_id: row.participant_id,
-            last_message_at: row.last_message_at,
-            created_at: row.created_at,
-            participant_name: person?.full_name ?? undefined,
-            participant_role: person?.role ?? undefined,
-          } as MessageThread;
-        });
-
-        set(state => {
-          const others = state.threads.filter(t => t.show_id !== showId);
-          return { threads: [...others, ...threads] };
-        });
-      } catch (fallbackErr) {
-        logger.error('Fallback fetchThreads also failed:', 'messages', { data: fallbackErr });
-      }
+      logger.error('Failed to fetch threads:', 'messages', { data: err });
     }
   },
 
@@ -284,22 +204,26 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
 
       const rows = rawMessages ?? [];
 
-      // Step 2: Batch-fetch sender names from people table using unique sender_ids
+      // Step 2: Batch-fetch sender names from people table using auth_user_id
       const uniqueSenderIds = [...new Set(rows.map(r => r.sender_id))];
       const { data: peopleData } = (await db('people')
-        .select('id, full_name, role')
-        .in('id', uniqueSenderIds)) as { data: DbPerson[] | null; error: Error | null };
+        .select('auth_user_id, first_name, last_name')
+        .in('auth_user_id', uniqueSenderIds)) as {
+        data: DbPerson[] | null;
+        error: Error | null;
+      };
 
-      const peopleMap = new Map((peopleData ?? []).map(p => [p.id, p]));
+      const peopleMap = new Map<string, string>();
+      for (const p of peopleData ?? []) {
+        peopleMap.set(p.auth_user_id, `${p.first_name} ${p.last_name}`.trim());
+      }
 
       // Step 3: Map enriched messages into state
       const enriched: Message[] = rows.map(row => {
-        const person = peopleMap.get(row.sender_id);
-        return {
-          ...row,
-          sender_name: person?.full_name ?? undefined,
-          sender_role: person?.role ?? undefined,
-        } as Message;
+        const msg: Message = { ...row };
+        const name = peopleMap.get(row.sender_id);
+        if (name !== undefined) msg.sender_name = name;
+        return msg;
       });
 
       set(state => ({
@@ -309,7 +233,7 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
         },
       }));
 
-      // Step 4: Recalculate unread
+      // Step 4: Recalculate unread and enrich thread metadata
       get().recalculateUnread();
     } catch (err) {
       logger.error('Failed to fetch messages:', 'messages', { data: err });
@@ -331,12 +255,27 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
       const updated = [...existing, message];
       const isUnread = userKnown && message.read_at === null && message.sender_id !== currentUserId;
 
+      // Update thread metadata inline
+      const updatedThreads = state.threads.map(t => {
+        if (t.id !== message.thread_id) return t;
+        const threadUnread = updated.filter(
+          m => m.read_at === null && m.sender_id !== currentUserId
+        ).length;
+        return {
+          ...t,
+          last_message_at: message.created_at,
+          last_message_preview: message.body.substring(0, 100),
+          unread_count: threadUnread,
+        };
+      });
+
       return {
         messagesByThread: {
           ...state.messagesByThread,
           [message.thread_id]: updated,
         },
         unreadCount: isUnread ? state.unreadCount + 1 : state.unreadCount,
+        threads: updatedThreads,
       };
     });
 
@@ -515,16 +454,25 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
   },
 
   recalculateUnread: () => {
-    const { messagesByThread, currentUserId } = get();
-    let count = 0;
-    for (const messages of Object.values(messagesByThread)) {
-      for (const msg of messages) {
-        if (msg.read_at === null && msg.sender_id !== currentUserId) {
-          count++;
-        }
-      }
-    }
-    set({ unreadCount: count });
+    const { messagesByThread, currentUserId, threads } = get();
+    let totalCount = 0;
+
+    const updatedThreads = threads.map(thread => {
+      const messages = messagesByThread[thread.id] ?? [];
+      const threadUnread = messages.filter(
+        m => m.read_at === null && m.sender_id !== currentUserId
+      ).length;
+      totalCount += threadUnread;
+
+      const lastMessage = messages[messages.length - 1];
+      return {
+        ...thread,
+        unread_count: threadUnread,
+        last_message_preview: lastMessage?.body?.substring(0, 100) ?? undefined,
+      };
+    });
+
+    set({ unreadCount: totalCount, threads: updatedThreads });
   },
 
   reset: () => {

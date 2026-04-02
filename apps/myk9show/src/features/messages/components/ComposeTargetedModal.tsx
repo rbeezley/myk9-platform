@@ -106,6 +106,7 @@ export function ComposeTargetedModal({
             onChange={e => setBody(e.target.value)}
             placeholder="Type a message..."
             rows={3}
+            maxLength={5000}
           />
         </div>
 

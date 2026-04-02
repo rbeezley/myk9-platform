@@ -19,7 +19,7 @@ CREATE TABLE show_messages (
   show_id uuid NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
   thread_id uuid NOT NULL REFERENCES show_message_threads(id) ON DELETE CASCADE,
   sender_id uuid NOT NULL REFERENCES auth.users(id),
-  body text NOT NULL CHECK (length(trim(body)) > 0),
+  body text NOT NULL CHECK (length(trim(body)) > 0 AND length(body) <= 5000),
   group_label text,
   read_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()

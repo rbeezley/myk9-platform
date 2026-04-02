@@ -10,6 +10,23 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 
 import { useSubscriptionGate } from '../useSubscriptionGate';
 
+const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+function mockFreeProfile() {
+  mockUseExhibitorProfile.mockReturnValue({
+    profile: { subscription_tier: 'free', subscription_expires_at: null },
+    isLoading: false,
+  });
+}
+
+function mockPremiumProfile(expiresAt: string) {
+  mockUseExhibitorProfile.mockReturnValue({
+    profile: { subscription_tier: 'premium', subscription_expires_at: expiresAt },
+    isLoading: false,
+  });
+}
+
 describe('useSubscriptionGate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -17,10 +34,7 @@ describe('useSubscriptionGate', () => {
 
   describe('existing behavior (no options)', () => {
     it('returns free tier when profile has no subscription', () => {
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'free', subscription_expires_at: null },
-        isLoading: false,
-      });
+      mockFreeProfile();
 
       const { result } = renderHook(() => useSubscriptionGate());
 
@@ -32,11 +46,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('returns premium tier for active premium subscriber', () => {
-      const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'premium', subscription_expires_at: futureDate },
-        isLoading: false,
-      });
+      mockPremiumProfile(futureDate);
 
       const { result } = renderHook(() => useSubscriptionGate());
 
@@ -47,11 +57,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('downgrades expired premium to free', () => {
-      const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'premium', subscription_expires_at: pastDate },
-        isLoading: false,
-      });
+      mockPremiumProfile(pastDate);
 
       const { result } = renderHook(() => useSubscriptionGate());
 
@@ -76,10 +82,7 @@ describe('useSubscriptionGate', () => {
 
   describe('trial logic (with trialShowCount)', () => {
     it('grants premium via trial when user has 0 scored shows', () => {
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'free', subscription_expires_at: null },
-        isLoading: false,
-      });
+      mockFreeProfile();
 
       const { result } = renderHook(() => useSubscriptionGate({ trialShowCount: 0 }));
 
@@ -89,10 +92,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('grants premium via trial when user has exactly 3 scored shows', () => {
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'free', subscription_expires_at: null },
-        isLoading: false,
-      });
+      mockFreeProfile();
 
       const { result } = renderHook(() => useSubscriptionGate({ trialShowCount: 3 }));
 
@@ -102,10 +102,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('does NOT grant trial when user has 4+ scored shows', () => {
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'free', subscription_expires_at: null },
-        isLoading: false,
-      });
+      mockFreeProfile();
 
       const { result } = renderHook(() => useSubscriptionGate({ trialShowCount: 4 }));
 
@@ -115,11 +112,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('does NOT activate trial for paid premium subscribers', () => {
-      const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'premium', subscription_expires_at: futureDate },
-        isLoading: false,
-      });
+      mockPremiumProfile(futureDate);
 
       const { result } = renderHook(() => useSubscriptionGate({ trialShowCount: 1 }));
 
@@ -129,11 +122,7 @@ describe('useSubscriptionGate', () => {
     });
 
     it('activates trial for expired premium user (treated as free)', () => {
-      const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      mockUseExhibitorProfile.mockReturnValue({
-        profile: { subscription_tier: 'premium', subscription_expires_at: pastDate },
-        isLoading: false,
-      });
+      mockPremiumProfile(pastDate);
 
       const { result } = renderHook(() => useSubscriptionGate({ trialShowCount: 1 }));
 

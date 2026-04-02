@@ -33,7 +33,7 @@ export function useSubscriptionGate(options?: SubscriptionGateOptions) {
     options?.trialShowCount !== undefined &&
     options.trialShowCount <= TRIAL_SHOW_LIMIT;
 
-  const tier: PlanType = isPaidPremium ? 'premium' : isInTrial ? 'premium' : 'free';
+  const tier: PlanType = isPaidPremium || isInTrial ? 'premium' : 'free';
 
   return { tier, isPremium: tier === 'premium', isExpired, isInTrial, isLoading } as const;
 }

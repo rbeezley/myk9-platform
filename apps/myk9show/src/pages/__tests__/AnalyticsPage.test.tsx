@@ -61,10 +61,25 @@ const mockEntries: StatsEntry[] = [
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
-const mockUseMyLifetimeStats = vi.fn<() => { data: StatsEntry[] | undefined; isLoading: boolean }>();
+const mockUseMyLifetimeStats =
+  vi.fn<() => { data: StatsEntry[] | undefined; isLoading: boolean }>();
 
 vi.mock('@/hooks/queries/useMyLifetimeStats', () => ({
   useMyLifetimeStats: () => mockUseMyLifetimeStats(),
+}));
+
+const mockUseSubscriptionGate = vi.fn<
+  (options?: { trialShowCount?: number }) => {
+    tier: 'free' | 'premium';
+    isPremium: boolean;
+    isExpired: boolean;
+    isInTrial: boolean;
+    isLoading: boolean;
+  }
+>();
+
+vi.mock('@/hooks/useSubscriptionGate', () => ({
+  useSubscriptionGate: (options?: { trialShowCount?: number }) => mockUseSubscriptionGate(options),
 }));
 
 // Mock recharts to avoid rendering issues in jsdom
@@ -96,6 +111,13 @@ import AnalyticsPage from '../AnalyticsPage';
 describe('AnalyticsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseSubscriptionGate.mockReturnValue({
+      tier: 'premium',
+      isPremium: true,
+      isExpired: false,
+      isInTrial: false,
+      isLoading: false,
+    });
   });
 
   it('shows skeleton while loading', () => {
@@ -115,9 +137,7 @@ describe('AnalyticsPage', () => {
 
     expect(screen.getByText('No Analytics Yet')).toBeInTheDocument();
     expect(
-      screen.getByText(
-        'Enter shows and get scored to see your performance analytics here.',
-      ),
+      screen.getByText('Enter shows and get scored to see your performance analytics here.')
     ).toBeInTheDocument();
   });
 
@@ -171,5 +191,100 @@ describe('AnalyticsPage', () => {
 
     expect(screen.queryByTestId('dog-filter')).not.toBeInTheDocument();
     expect(screen.queryByTestId('org-filter')).not.toBeInTheDocument();
+  });
+
+  describe('premium gating', () => {
+    it('shows all sections for premium subscribers', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+      mockUseSubscriptionGate.mockReturnValue({
+        tier: 'premium',
+        isPremium: true,
+        isExpired: false,
+        isInTrial: false,
+        isLoading: false,
+      });
+
+      render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+      // Free sections visible
+      expect(screen.getByText('Entries')).toBeInTheDocument();
+
+      // Gated sections visible (not locked)
+      expect(screen.getAllByText('Rex').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText('Upgrade Now')).not.toBeInTheDocument();
+    });
+
+    it('shows upgrade cards for free users past trial', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+      mockUseSubscriptionGate.mockReturnValue({
+        tier: 'free',
+        isPremium: false,
+        isExpired: false,
+        isInTrial: false,
+        isLoading: false,
+      });
+
+      render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+      // Free sections still visible
+      expect(screen.getByText('Entries')).toBeInTheDocument();
+
+      // Gated sections replaced with upgrade prompts
+      const upgradeButtons = screen.getAllByText('Upgrade Now');
+      expect(upgradeButtons.length).toBe(3);
+    });
+
+    it('shows all sections for trial users with trial banner', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+      mockUseSubscriptionGate.mockReturnValue({
+        tier: 'premium',
+        isPremium: true,
+        isExpired: false,
+        isInTrial: true,
+        isLoading: false,
+      });
+
+      render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+      // All sections visible
+      expect(screen.getByText('Entries')).toBeInTheDocument();
+      expect(screen.getAllByText('Rex').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText('Upgrade Now')).not.toBeInTheDocument();
+
+      // Trial banner visible
+      expect(screen.getByText(/exploring Premium Analytics free/)).toBeInTheDocument();
+      expect(screen.getByText('Learn more')).toBeInTheDocument();
+    });
+
+    it('does not show trial banner when there is no data', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: [], isLoading: false });
+      mockUseSubscriptionGate.mockReturnValue({
+        tier: 'premium',
+        isPremium: true,
+        isExpired: false,
+        isInTrial: true,
+        isLoading: false,
+      });
+
+      render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+      expect(screen.getByText('No Analytics Yet')).toBeInTheDocument();
+      expect(screen.queryByText(/exploring Premium Analytics free/)).not.toBeInTheDocument();
+    });
+
+    it('does not show trial banner for paid premium users', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+      mockUseSubscriptionGate.mockReturnValue({
+        tier: 'premium',
+        isPremium: true,
+        isExpired: false,
+        isInTrial: false,
+        isLoading: false,
+      });
+
+      render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+      expect(screen.queryByText(/exploring Premium Analytics free/)).not.toBeInTheDocument();
+    });
   });
 });

@@ -75,6 +75,7 @@ function setupMocks({
       typeof useTVResultsModule.useTVResults
     >['completedClasses'],
     isLoading: false,
+    error: null,
   });
   vi.mocked(useTVRealtimeModule.useTVRealtime).mockReturnValue({ isConnected });
 }

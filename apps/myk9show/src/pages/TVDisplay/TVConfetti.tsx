@@ -11,6 +11,7 @@ interface Particle {
   duration: number;
   size: number;
   rotation: number;
+  aspectRatio: number; // 0.4 to 1.0
 }
 
 function createParticles(): Particle[] {
@@ -22,6 +23,7 @@ function createParticles(): Particle[] {
     duration: 1.5 + Math.random() * 1,
     size: 4 + Math.random() * 6,
     rotation: Math.random() * 360,
+    aspectRatio: 0.4 + Math.random() * 0.6,
   }));
 }
 
@@ -46,7 +48,7 @@ export function TVConfetti() {
             left: `${p.x}%`,
             top: '-5%',
             width: p.size,
-            height: p.size,
+            height: p.size * p.aspectRatio,
             backgroundColor: p.color,
             transform: `rotate(${p.rotation}deg)`,
             animationDelay: `${p.delay}s`,

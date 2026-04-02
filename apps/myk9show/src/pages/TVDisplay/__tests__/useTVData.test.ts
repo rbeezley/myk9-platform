@@ -26,7 +26,7 @@ const mockClassRow = {
   element: 'Container',
   level: 'Novice',
   status: 'In Progress',
-  judge_name: 'Smith',
+  judge_assignments: [{ people: { first_name: 'John', last_name: 'Smith' } }],
   total_entries_count: 10,
   scored_count: 3,
   start_time: '09:00',
@@ -91,6 +91,7 @@ describe('useTVData', () => {
     expect(result.current.classes[0].entries[0].armband).toBe('42');
     expect(result.current.classes[0].entries[0].isInRing).toBe(true);
     expect(result.current.classes[0].entries[0].dog?.callName).toBe('Luna');
+    expect(result.current.classes[0].judgeName).toBe('John Smith');
   });
 
   it('returns empty classes when show not found', async () => {

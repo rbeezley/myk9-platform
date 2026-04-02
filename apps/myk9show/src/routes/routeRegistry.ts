@@ -150,7 +150,13 @@ export const routeCategories = {
 
   medium: ['/admin/performance', '/admin/analytics', '/admin/alerts', '/clubs', '/subscription'],
 
-  low: ['/admin/permission-test', '/admin/rbac-test', '/admin/load-testing', '/class-templates'],
+  low: [
+    '/admin/permission-test',
+    '/admin/rbac-test',
+    '/admin/load-testing',
+    '/class-templates',
+    '/tv/:showId',
+  ],
 };
 
 // Common navigation patterns for intelligent preloading

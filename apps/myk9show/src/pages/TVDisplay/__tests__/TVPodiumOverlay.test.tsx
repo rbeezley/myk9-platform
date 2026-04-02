@@ -67,7 +67,7 @@ describe('TVPodiumOverlay', () => {
     render(<TVPodiumOverlay queue={[mockCompleted]} onComplete={vi.fn()} />);
     expect(screen.getByText(/28 entries/)).toBeInTheDocument();
     expect(screen.getByText(/22 qualified/)).toBeInTheDocument();
-    expect(screen.getByText(/35\.1s/)).toBeInTheDocument();
+    expect(screen.getByText(/Fastest time: 35\.1s/)).toBeInTheDocument();
   });
 
   it('calls onComplete after 20 seconds', () => {

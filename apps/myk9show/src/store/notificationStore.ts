@@ -112,6 +112,23 @@ export const useNotificationStore = create<NotificationState>()(
       partialize: state => ({
         preferences: state.preferences,
       }),
+      merge: (persisted, current) => {
+        const persistedState = persisted as Partial<NotificationState> | undefined;
+        if (!persistedState?.preferences) return current;
+
+        return {
+          ...current,
+          preferences: {
+            ...current.preferences,
+            ...persistedState.preferences,
+            // Deep-merge voiceCategories: fill missing keys from defaults
+            voiceCategories: {
+              ...current.preferences.voiceCategories,
+              ...(persistedState.preferences.voiceCategories ?? {}),
+            },
+          },
+        };
+      },
     }
   )
 );

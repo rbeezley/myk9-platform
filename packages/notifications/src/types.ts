@@ -21,6 +21,14 @@ export interface NotificationPayload {
   timestamp: number;
 }
 
+/** Per-category voice toggle map */
+export interface VoiceCategories {
+  runOrder: boolean;
+  results: boolean;
+  classStarting: boolean;
+  announcements: boolean;
+}
+
 /** User's per-device notification preferences (persisted to localStorage) */
 export interface NotificationPreferences {
   /** Master on/off toggle */
@@ -31,6 +39,12 @@ export interface NotificationPreferences {
   voiceEnabled: boolean;
   vibrationEnabled: boolean;
   pushEnabled: boolean;
+  /** Per-category voice toggles */
+  voiceCategories: VoiceCategories;
+  /** Selected voice name ('' = browser default) */
+  voiceName: string;
+  /** Speech rate 0.5–2.0 */
+  voiceRate: number;
 }
 
 /** Default preferences for new users */
@@ -41,19 +55,19 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   voiceEnabled: false,
   vibrationEnabled: true,
   pushEnabled: false,
+  voiceCategories: {
+    runOrder: true,
+    results: true,
+    classStarting: true,
+    announcements: true,
+  },
+  voiceName: '',
+  voiceRate: 1.0,
 };
 
 /** Context passed to suppression checks */
 export interface SuppressionContext {
   isInRing: boolean;
-}
-
-/** Per-category voice toggle map */
-export interface VoiceCategories {
-  runOrder: boolean;
-  results: boolean;
-  classStarting: boolean;
-  announcements: boolean;
 }
 
 /** Voice configuration for speech synthesis */

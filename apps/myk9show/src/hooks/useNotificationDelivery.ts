@@ -3,8 +3,9 @@ import type { NotificationPayload } from '@myk9/notifications';
 import {
   shouldSuppress,
   playNotificationSound,
-  speak,
+  speakWithConfig,
   generateVoiceText,
+  NOTIFICATION_TYPE_TO_VOICE_CATEGORY,
 } from '@myk9/notifications';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useToastStore } from '@/store/toastStore';
@@ -45,13 +46,21 @@ export function useNotificationDelivery() {
 
       // Voice
       if (preferences.voiceEnabled) {
-        try {
-          const voiceText = generateVoiceText(payload);
-          if (voiceText) {
-            speak(voiceText.text);
+        const categoryKey = NOTIFICATION_TYPE_TO_VOICE_CATEGORY[payload.type];
+        const categoryEnabled = categoryKey ? preferences.voiceCategories[categoryKey] : false;
+
+        if (categoryEnabled) {
+          try {
+            const voiceText = generateVoiceText(payload);
+            if (voiceText) {
+              speakWithConfig(voiceText.text, {
+                voiceName: preferences.voiceName,
+                voiceRate: preferences.voiceRate,
+              });
+            }
+          } catch {
+            /* voice failure is non-fatal */
           }
-        } catch {
-          /* voice failure is non-fatal */
         }
       }
 

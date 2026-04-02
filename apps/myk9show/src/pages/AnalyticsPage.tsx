@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import { useMyLifetimeStats } from '@/hooks/queries/useMyLifetimeStats';
 import {
@@ -18,6 +18,8 @@ import { ResultDistributionChart } from '@/components/analytics/ResultDistributi
 import { DogBreakdownCards } from '@/components/analytics/DogBreakdownCards';
 import { FastestTimesTable } from '@/components/analytics/FastestTimesTable';
 import { QualificationTrendChart } from '@/components/analytics/QualificationTrendChart';
+import { useSubscriptionGate, TRIAL_SHOW_LIMIT } from '@/hooks/useSubscriptionGate';
+import { FeatureGate } from '@/components/subscription/FeatureGate';
 import { useTrackSectionView, TRACKED_SECTIONS } from '@/hooks/useTrackSectionView';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -76,6 +78,15 @@ export default function AnalyticsPage() {
   );
   const trend = useMemo(() => computeQualificationTrend(filteredEntries), [filteredEntries]);
 
+  const scoredShowCount = useMemo(() => {
+    const showIds = new Set(allEntries.filter(e => e.resultText !== 'pending').map(e => e.showId));
+    return showIds.size;
+  }, [allEntries]);
+
+  const { tier, isInTrial } = useSubscriptionGate(
+    isLoading ? undefined : { trialShowCount: scoredShowCount }
+  );
+
   const pageRef = useTrackSectionView(TRACKED_SECTIONS.LIFETIME_PAGE, 'analytics');
   const trendRef = useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics');
   const dogBreakdownRef = useTrackSectionView(TRACKED_SECTIONS.DOG_BREAKDOWN, 'analytics');
@@ -123,6 +134,16 @@ export default function AnalyticsPage() {
         actions={filterControls}
       />
 
+      {isInTrial && hasData && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          You&apos;re exploring Premium Analytics free for your first {TRIAL_SHOW_LIMIT} shows.
+          You&apos;ve used {scoredShowCount} of {TRIAL_SHOW_LIMIT}.{' '}
+          <Link to="/pricing-page" className="font-medium underline">
+            Learn more
+          </Link>
+        </div>
+      )}
+
       {isLoading && <StatsSummaryCardsSkeleton />}
 
       {!isLoading && !hasData && (
@@ -139,24 +160,29 @@ export default function AnalyticsPage() {
         <div ref={pageRef} className="space-y-6">
           <StatsSummaryCards stats={summary} />
 
-          {trend.length > 1 && (
-            <div ref={trendRef}>
-              <QualificationTrendChart data={trend} />
-            </div>
-          )}
+          <ResultDistributionChart data={distribution} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ResultDistributionChart data={distribution} />
+          <FeatureGate feature="performance_stats" userPlan={tier}>
+            {trend.length > 1 && (
+              <div ref={trendRef}>
+                <QualificationTrendChart data={trend} />
+              </div>
+            )}
+          </FeatureGate>
+
+          <FeatureGate feature="performance_stats" userPlan={tier}>
             <div ref={dogBreakdownRef}>
               <DogBreakdownCards dogs={dogStats} onDogClick={dogId => navigate(`/dogs/${dogId}`)} />
             </div>
-          </div>
+          </FeatureGate>
 
-          {fastestTimes.length > 0 && (
-            <div ref={fastestTimesRef}>
-              <FastestTimesTable times={fastestTimes} showShowColumn />
-            </div>
-          )}
+          <FeatureGate feature="performance_stats" userPlan={tier}>
+            {fastestTimes.length > 0 && (
+              <div ref={fastestTimesRef}>
+                <FastestTimesTable times={fastestTimes} showShowColumn />
+              </div>
+            )}
+          </FeatureGate>
         </div>
       )}
     </PageShell>

@@ -100,6 +100,9 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/checkout/success': () => import('@/pages/CheckoutSuccessPage'),
   '/checkout/cancel': () => import('@/pages/CheckoutCancelPage'),
 
+  // TV Display
+  '/tv/:showId': () => import('@/pages/TVDisplay'),
+
   // Test routes
   '/class-templates': () =>
     import('@/components/classes/ClassTemplateTestPage').then(m => ({

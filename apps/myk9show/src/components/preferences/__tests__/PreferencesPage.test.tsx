@@ -101,17 +101,7 @@ describe('PreferencesPage', () => {
     expect(within(nav).getByText('Install App')).toBeInTheDocument();
   });
 
-  it('hides Scoring section for exhibitor role', () => {
-    // mockHasRole already returns false in beforeEach
-    render(<PreferencesPage />);
-
-    const sidebar = document.querySelector('aside');
-    const nav = sidebar!.querySelector('nav')!;
-
-    expect(within(nav).queryByText('Scoring')).not.toBeInTheDocument();
-  });
-
-  it('shows Scoring section for judge role', () => {
+  it('does not show Scoring section (removed — scoring voice is myK9Q only)', () => {
     mockHasRole.mockImplementation((role: UserRole) => role === UserRole.JUDGE);
 
     render(<PreferencesPage />);
@@ -119,7 +109,7 @@ describe('PreferencesPage', () => {
     const sidebar = document.querySelector('aside');
     const nav = sidebar!.querySelector('nav')!;
 
-    expect(within(nav).getByText('Scoring')).toBeInTheDocument();
+    expect(within(nav).queryByText('Scoring')).not.toBeInTheDocument();
   });
 
   it('defaults to Theme & Display section', () => {

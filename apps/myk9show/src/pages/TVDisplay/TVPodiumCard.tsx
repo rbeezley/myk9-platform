@@ -57,7 +57,7 @@ export function TVPodiumCard({ placement, animationDelay, showShimmer }: TVPodiu
     <div className="text-center animate-slide-up" style={{ animationDelay: `${animationDelay}s` }}>
       {config.emoji ? (
         <div className={cn('text-sm mb-1', config.textColor)}>
-          {config.emoji} {config.label}
+          <span aria-hidden="true">{config.emoji}</span> <span>{config.label}</span>
         </div>
       ) : (
         <div className="text-xs text-zinc-600 mb-1">{config.label}</div>

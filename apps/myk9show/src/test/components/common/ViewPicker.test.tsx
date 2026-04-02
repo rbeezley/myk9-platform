@@ -161,20 +161,20 @@ describe('ViewPicker', () => {
   });
 
   describe('Trigger label', () => {
-    it('shows "Views" when no active view', () => {
+    it('shows "Saved Views" when no active view', () => {
       render(<ViewPicker {...defaultProps()} />);
-      expect(screen.getByText('Views')).toBeInTheDocument();
+      expect(screen.getByText('Saved Views')).toBeInTheDocument();
     });
 
     it('shows the active view name when one is selected', () => {
       const view = makeView({ id: 'v1', name: 'Upcoming Shows' });
       render(<ViewPicker {...defaultProps({ views: [view], activeViewId: 'v1' })} />);
-      // The trigger span (hidden sm:inline) should show view name instead of "Views"
+      // The trigger span (hidden sm:inline) should show view name instead of "Saved Views"
       const triggerLabel = screen
         .getAllByText('Upcoming Shows')
         .find(el => el.classList.contains('sm:inline'));
       expect(triggerLabel).toBeInTheDocument();
-      expect(screen.queryByText('Views')).not.toBeInTheDocument();
+      expect(screen.queryByText('Saved Views')).not.toBeInTheDocument();
     });
   });
 

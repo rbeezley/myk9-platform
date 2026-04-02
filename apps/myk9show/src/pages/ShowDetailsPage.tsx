@@ -37,6 +37,7 @@ import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
+import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
@@ -48,6 +49,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
 import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
+import { ErrorState } from '@/components/common/ErrorState';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
 
 const ShowDetailsPage: React.FC = () => {
@@ -64,7 +66,8 @@ const ShowDetailsPage: React.FC = () => {
     showId,
     show: currentShow,
     isLoading: fastLoading,
-    hasData,
+    isError: fastError,
+    refetch: refetchShow,
     isFromCache,
   } = useFastShowDetails(id);
 
@@ -105,7 +108,6 @@ const ShowDetailsPage: React.FC = () => {
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = isSecretary || isAdmin;
-  const actualHasData = hasData || actualCurrentShow !== null;
 
   // Get associated trials for secretary view
   const showId_ = actualCurrentShow?.id;
@@ -217,12 +219,12 @@ const ShowDetailsPage: React.FC = () => {
       ...(isAuthenticated
         ? [
             { id: 'my-entries', label: 'Entries', icon: ClipboardList, count: userEntries.length },
-            ...(hasUserEntries ? [{ id: 'my-stats', label: 'My Stats', icon: BarChart3 }] : []),
+            { id: 'my-stats', label: 'My Stats', icon: BarChart3 },
           ]
         : []),
       { id: 'results', label: 'Results', icon: Medal, count: 0 },
     ],
-    [isAuthenticated, hasUserEntries, associatedTrials.length, showClasses.length, userEntries.length]
+    [isAuthenticated, associatedTrials.length, showClasses.length, userEntries.length]
   );
 
   // Loading state
@@ -234,25 +236,20 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
-  // Not found state
-  if (id && !actualHasData && !actualCurrentShow) {
+  // Error state — fetch failed
+  if (fastError) {
     return (
       <PageShell>
-        <NotFoundState entityName="Show" backTo="/shows" backLabel="Back to Shows" />
+        <ErrorState message="We couldn't load this show. Please try again." onRetry={refetchShow} />
       </PageShell>
     );
   }
 
-  // No shows at all
+  // Not found / no data
   if (!actualCurrentShow) {
     return (
       <PageShell>
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-            <h1 className="text-xl font-medium text-foreground">Loading...</h1>
-          </div>
-        </div>
+        <NotFoundState entityName="Show" backTo="/shows" backLabel="Back to Shows" />
       </PageShell>
     );
   }
@@ -278,10 +275,9 @@ const ShowDetailsPage: React.FC = () => {
               ? { label: actualCurrentShow.organization, variant: 'default' }
               : undefined
           }
-          primaryAction={{
-            label: 'Register',
-            onClick: handleRegisterForShow,
-          }}
+          {...(getEntryStatus(actualCurrentShow, hasUserEntries).canEnter && {
+            primaryAction: { label: 'Register', onClick: handleRegisterForShow },
+          })}
           secondaryActions={
             canManageShow && (
               <div className="flex items-center gap-1">
@@ -338,7 +334,7 @@ const ShowDetailsPage: React.FC = () => {
             </TabsContent>
           )}
 
-          {isAuthenticated && hasUserEntries && (
+          {isAuthenticated && (
             <TabsContent value="my-stats">
               <MyShowStatsTab showId={actualCurrentShow.id} />
             </TabsContent>

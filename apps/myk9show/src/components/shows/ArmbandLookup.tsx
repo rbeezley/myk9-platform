@@ -1,9 +1,5 @@
 import { useState, useCallback, useRef, type FormEvent } from 'react';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, Dog, User, ClipboardList } from 'lucide-react';
@@ -50,7 +46,7 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
       setSearchNumber(trimmed);
       setIsOpen(true);
     },
-    [inputValue],
+    [inputValue]
   );
 
   const handleOpenChange = useCallback((open: boolean) => {
@@ -72,8 +68,9 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
             type="text"
             inputMode="numeric"
             placeholder="Armband #"
+            aria-label="Look up exhibitor by armband number"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={e => setInputValue(e.target.value)}
             onFocus={handleInputFocus}
             className="w-[120px] h-9 pl-8 pr-8 text-sm"
           />
@@ -91,11 +88,7 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
           </div>
         )}
 
-        {isError && (
-          <div className="p-4 text-sm text-destructive">
-            Lookup failed — try again
-          </div>
-        )}
+        {isError && <div className="p-4 text-sm text-destructive">Lookup failed — try again</div>}
 
         {!isLoading && !isError && !data && searchNumber && (
           <div className="p-4 text-sm text-muted-foreground">
@@ -138,25 +131,17 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
                 Entries at this show ({data.entries.length})
               </div>
               {data.entries.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No entries found
-                </p>
+                <p className="text-xs text-muted-foreground">No entries found</p>
               ) : (
                 <div className="max-h-48 overflow-y-auto space-y-1.5">
-                  {data.entries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="py-1.5 px-2 rounded bg-muted/30 text-sm"
-                    >
+                  {data.entries.map(entry => (
+                    <div key={entry.id} className="py-1.5 px-2 rounded bg-muted/30 text-sm">
                       <div className="flex items-center justify-between">
                         <span>
                           {entry.class_name}
                           {entry.class_level ? ` · ${entry.class_level}` : ''}
                         </span>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] ml-2 shrink-0"
-                        >
+                        <Badge variant="outline" className="text-[10px] ml-2 shrink-0">
                           {formatEntryStatus(entry.entry_status)}
                         </Badge>
                       </div>

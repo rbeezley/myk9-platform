@@ -65,7 +65,8 @@ const VIEW_MODES = [
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { userWithRoles: authUser } = useAuthContext();
+  const { userWithRoles: authUser, isSecretary, isAdmin } = useAuthContext();
+  const canManageShows = isSecretary || isAdmin;
 
   // Compute allowed tabs from user roles (needed before useUrlTab)
   const tabConfig = useMemo(() => getTabsForUser(authUser), [authUser]);
@@ -180,15 +181,6 @@ const BrowseShowsPage: React.FC = () => {
         ],
       },
       {
-        key: 'location',
-        label: 'Location',
-        options: [
-          { label: 'Within 50 miles', value: 'within_50' },
-          { label: 'Within 100 miles', value: 'within_100' },
-          { label: 'Within 200 miles', value: 'within_200' },
-        ],
-      },
-      {
         key: 'club',
         label: 'Club',
         options: clubFilterOptions,
@@ -202,11 +194,11 @@ const BrowseShowsPage: React.FC = () => {
     const values: Record<string, string> = {};
     if (filters.discipline !== 'all') values.discipline = filters.discipline;
     if (filters.entryStatus !== 'all') values.entryStatus = filters.entryStatus;
-    if (filters.dateRange !== 'all') values.dateRange = filters.dateRange;
-    if (filters.location !== 'all') values.location = filters.location;
+    if (filters.dateRange !== 'all' && filters.dateRange !== 'upcoming')
+      values.dateRange = filters.dateRange;
     if (filters.club !== 'all') values.club = filters.club;
     return values;
-  }, [filters.discipline, filters.entryStatus, filters.dateRange, filters.location, filters.club]);
+  }, [filters.discipline, filters.entryStatus, filters.dateRange, filters.club]);
 
   const handleChipFilterChange = useCallback(
     (key: string, value: string | null) => {
@@ -350,25 +342,27 @@ const BrowseShowsPage: React.FC = () => {
           );
         })}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link to="/calendar">
-              <Button
-                variant="outline"
-                size="default"
-                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 shadow-sm rounded-full"
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Full Calendar</span>
-                <span className="sm:hidden">Calendar</span>
-              </Button>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent>Open full calendar with show management</TooltipContent>
-        </Tooltip>
+        {authUser && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link to="/calendar">
+                <Button
+                  variant="outline"
+                  size="default"
+                  className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 shadow-sm rounded-full"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Full Calendar</span>
+                  <span className="sm:hidden">Calendar</span>
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Open full calendar with show management</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     ),
-    [tabQuickActions]
+    [tabQuickActions, authUser]
   );
 
   // Audit page access
@@ -434,10 +428,12 @@ const BrowseShowsPage: React.FC = () => {
         return (
           <ShowsTableView
             shows={enhancedShows}
-            isSelected={bulkSelection.isSelected}
-            onToggleSelect={bulkSelection.toggleItem}
-            isAllSelected={bulkSelection.isAllSelected}
-            onToggleAll={bulkSelection.toggleAll}
+            {...(canManageShows && {
+              isSelected: bulkSelection.isSelected,
+              onToggleSelect: bulkSelection.toggleItem,
+              isAllSelected: bulkSelection.isAllSelected,
+              onToggleAll: bulkSelection.toggleAll,
+            })}
           />
         );
 
@@ -449,8 +445,10 @@ const BrowseShowsPage: React.FC = () => {
             entries={entries}
             selectedTab={selectedTab}
             user={user}
-            isSelected={bulkSelection.isSelected}
-            onToggleSelect={bulkSelection.toggleItem}
+            {...(canManageShows && {
+              isSelected: bulkSelection.isSelected,
+              onToggleSelect: bulkSelection.toggleItem,
+            })}
           />
         );
     }
@@ -485,7 +483,7 @@ const BrowseShowsPage: React.FC = () => {
                 values={chipFilterValues}
                 onChange={handleChipFilterChange}
               />
-              {user && (
+              {user && selectedTab !== 'entries' && (
                 <MineToggle
                   className="ml-auto"
                   isMine={isMine}
@@ -523,12 +521,14 @@ const BrowseShowsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Bulk Actions Bar */}
-          <ShowBulkActionsBar
-            selectedShows={bulkSelection.selectedItems}
-            onClearSelection={bulkSelection.clearSelection}
-            onBulkComplete={handleBulkComplete}
-          />
+          {/* Bulk Actions Bar — secretary/admin only */}
+          {canManageShows && (
+            <ShowBulkActionsBar
+              selectedShows={bulkSelection.selectedItems}
+              onClearSelection={bulkSelection.clearSelection}
+              onBulkComplete={handleBulkComplete}
+            />
+          )}
 
           {/* Tabs */}
           <PrimaryTabs tabs={tabDefs} value={selectedTab} onValueChange={handleTabChange}>

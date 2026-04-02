@@ -1,6 +1,6 @@
 /**
  * Fast Show Details Hook
- * 
+ *
  * Performance-optimized hook for show details page that eliminates
  * the 10-second loading delay by using cached data and smart loading strategies
  */
@@ -16,6 +16,8 @@ interface FastShowDetailsResult {
   showId: string | null;
   show: Show | null;
   isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
   isFromCache: boolean;
   loadTime: number;
   hasData: boolean;
@@ -30,7 +32,7 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   const hasRecordedLoadTime = useRef(false);
 
   const showId = explicitShowId || id || null;
-  
+
   // Try to get cached data first (from browse shows page)
   const { cachedShow, foundInCache } = useMemo(() => {
     if (!showId) return { cachedShow: null, foundInCache: false };
@@ -59,11 +61,13 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   const isFromCache = foundInCache;
 
   // Only use network query if no cached data is available
-  const { 
-    data: networkShow, 
-    isLoading: isNetworkLoading 
+  const {
+    data: networkShow,
+    isLoading: isNetworkLoading,
+    isError: isNetworkError,
+    refetch,
   } = useShowQuery(showId || '');
-  
+
   // Use cached data if available, otherwise use network data
   const show = cachedShow || networkShow || null;
   const isLoading = !cachedShow && isNetworkLoading;
@@ -80,15 +84,23 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
       });
 
       if (import.meta.env.DEV) {
-        logger.debug(`Show details loaded in ${duration.toFixed(2)}ms${isFromCache ? ' (from cache)' : ' (from network)'}`, 'hooks', {});
+        logger.debug(
+          `Show details loaded in ${duration.toFixed(2)}ms${isFromCache ? ' (from cache)' : ' (from network)'}`,
+          'hooks',
+          {}
+        );
       }
     }
   }, [show, loadStartTime, isFromCache]);
-  
+
+  const isError = !cachedShow && isNetworkError;
+
   return {
     showId,
     show,
     isLoading,
+    isError,
+    refetch,
     isFromCache,
     loadTime,
     hasData: !!show,

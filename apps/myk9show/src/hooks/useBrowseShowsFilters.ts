@@ -13,7 +13,6 @@ export interface ShowFilters {
   discipline: string;
   entryStatus: string;
   dateRange: string;
-  location: string;
   organization: string;
   club: string;
 }
@@ -25,8 +24,7 @@ const DEFAULT_FILTERS: ShowFilters = {
   search: '',
   discipline: 'all',
   entryStatus: 'all',
-  dateRange: 'all',
-  location: 'all',
+  dateRange: 'upcoming',
   organization: 'all',
   club: 'all',
 };
@@ -76,8 +74,7 @@ export function useBrowseShowsFilters({
       filters.search !== '' ||
       filters.discipline !== 'all' ||
       filters.entryStatus !== 'all' ||
-      filters.dateRange !== 'all' ||
-      filters.location !== 'all' ||
+      (filters.dateRange !== 'all' && filters.dateRange !== 'upcoming') ||
       filters.organization !== 'all' ||
       filters.club !== 'all'
     );

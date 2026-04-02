@@ -2,12 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MapPin } from 'lucide-react';
+import { MapPin, DollarSign } from 'lucide-react';
 import { DateCircle } from '@/components/shows/DateCircle';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { getTypeBadge } from '@/utils/browseShowsUtils';
 import { getShowCardStatus } from '@/utils/showCardUtils';
+import { formatDateRange } from '@/utils/date-format';
 import type { Show } from '@/types/show-types';
 
 export interface ShowCardHorizontalProps {
@@ -66,16 +67,30 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
             <EntryStatusBadge show={show} userHasEntries={false} size="sm" />
           </div>
 
-          {show.clubName && (
-            <p className="text-sm text-muted-foreground truncate">{show.clubName}</p>
-          )}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {show.clubName && <span className="truncate">{show.clubName}</span>}
+            {show.clubName && show.startDate && <span className="text-border">|</span>}
+            {show.startDate && (
+              <span className="flex-shrink-0">
+                {formatDateRange(show.startDate, show.endDate, 'short', false)}
+              </span>
+            )}
+          </div>
 
-          {show.location && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">{show.location}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            {show.location && (
+              <div className="flex items-center gap-1.5 min-w-0">
+                <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{show.location}</span>
+              </div>
+            )}
+            {show.preEntryFee && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <DollarSign className="h-3.5 w-3.5" />
+                <span>{show.preEntryFee}</span>
+              </div>
+            )}
+          </div>
 
           {/* Tags: org badge + trial type badges */}
           <div className="flex items-center gap-1.5 flex-wrap">

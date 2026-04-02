@@ -14,6 +14,16 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Verify caller is the Supabase service role (called by DB trigger via pg_net)
+  const authHeader = req.headers.get('Authorization');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { record } = await req.json();
     const { id, show_id, thread_id, sender_id, body, created_at } = record;
@@ -57,7 +67,7 @@ serve(async (req: Request) => {
       if (show) {
         const { data: secretaries } = await supabase
           .from('user_roles')
-          .select('user_id, people!inner(auth_user_id)')
+          .select('id, club_id, people!inner(auth_user_id), roles!inner(name)')
           .eq('club_id', show.club_id)
           .in('roles.name', ['secretary', 'trial_secretary'])
           .not('people.auth_user_id', 'is', null);
@@ -65,7 +75,7 @@ serve(async (req: Request) => {
         // Also include platform admins
         const { data: admins } = await supabase
           .from('user_roles')
-          .select('user_id, people!inner(auth_user_id), roles!inner(name)')
+          .select('id, people!inner(auth_user_id), roles!inner(name)')
           .eq('roles.name', 'platform_admin')
           .not('people.auth_user_id', 'is', null);
 

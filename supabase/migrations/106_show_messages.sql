@@ -60,6 +60,10 @@ WITH CHECK (
   )
 );
 
+-- Only the trigger (SECURITY DEFINER) updates threads; deny direct user updates
+CREATE POLICY "threads_update_deny" ON show_message_threads FOR UPDATE TO authenticated
+USING (false);
+
 -- =============================================================================
 -- RLS: show_messages
 -- =============================================================================
@@ -133,6 +137,27 @@ WITH CHECK (
     )
   )
 );
+
+-- Restrict updates to read_at column only (Postgres doesn't support column-level RLS)
+CREATE OR REPLACE FUNCTION restrict_message_update_columns()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.body IS DISTINCT FROM OLD.body
+    OR NEW.sender_id IS DISTINCT FROM OLD.sender_id
+    OR NEW.show_id IS DISTINCT FROM OLD.show_id
+    OR NEW.thread_id IS DISTINCT FROM OLD.thread_id
+    OR NEW.group_label IS DISTINCT FROM OLD.group_label
+  THEN
+    RAISE EXCEPTION 'Only read_at may be updated on show_messages';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_restrict_message_update
+  BEFORE UPDATE ON show_messages
+  FOR EACH ROW
+  EXECUTE FUNCTION restrict_message_update_columns();
 
 -- =============================================================================
 -- Trigger: update last_message_at on new message

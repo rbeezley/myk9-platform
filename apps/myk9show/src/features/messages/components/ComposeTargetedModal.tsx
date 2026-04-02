@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,14 @@ export function ComposeTargetedModal({
   const [selectedClassId, setSelectedClassId] = useState(preSelectedClassId ?? '');
   const [body, setBody] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Reset state when dialog opens or preSelectedClassId changes to avoid stale values
+  useEffect(() => {
+    if (open) {
+      setSelectedClassId(preSelectedClassId ?? '');
+      setBody('');
+    }
+  }, [open, preSelectedClassId]);
 
   const selectedClass = classes.find(c => c.id === selectedClassId);
 

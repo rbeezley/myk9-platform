@@ -43,6 +43,7 @@ interface MessageState {
   currentShowIds: string[];
   currentUserId: string | null;
   channels: RealtimeChannel[];
+  _subscribing: boolean;
 
   // Actions
   setCurrentUserId: (userId: string) => void;
@@ -67,6 +68,7 @@ const initialState = {
   currentShowIds: [] as string[],
   currentUserId: null as string | null,
   channels: [] as RealtimeChannel[],
+  _subscribing: false as boolean,
 };
 
 export const useMessageStore = create<MessageState>()((set, get) => ({
@@ -77,82 +79,90 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
   },
 
   subscribe: async (showIds: string[]) => {
-    const current = get();
-
-    // Skip if already subscribed to the same shows
-    const sorted = [...showIds].sort();
-    const currentSorted = [...current.currentShowIds].sort();
-    if (JSON.stringify(sorted) === JSON.stringify(currentSorted)) return;
-
-    // Clean up existing channels
-    current.unsubscribe();
-
-    if (showIds.length === 0) {
-      set({ currentShowIds: [], threads: [], messagesByThread: {}, unreadCount: 0 });
-      return;
-    }
-
-    set({ isLoading: true, error: null, currentShowIds: showIds });
+    // Mutex: prevent concurrent subscribe calls
+    if (get()._subscribing) return;
+    set({ _subscribing: true });
 
     try {
-      // Fetch initial threads for all shows
-      await Promise.all(showIds.map(showId => get().fetchThreads(showId)));
+      const current = get();
 
-      // Set up realtime channels for each show
-      const channels: RealtimeChannel[] = [];
+      // Skip if already subscribed to the same shows
+      const sorted = [...showIds].sort();
+      const currentSorted = [...current.currentShowIds].sort();
+      if (JSON.stringify(sorted) === JSON.stringify(currentSorted)) return;
 
-      for (const showId of showIds) {
-        const channel = supabase
-          .channel(`messages-${showId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'show_messages',
-              filter: `show_id=eq.${showId}`,
-            },
-            (payload: { new: DbMessage }) => {
-              get().addMessage(payload.new as Message);
-            }
-          )
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'show_messages',
-              filter: `show_id=eq.${showId}`,
-            },
-            (payload: { new: DbMessage }) => {
-              const updated = payload.new;
-              set(state => {
-                const threadMessages = state.messagesByThread[updated.thread_id] ?? [];
-                const newMessages = threadMessages.map(m =>
-                  m.id === updated.id ? { ...m, ...updated } : m
-                );
-                return {
-                  messagesByThread: {
-                    ...state.messagesByThread,
-                    [updated.thread_id]: newMessages,
-                  },
-                };
-              });
-              get().recalculateUnread();
-            }
-          );
+      // Clean up existing channels
+      current.unsubscribe();
 
-        await channel.subscribe();
-        channels.push(channel);
+      if (showIds.length === 0) {
+        set({ currentShowIds: [], threads: [], messagesByThread: {}, unreadCount: 0 });
+        return;
       }
 
-      set({ channels, isLoading: false });
-    } catch (err) {
-      logger.error('Failed to subscribe to messages:', 'messages', { data: err });
-      set({
-        error: err instanceof Error ? err.message : 'Failed to load messages',
-        isLoading: false,
-      });
+      set({ isLoading: true, error: null, currentShowIds: showIds });
+
+      try {
+        // Fetch initial threads for all shows
+        await Promise.all(showIds.map(showId => get().fetchThreads(showId)));
+
+        // Set up realtime channels for each show
+        const channels: RealtimeChannel[] = [];
+
+        for (const showId of showIds) {
+          const channel = supabase
+            .channel(`messages-${showId}`)
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'show_messages',
+                filter: `show_id=eq.${showId}`,
+              },
+              (payload: { new: DbMessage }) => {
+                get().addMessage(payload.new as Message);
+              }
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'show_messages',
+                filter: `show_id=eq.${showId}`,
+              },
+              (payload: { new: DbMessage }) => {
+                const updated = payload.new;
+                set(state => {
+                  const threadMessages = state.messagesByThread[updated.thread_id] ?? [];
+                  const newMessages = threadMessages.map(m =>
+                    m.id === updated.id ? { ...m, ...updated } : m
+                  );
+                  return {
+                    messagesByThread: {
+                      ...state.messagesByThread,
+                      [updated.thread_id]: newMessages,
+                    },
+                  };
+                });
+                get().recalculateUnread();
+              }
+            );
+
+          await channel.subscribe();
+          channels.push(channel);
+        }
+
+        set({ channels, isLoading: false });
+      } catch (err) {
+        logger.error('Failed to subscribe to messages:', 'messages', { data: err });
+        set({
+          error: err instanceof Error ? err.message : 'Failed to load messages',
+          isLoading: false,
+        });
+      }
+    } finally {
+      set({ _subscribing: false });
     }
   },
 
@@ -309,6 +319,9 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
   addMessage: (message: Message) => {
     const { currentUserId } = get();
 
+    // Skip unread tracking and toasts if user identity not yet established
+    const userKnown = currentUserId !== null;
+
     set(state => {
       const existing = state.messagesByThread[message.thread_id] ?? [];
 
@@ -316,8 +329,7 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
       if (existing.some(m => m.id === message.id)) return state;
 
       const updated = [...existing, message];
-      const isFromOther = message.sender_id !== currentUserId;
-      const isUnread = message.read_at === null && isFromOther;
+      const isUnread = userKnown && message.read_at === null && message.sender_id !== currentUserId;
 
       return {
         messagesByThread: {
@@ -328,8 +340,8 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
       };
     });
 
-    // Trigger toast for messages from others
-    if (message.sender_id !== currentUserId) {
+    // Trigger toast for messages from others (only when user identity is known)
+    if (userKnown && message.sender_id !== currentUserId) {
       useToastStore.getState().addToast({
         id: `msg-${message.id}`,
         type: 'announcement',
@@ -342,11 +354,15 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
   },
 
   markThreadRead: (threadId: string) => {
+    const { currentUserId } = get();
     const now = new Date().toISOString();
 
     set(state => {
       const messages = state.messagesByThread[threadId] ?? [];
-      const updated = messages.map(m => (m.read_at === null ? { ...m, read_at: now } : m));
+      // Only mark messages from others as read (not own messages)
+      const updated = messages.map(m =>
+        m.read_at === null && m.sender_id !== currentUserId ? { ...m, read_at: now } : m
+      );
 
       return {
         messagesByThread: {
@@ -359,16 +375,19 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
     // Recalculate after optimistic update
     get().recalculateUnread();
 
-    // Persist to DB (fire-and-forget)
-    void db('show_messages')
-      .update({ read_at: now })
-      .eq('thread_id', threadId)
-      .is('read_at', null)
-      .then(({ error }: { error: Error | null }) => {
-        if (error) {
-          logger.error('Failed to persist markThreadRead:', 'messages', { data: error });
-        }
-      });
+    // Persist to DB (fire-and-forget) — only mark messages sent by others
+    if (currentUserId) {
+      void db('show_messages')
+        .update({ read_at: now })
+        .eq('thread_id', threadId)
+        .is('read_at', null)
+        .neq('sender_id', currentUserId)
+        .then(({ error }: { error: Error | null }) => {
+          if (error) {
+            logger.error('Failed to persist markThreadRead:', 'messages', { data: error });
+          }
+        });
+    }
   },
 
   sendMessage: async (threadId: string, showId: string, body: string) => {
@@ -443,23 +462,43 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
 
   getOrCreateThread: async (showId: string, participantId: string) => {
     try {
-      const { data, error } = (await db('show_message_threads')
-        .upsert(
-          { show_id: showId, participant_id: participantId },
-          { onConflict: 'show_id,participant_id', ignoreDuplicates: false }
-        )
+      // Try to find existing thread first to avoid resetting last_message_at
+      const { data: existing } = (await db('show_message_threads')
+        .select('id, show_id, participant_id, last_message_at, created_at')
+        .eq('show_id', showId)
+        .eq('participant_id', participantId)
+        .single()) as { data: DbThread | null; error: Error | null };
+
+      if (existing) {
+        const thread: MessageThread = {
+          id: existing.id,
+          show_id: existing.show_id,
+          participant_id: existing.participant_id,
+          last_message_at: existing.last_message_at,
+          created_at: existing.created_at,
+        };
+        set(state => {
+          if (state.threads.some(t => t.id === thread.id)) return state;
+          return { threads: [thread, ...state.threads] };
+        });
+        return thread;
+      }
+
+      // Create new thread
+      const { data: created, error } = (await db('show_message_threads')
+        .insert({ show_id: showId, participant_id: participantId })
         .select('id, show_id, participant_id, last_message_at, created_at')
         .single()) as { data: DbThread | null; error: Error | null };
 
       if (error) throw error;
-      if (!data) return null;
+      if (!created) return null;
 
       const thread: MessageThread = {
-        id: data.id,
-        show_id: data.show_id,
-        participant_id: data.participant_id,
-        last_message_at: data.last_message_at,
-        created_at: data.created_at,
+        id: created.id,
+        show_id: created.show_id,
+        participant_id: created.participant_id,
+        last_message_at: created.last_message_at,
+        created_at: created.created_at,
       };
 
       // Add to local state if not already present

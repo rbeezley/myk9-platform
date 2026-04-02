@@ -71,7 +71,7 @@ serve(async (req: Request) => {
     // Check caller has secretary or admin role
     const { data: callerRoles } = await supabase
       .from('user_roles')
-      .select('roles!inner(name)')
+      .select('id, club_id, people!inner(auth_user_id), roles!inner(name)')
       .eq('people.auth_user_id', user.id)
       .or(
         `and(roles.name.in.(secretary,trial_secretary),club_id.eq.${show.club_id}),roles.name.eq.platform_admin`
@@ -87,10 +87,25 @@ serve(async (req: Request) => {
       );
     }
 
+    // Validate class belongs to this show
+    const { data: classCheck } = await supabase
+      .from('classes')
+      .select('id, trials!inner(show_id)')
+      .eq('id', class_id)
+      .eq('trials.show_id', show_id)
+      .single();
+
+    if (!classCheck) {
+      return new Response(JSON.stringify({ error: 'Class does not belong to this show' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get class info for group label
     const { data: classInfo } = await supabase
       .from('classes')
-      .select('class_number, class_name')
+      .select('class_number, name')
       .eq('id', class_id)
       .single();
 
@@ -125,7 +140,7 @@ serve(async (req: Request) => {
     }
 
     const classLabel = classInfo
-      ? `Sent to all Class ${classInfo.class_number} (${classInfo.class_name}) exhibitors`
+      ? `Sent to all Class ${classInfo.class_number} (${classInfo.name}) exhibitors`
       : `Sent to all class exhibitors`;
 
     // Batch upsert threads, then batch insert messages (avoids N+1)

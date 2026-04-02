@@ -64,8 +64,9 @@ export default function SecretaryMessagesPage() {
 
   useEffect(() => {
     if (activeThreadId) {
-      fetchMessages(activeThreadId);
-      storeMarkThreadRead(activeThreadId);
+      fetchMessages(activeThreadId).then(() => {
+        storeMarkThreadRead(activeThreadId);
+      });
     }
   }, [activeThreadId, fetchMessages, storeMarkThreadRead]);
 

@@ -37,7 +37,7 @@ const mockStoreState = {
   channels: [],
   subscribe: vi.fn(),
   unsubscribe: vi.fn(),
-  fetchMessages: vi.fn(),
+  fetchMessages: vi.fn().mockResolvedValue(undefined),
   sendMessage: vi.fn(),
   markThreadRead: vi.fn(),
   getOrCreateThread: vi.fn().mockResolvedValue({ id: 'thread-1' }),
@@ -49,7 +49,9 @@ const mockStoreState = {
 };
 
 vi.mock('@/store/messageStore', () => ({
-  useMessageStore: vi.fn((selector: (state: typeof mockStoreState) => unknown) => (selector ? selector(mockStoreState) : mockStoreState)),
+  useMessageStore: vi.fn((selector: (state: typeof mockStoreState) => unknown) =>
+    selector ? selector(mockStoreState) : mockStoreState
+  ),
 }));
 
 vi.mock('@/hooks/useAuth', () => ({

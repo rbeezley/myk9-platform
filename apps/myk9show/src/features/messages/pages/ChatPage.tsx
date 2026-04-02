@@ -28,8 +28,9 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (thread?.id) {
-      fetchMessages(thread.id);
-      storeMarkThreadRead(thread.id);
+      fetchMessages(thread.id).then(() => {
+        storeMarkThreadRead(thread.id!);
+      });
     }
   }, [thread?.id, fetchMessages, storeMarkThreadRead]);
 

@@ -377,6 +377,23 @@ describe('premium gating', () => {
     expect(screen.getByText('Learn more')).toBeInTheDocument();
   });
 
+  // [ADDED] Trial banner should not appear on empty state
+  it('does not show trial banner when there is no data', () => {
+    mockUseMyLifetimeStats.mockReturnValue({ data: [], isLoading: false });
+    mockUseSubscriptionGate.mockReturnValue({
+      tier: 'premium',
+      isPremium: true,
+      isExpired: false,
+      isInTrial: true,
+      isLoading: false,
+    });
+
+    render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+    expect(screen.getByText('No Analytics Yet')).toBeInTheDocument();
+    expect(screen.queryByText(/exploring Premium Analytics free/)).not.toBeInTheDocument();
+  });
+
   it('does not show trial banner for paid premium users', () => {
     mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
     mockUseSubscriptionGate.mockReturnValue({
@@ -451,7 +468,8 @@ return (
       actions={filterControls}
     />
 
-    {isInTrial && (
+    {/* [EXPANDED] Only show trial banner when user has data — avoids banner above empty state */}
+    {isInTrial && hasData && (
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
         You&apos;re exploring Premium Analytics free for your first 3 shows. You&apos;ve used{' '}
         {scoredShowCount} of 3.{' '}
@@ -479,13 +497,15 @@ return (
 
         <ResultDistributionChart data={distribution} />
 
-        {trend.length > 1 && (
-          <FeatureGate feature="performance_stats" userPlan={tier}>
+        {/* [EXPANDED] FeatureGate wraps outside conditionals so free users always
+            see 3 upgrade cards regardless of data shape */}
+        <FeatureGate feature="performance_stats" userPlan={tier}>
+          {trend.length > 1 && (
             <div ref={trendRef}>
               <QualificationTrendChart data={trend} />
             </div>
-          </FeatureGate>
-        )}
+          )}
+        </FeatureGate>
 
         <FeatureGate feature="performance_stats" userPlan={tier}>
           <div ref={dogBreakdownRef}>
@@ -493,13 +513,13 @@ return (
           </div>
         </FeatureGate>
 
-        {fastestTimes.length > 0 && (
-          <FeatureGate feature="performance_stats" userPlan={tier}>
+        <FeatureGate feature="performance_stats" userPlan={tier}>
+          {fastestTimes.length > 0 && (
             <div ref={fastestTimesRef}>
               <FastestTimesTable times={fastestTimes} showShowColumn />
             </div>
-          </FeatureGate>
-        )}
+          )}
+        </FeatureGate>
       </div>
     )}
   </PageShell>
@@ -510,7 +530,8 @@ Key changes from original:
 
 - `ResultDistributionChart` moved out of the 2-col grid to full width
 - `QualificationTrendChart`, `DogBreakdownCards`, `FastestTimesTable` each wrapped in `<FeatureGate>`
-- Trial banner rendered conditionally above content
+- `[EXPANDED]` FeatureGate wraps outside data conditionals (`trend.length > 1`, `fastestTimes.length > 0`) so free users always see 3 upgrade cards regardless of data shape
+- `[EXPANDED]` Trial banner conditioned on `isInTrial && hasData` to avoid showing above empty state
 - `Link` used for "Learn more" instead of raw anchor
 
 - [ ] **Step 4: Run all AnalyticsPage tests**

@@ -1,6 +1,6 @@
 // apps/myk9show/src/test/components/askq/AskQInput.test.tsx
 import { screen } from '@testing-library/react';
-import { render, userEvent } from '@/test/utils/testUtils';
+import { render } from '@/test/utils/testUtils';
 import { AskQInput } from '@/components/askq/AskQInput';
 
 describe('AskQInput', () => {

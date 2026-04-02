@@ -53,6 +53,7 @@ const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage')
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const CheckInReportPage = lazy(() => import('@/pages/secretary/CheckInReportPage'));
 const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
+const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 
 const ShowEditRedirect = () => {
   const { showId } = useParams<{ showId: string }>();
@@ -283,6 +284,19 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
+    <Route
+      path="/secretary/messages/:showId?"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <SecretaryMessagesPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
     <Route
       path="/sync/dashboard"
       element={

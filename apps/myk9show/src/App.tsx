@@ -42,6 +42,7 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 import { AuthProvider } from './context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription';
+import { useMessageSubscription } from '@/hooks/useMessageSubscription';
 import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
 import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
 import { StoreProvider } from './providers/StoreProvider';
@@ -193,6 +194,11 @@ function AnnouncementSubscriptionInitializer() {
   return null;
 }
 
+function MessageSubscriptionInitializer() {
+  useMessageSubscription();
+  return null;
+}
+
 function NotificationMonitorInitializer() {
   useNotificationMonitor();
   return null;
@@ -240,6 +246,7 @@ function App() {
             <AuthProvider>
               <UserDataInitializer />
               <AnnouncementSubscriptionInitializer />
+              <MessageSubscriptionInitializer />
               <NotificationMonitorInitializer />
               <AudioSettingsProvider>
                 <PanelProvider>

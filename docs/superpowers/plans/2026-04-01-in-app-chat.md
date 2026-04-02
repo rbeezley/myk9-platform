@@ -16,7 +16,7 @@
 
 ### Database
 
-- `supabase/migrations/105_show_messages.sql` — Tables, indexes, RLS policies, push trigger
+- `supabase/migrations/106_show_messages.sql` — Tables, indexes, RLS policies, push trigger
 
 ### Edge Functions
 
@@ -53,12 +53,12 @@
 
 **Files:**
 
-- Create: `supabase/migrations/105_show_messages.sql`
+- Create: `supabase/migrations/106_show_messages.sql`
 
 - [ ] **Step 1: Create the migration file with tables**
 
 ```sql
--- 105_show_messages.sql
+-- 106_show_messages.sql
 -- In-app chat: exhibitor <-> trial secretary messaging
 
 -- Thread per participant per show
@@ -266,7 +266,7 @@ Expected: No errors related to migration 105.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add supabase/migrations/105_show_messages.sql
+git add supabase/migrations/106_show_messages.sql
 git commit -m "feat(chat): add show_message_threads and show_messages tables with RLS"
 ```
 

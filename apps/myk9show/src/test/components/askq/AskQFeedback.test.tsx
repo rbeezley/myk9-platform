@@ -1,6 +1,6 @@
 // apps/myk9show/src/test/components/askq/AskQFeedback.test.tsx
 import { screen } from '@testing-library/react';
-import { render, userEvent } from '@/test/utils/testUtils';
+import { render } from '@/test/utils/testUtils';
 import { AskQFeedback } from '@/components/askq/AskQFeedback';
 import * as askqService from '@/services/askqService';
 

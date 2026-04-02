@@ -34,7 +34,7 @@ export async function sendAskQQuery(
       apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
     },
     body: JSON.stringify(request),
-    signal,
+    signal: signal || null,
   });
 
   if (response.status === 429) {

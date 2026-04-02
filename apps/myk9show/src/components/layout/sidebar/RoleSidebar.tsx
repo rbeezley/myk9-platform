@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SidebarConfig } from './types';
 import { collectNavHrefs, useActivePath } from './useActivePath';
+import { useMessageStore } from '@/store/messageStore';
 
 export interface RoleSidebarProps {
   config: SidebarConfig;
@@ -32,6 +33,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
   // Pre-computed once per config identity (stable across renders since config is a module-level constant)
   const allHrefs = React.useMemo(() => collectNavHrefs(groups), [groups]);
   const isActive = useActivePath(allHrefs, config.dashboardHref);
+  const messageUnreadCount = useMessageStore(s => s.unreadCount);
 
   return (
     <div className="flex h-full flex-col bg-[var(--sidebar)] overflow-hidden">
@@ -82,6 +84,10 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
               <div className="space-y-1">
                 {group.items.map(item => {
                   const active = isActive(item.href);
+                  // Messages items show a live unread count badge
+                  const isMessagesItem = item.href.endsWith('/messages');
+                  const dynamicBadgeCount = isMessagesItem ? messageUnreadCount : 0;
+                  const badgeLabel = item.badge ?? (dynamicBadgeCount > 0 ? String(dynamicBadgeCount > 99 ? '99+' : dynamicBadgeCount) : undefined);
                   return (
                     <Link
                       key={item.href}
@@ -95,15 +101,22 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                           : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                       )}
                     >
-                      <item.icon
-                        className={cn(
-                          'transition-colors flex-shrink-0',
-                          isCollapsed ? 'h-5 w-5' : 'h-4 w-4',
-                          active
-                            ? 'text-primary'
-                            : 'text-muted-foreground group-hover:text-foreground'
+                      <div className="relative flex-shrink-0">
+                        <item.icon
+                          className={cn(
+                            'transition-colors',
+                            isCollapsed ? 'h-5 w-5' : 'h-4 w-4',
+                            active
+                              ? 'text-primary'
+                              : 'text-muted-foreground group-hover:text-foreground'
+                          )}
+                        />
+                        {isCollapsed && dynamicBadgeCount > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                            {dynamicBadgeCount > 9 ? '9+' : dynamicBadgeCount}
+                          </span>
                         )}
-                      />
+                      </div>
                       {!isCollapsed && (
                         <div className="flex-1 min-w-0">
                           <div
@@ -122,9 +135,9 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                           )}
                         </div>
                       )}
-                      {!isCollapsed && item.badge && (
+                      {!isCollapsed && badgeLabel && (
                         <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                          {item.badge}
+                          {badgeLabel}
                         </span>
                       )}
                     </Link>

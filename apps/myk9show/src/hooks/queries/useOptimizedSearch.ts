@@ -3,18 +3,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { 
-  useDebounce, 
-  useSearchDeduplication, 
-  usePaginationConfig 
-} from '@/lib/queryOptimizations';
+import { useDebounce, useSearchDeduplication, usePaginationConfig } from '@/lib/queryOptimizations';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { 
-  searchDogs, 
-  searchUsers, 
-  searchShows,
-  searchClubs 
-} from '@/services/database/queries';
+import { searchDogs, searchUsers, searchShows, searchClubs } from '@/services/database/queries';
+import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 
 // Enhanced search configuration
 const SEARCH_CONFIG = {
@@ -25,11 +17,15 @@ const SEARCH_CONFIG = {
 } as const;
 
 // Optimized dog search with debouncing and deduplication
-export const useOptimizedDogSearch = (searchTerm: string, options?: {
-  enabled?: boolean;
-  page?: number;
-  pageSize?: number;
-}) => {
+export const useOptimizedDogSearch = (
+  searchTerm: string,
+  options?: {
+    enabled?: boolean;
+    page?: number;
+    pageSize?: number;
+  }
+) => {
+  const personId = useCurrentPersonId();
   const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
@@ -57,22 +53,14 @@ export const useOptimizedDogSearch = (searchTerm: string, options?: {
   const pageSize = options?.pageSize ?? paginationConfig.dogs.pageSize;
 
   return useQuery({
-    queryKey: [
-      'dogs',
-      'search',
-      debouncedSearchTerm,
-      'page',
-      page,
-      'limit',
-      pageSize,
-    ],
+    queryKey: ['dogs', 'search', debouncedSearchTerm, personId, 'page', page, 'limit', pageSize],
     queryFn: async () => {
       if (!debouncedSearchTerm) return { data: [], total: 0, hasMore: false };
-      
-      const { data, error } = await searchDogs(debouncedSearchTerm);
-      
+
+      const { data, error } = await searchDogs(debouncedSearchTerm, personId!);
+
       if (error) throw error;
-      
+
       return {
         data: data || [],
         total: data?.length || 0,
@@ -81,14 +69,15 @@ export const useOptimizedDogSearch = (searchTerm: string, options?: {
         pageSize,
       };
     },
-    enabled: 
-      (options?.enabled ?? true) && 
+    enabled:
+      (options?.enabled ?? true) &&
+      !!personId &&
       debouncedSearchTerm.length >= SEARCH_CONFIG.minSearchLength,
     ...cacheStrategies.dynamic,
-    
+
     // Keep previous results while loading new ones
-    placeholderData: (previousData) => previousData,
-    
+    placeholderData: previousData => previousData,
+
     // Optimize for search UX
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -96,12 +85,15 @@ export const useOptimizedDogSearch = (searchTerm: string, options?: {
 };
 
 // Optimized user search with debouncing and deduplication
-export const useOptimizedUserSearch = (searchTerm: string, options?: {
-  enabled?: boolean;
-  page?: number;
-  pageSize?: number;
-  role?: string;
-}) => {
+export const useOptimizedUserSearch = (
+  searchTerm: string,
+  options?: {
+    enabled?: boolean;
+    page?: number;
+    pageSize?: number;
+    role?: string;
+  }
+) => {
   const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
@@ -141,11 +133,11 @@ export const useOptimizedUserSearch = (searchTerm: string, options?: {
     ],
     queryFn: async () => {
       if (!debouncedSearchTerm) return { data: [], total: 0, hasMore: false };
-      
+
       const { data, error } = await searchUsers(debouncedSearchTerm);
-      
+
       if (error) throw error;
-      
+
       return {
         data: data || [],
         total: data?.length || 0,
@@ -154,24 +146,26 @@ export const useOptimizedUserSearch = (searchTerm: string, options?: {
         pageSize,
       };
     },
-    enabled: 
-      (options?.enabled ?? true) && 
-      debouncedSearchTerm.length >= SEARCH_CONFIG.minSearchLength,
+    enabled:
+      (options?.enabled ?? true) && debouncedSearchTerm.length >= SEARCH_CONFIG.minSearchLength,
     ...cacheStrategies.dynamic,
-    placeholderData: (previousData) => previousData,
+    placeholderData: previousData => previousData,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
 };
 
 // Optimized show search with debouncing and deduplication
-export const useOptimizedShowSearch = (searchTerm: string, options?: {
-  enabled?: boolean;
-  page?: number;
-  pageSize?: number;
-  dateRange?: { start: string; end: string };
-  status?: string;
-}) => {
+export const useOptimizedShowSearch = (
+  searchTerm: string,
+  options?: {
+    enabled?: boolean;
+    page?: number;
+    pageSize?: number;
+    dateRange?: { start: string; end: string };
+    status?: string;
+  }
+) => {
   const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
@@ -213,11 +207,11 @@ export const useOptimizedShowSearch = (searchTerm: string, options?: {
     ],
     queryFn: async () => {
       if (!debouncedSearchTerm) return { data: [], total: 0, hasMore: false };
-      
+
       const { data, error } = await searchShows(debouncedSearchTerm);
-      
+
       if (error) throw error;
-      
+
       return {
         data: data || [],
         total: data?.length || 0,
@@ -226,21 +220,24 @@ export const useOptimizedShowSearch = (searchTerm: string, options?: {
         pageSize,
       };
     },
-    enabled: 
-      (options?.enabled ?? true) && 
-      debouncedSearchTerm.length >= SEARCH_CONFIG.minSearchLength,
+    enabled:
+      (options?.enabled ?? true) && debouncedSearchTerm.length >= SEARCH_CONFIG.minSearchLength,
     ...cacheStrategies.dynamic,
-    placeholderData: (previousData) => previousData,
+    placeholderData: previousData => previousData,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
 };
 
 // Unified global search across all entities
-export const useGlobalSearch = (searchTerm: string, options?: {
-  enabled?: boolean;
-  entities?: ('dogs' | 'users' | 'shows' | 'clubs')[];
-}) => {
+export const useGlobalSearch = (
+  searchTerm: string,
+  options?: {
+    enabled?: boolean;
+    entities?: ('dogs' | 'users' | 'shows' | 'clubs')[];
+  }
+) => {
+  const personId = useCurrentPersonId();
   const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
@@ -265,7 +262,7 @@ export const useGlobalSearch = (searchTerm: string, options?: {
   const enabledEntities = options?.entities ?? ['dogs', 'users', 'shows', 'clubs'];
 
   return useQuery({
-    queryKey: ['global-search', debouncedSearchTerm, 'entities', enabledEntities],
+    queryKey: ['global-search', debouncedSearchTerm, personId, 'entities', enabledEntities],
     queryFn: async () => {
       if (!debouncedSearchTerm) {
         return {
@@ -276,7 +273,7 @@ export const useGlobalSearch = (searchTerm: string, options?: {
           total: 0,
         };
       }
-      
+
       const searchPromises: Promise<void>[] = [];
       const results: Record<string, unknown[]> = {
         dogs: [],
@@ -286,9 +283,9 @@ export const useGlobalSearch = (searchTerm: string, options?: {
       };
 
       // Search each enabled entity type in parallel
-      if (enabledEntities.includes('dogs')) {
+      if (enabledEntities.includes('dogs') && personId) {
         searchPromises.push(
-          searchDogs(debouncedSearchTerm)
+          searchDogs(debouncedSearchTerm, personId)
             .then(({ data }) => {
               results.dogs = data || [];
             })
@@ -345,18 +342,20 @@ export const useGlobalSearch = (searchTerm: string, options?: {
         searchTerm: debouncedSearchTerm,
       };
     },
-    enabled: 
-      (options?.enabled ?? true) && 
-      debouncedSearchTerm.length >= SEARCH_CONFIG.minSearchLength,
+    enabled:
+      (options?.enabled ?? true) && debouncedSearchTerm.length >= SEARCH_CONFIG.minSearchLength,
     ...cacheStrategies.dynamic,
-    placeholderData: (previousData) => previousData,
+    placeholderData: previousData => previousData,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
 };
 
 // Search suggestions with intelligent caching
-export const useSearchSuggestions = (searchTerm: string, entityType: 'dogs' | 'users' | 'shows') => {
+export const useSearchSuggestions = (
+  searchTerm: string,
+  entityType: 'dogs' | 'users' | 'shows'
+) => {
   const initialTerm = searchTerm.length >= 1 ? searchTerm : '';
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
 
@@ -368,7 +367,8 @@ export const useSearchSuggestions = (searchTerm: string, entityType: 'dogs' | 'u
   const [prevSearchTerm, setPrevSearchTerm] = useState(searchTerm);
   if (searchTerm !== prevSearchTerm) {
     setPrevSearchTerm(searchTerm);
-    if (searchTerm.length >= 1) { // Lower threshold for suggestions
+    if (searchTerm.length >= 1) {
+      // Lower threshold for suggestions
       debouncedUpdate(searchTerm);
     } else {
       setDebouncedSearchTerm('');
@@ -379,21 +379,23 @@ export const useSearchSuggestions = (searchTerm: string, entityType: 'dogs' | 'u
     queryKey: [entityType, 'suggestions', debouncedSearchTerm],
     queryFn: async () => {
       if (!debouncedSearchTerm) return [];
-      
+
       // Get cached data first for instant suggestions
-      const cacheKey = entityType === 'dogs' ? queryKeys.dogs :
-                      entityType === 'users' ? queryKeys.users.all :
-                      queryKeys.shows;
-      
-      const cachedData = (globalThis as { queryClient?: { getQueryData: (key: unknown) => unknown } })
-        .queryClient?.getQueryData(cacheKey) as Array<{ name: string; id: string }> | undefined;
-      
+      const cacheKey =
+        entityType === 'dogs'
+          ? queryKeys.dogs
+          : entityType === 'users'
+            ? queryKeys.users.all
+            : queryKeys.shows;
+
+      const cachedData = (
+        globalThis as { queryClient?: { getQueryData: (key: unknown) => unknown } }
+      ).queryClient?.getQueryData(cacheKey) as Array<{ name: string; id: string }> | undefined;
+
       if (cachedData && cachedData.length > 0) {
         // Filter cached data for instant suggestions
         return cachedData
-          .filter(item => 
-            item.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-          )
+          .filter(item => item.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
           .slice(0, 5)
           .map(item => ({
             id: item.id,
@@ -401,7 +403,7 @@ export const useSearchSuggestions = (searchTerm: string, entityType: 'dogs' | 'u
             type: entityType,
           }));
       }
-      
+
       // Fallback to empty array if no cached data
       return [];
     },

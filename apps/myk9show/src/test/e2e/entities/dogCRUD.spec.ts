@@ -17,7 +17,7 @@ test.describe('Dog CRUD Operations', () => {
     const dbResult = await page.evaluate(async () => {
       const { getAllDogs } = await import('/src/services/database/queries/dogQueries.ts');
 
-      const { data, error } = await getAllDogs();
+      const { data, error } = await getAllDogs('test-person-id');
 
       if (error) {
         return { success: false, error: error.message, count: 0, dogs: [] };
@@ -26,7 +26,7 @@ test.describe('Dog CRUD Operations', () => {
       return {
         success: true,
         count: data?.length || 0,
-        dogs: data?.slice(0, 5).map(d => ({ id: d.id, name: d.name })) || []
+        dogs: data?.slice(0, 5).map(d => ({ id: d.id, name: d.name })) || [],
       };
     });
 
@@ -43,14 +43,15 @@ test.describe('Dog CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } = await import('/src/services/database/queries/userQueries.ts');
+      const { createUser, deleteUser } =
+        await import('/src/services/database/queries/userQueries.ts');
       const { createDog, deleteDog } = await import('/src/services/database/queries/dogQueries.ts');
 
       // First create an owner (user)
       const ownerData = {
         first_name: 'Test',
         last_name: `Owner ${Date.now()}`,
-        email: `testowner${Date.now()}@example.com`
+        email: `testowner${Date.now()}@example.com`,
       };
 
       const { data: createdOwner, error: ownerError } = await createUser(ownerData);
@@ -65,7 +66,7 @@ test.describe('Dog CRUD Operations', () => {
         breed: 'Golden Retriever',
         call_name: 'Buddy',
         sex: 'male',
-        date_of_birth: '2020-01-15'
+        date_of_birth: '2020-01-15',
       };
 
       const { data: createdDog, error: dogError } = await createDog(dogData);
@@ -84,7 +85,7 @@ test.describe('Dog CRUD Operations', () => {
         success: true,
         dogId: createdDog?.id,
         dogName: createdDog?.name,
-        ownerId: createdOwner.id
+        ownerId: createdOwner.id,
       };
     });
 
@@ -101,14 +102,16 @@ test.describe('Dog CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } = await import('/src/services/database/queries/userQueries.ts');
-      const { createDog, updateDog, deleteDog } = await import('/src/services/database/queries/dogQueries.ts');
+      const { createUser, deleteUser } =
+        await import('/src/services/database/queries/userQueries.ts');
+      const { createDog, updateDog, deleteDog } =
+        await import('/src/services/database/queries/dogQueries.ts');
 
       // Create owner
       const { data: createdOwner, error: ownerError } = await createUser({
         first_name: 'Update',
         last_name: `TestOwner ${Date.now()}`,
-        email: `updatetestowner${Date.now()}@example.com`
+        email: `updatetestowner${Date.now()}@example.com`,
       });
 
       if (ownerError || !createdOwner) {
@@ -121,7 +124,7 @@ test.describe('Dog CRUD Operations', () => {
         name: `Update Test Dog ${Date.now()}`,
         breed: 'Labrador',
         call_name: 'Max',
-        sex: 'male'
+        sex: 'male',
       });
 
       if (dogError || !createdDog) {
@@ -132,7 +135,7 @@ test.describe('Dog CRUD Operations', () => {
       // Update the dog
       const { data: updatedDog, error: updateError } = await updateDog(createdDog.id, {
         breed: 'Labrador Retriever',
-        call_name: 'Maximus'
+        call_name: 'Maximus',
       });
 
       // Clean up
@@ -149,7 +152,7 @@ test.describe('Dog CRUD Operations', () => {
         updatedCallName: updatedDog?.call_name,
         updatedBreed: updatedDog?.breed,
         callNameMatches: updatedDog?.call_name === 'Maximus',
-        breedMatches: updatedDog?.breed === 'Labrador Retriever'
+        breedMatches: updatedDog?.breed === 'Labrador Retriever',
       };
     });
 
@@ -166,14 +169,16 @@ test.describe('Dog CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } = await import('/src/services/database/queries/userQueries.ts');
-      const { createDog, deleteDog, getDogById } = await import('/src/services/database/queries/dogQueries.ts');
+      const { createUser, deleteUser } =
+        await import('/src/services/database/queries/userQueries.ts');
+      const { createDog, deleteDog, getDogById } =
+        await import('/src/services/database/queries/dogQueries.ts');
 
       // Create owner
       const { data: createdOwner, error: ownerError } = await createUser({
         first_name: 'Delete',
         last_name: `TestOwner ${Date.now()}`,
-        email: `deletetestowner${Date.now()}@example.com`
+        email: `deletetestowner${Date.now()}@example.com`,
       });
 
       if (ownerError || !createdOwner) {
@@ -185,7 +190,7 @@ test.describe('Dog CRUD Operations', () => {
         owner_id: createdOwner.id,
         name: `Delete Test Dog ${Date.now()}`,
         breed: 'Beagle',
-        sex: 'female'
+        sex: 'female',
       });
 
       if (dogError || !createdDog) {
@@ -206,7 +211,7 @@ test.describe('Dog CRUD Operations', () => {
         success: !deleteError,
         dogId: createdDog.id,
         dogDeleted: !checkDog,
-        error: deleteError?.message
+        error: deleteError?.message,
       };
     });
 
@@ -222,14 +227,16 @@ test.describe('Dog CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser } = await import('/src/services/database/queries/userQueries.ts');
-      const { createDog, deleteDog, searchDogs } = await import('/src/services/database/queries/dogQueries.ts');
+      const { createUser, deleteUser } =
+        await import('/src/services/database/queries/userQueries.ts');
+      const { createDog, deleteDog, searchDogs } =
+        await import('/src/services/database/queries/dogQueries.ts');
 
       // Create owner
       const { data: createdOwner, error: ownerError } = await createUser({
         first_name: 'Search',
         last_name: `TestOwner ${Date.now()}`,
-        email: `searchtestowner${Date.now()}@example.com`
+        email: `searchtestowner${Date.now()}@example.com`,
       });
 
       if (ownerError || !createdOwner) {
@@ -242,7 +249,7 @@ test.describe('Dog CRUD Operations', () => {
         owner_id: createdOwner.id,
         name: uniqueName,
         breed: 'UniqueBreedPoodle',
-        sex: 'male'
+        sex: 'male',
       });
 
       if (dogError || !createdDog) {
@@ -251,7 +258,10 @@ test.describe('Dog CRUD Operations', () => {
       }
 
       // Search for the dog by name
-      const { data: searchResults, error: searchError } = await searchDogs('SearchTestDog');
+      const { data: searchResults, error: searchError } = await searchDogs(
+        'SearchTestDog',
+        'test-person-id'
+      );
 
       // Clean up
       await deleteDog(createdDog.id);
@@ -267,7 +277,7 @@ test.describe('Dog CRUD Operations', () => {
         success: true,
         searchTerm: 'SearchTestDog',
         resultsCount: searchResults?.length || 0,
-        foundTestDog: foundOurDog
+        foundTestDog: foundOurDog,
       };
     });
 

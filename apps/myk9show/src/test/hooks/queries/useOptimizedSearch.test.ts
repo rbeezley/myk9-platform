@@ -7,7 +7,7 @@ import {
   useOptimizedShowSearch,
   useGlobalSearch,
   useSearchSuggestions,
-  SEARCH_CONFIG
+  SEARCH_CONFIG,
 } from '@/hooks/queries/useOptimizedSearch';
 import React from 'react';
 
@@ -50,14 +50,18 @@ vi.mock('@/lib/queryClient', () => ({
   queryKeys: {
     dogs: ['dogs'],
     users: { all: ['users'] },
-    shows: ['shows']
+    shows: ['shows'],
   },
   cacheStrategies: {
     dynamic: {
       staleTime: 30000,
-      gcTime: 300000
-    }
-  }
+      gcTime: 300000,
+    },
+  },
+}));
+
+vi.mock('@/hooks/useCurrentPersonId', () => ({
+  useCurrentPersonId: () => 'test-person-123',
 }));
 
 describe('useOptimizedSearch hooks', () => {
@@ -86,25 +90,25 @@ describe('useOptimizedSearch hooks', () => {
       search: { pageSize: 20 },
       dogs: { pageSize: 25 },
       users: { pageSize: 30 },
-      shows: { pageSize: 15 }
+      shows: { pageSize: 15 },
     });
 
     // Default successful responses
     mockSearchDogs.mockResolvedValue({
       data: [{ id: '1', name: 'Test Dog', breed: 'Labrador' }],
-      error: null
+      error: null,
     });
     mockSearchUsers.mockResolvedValue({
       data: [{ id: '1', first_name: 'John', last_name: 'Doe' }],
-      error: null
+      error: null,
     });
     mockSearchShows.mockResolvedValue({
       data: [{ id: '1', name: 'Test Show', location: 'Test Location' }],
-      error: null
+      error: null,
     });
     mockSearchClubs.mockResolvedValue({
       data: [{ id: '1', name: 'Test Club' }],
-      error: null
+      error: null,
     });
   });
 
@@ -114,22 +118,21 @@ describe('useOptimizedSearch hooks', () => {
 
   describe('useOptimizedDogSearch', () => {
     it('should search dogs with debouncing', async () => {
-      const { result } = renderHook(
-        () => useOptimizedDogSearch('labrador'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedDogSearch('labrador'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockSearchDogs).toHaveBeenCalledWith('labrador');
+      expect(mockSearchDogs).toHaveBeenCalledWith('labrador', 'test-person-123');
       expect(result.current.data).toEqual({
         data: [{ id: '1', name: 'Test Dog', breed: 'Labrador' }],
         total: 1,
         hasMore: false,
         page: 1,
-        pageSize: 25
+        pageSize: 25,
       });
     });
 
@@ -148,10 +151,9 @@ describe('useOptimizedSearch hooks', () => {
       const searchError = new Error('Search failed');
       mockSearchDogs.mockRejectedValue(searchError);
 
-      const { result } = renderHook(
-        () => useOptimizedDogSearch('test'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedDogSearch('test'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -162,23 +164,23 @@ describe('useOptimizedSearch hooks', () => {
 
     it('should validate response time performance', async () => {
       let resolveTime = 0;
-      mockSearchDogs.mockImplementation(() =>
-        new Promise((resolve) => {
-          setTimeout(() => {
-            resolveTime = Date.now();
-            resolve({
-              data: [{ id: '1', name: 'Fast Dog' }],
-              error: null
-            });
-          }, 50);
-        })
+      mockSearchDogs.mockImplementation(
+        () =>
+          new Promise(resolve => {
+            setTimeout(() => {
+              resolveTime = Date.now();
+              resolve({
+                data: [{ id: '1', name: 'Fast Dog' }],
+                error: null,
+              });
+            }, 50);
+          })
       );
 
       const startTime = Date.now();
-      const { result } = renderHook(
-        () => useOptimizedDogSearch('fast'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedDogSearch('fast'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -205,10 +207,9 @@ describe('useOptimizedSearch hooks', () => {
     it('should handle empty search results', async () => {
       mockSearchDogs.mockResolvedValue({ data: [], error: null });
 
-      const { result } = renderHook(
-        () => useOptimizedDogSearch('nonexistent'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedDogSearch('nonexistent'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -219,10 +220,9 @@ describe('useOptimizedSearch hooks', () => {
     });
 
     it('should respect enabled option', () => {
-      const { result } = renderHook(
-        () => useOptimizedDogSearch('test', { enabled: false }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedDogSearch('test', { enabled: false }), {
+        wrapper: createWrapper(),
+      });
 
       // React Query v5: disabled queries have fetchStatus 'idle'
       expect(result.current.fetchStatus).toBe('idle');
@@ -232,10 +232,9 @@ describe('useOptimizedSearch hooks', () => {
 
   describe('useOptimizedUserSearch', () => {
     it('should search users with debouncing', async () => {
-      const { result } = renderHook(
-        () => useOptimizedUserSearch('john'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedUserSearch('john'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -262,10 +261,9 @@ describe('useOptimizedSearch hooks', () => {
     it('should handle user search errors', async () => {
       mockSearchUsers.mockRejectedValue(new Error('User search failed'));
 
-      const { result } = renderHook(
-        () => useOptimizedUserSearch('test'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedUserSearch('test'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -277,10 +275,9 @@ describe('useOptimizedSearch hooks', () => {
 
   describe('useOptimizedShowSearch', () => {
     it('should search shows with debouncing', async () => {
-      const { result } = renderHook(
-        () => useOptimizedShowSearch('championship'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedShowSearch('championship'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -293,10 +290,9 @@ describe('useOptimizedSearch hooks', () => {
     it('should support date range filtering', async () => {
       const dateRange = { start: '2024-01-01', end: '2024-12-31' };
 
-      const { result } = renderHook(
-        () => useOptimizedShowSearch('show', { dateRange }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedShowSearch('show', { dateRange }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -322,16 +318,13 @@ describe('useOptimizedSearch hooks', () => {
 
   describe('useGlobalSearch', () => {
     it('should search across all entities', async () => {
-      const { result } = renderHook(
-        () => useGlobalSearch('test'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useGlobalSearch('test'), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(mockSearchDogs).toHaveBeenCalledWith('test');
+      expect(mockSearchDogs).toHaveBeenCalledWith('test', 'test-person-123');
       expect(mockSearchUsers).toHaveBeenCalledWith('test');
       expect(mockSearchShows).toHaveBeenCalledWith('test');
       expect(mockSearchClubs).toHaveBeenCalledWith('test');
@@ -342,7 +335,7 @@ describe('useOptimizedSearch hooks', () => {
         shows: [{ id: '1', name: 'Test Show', location: 'Test Location' }],
         clubs: [{ id: '1', name: 'Test Club' }],
         total: 4,
-        searchTerm: 'test'
+        searchTerm: 'test',
       });
     });
 
@@ -350,10 +343,7 @@ describe('useOptimizedSearch hooks', () => {
       mockSearchDogs.mockRejectedValue(new Error('Dogs search failed'));
       // Other searches remain successful
 
-      const { result } = renderHook(
-        () => useGlobalSearch('test'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useGlobalSearch('test'), { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -386,24 +376,23 @@ describe('useOptimizedSearch hooks', () => {
 
     it('should validate parallel search performance', async () => {
       // Mock searches with different delays
-      mockSearchDogs.mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 100))
+      mockSearchDogs.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 100))
       );
-      mockSearchUsers.mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 50))
+      mockSearchUsers.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 50))
       );
-      mockSearchShows.mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 75))
+      mockSearchShows.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 75))
       );
-      mockSearchClubs.mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 25))
+      mockSearchClubs.mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 25))
       );
 
       const startTime = Date.now();
-      const { result } = renderHook(
-        () => useGlobalSearch('performance'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useGlobalSearch('performance'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -436,18 +425,17 @@ describe('useOptimizedSearch hooks', () => {
       const mockCachedData = [
         { id: '1', name: 'Golden Retriever Dog' },
         { id: '2', name: 'Golden Lab Mix' },
-        { id: '3', name: 'Silver Retriever' }
+        { id: '3', name: 'Silver Retriever' },
       ];
 
       // Mock global queryClient
       (globalThis as Record<string, unknown>).queryClient = {
-        getQueryData: vi.fn().mockReturnValue(mockCachedData)
+        getQueryData: vi.fn().mockReturnValue(mockCachedData),
       };
 
-      const { result } = renderHook(
-        () => useSearchSuggestions('golden', 'dogs'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSearchSuggestions('golden', 'dogs'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -455,24 +443,25 @@ describe('useOptimizedSearch hooks', () => {
 
       expect(result.current.data).toEqual([
         { id: '1', name: 'Golden Retriever Dog', type: 'dogs' },
-        { id: '2', name: 'Golden Lab Mix', type: 'dogs' }
+        { id: '2', name: 'Golden Lab Mix', type: 'dogs' },
       ]);
     });
 
     it('should limit suggestions to 5 items', async () => {
-      const mockCachedData = Array(10).fill(null).map((_, i) => ({
-        id: `${i}`,
-        name: `Test Item ${i}`
-      }));
+      const mockCachedData = Array(10)
+        .fill(null)
+        .map((_, i) => ({
+          id: `${i}`,
+          name: `Test Item ${i}`,
+        }));
 
       (globalThis as Record<string, unknown>).queryClient = {
-        getQueryData: vi.fn().mockReturnValue(mockCachedData)
+        getQueryData: vi.fn().mockReturnValue(mockCachedData),
       };
 
-      const { result } = renderHook(
-        () => useSearchSuggestions('test', 'dogs'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSearchSuggestions('test', 'dogs'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -483,13 +472,12 @@ describe('useOptimizedSearch hooks', () => {
 
     it('should return empty suggestions when no cached data', async () => {
       (globalThis as Record<string, unknown>).queryClient = {
-        getQueryData: vi.fn().mockReturnValue(undefined)
+        getQueryData: vi.fn().mockReturnValue(undefined),
       };
 
-      const { result } = renderHook(
-        () => useSearchSuggestions('test', 'users'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSearchSuggestions('test', 'users'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -499,10 +487,7 @@ describe('useOptimizedSearch hooks', () => {
     });
 
     it('should have faster debounce for suggestions', () => {
-      renderHook(
-        () => useSearchSuggestions('fast', 'shows'),
-        { wrapper: createWrapper() }
-      );
+      renderHook(() => useSearchSuggestions('fast', 'shows'), { wrapper: createWrapper() });
 
       // Check that debounce was called with 150ms (faster than regular search)
       expect(mockUseDebounce).toHaveBeenCalledWith(expect.any(Function), 150);
@@ -511,11 +496,11 @@ describe('useOptimizedSearch hooks', () => {
     it('should work with single character search terms', async () => {
       const mockCachedData = [
         { id: '1', name: 'Apple' },
-        { id: '2', name: 'Apricot' }
+        { id: '2', name: 'Apricot' },
       ];
 
       (globalThis as Record<string, unknown>).queryClient = {
-        getQueryData: vi.fn().mockReturnValue(mockCachedData)
+        getQueryData: vi.fn().mockReturnValue(mockCachedData),
       };
 
       const { result } = renderHook(
@@ -546,7 +531,7 @@ describe('useOptimizedSearch hooks', () => {
         ({ searchTerm }) => useOptimizedDogSearch(searchTerm),
         {
           wrapper: createWrapper(),
-          initialProps: { searchTerm: 'lab' }
+          initialProps: { searchTerm: 'lab' },
         }
       );
 
@@ -561,20 +546,17 @@ describe('useOptimizedSearch hooks', () => {
       });
 
       // The final search term should have been searched
-      expect(mockSearchDogs).toHaveBeenCalledWith('labrador');
+      expect(mockSearchDogs).toHaveBeenCalledWith('labrador', 'test-person-123');
     });
 
     it('should handle search deduplication', () => {
       // Configure deduplication to reject all updates after initialization
       mockUseSearchDeduplication.mockReturnValue(() => false);
 
-      const { rerender } = renderHook(
-        ({ searchTerm }) => useOptimizedDogSearch(searchTerm),
-        {
-          wrapper: createWrapper(),
-          initialProps: { searchTerm: 'initial' }
-        }
-      );
+      const { rerender } = renderHook(({ searchTerm }) => useOptimizedDogSearch(searchTerm), {
+        wrapper: createWrapper(),
+        initialProps: { searchTerm: 'initial' },
+      });
 
       // Change the search term - deduplication blocks the update
       rerender({ searchTerm: 'updated' });
@@ -582,7 +564,7 @@ describe('useOptimizedSearch hooks', () => {
       // The debounced search term stays at 'initial' (from initialization),
       // not 'updated' (which was blocked by deduplication), so the query
       // runs with the initial term
-      expect(mockSearchDogs).toHaveBeenCalledWith('initial');
+      expect(mockSearchDogs).toHaveBeenCalledWith('initial', 'test-person-123');
     });
 
     it('should maintain placeholder data during loading', async () => {
@@ -590,7 +572,7 @@ describe('useOptimizedSearch hooks', () => {
         ({ searchTerm }) => useOptimizedDogSearch(searchTerm),
         {
           wrapper: createWrapper(),
-          initialProps: { searchTerm: 'previous' }
+          initialProps: { searchTerm: 'previous' },
         }
       );
 
@@ -601,11 +583,18 @@ describe('useOptimizedSearch hooks', () => {
       const previousData = result.current.data;
 
       // Set up a slow response for the next search
-      mockSearchDogs.mockImplementation(() =>
-        new Promise(resolve => setTimeout(() => resolve({
-          data: [{ id: '2', name: 'New Dog' }],
-          error: null
-        }), 500))
+      mockSearchDogs.mockImplementation(
+        () =>
+          new Promise(resolve =>
+            setTimeout(
+              () =>
+                resolve({
+                  data: [{ id: '2', name: 'New Dog' }],
+                  error: null,
+                }),
+              500
+            )
+          )
       );
 
       // Change search term
@@ -616,10 +605,9 @@ describe('useOptimizedSearch hooks', () => {
     });
 
     it('should handle disabled state correctly', () => {
-      const { result } = renderHook(
-        () => useOptimizedDogSearch('test', { enabled: false }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useOptimizedDogSearch('test', { enabled: false }), {
+        wrapper: createWrapper(),
+      });
 
       expect(result.current.fetchStatus).toBe('idle');
       expect(mockSearchDogs).not.toHaveBeenCalled();
@@ -630,10 +618,9 @@ describe('useOptimizedSearch hooks', () => {
       mockSearchUsers.mockRejectedValue(new Error('Permission error'));
       // Shows and clubs remain successful
 
-      const { result } = renderHook(
-        () => useGlobalSearch('errortest'),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useGlobalSearch('errortest'), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);

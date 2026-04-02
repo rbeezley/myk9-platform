@@ -8,7 +8,7 @@ import {
   usePaginatedShows,
   useAdvancedPagination,
   usePaginationState,
-  type PaginatedResult
+  type PaginatedResult,
 } from '@/hooks/queries/usePaginatedQueries';
 import React from 'react';
 
@@ -18,7 +18,7 @@ const {
   mockGetAllUsers,
   mockGetAllShows,
   mockUsePaginationConfig,
-  mockCacheStrategies
+  mockCacheStrategies,
 } = vi.hoisted(() => ({
   mockGetAllDogs: vi.fn(),
   mockGetAllUsers: vi.fn(),
@@ -27,23 +27,27 @@ const {
   mockCacheStrategies: {
     moderate: {
       staleTime: 60000,
-      gcTime: 300000
-    }
-  }
+      gcTime: 300000,
+    },
+  },
 }));
 
 vi.mock('@/services/database/queries', () => ({
   getAllDogs: mockGetAllDogs,
   getAllUsers: mockGetAllUsers,
-  getAllShows: mockGetAllShows
+  getAllShows: mockGetAllShows,
 }));
 
 vi.mock('@/lib/queryOptimizations', () => ({
-  usePaginationConfig: mockUsePaginationConfig
+  usePaginationConfig: mockUsePaginationConfig,
 }));
 
 vi.mock('@/lib/queryClient', () => ({
-  cacheStrategies: mockCacheStrategies
+  cacheStrategies: mockCacheStrategies,
+}));
+
+vi.mock('@/hooks/useCurrentPersonId', () => ({
+  useCurrentPersonId: () => 'test-person-123',
 }));
 
 describe('usePaginatedQueries hooks', () => {
@@ -58,39 +62,41 @@ describe('usePaginatedQueries hooks', () => {
       },
     });
 
-    return ({ children }: { children: React.ReactNode }) => 
+    return ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: queryClient }, children);
   };
 
-  const createMockData = (count: number, prefix: string) => 
-    Array(count).fill(null).map((_, i) => ({
-      id: `${prefix}-${i}`,
-      name: `${prefix} ${i}`,
-      created_at: new Date(2024, 0, i + 1).toISOString()
-    }));
+  const createMockData = (count: number, prefix: string) =>
+    Array(count)
+      .fill(null)
+      .map((_, i) => ({
+        id: `${prefix}-${i}`,
+        name: `${prefix} ${i}`,
+        created_at: new Date(2024, 0, i + 1).toISOString(),
+      }));
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Setup default mock returns
     mockUsePaginationConfig.mockReturnValue({
       dogs: { pageSize: 20 },
       users: { pageSize: 25 },
-      shows: { pageSize: 15 }
+      shows: { pageSize: 15 },
     });
-    
+
     // Default successful responses
-    mockGetAllDogs.mockResolvedValue({ 
-      data: createMockData(50, 'dog'), 
-      error: null 
+    mockGetAllDogs.mockResolvedValue({
+      data: createMockData(50, 'dog'),
+      error: null,
     });
-    mockGetAllUsers.mockResolvedValue({ 
-      data: createMockData(75, 'user'), 
-      error: null 
+    mockGetAllUsers.mockResolvedValue({
+      data: createMockData(75, 'user'),
+      error: null,
     });
-    mockGetAllShows.mockResolvedValue({ 
-      data: createMockData(30, 'show'), 
-      error: null 
+    mockGetAllShows.mockResolvedValue({
+      data: createMockData(30, 'show'),
+      error: null,
     });
   });
 
@@ -100,10 +106,9 @@ describe('usePaginatedQueries hooks', () => {
 
   describe('usePaginatedDogs', () => {
     it('should paginate dog data correctly', async () => {
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 1, pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 1, pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -121,10 +126,9 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should validate response time for pagination', async () => {
       const startTime = Date.now();
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 2, pageSize: 20 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 2, pageSize: 20 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -135,10 +139,9 @@ describe('usePaginatedQueries hooks', () => {
     });
 
     it('should handle last page correctly', async () => {
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 5, pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 5, pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -152,12 +155,13 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should apply sorting correctly', async () => {
       const { result } = renderHook(
-        () => usePaginatedDogs({ 
-          page: 1, 
-          pageSize: 5, 
-          sortBy: 'name', 
-          sortOrder: 'desc' 
-        }),
+        () =>
+          usePaginatedDogs({
+            page: 1,
+            pageSize: 5,
+            sortBy: 'name',
+            sortOrder: 'desc',
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -167,7 +171,7 @@ describe('usePaginatedQueries hooks', () => {
 
       const data = result.current.data as PaginatedResult<unknown>;
       const names = data.data.map((item: Record<string, unknown>) => item.name);
-      
+
       // Should be sorted in descending order
       expect(names[0]).toBe('dog 9');
       expect(names[4]).toBe('dog 5');
@@ -175,11 +179,12 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should apply filters correctly', async () => {
       const { result } = renderHook(
-        () => usePaginatedDogs({ 
-          page: 1, 
-          pageSize: 10,
-          filters: { name: '1' } // Filter for names containing '1'
-        }),
+        () =>
+          usePaginatedDogs({
+            page: 1,
+            pageSize: 10,
+            filters: { name: '1' }, // Filter for names containing '1'
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -189,16 +194,17 @@ describe('usePaginatedQueries hooks', () => {
 
       const data = result.current.data as PaginatedResult<unknown>;
       expect(data.total).toBeLessThan(50); // Should be filtered
-      expect(data.data.every((item: Record<string, unknown>) => (item.name as string).includes('1'))).toBe(true);
+      expect(
+        data.data.every((item: Record<string, unknown>) => (item.name as string).includes('1'))
+      ).toBe(true);
     });
 
     it('should handle empty dataset', async () => {
       mockGetAllDogs.mockResolvedValue({ data: [], error: null });
 
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 1, pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 1, pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -216,10 +222,9 @@ describe('usePaginatedQueries hooks', () => {
       const error = new Error('Database connection failed');
       mockGetAllDogs.mockRejectedValue(error);
 
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 1, pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 1, pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -231,9 +236,9 @@ describe('usePaginatedQueries hooks', () => {
     it('should maintain placeholder data during refetch', async () => {
       const { result, rerender } = renderHook(
         ({ page }) => usePaginatedDogs({ page, pageSize: 10 }),
-        { 
+        {
           wrapper: createWrapper(),
-          initialProps: { page: 1 }
+          initialProps: { page: 1 },
         }
       );
 
@@ -253,10 +258,9 @@ describe('usePaginatedQueries hooks', () => {
 
   describe('useInfiniteDogs', () => {
     it('should load infinite data correctly', async () => {
-      const { result } = renderHook(
-        () => useInfiniteDogs({ pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useInfiniteDogs({ pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -268,10 +272,9 @@ describe('usePaginatedQueries hooks', () => {
     });
 
     it('should fetch next page correctly', async () => {
-      const { result } = renderHook(
-        () => useInfiniteDogs({ pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useInfiniteDogs({ pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -291,15 +294,14 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should handle end of data correctly', async () => {
       // Mock smaller dataset
-      mockGetAllDogs.mockResolvedValue({ 
-        data: createMockData(15, 'dog'), 
-        error: null 
+      mockGetAllDogs.mockResolvedValue({
+        data: createMockData(15, 'dog'),
+        error: null,
       });
 
-      const { result } = renderHook(
-        () => useInfiniteDogs({ pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useInfiniteDogs({ pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -319,10 +321,9 @@ describe('usePaginatedQueries hooks', () => {
     });
 
     it('should support previous page fetching', async () => {
-      const { result } = renderHook(
-        () => useInfiniteDogs({ pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useInfiniteDogs({ pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -347,10 +348,9 @@ describe('usePaginatedQueries hooks', () => {
 
   describe('usePaginatedUsers', () => {
     it('should paginate user data correctly', async () => {
-      const { result } = renderHook(
-        () => usePaginatedUsers({ page: 1, pageSize: 25 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedUsers({ page: 1, pageSize: 25 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -379,12 +379,13 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should handle user-specific sorting', async () => {
       const { result } = renderHook(
-        () => usePaginatedUsers({
-          page: 1,
-          pageSize: 5,
-          sortBy: 'name',
-          sortOrder: 'asc'
-        }),
+        () =>
+          usePaginatedUsers({
+            page: 1,
+            pageSize: 5,
+            sortBy: 'name',
+            sortOrder: 'asc',
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -407,10 +408,9 @@ describe('usePaginatedQueries hooks', () => {
 
   describe('usePaginatedShows', () => {
     it('should paginate show data correctly', async () => {
-      const { result } = renderHook(
-        () => usePaginatedShows({ page: 2, pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedShows({ page: 2, pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -425,21 +425,24 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should handle date sorting for shows', async () => {
       // Provide mock data with a 'date' field that the shows sort logic uses
-      const showsWithDates = Array(30).fill(null).map((_, i) => ({
-        id: `show-${i}`,
-        name: `show ${i}`,
-        date: new Date(2024, 0, i + 1).toISOString(),
-        created_at: new Date(2024, 0, i + 1).toISOString()
-      }));
+      const showsWithDates = Array(30)
+        .fill(null)
+        .map((_, i) => ({
+          id: `show-${i}`,
+          name: `show ${i}`,
+          date: new Date(2024, 0, i + 1).toISOString(),
+          created_at: new Date(2024, 0, i + 1).toISOString(),
+        }));
       mockGetAllShows.mockResolvedValue({ data: showsWithDates, error: null });
 
       const { result } = renderHook(
-        () => usePaginatedShows({
-          page: 1,
-          pageSize: 5,
-          sortBy: 'date',
-          sortOrder: 'desc'
-        }),
+        () =>
+          usePaginatedShows({
+            page: 1,
+            pageSize: 5,
+            sortBy: 'date',
+            sortOrder: 'desc',
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -453,15 +456,14 @@ describe('usePaginatedQueries hooks', () => {
       // Check that dates are sorted in descending order
       const dates = data.data.map((item: Record<string, unknown>) => new Date(item.date as string));
       for (let i = 1; i < dates.length; i++) {
-        expect(dates[i-1].getTime()).toBeGreaterThanOrEqual(dates[i].getTime());
+        expect(dates[i - 1].getTime()).toBeGreaterThanOrEqual(dates[i].getTime());
       }
     });
 
     it('should use show-specific default sort', async () => {
-      const { result } = renderHook(
-        () => usePaginatedShows({ page: 1, pageSize: 5 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedShows({ page: 1, pageSize: 5 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -490,10 +492,11 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should return infinite query when enabled', async () => {
       const { result } = renderHook(
-        () => useAdvancedPagination('dogs', { 
-          pageSize: 10, 
-          enableInfiniteScroll: true 
-        }),
+        () =>
+          useAdvancedPagination('dogs', {
+            pageSize: 10,
+            enableInfiniteScroll: true,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -542,10 +545,9 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should handle unsupported entity types', () => {
       expect(() => {
-        renderHook(
-          () => useAdvancedPagination('unsupported' as 'dogs' | 'users' | 'shows', {}),
-          { wrapper: createWrapper() }
-        );
+        renderHook(() => useAdvancedPagination('unsupported' as 'dogs' | 'users' | 'shows', {}), {
+          wrapper: createWrapper(),
+        });
       }).toThrow('Unsupported entity type: unsupported');
     });
   });
@@ -685,10 +687,9 @@ describe('usePaginatedQueries hooks', () => {
       mockGetAllDogs.mockResolvedValue({ data: largeDataset, error: null });
 
       const startTime = Date.now();
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 50, pageSize: 100 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 50, pageSize: 100 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -703,26 +704,29 @@ describe('usePaginatedQueries hooks', () => {
     });
 
     it('should handle complex filtering efficiently', async () => {
-      const complexDataset = Array(1000).fill(null).map((_, i) => ({
-        id: `item-${i}`,
-        name: `Item ${i}`,
-        category: i % 10 === 0 ? 'special' : 'normal',
-        value: i * 10,
-        active: i % 3 === 0
-      }));
+      const complexDataset = Array(1000)
+        .fill(null)
+        .map((_, i) => ({
+          id: `item-${i}`,
+          name: `Item ${i}`,
+          category: i % 10 === 0 ? 'special' : 'normal',
+          value: i * 10,
+          active: i % 3 === 0,
+        }));
 
       mockGetAllDogs.mockResolvedValue({ data: complexDataset, error: null });
 
       const startTime = Date.now();
       const { result } = renderHook(
-        () => usePaginatedDogs({ 
-          page: 1, 
-          pageSize: 20,
-          filters: { 
-            category: 'special',
-            active: true
-          }
-        }),
+        () =>
+          usePaginatedDogs({
+            page: 1,
+            pageSize: 20,
+            filters: {
+              category: 'special',
+              active: true,
+            },
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -742,7 +746,7 @@ describe('usePaginatedQueries hooks', () => {
         ({ page }) => usePaginatedDogs({ page, pageSize: 10 }),
         {
           wrapper: createWrapper(),
-          initialProps: { page: 1 }
+          initialProps: { page: 1 },
         }
       );
 
@@ -771,10 +775,9 @@ describe('usePaginatedQueries hooks', () => {
     it('should handle null data gracefully', async () => {
       mockGetAllDogs.mockResolvedValue({ data: null, error: null });
 
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 1, pageSize: 10 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 1, pageSize: 10 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -802,10 +805,9 @@ describe('usePaginatedQueries hooks', () => {
     });
 
     it('should handle zero page size', async () => {
-      const { result } = renderHook(
-        () => usePaginatedDogs({ page: 1, pageSize: 0 }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => usePaginatedDogs({ page: 1, pageSize: 0 }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -818,11 +820,12 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should handle invalid sort field', async () => {
       const { result } = renderHook(
-        () => usePaginatedDogs({ 
-          page: 1, 
-          pageSize: 10,
-          sortBy: 'nonexistentField'
-        }),
+        () =>
+          usePaginatedDogs({
+            page: 1,
+            pageSize: 10,
+            sortBy: 'nonexistentField',
+          }),
         { wrapper: createWrapper() }
       );
 

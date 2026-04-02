@@ -13,6 +13,8 @@ import {
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
+const TEST_PERSON_ID = 'test-person-123';
+
 describe('Dog Queries', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -37,7 +39,7 @@ describe('Dog Queries', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
       const startTime = Date.now();
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
       expect(result.data).toEqual(mockData);
@@ -50,7 +52,7 @@ describe('Dog Queries', () => {
       const mockError = { message: 'Connection failed', code: 'CONNECTION_ERROR' };
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
@@ -65,7 +67,7 @@ describe('Dog Queries', () => {
         createChainableQuery({ data: null, error: { message: 'Network timeout', code: 'TIMEOUT' } })
       );
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
@@ -74,7 +76,7 @@ describe('Dog Queries', () => {
     it('should return empty array when no dogs exist', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
@@ -315,7 +317,7 @@ describe('Dog Queries', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
       const startTime = Date.now();
-      const result = await searchDogs(searchTerm);
+      const result = await searchDogs(searchTerm, TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
       expect(result.data).toEqual(mockData);
@@ -326,7 +328,7 @@ describe('Dog Queries', () => {
     it('should return empty results for no matches', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
 
-      const result = await searchDogs('nonexistent');
+      const result = await searchDogs('nonexistent', TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
@@ -345,7 +347,7 @@ describe('Dog Queries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
-      const result = await getDogsWithUpcomingShows();
+      const result = await getDogsWithUpcomingShows(TEST_PERSON_ID);
 
       expect(result.data).toEqual(mockData);
       expect(result.error).toBeNull();
@@ -358,7 +360,7 @@ describe('Dog Queries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ error: null, count: mockCount }));
 
-      const result = await getDogStatistics();
+      const result = await getDogStatistics(TEST_PERSON_ID);
 
       expect(result.data).toEqual({ total: mockCount });
       expect(result.error).toBeNull();
@@ -369,7 +371,7 @@ describe('Dog Queries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ error: mockError, count: null }));
 
-      const result = await getDogStatistics();
+      const result = await getDogStatistics(TEST_PERSON_ID);
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
@@ -386,7 +388,7 @@ describe('Dog Queries', () => {
 
       const promises = Array(5)
         .fill(null)
-        .map(() => getAllDogs());
+        .map(() => getAllDogs(TEST_PERSON_ID));
       const results = await Promise.all(promises);
 
       const duration = Date.now() - startTime;
@@ -406,7 +408,7 @@ describe('Dog Queries', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
       const startTime = Date.now();
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
       expect(result.data).toHaveLength(100);
@@ -418,7 +420,7 @@ describe('Dog Queries', () => {
     it('should handle malformed response data', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
@@ -429,7 +431,7 @@ describe('Dog Queries', () => {
         createChainableQuery({ data: null, error: { message: 'Unknown error' } })
       );
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
@@ -438,7 +440,7 @@ describe('Dog Queries', () => {
     it('should handle empty string search terms', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
 
-      const result = await searchDogs('');
+      const result = await searchDogs('', TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();

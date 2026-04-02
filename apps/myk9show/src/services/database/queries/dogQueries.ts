@@ -4,8 +4,11 @@ import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
 
-// Get all dogs with owner information and registrations
-export const getAllDogs = async () => {
+// PostgREST OR filter for dogs owned or co-owned by a person
+const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
+
+// Get all dogs owned or co-owned by the given person
+export const getAllDogs = async (personId: string) => {
   const startTime = Date.now();
 
   try {
@@ -24,6 +27,7 @@ export const getAllDogs = async () => {
         registrations:dog_registrations(*)
       `
       )
+      .or(ownedByPerson(personId))
       .is('deleted_at', null)
       .order('name', { ascending: true });
 
@@ -265,17 +269,18 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
   }
 };
 
-// Search dogs by name or breed
-export const searchDogs = async (searchTerm: string) => {
+// Search dogs by name or breed, scoped to the given person's dogs
+export const searchDogs = async (searchTerm: string, personId: string) => {
   const startTime = Date.now();
 
   try {
+    const sanitized = sanitizePostgRESTFilter(searchTerm);
     const { data, error } = await supabase
       .from('dogs')
       .select('*')
-      .or(
-        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,breed.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,call_name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-      )
+      // Chained .or() calls are ANDed by PostgREST: must be owned by person AND match search term
+      .or(ownedByPerson(personId))
+      .or(`name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%,call_name.ilike.%${sanitized}%`)
       .is('deleted_at', null)
       .order('name', { ascending: true });
 
@@ -295,8 +300,8 @@ export const searchDogs = async (searchTerm: string) => {
   }
 };
 
-// Get dogs with upcoming shows (simplified query)
-export const getDogsWithUpcomingShows = async () => {
+// Get dogs with upcoming shows, scoped to the given person
+export const getDogsWithUpcomingShows = async (personId: string) => {
   const startTime = Date.now();
 
   try {
@@ -308,6 +313,7 @@ export const getDogsWithUpcomingShows = async () => {
         owner:people!dogs_owner_id_fkey(first_name, last_name)
       `
       )
+      .or(ownedByPerson(personId))
       .is('deleted_at', null)
       .order('name', { ascending: true });
 
@@ -327,14 +333,15 @@ export const getDogsWithUpcomingShows = async () => {
   }
 };
 
-// Get dog statistics
-export const getDogStatistics = async () => {
+// Get dog statistics for the given person's dogs
+export const getDogStatistics = async (personId: string) => {
   const startTime = Date.now();
 
   try {
     const { error, count } = await supabase
       .from('dogs')
       .select('id', { count: 'exact', head: true })
+      .or(ownedByPerson(personId))
       .is('deleted_at', null);
 
     const duration = Date.now() - startTime;

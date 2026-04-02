@@ -5,6 +5,8 @@ import { getAllShows, createShow } from '@/services/database/queries/showQueries
 import type { DbDogInsert, DbUserInsert, DbShowInsert } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
+const TEST_PERSON_ID = 'test-person-123';
+
 describe('Database Queries Integration Tests', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -20,7 +22,7 @@ describe('Database Queries Integration Tests', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
       const startTime = Date.now();
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
       expect(result.data).toEqual(mockData);
@@ -33,7 +35,7 @@ describe('Database Queries Integration Tests', () => {
       const mockError = { message: 'Connection failed', code: 'CONNECTION_ERROR' };
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
@@ -47,7 +49,7 @@ describe('Database Queries Integration Tests', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
 
       const startTime = Date.now();
-      const result = await searchDogs(searchTerm);
+      const result = await searchDogs(searchTerm, TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
       expect(result.data).toEqual(mockData);
@@ -201,7 +203,7 @@ describe('Database Queries Integration Tests', () => {
 
       const startTime = Date.now();
 
-      const promises = [getAllDogs(), getAllUsers(), getAllShows()];
+      const promises = [getAllDogs(TEST_PERSON_ID), getAllUsers(), getAllShows()];
       const results = await Promise.all(promises);
 
       const duration = Date.now() - startTime;
@@ -221,7 +223,7 @@ describe('Database Queries Integration Tests', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: largeDataset, error: null }));
 
       const startTime = Date.now();
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
       expect(result.data).toHaveLength(100);
@@ -233,7 +235,7 @@ describe('Database Queries Integration Tests', () => {
     it('should handle malformed responses gracefully', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
@@ -243,7 +245,7 @@ describe('Database Queries Integration Tests', () => {
       const mockError = { message: 'Network timeout', code: 'TIMEOUT' };
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();

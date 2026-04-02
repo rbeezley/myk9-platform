@@ -12,6 +12,8 @@ import {
 import type { DbDogInsert, DbDogUpdate } from '../../../../types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
+const TEST_PERSON_ID = 'test-person-123';
+
 describe('Dog Queries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -40,7 +42,7 @@ describe('Dog Queries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockDogs, error: null }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
       expect(result.data).toEqual(mockDogs);
@@ -51,7 +53,7 @@ describe('Dog Queries', () => {
       const mockError = { message: 'Database connection failed' };
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
       expect(result.error).toEqual(
@@ -192,7 +194,7 @@ describe('Dog Queries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockResults, error: null }));
 
-      const result = await searchDogs(searchTerm);
+      const result = await searchDogs(searchTerm, TEST_PERSON_ID);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
       expect(result.data).toEqual(mockResults);
@@ -206,7 +208,7 @@ describe('Dog Queries', () => {
         createChainableQuery({ data: null, error: null, count: 42 })
       );
 
-      const result = await getDogStatistics();
+      const result = await getDogStatistics(TEST_PERSON_ID);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
       expect(result).toEqual({

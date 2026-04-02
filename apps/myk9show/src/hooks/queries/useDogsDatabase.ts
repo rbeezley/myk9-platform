@@ -1,30 +1,34 @@
 // React Query hooks for database dog operations
 // Phase 0: Performance Infrastructure - React Query Integration
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  getAllDogs, 
-  getDogById, 
-  getDogsByOwner, 
-  createDog, 
-  updateDog, 
-  deleteDog, 
+import {
+  getAllDogs,
+  getDogById,
+  getDogsByOwner,
+  createDog,
+  updateDog,
+  deleteDog,
   searchDogs,
-  getDogStatistics
+  getDogStatistics,
 } from '@/services/database/queries/dogQueries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
+import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
-// Get all dogs with owner information
+// Get all dogs owned/co-owned by the current user
 export const useDogsQuery = () => {
+  const personId = useCurrentPersonId();
+
   return useQuery({
-    queryKey: queryKeys.dogs,
+    queryKey: [...queryKeys.dogs, personId],
     queryFn: async () => {
-      const { data, error } = await getAllDogs();
+      const { data, error } = await getAllDogs(personId!);
       if (error) throw error;
       return data;
     },
+    enabled: !!personId,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
   });
 };
@@ -57,29 +61,34 @@ export const useDogsByOwnerQuery = (ownerId: string, enabled = true) => {
   });
 };
 
-// Search dogs by name or breed
+// Search dogs by name or breed, scoped to current user
 export const useDogsSearchQuery = (searchTerm: string, enabled = true) => {
+  const personId = useCurrentPersonId();
+
   return useQuery({
-    queryKey: queryKeys.peopleSearch(searchTerm), // Reusing search pattern
+    queryKey: [...queryKeys.peopleSearch(searchTerm), personId], // Reusing search pattern
     queryFn: async () => {
-      const { data, error } = await searchDogs(searchTerm);
+      const { data, error } = await searchDogs(searchTerm, personId!);
       if (error) throw error;
       return data;
     },
-    enabled: !!searchTerm && searchTerm.length >= 2 && enabled,
+    enabled: !!searchTerm && searchTerm.length >= 2 && !!personId && enabled,
     ...cacheStrategies.dynamic, // 1 minute stale for search results
   });
 };
 
-// Get dog statistics
+// Get dog statistics for the current user
 export const useDogStatisticsQuery = () => {
+  const personId = useCurrentPersonId();
+
   return useQuery({
-    queryKey: ['dogs', 'statistics'],
+    queryKey: ['dogs', 'statistics', personId],
     queryFn: async () => {
-      const { data, error } = await getDogStatistics();
+      const { data, error } = await getDogStatistics(personId!);
       if (error) throw error;
       return data;
     },
+    enabled: !!personId,
     ...cacheStrategies.static, // 30 minutes stale for statistics
   });
 };
@@ -94,7 +103,7 @@ export const useCreateDogMutation = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async (newDog) => {
+    onMutate: async newDog => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.dogs });
 
@@ -122,11 +131,11 @@ export const useCreateDogMutation = () => {
     onSuccess: (_data, variables) => {
       // Invalidate and refetch
       invalidateQueries.all('dogs');
-      
+
       // If dog has owner, invalidate owner's dogs
       if (variables.owner_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.personDogs(variables.owner_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.personDogs(variables.owner_id),
         });
       }
     },
@@ -172,25 +181,23 @@ export const useUpdateDogMutation = () => {
       if (data) {
         const mappedDog = mapDatabaseToDog(data);
         queryClient.setQueryData(queryKeys.dog(id), mappedDog);
-        
+
         // Also update the dog in the main dogs list cache
         queryClient.setQueryData(queryKeys.dogs, (oldData: unknown) => {
           if (Array.isArray(oldData)) {
-            return oldData.map((dog: Record<string, unknown>) => 
-              dog.id === id ? mappedDog : dog
-            );
+            return oldData.map((dog: Record<string, unknown>) => (dog.id === id ? mappedDog : dog));
           }
           return oldData;
         });
       }
-      
+
       // Invalidate dogs list to ensure consistency
       invalidateQueries.all('dogs');
-      
+
       // If owner changed, invalidate both old and new owner dogs
       if (data?.owner_id) {
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.personDogs(data.owner_id) 
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.personDogs(data.owner_id),
         });
       }
     },
@@ -233,10 +240,10 @@ export const useDeleteDogMutation = () => {
     onSuccess: (_data, { id: deletedId }) => {
       // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.dog(deletedId) });
-      
+
       // Invalidate dogs list
       invalidateQueries.all('dogs');
-      
+
       // Invalidate statistics since count changed
       queryClient.invalidateQueries({ queryKey: ['dogs', 'statistics'] });
     },
@@ -273,17 +280,18 @@ export const useDogManagement = () => {
     dogs: dogsQuery.data,
     isLoading: dogsQuery.isLoading,
     error: dogsQuery.error,
-    
+
     // Mutations
     createDog: createMutation.mutate,
     isCreating: createMutation.isPending,
-    
+
     updateDog: updateMutation.mutate,
     isUpdating: updateMutation.isPending,
-    
-    deleteDog: (id: string, deletedBy?: string) => deleteMutation.mutate({ id, ...(deletedBy !== undefined && { deletedBy }) }),
+
+    deleteDog: (id: string, deletedBy?: string) =>
+      deleteMutation.mutate({ id, ...(deletedBy !== undefined && { deletedBy }) }),
     isDeleting: deleteMutation.isPending,
-    
+
     // Utilities
     prefetchDog,
     refetch: dogsQuery.refetch,

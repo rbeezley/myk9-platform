@@ -5,32 +5,32 @@ import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { queryKeys, cacheStrategies } from './queryClient';
-import { 
-  getAllDogs, 
+import {
+  getAllDogs,
   getDogById,
   getAllUsers,
   getUserById,
   getAllShows,
   getAllClubs,
-  getClubById
+  getClubById,
 } from '@/services/database/queries';
 
 // Debouncing utility for search queries
-export const useDebounce = <T extends unknown[]>(
-  callback: (...args: T) => void,
-  delay: number
-) => {
+export const useDebounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  const debouncedCallback = useCallback((...args: T) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    timeoutRef.current = setTimeout(() => {
-      callback(...args);
-    }, delay);
-  }, [callback, delay]);
+  const debouncedCallback = useCallback(
+    (...args: T) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    },
+    [callback, delay]
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -90,7 +90,7 @@ export class IntelligentPrefetcher {
       };
 
       window.addEventListener('popstate', trackNavigation);
-      
+
       // Track initial load
       this.recordNavigationPattern(window.location.pathname);
     }
@@ -107,43 +107,58 @@ export class IntelligentPrefetcher {
     if (currentPath === '/dogs') {
       this.prefetchDogsList();
     }
-    
+
     // Dog details → Related dogs by same owner
     if (currentPath.startsWith('/dogs/')) {
       const dogId = currentPath.split('/')[2];
       this.prefetchRelatedDogData(dogId);
     }
-    
+
     // Shows list → Show details (prefetch upcoming shows)
     if (currentPath === '/shows') {
       this.prefetchUpcomingShows();
     }
-    
+
     // Show details → Show classes and entries
     if (currentPath.startsWith('/shows/')) {
       const showId = currentPath.split('/')[2];
       this.prefetchShowRelatedData(showId);
     }
-    
+
     // People list → Person details and their dogs
     if (currentPath === '/people') {
       this.prefetchPeopleList();
     }
   }
 
+  // Look up the current user's person_id from the exhibitor profile cache
+  private getCachedPersonId(): string | undefined {
+    const cache = this.queryClient.getQueryCache().findAll({
+      queryKey: ['exhibitorProfile'],
+    });
+    for (const query of cache) {
+      const data = query.state.data as { person_id?: string } | null | undefined;
+      if (data?.person_id) return data.person_id;
+    }
+    return undefined;
+  }
+
   // Prefetch dogs list with intelligent batching
   private async prefetchDogsList() {
+    const personId = this.getCachedPersonId();
+    if (!personId) return; // Cannot prefetch without knowing which user's dogs
+
     const cacheKey = 'dogs-list-prefetch';
     if (this.prefetchQueue.has(cacheKey)) return;
-    
+
     this.prefetchQueue.add(cacheKey);
-    
+
     try {
       // Prefetch dogs list
       await this.queryClient.prefetchQuery({
-        queryKey: queryKeys.dogs,
+        queryKey: [...queryKeys.dogs, personId],
         queryFn: async () => {
-          const { data, error } = await getAllDogs();
+          const { data, error } = await getAllDogs(personId);
           if (error) throw error;
           return data;
         },
@@ -151,11 +166,13 @@ export class IntelligentPrefetcher {
       });
 
       // Get the dogs data and prefetch first 3 dog details
-      const dogsData = this.queryClient.getQueryData(queryKeys.dogs) as Array<{ id: string }> | undefined;
+      const dogsData = this.queryClient.getQueryData([...queryKeys.dogs, personId]) as
+        | Array<{ id: string }>
+        | undefined;
       if (dogsData && dogsData.length > 0) {
         const topDogs = dogsData.slice(0, 3);
         await Promise.all(
-          topDogs.map(dog => 
+          topDogs.map(dog =>
             this.queryClient.prefetchQuery({
               queryKey: queryKeys.dog(dog.id),
               queryFn: async () => {
@@ -179,13 +196,15 @@ export class IntelligentPrefetcher {
   private async prefetchRelatedDogData(dogId: string) {
     const cacheKey = `dog-${dogId}-related`;
     if (this.prefetchQueue.has(cacheKey)) return;
-    
+
     this.prefetchQueue.add(cacheKey);
-    
+
     try {
       // Get current dog data
-      const dogData = this.queryClient.getQueryData(queryKeys.dog(dogId)) as { owner_id?: string } | undefined;
-      
+      const dogData = this.queryClient.getQueryData(queryKeys.dog(dogId)) as
+        | { owner_id?: string }
+        | undefined;
+
       if (dogData?.owner_id) {
         // Prefetch owner details
         await this.queryClient.prefetchQuery({
@@ -233,9 +252,9 @@ export class IntelligentPrefetcher {
   private async prefetchUpcomingShows() {
     const cacheKey = 'upcoming-shows-prefetch';
     if (this.prefetchQueue.has(cacheKey)) return;
-    
+
     this.prefetchQueue.add(cacheKey);
-    
+
     try {
       // Prefetch upcoming shows
       await this.queryClient.prefetchQuery({
@@ -243,13 +262,15 @@ export class IntelligentPrefetcher {
         queryFn: async () => {
           const { data, error } = await getAllShows();
           if (error) throw error;
-          
+
           // Filter to upcoming shows (mock implementation)
           const now = new Date();
-          return data?.filter((show: Record<string, unknown>) => {
-            const showDate = show.date || show.start_date || show.event_date;
-            return showDate ? new Date(showDate as string) > now : true;
-          }) || [];
+          return (
+            data?.filter((show: Record<string, unknown>) => {
+              const showDate = show.date || show.start_date || show.event_date;
+              return showDate ? new Date(showDate as string) > now : true;
+            }) || []
+          );
         },
         staleTime: cacheStrategies.dynamic.staleTime,
       });
@@ -275,13 +296,15 @@ export class IntelligentPrefetcher {
   private async prefetchShowRelatedData(showId: string) {
     const cacheKey = `show-${showId}-related`;
     if (this.prefetchQueue.has(cacheKey)) return;
-    
+
     this.prefetchQueue.add(cacheKey);
-    
+
     try {
       // Get show data first
-      const showData = this.queryClient.getQueryData(queryKeys.show(showId)) as { club_id?: string } | undefined;
-      
+      const showData = this.queryClient.getQueryData(queryKeys.show(showId)) as
+        | { club_id?: string }
+        | undefined;
+
       if (showData?.club_id) {
         // Prefetch club details
         await this.queryClient.prefetchQuery({
@@ -319,9 +342,9 @@ export class IntelligentPrefetcher {
   private async prefetchPeopleList() {
     const cacheKey = 'people-list-prefetch';
     if (this.prefetchQueue.has(cacheKey)) return;
-    
+
     this.prefetchQueue.add(cacheKey);
-    
+
     try {
       // Prefetch users list
       await this.queryClient.prefetchQuery({
@@ -357,10 +380,7 @@ export const useIntelligentPrefetching = () => {
   const queryClient = useQueryClient();
 
   // Use useMemo to ensure stable initialization of the prefetcher
-  const prefetcher = useMemo(
-    () => new IntelligentPrefetcher(queryClient),
-    [queryClient]
-  );
+  const prefetcher = useMemo(() => new IntelligentPrefetcher(queryClient), [queryClient]);
 
   return prefetcher;
 };
@@ -401,12 +421,12 @@ export const createInvalidationStrategy = (queryClient: QueryClient) => {
     invalidateDogRelated: (dogId: string, ownerId?: string) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
       queryClient.invalidateQueries({ queryKey: queryKeys.dog(dogId) });
-      
+
       if (ownerId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.users.dogs(ownerId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(ownerId) });
       }
-      
+
       // Invalidate statistics
       queryClient.invalidateQueries({ queryKey: ['dogs', 'statistics'] });
     },
@@ -416,7 +436,7 @@ export const createInvalidationStrategy = (queryClient: QueryClient) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.dogs(userId) });
-      
+
       // Invalidate user statistics
       queryClient.invalidateQueries({ queryKey: queryKeys.users.statistics() });
     },
@@ -428,7 +448,7 @@ export const createInvalidationStrategy = (queryClient: QueryClient) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.showClasses(showId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.upcomingShows });
-      
+
       if (clubId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.clubShows(clubId) });
       }
@@ -442,7 +462,11 @@ export const createInvalidationStrategy = (queryClient: QueryClient) => {
     },
 
     // Smart invalidation based on mutation type
-    smartInvalidation: (entityType: string, entityId: string, metadata?: Record<string, unknown>) => {
+    smartInvalidation: (
+      entityType: string,
+      entityId: string,
+      metadata?: Record<string, unknown>
+    ) => {
       switch (entityType) {
         case 'dog':
           strategies.invalidateDogRelated(entityId, metadata?.ownerId as string | undefined);
@@ -461,7 +485,7 @@ export const createInvalidationStrategy = (queryClient: QueryClient) => {
       }
     },
   };
-  
+
   return strategies;
 };
 
@@ -488,10 +512,7 @@ export const optimizeModuleLoading = () => {
   // Preload critical stores
   const preloadCriticalStores = async () => {
     try {
-      await Promise.all([
-        lazyLoadStore('dogs'),
-        lazyLoadStore('users'),
-      ]);
+      await Promise.all([lazyLoadStore('dogs'), lazyLoadStore('users')]);
     } catch (error) {
       logger.warn('Failed to preload critical stores', 'query', {}, error as Error);
     }
@@ -510,21 +531,21 @@ export const useQueryPerformanceMonitoring = () => {
   const getPerformanceMetrics = useCallback(() => {
     const cache = queryClient.getQueryCache();
     const queries = cache.getAll();
-    
+
     const metrics = {
       totalQueries: queries.length,
       staleQueries: queries.filter(q => q.isStale()).length,
       loadingQueries: queries.filter(q => q.state.status === 'pending').length,
       errorQueries: queries.filter(q => q.state.error !== null).length,
       successQueries: queries.filter(q => q.state.status === 'success').length,
-      
+
       // Cache hit ratio estimation
       cacheHits: queries.filter(q => q.state.dataUpdatedAt > 0 && !q.isStale()).length,
       cacheMisses: queries.filter(q => q.state.status === 'pending' || q.isStale()).length,
-      
+
       // Memory usage estimation
       estimatedCacheSize: JSON.stringify(queries.map(q => q.state.data)).length,
-      
+
       // Query timing analysis
       averageQueryTime: queries
         .filter(q => q.state.dataUpdatedAt > 0 && q.state.status === 'success')
@@ -540,7 +561,7 @@ export const useQueryPerformanceMonitoring = () => {
     return {
       ...metrics,
       cacheHitRatio: metrics.cacheHits / (metrics.cacheHits + metrics.cacheMisses) || 0,
-      healthScore: (metrics.successQueries / metrics.totalQueries) || 0,
+      healthScore: metrics.successQueries / metrics.totalQueries || 0,
     };
   }, [queryClient]);
 

@@ -46,6 +46,8 @@ import type {
 
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
+const TEST_PERSON_ID = 'test-person-123';
+
 describe('Comprehensive Database Test Suite', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -62,7 +64,7 @@ describe('Comprehensive Database Test Suite', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockDogData, error: null }));
 
       const startTime = Date.now();
-      const allDogsResult = await getAllDogs();
+      const allDogsResult = await getAllDogs(TEST_PERSON_ID);
       const getAllDuration = Date.now() - startTime;
 
       expect(allDogsResult.data).toEqual(mockDogData);
@@ -86,7 +88,7 @@ describe('Comprehensive Database Test Suite', () => {
       );
 
       const startTime3 = Date.now();
-      const searchResult = await searchDogs('golden');
+      const searchResult = await searchDogs('golden', TEST_PERSON_ID);
       const searchDuration = Date.now() - startTime3;
 
       expect(searchResult.data).toHaveLength(1);
@@ -125,7 +127,7 @@ describe('Comprehensive Database Test Suite', () => {
       // Test getDogStatistics
       mockSupabase.from.mockReturnValue(createChainableQuery({ count: 25, error: null }));
 
-      const statsResult = await getDogStatistics();
+      const statsResult = await getDogStatistics(TEST_PERSON_ID);
       expect(statsResult.data).toEqual({ total: 25 });
     });
 
@@ -134,7 +136,7 @@ describe('Comprehensive Database Test Suite', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
       expect(result.error.message).toBe('Connection failed');
@@ -314,10 +316,10 @@ describe('Comprehensive Database Test Suite', () => {
       const startTime = Date.now();
 
       const promises = [
-        getAllDogs(),
+        getAllDogs(TEST_PERSON_ID),
         getAllUsers(),
         getAllShows(),
-        searchDogs('test'),
+        searchDogs('test', TEST_PERSON_ID),
         searchUsers('test'),
         searchShows('test'),
       ];
@@ -341,7 +343,7 @@ describe('Comprehensive Database Test Suite', () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: largeDataset, error: null }));
 
       const startTime = Date.now();
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
       expect(result.data).toHaveLength(1000);
@@ -354,7 +356,7 @@ describe('Comprehensive Database Test Suite', () => {
       const mockError = { message: 'Network timeout', code: 'TIMEOUT' };
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
       expect(result.error.message).toBe('Network timeout');
@@ -363,7 +365,7 @@ describe('Comprehensive Database Test Suite', () => {
     it('should handle malformed responses', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
 
-      const result = await getAllDogs();
+      const result = await getAllDogs(TEST_PERSON_ID);
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
     });
@@ -371,7 +373,11 @@ describe('Comprehensive Database Test Suite', () => {
     it('should handle empty search terms', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
 
-      const results = await Promise.all([searchDogs(''), searchUsers(''), searchShows('')]);
+      const results = await Promise.all([
+        searchDogs('', TEST_PERSON_ID),
+        searchUsers(''),
+        searchShows(''),
+      ]);
 
       results.forEach(result => {
         expect(result.data).toEqual([]);

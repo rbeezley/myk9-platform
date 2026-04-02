@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { formatTime } from '@/utils/dateFormat';
 import type { MessageThread } from '@/features/messages/types';
 
 interface ThreadListItemProps {
@@ -9,10 +10,7 @@ interface ThreadListItemProps {
 }
 
 export function ThreadListItem({ thread, isActive, onClick }: ThreadListItemProps) {
-  const time = new Date(thread.last_message_at).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const time = formatTime(thread.last_message_at);
 
   return (
     <button

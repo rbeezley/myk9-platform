@@ -329,8 +329,7 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
     });
 
     // Trigger toast for messages from others
-    const { currentUserId: uid } = get();
-    if (message.sender_id !== uid) {
+    if (message.sender_id !== currentUserId) {
       useToastStore.getState().addToast({
         id: `msg-${message.id}`,
         type: 'announcement',
@@ -490,10 +489,7 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
   },
 
   reset: () => {
-    const { channels } = get();
-    for (const ch of channels) {
-      supabase.removeChannel(ch);
-    }
+    get().unsubscribe();
     set({ ...initialState });
   },
 }));

@@ -11,6 +11,7 @@ import { MessageInput } from '@/features/messages/components/MessageInput';
 import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare, Users } from 'lucide-react';
 
 export default function SecretaryMessagesPage() {
@@ -21,14 +22,11 @@ export default function SecretaryMessagesPage() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showTargetedModal, setShowTargetedModal] = useState(false);
 
-  const threads = useMessageStore((s) => s.threads);
-  const messagesByThread = useMessageStore((s) => s.messagesByThread);
-  const isLoading = useMessageStore((s) => s.isLoading);
-  const subscribe = useMessageStore((s) => s.subscribe);
-  const unsubscribe = useMessageStore((s) => s.unsubscribe);
-  const fetchMessages = useMessageStore((s) => s.fetchMessages);
-  const setCurrentUserId = useMessageStore((s) => s.setCurrentUserId);
-  const storeMarkThreadRead = useMessageStore((s) => s.markThreadRead);
+  const threads = useMessageStore(s => s.threads);
+  const messagesByThread = useMessageStore(s => s.messagesByThread);
+  const isLoading = useMessageStore(s => s.isLoading);
+  const fetchMessages = useMessageStore(s => s.fetchMessages);
+  const storeMarkThreadRead = useMessageStore(s => s.markThreadRead);
 
   const { sendMessage, sendTargetedMessage, isSending } = useMessageMutations();
 
@@ -48,8 +46,13 @@ export default function SecretaryMessagesPage() {
             .select('id', { count: 'exact', head: true })
             .eq('class_id', c.id)
             .is('deleted_at', null);
-          return { id: c.id, class_number: Number(c.class_number ?? 0), class_name: c.name, entry_count: count ?? 0 };
-        }),
+          return {
+            id: c.id,
+            class_number: Number(c.class_number ?? 0),
+            class_name: c.name,
+            entry_count: count ?? 0,
+          };
+        })
       );
       return withCounts;
     },
@@ -57,16 +60,7 @@ export default function SecretaryMessagesPage() {
   });
 
   const activeMessages = activeThreadId ? messagesByThread[activeThreadId] || [] : [];
-  const showThreads = threads.filter((t) => t.show_id === showId);
-
-  useEffect(() => {
-    if (user?.id) setCurrentUserId(user.id);
-  }, [user?.id, setCurrentUserId]);
-
-  useEffect(() => {
-    if (showId) subscribe([showId]);
-    return () => unsubscribe();
-  }, [showId, subscribe, unsubscribe]);
+  const showThreads = threads.filter(t => t.show_id === showId);
 
   useEffect(() => {
     if (activeThreadId) {
@@ -100,7 +94,10 @@ export default function SecretaryMessagesPage() {
   return (
     <div className="flex h-full">
       <div
-        className={cn('w-full md:w-80 border-r flex flex-col shrink-0', activeThreadId && 'hidden md:flex')}
+        className={cn(
+          'w-full md:w-80 border-r flex flex-col shrink-0',
+          activeThreadId && 'hidden md:flex'
+        )}
       >
         <div className="p-4 border-b flex items-center justify-between">
           <h1 className="text-lg font-semibold">Messages</h1>
@@ -130,18 +127,25 @@ export default function SecretaryMessagesPage() {
               </Button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {activeMessages.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} isOwnMessage={msg.sender_id === user?.id} />
+              {activeMessages.map(msg => (
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  isOwnMessage={msg.sender_id === user?.id}
+                />
               ))}
               <div ref={messagesEndRef} />
             </div>
             <MessageInput onSend={handleSend} disabled={isSending} />
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
-            <p>Select a conversation to view messages</p>
-          </div>
+          <EmptyState
+            icon={MessageSquare}
+            title="Select a conversation"
+            description="Choose a conversation from the list to view messages"
+            size="sm"
+            className="h-full py-0 justify-center"
+          />
         )}
       </div>
 
@@ -149,7 +153,6 @@ export default function SecretaryMessagesPage() {
         open={showTargetedModal}
         onClose={() => setShowTargetedModal(false)}
         onSend={handleTargetedSend}
-        showId={showId ?? ''}
         classes={classes}
       />
     </div>

@@ -11,7 +11,7 @@ const mockClasses = [
 describe('ComposeTargetedModal', () => {
   it('renders class selector when no classId is pre-selected', () => {
     render(
-      <ComposeTargetedModal open={true} onClose={vi.fn()} onSend={vi.fn()} showId="show-1" classes={mockClasses} />
+      <ComposeTargetedModal open={true} onClose={vi.fn()} onSend={vi.fn()} classes={mockClasses} />
     );
     const labels = screen.getAllByText(/select a class/i);
     expect(labels.length).toBeGreaterThanOrEqual(1);
@@ -19,7 +19,13 @@ describe('ComposeTargetedModal', () => {
 
   it('pre-selects class when classId is provided', () => {
     render(
-      <ComposeTargetedModal open={true} onClose={vi.fn()} onSend={vi.fn()} showId="show-1" classes={mockClasses} preSelectedClassId="class-1" />
+      <ComposeTargetedModal
+        open={true}
+        onClose={vi.fn()}
+        onSend={vi.fn()}
+        classes={mockClasses}
+        preSelectedClassId="class-1"
+      />
     );
     expect(screen.getByText(/Novice A/)).toBeInTheDocument();
     expect(screen.getByText(/8 exhibitors/i)).toBeInTheDocument();
@@ -28,7 +34,13 @@ describe('ComposeTargetedModal', () => {
   it('calls onSend with classId and body', async () => {
     const onSend = vi.fn().mockResolvedValue(undefined);
     const { user } = render(
-      <ComposeTargetedModal open={true} onClose={vi.fn()} onSend={onSend} showId="show-1" classes={mockClasses} preSelectedClassId="class-2" />
+      <ComposeTargetedModal
+        open={true}
+        onClose={vi.fn()}
+        onSend={onSend}
+        classes={mockClasses}
+        preSelectedClassId="class-2"
+      />
     );
 
     const input = screen.getByPlaceholderText(/message/i);
@@ -40,7 +52,13 @@ describe('ComposeTargetedModal', () => {
 
   it('disables send when no message is entered', () => {
     render(
-      <ComposeTargetedModal open={true} onClose={vi.fn()} onSend={vi.fn()} showId="show-1" classes={mockClasses} preSelectedClassId="class-1" />
+      <ComposeTargetedModal
+        open={true}
+        onClose={vi.fn()}
+        onSend={vi.fn()}
+        classes={mockClasses}
+        preSelectedClassId="class-1"
+      />
     );
     expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
   });

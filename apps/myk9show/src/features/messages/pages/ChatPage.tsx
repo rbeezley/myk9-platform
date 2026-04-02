@@ -5,6 +5,7 @@ import { useMessageStore } from '@/store/messageStore';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 import { MessageBubble } from '@/features/messages/components/MessageBubble';
 import { MessageInput } from '@/features/messages/components/MessageInput';
+import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare } from 'lucide-react';
 
 export default function ChatPage() {
@@ -13,29 +14,17 @@ export default function ChatPage() {
   const user = auth.user;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const threads = useMessageStore((s) => s.threads);
-  const messagesByThread = useMessageStore((s) => s.messagesByThread);
-  const isLoading = useMessageStore((s) => s.isLoading);
-  const subscribe = useMessageStore((s) => s.subscribe);
-  const unsubscribe = useMessageStore((s) => s.unsubscribe);
-  const fetchMessages = useMessageStore((s) => s.fetchMessages);
-  const setCurrentUserId = useMessageStore((s) => s.setCurrentUserId);
-  const getOrCreateThread = useMessageStore((s) => s.getOrCreateThread);
-  const storeMarkThreadRead = useMessageStore((s) => s.markThreadRead);
+  const threads = useMessageStore(s => s.threads);
+  const messagesByThread = useMessageStore(s => s.messagesByThread);
+  const isLoading = useMessageStore(s => s.isLoading);
+  const fetchMessages = useMessageStore(s => s.fetchMessages);
+  const getOrCreateThread = useMessageStore(s => s.getOrCreateThread);
+  const storeMarkThreadRead = useMessageStore(s => s.markThreadRead);
 
   const { sendMessage, isSending } = useMessageMutations();
 
-  const thread = threads.find((t) => t.show_id === showId && t.participant_id === user?.id);
+  const thread = threads.find(t => t.show_id === showId && t.participant_id === user?.id);
   const messages = thread ? messagesByThread[thread.id] || [] : [];
-
-  useEffect(() => {
-    if (user?.id) setCurrentUserId(user.id);
-  }, [user?.id, setCurrentUserId]);
-
-  useEffect(() => {
-    if (showId) subscribe([showId]);
-    return () => unsubscribe();
-  }, [showId, subscribe, unsubscribe]);
 
   useEffect(() => {
     if (thread?.id) {
@@ -78,13 +67,15 @@ export default function ChatPage() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mb-3 opacity-50" />
-            <p className="text-lg font-medium">Start a conversation</p>
-            <p className="text-sm">Send a message to the trial secretary</p>
-          </div>
+          <EmptyState
+            icon={MessageSquare}
+            title="Start a conversation"
+            description="Send a message to the trial secretary"
+            size="sm"
+            className="h-full py-0 justify-center"
+          />
         ) : (
-          messages.map((msg) => (
+          messages.map(msg => (
             <MessageBubble key={msg.id} message={msg} isOwnMessage={msg.sender_id === user?.id} />
           ))
         )}

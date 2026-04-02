@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { formatTime } from '@/utils/dateFormat';
 import type { Message } from '@/features/messages/types';
 
 interface MessageBubbleProps {
@@ -8,10 +9,7 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message, isOwnMessage }: MessageBubbleProps) {
-  const time = new Date(message.created_at).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const time = formatTime(message.created_at);
 
   return (
     <div

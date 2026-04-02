@@ -28,7 +28,6 @@ interface ComposeTargetedModalProps {
   open: boolean;
   onClose: () => void;
   onSend: (classId: string, body: string) => Promise<void>;
-  showId: string;
   classes: ClassOption[];
   preSelectedClassId?: string;
 }
@@ -44,7 +43,7 @@ export function ComposeTargetedModal({
   const [body, setBody] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  const selectedClass = classes.find((c) => c.id === selectedClassId);
+  const selectedClass = classes.find(c => c.id === selectedClassId);
 
   const handleSend = async () => {
     if (!selectedClassId || !body.trim()) return;
@@ -59,7 +58,7 @@ export function ComposeTargetedModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog open={open} onOpenChange={isOpen => !isOpen && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Message Class Exhibitors</DialogTitle>
@@ -74,7 +73,7 @@ export function ComposeTargetedModal({
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classes.map((c) => (
+                  {classes.map(c => (
                     <SelectItem key={c.id} value={c.id}>
                       Class {c.class_number} — {c.class_name} ({c.entry_count} entries)
                     </SelectItem>
@@ -96,7 +95,7 @@ export function ComposeTargetedModal({
 
           <Textarea
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={e => setBody(e.target.value)}
             placeholder="Type a message..."
             rows={3}
           />

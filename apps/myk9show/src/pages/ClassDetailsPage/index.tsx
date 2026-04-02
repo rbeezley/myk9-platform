@@ -190,11 +190,7 @@ const ClassDetailsPage: React.FC = () => {
     () => (
       <div className="flex items-center gap-2">
         {(isSecretary || isAdmin) && parentShow?.id && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowMessageModal(true)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowMessageModal(true)}>
             <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
             Message Class
           </Button>
@@ -236,7 +232,19 @@ const ClassDetailsPage: React.FC = () => {
         </DropdownMenu>
       </div>
     ),
-    [dialogs.openEditClassPanel, dialogs.openDeleteDialog, setRequirementsPanelOpen, setShowMessageModal, isSecretary, isAdmin, parentShow, trialId, currentClass?.trialId, classId, navigate]
+    [
+      dialogs.openEditClassPanel,
+      dialogs.openDeleteDialog,
+      setRequirementsPanelOpen,
+      setShowMessageModal,
+      isSecretary,
+      isAdmin,
+      parentShow,
+      trialId,
+      currentClass?.trialId,
+      classId,
+      navigate,
+    ]
   );
 
   // Early returns for different states
@@ -330,7 +338,6 @@ const ClassDetailsPage: React.FC = () => {
           open={showMessageModal}
           onClose={() => setShowMessageModal(false)}
           onSend={(classId, body) => sendTargetedMessage(parentShow.id, classId, body)}
-          showId={parentShow.id}
           classes={[
             {
               id: currentClass.id,

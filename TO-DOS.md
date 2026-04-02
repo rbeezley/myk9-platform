@@ -87,3 +87,60 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 ## In-App Chat — Exhibitor ↔ Secretary Messaging (2026-04-01)
 
 - [x] **In-app chat between exhibitors and trial secretary** — Done (PR #40). Private 1-on-1 messaging + targeted class broadcasts. Tables: `show_message_threads`, `show_messages` (migration 106). Edge functions: `push-trigger-chat-message`, `send-targeted-message`. Zustand store with `postgres_changes` realtime. Secretary inbox at `/secretary/messages`, exhibitor chat at `/messages/:showId`. "Message Class" button on ClassDetailsPage. Unread badges on sidebar nav. 34 tests. Hardened: auth bypass fixes, column-restriction trigger, RLS deny policy, subscription mutex, cross-club validation.
+
+---
+
+## Report Generation & Printing System - 2026-04-01 20:21
+
+- **Build report generation system with scope/sort selection** — Secretary needs to generate and print multiple report types at varying scopes with configurable sort order. **Problem:** No reporting infrastructure exists in myK9Show. Dog shows require numerous printed reports for operations, judging, and organization compliance. **Solution:** Build a report picker UI: (1) select report type, (2) select scope (show / trial / class), (3) select sort order, then generate a print-ready view. Report types fall into three categories:
+
+  **Operational Reports:**
+  - Check-in sheets (per show, trial, or class)
+  - Score sheets (per show, trial, or class)
+  - Preliminary results sheets
+  - Show catalog (full participant/entry listing)
+  - Result catalog (final results compilation)
+  - Judge's schedule
+
+  **Organization-Specific Reports** (vary by show type / sanctioning body):
+  - Trial secretary report
+  - Judge's certification report
+  - Trial chairman report
+
+---
+
+## Avery Label Printing (Armbands & Results) - 2026-04-01 20:22
+
+- **Print armband labels on Avery sheet labels** — Secretary needs to print armband number labels on standard Avery label sheets in various sizes. **Problem:** No label printing capability exists in myK9Show. Armband numbers are assigned to exhibitors/dogs and need to be printed on adhesive labels for physical use at shows. Different clubs use different Avery label sizes (e.g., 5160, 5163, 8160). **Solution:** Build a label layout engine that maps data onto a grid matching the selected Avery template dimensions and margins, then generates a print-ready CSS `@page` layout. User picks the Avery product number, selects scope (show/trial/class), and prints. The label engine should be reusable across label types.
+
+- **Print result labels on Avery sheet labels** — Exhibitors attach result labels to their qualifying ribbons for personal records. Each label should show score/search time, class, judge, and trial info. **Problem:** Exhibitors currently have no printed takeaway connecting their ribbon to specific run details. **Solution:** Reuse the same Avery label layout engine from armband printing. Secretary selects "Result Labels" as the label type, picks scope (show/trial/class) and Avery size, and prints. Label content: dog name, armband #, class, judge, trial date, score or search time, qualifying status.
+
+---
+
+## Brainstorm: One App vs Two Apps - 2026-04-01 20:23
+
+- **Decide whether to merge myK9Q into myK9Show or keep separate** — Fundamental architecture decision on the future of both apps. **Problem:** Current direction is "port everything to myK9Show, maybe retire myK9Q or keep for ringside only" (see memory: `project_myk9show_vision.md`), but this hasn't been rigorously evaluated. Key open questions: (1) Does ringside scoring need a separate offline-first app, or can myK9Show handle it? (2) If we keep myK9Q, what gets stripped out of it (secretary tools, analytics, chat, AskQ — all recently added to myK9Show)? (3) Features already duplicated in both apps (scoring, results, announcements) — do we remove from one side or maintain both? (4) Does the offline-first replication layer (`@myk9/replication`) make sense in myK9Show, or is it a myK9Q-only concern? (5) User experience impact — exhibitors currently use myK9Q with 2+ years of muscle memory. **Solution:** Run `/brainstorm` session to evaluate tradeoffs before committing to more porting work.
+
+---
+
+## Debug Site Admin Login & Password Reset - 2026-04-01 20:23
+
+- **Fix site admin login failure and missing password reset emails** — Richard@myk9Q.com (site admin account) cannot sign in ("invalid credentials") and password reset emails never arrive. **Problem:** Two separate failures: (1) authentication rejects valid credentials — could be case sensitivity on email, account not confirmed, or account not existing in Supabase auth; (2) password reset email never sent/received — need to determine if email is handled by Supabase's built-in auth emails or Resend, check spam, verify email provider configuration in Supabase dashboard (Auth > Email Templates, SMTP settings). **Solution:** Check Supabase dashboard: Auth > Users to confirm account exists and email matches exactly. Check Auth > Providers > Email settings for SMTP/Resend configuration. Check Supabase auth logs for failed login attempts and password reset requests. Test with `supabase auth` CLI if possible.
+
+---
+
+## Brainstorm: Wait Lists & Entry Capacity - 2026-04-01 20:23
+
+- **Design wait list system and mail-in entry reservations** — Shows fill up fast with online entries; need per-class wait lists and the ability to reserve a percentage of spots for mail-in entries. **Problem:** No capacity management exists. When a class fills up, there's no way to queue additional exhibitors or notify them when a spot opens. Mail-in entries (still common in the sport) get shut out if online entries grab all spots first. Key questions: (1) How are class limits defined — per class, per trial, per show? (2) Wait list ordering — FIFO, priority-based, or lottery? (3) When a spot opens, auto-promote or notify and let exhibitor confirm? (4) What percentage of entries to reserve for mail-in, and who configures it (secretary per show)? (5) What happens when mail-in reservation deadline passes — do reserved spots release to wait list? (6) How does this interact with the existing registration wizard flow? **Solution:** Run `/brainstorm` session before implementation.
+
+---
+
+## Generate myK9Q Passcodes from myK9Show - 2026-04-01 20:23
+
+- **Build passcode generation for myK9Q roles** — If myK9Q is kept as the ringside app, myK9Show needs to generate and manage the passcodes that myK9Q uses for authentication. **Problem:** myK9Q uses passcode-based auth (`[role][4-digits]`, e.g., `aa2604`), but there's no UI in myK9Show for secretaries to generate/view/regenerate these codes per show. Currently passcodes are manually configured. Four role codes needed: exhibitor (`e`), steward (`s`), judge (`j`), admin/secretary (`a`). **Depends on:** "One App vs Two Apps" brainstorm decision — only needed if myK9Q is kept. **Solution:** Secretary generates passcodes per show from myK9Show (likely on show settings or a dedicated "Ringside Setup" page). Store in Supabase, myK9Q validates against them via existing edge function. Consider: auto-generate on show creation vs manual generation, regeneration/revocation, display as QR codes for easy sharing at the event.
+
+---
+
+## Configurable Payment Types Per Show - 2026-04-01 20:24
+
+- **Allow clubs to configure accepted payment methods per show** — Secretary/club admin sets which payment types are accepted during show setup. **Problem:** No way to restrict payment methods. Some clubs only want online payments (Stripe), others accept checks or cash at the door. Currently there's no configuration for this, and the registration flow doesn't enforce or display accepted payment types. Options to support: online (Stripe), check, cash, and potentially others. **Solution:** Add a payment configuration section to show settings where the club selects which methods to accept. Registration wizard and entry flow should only present the enabled options. Store as a JSON array or flags on the show record. Consider: default payment types per club (so they don't reconfigure every show), validation that at least one method is enabled.

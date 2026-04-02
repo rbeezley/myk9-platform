@@ -83,7 +83,9 @@ export default function AnalyticsPage() {
     return showIds.size;
   }, [allEntries]);
 
-  const { tier, isInTrial } = useSubscriptionGate({ trialShowCount: scoredShowCount });
+  const { tier, isInTrial } = useSubscriptionGate(
+    isLoading ? undefined : { trialShowCount: scoredShowCount }
+  );
 
   const pageRef = useTrackSectionView(TRACKED_SECTIONS.LIFETIME_PAGE, 'analytics');
   const trendRef = useTrackSectionView(TRACKED_SECTIONS.QUALIFICATION_TREND, 'analytics');

@@ -286,5 +286,21 @@ describe('AnalyticsPage', () => {
 
       expect(screen.queryByText(/exploring Premium Analytics free/)).not.toBeInTheDocument();
     });
+
+    it('does not pass trialShowCount while entries are loading', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: undefined, isLoading: true });
+
+      render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+      expect(mockUseSubscriptionGate).toHaveBeenCalledWith(undefined);
+    });
+
+    it('passes trialShowCount after entries finish loading', () => {
+      mockUseMyLifetimeStats.mockReturnValue({ data: mockEntries, isLoading: false });
+
+      render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+      expect(mockUseSubscriptionGate).toHaveBeenCalledWith({ trialShowCount: 2 });
+    });
   });
 });

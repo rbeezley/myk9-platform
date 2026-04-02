@@ -7,7 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Pencil, MoreVertical, Trash2, ClipboardList } from 'lucide-react';
+import { Pencil, MoreVertical, Trash2, ClipboardList, MessageSquare } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { replicatedClassesTable } from '@/services/replication';
@@ -35,6 +35,8 @@ import { ClassNotFoundState, EmptyClassState, LoadingClassState } from './ClassS
 import { DeleteClassDialog } from './DeleteClassDialog';
 import { EditEntryDialog } from './EditEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
+import { ComposeTargetedModal } from '@/features/messages/components/ComposeTargetedModal';
+import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -64,6 +66,8 @@ const ClassDetailsPage: React.FC = () => {
   // Dialog state
   const dialogs = useClassDetailsDialogs();
   const [requirementsPanelOpen, setRequirementsPanelOpen] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const { sendTargetedMessage } = useMessageMutations();
 
   // Handlers
   const handleConfirmDeleteClass = async () => {
@@ -189,6 +193,16 @@ const ClassDetailsPage: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowMessageModal(true)}
+          >
+            <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+            Message Class
+          </Button>
+        )}
+        {(isSecretary || isAdmin) && parentShow?.id && (
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() =>
               navigate(
                 `/secretary/entries/${parentShow.id}?trial=${trialId || currentClass?.trialId}${classId ? `&class=${classId}` : ''}`
@@ -222,7 +236,7 @@ const ClassDetailsPage: React.FC = () => {
         </DropdownMenu>
       </div>
     ),
-    [dialogs.openEditClassPanel, dialogs.openDeleteDialog, setRequirementsPanelOpen, isSecretary, isAdmin, parentShow, trialId, currentClass?.trialId, classId, navigate]
+    [dialogs.openEditClassPanel, dialogs.openDeleteDialog, setRequirementsPanelOpen, setShowMessageModal, isSecretary, isAdmin, parentShow, trialId, currentClass?.trialId, classId, navigate]
   );
 
   // Early returns for different states
@@ -310,6 +324,24 @@ const ClassDetailsPage: React.FC = () => {
         element={currentClass?.element || ''}
         level={currentClass?.level || ''}
       />
+
+      {parentShow?.id && (
+        <ComposeTargetedModal
+          open={showMessageModal}
+          onClose={() => setShowMessageModal(false)}
+          onSend={(classId, body) => sendTargetedMessage(parentShow.id, classId, body)}
+          showId={parentShow.id}
+          classes={[
+            {
+              id: currentClass.id,
+              class_number: Number(currentClass.classNumber ?? 0),
+              class_name: currentClass.className ?? formatClassTitle(currentClass) ?? '',
+              entry_count: classEntries.length,
+            },
+          ]}
+          preSelectedClassId={currentClass.id}
+        />
+      )}
     </PageShell>
   );
 };

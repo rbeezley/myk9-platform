@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Maximize, Minimize } from 'lucide-react';
 import { useTVData } from './useTVData';
@@ -8,7 +8,6 @@ import { TVGrid } from './TVGrid';
 import { TVPodiumOverlay } from './TVPodiumOverlay';
 import { TVMobileList } from './TVMobileList';
 import { TVSoundToggle } from './TVSoundToggle';
-import type { TVCompletedClass } from './types';
 
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
@@ -33,47 +32,50 @@ export default function TVDisplay() {
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [podiumQueue, setPodiumQueue] = useState<TVCompletedClass[]>([]);
   const [shownPodiums, setShownPodiums] = useState<Set<string>>(new Set());
   const [highlightedClassId, setHighlightedClassId] = useState<string | null>(null);
   const prevClassesRef = useRef<string>('');
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Detect newly completed classes and queue podium takeover
-  useEffect(() => {
-    for (const completed of completedClasses) {
-      if (!shownPodiums.has(completed.id)) {
-        setPodiumQueue(prev => {
-          if (prev.some(p => p.id === completed.id)) return prev;
-          return [...prev, completed];
-        });
-      }
-    }
-  }, [completedClasses, shownPodiums]);
+  // Derive podium queue from completedClasses minus already-shown ones
+  const podiumQueue = useMemo(
+    () => completedClasses.filter(c => !shownPodiums.has(c.id)),
+    [completedClasses, shownPodiums]
+  );
 
   // Detect class card updates for highlight animation
+  const classKey = useMemo(() => classes.map(c => `${c.id}:${c.scoredCount}`).join(','), [classes]);
   useEffect(() => {
-    const key = classes.map(c => `${c.id}:${c.scoredCount}`).join(',');
-    if (prevClassesRef.current && prevClassesRef.current !== key) {
-      const prevMap = new Map(
-        prevClassesRef.current.split(',').map(s => {
-          const [id, count] = s.split(':');
-          return [id, count];
-        })
-      );
-      for (const c of classes) {
-        if (prevMap.get(c.id) !== String(c.scoredCount)) {
-          setHighlightedClassId(c.id);
-          setTimeout(() => setHighlightedClassId(null), 1200);
-          break;
-        }
+    if (!prevClassesRef.current || prevClassesRef.current === classKey) {
+      prevClassesRef.current = classKey;
+      return;
+    }
+    const prevMap = new Map(
+      prevClassesRef.current.split(',').map(s => {
+        const [id, count] = s.split(':');
+        return [id, count];
+      })
+    );
+    prevClassesRef.current = classKey;
+    let changedId: string | null = null;
+    for (const c of classes) {
+      if (prevMap.get(c.id) !== String(c.scoredCount)) {
+        changedId = c.id;
+        break;
       }
     }
-    prevClassesRef.current = key;
-  }, [classes]);
+    if (!changedId) return;
+    // Schedule state update outside synchronous effect body
+    const rafId = requestAnimationFrame(() => {
+      setHighlightedClassId(changedId);
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = setTimeout(() => setHighlightedClassId(null), 1200);
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [classKey, classes]);
 
   const handlePodiumComplete = useCallback((classId: string) => {
     setShownPodiums(prev => new Set(prev).add(classId));
-    setPodiumQueue(prev => prev.filter(p => p.id !== classId));
   }, []);
 
   const toggleFullscreen = useCallback(() => {

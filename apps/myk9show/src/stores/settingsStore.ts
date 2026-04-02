@@ -28,16 +28,8 @@ export interface AppSettings {
 
   // Notifications
   enableNotifications: boolean;
-  voiceNotifications: boolean; // Speak push notifications aloud (everyone can see this)
   showBadges: boolean;
   notifyYourTurnLeadDogs: 1 | 2 | 3 | 4 | 5; // How many dogs ahead to notify
-
-  // Scoring (judges/stewards/admins only)
-  voiceAnnouncements: boolean; // Speak 30-second warning aloud (scoring section)
-
-  // Voice configuration (shared by notifications and scoring)
-  voiceName: string; // Voice name to use (empty = browser default)
-  voiceRate: number; // 0.5 to 2.0 (speed)
 
   // Privacy & Security
   autoLogout: 480; // minutes, fixed at 8 hours
@@ -76,16 +68,8 @@ const defaultSettings: AppSettings = {
 
   // Notifications
   enableNotifications: false, // Default: disabled (users must explicitly opt-in)
-  voiceNotifications: true, // Default: enabled (helps users who miss visual notifications)
   showBadges: true,
   notifyYourTurnLeadDogs: 3, // Default: notify when 3 dogs ahead
-
-  // Scoring
-  voiceAnnouncements: false,
-
-  // Voice configuration
-  voiceName: '', // Empty = browser default
-  voiceRate: 1.0,
 
   // Privacy & Security
   autoLogout: 480, // Default: 8 hours (typical trial length)
@@ -103,8 +87,8 @@ export const useSettingsStore = create<SettingsState>()(
       (set, get) => ({
         settings: defaultSettings,
 
-        updateSettings: (updates) => {
-          set((state) => ({
+        updateSettings: updates => {
+          set(state => ({
             settings: {
               ...state.settings,
               ...updates,
@@ -128,9 +112,9 @@ export const useSettingsStore = create<SettingsState>()(
           applyAccentColor('green');
         },
 
-        resetSection: (_section) => {
+        resetSection: _section => {
           // This would reset specific sections - implement as needed
-},
+        },
 
         exportSettings: () => {
           const exportData = {
@@ -141,7 +125,7 @@ export const useSettingsStore = create<SettingsState>()(
           return JSON.stringify(exportData, null, 2);
         },
 
-        importSettings: (json) => {
+        importSettings: json => {
           try {
             const imported = JSON.parse(json);
 
@@ -170,7 +154,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'myK9Q_settings',
-        onRehydrateStorage: () => (state) => {
+        onRehydrateStorage: () => state => {
           // Called after settings are loaded from localStorage
           if (state) {
             applyAccentColor(state.settings.accentColor || 'green');
@@ -241,10 +225,10 @@ function applyAccentColor(color: 'green' | 'blue' | 'orange' | 'purple') {
 
   // Update meta theme-color to match accent (affects browser chrome and mobile status bar)
   const accentColors: Record<string, string> = {
-    green: '#14b8a6',  // teal
+    green: '#14b8a6', // teal
     blue: '#3b82f6',
     orange: '#f97316',
-    purple: '#8b5cf6'
+    purple: '#8b5cf6',
   };
   const themeColor = accentColors[color] || '#14b8a6';
   document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {

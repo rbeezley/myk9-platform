@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   Loader2,
   SlidersHorizontal,
-  Volume2,
   Trophy,
   Download as DownloadIcon,
   Smartphone,
@@ -40,7 +39,6 @@ import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DeviceManager } from '@/components/preferences/DeviceManager';
 import { SyncStatusIndicator } from '@/components/preferences/SyncStatusIndicator';
 import { GeneralSettings } from '@/components/preferences/GeneralSettings';
-import { ScoringSettings } from '@/components/preferences/ScoringSettings';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import type { PreferencesUpdate } from '@/types/user-preferences';
 
@@ -48,7 +46,6 @@ type TabValue =
   | 'theme'
   | 'general'
   | 'notifications'
-  | 'scoring'
   | 'competition'
   | 'privacy'
   | 'security'
@@ -98,13 +95,6 @@ const settingsGroups: SettingsGroup[] = [
         label: 'Notifications',
         icon: Bell,
         description: 'Manage notification preferences and timing',
-      },
-      {
-        id: 'scoring',
-        label: 'Scoring',
-        icon: Volume2,
-        description: 'Voice announcements and audio during scoring',
-        roleRequired: [UserRole.JUDGE, UserRole.SECRETARY, UserRole.STEWARD, UserRole.SITE_ADMIN],
       },
     ],
   },
@@ -468,8 +458,6 @@ export function PreferencesPage() {
         return <GeneralSettings />;
       case 'notifications':
         return <NotificationSettings />;
-      case 'scoring':
-        return <ScoringSettings />;
       case 'competition':
         return (
           <CompetitionSettings

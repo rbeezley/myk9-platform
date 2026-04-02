@@ -14,7 +14,7 @@ export function TVSoundToggle({ enabled, onToggle }: TVSoundToggleProps) {
         'p-1.5 rounded-md transition-colors',
         enabled ? 'text-zinc-300 hover:text-white' : 'text-zinc-600 hover:text-zinc-400'
       )}
-      title={enabled ? 'Sound on' : 'Sound off'}
+      title={enabled ? 'Sound on (desktop only)' : 'Sound off (desktop only)'}
       aria-label={enabled ? 'Disable sound' : 'Enable sound'}
     >
       {enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}

@@ -4,9 +4,9 @@ Items to address in future sessions.
 
 ---
 
-## Port myK9Q Features to myK9Show (2026-03-14)
+## Port Exhibitor Trial-Day Features to myK9Show (2026-03-14, updated 2026-04-02)
 
-Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or kept only for ringside scoring.
+Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the ringside operations tool for judges, stewards, and timers. See [architecture decision](docs/superpowers/specs/2026-04-02-one-app-vs-two-apps-design.md).
 
 ### Secretary / Operations
 
@@ -14,8 +14,8 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ### Live Event / Spectator
 
-- [ ] **TV run order display** — myK9Q has `/tv/:licenseKey` with live run order, results podium, carousel navigation, real-time class status. No equivalent in myK9Show.
-- [ ] **Voice announcements / settings** — myK9Q has dedicated voice settings for audio feedback and announcements. Not in myK9Show.
+- [ ] **TV run order display** — myK9Q has `/tv/:licenseKey` with live run order, results podium, carousel navigation, real-time class status. Port to myK9Show with mobile-first design.
+- [ ] **Voice announcements / settings** — myK9Q has dedicated voice settings for audio feedback and announcements. Port to myK9Show.
 
 ### Data & Analytics
 
@@ -119,13 +119,27 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Brainstorm: One App vs Two Apps - 2026-04-01 20:23
 
-- **Decide whether to merge myK9Q into myK9Show or keep separate** — Fundamental architecture decision on the future of both apps. **Problem:** Current direction is "port everything to myK9Show, maybe retire myK9Q or keep for ringside only" (see memory: `project_myk9show_vision.md`), but this hasn't been rigorously evaluated. Key open questions: (1) Does ringside scoring need a separate offline-first app, or can myK9Show handle it? (2) If we keep myK9Q, what gets stripped out of it (secretary tools, analytics, chat, AskQ — all recently added to myK9Show)? (3) Features already duplicated in both apps (scoring, results, announcements) — do we remove from one side or maintain both? (4) Does the offline-first replication layer (`@myk9/replication`) make sense in myK9Show, or is it a myK9Q-only concern? (5) User experience impact — exhibitors currently use myK9Q with 2+ years of muscle memory. **Solution:** Run `/brainstorm` session to evaluate tradeoffs before committing to more porting work.
+- [x] **Decide whether to merge myK9Q into myK9Show or keep separate** — RESOLVED (2026-04-02). Decision: keep both apps. myK9Show = the platform (exhibitors, secretaries, club admins). myK9Q = ringside tool (judges, stewards, timers, exhibitors who prefer it). Strip secretary/admin features from myK9Q, port TV run order + voice announcements to myK9Show. See [architecture decision](docs/superpowers/specs/2026-04-02-one-app-vs-two-apps-design.md).
+
+---
+
+## Align myK9Q to Platform Database (2026-04-02)
+
+- [ ] **Point myK9Q at myk9-platform Supabase project** — myK9Q in the monorepo was copied from the standalone production repo and likely points to a different Supabase project. Reconcile env vars, schema differences (table/column names that diverged), verify replication and scoring work against the unified DB, test edge function references. Prerequisite for passcode generation and feature stripping.
+
+- [ ] **Build passcode generation in myK9Show** — Secretary generates per-show passcodes from myK9Show. Store in shared Supabase DB, myK9Q validates via existing edge function. Depends on database alignment above.
+
+- [ ] **Strip secretary/admin features from myK9Q** — Remove results control, Kanban board, volunteer scheduling, reports, show management, in-app chat, announcement creation. Low priority -- do when naturally touching those files.
 
 ---
 
 ## Debug Site Admin Login & Password Reset - 2026-04-01 20:23
 
-- **Fix site admin login failure and missing password reset emails** — Richard@myk9Q.com (site admin account) cannot sign in ("invalid credentials") and password reset emails never arrive. **Problem:** Two separate failures: (1) authentication rejects valid credentials — could be case sensitivity on email, account not confirmed, or account not existing in Supabase auth; (2) password reset email never sent/received — need to determine if email is handled by Supabase's built-in auth emails or Resend, check spam, verify email provider configuration in Supabase dashboard (Auth > Email Templates, SMTP settings). **Solution:** Check Supabase dashboard: Auth > Users to confirm account exists and email matches exactly. Check Auth > Providers > Email settings for SMTP/Resend configuration. Check Supabase auth logs for failed login attempts and password reset requests. Test with `supabase auth` CLI if possible.
+- [x] **Fix site admin login failure and missing password reset emails** — RESOLVED (2026-04-02). Root cause: database was wiped — all user data gone, only schema remained. `richard@myk9t.com` account no longer exists. `site_admin` and `secretary` roles were never seeded (migration 066 bug). Fix: migration 107 seeds both roles + grants site_admin to new `beezley@cox.net` account. **Open issue:** Database wipe cause unknown — no vacuum history, no dead tuples, tables appear to have never had data. Contact Supabase support re: project `sojmvhhwsjxmfistvzbe`. Email deliverability also an issue (see below).
+
+- [x] **Investigate database data loss** — RESOLVED (2026-04-02). Cause: out-of-order migrations were pushed yesterday, triggering a full db reset. All 107 migrations re-ran from scratch (confirmed via sequential transaction IDs). Seed/reference data survived (populated by migrations), user-generated data did not. Not a Supabase issue.
+
+- [ ] **Configure DNS for Resend email deliverability** — Auth emails (signup confirmation, password reset) go to spam. **Problem:** `myk9show.com` likely lacks SPF, DKIM, and DMARC DNS records for Resend's sending domain. Resend shows `delivered` status but Cox.net spam-folders the email. **Solution:** Add SPF, DKIM, and DMARC records in myk9show.com DNS as specified by Resend dashboard (Settings > Domains). Verify with Resend's domain verification tool.
 
 ---
 
@@ -137,7 +151,7 @@ Goal: myK9Show becomes the complete end-to-end platform. myK9Q may be retired or
 
 ## Generate myK9Q Passcodes from myK9Show - 2026-04-01 20:23
 
-- **Build passcode generation for myK9Q roles** — If myK9Q is kept as the ringside app, myK9Show needs to generate and manage the passcodes that myK9Q uses for authentication. **Problem:** myK9Q uses passcode-based auth (`[role][4-digits]`, e.g., `aa2604`), but there's no UI in myK9Show for secretaries to generate/view/regenerate these codes per show. Currently passcodes are manually configured. Four role codes needed: exhibitor (`e`), steward (`s`), judge (`j`), admin/secretary (`a`). **Depends on:** "One App vs Two Apps" brainstorm decision — only needed if myK9Q is kept. **Solution:** Secretary generates passcodes per show from myK9Show (likely on show settings or a dedicated "Ringside Setup" page). Store in Supabase, myK9Q validates against them via existing edge function. Consider: auto-generate on show creation vs manual generation, regeneration/revocation, display as QR codes for easy sharing at the event.
+- [x] **Build passcode generation for myK9Q roles** — Moved to "Align myK9Q to Platform Database" section above (depends on database alignment). See [architecture decision](docs/superpowers/specs/2026-04-02-one-app-vs-two-apps-design.md).
 
 ---
 

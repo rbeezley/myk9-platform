@@ -123,9 +123,9 @@ A set of SVG breed silhouettes used as fallback when a dog has no uploaded photo
 
 ### Data Sources
 
-- **Active classes:** Supabase view `view_combined_classes` filtered by show ID and active statuses (`in_progress`, `briefing`, `setup`, `start_time`). Optional trial filter via query parameter.
-- **Entries / run order:** Supabase view `view_entry_class_join_normalized` for in-ring and next-up dogs per class.
-- **Completed results:** Supabase view `view_class_summary` (where `is_scoring_finalized = true`) joined with `view_entry_with_results` for top 4 placements.
+- **Active classes:** `classes` table joined with `trials` (to filter by show ID), filtered by active statuses (`in_progress`, `briefing`, `setup`, `start_time`, plus platform equivalents `In Progress`, `Scheduled`). Optional trial filter via query parameter. Note: the myK9Q views (`view_combined_classes`, etc.) exist in the myK9Q migration set but may not be present in the platform database, so we query tables directly.
+- **Entries / run order:** `entries` table joined with `dogs` for dog info. Filtered by class IDs of active classes, ordered by `run_order`.
+- **Completed results:** `classes` table where `is_scoring_finalized = true`, joined with `entries` for top 4 placements (`final_placement` between 1 and 4) and `dogs` for dog info.
 
 ### Real-Time Updates
 

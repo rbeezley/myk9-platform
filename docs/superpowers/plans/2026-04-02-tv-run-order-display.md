@@ -10,6 +10,10 @@
 
 **Spec:** [`docs/superpowers/specs/2026-04-02-tv-run-order-display-design.md`](../specs/2026-04-02-tv-run-order-display-design.md)
 
+**[ADDED] Deviation from spec:** The spec references Supabase views (`view_combined_classes`, `view_entry_class_join_normalized`, etc.) which exist in the myK9Q migration set but may not exist in the platform database. This plan queries underlying tables directly (`classes`, `entries`, `dogs`, `trials`, `shows`) to avoid a dependency on views that may not be present. When myK9Q is aligned to the platform DB (separate todo), these queries can be migrated to views if desired.
+
+**[ADDED] Breed silhouettes:** The spec defines a three-tier fallback (photo → breed silhouette → paw print). This plan implements photo → paw print. Breed silhouettes require an SVG asset set that doesn't exist yet. The `DogAvatar` component is designed to accept a future `breedSilhouette` prop. Tracked as a follow-up task.
+
 ---
 
 ## File Structure
@@ -186,6 +190,19 @@ export interface TVCompletedClass {
   qualifiedCount: number | null;
   fastestTime: number | null;
   placements: TVPlacement[];
+}
+
+/** [ADDED] Shared mapper for dog data from Supabase rows. Used by useTVData and useTVResults. */
+export function mapDogInfo(
+  raw: {
+    name: string;
+    call_name: string | null;
+    breed: string | null;
+    image_url: string | null;
+  } | null
+): TVDogInfo | null {
+  if (!raw) return null;
+  return { name: raw.name, callName: raw.call_name, breed: raw.breed, imageUrl: raw.image_url };
 }
 ```
 
@@ -370,7 +387,7 @@ Expected: FAIL — `useTVData` module not found.
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { TV_ACTIVE_STATUSES, TVShowInfo, TVClass, TVEntry, TVDogInfo } from './types';
+import { TV_ACTIVE_STATUSES, TVShowInfo, TVClass, TVEntry, mapDogInfo } from './types'; // [CHANGED] use shared mapDogInfo
 
 interface TVDataResult {
   show: TVShowInfo | null;
@@ -379,17 +396,7 @@ interface TVDataResult {
   error: Error | null;
 }
 
-function mapDog(
-  raw: {
-    name: string;
-    call_name: string | null;
-    breed: string | null;
-    image_url: string | null;
-  } | null
-): TVDogInfo | null {
-  if (!raw) return null;
-  return { name: raw.name, callName: raw.call_name, breed: raw.breed, imageUrl: raw.image_url };
-}
+// [CHANGED] Removed local mapDog — use shared mapDogInfo from types.ts
 
 function mapEntry(raw: Record<string, unknown>): TVEntry {
   return {
@@ -399,7 +406,7 @@ function mapEntry(raw: Record<string, unknown>): TVEntry {
     runOrder: raw.run_order as number | null,
     isInRing: (raw.is_in_ring as boolean) ?? false,
     isScored: (raw.is_scored as boolean) ?? false,
-    dog: mapDog(
+    dog: mapDogInfo(
       raw.dogs as {
         name: string;
         call_name: string | null;
@@ -668,24 +675,14 @@ Expected: FAIL — `useTVResults` module not found.
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { TVCompletedClass, TVPlacement, TVDogInfo } from './types';
+import { TVCompletedClass, TVPlacement, mapDogInfo } from './types'; // [CHANGED] use shared mapDogInfo
 
 interface TVResultsResult {
   completedClasses: TVCompletedClass[];
   isLoading: boolean;
 }
 
-function mapDog(
-  raw: {
-    name: string;
-    call_name: string | null;
-    breed: string | null;
-    image_url: string | null;
-  } | null
-): TVDogInfo | null {
-  if (!raw) return null;
-  return { name: raw.name, callName: raw.call_name, breed: raw.breed, imageUrl: raw.image_url };
-}
+// [CHANGED] Removed local mapDog — use shared mapDogInfo from types.ts
 
 async function fetchTVResults(showId: string, trialId?: string): Promise<TVCompletedClass[]> {
   // Fetch finalized classes for this show
@@ -731,7 +728,7 @@ async function fetchTVResults(showId: string, trialId?: string): Promise<TVCompl
       handler: p.handler,
       searchTime: p.search_time_seconds,
       totalScore: p.total_score,
-      dog: mapDog(
+      dog: mapDogInfo(
         p.dogs as {
           name: string;
           call_name: string | null;
@@ -883,12 +880,28 @@ export function useTVRealtime(showId: string): TVRealtimeState {
 }
 ```
 
-- [ ] **Step 2: Verify TypeScript compiles**
+- [ ] **Step 2: [ADDED] Verify RLS allows anon SELECT on required tables**
+
+Run this SQL in the Supabase dashboard SQL editor (or via `supabase` CLI) to confirm anon key can read from all tables the TV display queries:
+
+```sql
+-- Check RLS policies that allow anon SELECT
+SELECT tablename, policyname, permissive, cmd
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename IN ('shows', 'classes', 'entries', 'dogs', 'trials')
+  AND cmd = 'SELECT'
+ORDER BY tablename;
+```
+
+If any table is missing a SELECT policy for `anon`, create a migration to add one. The TV display is read-only and public — anon SELECT is required.
+
+- [ ] **Step 3: Verify TypeScript compiles**
 
 Run: `cd apps/myk9show && npx tsc --noEmit --pretty 2>&1 | head -20`
 Expected: No errors.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add apps/myk9show/src/pages/TVDisplay/useTVRealtime.ts
@@ -1264,25 +1277,37 @@ Expected: FAIL.
 
 ```typescript
 // apps/myk9show/src/pages/TVDisplay/TVGrid.tsx
+import { cn } from '@/lib/utils'; // [ADDED]
 import { TVClassCard } from './TVClassCard';
 import type { TVClass } from './types';
 
 interface TVGridProps {
   classes: TVClass[];
   highlightedClassId?: string | null;
+  nextClassName?: string | null; // [ADDED] next scheduled class name for empty state
+  nextClassTime?: string | null; // [ADDED] next scheduled start time
 }
 
-export function TVGrid({ classes, highlightedClassId }: TVGridProps) {
+export function TVGrid({ classes, highlightedClassId, nextClassName, nextClassTime }: TVGridProps) {
   if (classes.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] text-zinc-500 text-lg">
-        No classes currently in progress
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500">
+        <div className="text-lg">No classes currently in progress</div>
+        {/* [ADDED] Show next scheduled class if available */}
+        {nextClassName && (
+          <div className="text-sm mt-2">
+            Next up: {nextClassName}{nextClassTime && ` at ${nextClassTime}`}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+    <div className={cn(
+      "grid gap-4 p-4",
+      classes.length === 1 ? "grid-cols-1 max-w-lg mx-auto" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" // [ADDED] center single class card
+    )}>
       {classes.map((tvClass) => (
         <TVClassCard
           key={tvClass.id}
@@ -1344,7 +1369,7 @@ export function TVPodiumCard({ placement, animationDelay, showShimmer }: TVPodiu
 
   return (
     <div
-      className="text-center animate-slide-up opacity-0 fill-mode-forwards"
+      className="text-center animate-slide-up" // [CHANGED] removed invalid fill-mode-forwards; forwards baked into animation definition
       style={{ animationDelay: `${animationDelay}s` }}
     >
       {config.emoji && <div className={cn('text-sm mb-1', config.textColor)}>{config.emoji} {config.label}</div>}

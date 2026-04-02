@@ -38,6 +38,7 @@ import {
   Search,
   KanbanSquare,
   UserCheck,
+  MessageSquare,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -119,6 +120,12 @@ export function buildUnifiedSidebarConfig(
           icon: Settings,
           description: 'Profile and preferences',
         },
+        {
+          title: 'Messages',
+          href: '/messages',
+          icon: MessageSquare,
+          description: 'Chat with the trial secretary',
+        },
       ],
     });
   } else {
@@ -162,6 +169,12 @@ export function buildUnifiedSidebarConfig(
             href: '/exhibitor/entries/history',
             icon: History,
             description: 'Past entries and records',
+          },
+          {
+            title: 'Messages',
+            href: '/messages',
+            icon: MessageSquare,
+            description: 'Chat with the trial secretary',
           },
         ],
       });
@@ -253,6 +266,12 @@ export function buildUnifiedSidebarConfig(
           href: '/secretary/settings',
           icon: Settings,
           description: 'Results visibility and check-in settings',
+        },
+        {
+          title: 'Messages',
+          href: '/secretary/messages',
+          icon: MessageSquare,
+          description: 'Chat with exhibitors and participants',
         },
       ],
     });

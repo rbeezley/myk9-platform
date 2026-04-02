@@ -34,6 +34,9 @@ const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
+// Messages
+const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
+
 // Cart and checkout pages
 const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
@@ -417,6 +420,20 @@ export const PublicRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <CalendarPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
+    {/* Messages */}
+    <Route
+      path="/messages/:showId"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ChatPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

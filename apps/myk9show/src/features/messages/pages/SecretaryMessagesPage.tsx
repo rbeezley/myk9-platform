@@ -38,17 +38,17 @@ export default function SecretaryMessagesPage() {
       if (!showId) return [];
       const { data } = await supabase
         .from('classes')
-        .select('id, class_number, class_name')
-        .eq('show_id', showId)
+        .select('id, class_number, name, trials!inner(show_id)')
+        .eq('trials.show_id' as string, showId)
         .order('class_number');
       const withCounts = await Promise.all(
-        (data || []).map(async (c: { id: string; class_number: number; class_name: string }) => {
+        (data || []).map(async (c: { id: string; class_number: string | null; name: string }) => {
           const { count } = await supabase
             .from('entries')
             .select('id', { count: 'exact', head: true })
             .eq('class_id', c.id)
             .is('deleted_at', null);
-          return { ...c, entry_count: count ?? 0 };
+          return { id: c.id, class_number: Number(c.class_number ?? 0), class_name: c.name, entry_count: count ?? 0 };
         }),
       );
       return withCounts;

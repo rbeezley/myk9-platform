@@ -80,6 +80,7 @@ const mockUseSubscriptionGate = vi.fn<
 
 vi.mock('@/hooks/useSubscriptionGate', () => ({
   useSubscriptionGate: (options?: { trialShowCount?: number }) => mockUseSubscriptionGate(options),
+  TRIAL_SHOW_LIMIT: 3,
 }));
 
 // Mock recharts to avoid rendering issues in jsdom

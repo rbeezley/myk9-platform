@@ -1,7 +1,7 @@
 import { useExhibitorProfile } from './useExhibitorProfile';
 import type { PlanType } from '@/components/subscription/featureUtils';
 
-const TRIAL_SHOW_LIMIT = 3;
+export const TRIAL_SHOW_LIMIT = 3;
 
 export interface SubscriptionGateOptions {
   /** Number of distinct shows where the user has at least one scored entry. */

@@ -18,7 +18,7 @@ import { ResultDistributionChart } from '@/components/analytics/ResultDistributi
 import { DogBreakdownCards } from '@/components/analytics/DogBreakdownCards';
 import { FastestTimesTable } from '@/components/analytics/FastestTimesTable';
 import { QualificationTrendChart } from '@/components/analytics/QualificationTrendChart';
-import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
+import { useSubscriptionGate, TRIAL_SHOW_LIMIT } from '@/hooks/useSubscriptionGate';
 import { FeatureGate } from '@/components/subscription/FeatureGate';
 import { useTrackSectionView, TRACKED_SECTIONS } from '@/hooks/useTrackSectionView';
 import { PageShell } from '@/components/common/PageShell';
@@ -136,8 +136,8 @@ export default function AnalyticsPage() {
 
       {isInTrial && hasData && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          You&apos;re exploring Premium Analytics free for your first 3 shows. You&apos;ve used{' '}
-          {scoredShowCount} of 3.{' '}
+          You&apos;re exploring Premium Analytics free for your first {TRIAL_SHOW_LIMIT} shows.
+          You&apos;ve used {scoredShowCount} of {TRIAL_SHOW_LIMIT}.{' '}
           <Link to="/pricing-page" className="font-medium underline">
             Learn more
           </Link>

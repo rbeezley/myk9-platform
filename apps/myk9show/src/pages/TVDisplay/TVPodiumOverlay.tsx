@@ -30,23 +30,24 @@ export function TVPodiumOverlay({ queue, onComplete, soundEnabled }: TVPodiumOve
     return () => clearTimeout(timer);
   }, [current, handleComplete]);
 
-  // Play chime on mount if enabled
   useEffect(() => {
     if (!current || !soundEnabled) return;
+    let ctx: AudioContext | null = null;
     try {
-      const ctx = new AudioContext();
+      ctx = new AudioContext();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.frequency.value = 523.25; // C5
+      osc.frequency.value = 523.25;
       osc.type = 'sine';
       gain.gain.setValueAtTime(0.3, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
       osc.start();
       osc.stop(ctx.currentTime + 1.5);
+      osc.onended = () => ctx?.close();
     } catch {
-      // Web Audio not available
+      ctx?.close();
     }
   }, [current, soundEnabled]);
 

@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { TV_STATUS_CONFIG, TVClass, TVEntry } from './types';
+import { TVClass, TVEntry, getStatusBadge, getDisplayName } from './types';
 
 interface TVClassCardProps {
   tvClass: TVClass;
@@ -7,22 +7,13 @@ interface TVClassCardProps {
   maxNextUp?: number;
 }
 
-function getStatusBadge(status: string | null, startTime: string | null) {
-  if (status === 'start_time' && startTime) {
-    return { label: `STARTS ${startTime}`, color: 'bg-zinc-600 text-zinc-200' };
-  }
-  const config = TV_STATUS_CONFIG[status as keyof typeof TV_STATUS_CONFIG];
-  return config ?? { label: status ?? 'UNKNOWN', color: 'bg-zinc-600 text-zinc-200' };
-}
-
 function InRingEntry({ entry }: { entry: TVEntry }) {
-  const displayName = entry.dog?.callName ?? entry.dog?.name ?? 'Unknown';
   return (
     <div className="bg-blue-950 border border-blue-600 rounded-md p-2 mb-2">
       <span className="text-blue-400 text-xs font-semibold">IN RING</span>
       <div className="mt-0.5">
         <span className="text-white font-semibold">
-          #{entry.armband} {displayName}
+          #{entry.armband} {getDisplayName(entry.dog)}
         </span>
         {entry.handler && <span className="text-zinc-400 text-sm ml-1">— {entry.handler}</span>}
       </div>
@@ -31,7 +22,6 @@ function InRingEntry({ entry }: { entry: TVEntry }) {
 }
 
 function NextUpEntry({ entry, isNext }: { entry: TVEntry; isNext: boolean }) {
-  const displayName = entry.dog?.callName ?? entry.dog?.name ?? 'Unknown';
   return (
     <div
       className={cn(
@@ -40,7 +30,7 @@ function NextUpEntry({ entry, isNext }: { entry: TVEntry; isNext: boolean }) {
       )}
     >
       {isNext && <span className="text-amber-500 text-xs font-semibold mr-1.5">NEXT</span>}#
-      {entry.armband} {displayName}
+      {entry.armband} {getDisplayName(entry.dog)}
       {entry.handler && <span className="text-zinc-600"> — {entry.handler}</span>}
     </div>
   );

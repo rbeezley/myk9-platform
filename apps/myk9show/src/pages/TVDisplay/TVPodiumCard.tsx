@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { DogAvatar } from '@/components/shared/DogAvatar';
-import type { TVPlacement } from './types';
+import { type TVPlacement, getDisplayName, formatDisplayTime } from './types';
 
 const MEDAL_CONFIG = {
   1: {
@@ -45,13 +45,8 @@ interface TVPodiumCardProps {
 
 export function TVPodiumCard({ placement, animationDelay, showShimmer }: TVPodiumCardProps) {
   const config = MEDAL_CONFIG[placement.placement as keyof typeof MEDAL_CONFIG] ?? MEDAL_CONFIG[4];
-  const displayName = placement.dog?.callName ?? placement.dog?.name ?? 'Unknown';
-  const displayTime =
-    placement.searchTime != null
-      ? `${placement.searchTime.toFixed(1)}s`
-      : placement.totalScore != null
-        ? `${placement.totalScore}`
-        : '';
+  const displayName = getDisplayName(placement.dog);
+  const displayTime = formatDisplayTime(placement.searchTime, placement.totalScore);
 
   return (
     <div className="text-center animate-slide-up" style={{ animationDelay: `${animationDelay}s` }}>

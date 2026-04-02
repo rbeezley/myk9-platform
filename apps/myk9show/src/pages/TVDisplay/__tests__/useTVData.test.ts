@@ -65,7 +65,7 @@ describe('useTVData', () => {
         return {
           select: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
           order: vi.fn().mockResolvedValue({ data: [mockEntryRow], error: null }),
         } as never;
       }

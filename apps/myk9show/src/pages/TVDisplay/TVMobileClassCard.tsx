@@ -1,13 +1,8 @@
 import { cn } from '@/lib/utils';
-import { TV_STATUS_CONFIG, TVClass, TVEntry } from './types';
+import { TVClass, TVEntry, getStatusBadge, getDisplayName } from './types';
 
 interface TVMobileClassCardProps {
   tvClass: TVClass;
-}
-
-function getStatusBadge(status: string | null) {
-  const config = TV_STATUS_CONFIG[status as keyof typeof TV_STATUS_CONFIG];
-  return config ?? { label: status ?? 'UNKNOWN', color: 'bg-zinc-600 text-zinc-200' };
 }
 
 function MobileEntry({
@@ -19,7 +14,7 @@ function MobileEntry({
   isInRing: boolean;
   isNext: boolean;
 }) {
-  const displayName = entry.dog?.callName ?? entry.dog?.name ?? 'Unknown';
+  const displayName = getDisplayName(entry.dog);
   if (isInRing) {
     return (
       <div className="bg-blue-950 border border-blue-600 rounded px-2.5 py-1.5 mb-1">
@@ -41,7 +36,7 @@ function MobileEntry({
 }
 
 export function TVMobileClassCard({ tvClass }: TVMobileClassCardProps) {
-  const { label, color } = getStatusBadge(tvClass.status);
+  const { label, color } = getStatusBadge(tvClass.status, tvClass.startTime);
   const inRingEntry = tvClass.entries.find(e => e.isInRing);
   const pendingEntries = tvClass.entries.filter(e => !e.isInRing && !e.isScored).slice(0, 3);
 

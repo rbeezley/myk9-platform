@@ -22,7 +22,6 @@ export function useTVRealtime(showId: string): TVRealtimeState {
       queryClient.invalidateQueries({ queryKey: queryKeys.tvResults(showId) });
     };
 
-    // Realtime subscription
     const channel = supabase.channel(`tv:${showId}`);
 
     channel
@@ -36,11 +35,9 @@ export function useTVRealtime(showId: string): TVRealtimeState {
         const connected = status === 'SUBSCRIBED';
         setIsConnected(connected);
 
-        // Start polling fallback when disconnected
         if (!connected && !pollRef.current) {
           pollRef.current = setInterval(invalidate, POLL_INTERVAL_MS);
         }
-        // Stop polling when reconnected
         if (connected && pollRef.current) {
           clearInterval(pollRef.current);
           pollRef.current = null;

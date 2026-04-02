@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type { TVCompletedClass } from './types';
+import { type TVCompletedClass, getDisplayName, formatDisplayTime } from './types';
 
 const MEDAL_EMOJI: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const MEDAL_BORDER: Record<number, string> = {
@@ -24,13 +24,8 @@ export function TVMobileResults({ completedClass }: TVMobileResultsProps) {
       </div>
       <div className="p-2 grid grid-cols-2 gap-1.5">
         {completedClass.placements.map(p => {
-          const displayName = p.dog?.callName ?? p.dog?.name ?? 'Unknown';
-          const displayTime =
-            p.searchTime != null
-              ? `${p.searchTime.toFixed(1)}s`
-              : p.totalScore != null
-                ? `${p.totalScore}`
-                : '';
+          const displayName = getDisplayName(p.dog);
+          const displayTime = formatDisplayTime(p.searchTime, p.totalScore);
           return (
             <div
               key={p.placement}

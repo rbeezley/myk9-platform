@@ -33,7 +33,6 @@ async function fetchTVData(
   showId: string,
   trialId?: string
 ): Promise<{ show: TVShowInfo | null; classes: TVClass[] }> {
-  // Fetch show info
   const { data: showData, error: showError } = await supabase
     .from('shows')
     .select('id, name, start_date, end_date')
@@ -51,7 +50,6 @@ async function fetchTVData(
     endDate: showData.end_date,
   };
 
-  // Fetch active classes (joined with trials to filter by show, and judge_assignments for judge name)
   let classQuery = supabase
     .from('classes')
     .select(
@@ -70,7 +68,6 @@ async function fetchTVData(
     return { show, classes: [] };
   }
 
-  // Fetch entries for all active classes
   const classIds = classData.map(c => c.id);
   const { data: entryData } = await supabase
     .from('entries')
@@ -78,25 +75,11 @@ async function fetchTVData(
       'id, class_id, armband, handler, run_order, is_in_ring, is_scored, dogs(name, call_name, breed, image_url)'
     )
     .in('class_id', classIds)
-    .eq('is_scored', false)
+    .or('is_scored.eq.false,is_in_ring.eq.true')
     .order('run_order', { ascending: true });
 
-  // Also fetch the in-ring entry (which may be scored already)
-  const { data: inRingData } = await supabase
-    .from('entries')
-    .select(
-      'id, class_id, armband, handler, run_order, is_in_ring, is_scored, dogs(name, call_name, breed, image_url)'
-    )
-    .in('class_id', classIds)
-    .eq('is_in_ring', true);
-
-  // Combine and deduplicate
-  const allEntries = [...(entryData ?? []), ...(inRingData ?? [])];
-  const uniqueEntries = Array.from(new Map(allEntries.map(e => [e.id, e])).values());
-
-  // Group entries by class
   const entriesByClass = new Map<string, TVEntry[]>();
-  for (const entry of uniqueEntries) {
+  for (const entry of entryData ?? []) {
     const classId = entry.class_id as string;
     if (!entriesByClass.has(classId)) {
       entriesByClass.set(classId, []);

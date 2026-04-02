@@ -79,7 +79,7 @@ export interface TVCompletedClass {
   placements: TVPlacement[];
 }
 
-/** Shared mapper for dog data from Supabase rows. Used by useTVData and useTVResults. */
+/** Shared mapper for dog data from Supabase rows. */
 export function mapDogInfo(
   raw: {
     name: string;
@@ -90,4 +90,22 @@ export function mapDogInfo(
 ): TVDogInfo | null {
   if (!raw) return null;
   return { name: raw.name, callName: raw.call_name, breed: raw.breed, imageUrl: raw.image_url };
+}
+
+export function getDisplayName(dog: TVDogInfo | null): string {
+  return dog?.callName ?? dog?.name ?? 'Unknown';
+}
+
+export function formatDisplayTime(searchTime: number | null, totalScore: number | null): string {
+  if (searchTime != null) return `${searchTime.toFixed(1)}s`;
+  if (totalScore != null) return `${totalScore}`;
+  return '';
+}
+
+export function getStatusBadge(status: string | null, startTime?: string | null) {
+  if (status === 'start_time' && startTime) {
+    return { label: `STARTS ${startTime}`, color: 'bg-zinc-600 text-zinc-200' };
+  }
+  const config = TV_STATUS_CONFIG[status as keyof typeof TV_STATUS_CONFIG];
+  return config ?? { label: status ?? 'UNKNOWN', color: 'bg-zinc-600 text-zinc-200' };
 }

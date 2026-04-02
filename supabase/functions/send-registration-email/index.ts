@@ -4,7 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'myK9Show <noreply@myk9show.com>';
+const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 const ALLOWED_ORIGINS = [
   'https://myk9-platform-myk9show.vercel.app',

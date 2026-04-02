@@ -5,7 +5,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const resendApiKey = Deno.env.get('RESEND_API_KEY');
 const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
-const FROM_EMAIL = 'myK9Show <noreply@myk9show.com>';
+const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 interface AuthHookPayload {
   user: {

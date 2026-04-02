@@ -29,7 +29,7 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
 }
 
 // Email sender configuration
-const FROM_EMAIL = 'myK9Show <noreply@myk9show.com>';
+const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 // Types for email data
 interface EntryConfirmationData {

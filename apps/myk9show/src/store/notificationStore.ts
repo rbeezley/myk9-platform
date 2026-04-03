@@ -49,6 +49,9 @@ export const useNotificationStore = create<NotificationState>()(
           if ('leadDogs' in prefs) {
             updated.leadDogs = clamp(updated.leadDogs, 1, 5);
           }
+          if ('voiceRate' in prefs) {
+            updated.voiceRate = clamp(updated.voiceRate, 0.5, 2.0);
+          }
           return { preferences: updated };
         }),
 
@@ -116,15 +119,17 @@ export const useNotificationStore = create<NotificationState>()(
         const persistedState = persisted as Partial<NotificationState> | undefined;
         if (!persistedState?.preferences) return current;
 
+        const persisted_ = persistedState.preferences;
+        const defaults = current.preferences;
+
         return {
           ...current,
           preferences: {
-            ...current.preferences,
-            ...persistedState.preferences,
-            // Deep-merge voiceCategories: fill missing keys from defaults
+            ...defaults,
+            ...Object.fromEntries(Object.entries(persisted_).filter(([, v]) => v !== undefined)),
             voiceCategories: {
-              ...current.preferences.voiceCategories,
-              ...(persistedState.preferences.voiceCategories ?? {}),
+              ...defaults.voiceCategories,
+              ...(persisted_.voiceCategories ?? {}),
             },
           },
         };

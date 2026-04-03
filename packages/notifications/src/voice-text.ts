@@ -45,7 +45,8 @@ export function generateVoiceText(payload: NotificationPayload): VoiceAnnounceme
       const title = (payload.title || '')
         .replace(/^[\u{1F300}-\u{1FAF8}\u{2600}-\u{27BF}]+\s*/u, '')
         .replace(/^URGENT:\s*/i, '')
-        .trim();
+        .trim()
+        .slice(0, 200);
       if (!title) return null;
       return {
         text: title,

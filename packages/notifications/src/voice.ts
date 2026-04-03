@@ -1,5 +1,7 @@
 import type { VoiceConfig } from './types';
 
+let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
+
 /**
  * Checks whether the browser supports SpeechSynthesis.
  */
@@ -22,9 +24,12 @@ export function speak(text: string): void {
 export function speakWithConfig(text: string, config: VoiceConfig): void {
   if (!isSpeechSupported()) return;
 
-  if (speechSynthesis.speaking) {
-    speechSynthesis.cancel();
+  if (pendingTimeout !== null) {
+    clearTimeout(pendingTimeout);
+    pendingTimeout = null;
   }
+
+  speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
@@ -39,7 +44,8 @@ export function speakWithConfig(text: string, config: VoiceConfig): void {
   }
 
   // Chrome bug: small delay after cancel before speaking
-  setTimeout(() => {
+  pendingTimeout = setTimeout(() => {
+    pendingTimeout = null;
     speechSynthesis.speak(utterance);
   }, 100);
 }

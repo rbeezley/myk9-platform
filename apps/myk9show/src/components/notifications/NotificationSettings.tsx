@@ -55,6 +55,7 @@ export function NotificationSettings() {
   const grouped = useMemo(() => groupVoices(voices), [voices]);
   const showNudge = speechSupported && voices.length > 0 && grouped.recommended.length === 0;
   const instructions = useMemo(() => {
+    if (typeof navigator === 'undefined') return null;
     const platform = detectPlatform(navigator.userAgent);
     return getEnhancedVoiceInstructions(platform);
   }, []);
@@ -91,8 +92,9 @@ export function NotificationSettings() {
   }
 
   function updateVoiceCategory(key: keyof VoiceCategories, value: boolean) {
+    const current = useNotificationStore.getState().preferences.voiceCategories;
     updatePreferences({
-      voiceCategories: { ...preferences.voiceCategories, [key]: value },
+      voiceCategories: { ...current, [key]: value },
     });
   }
 

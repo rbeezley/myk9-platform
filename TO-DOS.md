@@ -143,9 +143,9 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 ---
 
-## Brainstorm: Wait Lists & Entry Capacity - 2026-04-01 20:23
+## Implement Wait List & Mail-In Reservations - 2026-04-02 20:08
 
-- **Design wait list system and mail-in entry reservations** — Shows fill up fast with online entries; need per-class wait lists and the ability to reserve a percentage of spots for mail-in entries. **Problem:** No capacity management exists. When a class fills up, there's no way to queue additional exhibitors or notify them when a spot opens. Mail-in entries (still common in the sport) get shut out if online entries grab all spots first. Key questions: (1) How are class limits defined — per class, per trial, per show? (2) Wait list ordering — FIFO, priority-based, or lottery? (3) When a spot opens, auto-promote or notify and let exhibitor confirm? (4) What percentage of entries to reserve for mail-in, and who configures it (secretary per show)? (5) What happens when mail-in reservation deadline passes — do reserved spots release to wait list? (6) How does this interact with the existing registration wizard flow? **Solution:** Run `/brainstorm` session before implementation.
+- [ ] **Implement wait list and mail-in reservation system** — Judge-day capacity model (125 entries/judge/day default), FIFO wait lists, configurable mail-in reservation strategies (fixed/percentage/deadline), secretary-driven promotion with pay-on-promotion via Stripe, push + email notifications. **Problem:** No capacity management exists — when classes fill up, exhibitors can't queue, and mail-in entries get shut out by online entries. **Files:** `docs/plans/2026-04-02-wait-list-design.md` (design), `docs/plans/2026-04-02-wait-list-implementation.md` (26 tasks, 10 phases), `supabase/migrations/009_online_entry_system.sql:148-288` (existing waitlist_entries table + add_to_waitlist), `apps/myk9show/src/hooks/useClassAvailability.ts` (needs judge-day integration), `apps/myk9show/src/pages/secretary/ShowSettingsPage/index.tsx` (add capacity config). **Solution:** Start with migration 110 (schema + functions), then types, hooks, secretary UI, registration flow, payment flow, edge functions, deploy. Use `superpowers:executing-plans` skill.
 
 ---
 

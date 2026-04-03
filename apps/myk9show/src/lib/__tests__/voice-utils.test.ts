@@ -25,15 +25,23 @@ describe('classifyVoice', () => {
 
 describe('detectPlatform', () => {
   it('detects Mac from user agent', () => {
-    expect(detectPlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')).toBe('mac');
+    expect(detectPlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 0)).toBe('mac');
   });
 
   it('detects iPhone from user agent', () => {
     expect(detectPlatform('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)')).toBe('ios');
   });
 
-  it('detects iPad from user agent', () => {
+  it('detects iPad from old-style user agent', () => {
     expect(detectPlatform('Mozilla/5.0 (iPad; CPU OS 17_0)')).toBe('ios');
+  });
+
+  it('detects iPadOS 13+ (Macintosh UA with touch) as ios', () => {
+    expect(detectPlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5)).toBe('ios');
+  });
+
+  it('detects real Mac (Macintosh UA without touch) as mac', () => {
+    expect(detectPlatform('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 0)).toBe('mac');
   });
 
   it('detects Android from user agent', () => {

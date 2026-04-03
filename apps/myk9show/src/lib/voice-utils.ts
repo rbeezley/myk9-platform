@@ -51,11 +51,16 @@ export function groupVoices(voices: SpeechSynthesisVoice[]): {
 
 /**
  * Detects user platform from user agent string.
+ * iPadOS 13+ reports a Macintosh UA — maxTouchPoints distinguishes it from a real Mac.
  */
-export function detectPlatform(userAgent: string): Platform {
+export function detectPlatform(userAgent: string, maxTouchPoints?: number): Platform {
   const ua = userAgent.toLowerCase();
   if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) return 'ios';
-  if (ua.includes('macintosh') || ua.includes('mac os')) return 'mac';
+  if (ua.includes('macintosh') || ua.includes('mac os')) {
+    const touch =
+      maxTouchPoints ?? (typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0);
+    return touch > 0 ? 'ios' : 'mac';
+  }
   if (ua.includes('android')) return 'android';
   if (ua.includes('windows')) return 'windows';
   return 'unknown';

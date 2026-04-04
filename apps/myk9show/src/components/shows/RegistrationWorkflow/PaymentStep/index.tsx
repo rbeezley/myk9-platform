@@ -80,11 +80,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         feeOverride={feeOverride}
       />
 
-      {/* Security Notice */}
+      {/* Payment Info Notice */}
       <Alert>
         <CreditCard className="h-4 w-4" />
         <AlertDescription>
-          Your payment information is secure and encrypted. We never store your full card details.
+          Your registration will be confirmed once payment is received. Online card payment via
+          Stripe is coming soon.
         </AlertDescription>
       </Alert>
     </div>

@@ -93,13 +93,48 @@ describe('RegistrationWorkflow Error Detection Tests', () => {
   });
 });
 
+describe('Submission Loading State Wiring', () => {
+  const wizardPagePath = path.join(__dirname, '../../pages/RegistrationWizardPage.tsx');
+  const wizardPageContent = fs.readFileSync(wizardPagePath, 'utf8');
+
+  it('should declare isSubmitting state', () => {
+    expect(wizardPageContent).toContain('const [isSubmitting, setIsSubmitting] = useState');
+  });
+
+  it('should set isSubmitting true before async payment submission', () => {
+    // setIsSubmitting(true) must appear before the submitRegistration call
+    const setTruePos = wizardPageContent.indexOf('setIsSubmitting(true)');
+    const submitPos = wizardPageContent.indexOf('await submitRegistration(');
+    expect(setTruePos).toBeGreaterThan(0);
+    expect(submitPos).toBeGreaterThan(setTruePos);
+  });
+
+  it('should reset isSubmitting in a finally block', () => {
+    // The finally block must contain setIsSubmitting(false)
+    const finallyPos = wizardPageContent.indexOf('} finally {');
+    const setFalsePos = wizardPageContent.indexOf('setIsSubmitting(false)');
+    expect(finallyPos).toBeGreaterThan(0);
+    expect(setFalsePos).toBeGreaterThan(finallyPos);
+  });
+
+  it('should pass isSubmitting to WizardNavigation as isLoading', () => {
+    expect(wizardPageContent).toContain('isLoading={isSubmitting}');
+  });
+
+  it('should guard against double-clicks with submittingRef', () => {
+    expect(wizardPageContent).toContain('if (submittingRef.current');
+  });
+});
+
 describe('Error Prevention Summary', () => {
   it('should summarize what these tests prevent', () => {
-    console.log('\n📋 THESE TESTS PREVENT:');
-    console.log('1. ✓ Missing RegistrationProvider context in wizard page');
-    console.log('2. ✓ Temporal dead zone initialization errors');
-    console.log('3. ✓ Registration route missing from router');
-    console.log('4. ✓ Regression to dialog-based registration');
+    console.log('\nTHESE TESTS PREVENT:');
+    console.log('1. Missing RegistrationProvider context in wizard page');
+    console.log('2. Temporal dead zone initialization errors');
+    console.log('3. Registration route missing from router');
+    console.log('4. Regression to dialog-based registration');
+    console.log('5. Missing loading indicator during payment submission');
+    console.log('6. Double-click on submit during async operations');
 
     expect(true).toBe(true);
   });

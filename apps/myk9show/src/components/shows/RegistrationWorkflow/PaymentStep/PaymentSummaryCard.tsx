@@ -29,9 +29,7 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
         <div className="space-y-2">
           <div className="flex justify-between">
             <span>Selected Payment Method:</span>
-            <Badge variant="outline">
-              {getPaymentMethodLabel(paymentMethod)}
-            </Badge>
+            <Badge variant="outline">{getPaymentMethodLabel(paymentMethod)}</Badge>
           </div>
           <div className="flex justify-between font-semibold text-lg">
             <span>Amount Due:</span>
@@ -41,7 +39,8 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
             <Alert>
               <CreditCard className="h-4 w-4" />
               <AlertDescription>
-                Payment will be processed securely via Stripe when you complete registration.
+                Online card payment is coming soon. Your entry will be submitted and payment
+                collected at the show or by the trial secretary.
               </AlertDescription>
             </Alert>
           )}

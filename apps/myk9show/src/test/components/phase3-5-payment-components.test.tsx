@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -148,41 +148,22 @@ describe('Phase 3.5: Payment Component Tests', () => {
       expect(screen.getByText(/Total Due/)).toBeInTheDocument();
     });
 
-    it('should handle credit card payment method selection', async () => {
+    it('should show informational notice for credit card selection instead of card form', () => {
       render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
 
-      // Credit card option should be rendered and selected (shown as a button card, not a radio)
+      // Credit card option should be rendered and selected
       expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
 
-      // Should show credit card form fields when credit_card is selected
-      await waitFor(() => {
-        expect(screen.getByLabelText('Cardholder name')).toBeInTheDocument();
-        expect(screen.getByLabelText('Card number')).toBeInTheDocument();
-        expect(screen.getByLabelText('Expiry date')).toBeInTheDocument();
-        expect(screen.getByLabelText('CVV')).toBeInTheDocument();
-      });
-    });
+      // Should show informational notice instead of card input fields
+      // (appears in both PaymentMethodSelector and PaymentSummaryCard)
+      const notices = screen.getAllByText(/Online card payment is coming soon/);
+      expect(notices.length).toBeGreaterThan(0);
 
-    it('should format card number input correctly', async () => {
-      const user = userEvent.setup();
-      render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
-
-      const cardNumberInput = screen.getByLabelText('Card number');
-
-      await user.type(cardNumberInput, '4111111111111111');
-
-      expect(cardNumberInput).toHaveValue('4111 1111 1111 1111');
-    });
-
-    it('should format expiry date input correctly', async () => {
-      const user = userEvent.setup();
-      render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
-
-      const expiryInput = screen.getByLabelText('Expiry date');
-
-      await user.type(expiryInput, '1225');
-
-      expect(expiryInput).toHaveValue('12/25');
+      // Should NOT show card form fields (they were removed as a trust/security fix)
+      expect(screen.queryByLabelText('Cardholder name')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Card number')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Expiry date')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('CVV')).not.toBeInTheDocument();
     });
 
     it('should handle check payment method selection', () => {
@@ -297,14 +278,16 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       expect(screen.getByText('Payment Summary')).toBeInTheDocument();
       expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
-      expect(screen.getByText(/Payment will be processed securely via Stripe/)).toBeInTheDocument();
+      // Message appears in both PaymentMethodSelector and PaymentSummaryCard
+      const notices = screen.getAllByText(/Online card payment is coming soon/);
+      expect(notices.length).toBeGreaterThan(0);
     });
 
-    it('should show security notice', () => {
+    it('should show payment info notice', () => {
       render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
 
       expect(
-        screen.getByText(/Your payment information is secure and encrypted/)
+        screen.getByText(/Your registration will be confirmed once payment is received/)
       ).toBeInTheDocument();
     });
   });

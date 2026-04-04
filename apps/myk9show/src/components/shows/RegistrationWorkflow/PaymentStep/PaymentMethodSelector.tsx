@@ -9,6 +9,7 @@ import {
   Users,
   AlertTriangle,
   CircleCheck,
+  Info,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -19,7 +20,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { cn } from '@/lib/utils';
-import { CreditCardVisual } from './CreditCardVisual';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { PaymentMethodSelectorProps } from './types';
 
@@ -84,10 +84,6 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   paymentMethod,
   onPaymentMethodChange,
 }) => {
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [cardholderName, setCardholderName] = useState('');
   const [checkNumber, setCheckNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
@@ -113,22 +109,22 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               selected={paymentMethod === 'credit_card'}
               icon={CreditCard}
               title="Credit/Debit Card (Online Payment)"
-              description="Secure online payment via Stripe"
+              description="Online payment coming soon — entry submitted, payment collected later"
               onSelect={handleSelect}
             />
 
+            {/* INTENT: No card form here — online payment via Stripe is not yet
+                integrated. Showing fake card inputs would be trust-breaking.
+                When Stripe Elements is ready, replace this notice. */}
             {paymentMethod === 'credit_card' && (
-              <div className="py-4">
-                <CreditCardVisual
-                  cardNumber={cardNumber}
-                  expiryDate={expiryDate}
-                  cvv={cvv}
-                  cardholderName={cardholderName}
-                  onCardNumberChange={setCardNumber}
-                  onExpiryDateChange={setExpiryDate}
-                  onCvvChange={setCvv}
-                  onCardholderNameChange={setCardholderName}
-                />
+              <div className="ml-4 border-l-2 border-primary/20 pl-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Online card payment is coming soon. For now, your entry will be submitted and
+                    payment collected at the show or by the trial secretary.
+                  </AlertDescription>
+                </Alert>
               </div>
             )}
 

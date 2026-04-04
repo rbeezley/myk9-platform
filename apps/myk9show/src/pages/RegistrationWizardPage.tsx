@@ -20,7 +20,7 @@ import {
   EntryStatus,
   makeHandlerKey,
 } from '@/types/show-registration-types';
-import type { PaymentMethod } from '@/types/show-registration-types';
+import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
@@ -125,6 +125,7 @@ function RegistrationWizardContent() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -355,6 +356,10 @@ function RegistrationWizardContent() {
             : undefined
         );
 
+        // TODO: pass paymentDetails (checkNumber, paymentDate, paymentReference, paymentNotes)
+        // into submitRegistration / confirmRegistration once those functions accept them.
+        // The fields are captured in `paymentDetails` state but the submission layer does not
+        // yet persist them to the registrations table.
         await submitRegistration(registrationId);
         if (!mountedRef.current) return;
 
@@ -632,6 +637,7 @@ function RegistrationWizardContent() {
                         paymentMethod: method,
                       }))
                     }
+                    onPaymentDetailsChange={(details: PaymentDetails) => setPaymentDetails(details)}
                     onPaymentStatusChange={updatePaymentStatusOptimistic}
                     onEntryStatusChange={updateEntryStatusOptimistic}
                     setPaymentStatus={setPaymentStatus}

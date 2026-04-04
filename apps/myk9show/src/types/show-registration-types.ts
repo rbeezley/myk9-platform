@@ -29,6 +29,15 @@ export type PaymentMethod =
   | 'group_payment'
   | 'waived';
 
+/** Supplemental payment metadata collected in the PaymentStep wizard. */
+export interface PaymentDetails {
+  checkNumber?: string;
+  paymentDate?: string;
+  /** Reference / receipt number (used for secretary_paid and group_payment) */
+  paymentReference?: string;
+  paymentNotes?: string;
+}
+
 // Registration context for role-based workflows
 export interface RegistrationContext {
   mode: 'exhibitor' | 'secretary_existing' | 'secretary_new';

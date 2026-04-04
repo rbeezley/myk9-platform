@@ -24,6 +24,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   paymentStatus = PaymentStatus.PENDING,
   entryStatus = EntryStatus.PENDING,
   onPaymentMethodChange,
+  onPaymentDetailsChange,
   onPaymentStatusChange,
   onEntryStatusChange,
   showId,
@@ -55,6 +56,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       <PaymentMethodSelector
         paymentMethod={paymentMethod}
         onPaymentMethodChange={onPaymentMethodChange}
+        onPaymentDetailsChange={onPaymentDetailsChange}
       />
 
       {/* Secretary Features */}

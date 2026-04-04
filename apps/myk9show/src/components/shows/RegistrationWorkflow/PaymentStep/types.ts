@@ -1,6 +1,7 @@
 import type {
   ClassSelectionData,
   PaymentMethod,
+  PaymentDetails,
   PaymentStatus,
   EntryStatus,
 } from '@/types/show-registration-types';
@@ -13,6 +14,8 @@ export interface PaymentStepProps {
   paymentStatus?: PaymentStatus | undefined;
   entryStatus?: EntryStatus | undefined;
   onPaymentMethodChange: (method: PaymentMethod) => void;
+  /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */
+  onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;
   onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
   showId?: string | undefined;
@@ -58,6 +61,8 @@ export interface RegistrationSummaryProps {
 export interface PaymentMethodSelectorProps {
   paymentMethod: PaymentMethod | '';
   onPaymentMethodChange: (method: PaymentMethod) => void;
+  /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */
+  onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */

@@ -43,17 +43,6 @@ const SyncDashboardPage = createEnhancedLazy(() => import('@/pages/sync/SyncMoni
   displayName: 'SyncDashboardPage',
 });
 
-// Testing pages (low priority - admin only)
-const PermissionTestPage = createEnhancedLazy(() => import('@/pages/admin/PermissionTestPage'), {
-  ...RouteLazyPresets.lowPriority,
-  displayName: 'PermissionTestPage',
-});
-
-const RBACTestPage = createEnhancedLazy(
-  () => import('@/pages/admin/RBACTestPage').then(m => ({ default: m.RBACTestPage })),
-  { ...RouteLazyPresets.lowPriority, displayName: 'RBACTestPage' }
-);
-
 // Permission Management Pages (high priority for admin security)
 const PermissionManagementPage = createEnhancedLazy(
   () => import('@/pages/admin/permissions/PermissionManagementPage'),
@@ -117,14 +106,6 @@ const LoadTestDashboard = import.meta.env.DEV
       { ...RouteLazyPresets.lowPriority, displayName: 'LoadTestDashboard', timeout: 45000 }
     )
   : null;
-
-const PerformanceModeToggle = createEnhancedLazy(
-  () =>
-    import('@/components/admin/PerformanceModeToggle').then(m => ({
-      default: m.PerformanceModeToggle,
-    })),
-  { ...RouteLazyPresets.mediumPriority, displayName: 'PerformanceModeToggle' }
-);
 
 // System Monitoring and Alert Management (medium priority)
 const AlertsPage = createEnhancedLazy(() => import('@/pages/AlertsPage'), {
@@ -344,17 +325,6 @@ export const AdminRoutes = () => (
         </SuspenseWrapper>
       )}
     />
-    <Route
-      path="/admin/performance-mode"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <PerformanceModeToggle />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-
     {/* Load testing route - only available in development */}
     {import.meta.env.DEV && LoadTestDashboard && (
       <Route
@@ -410,28 +380,6 @@ export const AdminRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <OnboardingRequestsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-
-    {/* Testing routes — restricted to SITE_ADMIN */}
-    <Route
-      path="/admin/permission-test"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <PermissionTestPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-    <Route
-      path="/admin/rbac-test"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <RBACTestPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

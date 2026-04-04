@@ -222,3 +222,23 @@ Full audit details in `docs/ux-audits/phase-2-summary.md` and individual page au
 - [ ] **Fix check-in status button affordance in Entry Management** — Check-in status indicator is a bare `<button>` with no cursor-pointer, no border, no visual hint it's interactive. Same pattern as My Entries finding. **Solution:** Add `cursor-pointer`, border, and "tap to change" hint.
 
 - [ ] **Add error handling to Results Control queries** — If any of the three data queries fail, the page shows skeleton loaders forever with no error message or retry. **Solution:** Add error state with retry button.
+
+---
+
+## Feature Inventory Cleanup — Act on Audit Findings (2026-04-04)
+
+Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider Hiding/Deleting" findings that need action.
+
+- [x] **Remove dev/test routes from myK9Show** — Done. Removed `/test-panels` from App.tsx, `/class-templates` from publicRoutes.tsx, `/admin/performance-mode`, `/admin/permission-test`, `/admin/rbac-test` from adminRoutes.tsx. `/admin/load-testing` was already DEV-gated.
+
+- [x] **Remove dev/test routes from myK9Q** — Done. Removed unguarded `/wireframe/nationals`, `/test/scoresheet`, and `/tv/:licenseKey` from App.tsx. `/debug`, `/test-connections`, `/migration-test`, `/demo/status-popup` were already DEV-gated.
+
+- [x] **Remove judge scoring pages from myK9Show** — Done. Removed `JudgeScoringRoutes` export and all `/scoring/*` route definitions from judgeRoutes.tsx. Removed `JudgeScoringRoutes` import and call from App.tsx along with `HEADERLESS_ROUTE_PATTERN` regex.
+
+- [x] **Consolidate Create Show to wizard only** — Done. Replaced flat `/secretary/create-show` route with `<Navigate to="/secretary/create-show/wizard" replace />`. Removed `CreateShowPage` lazy import from secretaryRoutes.tsx.
+
+- [x] **Pick canonical TV run order URL and redirect the other** — Done. myK9Show `/tv/:showId` is canonical. Removed myK9Q's `/tv/:licenseKey` route and `TVRunOrder` lazy import.
+
+- [x] **Hide Browse People from public nav** — Done. Removed `/people`, `/users` redirect, and `/users/:id` routes from publicRoutes.tsx. Removed `BrowsePeoplePage` and `PersonDetailPage` lazy imports.
+
+- [x] **Move Sync Dashboard to admin-only** — Done. Removed `/sync/dashboard` route and `SyncDashboardPage` lazy import from secretaryRoutes.tsx.

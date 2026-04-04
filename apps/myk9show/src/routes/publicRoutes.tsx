@@ -12,8 +12,6 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
 // Public page lazy imports
-const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
-const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
 const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
 const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
@@ -44,13 +42,6 @@ const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
 const CartPage = lazy(() => import('@/pages/CartPage'));
 const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
 const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
-
-// Test pages
-const ClassTemplateTestPage = lazy(() =>
-  import('@/components/classes/ClassTemplateTestPage').then(m => ({
-    default: m.ClassTemplateTestPage,
-  }))
-);
 
 export const PublicRoutes = () => (
   <>
@@ -297,35 +288,6 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* People */}
-    <Route
-      path="/people"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <BrowsePeoplePage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    {/* Legacy redirect */}
-    <Route path="/users" element={<Navigate to="/people" replace />} />
-
-    <Route
-      path="/users/:id"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <PersonDetailPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
     {/* Dogs */}
     <Route
       path="/dogs"
@@ -449,20 +411,6 @@ export const PublicRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <ChatPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    {/* Test Routes */}
-    <Route
-      path="/class-templates"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ClassTemplateTestPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

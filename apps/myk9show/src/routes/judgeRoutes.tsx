@@ -2,7 +2,7 @@
  * Judge Routes - Lazy loaded routes for judge functionality
  *
  * All /judge/* pages render inside UnifiedAppLayout (sidebar provided by parent).
- * Scoring routes remain standalone (no sidebar — full screen for the dog).
+ * Scoring is myK9Q's domain — no scoring routes here.
  */
 
 import { lazy } from 'react';
@@ -15,18 +15,6 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 // Judge page lazy imports
 const JudgeDashboard = lazy(() => import('@/pages/JudgeDashboard'));
 const JudgeCheckInDashboard = lazy(() => import('@/pages/judge/JudgeCheckInDashboard'));
-const JudgeScoringPage = lazy(() => import('@/pages/JudgeScoringPage'));
-
-// Judge components
-const JudgeClassInterface = lazy(() =>
-  import('@/components/scoring/JudgeClassInterface').then(m => ({
-    default: m.JudgeClassInterface,
-  }))
-);
-
-// Scoring pages (using shared hooks from @myk9/scoring-ui)
-const ScoringEntryListPage = lazy(() => import('@/pages/scoring/ScoringEntryListPage'));
-const ScoresheetPage = lazy(() => import('@/pages/scoring/ScoresheetPage'));
 
 // Results and analytics for judges
 const ResultEntryDashboard = lazy(() => import('@/pages/ResultEntryDashboard'));
@@ -80,91 +68,6 @@ export const JudgeSidebarRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <ResultEntryDashboard />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-  </>
-);
-
-/** Scoring routes — standalone, NO sidebar (full screen for the dog) */
-export const JudgeScoringRoutes = () => (
-  <>
-    <Route
-      path="/judge-scoring"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <JudgeScoringPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/shows/:showId/trials/:trialId/classes/:classId/judge"
-      element={
-        <ProtectedRoute
-          requiredRole={[
-            UserRole.JUDGE,
-            UserRole.SECRETARY,
-            UserRole.CLUB_ADMIN,
-            UserRole.SITE_ADMIN,
-          ]}
-        >
-          <SuspenseWrapper>
-            <PageTransition>
-              <JudgeClassInterface />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/shows/:showId/trials/:trialId/classes/:classId/judge/:entryId"
-      element={
-        <ProtectedRoute
-          requiredRole={[
-            UserRole.JUDGE,
-            UserRole.SECRETARY,
-            UserRole.CLUB_ADMIN,
-            UserRole.SITE_ADMIN,
-          ]}
-        >
-          <SuspenseWrapper>
-            <PageTransition>
-              <JudgeClassInterface />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    {/* Scoring Routes (using shared @myk9/scoring-ui hooks) */}
-    <Route
-      path="/scoring/classes/:classId/entries"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ScoringEntryListPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/scoring/classes/:classId/entries/:entryId"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ScoresheetPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

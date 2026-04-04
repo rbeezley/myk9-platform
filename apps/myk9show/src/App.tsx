@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -19,12 +19,11 @@ const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
 const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
 const AuthCallbackPage = React.lazy(() => import('./pages/AuthCallbackPage'));
 const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
-const TestPanelPage = React.lazy(() => import('./pages/TestPanelPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 // Organized route groups
 import { AdminRoutes } from './routes/adminRoutes';
-import { JudgeSidebarRoutes, JudgeScoringRoutes } from './routes/judgeRoutes';
+import { JudgeSidebarRoutes } from './routes/judgeRoutes';
 import { SecretaryRoutes } from './routes/secretaryRoutes';
 import { ClubAdminRoutes } from './routes/clubAdminRoutes';
 import { PublicRoutes } from './routes/publicRoutes';
@@ -204,12 +203,7 @@ function NotificationMonitorInitializer() {
   return null;
 }
 
-/** Routes where the app header is hidden (fullscreen scoring UI) */
-const HEADERLESS_ROUTE_PATTERN = /^\/scoring\/classes\/[^/]+\/entries/;
-
 function ConditionalAppHeader() {
-  const { pathname } = useLocation();
-  if (HEADERLESS_ROUTE_PATTERN.test(pathname)) return null;
   return <AppHeader />;
 }
 
@@ -330,21 +324,6 @@ function App() {
                                 </Suspense>
                               }
                             />
-
-                            {/* Test page for SlideOverPanel components - Phase 2 */}
-                            <Route
-                              path="/test-panels"
-                              element={
-                                <PageTransition>
-                                  <Suspense fallback={<PageLoadingFallback />}>
-                                    <TestPanelPage />
-                                  </Suspense>
-                                </PageTransition>
-                              }
-                            />
-
-                            {/* Scoring routes — full screen, NO sidebar */}
-                            {JudgeScoringRoutes()}
 
                             {/* All other routes — inside unified sidebar layout */}
                             <Route element={<UnifiedAppLayout />}>

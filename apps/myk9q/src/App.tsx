@@ -41,89 +41,90 @@ const TestConnections = import.meta.env.DEV
   ? React.lazy(() => import('./pages/TestConnections').then(m => ({ default: m.TestConnections })))
   : () => null;
 const MigrationTest = import.meta.env.DEV
-  ? React.lazy(() => import('./pages/MigrationTest/MigrationTest').then(m => ({ default: m.MigrationTest })))
+  ? React.lazy(() =>
+      import('./pages/MigrationTest/MigrationTest').then(m => ({ default: m.MigrationTest }))
+    )
   : () => null;
 
 // Lazy load pages for code splitting
-const Home = React.lazy(() => import('./pages/Home/Home').then(module => ({ default: module.Home })));
-const DogDetails = React.lazy(() => import('./pages/DogDetails/DogDetails').then(module => ({ default: module.DogDetails })));
-const ClassList = React.lazy(() => import('./pages/ClassList/ClassList').then(module => ({ default: module.ClassList })));
+const Home = React.lazy(() =>
+  import('./pages/Home/Home').then(module => ({ default: module.Home }))
+);
+const DogDetails = React.lazy(() =>
+  import('./pages/DogDetails/DogDetails').then(module => ({ default: module.DogDetails }))
+);
+const ClassList = React.lazy(() =>
+  import('./pages/ClassList/ClassList').then(module => ({ default: module.ClassList }))
+);
 const EntryList = React.lazy(() => import('./pages/EntryList/EntryList'));
 const CombinedEntryList = React.lazy(() => import('./pages/EntryList/CombinedEntryList'));
-const Announcements = React.lazy(() => import('./pages/Announcements/Announcements').then(module => ({ default: module.Announcements })));
-const TVRunOrder = React.lazy(() => import('./pages/TVRunOrder/TVRunOrder').then(module => ({ default: module.TVRunOrder })));
-const Results = React.lazy(() => import('./pages/Results').then(module => ({ default: module.Results })));
+const Announcements = React.lazy(() =>
+  import('./pages/Announcements/Announcements').then(module => ({ default: module.Announcements }))
+);
+const Results = React.lazy(() =>
+  import('./pages/Results').then(module => ({ default: module.Results }))
+);
 const StatusPopupDemo = React.lazy(() => import('./demo/StatusPopupDemo'));
 
 // Lazy load scoresheets (grouped by organization for better chunking)
 const UKCObedienceScoresheet = React.lazy(() =>
   import('./pages/scoresheets/UKC/UKCObedienceScoresheet').then(module => ({
-    default: module.UKCObedienceScoresheet
+    default: module.UKCObedienceScoresheet,
   }))
 );
 const UKCRallyScoresheet = React.lazy(() =>
   import('./pages/scoresheets/UKC/UKCRallyScoresheet').then(module => ({
-    default: module.UKCRallyScoresheet
+    default: module.UKCRallyScoresheet,
   }))
 );
 const UKCNoseworkScoresheet = React.lazy(() =>
   import('./pages/scoresheets/UKC/UKCNoseworkScoresheet').then(module => ({
-    default: module.UKCNoseworkScoresheet
+    default: module.UKCNoseworkScoresheet,
   }))
 );
 const AKCScentWorkScoresheetRouter = React.lazy(() =>
   import('./pages/scoresheets/AKC/AKCScentWorkScoresheetRouter').then(module => ({
-    default: module.AKCScentWorkScoresheetRouter
+    default: module.AKCScentWorkScoresheetRouter,
   }))
 );
 const AKCFastCatScoresheet = React.lazy(() =>
   import('./pages/scoresheets/AKC/AKCFastCatScoresheet').then(module => ({
-    default: module.AKCFastCatScoresheet
+    default: module.AKCFastCatScoresheet,
   }))
 );
 const ASCAScentDetectionScoresheet = React.lazy(() =>
   import('./pages/scoresheets/ASCA/ASCAScentDetectionScoresheet').then(module => ({
-    default: module.ASCAScentDetectionScoresheet
-  }))
-);
-const TestScoresheet = React.lazy(() =>
-  import('./components/TestScoresheet').then(module => ({
-    default: module.TestScoresheet
-  }))
-);
-const NationalsWireframe = React.lazy(() =>
-  import('./components/wireframes/NationalsWireframe').then(module => ({
-    default: module.NationalsWireframe
+    default: module.ASCAScentDetectionScoresheet,
   }))
 );
 const Settings = React.lazy(() =>
   import('./pages/Settings/Settings').then(module => ({
-    default: module.Settings
+    default: module.Settings,
   }))
 );
 const Stats = React.lazy(() =>
   import('./pages/Stats/Stats').then(module => ({
-    default: module.Stats
+    default: module.Stats,
   }))
 );
 const ShowDetails = React.lazy(() =>
   import('./pages/ShowDetails/ShowDetails').then(module => ({
-    default: module.ShowDetails
+    default: module.ShowDetails,
   }))
 );
 const PerformanceMetricsAdmin = React.lazy(() =>
   import('./pages/Admin/PerformanceMetricsAdmin').then(module => ({
-    default: module.PerformanceMetricsAdmin
+    default: module.PerformanceMetricsAdmin,
   }))
 );
 const AuditLog = React.lazy(() =>
   import('./pages/Admin/AuditLog').then(module => ({
-    default: module.default
+    default: module.default,
   }))
 );
 const TrialSecretary = React.lazy(() =>
   import('./pages/TrialSecretary/TrialSecretary').then(module => ({
-    default: module.TrialSecretary
+    default: module.TrialSecretary,
   }))
 );
 
@@ -132,10 +133,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 30 * 60 * 1000,   // 30 minutes (formerly cacheTime)
-      retry: 1,                  // Retry once on failure
+      gcTime: 30 * 60 * 1000, // 30 minutes (formerly cacheTime)
+      retry: 1, // Retry once on failure
       refetchOnWindowFocus: false, // Don't refetch when window regains focus
-      networkMode: 'always',     // Always run queries, even when offline (will use cached data)
+      networkMode: 'always', // Always run queries, even when offline (will use cached data)
     },
   },
 });
@@ -164,29 +165,28 @@ function useShowSwitchCacheCleanup(licenseKey: string | undefined) {
     }
 
     // Detect license key change (show switch)
-    if (
-      previousLicenseKeyRef.current !== null &&
-      previousLicenseKeyRef.current !== licenseKey
-    ) {
+    if (previousLicenseKeyRef.current !== null && previousLicenseKeyRef.current !== licenseKey) {
       logger.log(`[App] 🔄 Show switch detected: ${previousLicenseKeyRef.current} → ${licenseKey}`);
 
       // Clear React Query in-memory cache for old show
       // This removes queries with the old license key
       queryClient.removeQueries({
-        predicate: (query) => {
+        predicate: query => {
           const key = query.queryKey;
           // Remove queries that include the old license key
           return Array.isArray(key) && key.includes(previousLicenseKeyRef.current);
-        }
+        },
       });
       logger.log('[App] ✅ React Query cache cleared for old show');
 
       // Clear IndexedDB replication caches
-      clearReplicationCaches().then(() => {
-        logger.log('[App] ✅ IndexedDB caches cleared for show switch');
-      }).catch((error) => {
-        logger.error('[App] ⚠️ Failed to clear IndexedDB caches:', error);
-      });
+      clearReplicationCaches()
+        .then(() => {
+          logger.log('[App] ✅ IndexedDB caches cleared for show switch');
+        })
+        .catch(error => {
+          logger.error('[App] ⚠️ Failed to clear IndexedDB caches:', error);
+        });
     }
 
     // Update tracked license key
@@ -416,24 +416,6 @@ function AppWithAuth() {
           }
         />
         <Route
-          path="/test/scoresheet"
-          element={
-            <ScoresheetErrorBoundary>
-              <Suspense fallback={<ScoresheetLoader />}>
-                <TestScoresheet />
-              </Suspense>
-            </ScoresheetErrorBoundary>
-          }
-        />
-        <Route
-          path="/wireframe/nationals"
-          element={
-            <Suspense fallback={<PageLoader message="Loading wireframe..." />}>
-              <NationalsWireframe />
-            </Suspense>
-          }
-        />
-        <Route
           path="/scoresheet/akc-fastcat/:classId/:entryId"
           element={
             <ProtectedRoute>
@@ -460,9 +442,30 @@ function AppWithAuth() {
         {/* Debug routes - only available in development mode */}
         {import.meta.env.DEV && (
           <>
-            <Route path="/debug" element={<Suspense fallback={<PageLoader message="Loading..." />}><DatabaseTest /></Suspense>} />
-            <Route path="/test-connections" element={<Suspense fallback={<PageLoader message="Loading..." />}><TestConnections /></Suspense>} />
-            <Route path="/migration-test" element={<Suspense fallback={<PageLoader message="Loading..." />}><MigrationTest /></Suspense>} />
+            <Route
+              path="/debug"
+              element={
+                <Suspense fallback={<PageLoader message="Loading..." />}>
+                  <DatabaseTest />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/test-connections"
+              element={
+                <Suspense fallback={<PageLoader message="Loading..." />}>
+                  <TestConnections />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/migration-test"
+              element={
+                <Suspense fallback={<PageLoader message="Loading..." />}>
+                  <MigrationTest />
+                </Suspense>
+              }
+            />
             <Route
               path="/demo/status-popup"
               element={
@@ -473,14 +476,6 @@ function AppWithAuth() {
             />
           </>
         )}
-        <Route
-          path="/tv/:licenseKey"
-          element={
-            <Suspense fallback={<PageLoader message="Loading TV Display..." />}>
-              <TVRunOrder />
-            </Suspense>
-          }
-        />
         <Route
           path="/results"
           element={
@@ -535,10 +530,7 @@ function AppWithAuth() {
 
 function App() {
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister }}
-    >
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
       <BrowserRouter>
         <AuthProvider>
           <NotificationProvider>

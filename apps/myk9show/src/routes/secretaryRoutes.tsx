@@ -6,7 +6,7 @@
  */
 
 import { lazy, useEffect } from 'react';
-import { Route, useParams, useNavigate } from 'react-router-dom';
+import { Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
@@ -17,7 +17,6 @@ const SecretaryDashboard = lazy(() => import('@/features/pipeline/components/Pip
 const TrialPipelineDetail = lazy(
   () => import('@/features/pipeline/components/TrialPipelineDetail')
 );
-const CreateShowPage = lazy(() => import('@/pages/secretary/CreateShowPage'));
 const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
 const ClassCreationPage = lazy(() =>
   import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
@@ -35,10 +34,6 @@ const SecretaryClassDashboard = lazy(() =>
     default: m.SecretaryClassDashboard,
   }))
 );
-const SyncDashboardPage = lazy(() =>
-  import('@/pages/sync/SyncDashboardPage').then(m => ({ default: m.SyncDashboardPage }))
-);
-
 // Entry management
 const EntryManagementPage = lazy(() =>
   import('@/pages/secretary/EntryManagementPage').catch(() => ({
@@ -92,17 +87,10 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
+    {/* Redirect old flat form to the wizard */}
     <Route
       path="/secretary/create-show"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <CreateShowPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/secretary/create-show/wizard" replace />}
     />
     <Route
       path="/secretary/create-show/wizard"
@@ -291,19 +279,6 @@ export const SecretaryRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <SecretaryMessagesPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/sync/dashboard"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <SyncDashboardPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

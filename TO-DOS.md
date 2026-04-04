@@ -198,3 +198,27 @@ Full audit details in `docs/ux-audits/phase-1-summary.md` and individual page au
 - [ ] **Add title progress to Exhibitor Dashboard and Dog Detail hero** — INTENT.md says "title progress -- no hunting" but Dashboard has zero title tracking and Dog Detail buries titles under a non-default premium tab. **Solution:** Add title summary card to Dashboard; show earned title abbreviations in Dog Detail hero.
 
 - [ ] **Revisit premium gating on Dog Detail** — 62% of tabs (5 of 8) are premium-gated. Free-tier exhibitors see a page that feels like a paywall. **Solution:** Consider read-only previews for locked tabs or reduce gated tabs to 2-3.
+
+---
+
+## UX Audit Findings — Secretary Operations (2026-04-04)
+
+Full audit details in `docs/ux-audits/phase-2-summary.md` and individual page audits `07-*.md` through `11-*.md`.
+
+### Critical
+
+- [ ] **Fix Pipeline Dashboard hardcoded scoring/review booleans** — `useMissionControlData.ts` lines 94-95 hardcode `is_scoring_finalized` and `is_results_reviewed` to `false`. The Review > Publish > Closed Kanban workflow is non-functional. Classes can never appear as "Reviewed" or move to "Closed" based on actual data. **Solution:** Wire to actual class/scoring data.
+
+### High Priority
+
+- [ ] **Reduce scratch/move-up tap count toward INTENT target** — INTENT says "calm one-tap operations." Current scratch takes 4 taps, move-up takes 5+. Touch targets use `size="sm"` (~32px), below the 44px INTENT guardrail. **Solution:** Increase button size to `size="default"`, explore inline scratch on pipeline cards.
+
+- [ ] **Add "Clone from Previous Show" to creation wizard** — INTENT explicitly says "clone from previous shows." No clone feature exists. Secretaries re-type the same details every show. **Solution:** Add show selector at wizard start that prefills all fields from a past show.
+
+- [ ] **Fix CSV export missing owner data** — `handleExportCSV` in Entry Management leaves 4 columns blank (owner name, email, phone, registration #). Secretary gets incomplete export with no warning. **Solution:** Join owner data in the export query.
+
+- [ ] **Remove or implement dead "Send Email" bulk button** — Entry Management bulk actions bar has a "Send Email" button with no `onClick` handler. Clicking does nothing. **Solution:** Remove the button or implement the handler.
+
+- [ ] **Fix check-in status button affordance in Entry Management** — Check-in status indicator is a bare `<button>` with no cursor-pointer, no border, no visual hint it's interactive. Same pattern as My Entries finding. **Solution:** Add `cursor-pointer`, border, and "tap to change" hint.
+
+- [ ] **Add error handling to Results Control queries** — If any of the three data queries fail, the page shows skeleton loaders forever with no error message or retry. **Solution:** Add error state with retry button.

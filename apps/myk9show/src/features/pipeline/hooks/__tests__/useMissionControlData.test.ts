@@ -82,17 +82,18 @@ describe('useMissionControlData - show scoping', () => {
     ]);
   });
 
-  it('user with no club scopes falls back to all shows', () => {
+  it('non-admin user with no club scopes sees zero shows', () => {
     mockScopes = [];
     const { result } = renderHook(() => useMissionControlData());
-    expect(result.current.shows).toHaveLength(4);
+    // Security: no club scopes + not admin → empty list, not a cross-club data leak
+    expect(result.current.shows).toHaveLength(0);
   });
 
   it('show-scoped roles are ignored for club filtering', () => {
     mockScopes = [{ scopeType: ScopeType.SHOW, scopeId: 'show-2' }];
     const { result } = renderHook(() => useMissionControlData());
-    // No club scopes, so falls back to all shows
-    expect(result.current.shows).toHaveLength(4);
+    // No club scopes, no admin — sees zero shows (show-scoped roles don't grant club access)
+    expect(result.current.shows).toHaveLength(0);
   });
 
   it('deduplicates shows', () => {

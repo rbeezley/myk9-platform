@@ -32,13 +32,15 @@ export function useMissionControlData() {
 
   const shows = useMemo(() => {
     const clubIdSet = new Set(clubScopeKey ? clubScopeKey.split(',') : []);
-    const skipFilter = isAdmin || clubIdSet.size === 0;
+    // INTENT: Only platform admins bypass the club filter. Non-admin users with no
+    // club scopes assigned yet see zero shows — the empty state is handled in the UI.
+    // Do NOT fall back to "show all" for unskoped users; that leaks cross-club data.
+    const skipFilter = isAdmin;
     const seen = new Set<string>();
 
     return rawShows.filter(s => {
       if (seen.has(s.id)) return false;
       seen.add(s.id);
-      // Platform admins see all shows; users with no club scopes fall back to all shows
       return skipFilter || clubIdSet.has(s.clubId);
     });
   }, [rawShows, isAdmin, clubScopeKey]);

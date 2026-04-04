@@ -58,8 +58,18 @@ export function useMyEntriesFilters({
         break;
     }
 
-    // Sort by show date (ascending)
-    filtered.sort((a, b) => a.showDate.getTime() - b.showDate.getTime());
+    // Sort by show date — upcoming first (nearest date at top)
+    filtered.sort((a, b) => {
+      const now = Date.now();
+      const aUpcoming = a.showDate.getTime() >= now;
+      const bUpcoming = b.showDate.getTime() >= now;
+      // Upcoming entries before past entries
+      if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+      // Within upcoming: soonest first; within past: most recent first
+      return aUpcoming
+        ? a.showDate.getTime() - b.showDate.getTime()
+        : b.showDate.getTime() - a.showDate.getTime();
+    });
 
     return filtered;
   }, [entries, selectedTab]);

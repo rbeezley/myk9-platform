@@ -119,6 +119,7 @@ function RegistrationWizardContent() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const hasAutoSelectedDogs = useRef(false);
 
   const {
@@ -328,69 +329,76 @@ function RegistrationWizardContent() {
     markStepComplete(currentStep);
 
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
-      // Convert wizard data into real entry records and persist via replication layer
-      const entryInputs = registrationToEntries(
-        showId,
-        classSelections,
-        handlerAssignments,
-        classes,
-        currentShow
-          ? {
-              preEntryFee: currentShow.preEntryFee || '0',
-              dayOfShowFee: currentShow.dayOfShowFee,
-              startDate: currentShow.startDate,
-            }
-          : undefined
-      );
-
-      await submitRegistration(registrationId);
-
-      // Create DB registration to get confirmation number + ID, then create entries with registration_id
-      let dbRegistrationId: string | undefined;
-      if (registrationData.paymentMethod === 'credit_card') {
-        const result = await confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');
-        setRegistrationNumber(result.confirmationNumber ?? currentRegistration.registrationNumber);
-        dbRegistrationId = result.dbRegistrationId;
-      }
-
-      let createdEntries: Awaited<ReturnType<typeof createMultipleEntries>> = [];
-      if (entryInputs.length > 0) {
-        createdEntries = await createMultipleEntries(
-          entryInputs,
-          userId,
-          'submitted',
-          dbRegistrationId
+      setIsSubmitting(true);
+      try {
+        // Convert wizard data into real entry records and persist via replication layer
+        const entryInputs = registrationToEntries(
+          showId,
+          classSelections,
+          handlerAssignments,
+          classes,
+          currentShow
+            ? {
+                preEntryFee: currentShow.preEntryFee || '0',
+                dayOfShowFee: currentShow.dayOfShowFee,
+                startDate: currentShow.startDate,
+              }
+            : undefined
         );
 
-        // Assign armbands — one per unique dog (non-blocking on failure)
-        const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
-        const results = (
-          await Promise.all(
-            uniqueDogIds.map(async dogId => {
-              const { armband } = await assignArmband(showId, dogId);
-              return armband ? { dogId, armband } : null;
-            })
-          )
-        ).filter((r): r is ArmbandAssignment => r !== null);
+        await submitRegistration(registrationId);
 
-        if (results.length > 0) {
-          setArmbandAssignments(results);
-
-          // Write armband back to each entry so confirmation email includes it
-          const armbandByDog = new Map(results.map(r => [r.dogId, r.armband]));
-          await Promise.all(
-            createdEntries
-              .filter(entry => armbandByDog.has(entry.dogId))
-              .map(
-                entry =>
-                  updateRegistration(
-                    entry.id,
-                    { armband: armbandByDog.get(entry.dogId) },
-                    userId
-                  ).catch(() => {}) // Non-blocking — armband display still works via state
-              )
+        // Create DB registration to get confirmation number + ID, then create entries with registration_id
+        let dbRegistrationId: string | undefined;
+        if (registrationData.paymentMethod === 'credit_card') {
+          const result = await confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');
+          setRegistrationNumber(
+            result.confirmationNumber ?? currentRegistration.registrationNumber
           );
+          dbRegistrationId = result.dbRegistrationId;
         }
+
+        let createdEntries: Awaited<ReturnType<typeof createMultipleEntries>> = [];
+        if (entryInputs.length > 0) {
+          createdEntries = await createMultipleEntries(
+            entryInputs,
+            userId,
+            'submitted',
+            dbRegistrationId
+          );
+
+          // Assign armbands — one per unique dog (non-blocking on failure)
+          const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
+          const results = (
+            await Promise.all(
+              uniqueDogIds.map(async dogId => {
+                const { armband } = await assignArmband(showId, dogId);
+                return armband ? { dogId, armband } : null;
+              })
+            )
+          ).filter((r): r is ArmbandAssignment => r !== null);
+
+          if (results.length > 0) {
+            setArmbandAssignments(results);
+
+            // Write armband back to each entry so confirmation email includes it
+            const armbandByDog = new Map(results.map(r => [r.dogId, r.armband]));
+            await Promise.all(
+              createdEntries
+                .filter(entry => armbandByDog.has(entry.dogId))
+                .map(
+                  entry =>
+                    updateRegistration(
+                      entry.id,
+                      { armband: armbandByDog.get(entry.dogId) },
+                      userId
+                    ).catch(() => {}) // Non-blocking — armband display still works via state
+                )
+            );
+          }
+        }
+      } finally {
+        setIsSubmitting(false);
       }
     }
 
@@ -616,6 +624,7 @@ function RegistrationWizardContent() {
                     onNext={handleNext}
                     nextLabel={isLastStep ? 'Complete Registration' : 'Next'}
                     backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
+                    isLoading={isSubmitting}
                   />
                 </div>
               </div>

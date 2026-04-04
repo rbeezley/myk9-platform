@@ -275,9 +275,10 @@ const ShowDetailsPage: React.FC = () => {
               ? { label: actualCurrentShow.organization, variant: 'default' }
               : undefined
           }
-          {...(getEntryStatus(actualCurrentShow, hasUserEntries).canEnter && {
-            primaryAction: { label: 'Register', onClick: handleRegisterForShow },
-          })}
+          metadata={[{ label: getEntryStatus(actualCurrentShow, hasUserEntries).label }]}
+          {...(getEntryStatus(actualCurrentShow, hasUserEntries).canEnter
+            ? { primaryAction: { label: 'Register', onClick: handleRegisterForShow } }
+            : {})}
           secondaryActions={
             canManageShow && (
               <div className="flex items-center gap-1">

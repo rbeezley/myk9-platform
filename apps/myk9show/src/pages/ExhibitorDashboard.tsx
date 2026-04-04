@@ -215,7 +215,7 @@ const ExhibitorDashboard: React.FC = () => {
 
       {/* Recent Results — collapsible */}
       {recentResults.length > 0 && (
-        <CollapsibleSection title="Recent Results" count={recentResults.length} defaultOpen={false}>
+        <CollapsibleSection title="Recent Results" count={recentResults.length} defaultOpen={true}>
           <div className="space-y-3">
             {recentResults.map(result => (
               <ResultRow

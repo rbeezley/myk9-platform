@@ -169,6 +169,7 @@ const ShowDayPage: React.FC = () => {
         data={showDayData}
         onCheckInChange={handleCheckInChange}
         selfCheckinEnabledMap={selfCheckinEnabledMap}
+        onClassNavigate={classId => navigate(`/classes/${classId}`)}
       />
 
       {/* Collapsed entries below the hero */}

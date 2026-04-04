@@ -79,10 +79,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     [trials, showId]
   );
 
-  const [expandedTrials, setExpandedTrials] = useState<Set<string>>(() => {
-    const firstTrialId = showTrials[0]?.id;
-    return firstTrialId ? new Set([firstTrialId]) : new Set();
-  });
+  const [expandedTrials, setExpandedTrials] = useState<Set<string>>(
+    () => new Set(showTrials.map(t => t.id))
+  );
 
   const toggleTrial = useCallback((trialId: string) => {
     setExpandedTrials(prev => {

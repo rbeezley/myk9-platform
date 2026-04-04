@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { PAYMENT_MESSAGES } from './types';
 import type { PaymentMethodSelectorProps } from './types';
+import type { PaymentDetails } from '@/types/show-registration-types';
 
 interface PaymentOptionCardProps {
   value: PaymentMethod;
@@ -84,12 +85,51 @@ const PaymentOptionCard: React.FC<PaymentOptionCardProps> = ({
 export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   paymentMethod,
   onPaymentMethodChange,
+  onPaymentDetailsChange,
 }) => {
   const [checkNumber, setCheckNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [groupReference, setGroupReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+
+  // Build a current snapshot of all detail fields and fire the callback.
+  const notifyDetailsChange = (patch: Partial<PaymentDetails>) => {
+    if (!onPaymentDetailsChange) return;
+    onPaymentDetailsChange({
+      checkNumber,
+      paymentDate,
+      paymentReference,
+      groupReference,
+      paymentNotes,
+      ...patch,
+    });
+  };
+
+  const handleCheckNumberChange = (value: string) => {
+    setCheckNumber(value);
+    notifyDetailsChange({ checkNumber: value });
+  };
+
+  const handlePaymentDateChange = (value: string) => {
+    setPaymentDate(value);
+    notifyDetailsChange({ paymentDate: value });
+  };
+
+  const handlePaymentReferenceChange = (value: string) => {
+    setPaymentReference(value);
+    notifyDetailsChange({ paymentReference: value });
+  };
+
+  const handleGroupReferenceChange = (value: string) => {
+    setGroupReference(value);
+    notifyDetailsChange({ groupReference: value });
+  };
+
+  const handlePaymentNotesChange = (value: string) => {
+    setPaymentNotes(value);
+    notifyDetailsChange({ paymentNotes: value });
+  };
 
   const handleSelect = (value: PaymentMethod) => {
     onPaymentMethodChange(value);
@@ -148,7 +188,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Input
                     id="checknumber"
                     value={checkNumber}
-                    onChange={e => setCheckNumber(e.target.value)}
+                    onChange={e => handleCheckNumberChange(e.target.value)}
                     placeholder="1234"
                   />
                 </div>
@@ -200,7 +240,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                       id="payment-date"
                       type="date"
                       value={paymentDate}
-                      onChange={e => setPaymentDate(e.target.value)}
+                      onChange={e => handlePaymentDateChange(e.target.value)}
                     />
                   </div>
                   <div>
@@ -208,7 +248,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     <Input
                       id="payment-reference"
                       value={paymentReference}
-                      onChange={e => setPaymentReference(e.target.value)}
+                      onChange={e => handlePaymentReferenceChange(e.target.value)}
                       placeholder="Receipt #123"
                     />
                   </div>
@@ -218,7 +258,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Textarea
                     id="payment-notes"
                     value={paymentNotes}
-                    onChange={e => setPaymentNotes(e.target.value)}
+                    onChange={e => handlePaymentNotesChange(e.target.value)}
                     placeholder="Additional details about payment..."
                     rows={2}
                   />
@@ -249,7 +289,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Input
                     id="group-reference"
                     value={groupReference}
-                    onChange={e => setGroupReference(e.target.value)}
+                    onChange={e => handleGroupReferenceChange(e.target.value)}
                     placeholder="Club payment batch #123"
                   />
                 </div>
@@ -281,7 +321,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Textarea
                     id="waiver-reason"
                     value={paymentNotes}
-                    onChange={e => setPaymentNotes(e.target.value)}
+                    onChange={e => handlePaymentNotesChange(e.target.value)}
                     placeholder="Explain the reason for waiving fees..."
                     required
                   />

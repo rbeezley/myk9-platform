@@ -642,5 +642,84 @@ describe('Phase 3.5: Payment Component Tests', () => {
       // Should show both payment and entry status
       expect(screen.getByText(PaymentStatus.PAID_ONLINE)).toBeInTheDocument();
     });
+
+    it('should fire onPaymentDetailsChange when check number is entered', async () => {
+      const user = userEvent.setup();
+      const onPaymentDetailsChange = vi.fn();
+
+      render(
+        <PaymentStep
+          selectedDogs={['1']}
+          classSelections={[
+            { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
+          ]}
+          paymentMethod="check"
+          onPaymentMethodChange={vi.fn()}
+          onPaymentDetailsChange={onPaymentDetailsChange}
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      const checkNumberInput = screen.getByLabelText('Check Number (optional)');
+      await user.type(checkNumberInput, '5678');
+
+      // Each keystroke fires the callback; the last call should contain the full value
+      const calls = onPaymentDetailsChange.mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      const lastCall = calls[calls.length - 1][0];
+      expect(lastCall).toMatchObject({ checkNumber: '5678' });
+    });
+
+    it('should fire onPaymentDetailsChange with date and reference for secretary_paid', async () => {
+      const user = userEvent.setup();
+      const onPaymentDetailsChange = vi.fn();
+
+      render(
+        <PaymentStep
+          selectedDogs={['1']}
+          classSelections={[
+            { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
+          ]}
+          paymentMethod="secretary_paid"
+          onPaymentMethodChange={vi.fn()}
+          onPaymentDetailsChange={onPaymentDetailsChange}
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      const referenceInput = screen.getByLabelText('Reference/Receipt #');
+      await user.type(referenceInput, 'REC-99');
+
+      const calls = onPaymentDetailsChange.mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      const lastCall = calls[calls.length - 1][0];
+      expect(lastCall).toMatchObject({ paymentReference: 'REC-99' });
+    });
+
+    it('should fire onPaymentDetailsChange with reference for group_payment', async () => {
+      const user = userEvent.setup();
+      const onPaymentDetailsChange = vi.fn();
+
+      render(
+        <PaymentStep
+          selectedDogs={['1']}
+          classSelections={[
+            { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
+          ]}
+          paymentMethod="group_payment"
+          onPaymentMethodChange={vi.fn()}
+          onPaymentDetailsChange={onPaymentDetailsChange}
+        />,
+        { wrapper: TestWrapper }
+      );
+
+      const groupRefInput = screen.getByLabelText('Group/Organization Reference');
+      await user.type(groupRefInput, 'CLUB-42');
+
+      const calls = onPaymentDetailsChange.mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      const lastCall = calls[calls.length - 1][0];
+      expect(lastCall).toMatchObject({ paymentReference: 'CLUB-42' });
+    });
   });
 });

@@ -12,7 +12,7 @@ import {
   PaymentStatus,
   EntryStatus,
 } from '@/types/show-registration-types';
-import type { PaymentMethod } from '@/types/show-registration-types';
+import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
@@ -44,6 +44,7 @@ interface WorkflowStepContentProps {
   onClassSelectionChange: (selections: ClassSelectionData[]) => Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => Promise<void>;
   onPaymentMethodChange: (method: PaymentMethod) => void;
+  onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => Promise<unknown>;
   onEntryStatusChange: (
     registrationId: string,
@@ -70,6 +71,7 @@ export function WorkflowStepContent({
   onClassSelectionChange,
   onHandlerAssignmentChange,
   onPaymentMethodChange,
+  onPaymentDetailsChange,
   onPaymentStatusChange,
   onEntryStatusChange,
   setPaymentStatus,
@@ -153,6 +155,7 @@ export function WorkflowStepContent({
             paymentStatus={optimisticState.paymentStatus}
             entryStatus={optimisticState.entryStatus}
             onPaymentMethodChange={onPaymentMethodChange}
+            onPaymentDetailsChange={onPaymentDetailsChange}
             onPaymentStatusChange={async (status: PaymentStatus) => {
               setPaymentStatus(status);
               if (registrationId) {

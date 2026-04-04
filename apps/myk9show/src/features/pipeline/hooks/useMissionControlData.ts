@@ -82,16 +82,19 @@ export function useMissionControlData() {
       // Build a display name from element + level (TrialClass doesn't have a "name" field)
       const name = [cls.element, cls.level].filter(Boolean).join(' ') || 'Unnamed Class';
 
+      const isScoringFinalized = cls.isScoringFinalized ?? false;
+      const isResultsReviewed = cls.isResultsReviewed ?? false;
+
       return {
         id: cls.id,
         name,
         judge_name: cls.judgeName ?? null,
         status: cls.status ?? null,
-        stage: mapClassToStage(cls.status, null),
+        stage: mapClassToStage(cls.status, isScoringFinalized),
         scored_count: cls.completedEntries ?? 0,
         total_entries: cls.entries ?? 0,
-        is_scoring_finalized: false, // Not tracked on TrialClass; defaults to not-finalized
-        is_results_reviewed: false, // Not tracked on TrialClass
+        is_scoring_finalized: isScoringFinalized,
+        is_results_reviewed: isResultsReviewed,
         start_time: cls.startTime || null,
         planned_start_time: null, // Not tracked on TrialClass
       };

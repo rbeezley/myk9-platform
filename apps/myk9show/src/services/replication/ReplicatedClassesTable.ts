@@ -52,6 +52,10 @@ export interface ReplicatedClass {
   classOrder?: number | undefined;
   isCompleted?: boolean | undefined;
 
+  // Pipeline workflow flags (secretary review/publish flow)
+  isScoringFinalized?: boolean | undefined;
+  isResultsReviewed?: boolean | undefined;
+
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
   hidesKnown?: boolean | undefined;
@@ -126,6 +130,10 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     classStatus: (dbRow.class_status as string | undefined) ?? undefined,
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
     isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,
+
+    // Pipeline workflow flags
+    isScoringFinalized: row.is_scoring_finalized ?? false,
+    isResultsReviewed: row.is_results_reviewed ?? false,
 
     // Scoring rule fields
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
@@ -211,6 +219,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       hides_known: cls.hidesKnown ?? null,
       distraction_count: cls.distractionCount ?? null,
       status: this.mapClassStatusToDb(cls.classStatus),
+      is_scoring_finalized: cls.isScoringFinalized ?? false,
+      is_results_reviewed: cls.isResultsReviewed ?? false,
       actual_start_time: cls.actual_start_time ?? null,
       actual_end_time: cls.actual_end_time ?? null,
       updated_at: new Date().toISOString(),

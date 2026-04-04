@@ -30,6 +30,9 @@ export interface TrialClass {
   status: ClassStatusValue;
   entries: number;
   completedEntries?: number;
+  // Pipeline workflow flags (secretary review/publish flow)
+  isScoringFinalized?: boolean | undefined;
+  isResultsReviewed?: boolean | undefined;
   // Optional fields for enhanced class cards
   lastResultAt?: string | undefined;
   timeLimits?: string[] | undefined;

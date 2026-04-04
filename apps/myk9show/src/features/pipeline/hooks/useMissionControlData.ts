@@ -155,7 +155,11 @@ export function useMissionControlData() {
   // Also sync to showStore so announcement subscriptions know which show is active
   useEffect(() => {
     if (selectedShow) {
-      localStorage.setItem('myk9show:entryMgmt:lastShowId', selectedShow.id);
+      try {
+        localStorage.setItem('myk9show:entryMgmt:lastShowId', selectedShow.id);
+      } catch {
+        // Private browsing or storage quota exceeded — non-fatal
+      }
       selectShow(selectedShow.id);
     }
   }, [selectedShow, selectShow]);

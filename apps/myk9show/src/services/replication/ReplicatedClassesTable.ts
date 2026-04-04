@@ -219,8 +219,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       hides_known: cls.hidesKnown ?? null,
       distraction_count: cls.distractionCount ?? null,
       status: this.mapClassStatusToDb(cls.classStatus),
-      is_scoring_finalized: cls.isScoringFinalized ?? false,
-      is_results_reviewed: cls.isResultsReviewed ?? false,
+      // Only write these when explicitly set — omitting avoids stale local state
+      // silently reverting a finalized class during an unrelated mutation
+      ...(cls.isScoringFinalized !== undefined && { is_scoring_finalized: cls.isScoringFinalized }),
+      ...(cls.isResultsReviewed !== undefined && { is_results_reviewed: cls.isResultsReviewed }),
       actual_start_time: cls.actual_start_time ?? null,
       actual_end_time: cls.actual_end_time ?? null,
       updated_at: new Date().toISOString(),

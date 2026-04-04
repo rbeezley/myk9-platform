@@ -11,6 +11,7 @@ import { RegistrationSummary } from './RegistrationSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
 import { PaymentSummaryCard } from './PaymentSummaryCard';
+import { PAYMENT_MESSAGES } from './types';
 import type { PaymentStepProps } from './types';
 
 /**
@@ -83,10 +84,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       {/* Payment Info Notice */}
       <Alert>
         <CreditCard className="h-4 w-4" />
-        <AlertDescription>
-          Your registration will be confirmed once payment is received. Online card payment via
-          Stripe is coming soon.
-        </AlertDescription>
+        <AlertDescription>{PAYMENT_MESSAGES.REGISTRATION_CONFIRMATION}</AlertDescription>
       </Alert>
     </div>
   );

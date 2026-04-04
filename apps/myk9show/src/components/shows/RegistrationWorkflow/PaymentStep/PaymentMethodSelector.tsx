@@ -21,6 +21,7 @@ import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { cn } from '@/lib/utils';
 import type { PaymentMethod } from '@/types/show-registration-types';
+import { PAYMENT_MESSAGES } from './types';
 import type { PaymentMethodSelectorProps } from './types';
 
 interface PaymentOptionCardProps {
@@ -87,6 +88,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   const [checkNumber, setCheckNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
+  const [groupReference, setGroupReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
 
   const handleSelect = (value: PaymentMethod) => {
@@ -120,10 +122,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <div className="ml-4 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    Online card payment is coming soon. For now, your entry will be submitted and
-                    payment collected at the show or by the trial secretary.
-                  </AlertDescription>
+                  <AlertDescription>{PAYMENT_MESSAGES.CARD_COMING_SOON}</AlertDescription>
                 </Alert>
               </div>
             )}
@@ -249,8 +248,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Label htmlFor="group-reference">Group/Organization Reference</Label>
                   <Input
                     id="group-reference"
-                    value={paymentReference}
-                    onChange={e => setPaymentReference(e.target.value)}
+                    value={groupReference}
+                    onChange={e => setGroupReference(e.target.value)}
                     placeholder="Club payment batch #123"
                   />
                 </div>

@@ -75,6 +75,14 @@ export interface SecretaryPaymentManagementProps {
   onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
 }
 
+/** Shared payment messaging — single source of truth for "coming soon" copy. */
+export const PAYMENT_MESSAGES = {
+  CARD_COMING_SOON:
+    'Online card payment is coming soon. Your entry will be submitted and payment collected at the show or by the trial secretary.',
+  REGISTRATION_CONFIRMATION:
+    'Your registration will be confirmed once payment is received. Online card payment via Stripe is coming soon.',
+} as const;
+
 /** Props for the PaymentSummaryCard sub-component. */
 export interface PaymentSummaryCardProps {
   paymentMethod: PaymentMethod | '';

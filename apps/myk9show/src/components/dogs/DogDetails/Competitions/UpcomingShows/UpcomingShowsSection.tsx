@@ -33,12 +33,14 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
   const [selectedCompetition, setSelectedCompetition] = React.useState<Competition | null>(null);
 
   const navigate = useNavigate();
+  const prevShowAddDialog = React.useRef(showAddDialog);
 
-  // Handle add dialog close
+  // Only fire onAddDialogClose when showAddDialog transitions true → false (not on every mount)
   React.useEffect(() => {
-    if (!showAddDialog) {
+    if (prevShowAddDialog.current && !showAddDialog) {
       onAddDialogClose();
     }
+    prevShowAddDialog.current = showAddDialog;
   }, [showAddDialog, onAddDialogClose]);
 
   // Handlers
@@ -56,7 +58,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
   };
   const handleSave = (updatedComp: Competition) => {
     if (!updatedComp.id) {
-      addCompetition({ ...updatedComp, id: (competitions.length + 1).toString() });
+      addCompetition({ ...updatedComp, id: crypto.randomUUID() });
     } else {
       editCompetition(updatedComp.id, updatedComp);
     }

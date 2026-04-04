@@ -177,11 +177,11 @@ Full audit details in `docs/ux-audits/phase-1-summary.md` and individual page au
 
 ### Critical
 
-- [ ] **Replace mock credit card form in Registration Wizard** — `PaymentMethodSelector.tsx` renders local-state card fields (number, CVV, expiry, name) that are never submitted anywhere. Payment uses `'MOCK-PAYMENT-REF'`. Trust-breaking for users who type real card data. **Solution:** Replace with Stripe Elements integration or a static "payment collected after confirmation" message.
+- [x] **Replace mock credit card form in Registration Wizard** — Done. Removed CreditCardVisual and mock card fields. Replaced with honest "payment coming soon" Alert. Fixed misleading Stripe messaging in PaymentSummaryCard and PaymentStep. 26 tests updated.
 
-- [ ] **Add loading feedback during registration payment submission** — `RegistrationWizardPage.tsx` lines 330-397 run 5+ async operations (submit, confirm, create entries, assign armbands, update) with zero loading indicator. `WizardNavigation` has an `isLoading` prop that is never wired. **Solution:** Pass `isSubmitting` state to `WizardNavigation`.
+- [x] **Add loading feedback during registration payment submission** — Already fixed in `a2261900`. `isSubmitting` wired to `WizardNavigation`, double-click guard via `submittingRef`. Regression tests added (5 structural + 11 component).
 
-- [ ] **Remove mock data injection in Dog Detail UpcomingShowsSection** — When the competition store is empty, `UpcomingShowsSection` injects fake show data instead of showing an empty state. New users see phantom competitions.
+- [x] **Remove mock data injection in Dog Detail UpcomingShowsSection** — Done. Removed mockCompetitions useEffect. Added EmptyState with Calendar icon, "No Upcoming Shows", and "Browse Shows" CTA. 6 tests.
 
 ### High Priority
 
@@ -207,7 +207,7 @@ Full audit details in `docs/ux-audits/phase-2-summary.md` and individual page au
 
 ### Critical
 
-- [ ] **Fix Pipeline Dashboard hardcoded scoring/review booleans** — `useMissionControlData.ts` lines 94-95 hardcode `is_scoring_finalized` and `is_results_reviewed` to `false`. The Review > Publish > Closed Kanban workflow is non-functional. Classes can never appear as "Reviewed" or move to "Closed" based on actual data. **Solution:** Wire to actual class/scoring data.
+- [x] **Fix Pipeline Dashboard hardcoded scoring/review booleans** — Done. Threaded `is_scoring_finalized` and `is_results_reviewed` from DB through ReplicatedClassesTable → TrialClass → useMissionControlData. Kanban Review → Publish → Closed workflow now functional. 108 tests passing.
 
 ### High Priority
 

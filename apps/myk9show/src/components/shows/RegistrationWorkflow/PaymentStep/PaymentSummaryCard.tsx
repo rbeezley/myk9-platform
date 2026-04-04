@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getPaymentMethodLabel } from './utils';
+import { PAYMENT_MESSAGES } from './types';
 import type { PaymentSummaryCardProps } from './types';
 
 /**
@@ -38,10 +39,7 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
           {paymentMethod === 'credit_card' && (
             <Alert>
               <CreditCard className="h-4 w-4" />
-              <AlertDescription>
-                Online card payment is coming soon. Your entry will be submitted and payment
-                collected at the show or by the trial secretary.
-              </AlertDescription>
+              <AlertDescription>{PAYMENT_MESSAGES.CARD_COMING_SOON}</AlertDescription>
             </Alert>
           )}
           {['check', 'cash'].includes(paymentMethod) && (

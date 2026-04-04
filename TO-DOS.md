@@ -168,3 +168,33 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 - [x] **Scope `getAllDogs` query to current user's dogs** — Done. `getAllDogs`, `searchDogs`, `getDogsWithUpcomingShows`, and `getDogStatistics` now require `personId` parameter and filter by `owner_id`/`co_owner_id`. Hook callers (`useDogsQuery`, `useDogsSearchQuery`, `useDogStatisticsQuery`) pass `personId` from `useExhibitorProfile` and disable queries when unavailable.
 
 - [x] **Fix `window.location.href` hard navigation in FeatureGate dialog** — Done. Replaced `window.location.href = '/pricing-page'` with `useNavigate` from React Router in `FeatureUpgradePrompt`. No more full page reload destroying React Query cache and Zustand stores.
+
+---
+
+## UX Audit Findings — Exhibitor Core Journey (2026-04-04)
+
+Full audit details in `docs/ux-audits/phase-1-summary.md` and individual page audits in `docs/ux-audits/01-*.md` through `06-*.md`.
+
+### Critical
+
+- [ ] **Replace mock credit card form in Registration Wizard** — `PaymentMethodSelector.tsx` renders local-state card fields (number, CVV, expiry, name) that are never submitted anywhere. Payment uses `'MOCK-PAYMENT-REF'`. Trust-breaking for users who type real card data. **Solution:** Replace with Stripe Elements integration or a static "payment collected after confirmation" message.
+
+- [ ] **Add loading feedback during registration payment submission** — `RegistrationWizardPage.tsx` lines 330-397 run 5+ async operations (submit, confirm, create entries, assign armbands, update) with zero loading indicator. `WizardNavigation` has an `isLoading` prop that is never wired. **Solution:** Pass `isSubmitting` state to `WizardNavigation`.
+
+- [ ] **Remove mock data injection in Dog Detail UpcomingShowsSection** — When the competition store is empty, `UpcomingShowsSection` injects fake show data instead of showing an empty state. New users see phantom competitions.
+
+### High Priority
+
+- [ ] **Fix error-as-empty-state across 3 pages** — My Entries, Show Details MyEntriesTab, and Show Day all swallow fetch errors and display "no data" instead of an error with retry. On show day with flaky Wi-Fi, exhibitors think their entries are gone. **Solution:** Add error state with retry button to `useMyEntriesData`, `MyEntriesTab`, and Show Day query error handling.
+
+- [ ] **Wire Show Day `onNavigate` to card tap targets** — `NextUpCard` and `ClassTimelineCard` have `onNavigate` callbacks that are never passed from `ShowDayPage.tsx`. Tapping cards does nothing. **Solution:** Pass `(classId) => navigate(...)` from ShowDayPage.
+
+- [ ] **Wire Dog Detail "Add Achievement" and "Add Past Result" buttons** — `AddAchievementDialog` is rendered but unreachable (no button calls `setAddDialogOpen(true)`). "Add Past Result" handler is a no-op for `past` and `achievements` tabs. **Solution:** Wire button handlers in `CompetitionsTabs`.
+
+- [ ] **Show entry status badge in Show Details hero** — `getEntryStatus()` computes rich status (accepting, closing soon, closed, submitted) but only controls Register button visibility. No badge or text tells the exhibitor whether entries are open. **Solution:** Render `EntryStatusInfo.label` as a badge in the hero.
+
+- [ ] **Show "Entries Closed" when Register button is hidden** — When `canEnter` is false, the hero shows no CTA and no explanation. Dead end. **Solution:** Show "Entries Closed" message with date when entry window passed.
+
+- [ ] **Add title progress to Exhibitor Dashboard and Dog Detail hero** — INTENT.md says "title progress -- no hunting" but Dashboard has zero title tracking and Dog Detail buries titles under a non-default premium tab. **Solution:** Add title summary card to Dashboard; show earned title abbreviations in Dog Detail hero.
+
+- [ ] **Revisit premium gating on Dog Detail** — 62% of tabs (5 of 8) are premium-gated. Free-tier exhibitors see a page that feels like a paywall. **Solution:** Consider read-only previews for locked tabs or reduce gated tabs to 2-3.

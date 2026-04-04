@@ -254,6 +254,8 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
+  const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries);
+
   return (
     <>
       <PageShell>
@@ -275,8 +277,8 @@ const ShowDetailsPage: React.FC = () => {
               ? { label: actualCurrentShow.organization, variant: 'default' }
               : undefined
           }
-          metadata={[{ label: getEntryStatus(actualCurrentShow, hasUserEntries).label }]}
-          {...(getEntryStatus(actualCurrentShow, hasUserEntries).canEnter
+          metadata={[{ label: entryStatus.label }]}
+          {...(entryStatus.canEnter
             ? { primaryAction: { label: 'Register', onClick: handleRegisterForShow } }
             : {})}
           secondaryActions={

@@ -59,10 +59,10 @@ export function useMyEntriesFilters({
     }
 
     // Sort by show date — upcoming first (nearest date at top)
+    const nowMs = new Date().getTime();
     filtered.sort((a, b) => {
-      const now = Date.now();
-      const aUpcoming = a.showDate.getTime() >= now;
-      const bUpcoming = b.showDate.getTime() >= now;
+      const aUpcoming = a.showDate.getTime() >= nowMs;
+      const bUpcoming = b.showDate.getTime() >= nowMs;
       // Upcoming entries before past entries
       if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
       // Within upcoming: soonest first; within past: most recent first

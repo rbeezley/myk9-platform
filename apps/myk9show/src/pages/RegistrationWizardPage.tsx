@@ -73,6 +73,12 @@ function RegistrationWizardContent() {
     }
   }, [triggerSync]);
 
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // Data stores
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
@@ -120,6 +126,8 @@ function RegistrationWizardContent() {
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const mountedRef = useRef(true);
   const hasAutoSelectedDogs = useRef(false);
 
   const {
@@ -128,6 +136,7 @@ function RegistrationWizardContent() {
     confirmRegistration,
     currentRegistration,
     setDraftData,
+    updateRegistration: updateShowRegistration,
   } = useShowRegistrationStore();
 
   // Draft persistence
@@ -316,7 +325,7 @@ function RegistrationWizardContent() {
 
   // Navigation handlers
   const handleNext = async () => {
-    if (!canProceed()) return;
+    if (submittingRef.current || !canProceed()) return;
 
     // On the last step, complete registration and navigate away
     if (isLastStep) {
@@ -326,10 +335,10 @@ function RegistrationWizardContent() {
       return;
     }
 
-    markStepComplete(currentStep);
-
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
+      submittingRef.current = true;
       setIsSubmitting(true);
+      const previousStatus = currentRegistration.status;
       try {
         // Convert wizard data into real entry records and persist via replication layer
         const entryInputs = registrationToEntries(
@@ -347,11 +356,13 @@ function RegistrationWizardContent() {
         );
 
         await submitRegistration(registrationId);
+        if (!mountedRef.current) return;
 
         // Create DB registration to get confirmation number + ID, then create entries with registration_id
         let dbRegistrationId: string | undefined;
         if (registrationData.paymentMethod === 'credit_card') {
           const result = await confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');
+          if (!mountedRef.current) return;
           setRegistrationNumber(
             result.confirmationNumber ?? currentRegistration.registrationNumber
           );
@@ -366,6 +377,7 @@ function RegistrationWizardContent() {
             'submitted',
             dbRegistrationId
           );
+          if (!mountedRef.current) return;
 
           // Assign armbands — one per unique dog (non-blocking on failure)
           const uniqueDogIds = [...new Set(entryInputs.map(e => e.dogId))];
@@ -378,7 +390,7 @@ function RegistrationWizardContent() {
             )
           ).filter((r): r is ArmbandAssignment => r !== null);
 
-          if (results.length > 0) {
+          if (results.length > 0 && mountedRef.current) {
             setArmbandAssignments(results);
 
             // Write armband back to each entry so confirmation email includes it
@@ -397,11 +409,26 @@ function RegistrationWizardContent() {
             );
           }
         }
+        if (!mountedRef.current) return;
+        markStepComplete(currentStep);
+        setCurrentStep(prev => prev + 1);
+      } catch (error) {
+        // Roll back local registration status so retry starts from correct state
+        updateShowRegistration(registrationId, { status: previousStatus });
+        console.error('Registration payment submission failed:', error);
+        if (mountedRef.current) {
+          notifications.error(getErrorMessage(error));
+        }
       } finally {
-        setIsSubmitting(false);
+        submittingRef.current = false;
+        if (mountedRef.current) {
+          setIsSubmitting(false);
+        }
       }
+      return;
     }
 
+    markStepComplete(currentStep);
     setCurrentStep(prev => prev + 1);
   };
 

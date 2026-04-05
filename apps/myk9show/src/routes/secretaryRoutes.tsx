@@ -87,7 +87,6 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
-    {/* Redirect old flat form to the wizard */}
     <Route
       path="/secretary/create-show"
       element={<Navigate to="/secretary/create-show/wizard" replace />}

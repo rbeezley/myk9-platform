@@ -35,6 +35,8 @@ export interface PaymentDetails {
   paymentDate?: string;
   /** Reference / receipt number (used for secretary_paid and group_payment) */
   paymentReference?: string;
+  /** Group/club reference number (used for group_payment) */
+  groupReference?: string;
   paymentNotes?: string;
 }
 

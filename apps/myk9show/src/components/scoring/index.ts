@@ -1,6 +1,6 @@
 /**
  * Scoring Components Export Index
- * 
+ *
  * Centralized exports for all result entry and scoring components
  */
 
@@ -8,10 +8,11 @@ export { ScentWorkScoresheet } from './ScentWorkScoresheet';
 export type { ScentWorkScoresheetProps } from './ScentWorkScoresheet';
 
 export { ResultEntryNavigation } from './ResultEntryNavigation';
-export type { ResultEntryNavigationProps, EntryWithResult, EntryNavigationStatus } from './ResultEntryNavigation';
-
-export { JudgeClassInterface } from './JudgeClassInterface';
-export type { JudgeClassInterfaceProps } from './JudgeClassInterface';
+export type {
+  ResultEntryNavigationProps,
+  EntryWithResult,
+  EntryNavigationStatus,
+} from './ResultEntryNavigation';
 
 // Phase 3: Scoring Sync UI Components
 export { LiveScoreUpdates } from './LiveScoreUpdates';
@@ -25,7 +26,6 @@ export type { JudgeSyncDashboardProps } from '@/utils/scoringUtils';
 
 export { PlacementRecalculationAlert } from './PlacementRecalculationAlert';
 export type { PlacementRecalculationAlertProps } from './PlacementRecalculationAlert';
-
 
 // Format-specific scoresheets
 export { default as TrackingScoresheet } from './format-specific/TrackingScoresheet';

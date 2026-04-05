@@ -42,19 +42,10 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
     import('@/components/admin/DataLifecycleManagement').then(m => ({
       default: m.DataLifecycleManagement,
     })),
-  '/admin/performance-mode': () =>
-    import('@/components/admin/PerformanceModeToggle').then(m => ({
-      default: m.PerformanceModeToggle,
-    })),
   '/admin/load-testing': () =>
     import('@/components/admin/LoadTestDashboard').then(m => ({ default: m.LoadTestDashboard })),
   '/admin/alerts': () => import('@/pages/AlertsPage'),
   '/admin/analytics': () => import('@/pages/AnalyticsPage'),
-
-  // Testing routes
-  '/admin/permission-test': () => import('@/pages/admin/PermissionTestPage'),
-  '/admin/rbac-test': () =>
-    import('@/pages/admin/RBACTestPage').then(m => ({ default: m.RBACTestPage })),
 } as const;
 
 // Public/exhibitor route components
@@ -81,9 +72,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
 
-  // People and dogs management
-  '/people': () => import('@/pages/BrowsePeoplePage'),
-  '/users/:id': () => import('@/pages/PersonDetailPage'),
+  // Dogs management
   '/dogs': () => import('@/pages/BrowseDogsPage'),
   '/dogs/:id': () => import('@/pages/DogDetailPage'),
   '/clubs': () => import('@/pages/BrowseClubsPage'),
@@ -102,12 +91,6 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
 
   // TV Display
   '/tv/:showId': () => import('@/pages/TVDisplay'),
-
-  // Test routes
-  '/class-templates': () =>
-    import('@/components/classes/ClassTemplateTestPage').then(m => ({
-      default: m.ClassTemplateTestPage,
-    })),
 } as const;
 
 // Secretary route components (these would be defined in secretaryRoutes.tsx)
@@ -146,17 +129,11 @@ export const routeCategories = {
     '/shows',
   ],
 
-  high: ['/admin/templates', '/admin/sync', '/shows', '/people', '/dogs', '/calendar'],
+  high: ['/admin/templates', '/admin/sync', '/shows', '/dogs', '/calendar'],
 
   medium: ['/admin/performance', '/admin/analytics', '/admin/alerts', '/clubs', '/subscription'],
 
-  low: [
-    '/admin/permission-test',
-    '/admin/rbac-test',
-    '/admin/load-testing',
-    '/class-templates',
-    '/tv/:showId',
-  ],
+  low: ['/admin/load-testing', '/tv/:showId'],
 };
 
 // Common navigation patterns for intelligent preloading

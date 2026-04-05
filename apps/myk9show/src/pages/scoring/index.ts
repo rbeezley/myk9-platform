@@ -5,10 +5,6 @@
  * Scoresheet components now live in @myk9/scoring-ui.
  */
 
-// Main pages
-export { ScoringEntryListPage } from './ScoringEntryListPage';
-export { ScoresheetPage } from './ScoresheetPage';
-
 // Components
 export { ScoringEntryCard, SortableScoringEntryCard } from './components/ScoringEntryCard';
 

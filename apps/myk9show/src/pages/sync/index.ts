@@ -1,1 +1,1 @@
-export { SyncDashboardPage } from './SyncDashboardPage';
+export { default as SyncMonitoringPage } from './SyncMonitoringPage';

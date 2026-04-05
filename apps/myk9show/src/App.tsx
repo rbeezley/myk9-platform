@@ -203,10 +203,6 @@ function NotificationMonitorInitializer() {
   return null;
 }
 
-function ConditionalAppHeader() {
-  return <AppHeader />;
-}
-
 function App() {
   // Initialize global error handler - deferred to not block initial render
   React.useEffect(() => {
@@ -255,7 +251,7 @@ function App() {
                       >
                         <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                           <PWAInstallBanner />
-                          <ConditionalAppHeader />
+                          <AppHeader />
                           <NotificationCenter />
                           <Routes>
                             {/* Public routes */}

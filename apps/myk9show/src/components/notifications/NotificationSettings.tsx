@@ -329,7 +329,7 @@ export function NotificationSettings() {
                   <span className="text-xs text-muted-foreground">0.5x</span>
                   <Slider
                     value={[preferences.voiceRate]}
-                    onValueCommit={([value]) => updatePreferences({ voiceRate: value })}
+                    onValueChange={vals => updatePreferences({ voiceRate: vals[0] })}
                     min={0.5}
                     max={2.0}
                     step={0.1}

@@ -125,7 +125,7 @@ function RegistrationWizardContent() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({});
+  const paymentDetailsRef = useRef<PaymentDetails>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -356,10 +356,9 @@ function RegistrationWizardContent() {
             : undefined
         );
 
-        // TODO: pass paymentDetails (checkNumber, paymentDate, paymentReference, paymentNotes)
-        // into submitRegistration / confirmRegistration once those functions accept them.
-        // The fields are captured in `paymentDetails` state but the submission layer does not
-        // yet persist them to the registrations table.
+        // TODO: pass paymentDetailsRef.current (checkNumber, paymentDate, paymentReference,
+        // paymentNotes, groupReference) into submitRegistration / confirmRegistration once
+        // those functions accept them. The submission layer does not yet persist them.
         await submitRegistration(registrationId);
         if (!mountedRef.current) return;
 
@@ -637,7 +636,9 @@ function RegistrationWizardContent() {
                         paymentMethod: method,
                       }))
                     }
-                    onPaymentDetailsChange={(details: PaymentDetails) => setPaymentDetails(details)}
+                    onPaymentDetailsChange={(details: PaymentDetails) => {
+                      paymentDetailsRef.current = details;
+                    }}
                     onPaymentStatusChange={updatePaymentStatusOptimistic}
                     onEntryStatusChange={updateEntryStatusOptimistic}
                     setPaymentStatus={setPaymentStatus}

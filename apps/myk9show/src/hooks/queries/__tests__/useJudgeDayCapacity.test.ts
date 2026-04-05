@@ -165,6 +165,12 @@ describe('useJudgeDayCapacity', () => {
     mockSelect.mockReturnValueOnce({
       eq: vi.fn().mockResolvedValueOnce({ data: null, error: { message: 'DB error' } }),
     });
+    // Second select call (shows query) needs a stub so Promise.all doesn't crash
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockReturnValueOnce({
+        single: vi.fn().mockResolvedValueOnce({ data: null, error: null }),
+      }),
+    });
 
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),

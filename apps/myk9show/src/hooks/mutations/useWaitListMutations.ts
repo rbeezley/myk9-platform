@@ -45,7 +45,7 @@ export function useWaitListMutations(showId: string) {
       entryIds: string[];
       deadlineHours?: number;
     }) => {
-      const results = await Promise.all(
+      const settled = await Promise.allSettled(
         entryIds.map(async id => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data, error } = await (supabase as any).rpc('promote_waitlist_entry', {
@@ -56,9 +56,27 @@ export function useWaitListMutations(showId: string) {
           return data as string;
         })
       );
-      return results;
+
+      const succeeded = settled
+        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+        .map(r => r.value);
+
+      // "not available for promotion" means the entry was already promoted — safe to
+      // ignore on retry; any other error is unexpected and should surface to the caller.
+      const realFailures = settled
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .filter(r => !String(r.reason?.message).includes('not available for promotion'));
+
+      if (realFailures.length > 0) {
+        throw new Error(
+          `${realFailures.length} of ${entryIds.length} promotion(s) failed: ${realFailures[0].reason?.message}`
+        );
+      }
+
+      return succeeded;
     },
-    onSuccess: invalidateShow,
+    // Always invalidate so partial promotions are reflected even when the mutation errors
+    onSettled: invalidateShow,
   });
 
   const withdrawFromWaitList = useMutation({

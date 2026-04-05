@@ -234,12 +234,13 @@ export const useCartStore = create<CartState>()(
               .eq('id', cart.id);
 
             if (updateError) {
-              logger.warn(
+              logger.error(
                 'Error updating cart totals',
                 'cartStore',
                 { cartId: cart.id },
                 updateError
               );
+              throw updateError;
             }
 
             set({
@@ -294,12 +295,13 @@ export const useCartStore = create<CartState>()(
               .eq('id', cart.id);
 
             if (updateError) {
-              logger.warn(
+              logger.error(
                 'Error updating cart totals',
                 'cartStore',
                 { cartId: cart.id },
                 updateError
               );
+              throw updateError;
             }
 
             set({

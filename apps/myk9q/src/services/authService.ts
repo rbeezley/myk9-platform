@@ -48,8 +48,8 @@ async function authenticateViaEdgeFunction(passcode: string): Promise<ServerVali
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({ passcode }),
     });
@@ -127,7 +127,10 @@ export interface AuthResult {
  * @returns AuthResult with showData if valid, error info if invalid/rate-limited
  */
 export async function authenticatePasscode(passcode: string): Promise<ShowData | null>;
-export async function authenticatePasscode(passcode: string, options: { returnFullResult: true }): Promise<AuthResult>;
+export async function authenticatePasscode(
+  passcode: string,
+  options: { returnFullResult: true }
+): Promise<AuthResult>;
 export async function authenticatePasscode(
   passcode: string,
   options?: { returnFullResult?: boolean }
@@ -181,7 +184,6 @@ export async function authenticatePasscode(
     // Step 2: Fall back to client-side validation (Edge Function unavailable)
     logger.log('[Auth] Using client-side validation fallback');
     return await authenticatePasscodeClientSide(passcode, returnFullResult);
-
   } catch (error) {
     logger.error('Authentication error:', error);
     if (returnFullResult) {
@@ -212,7 +214,7 @@ async function enrichShowData(baseShowData: {
     .from('trials')
     .select('*')
     .eq('show_id', parseInt(baseShowData.showId))
-    .order('trial_date', { ascending: true });
+    .order('date', { ascending: true });
 
   if (trialsError) {
     logger.error('Error fetching trials:', trialsError);
@@ -275,10 +277,7 @@ async function authenticatePasscodeClientSide(
   let matchedShow: ShowQueue | null = null;
 
   for (const show of shows) {
-    const validationResult = validatePasscodeAgainstLicenseKey(
-      passcode,
-      show.license_key
-    );
+    const validationResult = validatePasscodeAgainstLicenseKey(passcode, show.license_key);
 
     if (validationResult) {
       matchedShow = show;
@@ -298,7 +297,7 @@ async function authenticatePasscodeClientSide(
     .from('trials')
     .select('*')
     .eq('show_id', matchedShow.id)
-    .order('trial_date', { ascending: true });
+    .order('date', { ascending: true });
 
   if (trialsError) {
     logger.error('Error fetching trials:', trialsError);
@@ -324,7 +323,7 @@ async function authenticatePasscodeClientSide(
   // Get org and competition_type
   const { data: licenseData, error: licenseError } = await supabase
     .from('shows')
-    .select('organization, show_type')
+    .select('organization, type')
     .eq('license_key', matchedShow.license_key)
     .single();
 
@@ -334,12 +333,12 @@ async function authenticatePasscodeClientSide(
 
   const showData: ShowData = {
     showId: matchedShow.id.toString(),
-    showName: matchedShow.show_name,
-    clubName: matchedShow.club_name,
+    showName: matchedShow.name,
+    clubName: matchedShow.club_id,
     showDate: matchedShow.start_date,
     licenseKey: matchedShow.license_key,
-    org: matchedShow.organization || licenseData?.organization || '',
-    competition_type: matchedShow.show_type || licenseData?.show_type || 'Regular',
+    org: licenseData?.organization || '',
+    competition_type: matchedShow.type || licenseData?.type || 'Regular',
     trials: trials || [],
     classes: classes || [],
   };
@@ -373,7 +372,7 @@ export async function getShowByLicenseKey(licenseKey: string): Promise<ShowData 
       .from('trials')
       .select('*')
       .eq('show_id', show.id)
-      .order('trial_date', { ascending: true });
+      .order('date', { ascending: true });
 
     if (trialsError) {
       logger.error('Error fetching trials:', trialsError);
@@ -402,7 +401,7 @@ export async function getShowByLicenseKey(licenseKey: string): Promise<ShowData 
     // Get org and competition_type from shows table
     const { data: licenseData, error: licenseError } = await supabase
       .from('shows')
-      .select('organization, show_type')
+      .select('organization, type')
       .eq('license_key', licenseKey)
       .single();
 
@@ -412,16 +411,15 @@ export async function getShowByLicenseKey(licenseKey: string): Promise<ShowData 
 
     return {
       showId: show.id.toString(),
-      showName: show.show_name,
-      clubName: show.club_name,
+      showName: show.name,
+      clubName: show.club_id,
       showDate: show.start_date,
       licenseKey: show.license_key,
       org: show.organization || licenseData?.organization || '', // Try show table first, then fallback
-      competition_type: show.show_type || licenseData?.show_type || 'Regular',
+      competition_type: show.type || licenseData?.type || 'Regular',
       trials: trials || [],
-      classes: classes || []
+      classes: classes || [],
     };
-
   } catch (error) {
     logger.error('Error getting show by license key:', error);
     return null;
@@ -434,10 +432,7 @@ export async function getShowByLicenseKey(licenseKey: string): Promise<ShowData 
  */
 export async function testDatabaseConnection(): Promise<boolean> {
   try {
-    const { data: _data, error } = await supabase
-      .from('shows')
-      .select('count')
-      .limit(1);
+    const { data: _data, error } = await supabase.from('shows').select('count').limit(1);
 
     if (error) {
       logger.error('Database connection error:', error);

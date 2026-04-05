@@ -14,7 +14,7 @@ import type { Class } from '@/services/replication/tables/ReplicatedClassesTable
 
 interface UseCompletedClassIdsOptions {
   showId: string | undefined;
-  enabled: boolean;  // Set to false for admin/judge who don't need filtering
+  enabled: boolean; // Set to false for admin/judge who don't need filtering
 }
 
 /**
@@ -23,7 +23,10 @@ interface UseCompletedClassIdsOptions {
  * @param options - Configuration options
  * @returns Set of completed class IDs
  */
-export function useCompletedClassIds({ showId, enabled }: UseCompletedClassIdsOptions): Set<number> {
+export function useCompletedClassIds({
+  showId,
+  enabled,
+}: UseCompletedClassIdsOptions): Set<number> {
   const [completedClassIds, setCompletedClassIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -37,20 +40,18 @@ export function useCompletedClassIds({ showId, enabled }: UseCompletedClassIdsOp
         const trialsTable = manager.getTable('trials');
 
         if (classesTable && trialsTable) {
-          const allTrials = await trialsTable.getAll() as Trial[];
-          const allClasses = await classesTable.getAll() as Class[];
+          const allTrials = (await trialsTable.getAll()) as Trial[];
+          const allClasses = (await classesTable.getAll()) as Class[];
 
           // Filter to current show's trials
           const showTrialIds = new Set(
-            allTrials
-              .filter(t => String(t.show_id) === String(showId))
-              .map(t => String(t.id))
+            allTrials.filter(t => String(t.show_id) === String(showId)).map(t => String(t.id))
           );
 
           // Get IDs of completed classes
           const completedIds = new Set(
             allClasses
-              .filter(c => showTrialIds.has(String(c.trial_id)) && c.class_status === 'completed')
+              .filter(c => showTrialIds.has(String(c.trial_id)) && c.status === 'completed')
               .map(c => Number(c.id))
           );
 

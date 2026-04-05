@@ -41,27 +41,27 @@ describe('authService', () => {
     const mockShows = [
       {
         id: 1,
-        show_name: 'Test Show 1',
-        club_name: 'Test Club',
+        name: 'Test Show 1',
+        club_id: 'Test Club',
         license_key: 'myK9Q1-a260f472-e0d76a33-4b6c264c',
         start_date: '2025-01-15',
         organization: 'AKC',
-        show_type: 'Regular',
+        type: 'Regular',
       },
       {
         id: 2,
-        show_name: 'Test Show 2',
-        club_name: 'Test Club 2',
+        name: 'Test Show 2',
+        club_id: 'Test Club 2',
         license_key: 'myK9Q1-b123f456-e0d76a44-5b7c375d',
         start_date: '2025-02-20',
         organization: 'UKC',
-        show_type: 'National',
+        type: 'National',
       },
     ];
 
     const mockTrials = [
-      { id: 101, show_id: 1, trial_name: 'Trial 1', trial_date: '2025-01-15' },
-      { id: 102, show_id: 1, trial_name: 'Trial 2', trial_date: '2025-01-16' },
+      { id: 101, show_id: 1, name: 'Trial 1', date: '2025-01-15' },
+      { id: 102, show_id: 1, name: 'Trial 2', date: '2025-01-16' },
     ];
 
     const mockClasses = [
@@ -96,9 +96,9 @@ describe('authService', () => {
           mockSelect.mockImplementation((fields?: string) => {
             if (fields === '*') {
               mockOrder.mockResolvedValue({ data: mockShows, error: null });
-            } else if (fields === 'organization, show_type') {
+            } else if (fields === 'organization, type') {
               mockSingle.mockResolvedValue({
-                data: { organization: 'UKC', show_type: 'National' },
+                data: { organization: 'UKC', type: 'National' },
                 error: null,
               });
             }
@@ -212,9 +212,9 @@ describe('authService', () => {
           mockSelect.mockImplementation((fields?: string) => {
             if (fields === '*') {
               mockOrder.mockResolvedValue({ data: [mockShows[0]], error: null });
-            } else if (fields === 'organization, show_type') {
+            } else if (fields === 'organization, type') {
               mockSingle.mockResolvedValue({
-                data: { organization: 'AKC', show_type: 'Regular' },
+                data: { organization: 'AKC', type: 'Regular' },
                 error: null,
               });
             }
@@ -265,9 +265,9 @@ describe('authService', () => {
           mockSelect.mockImplementation((fields?: string) => {
             if (fields === '*') {
               mockOrder.mockResolvedValue({ data: [mockShows[0]], error: null });
-            } else if (fields === 'organization, show_type') {
+            } else if (fields === 'organization, type') {
               mockSingle.mockResolvedValue({
-                data: { organization: 'AKC', show_type: 'Regular' },
+                data: { organization: 'AKC', type: 'Regular' },
                 error: null,
               });
             }
@@ -297,15 +297,15 @@ describe('authService', () => {
   describe('getShowByLicenseKey', () => {
     const mockShow = {
       id: 1,
-      show_name: 'Test Show',
-      club_name: 'Test Club',
+      name: 'Test Show',
+      club_id: 'Test Club',
       license_key: 'myK9Q1-a260f472-e0d76a33-4b6c264c',
       start_date: '2025-01-15',
       organization: 'AKC',
-      show_type: 'Regular',
+      type: 'Regular',
     };
 
-    const mockTrials = [{ id: 101, show_id: 1, trial_name: 'Trial 1', trial_date: '2025-01-15' }];
+    const mockTrials = [{ id: 101, show_id: 1, name: 'Trial 1', date: '2025-01-15' }];
 
     const mockClasses = [{ id: 201, trial_id: 101, class_name: 'Novice A', class_order: 1 }];
 
@@ -333,10 +333,10 @@ describe('authService', () => {
                 mockSingle.mockResolvedValue({ data: mockShow, error: null });
                 return chain;
               });
-            } else if (fields === 'organization, show_type') {
+            } else if (fields === 'organization, type') {
               mockEq.mockImplementation(() => {
                 mockSingle.mockResolvedValue({
-                  data: { organization: 'AKC', show_type: 'Regular' },
+                  data: { organization: 'AKC', type: 'Regular' },
                   error: null,
                 });
                 return chain;
@@ -411,7 +411,7 @@ describe('authService', () => {
     });
 
     test('should use fallback organization from license data', async () => {
-      const showWithoutOrg = { ...mockShow, organization: null, show_type: null };
+      const showWithoutOrg = { ...mockShow, organization: null, type: null };
 
       const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
@@ -434,10 +434,10 @@ describe('authService', () => {
                 mockSingle.mockResolvedValue({ data: showWithoutOrg, error: null });
                 return chain;
               });
-            } else if (fields === 'organization, show_type') {
+            } else if (fields === 'organization, type') {
               mockEq.mockImplementation(() => {
                 mockSingle.mockResolvedValue({
-                  data: { organization: 'UKC', show_type: 'National' },
+                  data: { organization: 'UKC', type: 'National' },
                   error: null,
                 });
                 return chain;

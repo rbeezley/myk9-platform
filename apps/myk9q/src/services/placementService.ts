@@ -12,7 +12,7 @@ import { logger } from '@/utils/logger';
 /** Nested show data from joined query */
 interface NestedShow {
   license_key: string;
-  show_type?: string;
+  type?: string;
 }
 
 /** Nested trial data with shows from joined query */
@@ -45,15 +45,14 @@ export async function recalculatePlacementsForClass(
     // 3. Avoids N+1 queries
     const { error } = await supabase.rpc('recalculate_class_placements', {
       p_class_ids: classIdArray,
-      p_is_nationals: isNationals
+      p_is_nationals: isNationals,
     });
 
     if (error) {
       logger.error('Error recalculating placements:', error);
       throw error;
     }
-
-} catch (error) {
+  } catch (error) {
     logger.error('Error recalculating placements:', error);
     throw error;
   }
@@ -62,9 +61,7 @@ export async function recalculatePlacementsForClass(
 /**
  * Get the current placement for a specific entry
  */
-export async function getEntryPlacement(
-  entryId: number
-): Promise<number | null> {
+export async function getEntryPlacement(entryId: number): Promise<number | null> {
   try {
     const { data, error } = await supabase
       .from('entries')
@@ -87,24 +84,24 @@ export async function getEntryPlacement(
  * Manually recalculate placements for a class (triggered by user)
  * Used by judges/admins to refresh placements mid-class if needed
  */
-export async function manuallyRecalculatePlacements(
-  classId: number
-): Promise<void> {
+export async function manuallyRecalculatePlacements(classId: number): Promise<void> {
   try {
-// Get class data including show info
+    // Get class data including show info
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select(`
+      .select(
+        `
         id,
         trial_id,
         trials!inner (
           show_id,
           shows!inner (
             license_key,
-            show_type
+            type
           )
         )
-      `)
+      `
+      )
       .eq('id', classId)
       .single();
 
@@ -115,10 +112,10 @@ export async function manuallyRecalculatePlacements(
     const trial = classData.trials as unknown as NestedTrial;
     const show = trial.shows;
     const licenseKey = show.license_key;
-    const isNationals = show.show_type?.toLowerCase().includes('national') || false;
+    const isNationals = show.type?.toLowerCase().includes('national') || false;
 
     await recalculatePlacementsForClass(classId, licenseKey, isNationals);
-} catch (error) {
+  } catch (error) {
     logger.error('Error in manual placement recalculation:', error);
     throw error;
   }

@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger';
 /** Nested show data from joined query */
 interface NestedShow {
   license_key: string;
-  show_type?: string;
+  type?: string;
 }
 
 /** Nested trial data with shows from joined query */
@@ -73,15 +73,15 @@ export async function checkAndUpdateClassCompletion(
     classId,
     pairedClassId,
     justScoredEntryId,
-    justResetEntryId
+    justResetEntryId,
   });
 
-// Update status for the primary class
+  // Update status for the primary class
   await updateSingleClassCompletion(classId, justScoredEntryId, justResetEntryId);
 
   // Only update paired class if explicitly provided (i.e., scoring from combined view)
   if (pairedClassId) {
-await updateSingleClassCompletion(pairedClassId, justScoredEntryId, justResetEntryId);
+    await updateSingleClassCompletion(pairedClassId, justScoredEntryId, justResetEntryId);
   }
 }
 
@@ -122,19 +122,24 @@ async function updateSingleClassCompletion(
       try {
         // Get all cached entries and filter by class_id
         // Note: getAll requires licenseKey, but entries already filtered by show context
-        const allCachedEntries = await entriesTable.getAll() as Entry[];
+        const allCachedEntries = (await entriesTable.getAll()) as Entry[];
         const classEntries = allCachedEntries.filter(e => String(e.class_id) === String(classId));
 
         if (classEntries.length > 0) {
           entries = classEntries.map(e => ({
             id: Number(e.id),
-            is_scored: e.is_scored
+            is_scored: e.is_scored,
           }));
           usedLocalCache = true;
-          logger.log(`✅ [classCompletion] Using local cache for class ${classId}: ${classEntries.length} entries`);
+          logger.log(
+            `✅ [classCompletion] Using local cache for class ${classId}: ${classEntries.length} entries`
+          );
         }
       } catch (cacheError) {
-        logger.warn('⚠️ [classCompletion] Failed to query local cache, falling back to server:', cacheError);
+        logger.warn(
+          '⚠️ [classCompletion] Failed to query local cache, falling back to server:',
+          cacheError
+        );
       }
     }
   }
@@ -154,7 +159,7 @@ async function updateSingleClassCompletion(
 
     entries = serverEntries.map(e => ({
       id: e.id,
-      is_scored: e.is_scored
+      is_scored: e.is_scored,
     }));
   }
 
@@ -172,13 +177,17 @@ async function updateSingleClassCompletion(
   if (!usedLocalCache) {
     // Case 1: Just scored an entry - add to count if read replica missed it
     if (justScoredEntryId && !scoredIds.includes(justScoredEntryId)) {
-      logger.log(`⚠️ [classCompletion] Read replica lag (score): entry ${justScoredEntryId} not in scored list, adding to count`);
+      logger.log(
+        `⚠️ [classCompletion] Read replica lag (score): entry ${justScoredEntryId} not in scored list, adding to count`
+      );
       scoredCount += 1;
     }
 
     // Case 2: Just reset an entry - remove from count if read replica still shows it as scored
     if (justResetEntryId && scoredIds.includes(justResetEntryId)) {
-      logger.log(`⚠️ [classCompletion] Read replica lag (reset): entry ${justResetEntryId} still in scored list, removing from count`);
+      logger.log(
+        `⚠️ [classCompletion] Read replica lag (reset): entry ${justResetEntryId} still in scored list, removing from count`
+      );
       scoredCount -= 1;
     }
   }
@@ -192,18 +201,18 @@ async function updateSingleClassCompletion(
     usedLocalCache,
     justScoredEntryId,
     justResetEntryId,
-    willUpdate: true // Always update after reset to ensure class moves to correct tab
+    willUpdate: true, // Always update after reset to ensure class moves to correct tab
   });
 
   // IMPORTANT: When resetting, we ALWAYS need to update the class status
   // Skip the optimization check if we're handling a reset
   const isResetOperation = justResetEntryId !== undefined;
 
-// Check if we should skip this update (optimization: only check first and last dog)
+  // Check if we should skip this update (optimization: only check first and last dog)
   // BUT: Always run update after a reset to ensure class moves to correct tab
   if (!isResetOperation && !shouldCheckCompletion(scoredCount, totalCount)) {
     logger.log(`⏭️ [classCompletion] Skipping update for class ${classId} (not first or last dog)`);
-return;
+    return;
   }
 
   // Handle different completion states
@@ -219,7 +228,7 @@ return;
     // No entries scored - mark as no-status
     logger.log(`⏸️ [classCompletion] Class ${classId} has no scored entries, marking no-status`);
     await markClassNotStarted(classId);
-}
+  }
 }
 
 /**
@@ -232,7 +241,7 @@ async function markClassCompleted(classId: number): Promise<void> {
     .from('classes')
     .update({
       is_scoring_finalized: true,
-      class_status: 'completed',
+      status: 'completed',
     })
     .eq('id', classId);
 
@@ -246,9 +255,9 @@ async function markClassCompleted(classId: number): Promise<void> {
   }
 
   // CRITICAL: Update local cache to reflect the change immediately
-  await updateLocalClassCache(classId, { class_status: 'completed', is_scoring_finalized: true });
+  await updateLocalClassCache(classId, { status: 'completed', is_scoring_finalized: true });
 
-// Recalculate placements now that class is complete
+  // Recalculate placements now that class is complete
   await recalculateFinalPlacements(classId);
 }
 
@@ -264,11 +273,11 @@ async function markClassInProgress(
   _scoredCount: number,
   _totalCount: number
 ): Promise<void> {
-const { error: updateError } = await supabase
+  const { error: updateError } = await supabase
     .from('classes')
     .update({
       is_scoring_finalized: false,
-      class_status: 'in_progress',
+      status: 'in_progress',
     })
     .eq('id', classId);
 
@@ -282,7 +291,10 @@ const { error: updateError } = await supabase
   }
 
   // CRITICAL: Update local cache to reflect the change immediately
-  await updateLocalClassCache(classId, { class_status: 'in_progress', is_scoring_finalized: false });
+  await updateLocalClassCache(classId, {
+    status: 'in_progress',
+    is_scoring_finalized: false,
+  });
 }
 
 /**
@@ -299,7 +311,7 @@ async function markClassNotStarted(classId: number): Promise<void> {
     .from('classes')
     .update({
       is_scoring_finalized: false,
-      class_status: 'no-status',  // Matches entries.entry_status convention (migration 20251129)
+      status: 'no-status', // Matches entries.entry_status convention (migration 20251129)
     })
     .eq('id', classId);
 
@@ -313,7 +325,7 @@ async function markClassNotStarted(classId: number): Promise<void> {
   }
 
   // CRITICAL: Update local cache to reflect the change immediately
-  await updateLocalClassCache(classId, { class_status: 'no-status', is_scoring_finalized: false });
+  await updateLocalClassCache(classId, { status: 'no-status', is_scoring_finalized: false });
 
   logger.log(`✅ [classCompletion] Class ${classId} marked as no-status`);
 }
@@ -328,20 +340,22 @@ async function markClassNotStarted(classId: number): Promise<void> {
  */
 async function recalculateFinalPlacements(classId: number): Promise<void> {
   try {
-// Get show_id and license_key for this class
+    // Get show_id and license_key for this class
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select(`
+      .select(
+        `
         id,
         trial_id,
         trials!inner (
           show_id,
           shows!inner (
             license_key,
-            show_type
+            type
           )
         )
-      `)
+      `
+      )
       .eq('id', classId)
       .single();
 
@@ -354,10 +368,10 @@ async function recalculateFinalPlacements(classId: number): Promise<void> {
       const trial = classData.trials as unknown as NestedTrial;
       const show = trial.shows;
       const licenseKey = show.license_key;
-      const isNationals = show.show_type?.toLowerCase().includes('national') || false;
+      const isNationals = show.type?.toLowerCase().includes('national') || false;
 
-await recalculatePlacementsForClass(classId, licenseKey, isNationals);
-} else {
+      await recalculatePlacementsForClass(classId, licenseKey, isNationals);
+    } else {
       logger.error('⚠️ Could not find class or show data for class', classId);
     }
   } catch (placementError) {
@@ -381,7 +395,7 @@ await recalculatePlacementsForClass(classId, licenseKey, isNationals);
  * await manuallyCheckClassCompletion(123);
  */
 export async function manuallyCheckClassCompletion(classId: number): Promise<void> {
-await updateSingleClassCompletion(classId);
+  await updateSingleClassCompletion(classId);
 }
 
 /**
@@ -394,7 +408,7 @@ await updateSingleClassCompletion(classId);
  */
 async function updateLocalClassCache(
   classId: number,
-  updates: { class_status?: string; is_scoring_finalized?: boolean }
+  updates: { status?: string; is_scoring_finalized?: boolean }
 ): Promise<void> {
   try {
     const manager = getReplicationManager();
@@ -405,31 +419,35 @@ async function updateLocalClassCache(
 
     const classesTable = manager.getTable('classes');
     if (!classesTable) {
-      logger.warn('⚠️ [updateLocalClassCache] Classes table not registered - skipping cache update');
+      logger.warn(
+        '⚠️ [updateLocalClassCache] Classes table not registered - skipping cache update'
+      );
       return;
     }
 
     // Get the current class from cache
-    const currentClass = await classesTable.get(String(classId)) as Class | undefined;
+    const currentClass = (await classesTable.get(String(classId))) as Class | undefined;
     if (!currentClass) {
-      logger.warn(`⚠️ [updateLocalClassCache] Class ${classId} not found in cache - skipping cache update`);
+      logger.warn(
+        `⚠️ [updateLocalClassCache] Class ${classId} not found in cache - skipping cache update`
+      );
       return;
     }
 
     // Update the class with new values
     const updatedClass: Class = {
       ...currentClass,
-      class_status: updates.class_status ?? currentClass.class_status,
+      status: updates.status ?? currentClass.status,
       is_scoring_finalized: updates.is_scoring_finalized ?? currentClass.is_scoring_finalized,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     // Write back to cache (not dirty - already synced to server)
     await classesTable.set(String(classId), updatedClass, false);
 
     logger.log(`✅ [updateLocalClassCache] Updated class ${classId} in cache:`, {
-      class_status: updatedClass.class_status,
-      is_scoring_finalized: updatedClass.is_scoring_finalized
+      status: updatedClass.status,
+      is_scoring_finalized: updatedClass.is_scoring_finalized,
     });
   } catch (error) {
     logger.error('❌ [updateLocalClassCache] Failed to update cache:', error);

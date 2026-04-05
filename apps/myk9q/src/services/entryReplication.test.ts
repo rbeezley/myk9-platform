@@ -89,15 +89,15 @@ describe('entryReplication', () => {
       element: 'Container',
       level: 'Novice',
       section: 'A',
-      area_count: 1,
+      num_areas: 1,
       time_limit_seconds: 180,
-      time_limit_area2_seconds: undefined,
-      time_limit_area3_seconds: undefined,
+      time_limit_area2_seconds_REMOVED: undefined,
+      time_limit_area3_seconds_REMOVED: undefined,
       trial_id: 456,
       license_key: 'TEST-KEY',
       judge_name: 'Judge Smith',
       is_scoring_finalized: false,
-      class_status: 'not_started',
+      status: 'not_started',
       created_at: '2025-01-19T00:00:00Z',
       updated_at: '2025-01-19T00:00:00Z',
     };
@@ -106,10 +106,10 @@ describe('entryReplication', () => {
       {
         id: '1',
         class_id: '123',
-        armband_number: 101,
+        armband: 101,
         dog_call_name: 'Max',
         dog_breed: 'Border Collie',
-        handler_name: 'John Doe',
+        handler: 'John Doe',
         entry_status: 'completed',
         is_scored: true,
         is_in_ring: false,
@@ -124,10 +124,10 @@ describe('entryReplication', () => {
       {
         id: '2',
         class_id: '123',
-        armband_number: 102,
+        armband: 102,
         dog_call_name: 'Bella',
         dog_breed: 'Golden Retriever',
-        handler_name: 'Jane Smith',
+        handler: 'Jane Smith',
         entry_status: 'in-ring',
         is_scored: false,
         is_in_ring: true,
@@ -224,7 +224,7 @@ describe('entryReplication', () => {
       const multiClassEntries: ReplicatedEntry[] = [
         { ...mockReplicatedEntries[0], class_id: '123' },
         { ...mockReplicatedEntries[1], class_id: '124' },
-        { ...mockReplicatedEntries[0], id: '3', class_id: '125', armband_number: 103 },
+        { ...mockReplicatedEntries[0], id: '3', class_id: '125', armband: 103 },
       ];
 
       mockClassesTable.get.mockResolvedValue(mockClass);
@@ -240,9 +240,9 @@ describe('entryReplication', () => {
 
     it('should sort entries by armband number', async () => {
       const unsortedEntries: ReplicatedEntry[] = [
-        { ...mockReplicatedEntries[0], id: '1', armband_number: 105 },
-        { ...mockReplicatedEntries[1], id: '2', armband_number: 101 },
-        { ...mockReplicatedEntries[0], id: '3', armband_number: 103 },
+        { ...mockReplicatedEntries[0], id: '1', armband: 105 },
+        { ...mockReplicatedEntries[1], id: '2', armband: 101 },
+        { ...mockReplicatedEntries[0], id: '3', armband: 103 },
       ];
 
       mockClassesTable.get.mockResolvedValue(mockClass);
@@ -272,10 +272,10 @@ describe('entryReplication', () => {
     it('should format time limits correctly', async () => {
       const classWithMultipleAreas: Class = {
         ...mockClass,
-        area_count: 3,
+        num_areas: 3,
         time_limit_seconds: 180,
-        time_limit_area2_seconds: 120,
-        time_limit_area3_seconds: 90,
+        time_limit_area2_seconds_REMOVED: 120,
+        time_limit_area3_seconds_REMOVED: 90,
       };
 
       mockClassesTable.get.mockResolvedValue(classWithMultipleAreas);
@@ -395,15 +395,15 @@ describe('entryReplication', () => {
       element: 'Interior',
       level: 'Excellent',
       section: 'B',
-      area_count: 2,
+      num_areas: 2,
       time_limit_seconds: 240,
-      time_limit_area2_seconds: 180,
-      time_limit_area3_seconds: undefined,
+      time_limit_area2_seconds_REMOVED: 180,
+      time_limit_area3_seconds_REMOVED: undefined,
       trial_id: 456,
       license_key: 'TEST-KEY',
       judge_name: 'Judge Smith',
       is_scoring_finalized: false,
-      class_status: 'not_started',
+      status: 'not_started',
       created_at: '2025-01-19T00:00:00Z',
       updated_at: '2025-01-19T00:00:00Z',
     };
@@ -411,10 +411,10 @@ describe('entryReplication', () => {
     const baseReplicatedEntry: ReplicatedEntry = {
       id: '1',
       class_id: '123',
-      armband_number: 101,
+      armband: 101,
       dog_call_name: 'Max',
       dog_breed: 'Border Collie',
-      handler_name: 'John Doe',
+      handler: 'John Doe',
       entry_status: 'completed',
       is_scored: true,
       is_in_ring: false,

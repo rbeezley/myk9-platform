@@ -29,10 +29,10 @@ export async function fetchClassEntriesFromDatabase(
   primaryClassId: number,
   licenseKey: string
 ): Promise<Entry[]> {
-// Get class data to determine element, level, section for filtering
+  // Get class data to determine element, level, section for filtering
   const { data: classData, error: classError } = await supabase
     .from('classes')
-    .select('element, level, section, area_count, time_limit_seconds, time_limit_area2_seconds, time_limit_area3_seconds')
+    .select('element, level, section, num_areas, time_limit_seconds')
     .eq('id', primaryClassId)
     .single();
 
@@ -41,27 +41,29 @@ export async function fetchClassEntriesFromDatabase(
     throw new Error('Could not find class');
   }
 
-  // Use view_entry_with_results for pre-joined data (entries + results in one query)
+  // Use view_myk9q_entries for pre-joined data (entries + results in one query)
   const { data: viewData, error: viewError } = await supabase
-    .from('view_entry_with_results')
-    .select(`
+    .from('view_myk9q_entries')
+    .select(
+      `
       *,
       classes!inner (
         element,
         level,
         section,
         trials!inner (
-          trial_date,
+          date,
           trial_number,
           shows!inner (
             license_key
           )
         )
       )
-    `)
+    `
+    )
     .in('class_id', classIdArray)
     .eq('classes.trials.shows.license_key', licenseKey)
-    .order('armband_number', { ascending: true });
+    .order('armband', { ascending: true });
 
   if (viewError) {
     logger.error('Error fetching class entries from view:', viewError);
@@ -79,10 +81,10 @@ export async function fetchClassEntriesFromDatabase(
 
     return {
       id: row.id,
-      armband: row.armband_number,
+      armband: row.armband,
       callName: row.dog_call_name,
       breed: row.dog_breed,
-      handler: row.handler_name,
+      handler: row.handler,
       jumpHeight: '', // Not in normalized schema yet
       preferredTime: '', // Not in normalized schema yet
       isScored: row.is_scored || false,
@@ -112,17 +114,17 @@ export async function fetchClassEntriesFromDatabase(
       element: row.classes.element,
       level: row.classes.level,
       timeLimit: formatTimeLimitSeconds(classData.time_limit_seconds),
-      timeLimit2: formatTimeLimitSeconds(classData.time_limit_area2_seconds),
-      timeLimit3: formatTimeLimitSeconds(classData.time_limit_area3_seconds),
-      areas: classData.area_count,
-      exhibitorOrder: row.exhibitor_order,
+      timeLimit2: undefined,
+      timeLimit3: undefined,
+      areas: classData.num_areas,
+      exhibitorOrder: row.run_order,
       actualClassId: row.class_id,
-      trialDate: row.classes.trials.trial_date,
-      trialNumber: row.classes.trials.trial_number.toString()
+      trialDate: row.classes.trials.date,
+      trialNumber: row.classes.trials.trial_number.toString(),
     };
   });
 
-return mappedEntries;
+  return mappedEntries;
 }
 
 /**
@@ -138,21 +140,23 @@ export async function fetchTrialEntriesFromDatabase(
 ): Promise<Entry[]> {
   const { data, error } = await supabase
     .from('entries')
-    .select(`
+    .select(
+      `
       *,
       classes!inner (
         element,
         level,
         section,
         trials!inner (
-          trial_date,
+          date,
           trial_number,
           shows!inner (
             license_key
           )
         )
       )
-    `)
+    `
+    )
     .eq('classes.trials.shows.license_key', licenseKey)
     .eq('classes.trials.id', trialId)
     .order('classes.element', { ascending: true })
@@ -193,21 +197,23 @@ export async function fetchEntriesByArmbandFromDatabase(
 ): Promise<Entry[]> {
   const { data, error } = await supabase
     .from('entries')
-    .select(`
+    .select(
+      `
       *,
       classes!inner (
         element,
         level,
         section,
         trials!inner (
-          trial_date,
+          date,
           trial_number,
           shows!inner (
             license_key
           )
         )
       )
-    `)
+    `
+    )
     .eq('classes.trials.shows.license_key', licenseKey)
     .eq('armband', armband)
     .order('classes.element', { ascending: true });

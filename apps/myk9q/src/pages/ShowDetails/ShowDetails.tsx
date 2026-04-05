@@ -28,7 +28,7 @@ import {
   NotesCard,
   LocationCard,
   EventDetailsCard,
-  UpcomingShowsCard
+  UpcomingShowsCard,
 } from './ShowDetailsComponents';
 import { getSecretaryInfo, getChairmanInfo } from './showDetailsUtils';
 import { useDashboardData } from './hooks/useDashboardData';
@@ -56,12 +56,7 @@ export function ShowDetails() {
   }, [licenseKey, showContext?.showName, setLicenseKey]);
 
   // Use dashboard data hook for show data
-  const {
-    show,
-    isLoading,
-    error,
-    refetch,
-  } = useDashboardData(licenseKey, showId);
+  const { show, isLoading, error, refetch } = useDashboardData(licenseKey, showId);
 
   // Fetch all shows for upcoming shows section
   const { data: allShows = [] } = useQuery({
@@ -115,7 +110,7 @@ export function ShowDetails() {
   return (
     <div className="show-details-container">
       <ShowDetailsHeader
-        subtitle={showContext?.showName || show.show_name}
+        subtitle={showContext?.showName || show.name}
         isRefreshing={isManualRefreshing}
         onRefresh={handleRefresh}
         showRefreshButton
@@ -126,16 +121,8 @@ export function ShowDetails() {
         <div className="show-details-info-grid">
           <EventDetailsCard show={show} />
           <LocationCard show={show} />
-          <ContactCard
-            title="Trial Secretary"
-            icon={<User />}
-            contact={secretaryInfo}
-          />
-          <ContactCard
-            title="Trial Chairman"
-            icon={<User />}
-            contact={chairmanInfo}
-          />
+          <ContactCard title="Trial Secretary" icon={<User />} contact={secretaryInfo} />
+          <ContactCard title="Trial Chairman" icon={<User />} contact={chairmanInfo} />
           <NotesCard notes={show.notes} />
           <UpcomingShowsCard
             shows={allShows}

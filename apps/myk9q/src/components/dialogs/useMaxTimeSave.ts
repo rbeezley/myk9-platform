@@ -47,7 +47,7 @@ export function useMaxTimeSave({
     if (!timeRange) return;
 
     // Validate all times
-    const newErrors = times.map((time) => validateTime(time, timeRange));
+    const newErrors = times.map(time => validateTime(time, timeRange));
 
     // Check if any errors exist
     const hasErrors = newErrors.some(error => error !== '');
@@ -61,7 +61,9 @@ export function useMaxTimeSave({
 
     // Only prevent saving if some areas are filled and some are empty (incomplete state)
     if (!allAreasEmpty && !allAreasStillFilled) {
-      setValidationMessage(`Please either set max time for all ${requiredAreas} area${requiredAreas !== 1 ? 's' : ''} or clear all fields`);
+      setValidationMessage(
+        `Please either set max time for all ${requiredAreas} area${requiredAreas !== 1 ? 's' : ''} or clear all fields`
+      );
       return;
     }
 
@@ -72,12 +74,8 @@ export function useMaxTimeSave({
       // Use null instead of 0 for empty times (database has CHECK constraints requiring > 0 or NULL)
       const updateData: {
         time_limit_seconds: number | null;
-        time_limit_area2_seconds: number | null;
-        time_limit_area3_seconds: number | null;
       } = {
         time_limit_seconds: times[0] ? timeStringToSeconds(times[0]) : null,
-        time_limit_area2_seconds: times[1] ? timeStringToSeconds(times[1]) : null,
-        time_limit_area3_seconds: times[2] ? timeStringToSeconds(times[2]) : null,
       };
 
       // For combined Novice A & B classes, update both records
@@ -85,10 +83,7 @@ export function useMaxTimeSave({
         ? [classData.id, classData.pairedClassId]
         : [classData.id];
 
-      const { error } = await supabase
-        .from('classes')
-        .update(updateData)
-        .in('id', idsToUpdate);
+      const { error } = await supabase.from('classes').update(updateData).in('id', idsToUpdate);
 
       if (error) {
         logger.error('❌ Error updating max times:', error);
@@ -108,8 +103,6 @@ export function useMaxTimeSave({
               const updatedClass: Class = {
                 ...existingClass,
                 time_limit_seconds: updateData.time_limit_seconds || undefined,
-                time_limit_area2_seconds: updateData.time_limit_area2_seconds || undefined,
-                time_limit_area3_seconds: updateData.time_limit_area3_seconds || undefined,
               };
               await classesTable.set(String(id), updatedClass, false);
             }
@@ -121,7 +114,9 @@ export function useMaxTimeSave({
       }
 
       if (allAreasEmpty) {
-        setSuccessMessage('Max times have been cleared successfully. Judges can now set new times.');
+        setSuccessMessage(
+          'Max times have been cleared successfully. Judges can now set new times.'
+        );
       } else {
         setSuccessMessage('Max times have been saved successfully.');
       }

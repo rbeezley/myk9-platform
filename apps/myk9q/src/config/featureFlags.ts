@@ -19,7 +19,7 @@ export type ReplicatedTableName =
   | 'classes'
   | 'trials'
   | 'shows'
-  | 'class_requirements'
+  | 'sport_class_rules'
 
   // Visibility config (Phase 3 Day 15)
   | 'show_visibility_settings'
@@ -72,7 +72,7 @@ const tableConfig: Record<ReplicatedTableName, TableReplicationConfig> = {
     priority: 'critical',
     ttl: 60 * 60 * 1000, // 1 hour (changes infrequently)
   },
-  class_requirements: {
+  sport_class_rules: {
     priority: 'high',
     ttl: 24 * 60 * 60 * 1000, // 24 hours (static data)
   },

@@ -121,7 +121,7 @@ async function fetchDogDetails(
     // Get all entries for this show and filter by armband
     // CRITICAL: Pass license_key to filter entries to current show only (multi-tenant isolation)
     const allEntries = (await entriesTable.getAll(licenseKey)) as Entry[];
-    const dogEntries = allEntries.filter(entry => entry.armband_number === parseInt(armband));
+    const dogEntries = allEntries.filter(entry => entry.armband === parseInt(armband));
 
     // If cache is empty, fall back to Supabase (cache may still be syncing)
     if (dogEntries.length === 0) {
@@ -179,11 +179,11 @@ async function fetchDogDetails(
     // Import supabase for fallback
     const { supabase } = await import('../../../lib/supabase');
 
-    // Query view_entry_class_join_normalized for this armband
+    // Query view_myk9q_entries for this armband
     const { data: entries, error } = await supabase
-      .from('view_entry_class_join_normalized')
+      .from('view_myk9q_entries')
       .select('*')
-      .eq('armband_number', parseInt(armband))
+      .eq('armband', parseInt(armband))
       .eq('license_key', licenseKey);
 
     if (error) throw error;
@@ -203,8 +203,8 @@ async function fetchDogDetails(
 
     // Fetch all entries for those classes to calculate queue position
     const { data: allClassEntries, error: classEntriesError } = await supabase
-      .from('view_entry_class_join_normalized')
-      .select('id, class_id, armband_number, entry_status, is_scored, exhibitor_order')
+      .from('view_myk9q_entries')
+      .select('id, class_id, armband, entry_status, is_scored, run_order')
       .in('class_id', classIds)
       .eq('license_key', licenseKey);
 

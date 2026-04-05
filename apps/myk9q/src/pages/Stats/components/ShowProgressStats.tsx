@@ -27,16 +27,16 @@ import { cn } from '@/lib/utils';
 /** Tailwind styles for ShowProgressStats */
 const styles = {
   container: cn(
-    "grid grid-cols-2 gap-3",
-    "pt-4 px-3",
-    "sm:grid-cols-4 sm:pt-5 sm:px-4",
-    "lg:pt-6 lg:px-6"
+    'grid grid-cols-2 gap-3',
+    'pt-4 px-3',
+    'sm:grid-cols-4 sm:pt-5 sm:px-4',
+    'lg:pt-6 lg:px-6'
   ),
-  cardClickable: "cursor-pointer",
-  iconAnnouncements: "bg-gradient-to-br from-amber-500 to-amber-600",
-  iconFavorites: "bg-gradient-to-br from-pink-500 to-pink-600",
-  iconInProgress: "bg-gradient-to-br from-[var(--status-at-gate)] to-violet-600",
-  iconCompletion: "bg-gradient-to-br from-[var(--status-checked-in)] to-emerald-600",
+  cardClickable: 'cursor-pointer',
+  iconAnnouncements: 'bg-gradient-to-br from-amber-500 to-amber-600',
+  iconFavorites: 'bg-gradient-to-br from-pink-500 to-pink-600',
+  iconInProgress: 'bg-gradient-to-br from-[var(--status-at-gate)] to-violet-600',
+  iconCompletion: 'bg-gradient-to-br from-[var(--status-checked-in)] to-emerald-600',
 };
 
 interface ShowProgressStatsProps {
@@ -96,25 +96,26 @@ async function fetchShowProgressStats(
     const classIdsWithEntries = new Set(showEntries.map(e => String(e.class_id)));
 
     // Count active classes (only classes with entries can be "in progress")
-    const activeClasses = showClasses.filter(c =>
-      c.class_status === 'in_progress' || c.class_status === 'in-progress'
+    const activeClasses = showClasses.filter(
+      c => c.status === 'in_progress' || c.status === 'in-progress'
     ).length;
 
     // Count completed classes: either marked completed OR has no entries
-    const completedClasses = showClasses.filter(c =>
-      c.class_status === 'completed' || !classIdsWithEntries.has(String(c.id))
+    const completedClasses = showClasses.filter(
+      c => c.status === 'completed' || !classIdsWithEntries.has(String(c.id))
     ).length;
 
     const totalClasses = showClasses.length;
-    const completionPercent = totalClasses > 0
-      ? Math.round((completedClasses / totalClasses) * 100)
-      : 0;
+    const completionPercent =
+      totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0;
 
     // Get total count of favorite dogs
     const favoriteDogs = loadFavoritesAsSet('dog', licenseKey);
     const favoritesCount = favoriteDogs.size;
 
-    logger.log(`[ShowProgressStats] Stats: ${activeClasses} active, ${completedClasses}/${totalClasses} completed, ${favoritesCount} favorites`);
+    logger.log(
+      `[ShowProgressStats] Stats: ${activeClasses} active, ${completedClasses}/${totalClasses} completed, ${favoritesCount} favorites`
+    );
 
     return {
       unreadAnnouncements: 0, // Will be filled from store
@@ -146,7 +147,8 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
   const showId = showContext?.showId;
 
   // Get unread count from announcement store
-  const { unreadCount, setLicenseKey, currentLicenseKey, fetchAnnouncements } = useAnnouncementStore();
+  const { unreadCount, setLicenseKey, currentLicenseKey, fetchAnnouncements } =
+    useAnnouncementStore();
 
   // Ensure announcement store is initialized for current license key
   // If license key differs, setLicenseKey triggers a fetch
@@ -212,13 +214,13 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
     <div className={styles.container}>
       {/* Unread Announcements */}
       <div
-        className={cn("stats-card", styles.cardClickable)}
+        className={cn('stats-card', styles.cardClickable)}
         onClick={() => handleCardClick('announcements')}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && handleCardClick('announcements')}
+        onKeyDown={e => e.key === 'Enter' && handleCardClick('announcements')}
       >
-        <div className={cn("card-icon", styles.iconAnnouncements)}>
+        <div className={cn('card-icon', styles.iconAnnouncements)}>
           <Bell />
         </div>
         <div className="card-content">
@@ -230,13 +232,13 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
 
       {/* Favorites */}
       <div
-        className={cn("stats-card", styles.cardClickable)}
+        className={cn('stats-card', styles.cardClickable)}
         onClick={() => handleCardClick('favorites')}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && handleCardClick('favorites')}
+        onKeyDown={e => e.key === 'Enter' && handleCardClick('favorites')}
       >
-        <div className={cn("card-icon", styles.iconFavorites)}>
+        <div className={cn('card-icon', styles.iconFavorites)}>
           <Heart />
         </div>
         <div className="card-content">
@@ -248,13 +250,13 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
 
       {/* Classes In Progress */}
       <div
-        className={cn("stats-card", trialId && styles.cardClickable)}
+        className={cn('stats-card', trialId && styles.cardClickable)}
         onClick={() => trialId && handleCardClick('active')}
         role={trialId ? 'button' : undefined}
         tabIndex={trialId ? 0 : undefined}
-        onKeyDown={(e) => trialId && e.key === 'Enter' && handleCardClick('active')}
+        onKeyDown={e => trialId && e.key === 'Enter' && handleCardClick('active')}
       >
-        <div className={cn("card-icon", styles.iconInProgress)}>
+        <div className={cn('card-icon', styles.iconInProgress)}>
           <Clock />
         </div>
         <div className="card-content">
@@ -266,19 +268,21 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
 
       {/* Completion */}
       <div
-        className={cn("stats-card", trialId && styles.cardClickable)}
+        className={cn('stats-card', trialId && styles.cardClickable)}
         onClick={() => trialId && handleCardClick('progress')}
         role={trialId ? 'button' : undefined}
         tabIndex={trialId ? 0 : undefined}
-        onKeyDown={(e) => trialId && e.key === 'Enter' && handleCardClick('progress')}
+        onKeyDown={e => trialId && e.key === 'Enter' && handleCardClick('progress')}
       >
-        <div className={cn("card-icon", styles.iconCompletion)}>
+        <div className={cn('card-icon', styles.iconCompletion)}>
           <CheckCircle />
         </div>
         <div className="card-content">
           <h3>Classes</h3>
           <p className="card-value">{mergedStats.completionPercent}%</p>
-          <p className="card-subtitle">{mergedStats.completedClasses} of {mergedStats.totalClasses} done</p>
+          <p className="card-subtitle">
+            {mergedStats.completedClasses} of {mergedStats.totalClasses} done
+          </p>
         </div>
       </div>
     </div>

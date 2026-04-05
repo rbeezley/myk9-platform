@@ -30,7 +30,7 @@ export async function getEntriesFromReplicationCache(
   primaryClassId: number,
   licenseKey?: string
 ): Promise<Entry[] | null> {
-const manager = getReplicationManager();
+  const manager = getReplicationManager();
   if (!manager) {
     logger.warn('[REPLICATION] Replication manager not available');
     return null;
@@ -54,64 +54,65 @@ const manager = getReplicationManager();
       return null;
     }
 
-// Get all entries from cache and filter for requested classes
+    // Get all entries from cache and filter for requested classes
     // CRITICAL: Pass license_key to filter entries to current show only (multi-tenant isolation)
     const cachedEntries = await entriesTable.getAll(licenseKey);
     const classEntries = cachedEntries.filter(entry =>
       classIdArray.includes(parseInt(entry.class_id, 10))
     );
 
-// Transform replicated entries to Entry format
-    const mappedEntries = classEntries.map(entry => {
-      const status = determineEntryStatus(entry.entry_status);
+    // Transform replicated entries to Entry format
+    const mappedEntries = classEntries
+      .map(entry => {
+        const status = determineEntryStatus(entry.entry_status);
 
-      return {
-        id: parseInt(entry.id, 10),
-        armband: entry.armband_number,
-        callName: entry.dog_call_name,
-        breed: entry.dog_breed || '',
-        handler: entry.handler_name,
-        jumpHeight: '',
-        preferredTime: '',
-        isScored: entry.is_scored || false,
+        return {
+          id: parseInt(entry.id, 10),
+          armband: entry.armband,
+          callName: entry.dog_call_name,
+          breed: entry.dog_breed || '',
+          handler: entry.handler,
+          jumpHeight: '',
+          preferredTime: '',
+          isScored: entry.is_scored || false,
 
-        // Unified status field
-        status,
+          // Unified status field
+          status,
 
-        // Deprecated fields (backward compatibility)
-        inRing: status === 'in-ring',
-        checkedIn: status !== 'no-status',
-        checkinStatus: status,
+          // Deprecated fields (backward compatibility)
+          inRing: status === 'in-ring',
+          checkedIn: status !== 'no-status',
+          checkinStatus: status,
 
-        resultText: entry.result_status || 'pending',
-        searchTime: entry.search_time_seconds?.toString() || '0.00',
-        faultCount: entry.total_faults || 0,
-        placement: entry.final_placement ?? undefined,
-        correctFinds: 0, // Not in replicated schema yet
-        incorrectFinds: 0,
-        noFinishCount: 0,
-        totalPoints: 0,
-        nqReason: undefined,
-        excusedReason: undefined,
-        withdrawnReason: undefined,
-        classId: parseInt(entry.class_id, 10),
-        className: buildClassName(cachedClass.element, cachedClass.level, cachedClass.section),
-        section: cachedClass.section || '',
-        element: cachedClass.element,
-        level: cachedClass.level,
-        timeLimit: formatTimeLimitSeconds(cachedClass.time_limit_seconds),
-        timeLimit2: formatTimeLimitSeconds(cachedClass.time_limit_area2_seconds),
-        timeLimit3: formatTimeLimitSeconds(cachedClass.time_limit_area3_seconds),
-        areas: cachedClass.area_count,
-        exhibitorOrder: entry.exhibitor_order || 0,
-        actualClassId: parseInt(entry.class_id, 10),
-        trialDate: '', // Would need to join with trials table
-        trialNumber: ''
-      };
-    }).sort((a, b) => a.armband - b.armband);
+          resultText: entry.result_status || 'pending',
+          searchTime: entry.search_time_seconds?.toString() || '0.00',
+          faultCount: entry.total_faults || 0,
+          placement: entry.final_placement ?? undefined,
+          correctFinds: 0, // Not in replicated schema yet
+          incorrectFinds: 0,
+          noFinishCount: 0,
+          totalPoints: 0,
+          nqReason: undefined,
+          excusedReason: undefined,
+          withdrawnReason: undefined,
+          classId: parseInt(entry.class_id, 10),
+          className: buildClassName(cachedClass.element, cachedClass.level, cachedClass.section),
+          section: cachedClass.section || '',
+          element: cachedClass.element,
+          level: cachedClass.level,
+          timeLimit: formatTimeLimitSeconds(cachedClass.time_limit_seconds),
+          timeLimit2: undefined,
+          timeLimit3: undefined,
+          areas: cachedClass.num_areas,
+          exhibitorOrder: entry.run_order || 0,
+          actualClassId: parseInt(entry.class_id, 10),
+          trialDate: '', // Would need to join with trials table
+          trialNumber: '',
+        };
+      })
+      .sort((a, b) => a.armband - b.armband);
 
-return mappedEntries;
-
+    return mappedEntries;
   } catch (error) {
     logger.error('❌ Error loading from replicated cache, falling back to Supabase:', error);
     return null;
@@ -127,7 +128,6 @@ return mappedEntries;
  * @param operationName - Name of the operation triggering sync (for logging)
  */
 export async function triggerImmediateEntrySync(operationName: string): Promise<void> {
-   
   logger.log(`🔄 [${operationName}] Starting immediate entry sync...`);
 
   try {
@@ -135,13 +135,14 @@ export async function triggerImmediateEntrySync(operationName: string): Promise<
     const manager = getReplicationManager();
 
     if (manager) {
-       
       logger.log(`🔄 [${operationName}] Replication manager found, syncing entries table...`);
       await manager.syncTable('entries', { forceFullSync: false });
-       
+
       logger.log(`✅ [${operationName}] Immediate entry sync completed`);
     } else {
-      logger.warn(`[${operationName}] Replication manager not available, UI may not update until next sync`);
+      logger.warn(
+        `[${operationName}] Replication manager not available, UI may not update until next sync`
+      );
     }
   } catch (syncError) {
     logger.warn(`[${operationName}] Failed to trigger immediate sync (non-critical):`, syncError);

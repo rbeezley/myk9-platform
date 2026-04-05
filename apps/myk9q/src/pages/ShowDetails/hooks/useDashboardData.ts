@@ -128,8 +128,8 @@ async function fetchAllClasses(licenseKey: string): Promise<ClassSummary[]> {
     allTrials.forEach(trial => {
       const trialId = typeof trial.id === 'string' ? parseInt(trial.id, 10) : trial.id;
       trialMap.set(trialId, {
-        trial_number: trial.trial_number || 1,
-        trial_date: trial.trial_date || '',
+        trial_number: parseInt(String(trial.trial_number ?? '1')) || 1,
+        trial_date: trial.date || '',
       });
     });
 
@@ -147,7 +147,8 @@ async function fetchAllClasses(licenseKey: string): Promise<ClassSummary[]> {
       const sectionPart = cls.section && cls.section !== '-' ? cls.section : '';
 
       // Build class name and remove any trailing dashes (N/A indicators)
-      const rawClassName = `${cls.element || ''} ${cls.level || ''}${sectionPart ? ' ' + sectionPart : ''}`.trim();
+      const rawClassName =
+        `${cls.element || ''} ${cls.level || ''}${sectionPart ? ' ' + sectionPart : ''}`.trim();
       const className = rawClassName.replace(/[\s-]+$/, '').trim();
 
       return {
@@ -159,7 +160,7 @@ async function fetchAllClasses(licenseKey: string): Promise<ClassSummary[]> {
         judge_name: cls.judge_name || '',
         entry_count: classEntries.length,
         completed_count: completedCount,
-        class_status: cls.class_status || 'no-status',
+        class_status: cls.status || 'no-status',
         trial_id: trialId,
         trial_number: trialInfo.trial_number,
         trial_date: trialInfo.trial_date,
@@ -170,9 +171,9 @@ async function fetchAllClasses(licenseKey: string): Promise<ClassSummary[]> {
         start_time: cls.start_time,
         // Time limit fields for scoresheet printing
         time_limit_seconds: cls.time_limit_seconds,
-        time_limit_area2_seconds: cls.time_limit_area2_seconds,
-        time_limit_area3_seconds: cls.time_limit_area3_seconds,
-        area_count: cls.area_count,
+        time_limit_area2_seconds: undefined,
+        time_limit_area3_seconds: undefined,
+        area_count: cls.num_areas,
       };
     });
 
@@ -224,10 +225,7 @@ async function fetchShow(licenseKey: string): Promise<Show | null> {
  * Calculate queue position for an entry within its class.
  * Returns the number of dogs ahead in the queue (0 = next up).
  */
-function calculateQueuePosition(
-  entry: Entry,
-  allShowEntries: Entry[]
-): number | null {
+function calculateQueuePosition(entry: Entry, allShowEntries: Entry[]): number | null {
   // Skip if entry is already scored - no queue position needed
   if (entry.is_scored) {
     return null;
@@ -238,10 +236,8 @@ function calculateQueuePosition(
   const classEntries = allShowEntries.filter(e => String(e.class_id) === classId);
 
   // Filter to only pending entries (not scored, not pulled)
-  const pendingEntries = classEntries.filter(e =>
-    !e.is_scored &&
-    e.entry_status !== 'pulled' &&
-    e.entry_status !== 'completed'
+  const pendingEntries = classEntries.filter(
+    e => !e.is_scored && e.entry_status !== 'pulled' && e.entry_status !== 'completed'
   );
 
   // Sort by exhibitor_order (ascending), with in-ring entries first
@@ -252,9 +248,9 @@ function calculateQueuePosition(
     if (aIsInRing && !bIsInRing) return -1;
     if (!aIsInRing && bIsInRing) return 1;
 
-    // Then by exhibitor_order (treat 0 as "not set" and fall back to armband)
-    const aOrder = (a.exhibitor_order && a.exhibitor_order > 0) ? a.exhibitor_order : (a.armband_number ?? 9999);
-    const bOrder = (b.exhibitor_order && b.exhibitor_order > 0) ? b.exhibitor_order : (b.armband_number ?? 9999);
+    // Then by run_order (treat 0 as "not set" and fall back to armband)
+    const aOrder = a.run_order && a.run_order > 0 ? a.run_order : (a.armband ?? 9999);
+    const bOrder = b.run_order && b.run_order > 0 ? b.run_order : (b.armband ?? 9999);
     return aOrder - bOrder;
   });
 
@@ -289,11 +285,11 @@ async function calculateFavoriteEntries(
     // Group entries by armband (dog)
     const dogEntries = new Map<number, Entry[]>();
     showEntries.forEach(entry => {
-      if (favoriteDogArmbands.has(entry.armband_number)) {
-        if (!dogEntries.has(entry.armband_number)) {
-          dogEntries.set(entry.armband_number, []);
+      if (favoriteDogArmbands.has(entry.armband)) {
+        if (!dogEntries.has(entry.armband)) {
+          dogEntries.set(entry.armband, []);
         }
-        dogEntries.get(entry.armband_number)!.push(entry);
+        dogEntries.get(entry.armband)!.push(entry);
       }
     });
 
@@ -324,11 +320,16 @@ async function calculateFavoriteEntries(
           : null;
 
         favorites.push({
-          dogId: typeof firstEntry.id === 'string' ? parseInt(firstEntry.id, 10) : Number(firstEntry.id),
-          armband: firstEntry.armband_number,
+          dogId:
+            typeof firstEntry.id === 'string' ? parseInt(firstEntry.id, 10) : Number(firstEntry.id),
+          armband: firstEntry.armband,
           dogName: firstEntry.dog_call_name,
           nextClass: nextClassName,
-          nextClassId: nextEntry ? (typeof nextEntry.class_id === 'string' ? parseInt(nextEntry.class_id, 10) : Number(nextEntry.class_id)) : null,
+          nextClassId: nextEntry
+            ? typeof nextEntry.class_id === 'string'
+              ? parseInt(nextEntry.class_id, 10)
+              : Number(nextEntry.class_id)
+            : null,
           queuePosition: nextEntry ? calculateQueuePosition(nextEntry, showEntries) : null,
           isInRing: !!inRingEntry,
           isPending: pendingEntries.length > 0,
@@ -358,11 +359,7 @@ export function useDashboardData(
   const queryClient = useQueryClient();
 
   // Get announcement data from store
-  const {
-    announcements,
-    unreadCount,
-    isLoading: announcementsLoading,
-  } = useAnnouncementStore();
+  const { announcements, unreadCount, isLoading: announcementsLoading } = useAnnouncementStore();
 
   // Get trials from existing hook (entries not needed - we use replicated cache)
   const {
@@ -410,12 +407,13 @@ export function useDashboardData(
   const stats = useMemo((): DashboardStats => {
     const classes = classesQuery.data || [];
     // Only count classes explicitly marked as "in progress" - not setup, briefing, etc.
-    const activeClasses = classes.filter(c =>
-      c.class_status === 'in_progress' || c.class_status === 'in-progress'
+    const activeClasses = classes.filter(
+      c => c.class_status === 'in_progress' || c.class_status === 'in-progress'
     ).length;
     const completedClasses = classes.filter(c => c.class_status === 'completed').length;
     const totalClasses = classes.length;
-    const completionPercent = totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0;
+    const completionPercent =
+      totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0;
     const favoritesPending = (favoriteEntriesQuery.data || []).filter(f => f.isPending).length;
 
     return {
@@ -446,45 +444,52 @@ export function useDashboardData(
   }, [announcements]);
 
   // Combine loading states
-  const isLoading = announcementsLoading || homeDataLoading || classesQuery.isLoading || showQuery.isLoading;
+  const isLoading =
+    announcementsLoading || homeDataLoading || classesQuery.isLoading || showQuery.isLoading;
 
   // Combine errors
-  const error = homeDataError?.message || classesQuery.error?.message || showQuery.error?.message || null;
+  const error =
+    homeDataError?.message || classesQuery.error?.message || showQuery.error?.message || null;
 
   // Combined refetch - uses refetchQueries for immediate data refresh
   // NOTE: Only refetches classes query by default to avoid "show not found" race condition
   // forceSync option syncs from server before refetching cache
-  const refetch = useCallback(async (options?: { all?: boolean; forceSync?: boolean }): Promise<void> => {
-    // If forceSync, sync from server before refetching from cache
-    if (options?.forceSync && licenseKey) {
-      try {
-        logger.log('🔄 Force sync requested - syncing classes, entries, and shows from server...');
-        const manager = await ensureReplicationManager();
-        await Promise.all([
-          manager.syncTable('classes', { licenseKey }),
-          manager.syncTable('entries', { licenseKey }),
-          manager.syncTable('shows', { licenseKey }),
-        ]);
-        logger.log('✅ Force sync complete');
-      } catch (syncError) {
-        // Sync failed (likely offline) - continue with cached data
-        logger.warn('⚠️ Sync failed (offline?), using cached data:', syncError);
+  const refetch = useCallback(
+    async (options?: { all?: boolean; forceSync?: boolean }): Promise<void> => {
+      // If forceSync, sync from server before refetching from cache
+      if (options?.forceSync && licenseKey) {
+        try {
+          logger.log(
+            '🔄 Force sync requested - syncing classes, entries, and shows from server...'
+          );
+          const manager = await ensureReplicationManager();
+          await Promise.all([
+            manager.syncTable('classes', { licenseKey }),
+            manager.syncTable('entries', { licenseKey }),
+            manager.syncTable('shows', { licenseKey }),
+          ]);
+          logger.log('✅ Force sync complete');
+        } catch (syncError) {
+          // Sync failed (likely offline) - continue with cached data
+          logger.warn('⚠️ Sync failed (offline?), using cached data:', syncError);
+        }
       }
-    }
 
-    // Force immediate refetch of classes query (not just invalidate)
-    await queryClient.refetchQueries({
-      queryKey: dashboardKeys.classes(licenseKey || ''),
-      type: 'active',
-    });
+      // Force immediate refetch of classes query (not just invalidate)
+      await queryClient.refetchQueries({
+        queryKey: dashboardKeys.classes(licenseKey || ''),
+        type: 'active',
+      });
 
-    // Only refetch other queries if explicitly requested (e.g., full page refresh)
-    if (options?.all) {
-      refetchHomeData();
-      showQuery.refetch();
-      favoriteEntriesQuery.refetch();
-    }
-  }, [queryClient, licenseKey, refetchHomeData, showQuery, favoriteEntriesQuery]);
+      // Only refetch other queries if explicitly requested (e.g., full page refresh)
+      if (options?.all) {
+        refetchHomeData();
+        showQuery.refetch();
+        favoriteEntriesQuery.refetch();
+      }
+    },
+    [queryClient, licenseKey, refetchHomeData, showQuery, favoriteEntriesQuery]
+  );
 
   return {
     stats,

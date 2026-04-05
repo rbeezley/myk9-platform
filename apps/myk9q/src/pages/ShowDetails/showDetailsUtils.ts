@@ -32,7 +32,7 @@ export function formatDateRange(startDate: string, endDate: string): string {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
   };
 
   if (startDate === endDate) {
@@ -41,7 +41,11 @@ export function formatDateRange(startDate: string, endDate: string): string {
 
   // Check if same month and year
   if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    const startStr = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const startStr = start.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
     const endStr = `${end.toLocaleDateString('en-US', { weekday: 'short' })} ${end.getDate()}, ${end.getFullYear()}`;
     return `${startStr} - ${endStr}`;
   }
@@ -79,16 +83,11 @@ export function getGoogleMapsUrl(address: string): string {
  */
 export function getWeatherUrl(show: Show): string {
   // Build a simple location for weather (city, state zip works best for Google's weather widget)
-  const parts = [
-    show.site_city,
-    show.site_state,
-    show.site_zip
-  ].filter(Boolean);
+  const parts = [show.city, show.state, show.zip_code].filter(Boolean);
 
   // Fallback to full address or legacy location
-  const location = parts.length > 0
-    ? parts.join(' ')
-    : (getFullSiteAddress(show) || show.location || '');
+  const location =
+    parts.length > 0 ? parts.join(' ') : getFullSiteAddress(show) || show.location || '';
 
   return `https://www.google.com/search?q=weather+${encodeURIComponent(location)}`;
 }
@@ -98,11 +97,9 @@ export function getWeatherUrl(show: Show): string {
  */
 export function getFullSiteAddress(show: Show): string | null {
   const parts = [
-    show.site_address,
-    show.site_city,
-    show.site_state && show.site_zip
-      ? `${show.site_state} ${show.site_zip}`
-      : (show.site_state || show.site_zip)
+    show.address,
+    show.city,
+    show.state && show.zip_code ? `${show.state} ${show.zip_code}` : show.state || show.zip_code,
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(', ') : null;
 }
@@ -112,9 +109,9 @@ export function getFullSiteAddress(show: Show): string | null {
  */
 export function getSecretaryInfo(show: Show): ContactInfo {
   return {
-    name: show.secretary_name || show.show_secretary_name,
-    email: show.secretary_email || show.show_secretary_email,
-    phone: show.secretary_phone || show.show_secretary_phone
+    name: show.secretary,
+    email: show.secretary_email,
+    phone: show.secretary_phone,
   };
 }
 
@@ -125,7 +122,7 @@ export function getChairmanInfo(show: Show): ContactInfo {
   return {
     name: show.chairman_name,
     email: show.chairman_email,
-    phone: show.chairman_phone
+    phone: show.chairman_phone,
   };
 }
 

@@ -23,8 +23,8 @@ import { logger } from '@/utils/logger';
  */
 export interface Entry {
   id: string; // Primary key (bigint in DB, string for IndexedDB)
-  armband_number: number;
-  handler_name: string;
+  armband: number;
+  handler: string;
   dog_call_name: string;
   dog_breed?: string;
   class_id: string; // Foreign key to classes
@@ -41,7 +41,7 @@ export interface Entry {
   total_faults?: number;
 
   // Run order (exhibitor-controlled)
-  exhibitor_order?: number; // Custom run order set by gate steward/exhibitors
+  run_order?: number; // Custom run order set by gate steward/exhibitors
 
   // Timestamps
   created_at?: string;
@@ -268,7 +268,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
    */
   async getByArmband(armbandNumber: number, classId: string): Promise<Entry | null> {
     const classEntries = await this.getByClassId(classId);
-    return classEntries.find(entry => entry.armband_number === armbandNumber) || null;
+    return classEntries.find(entry => entry.armband === armbandNumber) || null;
   }
 
   /**

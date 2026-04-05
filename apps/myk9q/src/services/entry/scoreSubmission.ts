@@ -102,10 +102,7 @@ export interface ResultData {
  *
  * @private Internal helper for submitScore
  */
-function prepareScoreUpdateData(
-  entryId: number,
-  scoreData: ScoreData
-): Partial<ResultData> {
+function prepareScoreUpdateData(entryId: number, scoreData: ScoreData): Partial<ResultData> {
   // Map the result text to the valid enum values
   const resultStatus = convertResultTextToStatus(scoreData.resultText);
 
@@ -113,13 +110,13 @@ function prepareScoreUpdateData(
   const isActuallyScored = resultStatus !== 'pending';
 
   // 🔍 DIAGNOSTIC: Log scoring conversion for debugging
-   
+
   logger.log('🎯 [scoreSubmission] prepareScoreUpdateData:', {
     entryId,
     inputResultText: scoreData.resultText,
     convertedResultStatus: resultStatus,
     isActuallyScored,
-    willSetEntryStatus: isActuallyScored ? 'completed' : 'in-ring'
+    willSetEntryStatus: isActuallyScored ? 'completed' : 'in-ring',
   });
 
   // Non-qualifying results should have no meaningful times
@@ -129,7 +126,11 @@ function prepareScoreUpdateData(
   const scoreUpdateData: Partial<ResultData> = {
     entry_id: entryId,
     result_status: resultStatus,
-    search_time_seconds: isNonQualifyingResult ? 0 : (scoreData.searchTime ? convertTimeToSeconds(scoreData.searchTime) : 0),
+    search_time_seconds: isNonQualifyingResult
+      ? 0
+      : scoreData.searchTime
+        ? convertTimeToSeconds(scoreData.searchTime)
+        : 0,
     is_scored: isActuallyScored,
     is_in_ring: false, // Mark as no longer in ring when score is submitted
     scoring_completed_at: isActuallyScored ? new Date().toISOString() : null,
@@ -187,10 +188,7 @@ function prepareScoreUpdateData(
  *
  * @private Internal helper for submitScore
  */
-function handleAreaTimes(
-  scoreData: ScoreData,
-  scoreUpdateData: Partial<ResultData>
-): void {
+function handleAreaTimes(scoreData: ScoreData, scoreUpdateData: Partial<ResultData>): void {
   if (!scoreData.areaTimes || scoreData.areaTimes.length === 0) {
     return;
   }
@@ -199,7 +197,7 @@ function handleAreaTimes(
   const level = scoreData.level || '';
 
   // Convert area times to seconds
-  const areaTimeSeconds = scoreData.areaTimes.map((time) => convertTimeToSeconds(time));
+  const areaTimeSeconds = scoreData.areaTimes.map(time => convertTimeToSeconds(time));
 
   // Determine which areas are applicable for this class
   const { useArea1, useArea2, useArea3 } = determineAreasForClass(element, level);
@@ -297,7 +295,7 @@ export async function submitScore(
   pairedClassId?: number,
   classId?: number
 ): Promise<boolean> {
-try {
+  try {
     // Prepare score data for database update
     const scoreUpdateData = prepareScoreUpdateData(entryId, scoreData);
 
@@ -320,12 +318,12 @@ try {
     };
 
     // 🔍 DIAGNOSTIC: Log what we're about to send to database
-     
+
     logger.log('🔍 [scoreSubmission] Database update payload:', {
       entryId,
       updateData,
       is_scored: updateData.is_scored,
-      entry_status: updateData.entry_status
+      entry_status: updateData.entry_status,
     });
 
     const { data: updateResult, error: updateError } = await supabase
@@ -335,12 +333,12 @@ try {
       .select();
 
     // 🔍 DIAGNOSTIC: Log database response
-     
+
     logger.log('✅ [scoreSubmission] Database update result:', {
       entryId,
       success: !updateError,
       result: updateResult,
-      error: updateError
+      error: updateError,
     });
 
     if (updateError) {
@@ -358,10 +356,10 @@ try {
 
     // CRITICAL: Trigger immediate sync to update UI without refresh
     // This ensures the scored dog moves to completed tab immediately
-     
+
     logger.log('🔄 [scoreSubmission] About to trigger immediate sync...');
     await triggerImmediateEntrySync('submitScore');
-     
+
     logger.log('🔄 [scoreSubmission] Immediate sync call completed');
 
     // OPTIMIZATION: Run class completion check in background
@@ -369,7 +367,7 @@ try {
     // Users can navigate away immediately without waiting for these operations
     await triggerBackgroundClassCompletion(entryId, classId, pairedClassId);
 
-return true;
+    return true;
   } catch (error) {
     logger.error('Error in submitScore:', error);
     throw error;
@@ -403,23 +401,26 @@ async function triggerBackgroundClassCompletion(
   classId?: number,
   pairedClassId?: number
 ): Promise<void> {
-   
-  logger.log(`🔄 [scoreSubmission] triggerBackgroundClassCompletion:`, { entryId, classId, pairedClassId });
+  logger.log(`🔄 [scoreSubmission] triggerBackgroundClassCompletion:`, {
+    entryId,
+    classId,
+    pairedClassId,
+  });
 
   if (classId) {
-// Fire and forget - check class completion in background
+    // Fire and forget - check class completion in background
     // CRITICAL: Pass entryId to work around read replica lag
     (async () => {
       try {
         await checkAndUpdateClassCompletion(classId, pairedClassId, entryId);
-} catch (error) {
+      } catch (error) {
         logger.error('⚠️ [Background] Failed to check class completion:', error);
       }
     })();
-} else {
+  } else {
     // Fallback: Query database for class_id (backward compatibility)
-const { data: entryData } = await supabase
-      .from('view_entry_class_join_normalized')
+    const { data: entryData } = await supabase
+      .from('view_myk9q_entries')
       .select('class_id, license_key, show_id')
       .eq('id', entryId)
       .single();
@@ -430,12 +431,11 @@ const { data: entryData } = await supabase
       (async () => {
         try {
           await checkAndUpdateClassCompletion(entryData.class_id, pairedClassId, entryId);
-} catch (error) {
+        } catch (error) {
           logger.error('⚠️ [Background] Failed to check class completion:', error);
         }
       })();
-
-} else {
+    } else {
       logger.warn('⚠️ Could not fetch entry data for background processing');
     }
   }

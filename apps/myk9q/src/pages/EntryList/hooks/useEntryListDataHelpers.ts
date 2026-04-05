@@ -136,7 +136,7 @@ export async function applyVisibilityToEntries(
   role: UserRole
 ): Promise<Entry[]> {
   const isClassComplete =
-    classData.class_status === 'completed' || classData.is_scoring_finalized === true;
+    classData.status === 'completed' || classData.is_scoring_finalized === true;
   const visibilityFlags = await fetchVisibilityFlagsWithFallback({
     classId: parseInt(String(classData.id)),
     trialId: classData.trial_id,
@@ -189,7 +189,7 @@ export function buildSingleClassInfo(
   const sectionPart = classData.section && classData.section !== '-' ? ` ${classData.section}` : '';
   const completedEntries = entries.filter(e => e.isScored).length;
 
-  const areaCount = calcAreaCount(classData.area_count, classData.element, classData.level);
+  const areaCount = calcAreaCount(classData.num_areas, classData.element, classData.level);
 
   return {
     className: `${classData.element} ${classData.level}${sectionPart}`.trim(),
@@ -197,7 +197,7 @@ export function buildSingleClassInfo(
     level: classData.level || '',
     section: classData.section || '',
     trialId: classData.trial_id,
-    trialDate: trialData?.trial_date || entries[0]?.trialDate || '',
+    trialDate: trialData?.date || entries[0]?.trialDate || '',
     trialNumber: trialData?.trial_number
       ? String(trialData.trial_number)
       : entries[0]?.trialNumber
@@ -206,16 +206,12 @@ export function buildSingleClassInfo(
     judgeName,
     actualClassId: parseInt(classId),
     selfCheckin: classData.self_checkin_enabled ?? true,
-    classStatus: classData.class_status || 'pending',
+    classStatus: classData.status || 'pending',
     totalEntries: entries.length,
     completedEntries,
     timeLimit: classData.time_limit_seconds ? `${classData.time_limit_seconds}s` : undefined,
-    timeLimit2: classData.time_limit_area2_seconds
-      ? `${classData.time_limit_area2_seconds}s`
-      : undefined,
-    timeLimit3: classData.time_limit_area3_seconds
-      ? `${classData.time_limit_area3_seconds}s`
-      : undefined,
+    timeLimit2: undefined,
+    timeLimit3: undefined,
     areas: areaCount,
     visibilityPreset: visibilityPreset || 'standard',
   };
@@ -233,14 +229,14 @@ export function buildCombinedClassInfo(
   trialData?: Trial | null,
   visibilityPreset?: 'open' | 'standard' | 'review'
 ): ClassInfo {
-  const areaCount = calcAreaCount(classDataA.area_count, classDataA.element, classDataA.level);
+  const areaCount = calcAreaCount(classDataA.num_areas, classDataA.element, classDataA.level);
 
   return {
     className: `${classDataA.element} ${classDataA.level} A & B`,
     element: classDataA.element || '',
     level: classDataA.level || '',
     trialId: classDataA.trial_id,
-    trialDate: trialData?.trial_date || entries[0]?.trialDate || '',
+    trialDate: trialData?.date || entries[0]?.trialDate || '',
     trialNumber: trialData?.trial_number
       ? String(trialData.trial_number)
       : entries[0]?.trialNumber
@@ -251,14 +247,10 @@ export function buildCombinedClassInfo(
     actualClassIdA: parseInt(classIdA),
     actualClassIdB: parseInt(classIdB),
     selfCheckin: classDataA.self_checkin_enabled ?? true,
-    classStatus: classDataA.class_status || classDataB.class_status || 'pending',
+    classStatus: classDataA.status || classDataB.status || 'pending',
     timeLimit: classDataA.time_limit_seconds ? `${classDataA.time_limit_seconds}s` : undefined,
-    timeLimit2: classDataA.time_limit_area2_seconds
-      ? `${classDataA.time_limit_area2_seconds}s`
-      : undefined,
-    timeLimit3: classDataA.time_limit_area3_seconds
-      ? `${classDataA.time_limit_area3_seconds}s`
-      : undefined,
+    timeLimit2: undefined,
+    timeLimit3: undefined,
     areas: areaCount,
     visibilityPreset: visibilityPreset || 'standard',
   };
@@ -278,10 +270,10 @@ export function transformReplicatedEntry(entry: ReplicatedEntry, classData?: Cla
 
   return {
     id: parseInt(entry.id, 10),
-    armband: entry.armband_number,
+    armband: entry.armband,
     callName: entry.dog_call_name,
     breed: entry.dog_breed || '',
-    handler: entry.handler_name,
+    handler: entry.handler,
     isScored: entry.is_scored || false,
     status: status as Entry['status'],
     inRing: entry.entry_status === 'in-ring',
@@ -294,17 +286,13 @@ export function transformReplicatedEntry(entry: ReplicatedEntry, classData?: Cla
     level: classData?.level || '',
     section: classData?.section || '',
     timeLimit: classData?.time_limit_seconds ? `${classData.time_limit_seconds}s` : undefined,
-    timeLimit2: classData?.time_limit_area2_seconds
-      ? `${classData.time_limit_area2_seconds}s`
-      : undefined,
-    timeLimit3: classData?.time_limit_area3_seconds
-      ? `${classData.time_limit_area3_seconds}s`
-      : undefined,
+    timeLimit2: undefined,
+    timeLimit3: undefined,
     resultText: entry.result_status,
     placement: entry.final_placement,
     searchTime: entry.search_time_seconds?.toString(),
     faultCount: entry.total_faults,
-    exhibitorOrder: entry.exhibitor_order,
+    exhibitorOrder: entry.run_order,
   };
 }
 
@@ -383,7 +371,7 @@ export async function fetchFromSupabase(
   const { data: classData } = await supabase
     .from('classes')
     .select(
-      'element, level, section, judge_name, self_checkin_enabled, class_status, trial_id, is_scoring_finalized, results_released_at, time_limit_seconds, time_limit_area2_seconds, time_limit_area3_seconds, area_count'
+      'element, level, section, judge_name, self_checkin_enabled, status, trial_id, is_scoring_finalized, results_released_at, time_limit_seconds, num_areas'
     )
     .eq('id', parseInt(classId))
     .single();
@@ -399,12 +387,12 @@ export async function fetchFromSupabase(
   if (classData.trial_id && (!trialDate || !trialNumber)) {
     const { data: trialData } = await supabase
       .from('trials')
-      .select('trial_date, trial_number')
+      .select('date, trial_number')
       .eq('id', classData.trial_id)
       .single();
 
     if (trialData) {
-      trialDate = trialData.trial_date || trialDate;
+      trialDate = trialData.date || trialDate;
       trialNumber = trialData.trial_number ? String(trialData.trial_number) : trialNumber;
     }
   }
@@ -415,7 +403,7 @@ export async function fetchFromSupabase(
   // Fetch visibility preset for class settings display
   const visibilityPreset = await fetchVisibilityPreset(classId);
 
-  const areaCount = calcAreaCount(classData.area_count, classData.element, classData.level);
+  const areaCount = calcAreaCount(classData.num_areas, classData.element, classData.level);
 
   const classInfo: ClassInfo = {
     className: `${classData.element} ${classData.level}${sectionPart}`.trim(),
@@ -428,16 +416,12 @@ export async function fetchFromSupabase(
     judgeName: classData.judge_name || 'No Judge Assigned',
     actualClassId: parseInt(classId),
     selfCheckin: classData.self_checkin_enabled ?? true,
-    classStatus: classData.class_status || 'pending',
+    classStatus: classData.status || 'pending',
     totalEntries: classEntries.length,
     completedEntries,
     timeLimit: classData.time_limit_seconds ? `${classData.time_limit_seconds}s` : undefined,
-    timeLimit2: classData.time_limit_area2_seconds
-      ? `${classData.time_limit_area2_seconds}s`
-      : undefined,
-    timeLimit3: classData.time_limit_area3_seconds
-      ? `${classData.time_limit_area3_seconds}s`
-      : undefined,
+    timeLimit2: undefined,
+    timeLimit3: undefined,
     areas: areaCount,
     visibilityPreset,
   };
@@ -451,8 +435,7 @@ export async function fetchFromSupabase(
     trialId: classData.trial_id,
     licenseKey,
     role: userRole,
-    isClassComplete:
-      classData.class_status === 'completed' || classData.is_scoring_finalized === true,
+    isClassComplete: classData.status === 'completed' || classData.is_scoring_finalized === true,
     resultsReleasedAt: classData.results_released_at || null,
   });
   classEntries = classEntries.map(entry => applyVisibilityFlags(entry, visibilityFlags));
@@ -551,13 +534,13 @@ export async function fetchCombinedFromSupabase(
     supabase
       .from('classes')
       .select(
-        'judge_name, self_checkin_enabled, class_status, trial_id, is_scoring_finalized, results_released_at'
+        'judge_name, self_checkin_enabled, status, trial_id, is_scoring_finalized, results_released_at'
       )
       .eq('id', parseInt(classIdA))
       .single(),
     supabase
       .from('classes')
-      .select('judge_name, class_status, trial_id, is_scoring_finalized, results_released_at')
+      .select('judge_name, status, trial_id, is_scoring_finalized, results_released_at')
       .eq('id', parseInt(classIdB))
       .single(),
   ]);
@@ -569,12 +552,12 @@ export async function fetchCombinedFromSupabase(
   if (classDataA?.trial_id && (!trialDate || !trialNumber)) {
     const { data: trialData } = await supabase
       .from('trials')
-      .select('trial_date, trial_number')
+      .select('date, trial_number')
       .eq('id', classDataA.trial_id)
       .single();
 
     if (trialData) {
-      trialDate = trialData.trial_date || trialDate;
+      trialDate = trialData.date || trialDate;
       trialNumber = trialData.trial_number ? String(trialData.trial_number) : trialNumber;
     }
   }
@@ -590,7 +573,7 @@ export async function fetchCombinedFromSupabase(
         licenseKey,
         role: userRole,
         isClassComplete:
-          classDataA.class_status === 'completed' || classDataA.is_scoring_finalized === true,
+          classDataA.status === 'completed' || classDataA.is_scoring_finalized === true,
         resultsReleasedAt: classDataA.results_released_at || null,
       }),
       fetchVisibilityFlagsWithFallback({
@@ -599,7 +582,7 @@ export async function fetchCombinedFromSupabase(
         licenseKey,
         role: userRole,
         isClassComplete:
-          classDataB.class_status === 'completed' || classDataB.is_scoring_finalized === true,
+          classDataB.status === 'completed' || classDataB.is_scoring_finalized === true,
         resultsReleasedAt: classDataB.results_released_at || null,
       }),
     ]);
@@ -626,7 +609,7 @@ export async function fetchCombinedFromSupabase(
     actualClassIdA: parseInt(classIdA),
     actualClassIdB: parseInt(classIdB),
     selfCheckin: classDataA?.self_checkin_enabled ?? true,
-    classStatus: classDataA?.class_status || classDataB?.class_status || 'pending',
+    classStatus: classDataA?.status || classDataB?.status || 'pending',
     timeLimit: firstEntry.timeLimit,
     timeLimit2: firstEntry.timeLimit2,
     timeLimit3: firstEntry.timeLimit3,

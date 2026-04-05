@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNotificationStore } from '@/store/notificationStore';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
 import { notifications } from '@/lib/notifications';
@@ -35,6 +35,13 @@ export function NotificationSettings() {
   const updatePreferences = useNotificationStore(s => s.updatePreferences);
   const { subscribe, unsubscribe, isSupported: isPushSupported } = usePushSubscription();
   const [isPushLoading, setIsPushLoading] = useState(false);
+  const [voiceRateDisplay, setVoiceRateDisplay] = useState(preferences.voiceRate);
+  const voiceRateTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Keep local display value in sync when preferences change from outside
+  useEffect(() => {
+    setVoiceRateDisplay(preferences.voiceRate);
+  }, [preferences.voiceRate]);
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const speechSupported = isSpeechSupported();
@@ -328,8 +335,15 @@ export function NotificationSettings() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground">0.5x</span>
                   <Slider
-                    value={[preferences.voiceRate]}
-                    onValueChange={vals => updatePreferences({ voiceRate: vals[0] })}
+                    value={[voiceRateDisplay]}
+                    onValueChange={vals => {
+                      setVoiceRateDisplay(vals[0]);
+                      clearTimeout(voiceRateTimer.current);
+                      voiceRateTimer.current = setTimeout(
+                        () => updatePreferences({ voiceRate: vals[0] }),
+                        300
+                      );
+                    }}
                     min={0.5}
                     max={2.0}
                     step={0.1}

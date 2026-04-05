@@ -89,7 +89,11 @@ export const SecretaryRoutes = () => (
     />
     <Route
       path="/secretary/create-show"
-      element={<Navigate to="/secretary/create-show/wizard" replace />}
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <Navigate to="/secretary/create-show/wizard" replace />
+        </ProtectedRoute>
+      }
     />
     <Route
       path="/secretary/create-show/wizard"

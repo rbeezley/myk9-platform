@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { BlurGate } from './BlurGate';
@@ -10,6 +10,10 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('BlurGate', () => {
+  beforeEach(() => {
+    mockNavigate.mockClear();
+  });
+
   it('renders children directly when not locked', () => {
     render(
       <BlurGate locked={false} title="Title Progress" description="Track your titles">

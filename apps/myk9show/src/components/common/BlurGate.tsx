@@ -3,21 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PremiumButton } from './PremiumButton';
+import { logger } from '@/services/LoggingService';
 
 export interface BlurGateProps {
   locked: boolean;
   title: string;
   description: string;
   children: React.ReactNode;
+  /** Optional tracking context for analytics (falls back to title) */
+  trackingContext?: string;
   className?: string;
 }
 
-export function BlurGate({ locked, title, description, children, className }: BlurGateProps) {
+export function BlurGate({
+  locked,
+  title,
+  description,
+  children,
+  trackingContext,
+  className,
+}: BlurGateProps) {
   const navigate = useNavigate();
 
   if (!locked) {
     return <>{children}</>;
   }
+
+  const handleUpgrade = () => {
+    logger.debug('Upgrade to Premium clicked', 'premium', {
+      feature: trackingContext ?? title,
+    });
+    navigate('/pricing-page');
+  };
 
   return (
     <div className={cn('relative overflow-hidden min-h-[240px]', className)}>
@@ -38,7 +55,7 @@ export function BlurGate({ locked, title, description, children, className }: Bl
         <PremiumButton
           variant="primary"
           icon={Crown}
-          onClick={() => navigate('/pricing-page')}
+          onClick={handleUpgrade}
           className="bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 mt-2"
         >
           Upgrade to Premium

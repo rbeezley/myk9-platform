@@ -25,7 +25,7 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 ## Class Details Page — Future Enhancements (2026-03-24)
 
-- Dog status column (Checked In / In Ring / On Deck / Conflict) — requires check-in data pipeline
+- [x] Dog status column (Checked In / In Ring / On Deck / Conflict) — Done. `check_in_status` column on entries table with 8 statuses, `CheckInStatusBadge` in ClassResultsTable with click-to-change `StatusPickerDialog`, `useCheckInMutation` with optimistic UI, realtime subscriptions, conflict detection utility, self-check-in control per show/trial/class.
 - Drag-and-drop run order in entries table
 - Inline score editing in table cells
 

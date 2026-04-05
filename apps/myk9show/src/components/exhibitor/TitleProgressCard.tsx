@@ -8,7 +8,7 @@
  * live (the dashboard), not buried behind a premium tab.
  */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Award, ChevronRight, PawPrint } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,17 +23,7 @@ interface DogTitleRowProps {
 
 const DogTitleRow: React.FC<DogTitleRowProps> = ({ dogId, dogName }) => {
   const navigate = useNavigate();
-  const { progressBySport, isLoading } = useTitleProgress(dogId);
-
-  const earnedAbbreviations = useMemo(
-    () =>
-      Object.values(progressBySport)
-        .flat()
-        .filter(t => t.isEarned && !t.isSuperseded)
-        .map(t => t.abbreviation)
-        .filter(Boolean),
-    [progressBySport]
-  );
+  const { earnedAbbreviations, isLoading } = useTitleProgress(dogId);
 
   // While loading, show a subtle placeholder
   if (isLoading) {

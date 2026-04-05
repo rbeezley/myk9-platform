@@ -91,6 +91,7 @@ export default function ResultsControlPage() {
 
   // Adapter: toggle all classes in a trial (select all if not all selected, deselect all otherwise)
   const toggleAllInTrial = useCallback(
+    // trialId is provided by the caller but unused here — all logic is driven by classIds
     (_trialId: string, classIds: string[]) => {
       const idSet = new Set(classIds);
       const trialClasses = showClasses.filter(c => idSet.has(c.id));

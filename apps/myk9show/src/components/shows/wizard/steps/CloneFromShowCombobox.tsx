@@ -16,8 +16,7 @@ import { Input } from '@/components/ui/input';
 import { useWizardStore } from '@/store/wizardStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useUserStore } from '@/store/userStore';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { ScopeType, UserRole } from '@/types/auth-types';
+import { useUserClubIds } from '@/hooks/useUserClubIds';
 import type { Show } from '@/types/show-types';
 
 interface CloneFromShowComboboxProps {
@@ -32,24 +31,10 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
 
   const { updateShowData, addJudgeToShow } = useWizardStore();
   const { people } = useUserStore();
-  const { userWithRoles } = useAuthContext();
   const { data: allShows = [], isLoading } = useShowsQuery();
 
   // Determine which club IDs this user has secretary/admin access to
-  const isPlatformAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
-  const userClubIds = useMemo(() => {
-    if (isPlatformAdmin) return null; // null = unrestricted
-    const ids = new Set<string>();
-    for (const scope of userWithRoles?.scopes ?? []) {
-      if (
-        scope.scopeType === ScopeType.CLUB &&
-        (scope.roleId === UserRole.SECRETARY || scope.roleId === UserRole.CLUB_ADMIN)
-      ) {
-        ids.add(scope.scopeId);
-      }
-    }
-    return ids.size > 0 ? ids : null;
-  }, [isPlatformAdmin, userWithRoles?.scopes]);
+  const userClubIds = useUserClubIds();
 
   // Filter shows to the user's clubs (and optionally a specific clubId context)
   const candidateShows = useMemo(() => {

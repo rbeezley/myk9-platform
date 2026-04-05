@@ -19,8 +19,8 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { usePanelManager } from '@/components/panels/hooks';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { ScopeType, UserRole } from '@/types/auth-types';
+import { UserRole } from '@/types/auth-types';
+import { useUserClubIds } from '@/hooks/useUserClubIds';
 import type { ShowDetailsStepProps } from './ShowDetailsStep.types';
 import { ORGANIZATIONS } from './ShowDetailsStep.types';
 import {
@@ -41,24 +41,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     useWizardStore();
   const { clubs, loadClubs, syncClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
-  const { userWithRoles } = useAuthContext();
   const panelManager = usePanelManager();
 
   // Scope clubs to user's assigned clubs (secretaries/club admins see only their clubs)
-  const isPlatformAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
-  const userClubIds = React.useMemo(() => {
-    if (isPlatformAdmin) return null; // null = show all clubs
-    const ids = new Set<string>();
-    for (const scope of userWithRoles?.scopes ?? []) {
-      if (
-        scope.scopeType === ScopeType.CLUB &&
-        (scope.roleId === UserRole.SECRETARY || scope.roleId === UserRole.CLUB_ADMIN)
-      ) {
-        ids.add(scope.scopeId);
-      }
-    }
-    return ids.size > 0 ? ids : null; // fallback to all clubs if no scopes
-  }, [isPlatformAdmin, userWithRoles?.scopes]);
+  const userClubIds = useUserClubIds();
 
   const scopedClubs = React.useMemo(
     () => (userClubIds ? clubs.filter(c => userClubIds.has(c.id)) : clubs),
@@ -115,6 +101,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const selectedJudges = React.useMemo(
     () => resolveSelectedJudges(show.judgeIds, people, judgeDetails),
     [show.judgeIds, people, judgeDetails]
+  );
+  const hasAnyJudges = React.useMemo(
+    () => people.some(p => p.roles?.includes(UserRole.JUDGE)),
+    [people]
   );
 
   // Handlers for opening creation panels
@@ -435,7 +425,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           setShowSearch={setShowJudgeSearch}
           searchTerm={judgeSearchTerm}
           setSearchTerm={setJudgeSearchTerm}
-          hasAnyJudges={people.some(p => p.roles?.includes(UserRole.JUDGE))}
+          hasAnyJudges={hasAnyJudges}
           onAddJudge={handleAddJudge}
           onRemoveJudge={removeJudgeFromShow}
           onCreateJudge={handleCreateJudge}

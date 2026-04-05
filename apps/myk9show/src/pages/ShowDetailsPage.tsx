@@ -22,7 +22,6 @@ import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
-import type { Show } from '@/types/show-types';
 import {
   useShowsQuery,
   useUpdateShowMutation,
@@ -89,10 +88,8 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
 
-  // Get cached shows data from React Query cache
   const queryClient = useQueryClient();
-  const cachedShows = queryClient.getQueryData<Show[]>(['shows', 'list']) || [];
-  const { data: shows = cachedShows } = useShowsQuery();
+  const { data: shows = [] } = useShowsQuery();
 
   const updateShowMutation = useUpdateShowMutation();
 
@@ -283,15 +280,12 @@ const ShowDetailsPage: React.FC = () => {
         <DetailHero
           name={actualCurrentShow.name || 'Untitled Show'}
           subtitle={actualCurrentShow.clubName || undefined}
-          badge={
-            actualCurrentShow.organization
-              ? { label: actualCurrentShow.organization, variant: 'default' }
-              : undefined
-          }
-          entryStatusBadge={{
-            label: entryStatus.label,
-            variant: ENTRY_STATUS_HERO_VARIANT[entryStatus.status],
-          }}
+          badges={[
+            ...(actualCurrentShow.organization
+              ? [{ label: actualCurrentShow.organization, variant: 'default' as const }]
+              : []),
+            { label: entryStatus.label, variant: ENTRY_STATUS_HERO_VARIANT[entryStatus.status] },
+          ]}
           metadata={[]}
           closedMessage={!entryStatus.canEnter ? entryStatus.description : undefined}
           {...(entryStatus.canEnter

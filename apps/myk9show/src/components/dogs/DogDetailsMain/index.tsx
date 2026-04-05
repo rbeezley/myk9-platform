@@ -281,21 +281,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
 
   // Right sidebar: associations
   const { stats: perfStats } = usePerformanceStatistics(updatedDog.id);
-  const { progressBySport } = useTitleProgress(updatedDog.id);
+  const { progressBySport, earnedAbbreviations: earnedTitleAbbreviations } = useTitleProgress(
+    updatedDog.id
+  );
 
-  const earnedTitles = useMemo(
+  const titlesEarnedCount = useMemo(
     () =>
       Object.values(progressBySport)
         .flat()
-        .filter(t => t.isEarned && !t.isSuperseded),
+        .filter(t => t.isEarned && !t.isSuperseded).length,
     [progressBySport]
-  );
-
-  const titlesEarnedCount = earnedTitles.length;
-
-  const earnedTitleAbbreviations = useMemo(
-    () => earnedTitles.map(t => t.abbreviation).filter(Boolean),
-    [earnedTitles]
   );
 
   const associations: AssociationConfig[] = useMemo(() => {

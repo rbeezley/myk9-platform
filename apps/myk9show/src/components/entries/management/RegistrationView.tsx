@@ -286,7 +286,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
               onSelectAll={onSelectAll}
               onStatusChange={onStatusChange}
               onOpenCheckInDialog={onOpenCheckInDialog}
-              onOpenArmbandDialog={entry => onOpenArmbandDialog(entry)}
+              onOpenArmbandDialog={onOpenArmbandDialog}
               onCompEntry={entryId => {
                 const entry = entries.find(e => e.id === entryId);
                 if (entry) {

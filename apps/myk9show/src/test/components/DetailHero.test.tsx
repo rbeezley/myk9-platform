@@ -25,7 +25,7 @@ describe('DetailHero', () => {
   });
 
   it('renders badge when provided', () => {
-    render(<DetailHero name="Test" badge={{ label: 'Open for Entries', variant: 'success' }} />);
+    render(<DetailHero name="Test" badges={[{ label: 'Open for Entries', variant: 'success' }]} />);
     expect(screen.getByText('Open for Entries')).toBeInTheDocument();
   });
 

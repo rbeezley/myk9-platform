@@ -5,7 +5,7 @@ interface MetadataItem {
   icon?: React.ReactNode;
 }
 
-interface HeroBadge {
+export interface HeroBadge {
   label: string;
   variant: 'success' | 'warning' | 'destructive' | 'default';
 }
@@ -20,8 +20,7 @@ interface DetailHeroProps {
   name: string;
   subtitle?: string | undefined;
   metadata?: MetadataItem[];
-  badge?: HeroBadge | undefined;
-  entryStatusBadge?: HeroBadge | undefined;
+  badges?: HeroBadge[];
   closedMessage?: string | undefined;
   primaryAction?: HeroAction;
   secondaryActions?: React.ReactNode;
@@ -40,8 +39,7 @@ export function DetailHero({
   name,
   subtitle,
   metadata,
-  badge,
-  entryStatusBadge,
+  badges,
   closedMessage,
   primaryAction,
   secondaryActions,
@@ -54,8 +52,9 @@ export function DetailHero({
         <div className="space-y-1.5">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
-            {badge && (
+            {badges?.map((badge, i) => (
               <span
+                key={i}
                 className={cn(
                   'inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-medium',
                   badgeStyles[badge.variant]
@@ -63,17 +62,7 @@ export function DetailHero({
               >
                 {badge.label}
               </span>
-            )}
-            {entryStatusBadge && (
-              <span
-                className={cn(
-                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-medium',
-                  badgeStyles[entryStatusBadge.variant]
-                )}
-              >
-                {entryStatusBadge.label}
-              </span>
-            )}
+            ))}
           </div>
           {subtitle && <div className="text-sm font-medium text-muted-foreground">{subtitle}</div>}
           {metadata && metadata.length > 0 && (

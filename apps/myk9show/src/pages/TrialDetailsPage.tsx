@@ -322,7 +322,7 @@ const TrialDetailsPage: React.FC = () => {
                 : undefined
             }
             metadata={heroMetadata}
-            badge={statusBadge}
+            badges={statusBadge ? [statusBadge] : []}
             secondaryActions={
               <div className="flex items-center gap-2">
                 {showTrials.length > 1 && prevNextNav}

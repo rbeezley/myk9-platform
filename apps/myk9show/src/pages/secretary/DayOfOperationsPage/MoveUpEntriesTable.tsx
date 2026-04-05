@@ -4,6 +4,7 @@
  * Shows entries eligible for move-up to a higher class
  */
 
+import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -87,7 +88,7 @@ function buildColumns(
 }
 
 export function MoveUpEntriesTable({ entries, onMoveUp }: MoveUpEntriesTableProps) {
-  const columns = buildColumns(onMoveUp);
+  const columns = useMemo(() => buildColumns(onMoveUp), [onMoveUp]);
 
   return (
     <Card>

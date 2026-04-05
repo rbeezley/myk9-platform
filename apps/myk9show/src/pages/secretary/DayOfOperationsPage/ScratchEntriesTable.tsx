@@ -9,7 +9,7 @@
  * is still available via onScratch for cases needing a reason.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +28,7 @@ interface ScratchEntriesTableProps {
 interface ScratchCellProps {
   entry: ScratchableEntry;
   onScratch: (entry: ScratchableEntry) => void;
-  onScratchDirect?: (entry: ScratchableEntry) => void;
+  onScratchDirect?: ((entry: ScratchableEntry) => void) | undefined;
   pendingId: string | null;
   setPendingId: (id: string | null) => void;
 }
@@ -91,73 +91,77 @@ export function ScratchEntriesTable({
   // Track which row is in the "armed" confirmation state
   const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const columns: ColumnDef<ScratchableEntry, unknown>[] = [
-    {
-      accessorKey: 'armband',
-      header: 'Armband',
-      cell: ({ row }) => <span className="font-mono">{row.original.armband || '-'}</span>,
-    },
-    {
-      id: 'dog',
-      header: 'Dog',
-      accessorFn: row => row.dog?.name ?? '',
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.original.dog?.name}</div>
-          {row.original.dog?.call_name && (
-            <div className="text-sm text-muted-foreground">
-              &quot;{row.original.dog.call_name}&quot;
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'handler',
-      header: 'Handler',
-      cell: ({ row }) => row.original.handler || '-',
-      meta: { responsiveHide: 'md' as const },
-    },
-    {
-      id: 'class',
-      header: 'Class',
-      accessorFn: row => row.class?.name ?? '',
-      cell: ({ row }) => (
-        <span>
-          {row.original.class?.class_number && (
-            <span className="text-muted-foreground mr-1">#{row.original.class.class_number}</span>
-          )}
-          {row.original.class?.name}
-        </span>
-      ),
-    },
-    {
-      id: 'check_in',
-      header: 'Check-in',
-      accessorFn: row => row.entry_status ?? 'pending',
-      cell: ({ row }) => (
-        <Badge variant={row.original.entry_status === 'checked_in' ? 'default' : 'outline'}>
-          {row.original.entry_status || 'pending'}
-        </Badge>
-      ),
-      meta: { responsiveHide: 'sm' as const },
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => (
-        <ScratchCell
-          entry={row.original}
-          onScratch={onScratch}
-          {...(onScratchDirect !== undefined && { onScratchDirect })}
-          pendingId={pendingId}
-          setPendingId={setPendingId}
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    },
-  ];
+  const columns: ColumnDef<ScratchableEntry, unknown>[] = useMemo(
+    () => [
+      {
+        accessorKey: 'armband',
+        header: 'Armband',
+        cell: ({ row }) => <span className="font-mono">{row.original.armband || '-'}</span>,
+      },
+      {
+        id: 'dog',
+        header: 'Dog',
+        accessorFn: row => row.dog?.name ?? '',
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{row.original.dog?.name}</div>
+            {row.original.dog?.call_name && (
+              <div className="text-sm text-muted-foreground">
+                &quot;{row.original.dog.call_name}&quot;
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'handler',
+        header: 'Handler',
+        cell: ({ row }) => row.original.handler || '-',
+        meta: { responsiveHide: 'md' as const },
+      },
+      {
+        id: 'class',
+        header: 'Class',
+        accessorFn: row => row.class?.name ?? '',
+        cell: ({ row }) => (
+          <span>
+            {row.original.class?.class_number && (
+              <span className="text-muted-foreground mr-1">#{row.original.class.class_number}</span>
+            )}
+            {row.original.class?.name}
+          </span>
+        ),
+      },
+      {
+        id: 'check_in',
+        header: 'Check-in',
+        accessorFn: row => row.entry_status ?? 'pending',
+        cell: ({ row }) => (
+          <Badge variant={row.original.entry_status === 'checked_in' ? 'default' : 'outline'}>
+            {row.original.entry_status || 'pending'}
+          </Badge>
+        ),
+        meta: { responsiveHide: 'sm' as const },
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) => (
+          <ScratchCell
+            entry={row.original}
+            onScratch={onScratch}
+            onScratchDirect={onScratchDirect}
+            pendingId={pendingId}
+            setPendingId={setPendingId}
+          />
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    ],
+    [onScratch, onScratchDirect, pendingId, setPendingId]
+  );
 
   return (
     <Card>

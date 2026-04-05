@@ -54,9 +54,20 @@ export function useTitleProgress(dogId: string) {
     return result;
   }, [isLoading, exhibitorResults, manualResults, templates, allTitles, dogId]);
 
+  const earnedAbbreviations = useMemo(
+    () =>
+      Object.values(progressBySport)
+        .flat()
+        .filter(t => t.isEarned && !t.isSuperseded)
+        .map(t => t.abbreviation)
+        .filter((a): a is string => Boolean(a)),
+    [progressBySport]
+  );
+
   return {
     progressBySport,
     templates,
     isLoading,
+    earnedAbbreviations,
   };
 }

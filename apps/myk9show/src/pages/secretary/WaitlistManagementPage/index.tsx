@@ -17,6 +17,8 @@ import { ClassStatsCards } from './ClassStatsCards';
 import { WaitlistTable } from './WaitlistTable';
 import { WaitlistActionDialog } from './WaitlistActionDialog';
 import { AccessRestrictedState, NoShowSelectedState } from './EmptyStates';
+import { JudgeCapacityOverview } from '@/components/waitlist/JudgeCapacityOverview';
+import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 
 const WaitlistManagementPage: React.FC = () => {
   const { hasRole } = useAuthContext();
@@ -44,8 +46,14 @@ const WaitlistManagementPage: React.FC = () => {
     handleRefresh,
   } = useWaitlistManagementData();
 
+  const { judgeDays } = useJudgeDayCapacity(selectedShowId || undefined);
+
   // Verify secretary role access
-  if (!hasRole(UserRole.SECRETARY) && !hasRole(UserRole.CLUB_ADMIN) && !hasRole(UserRole.SITE_ADMIN)) {
+  if (
+    !hasRole(UserRole.SECRETARY) &&
+    !hasRole(UserRole.CLUB_ADMIN) &&
+    !hasRole(UserRole.SITE_ADMIN)
+  ) {
     return <AccessRestrictedState />;
   }
 
@@ -55,16 +63,30 @@ const WaitlistManagementPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <WaitlistPageHeader
-        onRefresh={handleRefresh}
-        isRefreshDisabled={!selectedShowId}
-      />
+      <WaitlistPageHeader onRefresh={handleRefresh} isRefreshDisabled={!selectedShowId} />
 
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
+      )}
+
+      {judgeDays.length > 0 && (
+        <JudgeCapacityOverview
+          judgeDays={judgeDays}
+          onViewWaitList={(judgeId, showDate) => {
+            // Filter to first class belonging to this judge+date
+            const match = classes.find(
+              c =>
+                c.id &&
+                judgeDays.find(
+                  j => j.judgeId === judgeId && j.showDate === showDate && j.classIds.includes(c.id)
+                )
+            );
+            if (match) setSelectedClassId(match.id);
+          }}
+        />
       )}
 
       <ShowClassSelection

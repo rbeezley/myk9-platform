@@ -343,37 +343,94 @@ export type Database = {
           },
         ]
       }
-      class_result_visibility_overrides: {
+      chatbot_feedback: {
         Row: {
-          class_id: string
+          ai_response: string | null
           created_at: string | null
           id: string
-          release_at: string | null
-          visibility: string | null
+          license_key: string | null
+          query_log_id: string | null
+          question: string | null
+          rating: number | null
+          report_text: string | null
+          show_id: number | null
+          tools_used: string[] | null
+          user_id: string | null
         }
         Insert: {
-          class_id: string
+          ai_response?: string | null
           created_at?: string | null
           id?: string
-          release_at?: string | null
-          visibility?: string | null
+          license_key?: string | null
+          query_log_id?: string | null
+          question?: string | null
+          rating?: number | null
+          report_text?: string | null
+          show_id?: number | null
+          tools_used?: string[] | null
+          user_id?: string | null
         }
         Update: {
-          class_id?: string
+          ai_response?: string | null
           created_at?: string | null
           id?: string
-          release_at?: string | null
-          visibility?: string | null
+          license_key?: string | null
+          query_log_id?: string | null
+          question?: string | null
+          rating?: number | null
+          report_text?: string | null
+          show_id?: number | null
+          tools_used?: string[] | null
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "class_result_visibility_overrides_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: true
-            referencedRelation: "classes"
+            foreignKeyName: "chatbot_feedback_query_log_id_fkey"
+            columns: ["query_log_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_query_log"
             referencedColumns: ["id"]
           },
         ]
+      }
+      chatbot_query_log: {
+        Row: {
+          app_source: string
+          created_at: string | null
+          id: string
+          license_key: string | null
+          organization_code: string | null
+          query: string
+          response_time_ms: number | null
+          sport_code: string | null
+          tools_used: string[] | null
+          user_id: string | null
+        }
+        Insert: {
+          app_source?: string
+          created_at?: string | null
+          id?: string
+          license_key?: string | null
+          organization_code?: string | null
+          query: string
+          response_time_ms?: number | null
+          sport_code?: string | null
+          tools_used?: string[] | null
+          user_id?: string | null
+        }
+        Update: {
+          app_source?: string
+          created_at?: string | null
+          id?: string
+          license_key?: string | null
+          organization_code?: string | null
+          query?: string
+          response_time_ms?: number | null
+          sport_code?: string | null
+          tools_used?: string[] | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       class_visibility_overrides: {
         Row: {
@@ -2848,33 +2905,45 @@ export type Database = {
       }
       registrations: {
         Row: {
+          check_number: string | null
           confirmation_number: string
           created_at: string
+          group_reference: string | null
           handler_id: string
           id: string
           notes: string | null
+          payment_date: string | null
+          payment_notes: string | null
           payment_reference: string | null
           payment_status: string
           show_id: string
           updated_at: string
         }
         Insert: {
+          check_number?: string | null
           confirmation_number?: string
           created_at?: string
+          group_reference?: string | null
           handler_id: string
           id?: string
           notes?: string | null
+          payment_date?: string | null
+          payment_notes?: string | null
           payment_reference?: string | null
           payment_status?: string
           show_id: string
           updated_at?: string
         }
         Update: {
+          check_number?: string | null
           confirmation_number?: string
           created_at?: string
+          group_reference?: string | null
           handler_id?: string
           id?: string
           notes?: string | null
+          payment_date?: string | null
+          payment_notes?: string | null
           payment_reference?: string | null
           payment_status?: string
           show_id?: string
@@ -3262,34 +3331,82 @@ export type Database = {
           },
         ]
       }
-      show_result_visibility_defaults: {
+      show_message_threads: {
         Row: {
-          auto_release_delay_minutes: number | null
-          created_at: string | null
-          default_visibility: string | null
+          created_at: string
           id: string
+          last_message_at: string
+          participant_id: string
           show_id: string
         }
         Insert: {
-          auto_release_delay_minutes?: number | null
-          created_at?: string | null
-          default_visibility?: string | null
+          created_at?: string
           id?: string
+          last_message_at?: string
+          participant_id: string
           show_id: string
         }
         Update: {
-          auto_release_delay_minutes?: number | null
-          created_at?: string | null
-          default_visibility?: string | null
+          created_at?: string
           id?: string
+          last_message_at?: string
+          participant_id?: string
           show_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "show_result_visibility_defaults_show_id_fkey"
+            foreignKeyName: "show_message_threads_show_id_fkey"
             columns: ["show_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      show_messages: {
+        Row: {
+          body: string
+          created_at: string
+          group_label: string | null
+          id: string
+          read_at: string | null
+          sender_id: string
+          show_id: string
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          group_label?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id: string
+          show_id: string
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          group_label?: string | null
+          id?: string
+          read_at?: string | null
+          sender_id?: string
+          show_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_messages_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "show_message_threads"
             referencedColumns: ["id"]
           },
         ]
@@ -4125,38 +4242,6 @@ export type Database = {
           },
         ]
       }
-      trial_result_visibility_overrides: {
-        Row: {
-          created_at: string | null
-          id: string
-          release_at: string | null
-          trial_id: string
-          visibility: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          release_at?: string | null
-          trial_id: string
-          visibility?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          release_at?: string | null
-          trial_id?: string
-          visibility?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trial_result_visibility_overrides_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: true
-            referencedRelation: "trials"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       trial_visibility_overrides: {
         Row: {
           faults_timing: string | null
@@ -4286,6 +4371,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_guide: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          keywords: string[] | null
+          search_vector: unknown
+          section: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          keywords?: string[] | null
+          search_vector?: unknown
+          section: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          keywords?: string[] | null
+          search_vector?: unknown
+          section?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       user_milestones: {
         Row: {
@@ -5012,6 +5130,32 @@ export type Database = {
           scope_type: string
           source_role: string
           source_type: string
+        }[]
+      }
+      get_entries_for_export: {
+        Args: { p_show_id: string }
+        Returns: {
+          armband: string
+          class_name: string
+          class_number: string
+          dog_breed: string
+          dog_call_name: string
+          dog_id: string
+          dog_name: string
+          dog_registrations: Json
+          entry_fee: number
+          entry_status: string
+          handler: string
+          id: string
+          jump_height: string
+          owner_email: string
+          owner_first_name: string
+          owner_last_name: string
+          owner_phone: string
+          payment_status: string
+          run_order: number
+          special_requests: string
+          submitted_at: string
         }[]
       }
       get_license_key: { Args: never; Returns: string }

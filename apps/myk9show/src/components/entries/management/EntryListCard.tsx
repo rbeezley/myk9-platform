@@ -144,7 +144,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                             <span className="text-muted-foreground">{cls.name}:</span>
                             <button
                               onClick={() => onOpenCheckInDialog(entry, cls)}
-                              className="hover:scale-105 transition-transform"
+                              className="cursor-pointer border border-border/40 rounded px-1 hover:border-border hover:scale-105 transition-transform"
                             >
                               <CheckInStatusIndicator
                                 status={cls.checkInStatus || 'no-status'}

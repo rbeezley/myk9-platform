@@ -14,6 +14,7 @@ import {
 } from '@/services/database/queries/secretaryEntryQueries';
 import { compEntry, uncompEntry } from '@/services/database/queries/entry-query-mutations';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
+import { buildExportRow, type ExportEntry } from '@/utils/entryExportUtils';
 import type {
   EntryManagementEntry,
   BulkAction,
@@ -388,14 +389,19 @@ export function useEntryManagementActions({
 
   // Handle CSV export
   const handleExportCSV = useCallback(async () => {
-    if (!selectedShowId) return;
+    if (!selectedShowId || isProcessing) return;
 
     setIsProcessing(true);
     try {
       const { data, error: dbError } = await getEntriesForExport(selectedShowId);
 
-      if (dbError || !data) {
+      if (dbError) {
         setError('Failed to export entries');
+        return;
+      }
+
+      if (data.length === 0) {
+        setError('No entries found for this show');
         return;
       }
 
@@ -417,39 +423,19 @@ export function useEntryManagementActions({
         'Special Requests',
       ];
 
-      const rows = data.map(entry => {
-        const dog = entry.dog as {
-          id?: string;
-          name?: string;
-          call_name?: string;
-          breed?: string;
-        } | null;
-        const cls = entry.class as { name?: string; class_number?: string } | null;
-        const jumpHeight = (entry as Record<string, unknown>).jump_height as string | null;
-        const className = cls?.name ? `${cls.name}${jumpHeight ? ` (${jumpHeight})` : ''}` : '';
-
-        return [
-          entry.armband || '',
-          dog?.name || '',
-          dog?.call_name || '',
-          dog?.breed || '',
-          '', // registration_number not available in export query
-          '', // owner first name - not in query
-          '', // owner last name - not in query
-          '', // owner email - not in query
-          '', // owner phone - not in query
-          entry.handler || '',
-          entry.entry_status || '',
-          entry.payment_status || '',
-          entry.entry_fee?.toString() || '0',
-          className,
-          entry.special_requests || '',
-        ];
-      });
+      const rows = data.map(entry => buildExportRow(entry as ExportEntry));
 
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+        ...rows.map(row =>
+          row
+            .map(cell => {
+              const s = String(cell).replace(/[\r\n]+/g, ' ');
+              const safe = /^[=+\-@\t]/.test(s) ? `\t${s}` : s;
+              return `"${safe.replace(/"/g, '""')}"`;
+            })
+            .join(',')
+        ),
       ].join('\n');
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -459,8 +445,10 @@ export function useEntryManagementActions({
       link.download = `entries_export_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
 
       await auditService.log({
         action: AuditAction.EXPORT,
@@ -478,7 +466,7 @@ export function useEntryManagementActions({
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedShowId, setError, user]);
+  }, [selectedShowId, isProcessing, setError, user]);
 
   // Handle comp entry
   const handleCompEntry = useCallback(

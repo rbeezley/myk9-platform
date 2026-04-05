@@ -13,7 +13,7 @@ import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
-import { PremiumGate } from '@/components/common/PremiumGate';
+import { BlurGate } from '@/components/common/BlurGate';
 import { TabContentSkeleton } from './Skeletons';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import type { DogDetailsTabsProps } from './types';
@@ -77,73 +77,63 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
         </TabsContent>
 
         <TabsContent value="title-progress" className="pt-6">
-          {isPremium ? (
+          <BlurGate
+            locked={!isPremium}
+            title="Title Progress"
+            description="Monitor your dog's progress toward titles and certifications."
+          >
             <Suspense fallback={<TabContentSkeleton />}>
               <TitleProgressSection dogId={dog.id} />
             </Suspense>
-          ) : (
-            <PremiumGate
-              title="Title Progress"
-              description="Monitor your dog's progress toward titles and certifications."
-              trackingContext="title-progress"
-            />
-          )}
+          </BlurGate>
         </TabsContent>
 
         <TabsContent value="statistics" className="pt-6">
-          {isPremium ? (
+          <BlurGate
+            locked={!isPremium}
+            title="Statistics"
+            description="Visualize your dog's performance trends, qualification rates, and achievements."
+          >
             <Suspense fallback={<TabContentSkeleton />}>
               <PerformanceStatisticsSection dogId={dog.id} />
             </Suspense>
-          ) : (
-            <PremiumGate
-              title="Statistics"
-              description="Visualize your dog's performance trends, qualification rates, and achievements."
-              trackingContext="statistics"
-            />
-          )}
+          </BlurGate>
         </TabsContent>
 
         <TabsContent value="health-records" className="pt-6">
-          {isPremium ? (
+          <BlurGate
+            locked={!isPremium}
+            title="Health Records"
+            description="Keep comprehensive health records for your dog's wellbeing."
+          >
             <Suspense fallback={<TabContentSkeleton />}>
               <HealthRecordsSection user={{ isPremium }} dogId={dog.id} />
             </Suspense>
-          ) : (
-            <PremiumGate
-              title="Health Records"
-              description="Keep comprehensive health records for your dog's wellbeing."
-              trackingContext="health-records"
-            />
-          )}
+          </BlurGate>
         </TabsContent>
 
         <TabsContent value="training-journal" className="pt-6">
-          {isPremium ? (
+          <BlurGate
+            locked={!isPremium}
+            title="Training Journal"
+            description="Document training sessions and track your dog's progress."
+          >
             <Suspense fallback={<TabContentSkeleton />}>
               <TrainingSection dogId={dog.id} />
             </Suspense>
-          ) : (
-            <PremiumGate
-              title="Training Journal"
-              description="Document training sessions and track your dog's progress."
-              trackingContext="training-journal"
-            />
-          )}
+          </BlurGate>
         </TabsContent>
 
         <TabsContent value="pedigree" className="pt-6">
-          {isPremium ? (
+          <BlurGate
+            locked={!isPremium}
+            title="Pedigree"
+            description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
+          >
             <Suspense fallback={<TabContentSkeleton />}>
               <PedigreeSection dogId={dog.id} />
             </Suspense>
-          ) : (
-            <PremiumGate
-              title="Pedigree"
-              description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
-              trackingContext="pedigree"
-            />
-          )}
+          </BlurGate>
         </TabsContent>
 
         <TabsContent value="activity" className="pt-6">

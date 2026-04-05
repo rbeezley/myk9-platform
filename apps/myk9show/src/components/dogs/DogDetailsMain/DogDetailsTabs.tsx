@@ -60,7 +60,7 @@ const DOG_TAB_DEFS: PrimaryTabDef[] = [
 ];
 
 const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistration }) => {
-  const { isPremium } = useSubscriptionGate();
+  const { isPremium, isLoading } = useSubscriptionGate();
   const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'registrations');
 
   return (
@@ -78,7 +78,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
 
         <TabsContent value="title-progress" className="pt-6">
           <BlurGate
-            locked={!isPremium}
+            locked={!isLoading && !isPremium}
+            trackingContext="title-progress"
             title="Title Progress"
             description="Monitor your dog's progress toward titles and certifications."
           >
@@ -90,7 +91,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
 
         <TabsContent value="statistics" className="pt-6">
           <BlurGate
-            locked={!isPremium}
+            locked={!isLoading && !isPremium}
+            trackingContext="statistics"
             title="Statistics"
             description="Visualize your dog's performance trends, qualification rates, and achievements."
           >
@@ -102,7 +104,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
 
         <TabsContent value="health-records" className="pt-6">
           <BlurGate
-            locked={!isPremium}
+            locked={!isLoading && !isPremium}
+            trackingContext="health-records"
             title="Health Records"
             description="Keep comprehensive health records for your dog's wellbeing."
           >
@@ -114,7 +117,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
 
         <TabsContent value="training-journal" className="pt-6">
           <BlurGate
-            locked={!isPremium}
+            locked={!isLoading && !isPremium}
+            trackingContext="training-journal"
             title="Training Journal"
             description="Document training sessions and track your dog's progress."
           >
@@ -126,7 +130,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, autoOpenAddRegistr
 
         <TabsContent value="pedigree" className="pt-6">
           <BlurGate
-            locked={!isPremium}
+            locked={!isLoading && !isPremium}
+            trackingContext="pedigree"
             title="Pedigree"
             description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
           >

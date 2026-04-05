@@ -6,7 +6,7 @@
  * Supabase generated types do not know about them yet. Cast via ShowCapacityRow.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -89,10 +89,11 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     mailInReleaseDate: null,
     waitlistPaymentDeadlineHours: 48,
   });
+  const isDirty = useRef(false);
 
-  // Sync remote data into local form state whenever the query resolves
+  // Sync remote data into form only on initial load — never overwrite in-progress edits
   useEffect(() => {
-    if (data) {
+    if (data && !isDirty.current) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(data);
     }
@@ -116,9 +117,15 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
       if (error) throw error;
     },
     onSuccess: () => {
+      isDirty.current = false;
       queryClient.invalidateQueries({ queryKey: ['waitlist-settings', showId] });
     },
   });
+
+  function updateForm(update: Partial<WaitListShowConfig>) {
+    isDirty.current = true;
+    setForm(f => ({ ...f, ...update }));
+  }
 
   function handleSave() {
     mutation.mutate(form);
@@ -144,9 +151,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
             min={1}
             value={isLoading ? '' : form.defaultJudgeDayCapacity}
             placeholder="125"
-            onChange={e =>
-              setForm(f => ({ ...f, defaultJudgeDayCapacity: Number(e.target.value) }))
-            }
+            onChange={e => updateForm({ defaultJudgeDayCapacity: Number(e.target.value) })}
           />
         </div>
 
@@ -155,9 +160,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
           <Label htmlFor="mail-in-strategy">Mail-In Reservation Strategy</Label>
           <Select
             value={form.mailInStrategy}
-            onValueChange={value =>
-              setForm(f => ({ ...f, mailInStrategy: value as MailInStrategy }))
-            }
+            onValueChange={value => updateForm({ mailInStrategy: value as MailInStrategy })}
           >
             <SelectTrigger id="mail-in-strategy">
               <SelectValue placeholder="Select strategy" />
@@ -182,10 +185,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               value={form.mailInValue ?? ''}
               placeholder="0"
               onChange={e =>
-                setForm(f => ({
-                  ...f,
-                  mailInValue: e.target.value ? Number(e.target.value) : null,
-                }))
+                updateForm({ mailInValue: e.target.value ? Number(e.target.value) : null })
               }
             />
           </div>
@@ -203,10 +203,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               value={form.mailInValue ?? ''}
               placeholder="0"
               onChange={e =>
-                setForm(f => ({
-                  ...f,
-                  mailInValue: e.target.value ? Number(e.target.value) : null,
-                }))
+                updateForm({ mailInValue: e.target.value ? Number(e.target.value) : null })
               }
             />
           </div>
@@ -220,7 +217,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               id="mail-in-deadline"
               type="date"
               value={form.mailInDeadline ?? ''}
-              onChange={e => setForm(f => ({ ...f, mailInDeadline: e.target.value || null }))}
+              onChange={e => updateForm({ mailInDeadline: e.target.value || null })}
             />
           </div>
         )}
@@ -230,7 +227,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
           <Switch
             id="auto-release"
             checked={form.mailInAutoRelease}
-            onCheckedChange={checked => setForm(f => ({ ...f, mailInAutoRelease: checked }))}
+            onCheckedChange={checked => updateForm({ mailInAutoRelease: checked })}
           />
           <Label htmlFor="auto-release">Auto-release unused spots</Label>
         </div>
@@ -242,7 +239,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               id="release-date"
               type="date"
               value={form.mailInReleaseDate ?? ''}
-              onChange={e => setForm(f => ({ ...f, mailInReleaseDate: e.target.value || null }))}
+              onChange={e => updateForm({ mailInReleaseDate: e.target.value || null })}
             />
           </div>
         )}
@@ -256,9 +253,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
             min={1}
             value={form.waitlistPaymentDeadlineHours}
             placeholder="48"
-            onChange={e =>
-              setForm(f => ({ ...f, waitlistPaymentDeadlineHours: Number(e.target.value) }))
-            }
+            onChange={e => updateForm({ waitlistPaymentDeadlineHours: Number(e.target.value) })}
           />
         </div>
 

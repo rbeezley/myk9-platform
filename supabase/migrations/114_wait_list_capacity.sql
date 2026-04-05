@@ -181,16 +181,28 @@ DECLARE
   v_wl waitlist_entries;
   v_new_entry_id UUID;
 BEGIN
+  -- Verify caller is secretary, club_admin, or site_admin
+  IF NOT EXISTS (
+    SELECT 1
+    FROM user_roles ur
+    JOIN roles r ON r.id = ur.role_id
+    JOIN people p ON p.id = ur.user_id
+    WHERE p.auth_user_id = auth.uid()
+      AND r.name IN ('secretary', 'club_admin', 'site_admin')
+  ) THEN
+    RAISE EXCEPTION 'Permission denied';
+  END IF;
+
   -- Lock this waitlist entry to prevent concurrent promotion
   PERFORM pg_advisory_xact_lock(hashtext(p_waitlist_entry_id::text));
 
   -- Fetch and verify still waiting
   SELECT * INTO v_wl FROM waitlist_entries WHERE id = p_waitlist_entry_id;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Waitlist entry not found: %', p_waitlist_entry_id;
+    RAISE EXCEPTION 'Waitlist entry not found';
   END IF;
   IF v_wl.status != 'waiting' THEN
-    RAISE EXCEPTION 'Waitlist entry is no longer in waiting status (current: %)', v_wl.status;
+    RAISE EXCEPTION 'Waitlist entry is not available for promotion';
   END IF;
 
   -- Create entry with pending-payment status

@@ -4,7 +4,7 @@
  * judge's total entries for that date, not per-class max_entries.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 
@@ -78,6 +78,7 @@ export function useClassAvailability(
   const [classes, setClasses] = useState<ClassAvailability[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchClassAvailability = useCallback(async () => {
     if (!showId || !enabled) return;
@@ -234,8 +235,9 @@ export function useClassAvailability(
         };
       });
 
-      setClasses(availability);
+      if (mountedRef.current) setClasses(availability);
     } catch (err) {
+      if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
       setError(message);
       logger.error(
@@ -245,12 +247,16 @@ export function useClassAvailability(
         err as Error
       );
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false);
     }
   }, [showId, enabled]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchClassAvailability();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchClassAvailability]);
 
   const totalSpotsAvailable = classes.reduce((sum, cls) => sum + cls.spotsAvailable, 0);

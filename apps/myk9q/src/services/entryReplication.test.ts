@@ -91,8 +91,6 @@ describe('entryReplication', () => {
       section: 'A',
       num_areas: 1,
       time_limit_seconds: 180,
-      time_limit_area2_seconds_REMOVED: undefined,
-      time_limit_area3_seconds_REMOVED: undefined,
       trial_id: 456,
       license_key: 'TEST-KEY',
       judge_name: 'Judge Smith',
@@ -274,8 +272,6 @@ describe('entryReplication', () => {
         ...mockClass,
         num_areas: 3,
         time_limit_seconds: 180,
-        time_limit_area2_seconds_REMOVED: 120,
-        time_limit_area3_seconds_REMOVED: 90,
       };
 
       mockClassesTable.get.mockResolvedValue(classWithMultipleAreas);
@@ -284,8 +280,8 @@ describe('entryReplication', () => {
       const result = await getEntriesFromReplicationCache([123], 123);
 
       expect(result![0].timeLimit).toBe('3:00');
-      expect(result![0].timeLimit2).toBe('2:00');
-      expect(result![0].timeLimit3).toBe('1:30');
+      expect(result![0].timeLimit2).toBeUndefined();
+      expect(result![0].timeLimit3).toBeUndefined();
     });
 
     it('should map deprecated fields for backward compatibility', async () => {
@@ -397,8 +393,6 @@ describe('entryReplication', () => {
       section: 'B',
       num_areas: 2,
       time_limit_seconds: 240,
-      time_limit_area2_seconds_REMOVED: 180,
-      time_limit_area3_seconds_REMOVED: undefined,
       trial_id: 456,
       license_key: 'TEST-KEY',
       judge_name: 'Judge Smith',

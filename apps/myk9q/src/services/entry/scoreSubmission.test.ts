@@ -282,7 +282,7 @@ describe('scoreSubmission', () => {
               }),
             }),
           });
-        } else if (table === 'view_entry_class_join_normalized') {
+        } else if (table === 'view_myk9q_entries') {
           return mockFrom({
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
@@ -307,7 +307,7 @@ describe('scoreSubmission', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Assert - now includes entryId as third argument (read replica workaround)
-      expect(supabase.from).toHaveBeenCalledWith('view_entry_class_join_normalized');
+      expect(supabase.from).toHaveBeenCalledWith('view_myk9q_entries');
       expect(checkAndUpdateClassCompletion).toHaveBeenCalledWith(456, undefined, mockEntryId);
     });
 
@@ -384,7 +384,7 @@ describe('scoreSubmission', () => {
               }),
             }),
           });
-        } else if (table === 'view_entry_class_join_normalized') {
+        } else if (table === 'view_myk9q_entries') {
           return mockFrom({
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
@@ -445,7 +445,7 @@ describe('scoreSubmission', () => {
             }),
           });
         }
-        // view_entry_class_join_normalized lookup for background completion
+        // view_myk9q_entries lookup for background completion
         return mockFrom({
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -520,7 +520,7 @@ describe('scoreSubmission', () => {
             }),
           });
         }
-        // view_entry_class_join_normalized lookup for background completion
+        // view_myk9q_entries lookup for background completion
         return mockFrom({
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({

@@ -205,7 +205,7 @@ describe('placementService', () => {
         show_id: 1,
         shows: {
           license_key: 'myK9Q1-a260f472-e0d76a33-4b6c264c',
-          show_type: 'Regular',
+          type: 'Regular',
         },
       },
     };
@@ -246,7 +246,7 @@ describe('placementService', () => {
           ...mockClassData.trials,
           shows: {
             ...mockClassData.trials.shows,
-            show_type: 'National Championship',
+            type: 'National Championship',
           },
         },
       };
@@ -329,7 +329,7 @@ describe('placementService', () => {
           ...mockClassData.trials,
           shows: {
             ...mockClassData.trials.shows,
-            show_type: 'NATIONAL',
+            type: 'NATIONAL',
           },
         },
       };
@@ -367,7 +367,7 @@ describe('placementService', () => {
           ...mockClassData.trials,
           shows: {
             ...mockClassData.trials.shows,
-            show_type: null,
+            type: null,
           },
         },
       };

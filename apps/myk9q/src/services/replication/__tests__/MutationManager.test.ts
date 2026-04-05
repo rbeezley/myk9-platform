@@ -29,8 +29,13 @@ const TEST_DB_NAME = 'test-mutation-manager-db';
 function createMockSupabaseClient() {
   const mockClient = {
     from: vi.fn(() => ({
-      upsert: vi.fn(() => ({
+      insert: vi.fn(() => ({
         select: vi.fn(() => Promise.resolve({ data: [{ id: 'mock-id' }], error: null })),
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => Promise.resolve({ data: [{ id: 'mock-id' }], error: null })),
+        })),
       })),
       delete: vi.fn(() => ({
         eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
@@ -298,8 +303,10 @@ describe('MutationManager', () => {
       // Mock network error (retryable - contains 'network' and 'timeout')
       const mockError = new Error('Network timeout');
       vi.mocked(mockSupabase.from).mockReturnValueOnce({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.reject(mockError)),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(mockError)),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
@@ -332,8 +339,10 @@ describe('MutationManager', () => {
       // Mock network error (retryable)
       const mockError = new Error('Network timeout');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.reject(mockError)),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(mockError)),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
@@ -361,8 +370,10 @@ describe('MutationManager', () => {
       // Mock validation error (non-retryable - doesn't contain network/timeout/connection)
       const mockError = new Error('Validation failed');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.reject(mockError)),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(mockError)),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
@@ -389,8 +400,10 @@ describe('MutationManager', () => {
 
       const mockError = new Error('Permanent failure');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.reject(mockError)),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(mockError)),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
@@ -451,12 +464,20 @@ describe('MutationManager', () => {
       vi.mocked(mockSupabase.from).mockImplementation(
         () =>
           ({
-            upsert: vi.fn((data: Record<string, unknown>) => {
+            insert: vi.fn((data: Record<string, unknown>) => {
               executionOrder.push(data.id as string);
               return {
                 select: vi.fn(() => Promise.resolve({ data: [{ id: data.id }], error: null })),
               };
             }),
+            update: vi.fn((data: Record<string, unknown>) => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => {
+                  executionOrder.push(data.id as string);
+                  return Promise.resolve({ data: [{ id: data.id }], error: null });
+                }),
+              })),
+            })),
           }) as unknown as ReturnType<typeof mockSupabase.from>
       );
 
@@ -602,12 +623,14 @@ describe('MutationManager', () => {
         vi.mocked(mockSupabase.from).mockImplementation(
           () =>
             ({
-              upsert: vi.fn((data: Record<string, unknown>) => {
-                executionOrder.push(data.id as string);
-                return {
-                  select: vi.fn(() => Promise.resolve({ data: [{ id: data.id }], error: null })),
-                };
-              }),
+              update: vi.fn((data: Record<string, unknown>) => ({
+                eq: vi.fn(() => ({
+                  select: vi.fn(() => {
+                    executionOrder.push(data.id as string);
+                    return Promise.resolve({ data: [{ id: data.id }], error: null });
+                  }),
+                })),
+              })),
             }) as unknown as ReturnType<typeof mockSupabase.from>
         );
 
@@ -950,8 +973,10 @@ describe('MutationManager', () => {
 
       const supabaseError = { message: 'Database error', code: '500' };
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.resolve({ data: null, error: supabaseError })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.resolve({ data: null, error: supabaseError })),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 
@@ -985,8 +1010,10 @@ describe('MutationManager', () => {
 
       const mockError = new Error('Network error');
       vi.mocked(mockSupabase.from).mockReturnValue({
-        upsert: vi.fn(() => ({
-          select: vi.fn(() => Promise.reject(mockError)),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => Promise.reject(mockError)),
+          })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);
 

@@ -13,6 +13,17 @@ This is a prerequisite for passcode generation and feature stripping.
 
 Direct refactor: update myK9Q code to use platform column names, create compatibility views for joined data, add missing columns/views to the platform schema via migration. No adapter layer or feature flags.
 
+### License Key = Show UUID
+
+The `license_key` used for myK9Q multi-tenant isolation will be the show's UUID (`shows.id`). This eliminates the need for a separate generated license key string. The show UUID is already unique, already on all the right tables via FKs, and works directly with myK9Q's existing infrastructure:
+
+- **`x-license-key` header** — set to the show UUID string
+- **`get_license_key()` RLS function** — returns a UUID string (same mechanism)
+- **Realtime subscriptions** — filter by show UUID
+- **Passcode generation** — derive passcodes from the show UUID hex segments, same algorithm as the legacy license key (e.g., role prefix + 4 hex chars from a UUID segment)
+
+Tables where `license_key` exists (`shows`, `clubs`, `people`, `dogs`, `entries`) will be populated with the show UUID. Note: `clubs`, `people`, and `dogs` are not show-scoped in the platform model (a club/person/dog spans multiple shows), so `license_key` on those tables only applies to myK9Q's show-scoped data download context.
+
 ## Scope
 
 ### In Scope

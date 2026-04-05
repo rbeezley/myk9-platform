@@ -29,6 +29,8 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     ...(show.allowNonOwnerHandlers !== undefined && {
       allowNonOwnerHandlers: show.allowNonOwnerHandlers,
     }),
+    acceptCheckPayments: show.acceptCheckPayments ?? false,
+    acceptCashPayments: show.acceptCashPayments ?? false,
   };
 };
 
@@ -47,6 +49,8 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   maxEntriesPerDog: formData.maxEntriesPerDog,
   maxTotalEntries: formData.maxTotalEntries,
   allowNonOwnerHandlers: formData.allowNonOwnerHandlers,
+  acceptCheckPayments: formData.acceptCheckPayments,
+  acceptCashPayments: formData.acceptCashPayments,
   // Conditionally include optional string fields only when non-empty
   // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
   ...(formData.location && { location: formData.location }),

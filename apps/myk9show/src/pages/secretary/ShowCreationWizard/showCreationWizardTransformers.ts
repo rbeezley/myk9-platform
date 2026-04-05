@@ -25,6 +25,8 @@ interface WizardShowData {
     steward: string[];
   };
   judgeIds: string[];
+  acceptCheckPayments: boolean;
+  acceptCashPayments: boolean;
 }
 
 export interface WizardTrial {
@@ -190,6 +192,8 @@ export function showToShowInput(show: Show): ShowInput {
     assignedJudges: show.assignedJudges,
     trials: show.trials,
     startingArmbandNumber: show.startingArmbandNumber,
+    acceptCheckPayments: show.acceptCheckPayments,
+    acceptCashPayments: show.acceptCashPayments,
   };
 }
 
@@ -272,5 +276,7 @@ export function transformWizardDataToShow(
     stats: [],
     trials: showTrials,
     startingArmbandNumber: show.startingArmbandNumber ?? 100,
+    acceptCheckPayments: show.acceptCheckPayments,
+    acceptCashPayments: show.acceptCashPayments,
   };
 }

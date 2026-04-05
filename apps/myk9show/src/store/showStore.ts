@@ -54,6 +54,8 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
     assignedJudges: [], // Populated by judge_assignments subscription
     trials: [], // Local-only: managed by trialStore
     stats: [], // Local-only: calculated
+    acceptCheckPayments: replicated.acceptCheckPayments,
+    acceptCashPayments: replicated.acceptCashPayments,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),
@@ -104,6 +106,8 @@ export interface ShowInput {
   clubAddress: string;
   clubEmail: string;
   startingArmbandNumber?: number | undefined;
+  acceptCheckPayments?: boolean | undefined;
+  acceptCashPayments?: boolean | undefined;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?:
     | Array<{
@@ -178,6 +182,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         preEntryFee: showData.preEntryFee ? parseFloat(showData.preEntryFee) : undefined,
         dayOfShowFee: showData.dayOfShowFee ? parseFloat(showData.dayOfShowFee) : undefined,
         clubId: showData.clubId || undefined,
+        acceptCheckPayments: showData.acceptCheckPayments,
+        acceptCashPayments: showData.acceptCashPayments,
       });
 
       // Create full Show with local-only fields
@@ -301,6 +307,10 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.dayOfShowFee !== undefined)
         replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
       if (updates.clubId !== undefined) replicatedUpdates.clubId = updates.clubId;
+      if (updates.acceptCheckPayments !== undefined)
+        replicatedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
+      if (updates.acceptCashPayments !== undefined)
+        replicatedUpdates.acceptCashPayments = updates.acceptCashPayments;
       if ('logoUrl' in updates) replicatedUpdates.logoUrl = updates.logoUrl as string;
       if ('coverImageUrl' in updates)
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
@@ -325,6 +335,10 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       if (updates.preEntryFee !== undefined) definedUpdates.preEntryFee = updates.preEntryFee;
       if (updates.dayOfShowFee !== undefined) definedUpdates.dayOfShowFee = updates.dayOfShowFee;
       if (updates.clubId !== undefined) definedUpdates.clubId = updates.clubId;
+      if (updates.acceptCheckPayments !== undefined)
+        definedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
+      if (updates.acceptCashPayments !== undefined)
+        definedUpdates.acceptCashPayments = updates.acceptCashPayments;
       if (updates.clubName !== undefined) definedUpdates.clubName = updates.clubName;
       if (updates.clubAddress !== undefined) definedUpdates.clubAddress = updates.clubAddress;
       if (updates.clubEmail !== undefined) definedUpdates.clubEmail = updates.clubEmail;

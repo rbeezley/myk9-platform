@@ -35,6 +35,8 @@ interface WizardState {
       steward: string[];
     };
     judgeIds: string[]; // Judges assigned to the show
+    acceptCheckPayments: boolean;
+    acceptCashPayments: boolean;
   };
 
   // Trials data
@@ -117,6 +119,8 @@ const initialState: WizardState = {
       steward: [],
     },
     judgeIds: [],
+    acceptCheckPayments: false,
+    acceptCashPayments: false,
   },
   trials: [],
   judgeAssignments: {},

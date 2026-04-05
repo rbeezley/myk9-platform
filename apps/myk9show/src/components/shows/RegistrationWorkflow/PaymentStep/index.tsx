@@ -37,6 +37,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
 
+  const acceptedMethods = {
+    check: show?.acceptCheckPayments ?? true,
+    cash: show?.acceptCashPayments ?? true,
+  };
+
   // Shared state: fee override and waiver (used by both SecretaryPaymentManagement and PaymentSummaryCard)
   const [feeOverride, setFeeOverride] = useState<number | null>(null);
   const [waiveFees, setWaiveFees] = useState(false);
@@ -58,6 +63,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         paymentMethod={paymentMethod}
         onPaymentMethodChange={onPaymentMethodChange}
         onPaymentDetailsChange={onPaymentDetailsChange}
+        acceptedMethods={acceptedMethods}
       />
 
       {/* Secretary Features */}

@@ -96,6 +96,9 @@ export interface Show {
   confirmationMessage?: string | undefined;
   // Starting armband number for auto-assignment (default 100)
   startingArmbandNumber?: number | undefined;
+  // Payment method configuration
+  acceptCheckPayments?: boolean | undefined;
+  acceptCashPayments?: boolean | undefined;
 
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
@@ -135,6 +138,8 @@ export interface ShowInput {
   confirmationMessage?: string | undefined;
   // Starting armband number for auto-assignment (default 100)
   startingArmbandNumber?: number | undefined;
+  acceptCheckPayments?: boolean | undefined;
+  acceptCashPayments?: boolean | undefined;
   // Index signature for compatibility with Record<string, unknown>
   [key: string]: unknown;
 }

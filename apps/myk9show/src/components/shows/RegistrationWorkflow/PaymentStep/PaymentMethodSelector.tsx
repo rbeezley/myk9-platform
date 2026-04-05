@@ -86,12 +86,16 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   paymentMethod,
   onPaymentMethodChange,
   onPaymentDetailsChange,
+  acceptedMethods,
 }) => {
   const [checkNumber, setCheckNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [groupReference, setGroupReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+
+  const showCheck = acceptedMethods?.check ?? true;
+  const showCash = acceptedMethods?.cash ?? true;
 
   // Build a current snapshot of all detail fields and fire the callback.
   const notifyDetailsChange = (patch: Partial<PaymentDetails>) => {
@@ -167,16 +171,18 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            <PaymentOptionCard
-              value="check"
-              selected={paymentMethod === 'check'}
-              icon={Check}
-              title="Check (pay at show)"
-              description="Bring check made payable to hosting club"
-              onSelect={handleSelect}
-            />
+            {showCheck && (
+              <PaymentOptionCard
+                value="check"
+                selected={paymentMethod === 'check'}
+                icon={Check}
+                title="Check (pay at show)"
+                description="Bring check made payable to hosting club"
+                onSelect={handleSelect}
+              />
+            )}
 
-            {paymentMethod === 'check' && (
+            {showCheck && paymentMethod === 'check' && (
               <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>
@@ -195,16 +201,18 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            <PaymentOptionCard
-              value="cash"
-              selected={paymentMethod === 'cash'}
-              icon={DollarSign}
-              title="Cash (pay at show)"
-              description="Exact amount required at check-in"
-              onSelect={handleSelect}
-            />
+            {showCash && (
+              <PaymentOptionCard
+                value="cash"
+                selected={paymentMethod === 'cash'}
+                icon={DollarSign}
+                title="Cash (pay at show)"
+                description="Exact amount required at check-in"
+                onSelect={handleSelect}
+              />
+            )}
 
-            {paymentMethod === 'cash' && (
+            {showCash && paymentMethod === 'cash' && (
               <div className="ml-4 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertDescription>

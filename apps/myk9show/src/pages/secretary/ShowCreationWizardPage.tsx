@@ -231,6 +231,8 @@ const ShowCreationWizardPage: React.FC = () => {
             preEntryFee: parseFloat(existingShow.preEntryFee) || 0,
             dayOfShowFee: parseFloat(existingShow.dayOfShowFee || '0') || 0,
             startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
+            acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
+            acceptCashPayments: existingShow.acceptCashPayments ?? false,
             officials: {
               secretary: [] as string[],
               chairman: [] as string[],

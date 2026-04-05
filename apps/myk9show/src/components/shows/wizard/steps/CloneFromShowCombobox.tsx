@@ -78,6 +78,8 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       preEntryFee: parseFloat(show.preEntryFee) || 0,
       dayOfShowFee: parseFloat(show.dayOfShowFee || '0') || 0,
       startingArmbandNumber: show.startingArmbandNumber ?? 100,
+      acceptCheckPayments: show.acceptCheckPayments ?? false,
+      acceptCashPayments: show.acceptCashPayments ?? false,
       // Dates are intentionally left blank so the secretary fills them in
       startDate: '',
       endDate: '',
@@ -115,6 +117,8 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
       preEntryFee: 0,
       dayOfShowFee: 0,
       startingArmbandNumber: 100,
+      acceptCheckPayments: false,
+      acceptCashPayments: false,
       judgeIds: [],
     });
   };

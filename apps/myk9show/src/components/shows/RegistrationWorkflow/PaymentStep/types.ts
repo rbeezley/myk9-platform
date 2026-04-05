@@ -63,6 +63,8 @@ export interface PaymentMethodSelectorProps {
   onPaymentMethodChange: (method: PaymentMethod) => void;
   /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
+  /** Which at-show payment methods are enabled for this show. Defaults to all enabled. */
+  acceptedMethods?: { check: boolean; cash: boolean } | undefined;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */

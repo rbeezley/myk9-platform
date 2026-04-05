@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { PaymentMethodsCheckboxGroup } from '@/components/common/PaymentMethodsCheckboxGroup';
 import { DollarSign } from 'lucide-react';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
@@ -152,6 +153,25 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
                 Allow non-owner handlers
               </Label>
             </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Payment Methods
+            </h4>
+            <PaymentMethodsCheckboxGroup
+              acceptCheck={data.acceptCheckPayments ?? false}
+              acceptCash={data.acceptCashPayments ?? false}
+              onCheckChange={
+                handleCheckboxChange('acceptCheckPayments') as (checked: boolean) => void
+              }
+              onCashChange={
+                handleCheckboxChange('acceptCashPayments') as (checked: boolean) => void
+              }
+              idPrefix="edit-"
+            />
           </div>
         </CardContent>
       </Card>

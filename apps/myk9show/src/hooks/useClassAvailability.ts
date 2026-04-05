@@ -1,5 +1,7 @@
 /**
- * Hook for fetching class availability for a show
+ * Hook for fetching class availability for a show.
+ * Uses judge-day capacity model: fullness is determined by the assigned
+ * judge's total entries for that date, not per-class max_entries.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -19,15 +21,16 @@ export interface ClassAvailability {
   waitlistCount: number;
   isFull: boolean;
   hasWaitlist: boolean;
+  // Judge-day capacity fields
+  judgeId: string | null;
+  judgeDayFull: boolean;
+  judgeDayAvailable: number;
 }
 
 interface UseClassAvailabilityOptions {
   enabled?: boolean;
 }
 
-/**
- * Row type from Supabase query with joined trial data
- */
 interface ClassWithTrialRow {
   id: string;
   name: string;
@@ -40,6 +43,21 @@ interface ClassWithTrialRow {
     date: string;
     show_id: string;
   };
+}
+
+interface JudgeAssignmentRow {
+  class_id: string;
+  person_id: string;
+  trials: {
+    date: string;
+  };
+}
+
+// These columns are added by migration 114; cast until types are regenerated.
+interface ShowCapacityRow {
+  default_judge_day_capacity: number;
+  mail_in_strategy: string | null;
+  mail_in_value: number | null;
 }
 
 interface UseClassAvailabilityResult {
@@ -68,10 +86,11 @@ export function useClassAvailability(
     setError(null);
 
     try {
-      // Fetch classes for this show with their entry counts
+      // 1. Fetch classes for this show
       const { data: classData, error: classError } = await supabase
         .from('classes')
-        .select(`
+        .select(
+          `
           id,
           name,
           level,
@@ -83,13 +102,19 @@ export function useClassAvailability(
             date,
             show_id
           )
-        `)
+        `
+        )
         .eq('trials.show_id', showId)
         .order('level');
 
       if (classError) {
-        logger.error('Error fetching classes', 'useClassAvailability', { showId }, classError as Error);
-        throw classError;
+        logger.error(
+          'Error fetching classes',
+          'useClassAvailability',
+          { showId },
+          classError as Error
+        );
+        throw new Error((classError as { message?: string }).message ?? String(classError));
       }
 
       if (!classData || classData.length === 0) {
@@ -97,60 +122,110 @@ export function useClassAvailability(
         return;
       }
 
-      // Get entry counts for each class
       const classIds = classData.map((c: { id: string }) => c.id);
-      const { data: entryCounts, error: countError } = await supabase
-        .from('entries')
-        .select('class_id')
-        .in('class_id', classIds)
-        .in('status', ['pending', 'confirmed', 'paid', 'checked_in']);
 
-      if (countError) {
-        logger.warn('Error fetching entry counts', 'useClassAvailability', {}, countError as Error);
-      }
-
-      // Count entries per class
-      const entryCountMap = (entryCounts || []).reduce((acc: Record<string, number>, entry: { class_id: string | null }) => {
-        if (entry.class_id) {
-          acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Get waitlist counts (from migration 009 - may not exist yet)
-      let waitlistCountMap: Record<string, number> = {};
-      try {
-        const { data: waitlistCounts, error: waitlistError } = await supabase
+      // 2. Fetch show capacity config, entry counts, waitlist counts, and judge assignments in parallel
+      const [showResult, entryResult, waitlistResult, judgeResult] = await Promise.all([
+        supabase
+          .from('shows')
+          .select('default_judge_day_capacity, mail_in_strategy, mail_in_value')
+          .eq('id', showId)
+          .single(),
+        supabase
+          .from('entries')
+          .select('class_id')
+          .in('class_id', classIds)
+          .in('entry_status', [
+            'submitted',
+            'paid',
+            'confirmed',
+            'checked-in',
+            'competing',
+            'pending-payment',
+          ]),
+        supabase
           .from('waitlist_entries')
           .select('class_id')
           .in('class_id', classIds)
-          .eq('status', 'waiting');
+          .eq('status', 'waiting'),
+        supabase
+          .from('judge_assignments')
+          .select('class_id, person_id, trials!inner(date)')
+          .eq('show_id', showId)
+          .eq('status', 'confirmed'),
+      ]);
 
-        if (!waitlistError && waitlistCounts) {
-          waitlistCountMap = waitlistCounts.reduce((acc: Record<string, number>, entry: { class_id: string | null }) => {
-            if (entry.class_id) {
-              acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
-            }
-            return acc;
-          }, {} as Record<string, number>);
+      if (showResult.error) throw showResult.error;
+
+      const show = showResult.data as unknown as ShowCapacityRow;
+      const defaultCapacity = show?.default_judge_day_capacity ?? 125;
+
+      // 3. Build entry count map per class
+      const entryCountMap: Record<string, number> = {};
+      for (const entry of entryResult.data ?? []) {
+        if (entry.class_id) {
+          entryCountMap[entry.class_id] = (entryCountMap[entry.class_id] ?? 0) + 1;
         }
-      } catch {
-        // Waitlist table may not exist yet - that's OK
-        logger.debug('Waitlist table not available yet', 'useClassAvailability', {});
       }
 
-      // Transform to ClassAvailability format
-      const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map((cls) => {
+      // 4. Build waitlist count map per class
+      const waitlistCountMap: Record<string, number> = {};
+      for (const entry of waitlistResult.data ?? []) {
+        if (entry.class_id) {
+          waitlistCountMap[entry.class_id] = (waitlistCountMap[entry.class_id] ?? 0) + 1;
+        }
+      }
+
+      // 5. Build judge assignment map: classId → judgeId
+      const classJudgeMap: Record<string, string> = {};
+      // Build judge-day confirmed entry totals: `${judgeId}:${date}` → count
+      const judgeDayEntryCount: Record<string, number> = {};
+
+      for (const ja of (judgeResult.data as JudgeAssignmentRow[]) ?? []) {
+        classJudgeMap[ja.class_id] = ja.person_id;
+        const date = ja.trials?.date;
+        if (date) {
+          const key = `${ja.person_id}:${date}`;
+          const count = entryCountMap[ja.class_id] ?? 0;
+          judgeDayEntryCount[key] = (judgeDayEntryCount[key] ?? 0) + count;
+        }
+      }
+
+      // 6. Calculate mail-in reserved spots per judge-day
+      let mailInReserved = 0;
+      if (show?.mail_in_strategy === 'fixed') {
+        mailInReserved = show.mail_in_value ?? 0;
+      } else if (show?.mail_in_strategy === 'percentage') {
+        mailInReserved = Math.floor((defaultCapacity * (show.mail_in_value ?? 0)) / 100);
+      }
+
+      // 7. Build ClassAvailability for each class
+      const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map(cls => {
         const trial = cls.trials;
-        const currentEntries = entryCountMap[cls.id] || 0;
-        const entryLimit = cls.max_entries || 0;
-        const spotsAvailable = Math.max(0, entryLimit - currentEntries);
-        const waitlistCount = waitlistCountMap[cls.id] || 0;
+        const currentEntries = entryCountMap[cls.id] ?? 0;
+        const entryLimit = cls.max_entries ?? 0;
+        const waitlistCount = waitlistCountMap[cls.id] ?? 0;
+
+        const judgeId = classJudgeMap[cls.id] ?? null;
+        let judgeDayFull = false;
+        let judgeDayAvailable = defaultCapacity - mailInReserved;
+
+        if (judgeId) {
+          const key = `${judgeId}:${trial.date}`;
+          const judgeDayConfirmed = judgeDayEntryCount[key] ?? 0;
+          judgeDayAvailable = Math.max(0, defaultCapacity - judgeDayConfirmed - mailInReserved);
+          judgeDayFull = judgeDayAvailable === 0;
+        }
+
+        const perClassFull = entryLimit > 0 && currentEntries >= entryLimit;
+        const spotsAvailable = judgeId
+          ? judgeDayAvailable
+          : Math.max(0, entryLimit - currentEntries);
 
         return {
           classId: cls.id,
           className: cls.name,
-          level: cls.level || 'Open',
+          level: cls.level ?? 'Open',
           trialId: trial.id,
           trialName: trial.name,
           trialDate: trial.date,
@@ -158,8 +233,11 @@ export function useClassAvailability(
           currentEntries,
           spotsAvailable,
           waitlistCount,
-          isFull: entryLimit > 0 && currentEntries >= entryLimit,
+          isFull: judgeDayFull || perClassFull,
           hasWaitlist: waitlistCount > 0,
+          judgeId,
+          judgeDayFull,
+          judgeDayAvailable,
         };
       });
 
@@ -167,7 +245,12 @@ export function useClassAvailability(
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
       setError(message);
-      logger.error('Failed to fetch class availability', 'useClassAvailability', { showId }, err as Error);
+      logger.error(
+        'Failed to fetch class availability',
+        'useClassAvailability',
+        { showId },
+        err as Error
+      );
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +260,6 @@ export function useClassAvailability(
     fetchClassAvailability();
   }, [fetchClassAvailability]);
 
-  // Computed values
   const totalSpotsAvailable = classes.reduce((sum, cls) => sum + cls.spotsAvailable, 0);
   const fullClasses = classes.filter(cls => cls.isFull).length;
 

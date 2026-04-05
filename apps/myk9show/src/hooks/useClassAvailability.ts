@@ -86,7 +86,6 @@ export function useClassAvailability(
     setError(null);
 
     try {
-      // 1. Fetch classes for this show
       const { data: classData, error: classError } = await supabase
         .from('classes')
         .select(
@@ -124,7 +123,6 @@ export function useClassAvailability(
 
       const classIds = classData.map((c: { id: string }) => c.id);
 
-      // 2. Fetch show capacity config, entry counts, waitlist counts, and judge assignments in parallel
       const [showResult, entryResult, waitlistResult, judgeResult] = await Promise.all([
         supabase
           .from('shows')
@@ -160,7 +158,6 @@ export function useClassAvailability(
       const show = showResult.data as unknown as ShowCapacityRow;
       const defaultCapacity = show?.default_judge_day_capacity ?? 125;
 
-      // 3. Build entry count map per class
       const entryCountMap: Record<string, number> = {};
       for (const entry of entryResult.data ?? []) {
         if (entry.class_id) {
@@ -168,7 +165,6 @@ export function useClassAvailability(
         }
       }
 
-      // 4. Build waitlist count map per class
       const waitlistCountMap: Record<string, number> = {};
       for (const entry of waitlistResult.data ?? []) {
         if (entry.class_id) {
@@ -176,9 +172,8 @@ export function useClassAvailability(
         }
       }
 
-      // 5. Build judge assignment map: classId → judgeId
       const classJudgeMap: Record<string, string> = {};
-      // Build judge-day confirmed entry totals: `${judgeId}:${date}` → count
+      // Composite key `${judgeId}:${date}` → total confirmed entries for that judge-day
       const judgeDayEntryCount: Record<string, number> = {};
 
       for (const ja of (judgeResult.data as JudgeAssignmentRow[]) ?? []) {
@@ -191,7 +186,6 @@ export function useClassAvailability(
         }
       }
 
-      // 6. Calculate mail-in reserved spots per judge-day
       let mailInReserved = 0;
       if (show?.mail_in_strategy === 'fixed') {
         mailInReserved = show.mail_in_value ?? 0;
@@ -199,7 +193,6 @@ export function useClassAvailability(
         mailInReserved = Math.floor((defaultCapacity * (show.mail_in_value ?? 0)) / 100);
       }
 
-      // 7. Build ClassAvailability for each class
       const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map(cls => {
         const trial = cls.trials;
         const currentEntries = entryCountMap[cls.id] ?? 0;

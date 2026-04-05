@@ -26,23 +26,21 @@ export function useJudgeDayCapacity(showId: string | undefined) {
   const query = useQuery({
     queryKey: [queryKeys.show(showId!), 'judge-day-capacity'],
     queryFn: async (): Promise<JudgeDayCapacity[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
-        .from('judge_day_summary')
-        .select('*')
-        .eq('show_id', showId!);
+      const [summaryResult, showResult] = await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from('judge_day_summary').select('*').eq('show_id', showId!),
+        supabase
+          .from('shows')
+          .select('default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline')
+          .eq('id', showId!)
+          .single(),
+      ]);
 
-      if (error) throw error;
+      if (summaryResult.error) throw summaryResult.error;
+      if (showResult.error) throw showResult.error;
 
-      const { data: showRaw, error: showError } = await supabase
-        .from('shows')
-        .select('default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline')
-        .eq('id', showId!)
-        .single();
-
-      if (showError) throw showError;
-
-      const show = showRaw as unknown as ShowCapacityRow;
+      const data = summaryResult.data;
+      const show = showResult.data as unknown as ShowCapacityRow;
       const capacity = show.default_judge_day_capacity ?? 125;
 
       return (data as JudgeDaySummaryRow[]).map(row => {

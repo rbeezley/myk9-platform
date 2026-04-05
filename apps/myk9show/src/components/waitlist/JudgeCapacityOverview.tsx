@@ -53,7 +53,6 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
             </CardHeader>
 
             <CardContent className="space-y-3">
-              {/* Progress bar */}
               <div>
                 <div className="mb-1 flex justify-between text-sm">
                   <span className="font-medium">
@@ -75,7 +74,6 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
                 </div>
               </div>
 
-              {/* Badges / notes */}
               <div className="flex flex-wrap items-center gap-2">
                 {day.waitlistCount > 0 && (
                   <Badge variant="secondary">{day.waitlistCount} on wait list</Badge>

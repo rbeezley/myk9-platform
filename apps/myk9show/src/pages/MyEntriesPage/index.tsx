@@ -31,6 +31,7 @@ import type { LucideIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
+import type { WaitListEntry } from '@/types/waitlist-types';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -414,7 +415,7 @@ const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({ dialog, user, o
 };
 
 interface WaitListSectionProps {
-  entries: import('@/types/waitlist-types').WaitListEntry[];
+  entries: WaitListEntry[];
   isLoading: boolean;
   onWithdraw: (id: string) => void;
   isWithdrawing: boolean;

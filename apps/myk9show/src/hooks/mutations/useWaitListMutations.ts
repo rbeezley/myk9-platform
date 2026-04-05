@@ -45,16 +45,17 @@ export function useWaitListMutations(showId: string) {
       entryIds: string[];
       deadlineHours?: number;
     }) => {
-      const results: string[] = [];
-      for (const id of entryIds) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any).rpc('promote_waitlist_entry', {
-          p_waitlist_entry_id: id,
-          p_deadline_hours: deadlineHours,
-        });
-        if (error) throw error;
-        results.push(data as string);
-      }
+      const results = await Promise.all(
+        entryIds.map(async id => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data, error } = await (supabase as any).rpc('promote_waitlist_entry', {
+            p_waitlist_entry_id: id,
+            p_deadline_hours: deadlineHours,
+          });
+          if (error) throw error;
+          return data as string;
+        })
+      );
       return results;
     },
     onSuccess: invalidateShow,

@@ -10,6 +10,10 @@ export interface Registration {
   handlerId: string;
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'waived';
   paymentReference?: string | undefined;
+  checkNumber?: string | undefined;
+  paymentDate?: string | undefined;
+  groupReference?: string | undefined;
+  paymentNotes?: string | undefined;
   notes?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +39,10 @@ export interface DbRegistration {
   handler_id: string;
   payment_status: string;
   payment_reference: string | null;
+  check_number: string | null;
+  payment_date: string | null;
+  group_reference: string | null;
+  payment_notes: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

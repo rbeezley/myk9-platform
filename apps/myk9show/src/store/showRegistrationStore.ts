@@ -16,6 +16,7 @@ import {
   migratePaymentStatus,
   isLegacyPaymentStatus,
 } from '../types/show-registration-types';
+import type { PaymentDetails } from '../types/show-registration-types';
 import {
   createShowRegistration,
   getRegistrationByShowAndHandler,
@@ -101,10 +102,11 @@ interface ShowRegistrationStore {
   calculateFees: (registration: ShowRegistration) => FeeCalculation;
 
   // Submission
-  submitRegistration: (registrationId: string) => Promise<void>;
+  submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
   confirmRegistration: (
     registrationId: string,
-    paymentReference: string
+    paymentReference: string,
+    paymentDetails?: PaymentDetails
   ) => Promise<{ confirmationNumber?: string | undefined; dbRegistrationId?: string | undefined }>;
   cancelRegistration: (registrationId: string) => void;
 
@@ -364,8 +366,7 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         };
       },
 
-      submitRegistration: async registrationId => {
-        // In a real app, this would make an API call
+      submitRegistration: async (registrationId, paymentDetails) => {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         set(state => ({
@@ -376,13 +377,15 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
                   status: 'submitted',
                   submittedAt: new Date(),
                   updatedAt: new Date(),
+                  // Store payment details locally for confirmation step display
+                  ...(paymentDetails && { paymentDetails }),
                 }
               : reg
           ),
         }));
       },
 
-      confirmRegistration: async (registrationId, paymentReference) => {
+      confirmRegistration: async (registrationId, paymentReference, paymentDetails) => {
         const reg = get().registrations.find(r => r.id === registrationId);
         if (!reg) return { confirmationNumber: undefined, dbRegistrationId: undefined };
 
@@ -397,7 +400,12 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
             dbRegistrationId = existing.data.id;
           } else {
             // Create new DB registration — trigger generates MK9-XXXXXX number
-            const result = await createShowRegistration(reg.showId, reg.userId, paymentReference);
+            const result = await createShowRegistration(
+              reg.showId,
+              reg.userId,
+              paymentReference,
+              paymentDetails
+            );
             if (result.error) {
               logger.error('[confirmRegistration] Failed to create DB registration:', result.error);
             }

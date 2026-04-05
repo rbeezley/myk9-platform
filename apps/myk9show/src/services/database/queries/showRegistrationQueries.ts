@@ -5,6 +5,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration, mapDbToRegistrationArray } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
+import type { PaymentDetails } from '@/types/show-registration-types';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
@@ -16,7 +17,8 @@ const POSTGRES_UNIQUE_VIOLATION = '23505';
 export const createShowRegistration = async (
   showId: string,
   handlerId: string,
-  paymentReference?: string
+  paymentReference?: string,
+  paymentDetails?: PaymentDetails
 ): Promise<{
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
@@ -30,6 +32,10 @@ export const createShowRegistration = async (
         show_id: showId,
         handler_id: handlerId,
         payment_reference: paymentReference ?? null,
+        check_number: paymentDetails?.checkNumber ?? null,
+        payment_date: paymentDetails?.paymentDate ?? null,
+        group_reference: paymentDetails?.groupReference ?? null,
+        payment_notes: paymentDetails?.paymentNotes ?? null,
       })
       .select('*')
       .single();

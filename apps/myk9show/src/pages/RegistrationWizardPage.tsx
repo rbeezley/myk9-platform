@@ -337,9 +337,14 @@ function RegistrationWizardContent() {
     }
 
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
+      if (!currentShow) {
+        notifications.error('Show not found. Please go back and try again.');
+        return;
+      }
       submittingRef.current = true;
       setIsSubmitting(true);
       const previousStatus = currentRegistration.status;
+      const paymentDetails = paymentDetailsRef.current;
       try {
         // Convert wizard data into real entry records and persist via replication layer
         const entryInputs = registrationToEntries(
@@ -347,30 +352,44 @@ function RegistrationWizardContent() {
           classSelections,
           handlerAssignments,
           classes,
-          currentShow
-            ? {
-                preEntryFee: currentShow.preEntryFee || '0',
-                dayOfShowFee: currentShow.dayOfShowFee,
-                startDate: currentShow.startDate,
-              }
-            : undefined
+          {
+            preEntryFee: currentShow.preEntryFee || '0',
+            dayOfShowFee: currentShow.dayOfShowFee,
+            startDate: currentShow.startDate,
+          }
         );
 
-        // TODO: pass paymentDetailsRef.current (checkNumber, paymentDate, paymentReference,
-        // paymentNotes, groupReference) into submitRegistration / confirmRegistration once
-        // those functions accept them. The submission layer does not yet persist them.
-        await submitRegistration(registrationId);
+        await submitRegistration(registrationId, paymentDetails);
         if (!mountedRef.current) return;
 
-        // Create DB registration to get confirmation number + ID, then create entries with registration_id
+        // Create DB registration — all payment methods get a confirmation number
         let dbRegistrationId: string | undefined;
         if (registrationData.paymentMethod === 'credit_card') {
-          const result = await confirmRegistration(registrationId, 'MOCK-PAYMENT-REF');
+          const result = await confirmRegistration(
+            registrationId,
+            'MOCK-PAYMENT-REF',
+            paymentDetails
+          );
           if (!mountedRef.current) return;
           setRegistrationNumber(
             result.confirmationNumber ?? currentRegistration.registrationNumber
           );
           dbRegistrationId = result.dbRegistrationId;
+        } else {
+          // Non-credit-card: create DB registration with full payment details
+          const { createShowRegistration } =
+            await import('@/services/database/queries/showRegistrationQueries');
+          const result = await createShowRegistration(
+            showId,
+            userId,
+            paymentDetails?.paymentReference,
+            paymentDetails
+          );
+          if (!mountedRef.current) return;
+          if (result.data) {
+            setRegistrationNumber(result.data.confirmationNumber);
+            dbRegistrationId = result.data.id;
+          }
         }
 
         let createdEntries: Awaited<ReturnType<typeof createMultipleEntries>> = [];
@@ -674,12 +693,29 @@ function RegistrationWizardContent() {
 export default function RegistrationWizardPage() {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
+  const { shows } = useShowStore();
 
   if (!showId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-muted-foreground">No show selected.</p>
+          <Button variant="outline" onClick={() => navigate('/shows')}>
+            Browse Shows
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // shows.length === 0 means still loading from replication — let the inner
+  // component handle that state. Once shows are populated, verify this one exists.
+  const showExists = shows.length === 0 || shows.some(s => s.id === showId);
+  if (!showExists) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Show not found.</p>
           <Button variant="outline" onClick={() => navigate('/shows')}>
             Browse Shows
           </Button>

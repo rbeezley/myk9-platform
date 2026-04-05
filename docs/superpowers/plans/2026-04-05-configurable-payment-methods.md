@@ -36,6 +36,8 @@
 - `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep/types.ts` — acceptedMethods prop
 - `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep/PaymentMethodSelector.tsx` — filter check/cash
 - `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep/index.tsx` — pass acceptedMethods
+- `apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx` — [ADDED] clone/reset payment flags
+- `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx` — [ADDED] edit-mode draft includes payment flags
 
 ---
 
@@ -321,6 +323,58 @@ Expected: no errors.
 git add apps/myk9show/src/store/wizardStore.ts \
         apps/myk9show/src/pages/secretary/ShowCreationWizard/showCreationWizardTransformers.ts
 git commit -m "feat(wizard): thread acceptCheckPayments/acceptCashPayments through wizard store and transformer"
+```
+
+---
+
+## Task 4b: Clone / Edit-Mode Payment Flag Pass-through [ADDED]
+
+**Files:**
+
+- Modify: `apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx:67-120`
+- Modify: `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx:221-246`
+
+- [ ] **Step 1: Add payment flags to CloneFromShowCombobox.handleSelect**
+
+In `apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx`, find the `updateShowData` call inside `handleSelect` (line ~73). After `startingArmbandNumber: show.startingArmbandNumber ?? 100,` add:
+
+```typescript
+      acceptCheckPayments: show.acceptCheckPayments ?? false,
+      acceptCashPayments: show.acceptCashPayments ?? false,
+```
+
+- [ ] **Step 2: Reset payment flags in handleStartFresh**
+
+In the same file, find `handleStartFresh`'s `updateShowData` call (line ~107). After `startingArmbandNumber: 100,` add:
+
+```typescript
+      acceptCheckPayments: false,
+      acceptCashPayments: false,
+```
+
+- [ ] **Step 3: Add payment flags to edit-mode draft in ShowCreationWizardPage**
+
+In `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx`, find the draft builder (line ~221). Inside `show: { ... }`, after `startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,` add:
+
+```typescript
+            acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
+            acceptCashPayments: existingShow.acceptCashPayments ?? false,
+```
+
+- [ ] **Step 4: Typecheck**
+
+```bash
+cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck 2>&1 | tail -5
+```
+
+Expected: no errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx \
+        apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx
+git commit -m "fix(wizard): carry payment method flags through clone and edit-mode flows"
 ```
 
 ---
@@ -1160,5 +1214,8 @@ git push
 - [ ] QuickInfoCards shows "Card" always, "Check"/"Cash" only when enabled
 - [ ] Registration wizard hides Check/Cash payment options when show flags are false
 - [ ] Secretary-only methods (secretary_paid, group_payment, waived) always visible to secretaries
+- [ ] Cloning a show with check/cash enabled carries flags into the new wizard
+- [ ] "Start fresh" resets payment flags to unchecked
+- [ ] Editing an existing show in wizard loads its payment flags
 - [ ] All 25 new tests pass
 - [ ] Typecheck clean, lint clean (warnings only)

@@ -157,7 +157,7 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 ## Configurable Payment Types Per Show - 2026-04-01 20:24
 
-- **Allow clubs to configure accepted payment methods per show** — Secretary/club admin sets which payment types are accepted during show setup. **Problem:** No way to restrict payment methods. Some clubs only want online payments (Stripe), others accept checks or cash at the door. Currently there's no configuration for this, and the registration flow doesn't enforce or display accepted payment types. Options to support: online (Stripe), check, cash, and potentially others. **Solution:** Add a payment configuration section to show settings where the club selects which methods to accept. Registration wizard and entry flow should only present the enabled options. Store as a JSON array or flags on the show record. Consider: default payment types per club (so they don't reconfigure every show), validation that at least one method is enabled.
+- [x] **Allow clubs to configure accepted payment methods per show** — Done. Online (card) always enabled; check and cash are opt-in per show via `accept_check_payments`/`accept_cash_payments` boolean flags (migration 115). Payment Methods section in wizard step 1 and edit fees tab. Indigo pill badges on show details page. PaymentMethodSelector filters check/cash based on show flags. Shared `PaymentMethodsCheckboxGroup` component. 25 tests. Deploy: `supabase db push` for migration 115.
 
 ---
 

@@ -39,6 +39,7 @@ import {
   KanbanSquare,
   UserCheck,
   MessageSquare,
+  ClipboardList,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -266,6 +267,12 @@ export function buildUnifiedSidebarConfig(
           href: '/secretary/settings',
           icon: Settings,
           description: 'Results visibility and check-in settings',
+        },
+        {
+          title: 'Wait List',
+          href: '/secretary/waitlist',
+          icon: ClipboardList,
+          description: 'Manage wait lists and judge-day capacity',
         },
         {
           title: 'Messages',

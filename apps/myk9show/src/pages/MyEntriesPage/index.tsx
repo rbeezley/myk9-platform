@@ -29,6 +29,11 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
+import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
+import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
+import type { WaitListEntry } from '@/types/waitlist-types';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useMyEntriesData,
   useMyEntriesFilters,
@@ -68,6 +73,14 @@ const MyEntriesPage: React.FC = () => {
     open: false,
     entry: null,
   });
+
+  // Waitlist
+  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const {
+    entries: waitlistEntries,
+    isLoading: waitlistLoading,
+    withdraw,
+  } = useMyWaitlistEntries(exhibitorProfile?.id);
 
   // Breadcrumb
   const breadcrumbItems = useBreadcrumb({ currentPage: 'my-entries' });
@@ -222,6 +235,16 @@ const MyEntriesPage: React.FC = () => {
           </Tabs>
         </div>
       </div>
+
+      {/* Wait List Queue */}
+      {(waitlistLoading || waitlistEntries.length > 0) && (
+        <WaitListSection
+          entries={waitlistEntries}
+          isLoading={waitlistLoading}
+          onWithdraw={id => withdraw.mutate(id)}
+          isWithdrawing={withdraw.isPending}
+        />
+      )}
 
       {/* Dialogs */}
       <CheckInDialog
@@ -390,5 +413,79 @@ const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({ dialog, user, o
     />
   );
 };
+
+interface WaitListSectionProps {
+  entries: WaitListEntry[];
+  isLoading: boolean;
+  onWithdraw: (id: string) => void;
+  isWithdrawing: boolean;
+}
+
+const WaitListSection: React.FC<WaitListSectionProps> = ({
+  entries,
+  isLoading,
+  onWithdraw,
+  isWithdrawing,
+}) => (
+  <div className="container mx-auto px-6 pb-4 max-w-7xl">
+    <Card className="border border-amber-200/50 bg-amber-50/30 dark:bg-amber-950/10 dark:border-amber-800/30">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-amber-800 dark:text-amber-300">
+          <Users className="h-4 w-4" />
+          My Wait List Positions
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map(i => (
+              <div key={i} className="h-14 bg-muted/50 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active wait list positions.</p>
+        ) : (
+          <div className="space-y-2">
+            {entries.map(entry => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-background/60 px-4 py-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-sm font-semibold">
+                    #{entry.position}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{entry.dogName}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {entry.className} — {entry.showName}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {entry.status === 'offered' && (
+                    <Badge
+                      variant="outline"
+                      className="border-green-500/50 text-green-700 dark:text-green-400 text-xs"
+                    >
+                      Spot Offered
+                    </Badge>
+                  )}
+                  <button
+                    onClick={() => onWithdraw(entry.id)}
+                    disabled={isWithdrawing}
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors duration-150 disabled:opacity-50"
+                  >
+                    Withdraw
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  </div>
+);
 
 export default MyEntriesPage;

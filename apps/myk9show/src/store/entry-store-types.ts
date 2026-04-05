@@ -17,7 +17,9 @@ export type EntryStatus =
   | 'competing' // Currently in ring
   | 'completed' // Results recorded
   | 'withdrawn' // Entry withdrawn
-  | 'scratched'; // Scratched day of show
+  | 'scratched' // Scratched day of show
+  | 'pending-payment' // Promoted from wait list, awaiting Stripe checkout
+  | 'promotion-expired'; // Didn't pay within promotion deadline
 
 export interface StatusHistoryEntry {
   status: EntryStatus;

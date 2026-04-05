@@ -17,7 +17,11 @@ export interface LevelInfo {
   displayLabel: string;
   isSelected: boolean;
   isAlreadyEntered: boolean;
-  requiresJumpHeight?: boolean;
+  requiresJumpHeight?: boolean | undefined;
+  /** True when the judge-day capacity for this class is exhausted */
+  isJudgeDayFull?: boolean | undefined;
+  /** Number of entries currently on the waitlist for this class */
+  waitlistCount?: number | undefined;
 }
 
 export interface ElementGroup {

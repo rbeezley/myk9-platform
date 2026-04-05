@@ -165,6 +165,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               {element}
             </Label>
             {cls.isAlreadyEntered && <CheckCircle2 className="h-3.5 w-3.5 text-teal-600" />}
+            {cls.isJudgeDayFull && !cls.isAlreadyEntered && (
+              <WaitlistBadge waitlistCount={cls.waitlistCount} />
+            )}
           </div>
           <span className="text-xs text-muted-foreground">${fee}</span>
         </div>
@@ -186,6 +189,8 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             displayLabel={cls.displayLabel}
             isSelected={cls.isSelected}
             isAlreadyEntered={cls.isAlreadyEntered}
+            isJudgeDayFull={cls.isJudgeDayFull}
+            waitlistCount={cls.waitlistCount}
             onToggle={onToggle}
           />
         ))}
@@ -194,6 +199,21 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   );
 };
 
+// ─── Waitlist Badge ─────────────────────────────────────────────────────────────
+
+interface WaitlistBadgeProps {
+  waitlistCount?: number | undefined;
+}
+
+const WaitlistBadge: React.FC<WaitlistBadgeProps> = ({ waitlistCount }) => (
+  <Badge variant="secondary" className="text-xs h-5 px-1.5">
+    Full — Join Wait List
+    {waitlistCount !== undefined && waitlistCount > 0 && (
+      <span className="ml-1 text-muted-foreground">({waitlistCount} waiting)</span>
+    )}
+  </Badge>
+);
+
 // ─── Level Chip ─────────────────────────────────────────────────────────────────
 
 interface LevelChipProps {
@@ -201,6 +221,8 @@ interface LevelChipProps {
   displayLabel: string;
   isSelected: boolean;
   isAlreadyEntered: boolean;
+  isJudgeDayFull?: boolean | undefined;
+  waitlistCount?: number | undefined;
   onToggle: (classId: string) => void;
 }
 
@@ -209,27 +231,32 @@ const LevelChip: React.FC<LevelChipProps> = ({
   displayLabel,
   isSelected,
   isAlreadyEntered,
+  isJudgeDayFull,
+  waitlistCount,
   onToggle,
 }) => {
   const isChecked = isSelected || isAlreadyEntered;
 
   return (
-    <label
-      className={cn(
-        'myk9-level-chip',
-        isAlreadyEntered && 'myk9-level-chip-entered',
-        isSelected && !isAlreadyEntered && 'myk9-level-chip-selected'
-      )}
-    >
-      <Checkbox
-        id={`chip-${classId}`}
-        checked={isChecked}
-        disabled={isAlreadyEntered}
-        onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
-        className="h-3.5 w-3.5"
-      />
-      <span className="text-xs">{displayLabel}</span>
-    </label>
+    <div className="flex flex-col gap-1">
+      <label
+        className={cn(
+          'myk9-level-chip',
+          isAlreadyEntered && 'myk9-level-chip-entered',
+          isSelected && !isAlreadyEntered && 'myk9-level-chip-selected'
+        )}
+      >
+        <Checkbox
+          id={`chip-${classId}`}
+          checked={isChecked}
+          disabled={isAlreadyEntered}
+          onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
+          className="h-3.5 w-3.5"
+        />
+        <span className="text-xs">{displayLabel}</span>
+      </label>
+      {isJudgeDayFull && !isAlreadyEntered && <WaitlistBadge waitlistCount={waitlistCount} />}
+    </div>
   );
 };
 

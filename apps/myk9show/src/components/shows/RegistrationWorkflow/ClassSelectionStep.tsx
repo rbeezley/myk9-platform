@@ -11,6 +11,7 @@ import { compareLevels } from '@/utils/schedule-summary';
 import { useCartStore, useCartItems } from '@/stores/cartStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
+import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { toast } from 'sonner';
 import { InlineHandlerSection } from './InlineHandlerSection';
 import type { ClassSelectionStepProps, ElementGroup } from './ClassSelectionStep.types';
@@ -64,6 +65,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const removeItem = useCartStore(state => state.removeItem);
 
   const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
+  const { classes: availabilityClasses } = useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
   const showTrials = useMemo(
@@ -169,6 +171,18 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     (dogId: string, classId: string) => findCartItem(cartItems, dogId, classId),
     [cartItems]
   );
+
+  // Build a quick lookup map: classId → availability info
+  const availabilityMap = useMemo(() => {
+    const map = new Map<string, { isJudgeDayFull: boolean; waitlistCount: number }>();
+    for (const cls of availabilityClasses) {
+      map.set(cls.classId, {
+        isJudgeDayFull: cls.judgeDayFull,
+        waitlistCount: cls.waitlistCount,
+      });
+    }
+    return map;
+  }, [availabilityClasses]);
 
   // Skip cart for secretary/admin workflows. The cart requires classes to exist
   // in Supabase (FK on entry_cart_items.class_id), but wizard-created classes
@@ -296,16 +310,23 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 element={group.element}
                                 fee={group.fee}
                                 isSingleClass={group.isSingleClass}
-                                levels={group.levels.map(l => ({
-                                  ...l,
-                                  isSelected: isClassSelected(
-                                    dogId,
-                                    l.classId,
-                                    cartItems,
-                                    classSelections
-                                  ),
-                                  isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
-                                }))}
+                                levels={group.levels.map(l => {
+                                  const avail = availabilityMap.get(l.classId);
+                                  return {
+                                    ...l,
+                                    isSelected: isClassSelected(
+                                      dogId,
+                                      l.classId,
+                                      cartItems,
+                                      classSelections
+                                    ),
+                                    isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
+                                    ...(avail !== undefined && {
+                                      isJudgeDayFull: avail.isJudgeDayFull,
+                                      waitlistCount: avail.waitlistCount,
+                                    }),
+                                  };
+                                })}
                                 onToggle={classId =>
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }

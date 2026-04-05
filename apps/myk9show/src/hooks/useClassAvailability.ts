@@ -1,8 +1,10 @@
 /**
- * Hook for fetching class availability for a show
+ * Hook for fetching class availability for a show.
+ * Uses judge-day capacity model: fullness is determined by the assigned
+ * judge's total entries for that date, not per-class max_entries.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 
@@ -19,15 +21,16 @@ export interface ClassAvailability {
   waitlistCount: number;
   isFull: boolean;
   hasWaitlist: boolean;
+  // Judge-day capacity fields
+  judgeId: string | null;
+  judgeDayFull: boolean;
+  judgeDayAvailable: number;
 }
 
 interface UseClassAvailabilityOptions {
   enabled?: boolean;
 }
 
-/**
- * Row type from Supabase query with joined trial data
- */
 interface ClassWithTrialRow {
   id: string;
   name: string;
@@ -40,6 +43,22 @@ interface ClassWithTrialRow {
     date: string;
     show_id: string;
   };
+}
+
+interface JudgeAssignmentRow {
+  class_id: string;
+  person_id: string;
+  day_capacity_override: number | null;
+  trials: {
+    date: string;
+  };
+}
+
+// These columns are added by migration 114; cast until types are regenerated.
+interface ShowCapacityRow {
+  default_judge_day_capacity: number;
+  mail_in_strategy: string | null;
+  mail_in_value: number | null;
 }
 
 interface UseClassAvailabilityResult {
@@ -60,6 +79,7 @@ export function useClassAvailability(
   const [classes, setClasses] = useState<ClassAvailability[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchClassAvailability = useCallback(async () => {
     if (!showId || !enabled) return;
@@ -68,10 +88,10 @@ export function useClassAvailability(
     setError(null);
 
     try {
-      // Fetch classes for this show with their entry counts
       const { data: classData, error: classError } = await supabase
         .from('classes')
-        .select(`
+        .select(
+          `
           id,
           name,
           level,
@@ -83,13 +103,19 @@ export function useClassAvailability(
             date,
             show_id
           )
-        `)
+        `
+        )
         .eq('trials.show_id', showId)
         .order('level');
 
       if (classError) {
-        logger.error('Error fetching classes', 'useClassAvailability', { showId }, classError as Error);
-        throw classError;
+        logger.error(
+          'Error fetching classes',
+          'useClassAvailability',
+          { showId },
+          classError as Error
+        );
+        throw new Error((classError as { message?: string }).message ?? String(classError));
       }
 
       if (!classData || classData.length === 0) {
@@ -97,60 +123,113 @@ export function useClassAvailability(
         return;
       }
 
-      // Get entry counts for each class
       const classIds = classData.map((c: { id: string }) => c.id);
-      const { data: entryCounts, error: countError } = await supabase
-        .from('entries')
-        .select('class_id')
-        .in('class_id', classIds)
-        .in('status', ['pending', 'confirmed', 'paid', 'checked_in']);
 
-      if (countError) {
-        logger.warn('Error fetching entry counts', 'useClassAvailability', {}, countError as Error);
-      }
-
-      // Count entries per class
-      const entryCountMap = (entryCounts || []).reduce((acc: Record<string, number>, entry: { class_id: string | null }) => {
-        if (entry.class_id) {
-          acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Get waitlist counts (from migration 009 - may not exist yet)
-      let waitlistCountMap: Record<string, number> = {};
-      try {
-        const { data: waitlistCounts, error: waitlistError } = await supabase
+      const [showResult, entryResult, waitlistResult, judgeResult] = await Promise.all([
+        supabase
+          .from('shows')
+          .select('default_judge_day_capacity, mail_in_strategy, mail_in_value')
+          .eq('id', showId)
+          .single(),
+        supabase
+          .from('entries')
+          .select('class_id')
+          .in('class_id', classIds)
+          .in('entry_status', [
+            'submitted',
+            'paid',
+            'confirmed',
+            'checked-in',
+            'competing',
+            'pending-payment',
+          ]),
+        supabase
           .from('waitlist_entries')
           .select('class_id')
           .in('class_id', classIds)
-          .eq('status', 'waiting');
+          .eq('status', 'waiting'),
+        supabase
+          .from('judge_assignments')
+          .select('class_id, person_id, day_capacity_override, trials!inner(date)')
+          .eq('show_id', showId)
+          .eq('status', 'confirmed'),
+      ]);
 
-        if (!waitlistError && waitlistCounts) {
-          waitlistCountMap = waitlistCounts.reduce((acc: Record<string, number>, entry: { class_id: string | null }) => {
-            if (entry.class_id) {
-              acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
-            }
-            return acc;
-          }, {} as Record<string, number>);
+      if (showResult.error) throw showResult.error;
+
+      const show = showResult.data as unknown as ShowCapacityRow;
+      const defaultCapacity = show?.default_judge_day_capacity ?? 125;
+
+      const entryCountMap: Record<string, number> = {};
+      for (const entry of entryResult.data ?? []) {
+        if (entry.class_id) {
+          entryCountMap[entry.class_id] = (entryCountMap[entry.class_id] ?? 0) + 1;
         }
-      } catch {
-        // Waitlist table may not exist yet - that's OK
-        logger.debug('Waitlist table not available yet', 'useClassAvailability', {});
       }
 
-      // Transform to ClassAvailability format
-      const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map((cls) => {
+      const waitlistCountMap: Record<string, number> = {};
+      for (const entry of waitlistResult.data ?? []) {
+        if (entry.class_id) {
+          waitlistCountMap[entry.class_id] = (waitlistCountMap[entry.class_id] ?? 0) + 1;
+        }
+      }
+
+      const classJudgeMap: Record<string, string> = {};
+      // Composite key `${judgeId}:${date}` → total confirmed entries for that judge-day
+      const judgeDayEntryCount: Record<string, number> = {};
+      // Composite key `${judgeId}:${date}` → max day_capacity_override for that judge-day
+      const judgeDayCapacityOverride: Record<string, number> = {};
+
+      for (const ja of (judgeResult.data as unknown as JudgeAssignmentRow[]) ?? []) {
+        classJudgeMap[ja.class_id] = ja.person_id;
+        const date = ja.trials?.date;
+        if (date) {
+          const key = `${ja.person_id}:${date}`;
+          const count = entryCountMap[ja.class_id] ?? 0;
+          judgeDayEntryCount[key] = (judgeDayEntryCount[key] ?? 0) + count;
+          if (ja.day_capacity_override != null) {
+            judgeDayCapacityOverride[key] = Math.max(
+              judgeDayCapacityOverride[key] ?? 0,
+              ja.day_capacity_override
+            );
+          }
+        }
+      }
+
+      let mailInReserved = 0;
+      if (show?.mail_in_strategy === 'fixed') {
+        mailInReserved = show.mail_in_value ?? 0;
+      } else if (show?.mail_in_strategy === 'percentage') {
+        mailInReserved = Math.floor((defaultCapacity * (show.mail_in_value ?? 0)) / 100);
+      }
+
+      const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map(cls => {
         const trial = cls.trials;
-        const currentEntries = entryCountMap[cls.id] || 0;
-        const entryLimit = cls.max_entries || 0;
-        const spotsAvailable = Math.max(0, entryLimit - currentEntries);
-        const waitlistCount = waitlistCountMap[cls.id] || 0;
+        const currentEntries = entryCountMap[cls.id] ?? 0;
+        const entryLimit = cls.max_entries ?? 0;
+        const waitlistCount = waitlistCountMap[cls.id] ?? 0;
+
+        const judgeId = classJudgeMap[cls.id] ?? null;
+        let judgeDayFull = false;
+        let judgeDayAvailable = defaultCapacity - mailInReserved;
+
+        if (judgeId) {
+          const key = `${judgeId}:${trial.date}`;
+          const judgeDayConfirmed = judgeDayEntryCount[key] ?? 0;
+          const effectiveCapacity = judgeDayCapacityOverride[key] ?? defaultCapacity;
+          judgeDayAvailable = Math.max(0, effectiveCapacity - judgeDayConfirmed - mailInReserved);
+          judgeDayFull = judgeDayAvailable === 0;
+        }
+
+        const perClassFull = entryLimit > 0 && currentEntries >= entryLimit;
+        const spotsAvailable = judgeId
+          ? judgeDayAvailable
+          : Math.max(0, entryLimit - currentEntries);
 
         return {
           classId: cls.id,
           className: cls.name,
-          level: cls.level || 'Open',
+          level: cls.level ?? 'Open',
           trialId: trial.id,
           trialName: trial.name,
           trialDate: trial.date,
@@ -158,26 +237,38 @@ export function useClassAvailability(
           currentEntries,
           spotsAvailable,
           waitlistCount,
-          isFull: entryLimit > 0 && currentEntries >= entryLimit,
+          isFull: judgeDayFull || perClassFull,
           hasWaitlist: waitlistCount > 0,
+          judgeId,
+          judgeDayFull,
+          judgeDayAvailable,
         };
       });
 
-      setClasses(availability);
+      if (mountedRef.current) setClasses(availability);
     } catch (err) {
+      if (!mountedRef.current) return;
       const message = err instanceof Error ? err.message : 'Failed to fetch class availability';
       setError(message);
-      logger.error('Failed to fetch class availability', 'useClassAvailability', { showId }, err as Error);
+      logger.error(
+        'Failed to fetch class availability',
+        'useClassAvailability',
+        { showId },
+        err as Error
+      );
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) setIsLoading(false);
     }
   }, [showId, enabled]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchClassAvailability();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchClassAvailability]);
 
-  // Computed values
   const totalSpotsAvailable = classes.reduce((sum, cls) => sum + cls.spotsAvailable, 0);
   const fullClasses = classes.filter(cls => cls.isFull).length;
 

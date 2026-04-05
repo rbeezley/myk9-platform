@@ -26,9 +26,9 @@ describe('buildUnifiedSidebarConfig', () => {
       expect(titles).toEqual(['Find Shows', 'Clubs', 'Calendar']);
     });
 
-    it('has Settings in fourth group', () => {
+    it('has Settings and Messages in fourth group', () => {
       const titles = config.groups[3].items.map(i => i.title);
-      expect(titles).toEqual(['Settings']);
+      expect(titles).toEqual(['Settings', 'Messages']);
     });
 
     it('does not include Browse group', () => {

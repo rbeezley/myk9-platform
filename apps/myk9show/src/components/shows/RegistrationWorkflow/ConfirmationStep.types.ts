@@ -3,6 +3,7 @@ import type {
   EntryStatus,
   PaymentStatus,
 } from '@/types/show-registration-types';
+import type { WaitlistEntryResult } from '@/stores/cartStore';
 
 export interface ConfirmationStepProps {
   registrationNumber?: string | undefined;
@@ -16,6 +17,10 @@ export interface ConfirmationStepProps {
   showId: string;
   armbandAssignments?: ArmbandAssignment[] | undefined;
   handlers?: HandlerAssignment[] | undefined;
+  /** Waitlist entries created during this checkout (full classes) */
+  waitlistEntries?: WaitlistEntryResult[] | undefined;
+  /** Count of confirmed entries (non-waitlisted) */
+  confirmedEntryCount?: number | undefined;
   onDownloadReceipt?: (() => void) | undefined;
   onSendEmail?: (() => void) | undefined;
   onStatusChange?: ((dogId: string, status: EntryStatus) => void) | undefined;

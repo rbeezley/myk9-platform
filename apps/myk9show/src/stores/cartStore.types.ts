@@ -65,6 +65,27 @@ export interface NewCartItem {
   entryFeeCents: number;
 }
 
+// Waitlist entry returned from the add_to_waitlist RPC
+export interface WaitlistEntryResult {
+  id: string;
+  class_id: string;
+  dog_id: string;
+  exhibitor_id: string;
+  handler_id: string | null;
+  position: number;
+  status: string;
+  /** Class name for display (joined via cart item details) */
+  className?: string | undefined;
+}
+
+// Result of a checkout that may include waitlisted entries
+export interface CheckoutResult {
+  /** Entry IDs that were confirmed normally */
+  confirmed: string[];
+  /** Waitlist entries for full classes */
+  waitlisted: WaitlistEntryResult[];
+}
+
 // Cart state interface
 export interface CartState {
   // Data
@@ -86,6 +107,15 @@ export interface CartState {
   refreshCart: () => Promise<void>;
   extendExpiration: () => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
+  /**
+   * Checkout that routes full-class items to the waitlist RPC instead of
+   * creating normal entries. Returns a split result so the caller can show
+   * "N confirmed, M added to wait list".
+   */
+  checkoutWithWaitlist: (
+    exhibitorId: string,
+    fullClassIds: Set<string>
+  ) => Promise<CheckoutResult | null>;
 
   // Computed getters
   getTotalEntryFees: () => number;

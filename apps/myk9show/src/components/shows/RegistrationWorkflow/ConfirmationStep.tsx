@@ -55,6 +55,8 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   showId,
   armbandAssignments = [],
   handlers = [],
+  waitlistEntries,
+  confirmedEntryCount,
   onDownloadReceipt,
   onSendEmail,
   onStatusChange,
@@ -234,6 +236,34 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
           Confirmation #: {registrationNumber}
         </Badge>
       </div>
+
+      {/* Waitlist Summary */}
+      {waitlistEntries && waitlistEntries.length > 0 && (
+        <Alert>
+          <Clock className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Entry Summary: </strong>
+            {confirmedEntryCount !== undefined && confirmedEntryCount > 0 && (
+              <span>
+                {confirmedEntryCount} {confirmedEntryCount === 1 ? 'entry' : 'entries'} confirmed
+                {', '}
+              </span>
+            )}
+            <span>
+              {waitlistEntries.length} {waitlistEntries.length === 1 ? 'entry' : 'entries'} added to
+              wait list
+            </span>
+            {'. '}
+            <span>Wait list positions: </span>
+            {waitlistEntries.map((entry, idx) => (
+              <span key={entry.id}>
+                {`${entry.className ?? ''} #${entry.position}`.trimStart()}
+                {idx < waitlistEntries.length - 1 ? ', ' : '.'}
+              </span>
+            ))}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Show Information */}
       <Card>

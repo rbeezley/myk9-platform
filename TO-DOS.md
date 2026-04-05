@@ -145,7 +145,7 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 ## Implement Wait List & Mail-In Reservations - 2026-04-02 20:08
 
-- [ ] **Implement wait list and mail-in reservation system** — Judge-day capacity model (125 entries/judge/day default), FIFO wait lists, configurable mail-in reservation strategies (fixed/percentage/deadline), secretary-driven promotion with pay-on-promotion via Stripe, push + email notifications. **Problem:** No capacity management exists — when classes fill up, exhibitors can't queue, and mail-in entries get shut out by online entries. **Files:** `docs/plans/2026-04-02-wait-list-design.md` (design), `docs/plans/2026-04-02-wait-list-implementation.md` (26 tasks, 10 phases), `supabase/migrations/009_online_entry_system.sql:148-288` (existing waitlist_entries table + add_to_waitlist), `apps/myk9show/src/hooks/useClassAvailability.ts` (needs judge-day integration), `apps/myk9show/src/pages/secretary/ShowSettingsPage/index.tsx` (add capacity config). **Solution:** Start with migration 110 (schema + functions), then types, hooks, secretary UI, registration flow, payment flow, edge functions, deploy. Use `superpowers:executing-plans` skill.
+- [x] **Implement wait list and mail-in reservation system** — Done (PR #43). Judge-day capacity model (125 entries/judge/day default), FIFO wait lists, configurable mail-in reservation strategies (fixed/percentage/deadline), secretary capacity dashboard with bulk promotion, exhibitor wait list queue on My Entries page. Migration 114 live. Phases 7 (Stripe payment flow) and 8 (push edge function) deferred — see items below.
 
 ---
 
@@ -215,11 +215,11 @@ Full audit details in `docs/ux-audits/phase-2-summary.md` and individual page au
 
 - [x] **Add "Clone from Previous Show" to creation wizard** — Done. New `CloneFromShowCombobox` at top of step 1. Uses existing `useShowsQuery`, prefills all fields except dates, live search, "Start fresh" reset. Wizard flow unchanged.
 
-- [ ] **Fix CSV export missing owner data** — `handleExportCSV` in Entry Management leaves 4 columns blank (owner name, email, phone, registration #). Secretary gets incomplete export with no warning. **Solution:** Join owner data in the export query.
+- [x] **Fix CSV export missing owner data** — Done. Extracted `buildExportRow` to `entryExportUtils`, joined owner data via `SECURITY DEFINER` RPC function (migration 113), added CSV injection defense, newline stripping, double-click guard, Firefox download fix. 27 tests.
 
 - [x] **Remove or implement dead "Send Email" bulk button** — Done. Removed from `RegistrationView.tsx` along with unused `Mail` import.
 
-- [ ] **Fix check-in status button affordance in Entry Management** — Check-in status indicator is a bare `<button>` with no cursor-pointer, no border, no visual hint it's interactive. Same pattern as My Entries finding. **Solution:** Add `cursor-pointer`, border, and "tap to change" hint.
+- [x] **Fix check-in status button affordance in Entry Management** — Done. Added `cursor-pointer`, border, and `hover:border-border` classes to check-in button in `EntryListCard`. 3 tests.
 
 - [x] **Add error handling to Results Control queries** — Done. Combined error flag across all 3 queries; destructive Alert with "Retry" button calls all three `refetch` functions in parallel.
 

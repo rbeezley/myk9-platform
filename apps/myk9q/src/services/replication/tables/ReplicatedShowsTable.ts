@@ -18,30 +18,26 @@ import { logger } from '@/utils/logger';
 export interface Show {
   id: string;
   license_key: string;
-  show_name: string;
-  club_name: string;
+  name: string;
+  club_id?: string;
   start_date: string;
   end_date: string;
   organization: string;
-  show_type?: string;
-  show_status?: string;
+  type?: string;
+  status?: string;
 
   // Site/Location info
-  site_name?: string;
-  site_address?: string;
-  site_city?: string;
-  site_state?: string;
-  site_zip?: string;
+  venue_name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
   location?: string; // Legacy field
 
   // Trial Secretary
-  secretary_name?: string;
+  secretary?: string;
   secretary_email?: string;
   secretary_phone?: string;
-  // Legacy field names (for backward compatibility)
-  show_secretary_name?: string;
-  show_secretary_email?: string;
-  show_secretary_phone?: string;
 
   // Chairman
   chairman_name?: string;
@@ -55,7 +51,9 @@ export interface Show {
 
   // Other
   notes?: string;
-  app_version?: string;
+  description?: string;
+  entry_open_date?: string;
+  entry_close_date?: string;
   self_checkin_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -85,7 +83,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
 
       // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
       // Reset to epoch (0) to fetch all data
-      const lastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(
         `[${this.tableName}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedShows.length} shows`
@@ -202,7 +200,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
    */
   async getAllShows(): Promise<Show[]> {
     const allShows = await this.getAll();
-    return allShows.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    return allShows.sort(
+      (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+    );
   }
 
   /**
@@ -219,7 +219,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
   async getByOrganization(organization: string): Promise<Show[]> {
     const allShows = await this.getAll();
     return allShows
-      .filter((show) => show.organization === organization)
+      .filter(show => show.organization === organization)
       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
   }
 
@@ -232,7 +232,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
     const end = new Date(endDate).getTime();
 
     return allShows
-      .filter((show) => {
+      .filter(show => {
         const showStart = new Date(show.start_date).getTime();
         const showEnd = new Date(show.end_date).getTime();
         // Show overlaps with range if: show starts before range ends AND show ends after range starts
@@ -247,7 +247,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
   async getByStatus(status: string): Promise<Show[]> {
     const allShows = await this.getAll();
     return allShows
-      .filter((show) => show.show_status === status)
+      .filter(show => show.status === status)
       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
   }
 
@@ -259,7 +259,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
     const now = Date.now();
 
     return allShows
-      .filter((show) => new Date(show.start_date).getTime() >= now)
+      .filter(show => new Date(show.start_date).getTime() >= now)
       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
   }
 
@@ -271,7 +271,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
     const now = Date.now();
 
     return allShows
-      .filter((show) => {
+      .filter(show => {
         const start = new Date(show.start_date).getTime();
         const end = new Date(show.end_date).getTime();
         return start <= now && end >= now;
@@ -297,16 +297,14 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
     // Update local cache optimistically
     const updatedShow: Show = {
       ...currentShow,
-      show_status: status,
+      status: status,
       ...additionalFields,
       updated_at: new Date().toISOString(),
     };
 
     await this.set(showId, updatedShow, true); // Mark as dirty
 
-    logger.log(
-      `[${this.tableName}] Updated show ${showId} status to "${status}"`
-    );
+    logger.log(`[${this.tableName}] Updated show ${showId} status to "${status}"`);
   }
 }
 

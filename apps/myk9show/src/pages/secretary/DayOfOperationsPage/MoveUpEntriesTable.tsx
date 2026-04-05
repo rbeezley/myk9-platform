@@ -74,7 +74,7 @@ function buildColumns(
       header: 'Actions',
       cell: ({ row }) => (
         <div className="text-right">
-          <Button size="sm" onClick={() => onMoveUp(row.original)}>
+          <Button size="default" onClick={() => onMoveUp(row.original)}>
             <ArrowUpCircle className="mr-2 h-4 w-4" />
             Move Up
           </Button>

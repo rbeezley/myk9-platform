@@ -8,7 +8,9 @@
 import { useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye, UserCheck, Settings } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Eye, UserCheck, Settings, AlertCircle } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStore } from '@/store/classStore';
@@ -50,15 +52,33 @@ export default function ResultsControlPage() {
 
   const allClassIds = useMemo(() => showClasses.map(c => c.id), [showClasses]);
 
-  const { data: settings, isLoading: settingsLoading } = useShowSettings(selectedShowId ?? null);
-  const { data: trialOverrides = [], isLoading: overridesLoading } = useTrialOverrides(
-    selectedShowId ?? null
-  );
-  const { data: classOverrides = [], isLoading: classOverridesLoading } = useClassOverrides(
-    selectedShowId ?? null
-  );
+  const {
+    data: settings,
+    isLoading: settingsLoading,
+    isError: settingsError,
+    refetch: refetchSettings,
+  } = useShowSettings(selectedShowId ?? null);
+  const {
+    data: trialOverrides = [],
+    isLoading: overridesLoading,
+    isError: trialOverridesError,
+    refetch: refetchTrialOverrides,
+  } = useTrialOverrides(selectedShowId ?? null);
+  const {
+    data: classOverrides = [],
+    isLoading: classOverridesLoading,
+    isError: classOverridesError,
+    refetch: refetchClassOverrides,
+  } = useClassOverrides(selectedShowId ?? null);
 
   const isLoading = settingsLoading || overridesLoading || classOverridesLoading;
+  const isError = settingsError || trialOverridesError || classOverridesError;
+
+  const retryAll = useCallback(() => {
+    void refetchSettings();
+    void refetchTrialOverrides();
+    void refetchClassOverrides();
+  }, [refetchSettings, refetchTrialOverrides, refetchClassOverrides]);
 
   // Adapter: toggle a class by its ID (for ClassOverrides component)
   const toggleClassById = useCallback(
@@ -125,6 +145,22 @@ export default function ResultsControlPage() {
         <h1 className="text-3xl font-bold">Results Control</h1>
         {selectedShow && <p className="text-muted-foreground">{selectedShow.name}</p>}
       </div>
+
+      {/* Query error state */}
+      {isError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Failed to load results settings</AlertTitle>
+          <AlertDescription className="flex items-center justify-between gap-4">
+            <span>
+              There was a problem fetching show data. Check your connection and try again.
+            </span>
+            <Button variant="outline" size="sm" onClick={retryAll}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Results Visibility */}
       <Card>

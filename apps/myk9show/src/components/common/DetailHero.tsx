@@ -21,6 +21,8 @@ interface DetailHeroProps {
   subtitle?: string | undefined;
   metadata?: MetadataItem[];
   badge?: HeroBadge | undefined;
+  entryStatusBadge?: HeroBadge | undefined;
+  closedMessage?: string | undefined;
   primaryAction?: HeroAction;
   secondaryActions?: React.ReactNode;
   footer?: React.ReactNode;
@@ -39,6 +41,8 @@ export function DetailHero({
   subtitle,
   metadata,
   badge,
+  entryStatusBadge,
+  closedMessage,
   primaryAction,
   secondaryActions,
   footer,
@@ -60,6 +64,16 @@ export function DetailHero({
                 {badge.label}
               </span>
             )}
+            {entryStatusBadge && (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-medium',
+                  badgeStyles[entryStatusBadge.variant]
+                )}
+              >
+                {entryStatusBadge.label}
+              </span>
+            )}
           </div>
           {subtitle && <div className="text-sm font-medium text-muted-foreground">{subtitle}</div>}
           {metadata && metadata.length > 0 && (
@@ -73,17 +87,20 @@ export function DetailHero({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {secondaryActions}
-          {primaryAction && (
-            <button
-              onClick={primaryAction.onClick}
-              className="h-12 px-6 text-base font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
-            >
-              {primaryAction.icon}
-              {primaryAction.label}
-            </button>
-          )}
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {secondaryActions}
+            {primaryAction && (
+              <button
+                onClick={primaryAction.onClick}
+                className="h-12 px-6 text-base font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
+              >
+                {primaryAction.icon}
+                {primaryAction.label}
+              </button>
+            )}
+          </div>
+          {closedMessage && <p className="text-sm text-muted-foreground">{closedMessage}</p>}
         </div>
       </div>
       {footer && <div className="border-t border-border/50 bg-muted/30">{footer}</div>}

@@ -24,6 +24,7 @@ import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { FadeIn } from '@/components/layout/FadeIn';
+import { TitleProgressCard } from '@/components/exhibitor/TitleProgressCard';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -180,6 +181,9 @@ const ExhibitorDashboard: React.FC = () => {
         totalDogs={statistics.totalDogs}
         onNavigate={navigate}
       />
+
+      {/* Title Progress — free-tier visible, one row per dog */}
+      {dogs.length > 0 && <TitleProgressCard dogs={dogs} />}
 
       {/* Upcoming Entries — always visible */}
       <FadeIn>

@@ -20,10 +20,16 @@ const tabs: SubTabDef[] = [
 const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium }) => {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addPastResultOpen, setAddPastResultOpen] = useState(false);
+  const [addAchievementOpen, setAddAchievementOpen] = useState(false);
 
   const handleAdd = () => {
     if (activeTab === 'upcoming') {
       setShowAddDialog(true);
+    } else if (activeTab === 'past') {
+      setAddPastResultOpen(true);
+    } else if (activeTab === 'achievements') {
+      setAddAchievementOpen(true);
     }
   };
 
@@ -56,12 +62,16 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium })
           <PastResultsSection
             dogId={dogId}
             isPremium={isPremium}
-            addDialogOpen={false}
-            setAddDialogOpen={() => {}}
+            addDialogOpen={addPastResultOpen}
+            setAddDialogOpen={setAddPastResultOpen}
           />
         </SubTabsContent>
         <SubTabsContent value="achievements">
-          <AchievementsSection dogId={dogId} />
+          <AchievementsSection
+            dogId={dogId}
+            addDialogOpen={addAchievementOpen}
+            setAddDialogOpen={setAddAchievementOpen}
+          />
         </SubTabsContent>
       </SubTabs>
     </div>

@@ -1,25 +1,97 @@
 /**
  * Scratch Entries Table
  *
- * Shows entries that can be scratched from classes
+ * Shows entries that can be scratched from classes.
+ *
+ * INTENT: Secretary should feel calm one-tap operations. Scratch uses an inline
+ * two-tap confirmation (tap → "Confirm?" appears inline, tap again → done) so
+ * the secretary never leaves the table. The full ScratchDialog (with reason field)
+ * is still available via onScratch for cases needing a reason.
  */
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { XCircle } from 'lucide-react';
+import { XCircle, X } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import type { ScratchableEntry } from './types';
 
 interface ScratchEntriesTableProps {
   entries: ScratchableEntry[];
+  /** Called when secretary wants to scratch with a reason (opens full dialog). */
   onScratch: (entry: ScratchableEntry) => void;
+  /** Called for a direct no-reason scratch confirmed inline. */
+  onScratchDirect?: (entry: ScratchableEntry) => void;
 }
 
-function buildColumns(
-  onScratch: (entry: ScratchableEntry) => void
-): ColumnDef<ScratchableEntry, unknown>[] {
-  return [
+interface ScratchCellProps {
+  entry: ScratchableEntry;
+  onScratch: (entry: ScratchableEntry) => void;
+  onScratchDirect?: (entry: ScratchableEntry) => void;
+  pendingId: string | null;
+  setPendingId: (id: string | null) => void;
+}
+
+/** Inline two-tap scratch cell: first tap arms the confirm state, second tap fires. */
+function ScratchCell({
+  entry,
+  onScratch,
+  onScratchDirect,
+  pendingId,
+  setPendingId,
+}: ScratchCellProps) {
+  const isPending = pendingId === entry.id;
+
+  if (isPending) {
+    return (
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          size="default"
+          variant="destructive"
+          onClick={() => {
+            setPendingId(null);
+            if (onScratchDirect) {
+              onScratchDirect(entry);
+            } else {
+              onScratch(entry);
+            }
+          }}
+        >
+          <XCircle className="mr-2 h-4 w-4" />
+          Confirm Scratch
+        </Button>
+        <Button
+          size="default"
+          variant="outline"
+          aria-label="Cancel scratch"
+          onClick={() => setPendingId(null)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-right">
+      <Button size="default" variant="destructive" onClick={() => setPendingId(entry.id)}>
+        <XCircle className="mr-2 h-4 w-4" />
+        Scratch
+      </Button>
+    </div>
+  );
+}
+
+export function ScratchEntriesTable({
+  entries,
+  onScratch,
+  onScratchDirect,
+}: ScratchEntriesTableProps) {
+  // Track which row is in the "armed" confirmation state
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const columns: ColumnDef<ScratchableEntry, unknown>[] = [
     {
       accessorKey: 'armband',
       header: 'Armband',
@@ -74,21 +146,18 @@ function buildColumns(
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <div className="text-right">
-          <Button size="sm" variant="destructive" onClick={() => onScratch(row.original)}>
-            <XCircle className="mr-2 h-4 w-4" />
-            Scratch
-          </Button>
-        </div>
+        <ScratchCell
+          entry={row.original}
+          onScratch={onScratch}
+          {...(onScratchDirect !== undefined && { onScratchDirect })}
+          pendingId={pendingId}
+          setPendingId={setPendingId}
+        />
       ),
       enableSorting: false,
       enableHiding: false,
     },
   ];
-}
-
-export function ScratchEntriesTable({ entries, onScratch }: ScratchEntriesTableProps) {
-  const columns = buildColumns(onScratch);
 
   return (
     <Card>

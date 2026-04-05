@@ -24,6 +24,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   showCelebration,
   recentUpdate,
   isPhotoHovered,
+  earnedTitleAbbreviations,
   onEditPanelOpen,
   onPhotoDialogOpen,
   onDeleteDialogOpen,
@@ -163,6 +164,14 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
                   return breeds.join(', ');
                 })()}
               </p>
+
+              {/* Earned title abbreviations — compact, free-tier visible */}
+              {earnedTitleAbbreviations && earnedTitleAbbreviations.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                  <span>{earnedTitleAbbreviations.join(' · ')}</span>
+                </p>
+              )}
             </div>
 
             {/* Status badges with glass effect */}

@@ -27,6 +27,9 @@ import { ScratchEntriesTable } from './ScratchEntriesTable';
 import { DayOfEntryDialog } from './DayOfEntryDialog';
 import { ScratchDialog } from './ScratchDialog';
 import { MoveUpDialog } from './MoveUpDialog';
+import { scratchEntry } from '@/services/database/queries/dayOfOperationsQueries';
+import { toast } from 'sonner';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import type { ScratchableEntry } from './types';
 
 export default function DayOfOperationsPage() {
@@ -49,9 +52,21 @@ export default function DayOfOperationsPage() {
   const [entryToScratch, setEntryToScratch] = useState<ScratchableEntry | null>(null);
   const [entryToMoveUp, setEntryToMoveUp] = useState<ScratchableEntry | null>(null);
 
+  // Opens the full ScratchDialog (with optional reason field)
   const handleScratchClick = (entry: ScratchableEntry) => {
     setEntryToScratch(entry);
     setShowScratchDialog(true);
+  };
+
+  // Inline two-tap scratch: called after the secretary confirmed inline (no reason)
+  const handleScratchDirect = async (entry: ScratchableEntry) => {
+    const { error } = await scratchEntry(entry.id, undefined);
+    if (error) {
+      toast.error(getUserFriendlyError(error));
+    } else {
+      toast.success('Entry scratched');
+      loadData();
+    }
   };
 
   const handleMoveUpClick = (entry: ScratchableEntry) => {
@@ -88,7 +103,7 @@ export default function DayOfOperationsPage() {
               <SelectValue placeholder="Select a show" />
             </SelectTrigger>
             <SelectContent>
-              {shows.map((show) => (
+              {shows.map(show => (
                 <SelectItem key={show.id} value={show.id}>
                   {show.name}{' '}
                   {show.start_date && `(${new Date(show.start_date).toLocaleDateString()})`}
@@ -126,7 +141,11 @@ export default function DayOfOperationsPage() {
           </TabsContent>
 
           <TabsContent value="scratches" className="space-y-4">
-            <ScratchEntriesTable entries={scratchableEntries} onScratch={handleScratchClick} />
+            <ScratchEntriesTable
+              entries={scratchableEntries}
+              onScratch={handleScratchClick}
+              onScratchDirect={handleScratchDirect}
+            />
           </TabsContent>
         </Tabs>
       )}

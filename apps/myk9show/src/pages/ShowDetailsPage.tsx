@@ -37,7 +37,7 @@ import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import { useMyEntries } from '@/hooks/useMyEntries';
 import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
-import { getEntryStatus } from '@/utils/entryStatusUtils';
+import { getEntryStatus, type EntryStatus } from '@/utils/entryStatusUtils';
 import { MyShowStatsTab } from '@/components/analytics/MyShowStatsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { ArmbandLookup } from '@/components/shows/ArmbandLookup';
@@ -51,6 +51,17 @@ import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
+
+const ENTRY_STATUS_HERO_VARIANT: Record<
+  EntryStatus,
+  'success' | 'warning' | 'destructive' | 'default'
+> = {
+  accepting: 'success',
+  closing_soon: 'warning',
+  closed: 'destructive',
+  submitted: 'default',
+  not_yet_open: 'default',
+};
 
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -277,7 +288,12 @@ const ShowDetailsPage: React.FC = () => {
               ? { label: actualCurrentShow.organization, variant: 'default' }
               : undefined
           }
-          metadata={[{ label: entryStatus.label }]}
+          entryStatusBadge={{
+            label: entryStatus.label,
+            variant: ENTRY_STATUS_HERO_VARIANT[entryStatus.status],
+          }}
+          metadata={[]}
+          closedMessage={!entryStatus.canEnter ? entryStatus.description : undefined}
           {...(entryStatus.canEnter
             ? { primaryAction: { label: 'Register', onClick: handleRegisterForShow } }
             : {})}

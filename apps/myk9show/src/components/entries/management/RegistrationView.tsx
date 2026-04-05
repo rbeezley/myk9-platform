@@ -18,14 +18,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { EntryStatus } from '@/types/show-registration-types';
-import {
-  Mail,
-  ArrowUpCircle,
-  XCircle,
-  CheckCircle2,
-  List,
-  Table2,
-} from 'lucide-react';
+import { ArrowUpCircle, XCircle, CheckCircle2, List, Table2 } from 'lucide-react';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
 import { toast } from 'sonner';
@@ -232,11 +225,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Bulk Check-In
                 </Button>
-
-                <Button size="sm" variant="outline">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Email
-                </Button>
               </div>
             </div>
           </CardContent>
@@ -298,9 +286,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
               onSelectAll={onSelectAll}
               onStatusChange={onStatusChange}
               onOpenCheckInDialog={onOpenCheckInDialog}
-              onOpenArmbandDialog={entry =>
-                onOpenArmbandDialog(entry)
-              }
+              onOpenArmbandDialog={entry => onOpenArmbandDialog(entry)}
               onCompEntry={entryId => {
                 const entry = entries.find(e => e.id === entryId);
                 if (entry) {

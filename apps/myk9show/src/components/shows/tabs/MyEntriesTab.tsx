@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useMyEntries } from '@/hooks/useMyEntries';
+import { useEntryStore } from '@/store/entryStore';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { LiveClassCard } from '@/components/live/LiveClassCard';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { Button } from '@/components/ui/button';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRBAC } from '@/hooks/useRBAC';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
@@ -52,9 +53,7 @@ const myEntryColumns: ColumnDef<MyEntryRow, unknown>[] = [
   {
     id: 'checkInStatus',
     header: 'Check-in',
-    cell: ({ row }) => (
-      <CheckInStatusBadge status={row.original.checkInStatus} size="sm" />
-    ),
+    cell: ({ row }) => <CheckInStatusBadge status={row.original.checkInStatus} size="sm" />,
   },
   {
     id: 'progress',
@@ -93,6 +92,7 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
   const navigate = useNavigate();
   const { hasPermission } = useRBAC();
   const { entriesByClass, isLoading, isError } = useMyEntries(showId);
+  const loadEntries = useEntryStore(s => s.loadEntries);
   const [viewMode, setViewMode] = useViewPreference('entries', 'cards');
   const canManage = hasPermission('admin:manage') || hasPermission('show:manage');
 
@@ -102,8 +102,14 @@ export function MyEntriesTab({ showId }: MyEntriesTabProps) {
 
   if (isError) {
     return (
-      <div className="py-12 text-center text-muted-foreground">
-        <p>Could not load your entries. Please try again.</p>
+      <div className="py-12 text-center space-y-4">
+        <p className="text-muted-foreground">
+          Failed to load your entries. Please check your connection.
+        </p>
+        <Button variant="outline" onClick={() => void loadEntries()} className="gap-1.5">
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </Button>
       </div>
     );
   }

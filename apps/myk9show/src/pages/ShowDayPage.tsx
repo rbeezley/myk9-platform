@@ -62,8 +62,16 @@ const ShowDayPage: React.FC = () => {
   };
 
   // Entry data for collapsed sections below hero
-  const { data: rawEntries = [] } = useEntriesQuery();
-  const { data: recentResults = [] } = useExhibitorResults();
+  const {
+    data: rawEntries = [],
+    isError: entriesError,
+    refetch: refetchEntries,
+  } = useEntriesQuery();
+  const {
+    data: recentResults = [],
+    isError: resultsError,
+    refetch: refetchResults,
+  } = useExhibitorResults();
 
   const upcomingEntries: DashboardEntry[] = useMemo(() => {
     const now = new Date();
@@ -173,37 +181,67 @@ const ShowDayPage: React.FC = () => {
       />
 
       {/* Collapsed entries below the hero */}
-      {upcomingEntries.length > 0 && (
-        <CollapsibleSection title="My Entries" count={upcomingEntries.length} defaultOpen={false}>
-          <div className="space-y-3">
-            {upcomingEntries.map(entry => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                onView={() => navigate(`/shows/${entry.showId}`)}
-              />
-            ))}
-          </div>
-        </CollapsibleSection>
+      {entriesError ? (
+        <Card>
+          <CardContent className="py-4 flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Failed to load entries. Please check your connection.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void refetchEntries()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        upcomingEntries.length > 0 && (
+          <CollapsibleSection title="My Entries" count={upcomingEntries.length} defaultOpen={false}>
+            <div className="space-y-3">
+              {upcomingEntries.map(entry => (
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  onView={() => navigate(`/shows/${entry.showId}`)}
+                />
+              ))}
+            </div>
+          </CollapsibleSection>
+        )
       )}
 
       {/* Collapsed results */}
-      {recentResults.length > 0 && (
-        <CollapsibleSection title="Recent Results" count={recentResults.length} defaultOpen={false}>
-          <div className="space-y-3">
-            {recentResults.map(result => (
-              <ResultRow
-                key={result.id}
-                result={result}
-                onView={() =>
-                  navigate(
-                    result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
-                  )
-                }
-              />
-            ))}
-          </div>
-        </CollapsibleSection>
+      {resultsError ? (
+        <Card>
+          <CardContent className="py-4 flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Failed to load recent results. Please check your connection.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void refetchResults()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        recentResults.length > 0 && (
+          <CollapsibleSection
+            title="Recent Results"
+            count={recentResults.length}
+            defaultOpen={false}
+          >
+            <div className="space-y-3">
+              {recentResults.map(result => (
+                <ResultRow
+                  key={result.id}
+                  result={result}
+                  onView={() =>
+                    navigate(
+                      result.classId ? `/classes/${result.classId}` : `/shows/${result.showId}`
+                    )
+                  }
+                />
+              ))}
+            </div>
+          </CollapsibleSection>
+        )
       )}
     </div>
   );

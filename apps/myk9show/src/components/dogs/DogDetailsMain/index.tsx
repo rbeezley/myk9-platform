@@ -283,12 +283,19 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const { stats: perfStats } = usePerformanceStatistics(updatedDog.id);
   const { progressBySport } = useTitleProgress(updatedDog.id);
 
-  const titlesEarnedCount = useMemo(
+  const earnedTitles = useMemo(
     () =>
       Object.values(progressBySport)
         .flat()
-        .filter(t => t.isEarned && !t.isSuperseded).length,
+        .filter(t => t.isEarned && !t.isSuperseded),
     [progressBySport]
+  );
+
+  const titlesEarnedCount = earnedTitles.length;
+
+  const earnedTitleAbbreviations = useMemo(
+    () => earnedTitles.map(t => t.abbreviation).filter(Boolean),
+    [earnedTitles]
   );
 
   const associations: AssociationConfig[] = useMemo(() => {
@@ -338,6 +345,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
             showCelebration={showCelebration}
             recentUpdate={recentUpdate}
             isPhotoHovered={isPhotoHovered}
+            earnedTitleAbbreviations={earnedTitleAbbreviations}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
             onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}

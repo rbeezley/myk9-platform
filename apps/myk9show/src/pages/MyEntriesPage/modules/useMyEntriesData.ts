@@ -22,6 +22,7 @@ import type { MyEntry, EntryClass } from './my-entries-types';
 interface UseMyEntriesDataReturn {
   entries: MyEntry[];
   isLoading: boolean;
+  isError: boolean;
   refreshing: boolean;
   refreshEntries: () => Promise<void>;
   updateEntryCheckIn: (
@@ -40,6 +41,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
   const { user } = useAuthContext();
   const [entries, setEntries] = useState<MyEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   /**
@@ -130,14 +132,17 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
 
       if (error) {
         logger.error('Failed to load entries:', 'pages', {}, error as Error);
+        setIsError(true);
         setEntries([]);
         return;
       }
 
       const userEntries = data.map(entry => transformEntry(entry));
       setEntries(userEntries);
+      setIsError(false);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
+      setIsError(true);
       setEntries([]);
     } finally {
       setIsLoading(false);
@@ -248,6 +253,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
   return {
     entries,
     isLoading,
+    isError,
     refreshing,
     refreshEntries,
     updateEntryCheckIn,

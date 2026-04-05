@@ -18,6 +18,8 @@ import { Eye, Pencil, Trash2, Trophy } from 'lucide-react';
 
 interface AchievementsSectionProps {
   dogId: string;
+  addDialogOpen?: boolean;
+  setAddDialogOpen?: (open: boolean) => void;
 }
 
 /** Map DB Achievement → simple display type for existing dialogs */
@@ -30,13 +32,25 @@ function toSimple(a: DbAchievement): SimpleAchievement {
   };
 }
 
-const AchievementsSection: React.FC<AchievementsSectionProps> = ({ dogId }) => {
+const AchievementsSection: React.FC<AchievementsSectionProps> = ({
+  dogId,
+  addDialogOpen: externalAddDialogOpen,
+  setAddDialogOpen: externalSetAddDialogOpen,
+}) => {
   const { data: dbAchievements = [], isLoading } = useAchievements(dogId);
   const createMutation = useCreateAchievement();
   const updateMutation = useUpdateAchievement();
   const deleteMutation = useDeleteAchievement();
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  // Sync external open trigger into internal state
+  React.useEffect(() => {
+    if (externalAddDialogOpen) {
+      setAddDialogOpen(true);
+      externalSetAddDialogOpen?.(false);
+    }
+  }, [externalAddDialogOpen, externalSetAddDialogOpen]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<SimpleAchievement | null>(null);

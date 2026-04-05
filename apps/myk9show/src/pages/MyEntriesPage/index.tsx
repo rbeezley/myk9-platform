@@ -46,7 +46,8 @@ const MyEntriesPage: React.FC = () => {
   const { user } = useAuthContext();
 
   // Data and filters
-  const { entries, isLoading, refreshing, refreshEntries, updateEntryCheckIn } = useMyEntriesData();
+  const { entries, isLoading, isError, refreshing, refreshEntries, updateEntryCheckIn } =
+    useMyEntriesData();
   const { filteredEntries, selectedTab, setSelectedTab, entryStats } = useMyEntriesFilters({
     entries,
   });
@@ -94,6 +95,30 @@ const MyEntriesPage: React.FC = () => {
       // Error handled in hook
     }
   };
+
+  // Error state
+  if (isError && !isLoading) {
+    return (
+      <div className="bg-background">
+        <div className="container mx-auto px-6 py-6 max-w-7xl">
+          <div className="myk9-entries-card text-center">
+            <p className="text-muted-foreground mb-4">
+              Failed to load your entries. Please check your connection.
+            </p>
+            <Button
+              variant="outline"
+              onClick={refreshEntries}
+              disabled={refreshing}
+              className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (isLoading) {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '@/services/LoggingService';
+import { CloneFromShowCombobox } from './CloneFromShowCombobox';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Textarea } from '@/components/ui/textarea';
@@ -227,6 +228,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   return (
     <div className={className}>
       <div className="space-y-8">
+        {/* Clone from previous show — optional, prefills all fields */}
+        <CloneFromShowCombobox clubId={show.clubId || undefined} />
+
         {/* Basic Show Information */}
         <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

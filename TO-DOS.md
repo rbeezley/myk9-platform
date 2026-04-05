@@ -185,17 +185,17 @@ Full audit details in `docs/ux-audits/phase-1-summary.md` and individual page au
 
 ### High Priority
 
-- [ ] **Fix error-as-empty-state across 3 pages** — My Entries, Show Details MyEntriesTab, and Show Day all swallow fetch errors and display "no data" instead of an error with retry. On show day with flaky Wi-Fi, exhibitors think their entries are gone. **Solution:** Add error state with retry button to `useMyEntriesData`, `MyEntriesTab`, and Show Day query error handling.
+- [x] **Fix error-as-empty-state across 3 pages** — Done. `useMyEntriesData` now surfaces `isError`; MyEntriesPage and MyEntriesTab show error+retry; ShowDayPage shows per-section error cards for entries and results.
 
-- [ ] **Wire Show Day `onNavigate` to card tap targets** — `NextUpCard` and `ClassTimelineCard` have `onNavigate` callbacks that are never passed from `ShowDayPage.tsx`. Tapping cards does nothing. **Solution:** Pass `(classId) => navigate(...)` from ShowDayPage.
+- [x] **Wire Show Day `onNavigate` to card tap targets** — Already wired. `onClassNavigate` passes through ShowDayPage → ShowDayHero → NextUpCard and ClassTimelineCard. No changes needed.
 
-- [ ] **Wire Dog Detail "Add Achievement" and "Add Past Result" buttons** — `AddAchievementDialog` is rendered but unreachable (no button calls `setAddDialogOpen(true)`). "Add Past Result" handler is a no-op for `past` and `achievements` tabs. **Solution:** Wire button handlers in `CompetitionsTabs`.
+- [x] **Wire Dog Detail "Add Achievement" and "Add Past Result" buttons** — Done. `CompetitionsTabs` now manages `addPastResultOpen` and `addAchievementOpen` state, branching `handleAdd` per tab. `PastResultsSection` wired with live state; `AchievementsSection` gained optional external open props.
 
-- [ ] **Show entry status badge in Show Details hero** — `getEntryStatus()` computes rich status (accepting, closing soon, closed, submitted) but only controls Register button visibility. No badge or text tells the exhibitor whether entries are open. **Solution:** Render `EntryStatusInfo.label` as a badge in the hero.
+- [x] **Show entry status badge in Show Details hero** — Done. Color-coded badge (green/orange/red/muted) always visible in hero via new `entryStatusBadge` prop on `DetailHero`. Variant mapped from `EntryStatus` in `ShowDetailsPage`.
 
-- [ ] **Show "Entries Closed" when Register button is hidden** — When `canEnter` is false, the hero shows no CTA and no explanation. Dead end. **Solution:** Show "Entries Closed" message with date when entry window passed.
+- [x] **Show "Entries Closed" when Register button is hidden** — Done. `closedMessage` prop added to `DetailHero`; passes `entryStatus.description` (e.g. "Entries closed on 4/15/2026") when `canEnter` is false.
 
-- [ ] **Add title progress to Exhibitor Dashboard and Dog Detail hero** — INTENT.md says "title progress -- no hunting" but Dashboard has zero title tracking and Dog Detail buries titles under a non-default premium tab. **Solution:** Add title summary card to Dashboard; show earned title abbreviations in Dog Detail hero.
+- [x] **Add title progress to Exhibitor Dashboard and Dog Detail hero** — Done. Dog Detail hero shows earned title abbreviations (e.g. `OA · OAJ · NF`) under breed name via `useTitleProgress`. Dashboard has new free-tier `TitleProgressCard` showing earned titles per dog with link to full progress.
 
 - [ ] **Revisit premium gating on Dog Detail** — 62% of tabs (5 of 8) are premium-gated. Free-tier exhibitors see a page that feels like a paywall. **Solution:** Consider read-only previews for locked tabs or reduce gated tabs to 2-3.
 
@@ -211,17 +211,17 @@ Full audit details in `docs/ux-audits/phase-2-summary.md` and individual page au
 
 ### High Priority
 
-- [ ] **Reduce scratch/move-up tap count toward INTENT target** — INTENT says "calm one-tap operations." Current scratch takes 4 taps, move-up takes 5+. Touch targets use `size="sm"` (~32px), below the 44px INTENT guardrail. **Solution:** Increase button size to `size="default"`, explore inline scratch on pipeline cards.
+- [x] **Reduce scratch/move-up tap count toward INTENT target** — Done. Buttons upsized to `size="default"` (~40px + padding). Scratch now uses inline confirm (2 taps, no modal). Move-up still 4 taps (class selection inherent); auto-select when one eligible class would reduce further but needs UX decision.
 
-- [ ] **Add "Clone from Previous Show" to creation wizard** — INTENT explicitly says "clone from previous shows." No clone feature exists. Secretaries re-type the same details every show. **Solution:** Add show selector at wizard start that prefills all fields from a past show.
+- [x] **Add "Clone from Previous Show" to creation wizard** — Done. New `CloneFromShowCombobox` at top of step 1. Uses existing `useShowsQuery`, prefills all fields except dates, live search, "Start fresh" reset. Wizard flow unchanged.
 
 - [ ] **Fix CSV export missing owner data** — `handleExportCSV` in Entry Management leaves 4 columns blank (owner name, email, phone, registration #). Secretary gets incomplete export with no warning. **Solution:** Join owner data in the export query.
 
-- [ ] **Remove or implement dead "Send Email" bulk button** — Entry Management bulk actions bar has a "Send Email" button with no `onClick` handler. Clicking does nothing. **Solution:** Remove the button or implement the handler.
+- [x] **Remove or implement dead "Send Email" bulk button** — Done. Removed from `RegistrationView.tsx` along with unused `Mail` import.
 
 - [ ] **Fix check-in status button affordance in Entry Management** — Check-in status indicator is a bare `<button>` with no cursor-pointer, no border, no visual hint it's interactive. Same pattern as My Entries finding. **Solution:** Add `cursor-pointer`, border, and "tap to change" hint.
 
-- [ ] **Add error handling to Results Control queries** — If any of the three data queries fail, the page shows skeleton loaders forever with no error message or retry. **Solution:** Add error state with retry button.
+- [x] **Add error handling to Results Control queries** — Done. Combined error flag across all 3 queries; destructive Alert with "Retry" button calls all three `refetch` functions in parallel.
 
 ---
 

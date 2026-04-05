@@ -21,6 +21,8 @@ export interface HeroProfileCardProps {
   showCelebration: boolean;
   recentUpdate: string | null;
   isPhotoHovered: boolean;
+  /** Compact earned title abbreviations to display in the hero (e.g. ["OA", "OAJ", "NF"]) */
+  earnedTitleAbbreviations?: string[];
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
   onDeleteDialogOpen: () => void;

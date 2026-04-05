@@ -21,6 +21,8 @@ import type {
   EntryCartInsert,
   EntryCartItemInsert,
   EntryCartItem,
+  WaitlistEntryResult,
+  CheckoutResult,
 } from './cartStore.types';
 
 import {
@@ -35,6 +37,8 @@ export type {
   CartItemWithDetails,
   CartWithDetails,
   NewCartItem,
+  WaitlistEntryResult,
+  CheckoutResult,
 } from './cartStore.types';
 
 export const useCartStore = create<CartState>()(
@@ -552,6 +556,69 @@ export const useCartStore = create<CartState>()(
         isExpired: () => {
           const timeRemaining = get().getTimeUntilExpiration();
           return timeRemaining !== null && timeRemaining <= 0;
+        },
+
+        // Checkout routing full-class items to waitlist RPC
+        checkoutWithWaitlist: async (
+          exhibitorId: string,
+          fullClassIds: Set<string>
+        ): Promise<CheckoutResult | null> => {
+          const { cart } = get();
+          if (!cart) {
+            set({ error: 'No active cart' });
+            return null;
+          }
+
+          const confirmed: string[] = [];
+          const waitlisted: WaitlistEntryResult[] = [];
+
+          try {
+            for (const item of cart.items) {
+              if (!item.class_id || !item.dog_id) continue;
+
+              if (fullClassIds.has(item.class_id)) {
+                // Add to waitlist instead of creating a normal entry
+                const rpcArgs: {
+                  p_class_id: string;
+                  p_exhibitor_id: string;
+                  p_dog_id: string;
+                  p_handler_id?: string;
+                } = {
+                  p_class_id: item.class_id,
+                  p_exhibitor_id: exhibitorId,
+                  p_dog_id: item.dog_id,
+                };
+                if (item.handler_id) rpcArgs.p_handler_id = item.handler_id;
+                const { data, error: rpcError } = await supabase.rpc('add_to_waitlist', rpcArgs);
+
+                if (rpcError) {
+                  logger.error(
+                    'Error adding to waitlist',
+                    'cartStore',
+                    { classId: item.class_id, dogId: item.dog_id },
+                    rpcError
+                  );
+                  throw rpcError;
+                }
+
+                const result = data as WaitlistEntryResult;
+                waitlisted.push({
+                  ...result,
+                  className: item.class?.name,
+                });
+              } else {
+                // Normal entry — caller handles Stripe session or direct insert
+                confirmed.push(item.class_id);
+              }
+            }
+
+            return { confirmed, waitlisted };
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Checkout failed';
+            set({ error: message });
+            logger.error('checkoutWithWaitlist failed', 'cartStore', {}, ensureError(error));
+            return null;
+          }
         },
 
         setError: (error: string | null) => set({ error }),

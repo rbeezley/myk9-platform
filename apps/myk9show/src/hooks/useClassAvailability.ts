@@ -48,6 +48,7 @@ interface ClassWithTrialRow {
 interface JudgeAssignmentRow {
   class_id: string;
   person_id: string;
+  day_capacity_override: number | null;
   trials: {
     date: string;
   };
@@ -149,7 +150,7 @@ export function useClassAvailability(
           .eq('status', 'waiting'),
         supabase
           .from('judge_assignments')
-          .select('class_id, person_id, trials!inner(date)')
+          .select('class_id, person_id, day_capacity_override, trials!inner(date)')
           .eq('show_id', showId)
           .eq('status', 'confirmed'),
       ]);
@@ -176,14 +177,22 @@ export function useClassAvailability(
       const classJudgeMap: Record<string, string> = {};
       // Composite key `${judgeId}:${date}` → total confirmed entries for that judge-day
       const judgeDayEntryCount: Record<string, number> = {};
+      // Composite key `${judgeId}:${date}` → max day_capacity_override for that judge-day
+      const judgeDayCapacityOverride: Record<string, number> = {};
 
-      for (const ja of (judgeResult.data as JudgeAssignmentRow[]) ?? []) {
+      for (const ja of (judgeResult.data as unknown as JudgeAssignmentRow[]) ?? []) {
         classJudgeMap[ja.class_id] = ja.person_id;
         const date = ja.trials?.date;
         if (date) {
           const key = `${ja.person_id}:${date}`;
           const count = entryCountMap[ja.class_id] ?? 0;
           judgeDayEntryCount[key] = (judgeDayEntryCount[key] ?? 0) + count;
+          if (ja.day_capacity_override != null) {
+            judgeDayCapacityOverride[key] = Math.max(
+              judgeDayCapacityOverride[key] ?? 0,
+              ja.day_capacity_override
+            );
+          }
         }
       }
 
@@ -207,7 +216,8 @@ export function useClassAvailability(
         if (judgeId) {
           const key = `${judgeId}:${trial.date}`;
           const judgeDayConfirmed = judgeDayEntryCount[key] ?? 0;
-          judgeDayAvailable = Math.max(0, defaultCapacity - judgeDayConfirmed - mailInReserved);
+          const effectiveCapacity = judgeDayCapacityOverride[key] ?? defaultCapacity;
+          judgeDayAvailable = Math.max(0, effectiveCapacity - judgeDayConfirmed - mailInReserved);
           judgeDayFull = judgeDayAvailable === 0;
         }
 

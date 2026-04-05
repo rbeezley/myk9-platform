@@ -32,7 +32,7 @@ export interface WaitListEntry {
   showName: string;
   exhibitorId: string;
   exhibitorName: string;
-  dogId: string;
+  dogId: string | null;
   dogName: string;
   handlerId: string | null;
   position: number;
@@ -40,11 +40,4 @@ export interface WaitListEntry {
   offeredAt: string | null;
   offerExpiresAt: string | null;
   createdAt: string;
-}
-
-export interface WaitListPromotion {
-  waitlistEntryId: string;
-  entryId: string; // the new entry created from promotion
-  promotedAt: string;
-  paymentDeadline: string; // ISO datetime
 }

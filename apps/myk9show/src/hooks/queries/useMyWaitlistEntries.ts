@@ -71,7 +71,7 @@ export function useMyWaitlistEntries(exhibitorId: string | undefined) {
           showName: row.classes?.trials?.shows?.name ?? 'Unknown Show',
           exhibitorId: exhibitorId!,
           exhibitorName,
-          dogId: '', // not needed for exhibitor view
+          dogId: null,
           dogName: row.dogs?.call_name ?? row.dogs?.name ?? 'Unknown Dog',
           handlerId: null,
           position: row.position,

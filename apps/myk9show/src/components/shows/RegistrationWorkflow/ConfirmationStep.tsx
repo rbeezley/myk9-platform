@@ -257,7 +257,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             <span>Wait list positions: </span>
             {waitlistEntries.map((entry, idx) => (
               <span key={entry.id}>
-                {entry.className ? `${entry.className} ` : ''}#{entry.position}
+                {`${entry.className ?? ''} #${entry.position}`.trimStart()}
                 {idx < waitlistEntries.length - 1 ? ', ' : '.'}
               </span>
             ))}

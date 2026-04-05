@@ -50,11 +50,12 @@ describe('ScratchEntriesTable', () => {
     expect(screen.getByText('Bella')).toBeInTheDocument();
   });
 
-  it('calls onScratch when scratch button is clicked', async () => {
+  it('calls onScratch after inline two-tap confirmation', async () => {
     const onScratch = vi.fn();
     const { user } = render(<ScratchEntriesTable entries={mockEntries} onScratch={onScratch} />);
-    const scratchButtons = screen.getAllByRole('button', { name: /scratch/i });
+    const scratchButtons = screen.getAllByRole('button', { name: /^scratch$/i });
     await user.click(scratchButtons[0]);
+    await user.click(screen.getByRole('button', { name: /confirm scratch/i }));
     expect(onScratch).toHaveBeenCalledWith(mockEntries[0]);
   });
 

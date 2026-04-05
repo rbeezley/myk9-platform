@@ -124,10 +124,10 @@ describe('ShowCardHorizontal', () => {
     expect(screen.getByTestId('show-card').className).toContain('ring-2');
   });
 
-  it('does not apply ring-2 when isSelected is false', () => {
+  it('does not apply selection ring when isSelected is false', () => {
     render(<ShowCardHorizontal show={createMockShow()} isSelected={false} />);
 
-    expect(screen.getByTestId('show-card').className).not.toContain('ring-2');
+    expect(screen.getByTestId('show-card').className).not.toContain('ring-primary/50');
   });
 
   it('handles show with empty events array (no crash)', () => {

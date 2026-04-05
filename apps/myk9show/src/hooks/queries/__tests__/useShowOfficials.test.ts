@@ -4,12 +4,19 @@ import { useShowOfficials } from '../useShowOfficials';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 
-const mockSelect = vi.fn();
+// Use vi.hoisted so mock functions are available inside vi.mock factory.
+// The hook makes two sequential queries:
+//   1. from('roles').select('id, name').in('name', [...])
+//   2. from('user_roles').select(...).eq('show_id', ...).eq('is_active', true).in('role_id', [...])
+const { mockRolesSelect, mockUserRolesSelect } = vi.hoisted(() => ({
+  mockRolesSelect: vi.fn(),
+  mockUserRolesSelect: vi.fn(),
+}));
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: mockSelect,
+    from: vi.fn((table: string) => ({
+      select: table === 'roles' ? mockRolesSelect : mockUserRolesSelect,
     })),
   },
 }));
@@ -22,16 +29,31 @@ function createWrapper() {
     createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+// Canonical role ids used across tests (must be consistent with roles mock data)
+const ROLE_IDS = { secretary: 'r1', chairman: 'r2', steward: 'r3' };
+const ROLES_DATA = [
+  { id: ROLE_IDS.secretary, name: 'secretary' },
+  { id: ROLE_IDS.chairman, name: 'chairman' },
+  { id: ROLE_IDS.steward, name: 'steward' },
+];
+
+function setupRolesMock() {
+  mockRolesSelect.mockReturnValue({
+    in: vi.fn().mockResolvedValue({ data: ROLES_DATA, error: null }),
+  });
+}
+
 describe('useShowOfficials', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('returns empty arrays when no officials assigned', async () => {
-    mockSelect.mockReturnValue({
+    setupRolesMock();
+    mockUserRolesSelect.mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        in: vi.fn().mockReturnValue({
-          not: vi.fn().mockResolvedValue({ data: [], error: null }),
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ data: [], error: null }),
         }),
       }),
     });
@@ -58,29 +80,27 @@ describe('useShowOfficials', () => {
   it('groups officials by role', async () => {
     const mockData = [
       {
-        role_id: 'r1',
+        role_id: ROLE_IDS.secretary,
         show_id: 'show-1',
-        roles: { name: 'secretary' },
         people: { id: 'p1', first_name: 'Jane', last_name: 'Doe', email: 'jane@test.com' },
       },
       {
-        role_id: 'r2',
+        role_id: ROLE_IDS.chairman,
         show_id: 'show-1',
-        roles: { name: 'chairman' },
         people: { id: 'p2', first_name: 'John', last_name: 'Smith', email: 'john@test.com' },
       },
       {
-        role_id: 'r3',
+        role_id: ROLE_IDS.steward,
         show_id: 'show-1',
-        roles: { name: 'steward' },
         people: { id: 'p3', first_name: 'Bob', last_name: 'Lee', email: null },
       },
     ];
 
-    mockSelect.mockReturnValue({
+    setupRolesMock();
+    mockUserRolesSelect.mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        in: vi.fn().mockReturnValue({
-          not: vi.fn().mockResolvedValue({ data: mockData, error: null }),
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ data: mockData, error: null }),
         }),
       }),
     });

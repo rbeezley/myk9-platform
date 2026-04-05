@@ -225,18 +225,18 @@ describe('ExhibitorDashboard (Home)', () => {
       expect(screen.getByText('Ready for your next show?')).toBeInTheDocument();
     });
 
-    it('renders results section collapsed by default', () => {
+    it('renders results section expanded by default', () => {
       mockResults.mockReturnValue({ data: [makeResult()] });
       renderDashboard();
       expect(screen.getByText(/Recent Results \(1\)/)).toBeInTheDocument();
-      expect(screen.queryByText('Winter Classic')).not.toBeInTheDocument();
+      expect(screen.getByText('Winter Classic')).toBeInTheDocument();
     });
 
-    it('expands results section on click', async () => {
+    it('collapses results section on click', async () => {
       mockResults.mockReturnValue({ data: [makeResult()] });
       renderDashboard();
       await userEvent.click(screen.getByText(/Recent Results \(1\)/));
-      expect(screen.getByText('Winter Classic')).toBeInTheDocument();
+      expect(screen.queryByText('Winter Classic')).not.toBeInTheDocument();
     });
 
     it('renders quick action cards', () => {

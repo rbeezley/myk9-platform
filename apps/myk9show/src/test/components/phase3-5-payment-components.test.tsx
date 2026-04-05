@@ -719,7 +719,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const calls = onPaymentDetailsChange.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
       const lastCall = calls[calls.length - 1][0];
-      expect(lastCall).toMatchObject({ paymentReference: 'CLUB-42' });
+      expect(lastCall).toMatchObject({ groupReference: 'CLUB-42' });
     });
   });
 });

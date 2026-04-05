@@ -197,7 +197,7 @@ Full audit details in `docs/ux-audits/phase-1-summary.md` and individual page au
 
 - [x] **Add title progress to Exhibitor Dashboard and Dog Detail hero** — Done. Dog Detail hero shows earned title abbreviations (e.g. `OA · OAJ · NF`) under breed name via `useTitleProgress`. Dashboard has new free-tier `TitleProgressCard` showing earned titles per dog with link to full progress.
 
-- [ ] **Revisit premium gating on Dog Detail** — 62% of tabs (5 of 8) are premium-gated. Free-tier exhibitors see a page that feels like a paywall. **Solution:** Consider read-only previews for locked tabs or reduce gated tabs to 2-3.
+- [x] **Revisit premium gating on Dog Detail** — Done. Replaced hard PremiumGate wall with BlurGate on all 5 premium tabs (Title Progress, Statistics, Health Records, Training Journal, Pedigree). Free users see their real data blurred behind an upgrade overlay. 6 BlurGate unit tests + 7 DogDetailsTabs tests.
 
 ---
 

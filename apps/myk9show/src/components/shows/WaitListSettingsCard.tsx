@@ -93,6 +93,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
   // Sync remote data into local form state whenever the query resolves
   useEffect(() => {
     if (data) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(data);
     }
   }, [data]);

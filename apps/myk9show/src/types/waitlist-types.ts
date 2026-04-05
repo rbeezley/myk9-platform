@@ -29,6 +29,7 @@ export interface WaitListEntry {
   id: string;
   classId: string;
   className: string;
+  showName: string;
   exhibitorId: string;
   exhibitorName: string;
   dogId: string;

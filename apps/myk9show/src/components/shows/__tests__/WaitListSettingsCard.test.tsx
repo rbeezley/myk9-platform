@@ -8,7 +8,7 @@ import { WaitListSettingsCard } from '../WaitListSettingsCard';
 // Supabase mock (vi.hoisted ensures the factory runs before vi.mock hoisting)
 // ---------------------------------------------------------------------------
 
-const { mockFrom, mockSelect, mockEq, mockSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
+const { mockFrom, mockSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockSingle = vi.fn();
   const mockEq = vi.fn(() => ({ single: mockSingle }));
   const mockSelect = vi.fn(() => ({ eq: mockEq }));
@@ -18,7 +18,7 @@ const { mockFrom, mockSelect, mockEq, mockSingle, mockUpdate, mockUpdateEq } = v
 
   const mockFrom = vi.fn(() => ({ select: mockSelect, update: mockUpdate }));
 
-  return { mockFrom, mockSelect, mockEq, mockSingle, mockUpdate, mockUpdateEq };
+  return { mockFrom, mockSingle, mockUpdate, mockUpdateEq };
 });
 
 vi.mock('@/lib/supabase', () => ({

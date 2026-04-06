@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 /**
  * Subscribes to entry updates for the exhibitor's classes and invalidates
@@ -8,10 +9,12 @@ import { supabase } from '@/services/database/supabaseClient';
  */
 export function useShowDayRealtime(classIds: string[]) {
   const queryClient = useQueryClient();
+  const { userWithRoles } = useAuthContext();
+  const userId = userWithRoles?.databaseUserId ?? '';
   const classIdsKey = classIds.join(',');
 
   useEffect(() => {
-    if (!classIdsKey) return;
+    if (!classIdsKey || !userId) return;
 
     const channel = supabase.channel(`show-day-entries:${classIdsKey}`);
 
@@ -25,7 +28,10 @@ export function useShowDayRealtime(classIds: string[]) {
           filter: `class_id=in.(${classIdsKey})`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['show-day', 'ring-progress'] });
+          // Prefix match — invalidates all cached ring-progress snapshots for this user
+          queryClient.invalidateQueries({
+            queryKey: ['show-day', 'ring-progress', userId],
+          });
         }
       )
       .subscribe();
@@ -33,5 +39,5 @@ export function useShowDayRealtime(classIds: string[]) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [classIdsKey, queryClient]);
+  }, [classIdsKey, userId, queryClient]);
 }

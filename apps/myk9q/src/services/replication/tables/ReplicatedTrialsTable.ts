@@ -18,12 +18,11 @@ import { logger } from '@/utils/logger';
 export interface Trial {
   id: string;
   show_id: string;
-  trial_date: string;
-  trial_number?: number;
-  element: string;
-  organization: string;
+  name: string;
+  date: string;
+  trial_number?: string;
   competition_type?: string;
-  trial_status?: string;
+  status?: string;
   judge_name?: string;
   secretary_name?: string;
   weather_conditions?: string;
@@ -31,7 +30,6 @@ export interface Trial {
   actual_start_time?: string;
   actual_end_time?: string;
   planned_start_time?: string;
-  license_key: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -62,7 +60,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<Trial> {
 
       // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
       // Reset to epoch (0) to fetch all data
-      const lastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(
         `[${this.tableName}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedTrials.length} trials`
@@ -72,28 +70,24 @@ export class ReplicatedTrialsTable extends ReplicatedTable<Trial> {
       // Join through: trials → shows.license_key
       const { data: rawTrials, error } = await supabase
         .from('trials')
-        .select(`
+        .select(
+          `
           *,
           shows!inner(
             license_key
           )
-        `)
+        `
+        )
         .eq('shows.license_key', licenseKey)
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });
 
-      // Flatten the response and extract license_key from nested shows
-      const remoteTrials = rawTrials?.map((rawTrial) => {
-        // Extract license_key from nested structure
-        const extractedLicenseKey = (rawTrial.shows as { license_key?: string })?.license_key;
-
-        // Remove nested shows object and add license_key at top level
-        const { shows: _shows, ...trialData } = rawTrial;
-        return {
-          ...trialData,
-          license_key: extractedLicenseKey || licenseKey, // Fall back to provided licenseKey
-        };
-      }) || [];
+      // Flatten the response — strip nested shows object, don't add license_key
+      const remoteTrials =
+        rawTrials?.map(rawTrial => {
+          const { shows: _shows, ...trialData } = rawTrial;
+          return trialData;
+        }) || [];
 
       if (error) {
         errors.push(error.message);
@@ -199,8 +193,8 @@ export class ReplicatedTrialsTable extends ReplicatedTable<Trial> {
   async getByShowId(showId: string): Promise<Trial[]> {
     const allTrials = await this.getAll();
     return allTrials
-      .filter((trial) => trial.show_id === showId)
-      .sort((a, b) => new Date(a.trial_date).getTime() - new Date(b.trial_date).getTime());
+      .filter(trial => trial.show_id === showId)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }
 
   /**
@@ -212,26 +206,6 @@ export class ReplicatedTrialsTable extends ReplicatedTable<Trial> {
   }
 
   /**
-   * Get trials by element (e.g., "Scent Work", "Rally")
-   */
-  async getByElement(element: string): Promise<Trial[]> {
-    const allTrials = await this.getAll();
-    return allTrials
-      .filter((trial) => trial.element === element)
-      .sort((a, b) => new Date(a.trial_date).getTime() - new Date(b.trial_date).getTime());
-  }
-
-  /**
-   * Get trials by organization (e.g., "AKC", "UKC")
-   */
-  async getByOrganization(organization: string): Promise<Trial[]> {
-    const allTrials = await this.getAll();
-    return allTrials
-      .filter((trial) => trial.organization === organization)
-      .sort((a, b) => new Date(a.trial_date).getTime() - new Date(b.trial_date).getTime());
-  }
-
-  /**
    * Get trials by date range
    */
   async getByDateRange(startDate: string, endDate: string): Promise<Trial[]> {
@@ -240,11 +214,11 @@ export class ReplicatedTrialsTable extends ReplicatedTable<Trial> {
     const end = new Date(endDate).getTime();
 
     return allTrials
-      .filter((trial) => {
-        const trialDate = new Date(trial.trial_date).getTime();
+      .filter(trial => {
+        const trialDate = new Date(trial.date).getTime();
         return trialDate >= start && trialDate <= end;
       })
-      .sort((a, b) => new Date(a.trial_date).getTime() - new Date(b.trial_date).getTime());
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }
 
   /**
@@ -253,8 +227,8 @@ export class ReplicatedTrialsTable extends ReplicatedTable<Trial> {
   async getByStatus(status: string): Promise<Trial[]> {
     const allTrials = await this.getAll();
     return allTrials
-      .filter((trial) => trial.trial_status === status)
-      .sort((a, b) => new Date(a.trial_date).getTime() - new Date(b.trial_date).getTime());
+      .filter(trial => trial.status === status)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }
 
   /**
@@ -275,16 +249,14 @@ export class ReplicatedTrialsTable extends ReplicatedTable<Trial> {
     // Update local cache optimistically
     const updatedTrial: Trial = {
       ...currentTrial,
-      trial_status: status,
+      status: status,
       ...additionalFields,
       updated_at: new Date().toISOString(),
     };
 
     await this.set(trialId, updatedTrial, true); // Mark as dirty
 
-    logger.log(
-      `[${this.tableName}] Updated trial ${trialId} status to "${status}"`
-    );
+    logger.log(`[${this.tableName}] Updated trial ${trialId} status to "${status}"`);
   }
 }
 

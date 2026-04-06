@@ -75,9 +75,7 @@ export function checkAborted(signal?: AbortSignal): void {
 /**
  * Fetch show info from database
  */
-export async function fetchShowInfo(
-  licenseKey: string
-): Promise<{ name: string }> {
+export async function fetchShowInfo(licenseKey: string): Promise<{ name: string }> {
   const { data: showData, error: showError } = await supabase
     .from('shows')
     .select('name')
@@ -166,11 +164,11 @@ export async function fetchAndCacheEntries(
     checkAborted(signal);
 
     const { data: entriesBatch, error: entryError } = await supabase
-      .from('view_entry_class_join_normalized')
+      .from('view_myk9q_entries')
       .select('*')
       .eq('license_key', licenseKey)
       .range(offset, offset + batchSize - 1)
-      .order('armband_number', { ascending: true });
+      .order('armband', { ascending: true });
 
     if (entryError) throw entryError;
 

@@ -352,7 +352,7 @@ export const getEntriesByClass = async (classId: string) => {
       )
       .eq('class_id', classId)
       .is('deleted_at', null)
-      .order('armband', { ascending: true });
+      .order('run_order', { ascending: true, nullsFirst: false });
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'select_by_class', duration, error?.message);

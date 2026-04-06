@@ -124,7 +124,7 @@ export async function initializeReplication(): Promise<void> {
     manager.registerTable('classes', replicatedClassesTable);
     manager.registerTable('trials', replicatedTrialsTable);
     manager.registerTable('shows', replicatedShowsTable);
-    manager.registerTable('class_requirements', replicatedClassRequirementsTable);
+    manager.registerTable('sport_class_rules', replicatedClassRequirementsTable);
 
     // Visibility config tables
     manager.registerTable('show_visibility_settings', replicatedShowVisibilityDefaultsTable);

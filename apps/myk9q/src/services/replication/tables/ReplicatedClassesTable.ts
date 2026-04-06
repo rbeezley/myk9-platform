@@ -16,13 +16,15 @@ import { supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
 
 export interface Class {
-  id: string;  // bigserial returned as string by Supabase
-  trial_id: number;  // bigint returned as number by Supabase (within safe integer range)
+  id: string; // bigserial returned as string by Supabase
+  trial_id: number; // bigint returned as number by Supabase (within safe integer range)
   element: string;
   level: string;
   section?: string;
   judge_name?: string;
-  class_status?: string;
+  name?: string;
+  description?: string;
+  status?: string;
   briefing_time?: string;
   break_until?: string;
   start_time?: string;
@@ -33,17 +35,12 @@ export interface Class {
   time_limit_seconds?: number;
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;
-  area_count?: number;
-  hide_count?: number;
-  timer_mode?: string;
-  hides_known?: boolean;
-  distraction_count?: number;
+  num_areas?: number;
   actual_start_time?: string;
   actual_end_time?: string;
   planned_start_time?: string;
   results_released_at?: string;
-  last_result_at?: string;  // Timestamp of last synced result (for stale data detection)
-  license_key: string;
+  last_result_at?: string; // Timestamp of last synced result (for stale data detection)
   created_at?: string;
   updated_at?: string;
 }
@@ -77,7 +74,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
 
       // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
       // Reset to epoch (0) to fetch all data
-      const lastSync = options?.forceFullSync || isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync =
+        options?.forceFullSync || isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(
         `[${this.tableName}] Starting ${options?.forceFullSync ? 'FULL' : isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedClasses.length} classes`
@@ -87,7 +85,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
       // Join through: classes → trials → shows.license_key
       let query = supabase
         .from('classes')
-        .select(`
+        .select(
+          `
           *,
           trials!inner(
             show_id,
@@ -95,7 +94,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
               license_key
             )
           )
-        `)
+        `
+        )
         .eq('trials.shows.license_key', licenseKey);
 
       // Always apply updated_at filter (use epoch for full sync)
@@ -104,18 +104,12 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
 
       const { data: rawClasses, error } = await query.order('updated_at', { ascending: true });
 
-      // Flatten the response and extract license_key from nested trials.shows
-      const remoteClasses = rawClasses?.map((rawClass) => {
-        // Extract license_key from nested structure
-        const extractedLicenseKey = (rawClass.trials as { shows?: { license_key?: string } })?.shows?.license_key;
-
-        // Remove nested trials object and add license_key at top level
-        const { trials: _trials, ...classData } = rawClass;
-        return {
-          ...classData,
-          license_key: extractedLicenseKey || licenseKey, // Fall back to provided licenseKey
-        };
-      }) || [];
+      // Flatten the response — strip nested trials object, don't add license_key
+      const remoteClasses =
+        rawClasses?.map(rawClass => {
+          const { trials: _trials, ...classData } = rawClass;
+          return classData;
+        }) || [];
 
       if (error) {
         throw new Error(`Supabase query failed: ${error.message}`);
@@ -257,7 +251,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
   async getByElement(element: string): Promise<Class[]> {
     const allClasses = await this.getAll();
     return allClasses
-      .filter((cls) => cls.element === element)
+      .filter(cls => cls.element === element)
       .sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
   }
 
@@ -267,7 +261,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
   async getByLevel(level: string): Promise<Class[]> {
     const allClasses = await this.getAll();
     return allClasses
-      .filter((cls) => cls.level === level)
+      .filter(cls => cls.level === level)
       .sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
   }
 
@@ -277,7 +271,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
   async getSelfCheckinEnabled(): Promise<Class[]> {
     const allClasses = await this.getAll();
     return allClasses
-      .filter((cls) => cls.self_checkin_enabled === true)
+      .filter(cls => cls.self_checkin_enabled === true)
       .sort((a, b) => (a.class_order || 0) - (b.class_order || 0));
   }
 
@@ -299,16 +293,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<Class> {
     // Update local cache optimistically
     const updatedClass: Class = {
       ...currentClass,
-      class_status: status,
+      status: status,
       ...additionalFields,
       updated_at: new Date().toISOString(),
     };
 
     await this.set(classId, updatedClass, true); // Mark as dirty
 
-    logger.log(
-      `[${this.tableName}] Updated class ${classId} status to "${status}"`
-    );
+    logger.log(`[${this.tableName}] Updated class ${classId} status to "${status}"`);
   }
 }
 

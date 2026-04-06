@@ -141,4 +141,43 @@ describe('ClassTimelineCard', () => {
     const svgs = container.querySelectorAll('svg');
     expect(svgs.length).toBeGreaterThan(0);
   });
+
+  it('shows "X dogs ahead" when multiple dogs are ahead and unscored', () => {
+    render(
+      <ClassTimelineCard
+        classData={makeClass({ myRunningOrder: 10, scoredEntries: 5, isScored: false })}
+      />
+    );
+    // dogsAhead = max(0, 10 - 5 - 1) = 4
+    expect(screen.getByText('4 dogs ahead')).toBeInTheDocument();
+  });
+
+  it('shows "1 dog ahead" when exactly one dog is ahead', () => {
+    render(
+      <ClassTimelineCard
+        classData={makeClass({ myRunningOrder: 7, scoredEntries: 5, isScored: false })}
+      />
+    );
+    // dogsAhead = max(0, 7 - 5 - 1) = 1
+    expect(screen.getByText('1 dog ahead')).toBeInTheDocument();
+  });
+
+  it('shows "You\'re next" when no dogs are ahead and unscored', () => {
+    render(
+      <ClassTimelineCard
+        classData={makeClass({ myRunningOrder: 6, scoredEntries: 5, isScored: false })}
+      />
+    );
+    // dogsAhead = max(0, 6 - 5 - 1) = 0
+    expect(screen.getByText("You're next")).toBeInTheDocument();
+  });
+
+  it('hides dogs-ahead when entry is scored', () => {
+    render(
+      <ClassTimelineCard
+        classData={makeClass({ myRunningOrder: 3, scoredEntries: 2, isScored: true })}
+      />
+    );
+    expect(screen.queryByText(/dogs ahead|You're next/)).not.toBeInTheDocument();
+  });
 });

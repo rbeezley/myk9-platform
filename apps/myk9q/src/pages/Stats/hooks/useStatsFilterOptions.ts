@@ -31,7 +31,7 @@ const EMPTY_OPTIONS: FilterOptions = {
   trialNumbers: [],
   elements: [],
   levels: [],
-  classes: []
+  classes: [],
 };
 
 /**
@@ -40,7 +40,7 @@ const EMPTY_OPTIONS: FilterOptions = {
 export function useStatsFilterOptions({
   licenseKey,
   showId,
-  trialId
+  trialId,
 }: UseStatsFilterOptionsParams): FilterOptions {
   const [filterOptions, setFilterOptions] = useState<FilterOptions>(EMPTY_OPTIONS);
 
@@ -77,8 +77,8 @@ async function fetchFromCache(
 
     if (!trialsTable || !classesTable) return false;
 
-    const allTrials = await trialsTable.getAll() as Trial[];
-    const allClasses = await classesTable.getAll() as Class[];
+    const allTrials = (await trialsTable.getAll()) as Trial[];
+    const allClasses = (await classesTable.getAll()) as Class[];
 
     // Filter to current show
     const showTrials = allTrials.filter(t => String(t.show_id) === String(showId));
@@ -93,20 +93,27 @@ async function fetchFromCache(
     const trialNumberMap = new Map<string, number>();
     const trialDateMap = new Map<string, string>();
     showTrials.forEach(t => {
-      trialNumberMap.set(String(t.id), t.trial_number || 1);
-      trialDateMap.set(String(t.id), t.trial_date);
+      trialNumberMap.set(String(t.id), parseInt(String(t.trial_number ?? '1')) || 1);
+      trialDateMap.set(String(t.id), t.date);
     });
 
     // Extract unique values from classes
-    const uniqueDates = [...new Set(
-      showClasses.map(c => trialDateMap.get(String(c.trial_id))).filter(Boolean) as string[]
-    )].sort();
+    const uniqueDates = [
+      ...new Set(
+        showClasses.map(c => trialDateMap.get(String(c.trial_id))).filter(Boolean) as string[]
+      ),
+    ].sort();
     const uniqueElements = [...new Set(showClasses.map(c => c.element).filter(Boolean))].sort();
-    const uniqueLevels = [...new Set(showClasses.map(c => c.level).filter(Boolean))]
-      .sort((a, b) => getLevelSortOrder(a) - getLevelSortOrder(b));
-    const uniqueTrialNumbers = [...new Set(
-      showTrials.map(t => t.trial_number).filter(Boolean) as number[]
-    )].sort((a, b) => a - b);
+    const uniqueLevels = [...new Set(showClasses.map(c => c.level).filter(Boolean))].sort(
+      (a, b) => getLevelSortOrder(a) - getLevelSortOrder(b)
+    );
+    const uniqueTrialNumbers = [
+      ...new Set(
+        showTrials
+          .map(t => (t.trial_number ? parseInt(String(t.trial_number)) : null))
+          .filter((n): n is number => n !== null && !isNaN(n))
+      ),
+    ].sort((a, b) => a - b);
 
     // Build classes list (filtered by trialId if specified)
     let relevantClasses = showClasses;
@@ -114,19 +121,21 @@ async function fetchFromCache(
       relevantClasses = showClasses.filter(c => String(c.trial_id) === trialId);
     }
 
-    const uniqueClasses = relevantClasses.map(c => ({
-      id: parseInt(String(c.id), 10),
-      name: `${c.element} - ${c.level}`,
-      trialDate: trialDateMap.get(String(c.trial_id)) || '',
-      trialNumber: trialNumberMap.get(String(c.trial_id))
-    })).sort((a, b) => a.name.localeCompare(b.name));
+    const uniqueClasses = relevantClasses
+      .map(c => ({
+        id: parseInt(String(c.id), 10),
+        name: `${c.element} - ${c.level}`,
+        trialDate: trialDateMap.get(String(c.trial_id)) || '',
+        trialNumber: trialNumberMap.get(String(c.trial_id)),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     setFilterOptions({
       trialDates: uniqueDates,
       trialNumbers: uniqueTrialNumbers,
       elements: uniqueElements,
       levels: uniqueLevels,
-      classes: uniqueClasses
+      classes: uniqueClasses,
     });
 
     logger.log('✅ Stats filter options loaded from cache');
@@ -165,14 +174,15 @@ async function fetchFromSupabase(
       // Extract unique values
       const uniqueDates = [...new Set(statsData.map(d => d.trial_date).filter(Boolean))].sort();
       const uniqueElements = [...new Set(statsData.map(d => d.element).filter(Boolean))].sort();
-      const uniqueLevels = [...new Set(statsData.map(d => d.level).filter(Boolean))]
-        .sort((a, b) => getLevelSortOrder(a) - getLevelSortOrder(b));
+      const uniqueLevels = [...new Set(statsData.map(d => d.level).filter(Boolean))].sort(
+        (a, b) => getLevelSortOrder(a) - getLevelSortOrder(b)
+      );
 
       setFilterOptions(prev => ({
         ...prev,
         trialDates: uniqueDates,
         elements: uniqueElements,
-        levels: uniqueLevels
+        levels: uniqueLevels,
       }));
     }
 
@@ -184,12 +194,12 @@ async function fetchFromSupabase(
       .order('trial_number');
 
     if (trialsData) {
-      const uniqueTrialNumbers = [...new Set(
-        trialsData.map(t => t.trial_number).filter(Boolean)
-      )].sort((a, b) => a - b);
+      const uniqueTrialNumbers = [
+        ...new Set(trialsData.map(t => t.trial_number).filter(Boolean)),
+      ].sort((a, b) => a - b);
       setFilterOptions(prev => ({
         ...prev,
-        trialNumbers: uniqueTrialNumbers
+        trialNumbers: uniqueTrialNumbers,
       }));
     }
 
@@ -209,18 +219,29 @@ async function fetchFromSupabase(
         });
       }
 
-      const uniqueClasses = [...new Set(classesData.map(d => JSON.stringify({
-        id: d.class_id,
-        name: `${d.element} - ${d.level}`,
-        trialDate: d.trial_date,
-        trialNumber: d.trial_id ? trialNumberMap.get(String(d.trial_id)) : undefined
-      })).filter(Boolean))]
-        .map(c => JSON.parse(c) as { id: number; name: string; trialDate: string; trialNumber?: number })
+      const uniqueClasses = [
+        ...new Set(
+          classesData
+            .map(d =>
+              JSON.stringify({
+                id: d.class_id,
+                name: `${d.element} - ${d.level}`,
+                trialDate: d.trial_date,
+                trialNumber: d.trial_id ? trialNumberMap.get(String(d.trial_id)) : undefined,
+              })
+            )
+            .filter(Boolean)
+        ),
+      ]
+        .map(
+          c =>
+            JSON.parse(c) as { id: number; name: string; trialDate: string; trialNumber?: number }
+        )
         .sort((a, b) => a.name.localeCompare(b.name));
 
       setFilterOptions(prev => ({
         ...prev,
-        classes: uniqueClasses
+        classes: uniqueClasses,
       }));
     }
   } catch (err) {

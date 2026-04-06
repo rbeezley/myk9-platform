@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
+import { useRunOrderDrag } from './useRunOrderDrag';
+import { DragHandleCell } from './SortableRow';
+import { DndTableView } from './DndTableView';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +35,13 @@ import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
+
+const DRAG_HANDLE_COL: ColumnDef<ScoringRow, unknown> = {
+  id: 'dragHandle',
+  header: '',
+  enableSorting: false,
+  cell: () => <DragHandleCell />,
+};
 
 export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   entries,
@@ -95,6 +105,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
   const canEdit = userPermissions.canEditEntries;
 
+  const isClosed = classStatus === 'closed';
+
   const [viewMode, setViewMode] = useViewPreference('class-results', 'table');
   // Guard: card view requires classId for scoring navigation
   const effectiveViewMode = classId ? viewMode : 'table';
@@ -111,7 +123,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const tabCounts = useMemo(() => {
     const completed = scoredEntryIds.size;
     return { pending: rows.length - completed, completed };
-  }, [rows.length, scoredEntryIds]);
+  }, [rows, scoredEntryIds]);
 
   const scoringTabs: SubTabDef[] = useMemo(
     () => [
@@ -131,6 +143,17 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     }
     return result;
   }, [rows, scoringTab, searchQuery]);
+
+  const showDragHandles = canEdit && !isClosed && scoringTab !== 'completed' && !searchQuery;
+
+  const { orderedIds, sensors, onDragEnd } = useRunOrderDrag({
+    rawEntries: rawEntries ?? [],
+  });
+
+  const dndOrderedRows = useMemo(() => {
+    const rowById = new Map(filteredRows.map(r => [r.entryId, r]));
+    return orderedIds.map(id => rowById.get(id)).filter((r): r is ScoringRow => r !== undefined);
+  }, [orderedIds, filteredRows]);
 
   /** Source entries filtered by the active scoring tab + search (for card view). */
   const filteredEntries = useMemo(() => {
@@ -392,6 +415,11 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     visibility,
   ]);
 
+  const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
+    () => (showDragHandles ? [DRAG_HANDLE_COL, ...columns] : columns),
+    [showDragHandles, columns]
+  );
+
   return (
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
@@ -481,13 +509,22 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             />
           ) : (
             <>
-              <DataTable<ScoringRow>
-                tableId="classResults"
-                columns={columns}
-                data={filteredRows}
-                getRowId={row => row.entryId}
-                pageSize={9999}
-              />
+              {showDragHandles ? (
+                <DndTableView
+                  columns={dragColumns}
+                  orderedRows={dndOrderedRows}
+                  sensors={sensors}
+                  onDragEnd={onDragEnd}
+                />
+              ) : (
+                <DataTable<ScoringRow>
+                  tableId="classResults"
+                  columns={columns}
+                  data={filteredRows}
+                  getRowId={row => row.entryId}
+                  pageSize={9999}
+                />
+              )}
 
               {userPermissions.canEditEntries && (
                 <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">
@@ -533,5 +570,8 @@ export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProp
   if (prevProps.rawEntries !== nextProps.rawEntries) return false;
   if (prevProps.entries !== nextProps.entries) return false;
   if (prevProps.userPermissions !== nextProps.userPermissions) return false;
+  if (prevProps.classId !== nextProps.classId) return false;
+  if (prevProps.classStatus !== nextProps.classStatus) return false;
+  if (prevProps.resultsReleasedAt !== nextProps.resultsReleasedAt) return false;
   return true;
 });

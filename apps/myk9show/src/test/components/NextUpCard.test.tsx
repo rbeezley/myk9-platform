@@ -169,4 +169,29 @@ describe('NextUpCard', () => {
     const button = screen.getByLabelText(/check-in disabled/i);
     expect(button).toHaveAttribute('aria-disabled', 'true');
   });
+
+  // --- Dogs ahead countdown ---
+
+  it('shows "X dogs ahead" when multiple dogs are ahead', () => {
+    // default fixture: myRunningOrder=8, scoredEntries=5 → dogsAhead=2
+    render(<NextUpCard classData={makeClass()} />);
+    expect(screen.getByText('2 dogs ahead')).toBeInTheDocument();
+  });
+
+  it('shows "1 dog ahead" when exactly one dog is ahead', () => {
+    // myRunningOrder=7, scoredEntries=5 → dogsAhead=1
+    render(<NextUpCard classData={makeClass({ myRunningOrder: 7, scoredEntries: 5 })} />);
+    expect(screen.getByText('1 dog ahead')).toBeInTheDocument();
+  });
+
+  it('shows "You\'re next" when no dogs are ahead', () => {
+    // myRunningOrder=6, scoredEntries=5 → dogsAhead=0
+    render(<NextUpCard classData={makeClass({ myRunningOrder: 6, scoredEntries: 5 })} />);
+    expect(screen.getByText("You're next")).toBeInTheDocument();
+  });
+
+  it('hides dogs-ahead when entry is scored', () => {
+    render(<NextUpCard classData={makeClass({ isScored: true })} />);
+    expect(screen.queryByText(/dogs ahead|You're next/)).not.toBeInTheDocument();
+  });
 });

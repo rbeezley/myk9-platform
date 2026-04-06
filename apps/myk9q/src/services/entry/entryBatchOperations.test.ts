@@ -36,7 +36,7 @@ describe('entryBatchOperations', () => {
   });
 
   describe('updateExhibitorOrder', () => {
-    it('should update exhibitor_order for all entries with 1-based indexing', async () => {
+    it('should update run_order for all entries with 1-based indexing', async () => {
       // Arrange
       const updateMock = vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -59,26 +59,11 @@ describe('entryBatchOperations', () => {
       expect(updateMock).toHaveBeenCalledTimes(5);
 
       // Verify 1-based indexing (updated_at is also included in updates)
-      expect(updateMock).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ exhibitor_order: 1 })
-      );
-      expect(updateMock).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ exhibitor_order: 2 })
-      );
-      expect(updateMock).toHaveBeenNthCalledWith(
-        3,
-        expect.objectContaining({ exhibitor_order: 3 })
-      );
-      expect(updateMock).toHaveBeenNthCalledWith(
-        4,
-        expect.objectContaining({ exhibitor_order: 4 })
-      );
-      expect(updateMock).toHaveBeenNthCalledWith(
-        5,
-        expect.objectContaining({ exhibitor_order: 5 })
-      );
+      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ run_order: 1 }));
+      expect(updateMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ run_order: 2 }));
+      expect(updateMock).toHaveBeenNthCalledWith(3, expect.objectContaining({ run_order: 3 }));
+      expect(updateMock).toHaveBeenNthCalledWith(4, expect.objectContaining({ run_order: 4 }));
+      expect(updateMock).toHaveBeenNthCalledWith(5, expect.objectContaining({ run_order: 5 }));
     });
 
     it('should update correct entry IDs', async () => {
@@ -150,21 +135,12 @@ describe('entryBatchOperations', () => {
       // Act
       await updateExhibitorOrder(reordered);
 
-      // Assert - Entry 5 should now be exhibitor_order 1
-      expect(updateMock).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ exhibitor_order: 1 })
-      );
-      // Entry 1 should now be exhibitor_order 2
-      expect(updateMock).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ exhibitor_order: 2 })
-      );
-      // Entry 3 should now be exhibitor_order 3
-      expect(updateMock).toHaveBeenNthCalledWith(
-        3,
-        expect.objectContaining({ exhibitor_order: 3 })
-      );
+      // Assert - Entry 5 should now be run_order 1
+      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ run_order: 1 }));
+      // Entry 1 should now be run_order 2
+      expect(updateMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ run_order: 2 }));
+      // Entry 3 should now be run_order 3
+      expect(updateMock).toHaveBeenNthCalledWith(3, expect.objectContaining({ run_order: 3 }));
     });
 
     it('should throw error if any update fails', async () => {
@@ -238,7 +214,7 @@ describe('entryBatchOperations', () => {
       // Assert
       expect(result).toBe(true);
       expect(updateMock).toHaveBeenCalledTimes(1);
-      expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ exhibitor_order: 1 }));
+      expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ run_order: 1 }));
     });
 
     it('should handle large batch of entries', async () => {
@@ -266,14 +242,8 @@ describe('entryBatchOperations', () => {
       // Assert
       expect(result).toBe(true);
       expect(updateMock).toHaveBeenCalledTimes(50);
-      expect(updateMock).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ exhibitor_order: 1 })
-      );
-      expect(updateMock).toHaveBeenNthCalledWith(
-        50,
-        expect.objectContaining({ exhibitor_order: 50 })
-      );
+      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ run_order: 1 }));
+      expect(updateMock).toHaveBeenNthCalledWith(50, expect.objectContaining({ run_order: 50 }));
     });
   });
 
@@ -455,9 +425,9 @@ describe('entryBatchOperations', () => {
       // Act
       await updateExhibitorOrder(reordered);
 
-      // Assert - Entry 3 should now be first (exhibitor_order = 1)
+      // Assert - Entry 3 should now be first (run_order = 1)
       const firstUpdate = updateMock.mock.calls[0][0];
-      expect(firstUpdate).toMatchObject({ exhibitor_order: 1 });
+      expect(firstUpdate).toMatchObject({ run_order: 1 });
     });
 
     it('should handle drag-and-drop move from start to end', async () => {
@@ -485,9 +455,9 @@ describe('entryBatchOperations', () => {
       // Act
       await updateExhibitorOrder(reordered);
 
-      // Assert - Entry 1 should now be last (exhibitor_order = 5)
+      // Assert - Entry 1 should now be last (run_order = 5)
       const lastUpdate = updateMock.mock.calls[4][0];
-      expect(lastUpdate).toMatchObject({ exhibitor_order: 5 });
+      expect(lastUpdate).toMatchObject({ run_order: 5 });
     });
 
     it('should handle complete reversal of list', async () => {
@@ -512,15 +482,9 @@ describe('entryBatchOperations', () => {
       // Assert
       expect(updateMock).toHaveBeenCalledTimes(5);
       // Entry 5 should be first
-      expect(updateMock).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ exhibitor_order: 1 })
-      );
+      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ run_order: 1 }));
       // Entry 1 should be last
-      expect(updateMock).toHaveBeenNthCalledWith(
-        5,
-        expect.objectContaining({ exhibitor_order: 5 })
-      );
+      expect(updateMock).toHaveBeenNthCalledWith(5, expect.objectContaining({ run_order: 5 }));
     });
   });
 });

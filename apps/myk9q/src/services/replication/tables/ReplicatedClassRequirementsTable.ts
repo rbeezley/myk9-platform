@@ -22,17 +22,35 @@ export interface ClassRequirement {
   element: string;
   level: string;
   section?: string;
+  sport_template_id?: string;
+  class_name?: string;
+  display_order?: number;
 
   // Time limits
-  time_limit_seconds?: number;
-  time_limit_area2_seconds?: number;
-  time_limit_area3_seconds?: number;
+  max_time_seconds_fixed?: number;
+  max_time_seconds_area2?: number;
+  max_time_seconds_area3?: number;
+  max_time_seconds_min?: number;
+  max_time_seconds_max?: number;
   has_30_second_warning?: boolean;
+
+  // Hide configuration
+  hide_count_fixed?: number;
+  hide_count_min?: number;
+  hide_count_max?: number;
+  hides_known?: boolean;
+  has_blank?: boolean;
+
+  // Distraction configuration
+  distraction_count_min?: number;
+  distraction_count_max?: number;
 
   // Scoring rules
   time_type?: string; // 'fastest' | 'slowest' | 'combined'
+  timer_mode?: string;
   max_time_faults?: number;
   max_faults_allowed?: number;
+  warning_notes?: string;
 
   // Area configuration
   area_count?: number;
@@ -46,15 +64,19 @@ export interface ClassRequirement {
   allow_excused?: boolean;
   allow_absent?: boolean;
   require_judge_signature?: boolean;
+  odors?: string[];
+  default_entry_fee?: number;
+  mrv_minutes?: number;
+  field_overrides?: Record<string, unknown>;
 
-  // Note: class_requirements is organization-level config (no license_key)
+  // Note: sport_class_rules is organization-level config (no license_key)
   created_at?: string;
   updated_at?: string;
 }
 
 export class ReplicatedClassRequirementsTable extends ReplicatedTable<ClassRequirement> {
   constructor() {
-    super('class_requirements', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
+    super('sport_class_rules', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
   }
 
   /**
@@ -76,10 +98,10 @@ export class ReplicatedClassRequirementsTable extends ReplicatedTable<ClassRequi
       );
 
       // Fetch requirements updated since last sync
-      // Note: class_requirements is organization-level config (AKC, UKC, ASCA)
+      // Note: sport_class_rules is organization-level config (AKC, UKC, ASCA)
       // It has NO license_key - sync ALL requirements for all organizations
       const { data: remoteRequirements, error } = await supabase
-        .from('class_requirements')
+        .from('sport_class_rules')
         .select('*')
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });
@@ -197,7 +219,7 @@ export class ReplicatedClassRequirementsTable extends ReplicatedTable<ClassRequi
     // Find exact match with section if provided
     if (section) {
       const exactMatch = allRequirements.find(
-        (req) =>
+        req =>
           req.organization === organization &&
           req.element === element &&
           req.level === level &&
@@ -208,7 +230,7 @@ export class ReplicatedClassRequirementsTable extends ReplicatedTable<ClassRequi
 
     // Fall back to match without section
     const match = allRequirements.find(
-      (req) =>
+      req =>
         req.organization === organization &&
         req.element === element &&
         req.level === level &&
@@ -224,7 +246,7 @@ export class ReplicatedClassRequirementsTable extends ReplicatedTable<ClassRequi
   async getByOrganization(organization: string): Promise<ClassRequirement[]> {
     const allRequirements = await this.getAll();
     return allRequirements
-      .filter((req) => req.organization === organization)
+      .filter(req => req.organization === organization)
       .sort((a, b) => {
         // Sort by element, then level
         if (a.element !== b.element) {
@@ -240,18 +262,14 @@ export class ReplicatedClassRequirementsTable extends ReplicatedTable<ClassRequi
   async getByElement(element: string): Promise<ClassRequirement[]> {
     const allRequirements = await this.getAll();
     return allRequirements
-      .filter((req) => req.element === element)
+      .filter(req => req.element === element)
       .sort((a, b) => a.level.localeCompare(b.level));
   }
 
   /**
    * Check if a requirement exists for a specific class configuration
    */
-  async hasRequirement(
-    organization: string,
-    element: string,
-    level: string
-  ): Promise<boolean> {
+  async hasRequirement(organization: string, element: string, level: string): Promise<boolean> {
     const requirement = await this.getRequirement(organization, element, level);
     return requirement !== null;
   }

@@ -17,14 +17,15 @@ interface CheckInMutationInput {
 }
 
 /**
- * Persist check-in status to Supabase.
- * Updates `check_in_status` column (show-day check-in tracking).
+ * Persist check-in status to Supabase via SECURITY DEFINER RPC.
+ * Using RPC instead of direct UPDATE restricts handlers to check_in_status
+ * only — the policy no longer allows handlers to update other columns.
  */
 async function updateCheckInStatus({ entryId, newStatus }: CheckInMutationInput): Promise<void> {
-  const { error } = await supabase
-    .from('entries')
-    .update({ check_in_status: newStatus, updated_at: new Date().toISOString() })
-    .eq('id', entryId);
+  const { error } = await supabase.rpc('self_checkin_entry', {
+    p_entry_id: entryId,
+    p_new_status: newStatus,
+  });
 
   if (error) throw new Error(`Check-in update failed: ${error.message}`);
 }

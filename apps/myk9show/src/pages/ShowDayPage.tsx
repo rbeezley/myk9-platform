@@ -25,6 +25,7 @@ import { useEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { useShowDayAlerts } from '@/hooks/useShowDayAlerts';
+import { useShowDayRealtime } from '@/hooks/useShowDayRealtime';
 import { useNotificationStore } from '@/store/notificationStore';
 
 const ShowDayPage: React.FC = () => {
@@ -53,6 +54,7 @@ const ShowDayPage: React.FC = () => {
     [showDayData.myClasses]
   );
   const selfCheckinEnabledMap = useSelfCheckinMap(classIds);
+  useShowDayRealtime(classIds);
 
   const handleCheckInChange = (entryId: string, newStatus: CheckInStatus) => {
     checkInMutation.mutate(

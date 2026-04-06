@@ -85,14 +85,14 @@ async function fetchCurrentClassSettings(classId: number): Promise<CurrentClassS
     const classesTable = manager.getTable('classes');
     if (!classesTable) return DEFAULT_SETTINGS;
 
-    const classData = await classesTable.get(String(classId)) as Class | undefined;
+    const classData = (await classesTable.get(String(classId))) as Class | undefined;
     if (!classData) return DEFAULT_SETTINGS;
 
     return {
-      areaCount: classData.area_count ?? undefined,
+      areaCount: classData.num_areas ?? undefined,
       timeLimit: classData.time_limit_seconds ?? undefined,
-      timeLimit2: classData.time_limit_area2_seconds ?? undefined,
-      timeLimit3: classData.time_limit_area3_seconds ?? undefined,
+      timeLimit2: undefined,
+      timeLimit3: undefined,
       rules: buildResolvedClassRules(classData),
     };
   } catch (error) {
@@ -110,7 +110,6 @@ export async function loadFromRouteState(
   routeState: RouteState,
   isNationals: boolean
 ): Promise<FastPathResult> {
-
   logger.log('⚡ [useEntryNavigation] Using route state for instant load');
 
   const passedEntry = routeState.entry!;
@@ -119,7 +118,7 @@ export async function loadFromRouteState(
   const classInfo: ClassInfo = {
     element: passedClassInfo.element,
     level: passedClassInfo.level,
-    section: passedClassInfo.section
+    section: passedClassInfo.section,
   };
 
   // Always fetch current class settings to handle:
@@ -130,22 +129,27 @@ export async function loadFromRouteState(
   const areaCount = currentSettings.areaCount ?? passedEntry.areas;
 
   // Use areaCountOverride if available (for ASCA where judge chooses area count)
-  const areas = initializeAreas(
-    passedEntry.element || '',
-    passedEntry.level || '',
-    {
-      isNationalsMode: isNationals,
-      areaCountOverride: areaCount
-    }
-  );
+  const areas = initializeAreas(passedEntry.element || '', passedEntry.level || '', {
+    isNationalsMode: isNationals,
+    areaCountOverride: areaCount,
+  });
 
   // Update entry with current class settings for consistency
   const updatedEntry = {
     ...passedEntry,
     areas: areaCount,
-    timeLimit: currentSettings.timeLimit !== undefined ? String(currentSettings.timeLimit) : passedEntry.timeLimit,
-    timeLimit2: currentSettings.timeLimit2 !== undefined ? String(currentSettings.timeLimit2) : passedEntry.timeLimit2,
-    timeLimit3: currentSettings.timeLimit3 !== undefined ? String(currentSettings.timeLimit3) : passedEntry.timeLimit3,
+    timeLimit:
+      currentSettings.timeLimit !== undefined
+        ? String(currentSettings.timeLimit)
+        : passedEntry.timeLimit,
+    timeLimit2:
+      currentSettings.timeLimit2 !== undefined
+        ? String(currentSettings.timeLimit2)
+        : passedEntry.timeLimit2,
+    timeLimit3:
+      currentSettings.timeLimit3 !== undefined
+        ? String(currentSettings.timeLimit3)
+        : passedEntry.timeLimit3,
   };
 
   // Mark in ring in background (fire-and-forget)
@@ -177,11 +181,11 @@ async function loadClassData(
     throw new Error('Classes table not registered');
   }
 
-  let classData = await classesTable.get(classId) as Class | undefined;
+  let classData = (await classesTable.get(classId)) as Class | undefined;
 
   if (!classData) {
     await manager.syncTable('classes');
-    classData = await classesTable.get(classId) as Class | undefined;
+    classData = (await classesTable.get(classId)) as Class | undefined;
 
     if (!classData) {
       throw new Error(`Class ${classId} not found`);
@@ -202,10 +206,10 @@ async function loadTrialData(
   const trialsTable = manager.getTable('trials');
   if (!trialsTable) return;
 
-  const trialData = await trialsTable.get(String(trialId)) as Trial | undefined;
+  const trialData = (await trialsTable.get(String(trialId))) as Trial | undefined;
 
-  if (trialData?.trial_date) {
-    const rawDate = trialData.trial_date;
+  if (trialData?.date) {
+    const rawDate = trialData.date;
     const [year, month, day] = rawDate.split('T')[0].split('-');
     const formatted = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
     callbacks.onTrialDateLoaded?.(formatted);
@@ -226,12 +230,12 @@ async function loadClassEntries(
     throw new Error('Entries table not registered');
   }
 
-  let allEntries = await entriesTable.getAll() as ReplicatedEntry[];
+  let allEntries = (await entriesTable.getAll()) as ReplicatedEntry[];
   let classEntries = allEntries.filter(entry => String(entry.class_id) === classId);
 
   if (classEntries.length === 0) {
     await manager.syncTable('entries');
-    allEntries = await entriesTable.getAll() as ReplicatedEntry[];
+    allEntries = (await entriesTable.getAll()) as ReplicatedEntry[];
     classEntries = allEntries.filter(entry => String(entry.class_id) === classId);
   }
 
@@ -241,16 +245,13 @@ async function loadClassEntries(
 /**
  * Transform replicated entries to store format.
  */
-export function transformEntries(
-  classEntries: ReplicatedEntry[],
-  classData: Class
-): Entry[] {
+export function transformEntries(classEntries: ReplicatedEntry[], classData: Class): Entry[] {
   return classEntries.map(entry => ({
     id: parseInt(entry.id),
-    armband: entry.armband_number,
+    armband: entry.armband,
     callName: entry.dog_call_name || 'Unknown',
     breed: entry.dog_breed || 'Unknown',
-    handler: entry.handler_name || 'Unknown',
+    handler: entry.handler || 'Unknown',
     isScored: entry.is_scored || false,
     status: (entry.entry_status as Entry['status']) || 'no-status',
     classId: parseInt(entry.class_id),
@@ -259,10 +260,10 @@ export function transformEntries(
     level: classData.level,
     section: classData.section,
     timeLimit: classData.time_limit_seconds ? String(classData.time_limit_seconds) : undefined,
-    timeLimit2: classData.time_limit_area2_seconds ? String(classData.time_limit_area2_seconds) : undefined,
-    timeLimit3: classData.time_limit_area3_seconds ? String(classData.time_limit_area3_seconds) : undefined,
-    // Include area_count for ASCA Interior classes where judge chooses 1 or 2 areas
-    areas: classData.area_count ?? undefined,
+    timeLimit2: undefined,
+    timeLimit3: undefined,
+    // Include num_areas for ASCA Interior classes where judge chooses 1 or 2 areas
+    areas: classData.num_areas ?? undefined,
   }));
 }
 
@@ -292,7 +293,7 @@ export async function loadFromIndexedDB(
   const classInfo: ClassInfo = {
     element: classData.element,
     level: classData.level,
-    section: classData.section
+    section: classData.section,
   };
 
   // Load trial data (fire callbacks for date/number)
@@ -317,14 +318,10 @@ export async function loadFromIndexedDB(
     // Pass current status so it can be restored if scoresheet is canceled
     await markInRing(targetEntry.id, true, targetEntry.status);
     // Use areaCountOverride if available (for ASCA where judge chooses area count)
-    areas = initializeAreas(
-      targetEntry.element || '',
-      targetEntry.level || '',
-      {
-        isNationalsMode: isNationals,
-        areaCountOverride: targetEntry.areas
-      }
-    );
+    areas = initializeAreas(targetEntry.element || '', targetEntry.level || '', {
+      isNationalsMode: isNationals,
+      areaCountOverride: targetEntry.areas,
+    });
   }
 
   // Build rules from class data

@@ -60,9 +60,7 @@ import { logger } from '@/utils/logger';
  * const reversed = [...entries].reverse();
  * await updateExhibitorOrder(reversed);
  */
-export async function updateExhibitorOrder(
-  reorderedEntries: Entry[]
-): Promise<boolean> {
+export async function updateExhibitorOrder(reorderedEntries: Entry[]): Promise<boolean> {
   try {
     // Update each entry with its new position (1-based indexing)
     // Use a single timestamp for all updates to ensure consistency
@@ -73,7 +71,7 @@ export async function updateExhibitorOrder(
 
       const { error } = await supabase
         .from('entries')
-        .update({ exhibitor_order: newExhibitorOrder, updated_at: updatedAtTimestamp })
+        .update({ run_order: newExhibitorOrder, updated_at: updatedAtTimestamp })
         .eq('id', entry.id)
         .select('id, exhibitor_order');
 
@@ -114,9 +112,7 @@ export async function updateExhibitorOrder(
  * logger.log('New orders:', preview);
  * // [{ entryId: 123, newOrder: 1 }, { entryId: 456, newOrder: 2 }, ...]
  */
-export function calculateNewOrders(
-  entries: Entry[]
-): Array<{ entryId: number; newOrder: number }> {
+export function calculateNewOrders(entries: Entry[]): Array<{ entryId: number; newOrder: number }> {
   return entries.map((entry, index) => ({
     entryId: entry.id,
     newOrder: index + 1, // 1-based indexing
@@ -142,9 +138,7 @@ export function calculateNewOrders(
  *   throw new Error(validation.error);
  * }
  */
-export function validateExhibitorOrderArray(
-  entries: Entry[]
-): { valid: boolean; error?: string } {
+export function validateExhibitorOrderArray(entries: Entry[]): { valid: boolean; error?: string } {
   // Check for empty array
   if (!entries || entries.length === 0) {
     return { valid: false, error: 'Entries array is empty' };
@@ -155,7 +149,7 @@ export function validateExhibitorOrderArray(
   if (invalidEntry) {
     return {
       valid: false,
-      error: `Entry has invalid ID: ${JSON.stringify(invalidEntry)}`
+      error: `Entry has invalid ID: ${JSON.stringify(invalidEntry)}`,
     };
   }
 
@@ -166,7 +160,7 @@ export function validateExhibitorOrderArray(
     const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
     return {
       valid: false,
-      error: `Duplicate entry IDs found: ${duplicates.join(', ')}`
+      error: `Duplicate entry IDs found: ${duplicates.join(', ')}`,
     };
   }
 

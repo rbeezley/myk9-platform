@@ -17,7 +17,7 @@ import {
   FileText,
   ArrowLeft,
   RefreshCw,
-  CloudSun
+  CloudSun,
 } from 'lucide-react';
 import { HamburgerMenu, CompactOfflineIndicator } from '@/components/ui';
 import type { Show } from '@/services/replication';
@@ -28,9 +28,8 @@ import {
   getGoogleMapsUrl,
   getWeatherUrl,
   getFullSiteAddress,
-  hasContactInfo
+  hasContactInfo,
 } from './showDetailsUtils';
-
 
 // ============================================================================
 // Types
@@ -63,7 +62,7 @@ export function ShowDetailsHeader({
   isRefreshing,
   onRefresh,
   showRefreshButton = false,
-  refreshLongPressHandlers
+  refreshLongPressHandlers,
 }: ShowDetailsHeaderProps) {
   return (
     <header className="page-header show-details-header">
@@ -116,13 +115,7 @@ export function ShowDetailsLoading() {
 /**
  * Error state
  */
-export function ShowDetailsError({
-  error,
-  onBack
-}: {
-  error: string | null;
-  onBack: () => void;
-}) {
+export function ShowDetailsError({ error, onBack }: { error: string | null; onBack: () => void }) {
   return (
     <div className="show-details-container">
       <ShowDetailsHeader />
@@ -143,7 +136,7 @@ export function ShowDetailsError({
 export function ContactCard({
   title,
   icon,
-  contact
+  contact,
 }: {
   title: string;
   icon: ReactNode;
@@ -167,10 +160,7 @@ export function ContactCard({
         )}
 
         {contact.email && (
-          <a
-            href={`mailto:${contact.email}`}
-            className="show-detail-row show-detail-link"
-          >
+          <a href={`mailto:${contact.email}`} className="show-detail-row show-detail-link">
             <Mail size={16} className="detail-icon" />
             <span className="detail-text">{contact.email}</span>
           </a>
@@ -202,10 +192,12 @@ export function EventDetailsCard({ show }: { show: Show }) {
       </h2>
 
       <div className="show-details-grid">
-        <div className="show-detail-inline">
-          <span className="detail-label">Club:</span>
-          <span className="detail-value">{show.club_name}</span>
-        </div>
+        {(show.club_name || show.club_id) && (
+          <div className="show-detail-inline">
+            <span className="detail-label">Club:</span>
+            <span className="detail-value">{show.club_name || show.club_id}</span>
+          </div>
+        )}
 
         {show.website && (
           <a
@@ -221,7 +213,7 @@ export function EventDetailsCard({ show }: { show: Show }) {
 
         <div className="show-detail-inline">
           <span className="detail-label">Event:</span>
-          <span className="detail-value">{show.show_name}</span>
+          <span className="detail-value">{show.name}</span>
         </div>
 
         <div className="show-detail-inline">
@@ -234,11 +226,13 @@ export function EventDetailsCard({ show }: { show: Show }) {
           <span className="detail-value">{formatDateRange(show.start_date, show.end_date)}</span>
         </div>
 
-        {show.show_status && (
+        {show.status && (
           <div className="show-detail-inline">
             <span className="detail-label">Status:</span>
-            <span className={`detail-value status-badge status-${show.show_status.toLowerCase().replace(/\s+/g, '-')}`}>
-              {show.show_status}
+            <span
+              className={`detail-value status-badge status-${show.status.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              {show.status}
             </span>
           </div>
         )}
@@ -264,7 +258,7 @@ export function EventDetailsCard({ show }: { show: Show }) {
  */
 export function LocationCard({ show }: { show: Show }) {
   const fullSiteAddress = getFullSiteAddress(show);
-  const hasLocationInfo = fullSiteAddress || show.location || show.site_name;
+  const hasLocationInfo = fullSiteAddress || show.location || show.venue_name;
 
   if (!hasLocationInfo) return null;
 
@@ -276,10 +270,10 @@ export function LocationCard({ show }: { show: Show }) {
       </h2>
 
       <div className="show-details-list">
-        {show.site_name && (
+        {show.venue_name && (
           <div className="show-detail-row">
             <Building2 size={16} className="detail-icon" />
-            <span className="detail-text">{show.site_name}</span>
+            <span className="detail-text">{show.venue_name}</span>
           </div>
         )}
 
@@ -347,7 +341,7 @@ export function NotesCard({ notes }: { notes?: string | null }) {
  */
 export function UpcomingShowsCard({
   shows,
-  currentLicenseKey
+  currentLicenseKey,
 }: {
   shows: Show[];
   currentLicenseKey?: string;
@@ -356,10 +350,7 @@ export function UpcomingShowsCard({
   // Filter to upcoming shows (start_date > today), excluding current show
   const today = new Date().toISOString().split('T')[0];
   const upcomingShows = shows
-    .filter(show =>
-      show.start_date >= today &&
-      show.license_key !== currentLicenseKey
-    )
+    .filter(show => show.start_date >= today && show.license_key !== currentLicenseKey)
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
     .slice(0, 5); // Limit to 5 shows
 
@@ -378,9 +369,10 @@ export function UpcomingShowsCard({
             {upcomingShows.map(show => (
               <div key={show.license_key} className="upcoming-show-item">
                 <div className="upcoming-show-info">
-                  <span className="upcoming-show-name">{show.show_name}</span>
+                  <span className="upcoming-show-name">{show.name}</span>
                   <span className="upcoming-show-details">
-                    {show.club_name} • {formatDateRange(show.start_date, show.end_date)}
+                    {show.club_name || show.club_id} •{' '}
+                    {formatDateRange(show.start_date, show.end_date)}
                   </span>
                 </div>
               </div>

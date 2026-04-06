@@ -47,7 +47,7 @@ export function useMaxTimeSave({
     if (!timeRange) return;
 
     // Validate all times
-    const newErrors = times.map((time) => validateTime(time, timeRange));
+    const newErrors = times.map(time => validateTime(time, timeRange));
 
     // Check if any errors exist
     const hasErrors = newErrors.some(error => error !== '');
@@ -61,7 +61,9 @@ export function useMaxTimeSave({
 
     // Only prevent saving if some areas are filled and some are empty (incomplete state)
     if (!allAreasEmpty && !allAreasStillFilled) {
-      setValidationMessage(`Please either set max time for all ${requiredAreas} area${requiredAreas !== 1 ? 's' : ''} or clear all fields`);
+      setValidationMessage(
+        `Please either set max time for all ${requiredAreas} area${requiredAreas !== 1 ? 's' : ''} or clear all fields`
+      );
       return;
     }
 
@@ -85,10 +87,7 @@ export function useMaxTimeSave({
         ? [classData.id, classData.pairedClassId]
         : [classData.id];
 
-      const { error } = await supabase
-        .from('classes')
-        .update(updateData)
-        .in('id', idsToUpdate);
+      const { error } = await supabase.from('classes').update(updateData).in('id', idsToUpdate);
 
       if (error) {
         logger.error('❌ Error updating max times:', error);
@@ -121,7 +120,9 @@ export function useMaxTimeSave({
       }
 
       if (allAreasEmpty) {
-        setSuccessMessage('Max times have been cleared successfully. Judges can now set new times.');
+        setSuccessMessage(
+          'Max times have been cleared successfully. Judges can now set new times.'
+        );
       } else {
         setSuccessMessage('Max times have been saved successfully.');
       }

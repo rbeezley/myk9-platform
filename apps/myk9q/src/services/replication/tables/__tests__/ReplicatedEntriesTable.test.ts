@@ -43,8 +43,8 @@ describe('ReplicatedEntriesTable', () => {
     it('should set and get a single entry', async () => {
       const entry: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         dog_breed: 'Golden Retriever',
         class_id: 'class-1',
@@ -68,8 +68,8 @@ describe('ReplicatedEntriesTable', () => {
     it('should update an existing entry', async () => {
       const entry: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'no-status',
@@ -91,8 +91,8 @@ describe('ReplicatedEntriesTable', () => {
     it('should delete an entry', async () => {
       const entry: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'no-status',
@@ -112,8 +112,8 @@ describe('ReplicatedEntriesTable', () => {
       const entries: Entry[] = [
         {
           id: '1',
-          armband_number: 101,
-          handler_name: 'John Doe',
+          armband: 101,
+          handler: 'John Doe',
           dog_call_name: 'Buddy',
           class_id: 'class-1',
           entry_status: 'no-status',
@@ -123,8 +123,8 @@ describe('ReplicatedEntriesTable', () => {
         },
         {
           id: '2',
-          armband_number: 102,
-          handler_name: 'Jane Smith',
+          armband: 102,
+          handler: 'Jane Smith',
           dog_call_name: 'Max',
           class_id: 'class-1',
           entry_status: 'no-status',
@@ -145,8 +145,8 @@ describe('ReplicatedEntriesTable', () => {
       const entries: Entry[] = [
         {
           id: '1',
-          armband_number: 101,
-          handler_name: 'John Doe',
+          armband: 101,
+          handler: 'John Doe',
           dog_call_name: 'Buddy',
           class_id: 'class-1',
           entry_status: 'no-status',
@@ -156,8 +156,8 @@ describe('ReplicatedEntriesTable', () => {
         },
         {
           id: '2',
-          armband_number: 102,
-          handler_name: 'Jane Smith',
+          armband: 102,
+          handler: 'Jane Smith',
           dog_call_name: 'Max',
           class_id: 'class-1',
           entry_status: 'no-status',
@@ -181,8 +181,8 @@ describe('ReplicatedEntriesTable', () => {
       const entries: Entry[] = [
         {
           id: '1',
-          armband_number: 101,
-          handler_name: 'John Doe',
+          armband: 101,
+          handler: 'John Doe',
           dog_call_name: 'Buddy',
           class_id: 'class-1',
           entry_status: 'no-status',
@@ -192,8 +192,8 @@ describe('ReplicatedEntriesTable', () => {
         },
         {
           id: '2',
-          armband_number: 102,
-          handler_name: 'Jane Smith',
+          armband: 102,
+          handler: 'Jane Smith',
           dog_call_name: 'Max',
           class_id: 'class-1',
           entry_status: 'checked-in',
@@ -203,8 +203,8 @@ describe('ReplicatedEntriesTable', () => {
         },
         {
           id: '3',
-          armband_number: 201,
-          handler_name: 'Bob Johnson',
+          armband: 201,
+          handler: 'Bob Johnson',
           dog_call_name: 'Charlie',
           class_id: 'class-2',
           entry_status: 'no-status',
@@ -226,7 +226,7 @@ describe('ReplicatedEntriesTable', () => {
     it('should get entry by armband number', async () => {
       const entry = await table.getByArmband(101, 'class-1');
       expect(entry).not.toBeNull();
-      expect(entry?.armband_number).toBe(101);
+      expect(entry?.armband).toBe(101);
       expect(entry?.dog_call_name).toBe('Buddy');
     });
 
@@ -239,8 +239,8 @@ describe('ReplicatedEntriesTable', () => {
       // Add entry with different license key
       const otherEntry: Entry = {
         id: '4',
-        armband_number: 301,
-        handler_name: 'Other User',
+        armband: 301,
+        handler: 'Other User',
         dog_call_name: 'Different',
         class_id: 'class-3',
         entry_status: 'no-status',
@@ -261,8 +261,8 @@ describe('ReplicatedEntriesTable', () => {
     it('should update entry status optimistically', async () => {
       const entry: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'no-status',
@@ -281,8 +281,8 @@ describe('ReplicatedEntriesTable', () => {
     it('should mark entry as scored', async () => {
       const entry: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'in-ring',
@@ -328,8 +328,8 @@ describe('ReplicatedEntriesTable', () => {
 
       const entry: Entry = {
         id: 'safety-test-1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'no-status',
@@ -355,8 +355,8 @@ describe('ReplicatedEntriesTable', () => {
 
       const entry: Entry = {
         id: 'expire-after-sync-1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'no-status',
@@ -385,8 +385,8 @@ describe('ReplicatedEntriesTable', () => {
 
       const entry: Entry = {
         id: 'dirty-entry-1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'checked-in',
@@ -429,8 +429,8 @@ describe('ReplicatedEntriesTable', () => {
       // Add a unique entry
       const entry: Entry = {
         id: 'subscribe-test-' + Date.now(),
-        armband_number: 999,
-        handler_name: 'Subscribe Test',
+        armband: 999,
+        handler: 'Subscribe Test',
         dog_call_name: 'TestDog',
         class_id: 'class-subscribe',
         entry_status: 'no-status',
@@ -464,8 +464,8 @@ describe('ReplicatedEntriesTable', () => {
     it('should always use server entry_status (server wins)', async () => {
       const local: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'checked-in', // Client has newer status
@@ -476,8 +476,8 @@ describe('ReplicatedEntriesTable', () => {
 
       const remote: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'no-status', // Server value
@@ -497,8 +497,8 @@ describe('ReplicatedEntriesTable', () => {
     it('should use all server values including scoring results', async () => {
       const local: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'completed',
@@ -513,8 +513,8 @@ describe('ReplicatedEntriesTable', () => {
 
       const remote: Entry = {
         id: '1',
-        armband_number: 101,
-        handler_name: 'John Doe',
+        armband: 101,
+        handler: 'John Doe',
         dog_call_name: 'Buddy',
         class_id: 'class-1',
         entry_status: 'no-status', // Server value wins
@@ -563,8 +563,8 @@ describe('ReplicatedEntriesTable', () => {
       const entries: Entry[] = [
         {
           id: '1',
-          armband_number: 101,
-          handler_name: 'John Doe',
+          armband: 101,
+          handler: 'John Doe',
           dog_call_name: 'Buddy',
           class_id: 'class-1',
           entry_status: 'no-status',
@@ -574,8 +574,8 @@ describe('ReplicatedEntriesTable', () => {
         },
         {
           id: '2',
-          armband_number: 102,
-          handler_name: 'Jane Smith',
+          armband: 102,
+          handler: 'Jane Smith',
           dog_call_name: 'Max',
           class_id: 'class-1',
           entry_status: 'no-status',

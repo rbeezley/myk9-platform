@@ -311,7 +311,7 @@ export const ClassList: React.FC = () => {
               const allEntries = (await entriesTable.getAll()) as Entry[];
               const classEntries = allEntries
                 .filter(e => String(e.class_id) === String(classId))
-                .sort((a, b) => a.armband_number - b.armband_number);
+                .sort((a, b) => a.armband - b.armband);
 
               if (classEntries.length > 0) {
                 logger.log('Prefetched class entries from cache:', classId, classEntries.length);

@@ -22,41 +22,33 @@ import { logger } from '@/utils/logger';
  * Full Entry type will be imported from entryStore when integrated
  */
 export interface Entry {
-  id: string;               // Primary key (bigint in DB, string for IndexedDB)
-  armband_number: number;
-  handler_name: string;
+  id: string; // Primary key (bigint in DB, string for IndexedDB)
+  armband: number;
+  handler: string;
   dog_call_name: string;
   dog_breed?: string;
-  class_id: string;         // Foreign key to classes
+  class_id: string; // Foreign key to classes
 
   // Status fields
-  entry_status: string;     // 'no-status' | 'checked-in' | 'at-gate' | 'in-ring' | 'completed'
+  entry_status: string; // 'no-status' | 'checked-in' | 'at-gate' | 'in-ring' | 'completed'
   is_scored: boolean;
   is_in_ring: boolean;
 
   // Result fields (server-authoritative)
-  result_status?: string;   // 'pending' | 'qualified' | 'nq' | 'absent' | 'excused' | 'withdrawn'
+  result_status?: string; // 'pending' | 'qualified' | 'nq' | 'absent' | 'excused' | 'withdrawn'
   final_placement?: number;
   search_time_seconds?: number;
   total_faults?: number;
 
   // Run order (exhibitor-controlled)
-  exhibitor_order?: number; // Custom run order set by gate steward/exhibitors
+  run_order?: number; // Custom run order set by gate steward/exhibitors
 
   // Timestamps
   created_at?: string;
   updated_at?: string;
 
   // Multi-tenant isolation (denormalized for real-time subscription filtering)
-  license_key: string;      // Auto-populated by database trigger from classes->trials->shows
-}
-
-/**
- * Raw entry from Supabase with joined data
- * Used to extract and flatten the response
- */
-interface RawEntryWithJoins extends Entry {
-  classes?: unknown;
+  license_key: string; // Auto-populated by database trigger from classes->trials->shows
 }
 
 /**
@@ -107,26 +99,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
       // Solution: Query for entries updated in the last 5 seconds PLUS anything newer.
       // This ensures we don't miss updates due to clock skew or timing race conditions.
       const SYNC_BUFFER_MS = 5000; // 5 seconds buffer for cross-tab sync
-      const rawLastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const rawLastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
       const lastSync = rawLastSync > SYNC_BUFFER_MS ? rawLastSync - SYNC_BUFFER_MS : 0;
 
-      // Step 2: Fetch changes from server since last sync
-      // Join through: entries → classes → trials → shows.license_key
+      // Step 2: Fetch changes from server since last sync via platform view
       const fetchPromise = supabase
-        .from('entries')
-        .select(`
-          *,
-          classes!inner(
-            trial_id,
-            trials!inner(
-              show_id,
-              shows!inner(
-                license_key
-              )
-            )
-          )
-        `)
-        .eq('classes.trials.shows.license_key', licenseKey)
+        .from('view_myk9q_entries')
+        .select('*')
+        .eq('license_key', licenseKey)
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });
 
@@ -135,21 +115,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
         setTimeout(() => reject(new Error('Entries fetch timed out after 30 seconds')), 30000);
       });
 
-      let result;
-      try {
-        result = await Promise.race([fetchPromise, timeoutPromise]);
-      } catch (_timeoutError) {
-        logger.error(`[${this.tableName}] Fetch timed out, trying simpler query...`);
-        // Fallback: use view instead of complex join
-        result = await supabase
-          .from('view_entry_class_join_normalized')
-          .select('*')
-          .eq('license_key', licenseKey)
-          .gt('updated_at', new Date(lastSync).toISOString())
-          .order('updated_at', { ascending: true });
-      }
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
 
-      const { data: remoteEntries, error: fetchError } = result as { data: Entry[] | null; error: unknown };
+      const { data: remoteEntries, error: fetchError } = result as {
+        data: Entry[] | null;
+        error: unknown;
+      };
 
       if (fetchError) {
         logger.error(`[${this.tableName}] Fetch error:`, fetchError);
@@ -169,8 +140,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
         const entriesToCache: Entry[] = [];
 
         for (const rawEntry of remoteEntries) {
-          // Flatten the response (remove nested classes/trials/shows objects)
-          const { classes: _classes, ...remoteEntry } = rawEntry as RawEntryWithJoins;
+          // view_myk9q_entries returns flat rows — no nested objects to strip
+          const remoteEntry = rawEntry as Entry;
 
           // Convert ID to string for consistent IndexedDB key format
           const entryId = String(remoteEntry.id);
@@ -178,12 +149,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
 
           if (localEntry) {
             // Conflict: both local and remote have data
-            const resolved = this.resolveConflict(localEntry, remoteEntry as Entry);
+            const resolved = this.resolveConflict(localEntry, { ...remoteEntry, id: entryId });
             entriesToCache.push(resolved);
             conflictsResolved++;
           } else {
             // No conflict: just cache the remote entry
-            entriesToCache.push({ ...remoteEntry, id: entryId } as Entry);
+            entriesToCache.push({ ...remoteEntry, id: entryId });
           }
 
           rowsSynced++;
@@ -208,7 +179,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
       });
 
       const duration = Date.now() - startTime;
-      logger.log(`[${this.tableName}] Sync complete: ${rowsSynced} rows, ${conflictsResolved} conflicts, ${duration}ms`);
+      logger.log(
+        `[${this.tableName}] Sync complete: ${rowsSynced} rows, ${conflictsResolved} conflicts, ${duration}ms`
+      );
 
       return {
         tableName: this.tableName,
@@ -281,10 +254,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
     // Use indexed query for much better performance
     const entries = await this.queryByField('class_id', classId);
 
-
     // Filter by license_key if needed (for multi-tenant isolation)
     if (licenseKey) {
-      return entries.filter((entry) => entry.license_key === licenseKey);
+      return entries.filter(entry => entry.license_key === licenseKey);
     }
 
     return entries;
@@ -296,18 +268,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
    */
   async getByArmband(armbandNumber: number, classId: string): Promise<Entry | null> {
     const classEntries = await this.getByClassId(classId);
-    return classEntries.find((entry) => entry.armband_number === armbandNumber) || null;
+    return classEntries.find(entry => entry.armband === armbandNumber) || null;
   }
 
   /**
    * Helper: Update entry status (optimistic update)
    * Used for check-in flow
    */
-  async updateEntryStatus(
-    entryId: string,
-    newStatus: string,
-    queueMutation = true
-  ): Promise<void> {
+  async updateEntryStatus(entryId: string, newStatus: string, queueMutation = true): Promise<void> {
     const entry = await this.get(entryId);
     if (!entry) {
       throw new Error(`Entry ${entryId} not found`);
@@ -323,7 +291,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
     // Mark as dirty to queue for sync
     await this.set(entryId, updated, queueMutation);
 
-    logger.log(`[${this.tableName}] Updated entry ${entryId} status: ${entry.entry_status} → ${newStatus}`);
+    logger.log(
+      `[${this.tableName}] Updated entry ${entryId} status: ${entry.entry_status} → ${newStatus}`
+    );
   }
 
   /**

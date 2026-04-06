@@ -63,10 +63,7 @@ export async function getClassEntries(
  *
  * **Phase 1 Complete**: Now uses unified entryDataLayer
  */
-export async function getTrialEntries(
-  trialId: number,
-  licenseKey: string
-): Promise<Entry[]> {
+export async function getTrialEntries(trialId: number, licenseKey: string): Promise<Entry[]> {
   // Delegate to unified data layer (Phase 1, Task 1.3)
   return getTrialEntriesFromDataLayer(trialId, licenseKey);
 }
@@ -129,9 +126,7 @@ export async function submitBatchScores(
  * @param classIds - Class ID(s) to process (for combined A & B views)
  * @returns Number of entries marked as absent
  */
-export async function markUnscoredEntriesAsAbsent(
-  classIds: number | number[]
-): Promise<number> {
+export async function markUnscoredEntriesAsAbsent(classIds: number | number[]): Promise<number> {
   const ids = Array.isArray(classIds) ? classIds : [classIds];
 
   logger.log('🏃 [entryService] markUnscoredEntriesAsAbsent:', { classIds: ids });
@@ -229,22 +224,21 @@ export async function markEntryCompleted(entryId: number): Promise<boolean> {
  *
  * **Retention**: Kept for backward compatibility in case external code depends on it.
  */
-export async function getClassInfo(
-  classId: number,
-  licenseKey: string
-): Promise<ClassData | null> {
+export async function getClassInfo(classId: number, licenseKey: string): Promise<ClassData | null> {
   try {
     // Get class details
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select(`
+      .select(
+        `
         *,
         trials!inner (
           shows!inner (
             license_key
           )
         )
-      `)
+      `
+      )
       .eq('id', classId)
       .eq('trials.shows.license_key', licenseKey)
       .single();
@@ -271,12 +265,12 @@ export async function getClassInfo(
     return {
       id: classData.id,
       className: buildClassName(classData.element, classData.level, classData.section),
-      classType: classData.class_status,
+      classType: classData.status,
       trialId: classData.trial_id,
       judgeId: classData.judge_name,
       totalEntries,
       scoredEntries,
-      isCompleted: totalEntries > 0 && totalEntries === scoredEntries
+      isCompleted: totalEntries > 0 && totalEntries === scoredEntries,
     };
   } catch (error) {
     logger.error('Error in getClassInfo:', error);
@@ -327,10 +321,7 @@ export async function resetEntryScore(entryId: number): Promise<boolean> {
  *
  * **Phase 1 Complete**: Now uses unified entryDataLayer
  */
-export async function getEntriesByArmband(
-  armband: number,
-  licenseKey: string
-): Promise<Entry[]> {
+export async function getEntriesByArmband(armband: number, licenseKey: string): Promise<Entry[]> {
   // Delegate to unified data layer (Phase 1, Task 1.3)
   return getEntriesByArmbandFromDataLayer(armband, licenseKey);
 }
@@ -341,8 +332,6 @@ export async function getEntriesByArmband(
  *
  * **Phase 4 Task 4.1**: Delegates to entryBatchOperations module
  */
-export async function updateExhibitorOrder(
-  reorderedEntries: Entry[]
-): Promise<boolean> {
+export async function updateExhibitorOrder(reorderedEntries: Entry[]): Promise<boolean> {
   return updateExhibitorOrderFromBatchModule(reorderedEntries);
 }

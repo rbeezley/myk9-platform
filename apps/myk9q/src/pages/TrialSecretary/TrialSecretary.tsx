@@ -116,11 +116,11 @@ export function TrialSecretary() {
     const showData = await replicatedShowsTable.getShowById(showContext.showId);
 
     generateShowFlyer(showContext.showName, exhibitorCode, loginUrl, {
-      clubName: showData?.club_name || showContext.clubName || undefined,
+      clubName: showData?.club_id || showContext.clubName || undefined,
       showDates: showData?.start_date
         ? formatShowDates(showData.start_date, showData.end_date)
         : undefined,
-      secretaryName: showData?.secretary_name || showData?.show_secretary_name || undefined,
+      secretaryName: showData?.secretary || undefined,
       chairmanName: showData?.chairman_name || undefined,
     });
   }, [showContext, formatShowDates]);

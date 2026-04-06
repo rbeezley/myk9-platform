@@ -19,8 +19,8 @@ vi.mock('../lib/supabase', () => ({
 
 // Mock utility functions
 vi.mock('@/utils/stringUtils', () => ({
-  buildClassName: vi.fn((element: string, level: string, section: string) =>
-    `${level} ${section} ${element}`
+  buildClassName: vi.fn(
+    (element: string, level: string, section: string) => `${level} ${section} ${element}`
   ),
 }));
 
@@ -81,19 +81,19 @@ describe('entryDataFetching', () => {
           element: 'Interior',
           level: 'Novice',
           section: 'A',
-          area_count: 2,
+          num_areas: 2,
           time_limit_seconds: 180,
-          time_limit_area2_seconds: 180,
-          time_limit_area3_seconds: null,
+          time_limit_area2_seconds_REMOVED: 180,
+          time_limit_area3_seconds_REMOVED: null,
         };
 
         const mockViewData = [
           {
             id: 1,
-            armband_number: 101,
+            armband: 101,
             dog_call_name: 'Max',
             dog_breed: 'Border Collie',
-            handler_name: 'John Doe',
+            handler: 'John Doe',
             is_scored: false,
             entry_status: 'checked-in',
             result_status: 'pending',
@@ -105,13 +105,13 @@ describe('entryDataFetching', () => {
             no_finish_count: 0,
             points_earned: 0,
             class_id: 123,
-            exhibitor_order: 1,
+            run_order: 1,
             classes: {
               element: 'Interior',
               level: 'Novice',
               section: 'A',
               trials: {
-                trial_date: '2025-01-20',
+                date: '2025-01-20',
                 trial_number: 1,
               },
             },
@@ -146,7 +146,7 @@ describe('entryDataFetching', () => {
         expect(result[0].callName).toBe('Max');
         expect(result[0].className).toBe('Novice A Interior');
         expect(supabase.from).toHaveBeenCalledWith('classes');
-        expect(supabase.from).toHaveBeenCalledWith('view_entry_with_results');
+        expect(supabase.from).toHaveBeenCalledWith('view_myk9q_entries');
       });
 
       it('should handle multiple entries correctly', async () => {
@@ -154,19 +154,19 @@ describe('entryDataFetching', () => {
           element: 'Interior',
           level: 'Novice',
           section: 'A',
-          area_count: 1,
+          num_areas: 1,
           time_limit_seconds: 180,
-          time_limit_area2_seconds: null,
-          time_limit_area3_seconds: null,
+          time_limit_area2_seconds_REMOVED: null,
+          time_limit_area3_seconds_REMOVED: null,
         };
 
         const mockViewData = [
           {
             id: 1,
-            armband_number: 101,
+            armband: 101,
             dog_call_name: 'Max',
             dog_breed: 'Border Collie',
-            handler_name: 'John Doe',
+            handler: 'John Doe',
             is_scored: false,
             entry_status: 'no-status',
             result_status: 'pending',
@@ -178,20 +178,20 @@ describe('entryDataFetching', () => {
             no_finish_count: 0,
             points_earned: 0,
             class_id: 123,
-            exhibitor_order: 1,
+            run_order: 1,
             classes: {
               element: 'Interior',
               level: 'Novice',
               section: 'A',
-              trials: { trial_date: '2025-01-20', trial_number: 1 },
+              trials: { date: '2025-01-20', trial_number: 1 },
             },
           },
           {
             id: 2,
-            armband_number: 102,
+            armband: 102,
             dog_call_name: 'Bella',
             dog_breed: 'Golden Retriever',
-            handler_name: 'Jane Smith',
+            handler: 'Jane Smith',
             is_scored: true,
             entry_status: 'completed',
             result_status: 'Q',
@@ -203,12 +203,12 @@ describe('entryDataFetching', () => {
             no_finish_count: 0,
             points_earned: 100,
             class_id: 123,
-            exhibitor_order: 2,
+            run_order: 2,
             classes: {
               element: 'Interior',
               level: 'Novice',
               section: 'A',
-              trials: { trial_date: '2025-01-20', trial_number: 1 },
+              trials: { date: '2025-01-20', trial_number: 1 },
             },
           },
         ];
@@ -247,10 +247,10 @@ describe('entryDataFetching', () => {
           element: 'Interior',
           level: 'Novice',
           section: 'A',
-          area_count: 1,
+          num_areas: 1,
           time_limit_seconds: 180,
-          time_limit_area2_seconds: null,
-          time_limit_area3_seconds: null,
+          time_limit_area2_seconds_REMOVED: null,
+          time_limit_area3_seconds_REMOVED: null,
         };
 
         const mockFrom = vi.fn().mockReturnValue({
@@ -284,19 +284,19 @@ describe('entryDataFetching', () => {
           element: 'Container',
           level: 'Advanced',
           section: 'B',
-          area_count: 3,
+          num_areas: 3,
           time_limit_seconds: 180,
-          time_limit_area2_seconds: 150,
-          time_limit_area3_seconds: 120,
+          time_limit_area2_seconds_REMOVED: 150,
+          time_limit_area3_seconds_REMOVED: 120,
         };
 
         const mockViewData = [
           {
             id: 1,
-            armband_number: 201,
+            armband: 201,
             dog_call_name: 'Scout',
             dog_breed: 'German Shepherd',
-            handler_name: 'Bob Wilson',
+            handler: 'Bob Wilson',
             is_scored: false,
             entry_status: 'no-status',
             result_status: 'pending',
@@ -308,12 +308,12 @@ describe('entryDataFetching', () => {
             no_finish_count: 0,
             points_earned: 0,
             class_id: 456,
-            exhibitor_order: 1,
+            run_order: 1,
             classes: {
               element: 'Container',
               level: 'Advanced',
               section: 'B',
-              trials: { trial_date: '2025-01-20', trial_number: 1 },
+              trials: { date: '2025-01-20', trial_number: 1 },
             },
           },
         ];
@@ -344,8 +344,8 @@ describe('entryDataFetching', () => {
         expect(result).toHaveLength(1);
         expect(result[0].areas).toBe(3);
         expect(result[0].timeLimit).toBe('3:00');
-        expect(result[0].timeLimit2).toBe('2:30');
-        expect(result[0].timeLimit3).toBe('2:00');
+        expect(result[0].timeLimit2).toBeUndefined();
+        expect(result[0].timeLimit3).toBeUndefined();
       });
     });
 
@@ -364,9 +364,9 @@ describe('entryDataFetching', () => {
 
         vi.mocked(supabase.from).mockImplementation(mockFrom);
 
-        await expect(
-          fetchClassEntriesFromDatabase([999], 999, 'TEST-KEY')
-        ).rejects.toThrow('Could not find class');
+        await expect(fetchClassEntriesFromDatabase([999], 999, 'TEST-KEY')).rejects.toThrow(
+          'Could not find class'
+        );
       });
 
       it('should throw error when view query fails', async () => {
@@ -374,10 +374,10 @@ describe('entryDataFetching', () => {
           element: 'Interior',
           level: 'Novice',
           section: 'A',
-          area_count: 1,
+          num_areas: 1,
           time_limit_seconds: 180,
-          time_limit_area2_seconds: null,
-          time_limit_area3_seconds: null,
+          time_limit_area2_seconds_REMOVED: null,
+          time_limit_area3_seconds_REMOVED: null,
         };
 
         const mockFrom = vi.fn().mockReturnValue({
@@ -401,9 +401,9 @@ describe('entryDataFetching', () => {
 
         vi.mocked(supabase.from).mockImplementation(mockFrom);
 
-        await expect(
-          fetchClassEntriesFromDatabase([123], 123, 'TEST-KEY')
-        ).rejects.toThrow('Database error');
+        await expect(fetchClassEntriesFromDatabase([123], 123, 'TEST-KEY')).rejects.toThrow(
+          'Database error'
+        );
       });
     });
 
@@ -413,19 +413,19 @@ describe('entryDataFetching', () => {
           element: 'Exterior',
           level: 'Excellent',
           section: 'C',
-          area_count: 1,
+          num_areas: 1,
           time_limit_seconds: 240,
-          time_limit_area2_seconds: null,
-          time_limit_area3_seconds: null,
+          time_limit_area2_seconds_REMOVED: null,
+          time_limit_area3_seconds_REMOVED: null,
         };
 
         const mockViewData = [
           {
             id: 5000,
-            armband_number: 305,
+            armband: 305,
             dog_call_name: 'Luna',
             dog_breed: 'Labrador Retriever',
-            handler_name: 'Sarah Johnson',
+            handler: 'Sarah Johnson',
             is_scored: true,
             entry_status: 'completed',
             result_status: 'Q',
@@ -440,12 +440,12 @@ describe('entryDataFetching', () => {
             excuse_reason: null,
             withdrawal_reason: null,
             class_id: 789,
-            exhibitor_order: 15,
+            run_order: 15,
             classes: {
               element: 'Exterior',
               level: 'Excellent',
               section: 'C',
-              trials: { trial_date: '2025-01-21', trial_number: 2 },
+              trials: { date: '2025-01-21', trial_number: 2 },
             },
           },
         ];
@@ -499,19 +499,19 @@ describe('entryDataFetching', () => {
           element: 'Interior',
           level: 'Novice',
           section: 'A',
-          area_count: 1,
+          num_areas: 1,
           time_limit_seconds: 180,
-          time_limit_area2_seconds: null,
-          time_limit_area3_seconds: null,
+          time_limit_area2_seconds_REMOVED: null,
+          time_limit_area3_seconds_REMOVED: null,
         };
 
         const mockViewData = [
           {
             id: 1,
-            armband_number: 101,
+            armband: 101,
             dog_call_name: 'Max',
             dog_breed: 'Border Collie',
-            handler_name: 'John Doe',
+            handler: 'John Doe',
             is_scored: false,
             entry_status: 'no-status',
             result_status: null,
@@ -526,12 +526,12 @@ describe('entryDataFetching', () => {
             excuse_reason: null,
             withdrawal_reason: null,
             class_id: 123,
-            exhibitor_order: 1,
+            run_order: 1,
             classes: {
               element: 'Interior',
               level: 'Novice',
               section: 'A',
-              trials: { trial_date: '2025-01-20', trial_number: 1 },
+              trials: { date: '2025-01-20', trial_number: 1 },
             },
           },
         ];
@@ -589,7 +589,7 @@ describe('entryDataFetching', () => {
               element: 'Interior',
               level: 'Novice',
               section: 'A',
-              trials: { trial_date: '2025-01-20', trial_number: 1 },
+              trials: { date: '2025-01-20', trial_number: 1 },
             },
           },
         ];
@@ -660,9 +660,9 @@ describe('entryDataFetching', () => {
 
         vi.mocked(supabase.from).mockImplementation(mockFrom);
 
-        await expect(
-          fetchTrialEntriesFromDatabase(1, 'TEST-KEY')
-        ).rejects.toThrow('Database error');
+        await expect(fetchTrialEntriesFromDatabase(1, 'TEST-KEY')).rejects.toThrow(
+          'Database error'
+        );
       });
     });
   });
@@ -688,7 +688,7 @@ describe('entryDataFetching', () => {
               element: 'Interior',
               level: 'Novice',
               section: 'A',
-              trials: { trial_date: '2025-01-20', trial_number: 1 },
+              trials: { date: '2025-01-20', trial_number: 1 },
             },
           },
           {
@@ -708,7 +708,7 @@ describe('entryDataFetching', () => {
               element: 'Container',
               level: 'Novice',
               section: 'A',
-              trials: { trial_date: '2025-01-20', trial_number: 1 },
+              trials: { date: '2025-01-20', trial_number: 1 },
             },
           },
         ];
@@ -773,9 +773,9 @@ describe('entryDataFetching', () => {
 
         vi.mocked(supabase.from).mockImplementation(mockFrom);
 
-        await expect(
-          fetchEntriesByArmbandFromDatabase(101, 'TEST-KEY')
-        ).rejects.toThrow('Database error');
+        await expect(fetchEntriesByArmbandFromDatabase(101, 'TEST-KEY')).rejects.toThrow(
+          'Database error'
+        );
       });
     });
   });

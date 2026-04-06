@@ -645,16 +645,24 @@ describe('ReplicatedEntriesTable', () => {
   });
 
   describe('Conflict Resolution', () => {
-    it('should resolve conflict with server-wins strategy', async () => {
-      const localEntry: ReplicatedEntry = {
+    function getResolveConflict(t: typeof table) {
+      return (
+        t as unknown as {
+          resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry;
+        }
+      ).resolveConflict.bind(t);
+    }
+
+    it('server wins when local is synced', async () => {
+      const local: ReplicatedEntry = {
         id: 'entry-1',
         classId: 'class-1',
         armband: '101',
         status: 'checked-in',
         dogCallName: 'Rex',
+        _syncStatus: 'synced',
       };
-
-      const remoteEntry: ReplicatedEntry = {
+      const remote: ReplicatedEntry = {
         id: 'entry-1',
         classId: 'class-1',
         armband: '102',
@@ -662,44 +670,36 @@ describe('ReplicatedEntriesTable', () => {
         dogCallName: 'Max',
       };
 
-      // Access protected method via type assertion
-      const resolveConflict = (
-        table as unknown as {
-          resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry;
-        }
-      ).resolveConflict.bind(table);
-      const resolved = resolveConflict(localEntry, remoteEntry);
-
-      // Server wins - remote entry should be returned
-      expect(resolved).toBe(remoteEntry);
-      expect(resolved.armband).toBe('102');
-      expect(resolved.status).toBe('registered');
-      expect(resolved.dogCallName).toBe('Max');
-    });
-
-    it('should always prefer remote data in conflicts', async () => {
-      const local: ReplicatedEntry = {
-        id: 'entry-1',
-        isScored: true,
-        totalPoints: 100,
-      };
-
-      const remote: ReplicatedEntry = {
-        id: 'entry-1',
-        isScored: false,
-        totalPoints: 0,
-      };
-
-      const resolveConflict2 = (
-        table as unknown as {
-          resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry;
-        }
-      ).resolveConflict.bind(table);
-      const resolved = resolveConflict2(local, remote);
+      const resolved = getResolveConflict(table)(local, remote);
 
       expect(resolved).toBe(remote);
-      expect(resolved.isScored).toBe(false);
-      expect(resolved.totalPoints).toBe(0);
+      expect(resolved.armband).toBe('102');
+    });
+
+    it('server wins when local has no _syncStatus', async () => {
+      const local: ReplicatedEntry = { id: 'entry-1', isScored: true, totalPoints: 100 };
+      const remote: ReplicatedEntry = { id: 'entry-1', isScored: false, totalPoints: 0 };
+
+      const resolved = getResolveConflict(table)(local, remote);
+
+      expect(resolved).toBe(remote);
+    });
+
+    it('local wins when local has pending unsynced changes', async () => {
+      const local: ReplicatedEntry = {
+        id: 'entry-1',
+        runOrder: 3,
+        _syncStatus: 'pending',
+      };
+      const remote: ReplicatedEntry = {
+        id: 'entry-1',
+        runOrder: 7,
+      };
+
+      const resolved = getResolveConflict(table)(local, remote);
+
+      expect(resolved).toBe(local);
+      expect(resolved.runOrder).toBe(3);
     });
   });
 

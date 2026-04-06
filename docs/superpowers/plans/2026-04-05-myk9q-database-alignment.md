@@ -169,6 +169,17 @@ ALTER TABLE sport_class_rules ADD COLUMN IF NOT EXISTS max_time_seconds_area2 IN
 ALTER TABLE sport_class_rules ADD COLUMN IF NOT EXISTS max_time_seconds_area3 INTEGER;
 
 -- ---------------------------------------------------------------------------
+-- 2b. Expand entry_status CHECK constraint for myK9Q values [ADDED]
+-- ---------------------------------------------------------------------------
+-- myK9Q uses 'at-gate' and 'in-ring' which the platform constraint doesn't include.
+ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_entry_status_check;
+ALTER TABLE entries ADD CONSTRAINT entries_entry_status_check CHECK (entry_status IN (
+  'no-status', 'draft', 'submitted', 'paid', 'confirmed',
+  'checked-in', 'at-gate', 'in-ring', 'competing', 'completed',
+  'withdrawn', 'scratched', 'absent'
+));
+
+-- ---------------------------------------------------------------------------
 -- 3. view_myk9q_entries: pre-joined view for myK9Q entry data loading
 -- ---------------------------------------------------------------------------
 -- Replaces legacy view_entry_class_join_normalized.
@@ -371,12 +382,17 @@ COMMENT ON VIEW view_fastest_times IS 'Fastest qualifying times with proper tie 
 SELECT 'Migration 115: myK9Q compatibility complete' as status;
 ```
 
-- [ ] **Step 2: Verify migration syntax**
+- [ ] **Step 2: Push migration to Supabase** [ADDED]
+
+Run: `source supabase/.env && supabase db push --db-url "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.sojmvhhwsjxmfistvzbe.supabase.co:5432/postgres"`
+Expected: Migration 115 applied successfully.
+
+- [ ] **Step 3: Verify migration syntax**
 
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck`
 Expected: PASS (migration is SQL, typecheck just confirms no TS breakage)
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/115_myk9q_compatibility.sql
@@ -474,6 +490,14 @@ Update `ClassRequirement` interface to match `sport_class_rules` schema:
 Update `fetchFromSupabase()` to query `sport_class_rules`.
 Update helper methods (`getRequirementsForClass`, etc.) to match new field names.
 
+[ADDED] **Step 5b: Update initReplication.ts store registration**
+
+In `apps/myk9q/src/services/replication/initReplication.ts`, change:
+`manager.registerTable('class_requirements', replicatedClassRequirementsTable)` →
+`manager.registerTable('sport_class_rules', replicatedClassRequirementsTable)`
+
+This ensures the IndexedDB store name matches the new Supabase table name. Note: this will cause existing IndexedDB caches to be recreated (acceptable — myK9Q clears and redownloads on login).
+
 - [ ] **Step 6: Update `StatsView` interface in ReplicatedStatsViewTable.ts**
 
 The `view_stats_summary` view now aliases columns from the platform schema. The interface field names (`show_name`, `trial_date`, `armband_number`, `dog_call_name`, etc.) stay the same since the view provides those aliases. Verify the `fetchFromSupabase()` query references `view_stats_summary` (it already does).
@@ -482,7 +506,7 @@ No field renames needed — the view handles aliasing.
 
 - [ ] **Step 7: Update ReplicatedAuditLogViewTable.ts**
 
-Verify it references `view_audit_log` (it does). Check if the view exists in the platform schema. If not, note as a known gap (audit log is a myK9Q operational feature).
+[EXPANDED] `view_audit_log` does NOT exist in the platform schema (confirmed). This is a known gap — the audit log is a myK9Q operational feature. Leave the replication table code as-is for now; it will fail silently on sync (no data returned). Add to the Known Breakages section.
 
 - [ ] **Step 8: Run typecheck**
 
@@ -880,7 +904,20 @@ Do not apply these migrations to the platform database.
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && pnpm typecheck && cd apps/myk9q && pnpm test`
 Expected: All pass.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Manual smoke test** [ADDED]
+
+Start the myK9Q dev server: `cd apps/myk9q && pnpm dev`
+Verify these flows work against the platform DB:
+
+1. Login with a passcode (if test data exists) or verify the login page loads
+2. Show details page renders with correct show name, dates, location
+3. Class list page renders with correct class names, judge, section, status
+4. Entry list page renders with armband numbers, handler names, dog names
+5. If scored entries exist, verify Stats page loads data
+
+If no test data exists in the platform DB, verify the app loads without runtime errors (empty states are fine).
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add apps/myk9q/CLAUDE.md apps/myk9q/.env.example apps/myk9q/.env.local.example apps/myk9q/supabase/migrations/README.md
@@ -892,6 +929,53 @@ add README to legacy migrations folder."
 
 ---
 
+## Entry Status Enum Compatibility [ADDED]
+
+myK9Q and the platform use overlapping but different `entry_status` values:
+
+| myK9Q uses   | Platform has | Overlap?      |
+| ------------ | ------------ | ------------- |
+| `no-status`  | `no-status`  | Yes           |
+| `checked-in` | `checked-in` | Yes           |
+| `at-gate`    | —            | myK9Q only    |
+| `in-ring`    | —            | myK9Q only    |
+| `completed`  | `completed`  | Yes           |
+| —            | `draft`      | Platform only |
+| —            | `submitted`  | Platform only |
+| —            | `paid`       | Platform only |
+| —            | `confirmed`  | Platform only |
+| `withdrawn`  | `withdrawn`  | Yes           |
+| `scratched`  | `scratched`  | Yes           |
+| —            | `competing`  | Platform only |
+| —            | `absent`     | Platform only |
+
+The platform `entries.entry_status` column has a CHECK constraint limiting values. myK9Q writes `at-gate` and `in-ring` which will fail the constraint.
+
+**Resolution:** The migration (Task 1) must expand the CHECK constraint to include myK9Q's values:
+
+```sql
+ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_entry_status_check;
+ALTER TABLE entries ADD CONSTRAINT entries_entry_status_check CHECK (entry_status IN (
+  'no-status', 'draft', 'submitted', 'paid', 'confirmed',
+  'checked-in', 'at-gate', 'in-ring', 'competing', 'completed',
+  'withdrawn', 'scratched', 'absent'
+));
+```
+
+This must be added to migration 115.
+
+---
+
+## Rollback Strategy [ADDED]
+
+This is a staging-only refactor (neither app is in production with real users). Rollback approach:
+
+- **Migration:** The migration only adds columns (non-destructive) and creates views. To roll back: `DROP VIEW` the views and `ALTER TABLE DROP COLUMN` the added columns. But since no production data depends on them, this is low risk.
+- **Code changes:** All on `main` branch. `git revert` the commits if needed. The migration is additive, so old code will still work against the DB even with the new columns/views present.
+- **IndexedDB:** Changing the `sport_class_rules` store name will cause existing caches to be recreated. This is normal — myK9Q clears IndexedDB on login. No user data is lost.
+
+---
+
 ## Summary of Known Post-Alignment Breakages
 
 These are accepted and documented in the spec:
@@ -899,4 +983,5 @@ These are accepted and documented in the spec:
 1. **Push notifications** — `push_subscriptions` schema mismatch (deferred until auth reconciliation)
 2. **Performance metrics** — `metricsApiService.ts` references non-existent tables (deferred)
 3. **Nationals event_statistics** — dormant feature, table doesn't exist (deferred)
-4. **Audit log view** — `view_audit_log` may not exist in platform schema (verify, document if missing)
+4. **Audit log view** — `view_audit_log` does not exist in platform schema (confirmed). Replication table will fail silently on sync.
+5. **License Key = Show UUID population** — The spec's decision to use `shows.id` as the `license_key` value requires a separate seeding step (populate `license_key = id::text` on existing shows). This is deferred to the passcode generation task, since no myK9Q users are actively connecting to the platform DB yet.

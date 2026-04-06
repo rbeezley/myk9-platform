@@ -80,7 +80,7 @@ async function tryLoadTrialsFromCache(showId: number): Promise<TrialData[] | nul
     if (!trialsTable) return null;
 
     // Get trials for this show from cache (cast to proper types)
-    const allTrials = await trialsTable.getAll() as Trial[];
+    const allTrials = (await trialsTable.getAll()) as Trial[];
     const showTrials = allTrials.filter(t => String(t.show_id) === String(showId));
 
     logger.log(`✅ Loaded ${showTrials.length} trials from cache for show ${showId}`);
@@ -88,8 +88,8 @@ async function tryLoadTrialsFromCache(showId: number): Promise<TrialData[] | nul
     if (showTrials.length === 0) return null;
 
     // Get classes and entries from cache for counts
-    const allClasses = classesTable ? await classesTable.getAll() as Class[] : [];
-    const allEntries = entriesTable ? await entriesTable.getAll() as Entry[] : [];
+    const allClasses = classesTable ? ((await classesTable.getAll()) as Class[]) : [];
+    const allEntries = entriesTable ? ((await entriesTable.getAll()) as Entry[]) : [];
 
     // Build trial data with counts from cached data
     const processedTrials: TrialData[] = showTrials.map(trial => {
@@ -106,14 +106,14 @@ async function tryLoadTrialsFromCache(showId: number): Promise<TrialData[] | nul
       return {
         id: parseInt(trialId, 10),
         show_id: parseInt(String(trial.show_id), 10),
-        trial_name: trial.element || '',
-        trial_date: trial.trial_date,
-        trial_number: trial.trial_number || 1,
+        trial_name: trial.name || '',
+        trial_date: trial.date,
+        trial_number: trial.trial_number ? parseInt(String(trial.trial_number)) : 1,
         trial_type: trial.competition_type || '',
         classes_completed: completedClasses,
         classes_total: totalClasses,
         entries_completed: completedEntries,
-        entries_total: totalEntries
+        entries_total: totalEntries,
       };
     });
 
@@ -205,7 +205,7 @@ async function fetchTrials(showId: string | number | undefined): Promise<TrialDa
       classes_completed: completedClasses,
       classes_total: totalClasses,
       entries_completed: completedEntries,
-      entries_total: totalEntries
+      entries_total: totalEntries,
     };
   });
 
@@ -227,7 +227,7 @@ async function tryLoadEntriesFromCache(licenseKey: string): Promise<EntryData[] 
   const table = manager.getTable('entries');
   if (!table) return null;
 
-  const cachedEntries = await table.getAll() as Entry[];
+  const cachedEntries = (await table.getAll()) as Entry[];
   logger.log(`✅ Loaded ${cachedEntries.length} total entries from cache`);
 
   // CRITICAL: Filter by license_key to prevent showing dogs from other shows
@@ -246,16 +246,16 @@ async function tryLoadEntriesFromCache(licenseKey: string): Promise<EntryData[] 
   const uniqueDogs = new Map<number, EntryData>();
 
   filteredEntries.forEach(entry => {
-    if (!uniqueDogs.has(entry.armband_number)) {
-      uniqueDogs.set(entry.armband_number, {
+    if (!uniqueDogs.has(entry.armband)) {
+      uniqueDogs.set(entry.armband, {
         id: parseInt(entry.id, 10),
-        armband: entry.armband_number,
+        armband: entry.armband,
         call_name: entry.dog_call_name,
         breed: entry.dog_breed || '',
-        handler: entry.handler_name,
+        handler: entry.handler,
         is_favorite: false, // Will be updated by component after favorites load
         class_name: undefined, // No class info in replicated Entry yet
-        is_scored: entry.is_scored
+        is_scored: entry.is_scored,
       });
     }
   });
@@ -271,7 +271,7 @@ async function tryLoadEntriesFromCache(licenseKey: string): Promise<EntryData[] 
  * Uses replicated cache when enabled, falls back to Supabase
  */
 async function fetchEntries(licenseKey: string | undefined): Promise<EntryData[]> {
-logger.log('🐕 fetchEntries called with licenseKey:', licenseKey);
+  logger.log('🐕 fetchEntries called with licenseKey:', licenseKey);
 
   if (!licenseKey) {
     logger.log('⏸️ Skipping entries fetch - licenseKey not ready yet');
@@ -297,10 +297,10 @@ logger.log('🐕 fetchEntries called with licenseKey:', licenseKey);
 
   // Load entries from the normalized view
   const { data: entriesData, error: entriesError } = await supabase
-    .from('view_entry_class_join_normalized')
+    .from('view_myk9q_entries')
     .select('*')
     .eq('license_key', licenseKey)
-    .order('armband_number', { ascending: true });
+    .order('armband', { ascending: true });
 
   if (entriesError) {
     logger.error('❌ Error loading entries:', entriesError);
@@ -317,16 +317,16 @@ logger.log('🐕 fetchEntries called with licenseKey:', licenseKey);
   const uniqueDogs = new Map<number, EntryData>();
 
   entriesData.forEach(entry => {
-    if (!uniqueDogs.has(entry.armband_number)) {
-      uniqueDogs.set(entry.armband_number, {
+    if (!uniqueDogs.has(entry.armband)) {
+      uniqueDogs.set(entry.armband, {
         id: entry.id,
-        armband: entry.armband_number,
+        armband: entry.armband,
         call_name: entry.dog_call_name,
         breed: entry.dog_breed,
-        handler: entry.handler_name,
+        handler: entry.handler,
         is_favorite: false, // Will be updated by component after favorites load
         class_name: entry.element && entry.level ? `${entry.element} ${entry.level}` : undefined,
-        is_scored: entry.is_scored
+        is_scored: entry.is_scored,
       });
     }
   });
@@ -395,46 +395,46 @@ export function useHomeDashboardData(
     const invalidateTrialsDebounced = debounce(() => {
       logger.log('🔄 Refetching trial counts after entry changes...');
       queryClient.invalidateQueries({
-        queryKey: homeDashboardKeys.trials(numericShowId)
+        queryKey: homeDashboardKeys.trials(numericShowId),
       });
     }, 3000);
 
     // Subscribe to entries table changes
     const channel = supabase
       .channel(`home-entries-${licenseKey}`)
-      .on('postgres_changes', {
-        event: '*',  // INSERT, UPDATE, DELETE
-        schema: 'public',
-        table: 'entries',
-        filter: `license_key=eq.${licenseKey}`
-      }, (payload) => {
-        logger.log('📡 Entry changed:', payload.eventType);
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'entries',
+          filter: `license_key=eq.${licenseKey}`,
+        },
+        payload => {
+          logger.log('📡 Entry changed:', payload.eventType);
 
-        // Only invalidate if scoring-related fields changed
-        if (payload.eventType === 'UPDATE') {
-          // Extract is_scored from payload records (Supabase realtime provides Record<string, unknown>)
-          const oldIsScored = (payload.old as Record<string, unknown> | undefined)?.is_scored;
-          const newIsScored = (payload.new as Record<string, unknown> | undefined)?.is_scored;
+          // Only invalidate if scoring-related fields changed
+          if (payload.eventType === 'UPDATE') {
+            // Extract is_scored from payload records (Supabase realtime provides Record<string, unknown>)
+            const oldIsScored = (payload.old as Record<string, unknown> | undefined)?.is_scored;
+            const newIsScored = (payload.new as Record<string, unknown> | undefined)?.is_scored;
 
-          // Check if is_scored changed (this affects trial counts via is_scoring_finalized)
-          if (oldIsScored !== newIsScored) {
-            logger.log('📊 Score status changed, invalidating trials...');
+            // Check if is_scored changed (this affects trial counts via is_scoring_finalized)
+            if (oldIsScored !== newIsScored) {
+              logger.log('📊 Score status changed, invalidating trials...');
+              invalidateTrialsDebounced();
+            }
+          } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+            // INSERT or DELETE always affects counts
+            logger.log('📊 Entry added/removed, invalidating trials...');
             invalidateTrialsDebounced();
           }
-        } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
-          // INSERT or DELETE always affects counts
-          logger.log('📊 Entry added/removed, invalidating trials...');
-          invalidateTrialsDebounced();
         }
-      })
+      )
       .subscribe();
 
     // Register subscription for monitoring
-    subscriptionCleanup.register(
-      `home-entries-${licenseKey}`,
-      'entry',
-      licenseKey
-    );
+    subscriptionCleanup.register(`home-entries-${licenseKey}`, 'entry', licenseKey);
 
     return () => {
       logger.log('🧹 Cleaning up Home dashboard subscription');
@@ -455,7 +455,9 @@ export function useHomeDashboardData(
       // If forceSync, sync from server before refetching from cache
       if (forceSync && licenseKey) {
         try {
-          logger.log('🔄 Force sync requested - syncing trials, classes, and entries from server...');
+          logger.log(
+            '🔄 Force sync requested - syncing trials, classes, and entries from server...'
+          );
           const manager = await ensureReplicationManager();
           await Promise.all([
             manager.syncTable('trials', { licenseKey }),

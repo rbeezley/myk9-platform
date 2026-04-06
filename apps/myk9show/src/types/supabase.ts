@@ -5222,6 +5222,10 @@ export type Database = {
         Returns: boolean;
       };
       volunteer_show_id: { Args: { vol_id: string }; Returns: string };
+      self_checkin_entry: {
+        Args: { p_entry_id: string; p_new_status: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;

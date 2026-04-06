@@ -318,7 +318,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
         if (localEntry) {
           const resolved = this.resolveConflict(localEntry, remoteEntry);
-          await this.set(entryId, resolved);
+          // If we kept the local pending entry, preserve its dirty flag so subsequent
+          // sync cycles don't overwrite it before the mutation is uploaded.
+          const keepDirty = resolved === localEntry && localEntry._syncStatus === 'pending';
+          await this.set(entryId, resolved, keepDirty);
           conflictsResolved++;
         } else {
           await this.set(entryId, remoteEntry);
@@ -374,9 +377,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Conflict resolution for entries - server wins
+   * Conflict resolution for entries.
+   * If the local entry has unsynced changes (pending mutation), keep it so the
+   * write is not overwritten by a stale server snapshot before it uploads.
+   * Server state is applied on the next sync after the mutation is uploaded.
    */
-  protected resolveConflict(_local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry {
+  protected resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry {
+    if (local._syncStatus === 'pending') {
+      return local;
+    }
     return remote;
   }
 

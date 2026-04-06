@@ -17,10 +17,10 @@ import type { ClassEntry, DogInfo } from './useDogDetailsData';
 export interface RawEntryData {
   id: number | string;
   class_id: number | string;
-  armband_number: number;
+  armband: number;
   dog_call_name?: string | null;
   dog_breed?: string | null;
-  handler_name?: string | null;
+  handler?: string | null;
   entry_status?: string | null;
   search_time_seconds?: number | null;
   total_faults?: number | null;
@@ -28,7 +28,7 @@ export interface RawEntryData {
   is_scored?: boolean;
   final_placement?: number | null;
   // Run order field
-  exhibitor_order?: number | null;
+  run_order?: number | null;
   // Optional fields from Supabase view
   element?: string | null;
   level?: string | null;
@@ -68,10 +68,10 @@ export interface TrialData {
  */
 export function extractDogInfo(entry: RawEntryData): DogInfo {
   return {
-    armband: entry.armband_number,
+    armband: entry.armband,
     call_name: entry.dog_call_name || 'Unknown',
     breed: entry.dog_breed || 'Unknown',
-    handler: entry.handler_name || 'Unknown'
+    handler: entry.handler || 'Unknown',
   };
 }
 
@@ -80,7 +80,7 @@ export function extractDogInfo(entry: RawEntryData): DogInfo {
  */
 export function mapEntryStatus(statusText: string | null | undefined): CheckinStatus {
   const status = statusText || 'no-status';
-  return status === 'in-ring' ? 'no-status' : status as CheckinStatus;
+  return status === 'in-ring' ? 'no-status' : (status as CheckinStatus);
 }
 
 /**
@@ -124,7 +124,7 @@ function extractDerivedFields(
     resultsReleasedAt: entry.results_released_at ?? null,
     judgeName: entry.judge_name || classData?.judge_name || undefined,
     trialName: entry.trial_element || trialData?.element || 'Unknown Trial',
-    trialDate: entry.trial_date || trialData?.trial_date || ''
+    trialDate: entry.trial_date || trialData?.trial_date || '',
   };
 }
 
@@ -141,7 +141,8 @@ function buildClassEntry(
   return {
     id: parseId(entry.id),
     class_id: parseId(entry.class_id),
-    class_name: fields.element && fields.level ? `${fields.element} ${fields.level}` : 'Unknown Class',
+    class_name:
+      fields.element && fields.level ? `${fields.element} ${fields.level}` : 'Unknown Class',
     class_type: fields.element,
     trial_name: fields.trialName,
     trial_date: fields.trialDate,
@@ -161,7 +162,7 @@ function buildClassEntry(
     is_scoring_finalized: fields.isCompleted,
     results_released_at: fields.resultsReleasedAt,
     visibleFields,
-    queuePosition
+    queuePosition,
   };
 }
 
@@ -189,10 +190,7 @@ export function calculateQueuePosition(
   const classEntries = allEntries.filter(e => String(e.class_id) === classId);
 
   // Filter to only pending entries (not scored, not pulled)
-  const pendingEntries = classEntries.filter(e =>
-    !e.is_scored &&
-    e.entry_status !== 'pulled'
-  );
+  const pendingEntries = classEntries.filter(e => !e.is_scored && e.entry_status !== 'pulled');
 
   // Sort by exhibitor_order (ascending), with in-ring entries first
   const sortedEntries = [...pendingEntries].sort((a, b) => {
@@ -204,8 +202,8 @@ export function calculateQueuePosition(
 
     // Then by exhibitor_order (treat 0 as "not set" and fall back to armband)
     // This handles classes where run order was never rearranged (all exhibitor_order = 0)
-    const aOrder = (a.exhibitor_order && a.exhibitor_order > 0) ? a.exhibitor_order : (a.armband_number ?? 9999);
-    const bOrder = (b.exhibitor_order && b.exhibitor_order > 0) ? b.exhibitor_order : (b.armband_number ?? 9999);
+    const aOrder = a.run_order && a.run_order > 0 ? a.run_order : (a.armband ?? 9999);
+    const bOrder = b.run_order && b.run_order > 0 ? b.run_order : (b.armband ?? 9999);
     return aOrder - bOrder;
   });
 
@@ -238,7 +236,7 @@ export async function processEntryToClassEntry(
     licenseKey,
     userRole: (currentRole || 'exhibitor') as UserRole,
     isClassComplete: fields.isCompleted,
-    resultsReleasedAt: fields.resultsReleasedAt
+    resultsReleasedAt: fields.resultsReleasedAt,
   });
 
   // Calculate queue position if we have all entries
@@ -259,10 +257,18 @@ export async function processEntriesToClassEntries(
   allEntries?: RawEntryData[]
 ): Promise<ClassEntry[]> {
   return Promise.all(
-    entries.map(async (entry) => {
+    entries.map(async entry => {
       const classData = classMap?.get(String(entry.class_id));
-      const trialData = classData && trialMap ? trialMap.get(String(classData.trial_id)) : undefined;
-      return processEntryToClassEntry(entry, licenseKey, currentRole, classData, trialData, allEntries);
+      const trialData =
+        classData && trialMap ? trialMap.get(String(classData.trial_id)) : undefined;
+      return processEntryToClassEntry(
+        entry,
+        licenseKey,
+        currentRole,
+        classData,
+        trialData,
+        allEntries
+      );
     })
   );
 }

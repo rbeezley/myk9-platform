@@ -120,7 +120,7 @@ function extractPotentialLicenseKeys(passcode: string): string[] {
  * @returns Detection result with database type and optional redirect URL
  */
 export async function detectDatabase(_passcode: string): Promise<DetectionResult> {
-// During migration, we need to check both databases
+  // During migration, we need to check both databases
   // Since we can't directly map passcode to license key without checking all shows,
   // we'll need to try authentication against both databases
 
@@ -136,9 +136,9 @@ export async function detectDatabase(_passcode: string): Promise<DetectionResult
       // Check if passcode matches any V3 show
       // The actual validation is done in authService
       // For now, we'll attempt V3 first
-return {
+      return {
         database: 'v3',
-        message: 'Attempting V3 authentication'
+        message: 'Attempting V3 authentication',
       };
     }
 
@@ -151,10 +151,10 @@ return {
         .limit(1);
 
       if (!legacyError && legacyShows && legacyShows.length > 0) {
-return {
+        return {
           database: 'legacy',
           redirectUrl: FLUTTER_APP_URL,
-          message: 'Redirecting to legacy app'
+          message: 'Redirecting to legacy app',
         };
       }
     }
@@ -162,15 +162,14 @@ return {
     // Default to V3 if no clear determination
     return {
       database: 'v3',
-      message: 'No shows found, defaulting to V3'
+      message: 'No shows found, defaulting to V3',
     };
-
   } catch (error) {
     logger.error('Database detection error:', error);
     // Default to V3 on error
     return {
       database: 'v3',
-      message: 'Detection error, defaulting to V3'
+      message: 'Detection error, defaulting to V3',
     };
   }
 }
@@ -201,7 +200,8 @@ function findLegacyShowMatch(
       database: 'legacy',
       redirectUrl: flutterUrl.toString(),
       showData: legacyShow as Record<string, unknown>,
-      message: 'Show found in legacy database - redirecting to Flutter app (auto-login if supported)'
+      message:
+        'Show found in legacy database - redirecting to Flutter app (auto-login if supported)',
     };
   }
 
@@ -213,7 +213,7 @@ function findLegacyShowMatch(
  * This is the recommended approach during migration
  */
 export async function detectDatabaseWithValidation(passcode: string): Promise<DetectionResult> {
-// Import auth validation function
+  // Import auth validation function
   const { validatePasscodeAgainstLicenseKey } = await import('../utils/auth');
 
   try {
@@ -229,19 +229,19 @@ export async function detectDatabaseWithValidation(passcode: string): Promise<De
           // Map V3 database fields to showContext format
           const showData: V3ShowData = {
             showId: String(show.id),
-            showName: show.show_name,
-            clubName: show.club_name,
+            showName: show.name,
+            clubName: show.club_id,
             showDate: show.start_date,
             licenseKey: show.license_key,
             org: show.org || show.organization || '',
-            competition_type: show.competition_type || 'Regular',
-            show_type: show.show_type || show.competition_type || 'Regular'
+            competition_type: show.type || 'Regular',
+            show_type: show.type || 'Regular',
           };
 
-return {
+          return {
             database: 'v3',
             showData,
-            message: 'Show found in V3 database'
+            message: 'Show found in V3 database',
           };
         }
       }
@@ -255,7 +255,11 @@ return {
         .order('created_at', { ascending: false });
 
       if (!legacyError && legacyShows) {
-        const legacyMatch = findLegacyShowMatch(legacyShows, passcode, validatePasscodeAgainstLicenseKey);
+        const legacyMatch = findLegacyShowMatch(
+          legacyShows,
+          passcode,
+          validatePasscodeAgainstLicenseKey
+        );
         if (legacyMatch) return legacyMatch;
       }
     }
@@ -263,14 +267,13 @@ return {
     // No match found in either database
     return {
       database: 'v3',
-      message: 'Invalid passcode - no matching show found'
+      message: 'Invalid passcode - no matching show found',
     };
-
   } catch (error) {
     logger.error('Database validation error:', error);
     return {
       database: 'v3',
-      message: 'Validation error - please try again'
+      message: 'Validation error - please try again',
     };
   }
 }
@@ -296,6 +299,6 @@ export function getMigrationStatus(): {
     enabled: isMigrationModeEnabled(),
     v3Configured: !!supabaseV3, // V3 client is always configured via main import
     legacyConfigured: !!(LEGACY_SUPABASE_URL && LEGACY_SUPABASE_ANON_KEY),
-    flutterUrl: FLUTTER_APP_URL
+    flutterUrl: FLUTTER_APP_URL,
   };
 }

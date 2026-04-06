@@ -26,8 +26,8 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 ## Class Details Page — Future Enhancements (2026-03-24)
 
 - [x] Dog status column (Checked In / In Ring / On Deck / Conflict) — Done. `check_in_status` column on entries table with 8 statuses, `CheckInStatusBadge` in ClassResultsTable with click-to-change `StatusPickerDialog`, `useCheckInMutation` with optimistic UI, realtime subscriptions, conflict detection utility, self-check-in control per show/trial/class.
-- Drag-and-drop run order in entries table
-- Inline score editing in table cells
+- [x] **Drag-and-drop run order in entries table** — Done (branch feat/myk9q-db-alignment). Secretary can drag rows in Pending/All tabs to reorder; saves optimistically with rollback on failure. Exhibitor Show Day shows "X dogs ahead" / "You're next" countdown on ClassTimelineCard and NextUpCard, updated via Supabase Realtime. No migration needed (`run_order` column already existed).
+- [x] Inline score editing in table cells — Already implemented. ClassResultsTable has inline editable cells for qualification, search time, faults, and judge notes with edit buffer, optimistic UI, keyboard navigation, and batch submit.
 
 ---
 
@@ -242,3 +242,9 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 - [x] **Hide Browse People from public nav** — Done. Removed `/people`, `/users` redirect, and `/users/:id` routes from publicRoutes.tsx. Removed `BrowsePeoplePage` and `PersonDetailPage` lazy imports.
 
 - [x] **Move Sync Dashboard to admin-only** — Done. Removed `/sync/dashboard` route and `SyncDashboardPage` lazy import from secretaryRoutes.tsx.
+
+---
+
+## Port Run Order Options from myK9Q to myK9Show - 2026-04-05 21:11
+
+- **Port full run order preset system to myK9Show ClassDetailsPage** — myK9Q has a complete `RunOrderDialog` and `runOrderService` with multiple ordering modes. myK9Show's ClassResultsTable has a stub "Drag-and-drop run order" placeholder but no preset system at all. **Problem:** Secretaries using myK9Show can't set run order for a class. myK9Q supports: armband low→high, armband high→low, manual drag-and-drop, random shuffle (all), random shuffle (within A/B sections), section-aware presets (A then B, B then A — each with asc/desc), scoped reordering of a single section with preserve/renumber choices. **Files:** `apps/myk9q/src/services/runOrderService.ts` (source logic — `RunOrderPreset` type, `calculateRunOrder`, `applyRunOrderPresetScoped`), `apps/myk9q/src/components/dialogs/RunOrderDialog.tsx` (source UI — 608 lines), `apps/myk9q/src/pages/EntryList/hooks/useDragAndDropEntries.ts` (drag-and-drop hook), `apps/myk9q/src/pages/EntryList/SortableEntryCard.tsx` (dnd-kit card), `apps/myk9show/src/features/secretary/class-details/ClassResultsTable.tsx` (target — add "Set Run Order" button). **Solution:** (1) Extract `runOrderService` logic into a shared `@myk9/secretary` package or duplicate into myK9Show. (2) Build shadcn/Tailwind `RunOrderDialog` mirroring the preset groups from myK9Q. (3) Wire drag-and-drop mode using `@dnd-kit` (already used in myK9Q). (4) Connect to `exhibitor_order` column via React Query mutation + optimistic UI. Preserve section-aware presets and scoped renumber step.

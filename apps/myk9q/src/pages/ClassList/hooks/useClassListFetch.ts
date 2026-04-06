@@ -216,10 +216,10 @@ async function processClassesWithEntries(
     const dogs = classEntries
       .map(entry => ({
         id: parseInt(entry.id, 10),
-        armband: entry.armband_number,
+        armband: entry.armband,
         call_name: entry.dog_call_name,
         breed: entry.dog_breed || '',
-        handler: entry.handler_name,
+        handler: entry.handler,
         in_ring: entry.is_in_ring || false,
         checkin_status:
           entry.entry_status === 'checked-in'
@@ -232,7 +232,7 @@ async function processClassesWithEntries(
                   ? 4
                   : 0,
         is_scored: entry.is_scored || false,
-        exhibitor_order: entry.exhibitor_order || 0,
+        exhibitor_order: entry.run_order || 0,
       }))
       .sort((a, b) => {
         // Custom sort order: in-ring, at gate, checked-in, conflict, not checked-in, pulled, completed
@@ -279,7 +279,7 @@ async function processClassesWithEntries(
       judge_name: cls.judge_name || 'TBA',
       entry_count: entryCount,
       completed_count: completedCount,
-      class_status: (cls.class_status?.trim() || 'no-status') as
+      class_status: (cls.status?.trim() || 'no-status') as
         | 'no-status'
         | 'setup'
         | 'briefing'
@@ -291,9 +291,11 @@ async function processClassesWithEntries(
       is_scoring_finalized: cls.is_scoring_finalized || false,
       is_favorite: false, // Will be updated by component with localStorage
       time_limit_seconds: cls.time_limit_seconds,
-      time_limit_area2_seconds: cls.time_limit_area2_seconds,
-      time_limit_area3_seconds: cls.time_limit_area3_seconds,
-      area_count: cls.area_count,
+      // Per-area time limits exist on the classes table but are not exposed by
+      // view_myk9q_entries. myK9Q uses a single time_limit_seconds for all areas.
+      time_limit_area2_seconds: undefined,
+      time_limit_area3_seconds: undefined,
+      area_count: cls.num_areas,
       briefing_time: cls.briefing_time || undefined,
       break_until: cls.break_until || undefined,
       start_time: cls.start_time || undefined,

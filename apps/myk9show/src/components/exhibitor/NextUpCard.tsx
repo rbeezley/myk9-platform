@@ -36,6 +36,20 @@ export function NextUpCard({
   selfCheckinDisabledReason,
   className,
 }: NextUpCardProps) {
+  const dogsAhead =
+    !classData.isScored && classData.myRunningOrder != null
+      ? Math.max(0, classData.myRunningOrder - classData.scoredEntries - 1)
+      : null;
+
+  const dogsAheadText =
+    dogsAhead === null
+      ? null
+      : dogsAhead === 0
+        ? "You're next"
+        : dogsAhead === 1
+          ? '1 dog ahead'
+          : `${dogsAhead} dogs ahead`;
+
   const hasScoring = classData.scoredEntries > 0 || classData.currentDogInRing != null;
   const progressPercent =
     classData.totalEntries > 0
@@ -135,6 +149,9 @@ export function NextUpCard({
             </span>
           )}
         </p>
+
+        {/* Dogs ahead countdown */}
+        {dogsAheadText && <p className="mt-1 text-sm text-muted-foreground">{dogsAheadText}</p>}
 
         {/* Estimated time */}
         {classData.estimatedTimeMinutes != null && (

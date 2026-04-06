@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   PointerSensor,
   KeyboardSensor,
@@ -17,19 +17,24 @@ interface UseRunOrderDragParams {
 }
 
 export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
-  const [orderedIds, setOrderedIds] = useState<string[]>([]);
+  // dragOverride holds the reordered ids during/after a drag; null means use server order
+  const [dragOverride, setDragOverride] = useState<string[] | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
-    if (isDragging) return;
-    const sorted = [...rawEntries].sort((a, b) => {
-      if (a.run_order == null && b.run_order == null) return 0;
-      if (a.run_order == null) return 1;
-      if (b.run_order == null) return -1;
-      return a.run_order - b.run_order;
-    });
-    setOrderedIds(sorted.map(e => e.id));
-  }, [rawEntries, isDragging]);
+  const serverSortedIds = useMemo(
+    () =>
+      [...rawEntries]
+        .sort((a, b) => {
+          if (a.run_order == null && b.run_order == null) return 0;
+          if (a.run_order == null) return 1;
+          if (b.run_order == null) return -1;
+          return a.run_order - b.run_order;
+        })
+        .map(e => e.id),
+    [rawEntries]
+  );
+
+  const orderedIds = dragOverride ?? serverSortedIds;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -52,7 +57,7 @@ export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
       if (oldIndex === -1 || newIndex === -1) return;
 
       const newIds = arrayMove(snapshot, oldIndex, newIndex);
-      setOrderedIds(newIds);
+      setDragOverride(newIds);
 
       const updates = newIds.map((id, idx) => ({ id, runOrder: idx + 1 }));
 
@@ -61,8 +66,11 @@ export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
       );
       const anySucceeded = results.some(r => r.status === 'fulfilled');
       if (!anySucceeded && updates.length > 0) {
-        setOrderedIds(snapshot);
+        setDragOverride(snapshot);
         notifications.error('Failed to save run order');
+      } else {
+        // Server accepted; clear the override so server order takes over on next rawEntries update
+        setDragOverride(null);
       }
     },
     [orderedIds]

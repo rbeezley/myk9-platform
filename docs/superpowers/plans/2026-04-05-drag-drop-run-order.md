@@ -322,19 +322,16 @@ export function useRunOrderDrag({ rawEntries, isEnabled }: UseRunOrderDragParams
       const newIds = arrayMove(snapshot, oldIndex, newIndex);
       setOrderedIds(newIds);
 
-      // Only update entries whose position actually changed
-      const updates: Array<{ id: string; runOrder: number }> = [];
-      newIds.forEach((id, idx) => {
-        if (snapshot[idx] !== id) {
-          updates.push({ id, runOrder: idx + 1 });
-        }
-      });
+      // Always write all positions to normalize any null run_order entries
+      const updates = newIds.map((id, idx) => ({ id, runOrder: idx + 1 }));
 
-      try {
-        await Promise.all(
-          updates.map(u => replicatedEntriesTable.updateEntry(u.id, { runOrder: u.runOrder }))
-        );
-      } catch {
+      // Use allSettled so a partial failure doesn't prevent the successful writes
+      // from persisting. Only roll back if every write failed.
+      const results = await Promise.allSettled(
+        updates.map(u => replicatedEntriesTable.updateEntry(u.id, { runOrder: u.runOrder }))
+      );
+      const anySucceeded = results.some(r => r.status === 'fulfilled');
+      if (!anySucceeded && updates.length > 0) {
         setOrderedIds(snapshot);
         notifications.error('Failed to save run order');
       }
@@ -473,7 +470,7 @@ The drag-enabled render path replaces `<DataTable>` with a manual `<Table>` usin
 Add after existing imports:
 
 ```tsx
-import { DndContext, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useReactTable, getCoreRowModel, flexRender, type ColumnDef } from '@tanstack/react-table';
 import {
@@ -576,7 +573,12 @@ In the existing JSX, find the `<DataTable<ScoringRow>` block (inside the `effect
 // After:
 {
   showDragHandles ? (
-    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
       <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
         <div className="overflow-x-auto">
           <Table>

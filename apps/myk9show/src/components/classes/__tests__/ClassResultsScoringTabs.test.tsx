@@ -4,6 +4,7 @@
  * filters both table and card views correctly.
  */
 
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -14,6 +15,46 @@ import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { createUserPermissions } from '@/types/user-permissions';
 
 vi.mock('@/components/ui/tabs', () => import('../../common/__tests__/mockTabs'));
+
+vi.mock('@dnd-kit/core', () => ({
+  DndContext: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dnd-context">{children}</div>
+  ),
+  closestCenter: vi.fn(),
+  useSensor: vi.fn(),
+  useSensors: vi.fn(() => []),
+  PointerSensor: vi.fn(),
+  KeyboardSensor: vi.fn(),
+}));
+
+vi.mock('@dnd-kit/sortable', () => ({
+  SortableContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  verticalListSortingStrategy: vi.fn(),
+  useSortable: () => ({
+    attributes: {},
+    listeners: {},
+    setNodeRef: vi.fn(),
+    transform: null,
+    transition: null,
+    isDragging: false,
+  }),
+  sortableKeyboardCoordinates: vi.fn(),
+}));
+
+vi.mock('../useRunOrderDrag', () => ({
+  useRunOrderDrag: ({ rawEntries }: { rawEntries: { id: string }[] }) => ({
+    orderedIds:
+      rawEntries.length > 0 ? rawEntries.map((e: { id: string }) => e.id) : ['e1', 'e2', 'e3'],
+    sensors: [],
+    onDragStart: vi.fn(),
+    onDragEnd: vi.fn(),
+  }),
+}));
+
+vi.mock('../SortableRow', () => ({
+  SortableRow: ({ children }: { children: React.ReactNode }) => <tr>{children}</tr>,
+  DragHandleCell: () => <td data-testid="drag-handle" />,
+}));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({

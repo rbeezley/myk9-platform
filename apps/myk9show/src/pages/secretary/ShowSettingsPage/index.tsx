@@ -13,6 +13,7 @@ import { useShowStore } from '@/store/showStore';
 import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
+import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
 
 export default function ShowSettingsPage() {
   const { selectedShowId, shows } = useShowStore();
@@ -99,6 +100,9 @@ export default function ShowSettingsPage() {
 
       {/* Wait List Settings */}
       {selectedShowId && <WaitListSettingsCard showId={selectedShowId} />}
+
+      {/* myK9Q Access Codes */}
+      {selectedShowId && <MyK9QAccessCard showId={selectedShowId} showName={selectedShow?.name} />}
     </div>
   );
 }

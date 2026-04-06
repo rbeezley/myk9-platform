@@ -327,21 +327,12 @@ describe('authService', () => {
         } as unknown as SupabaseQueryChain;
 
         if (table === 'shows') {
-          mockSelect.mockImplementation((fields: string) => {
-            if (fields === '*') {
-              mockEq.mockImplementation(() => {
-                mockSingle.mockResolvedValue({ data: mockShow, error: null });
-                return chain;
-              });
-            } else if (fields === 'organization, type') {
-              mockEq.mockImplementation(() => {
-                mockSingle.mockResolvedValue({
-                  data: { organization: 'AKC', type: 'Regular' },
-                  error: null,
-                });
-                return chain;
-              });
-            }
+          mockSelect.mockImplementation(() => {
+            mockEq.mockImplementation(() => {
+              // Return show with null clubs (no club name in DB for this test)
+              mockSingle.mockResolvedValue({ data: { ...mockShow, clubs: null }, error: null });
+              return chain;
+            });
             return chain;
           });
         } else if (table === 'trials') {
@@ -369,6 +360,7 @@ describe('authService', () => {
 
       expect(result).not.toBeNull();
       expect(result?.showName).toBe('Test Show');
+      // clubs is null in this mock, so clubName falls back to club_id
       expect(result?.clubName).toBe('Test Club');
       expect(result?.licenseKey).toBe('myK9Q1-a260f472-e0d76a33-4b6c264c');
       expect(result?.org).toBe('AKC');

@@ -320,10 +320,21 @@ async function authenticatePasscodeClientSide(
     classes = classesData;
   }
 
+  // Fetch club name for the matched show (falls back to club_id if lookup fails)
+  let clubName = matchedShow.club_id;
+  if (matchedShow.club_id) {
+    const clubResult = await supabase
+      .from('clubs')
+      .select('name')
+      .eq('id', matchedShow.club_id)
+      .single();
+    if (clubResult?.data?.name) clubName = clubResult.data.name;
+  }
+
   const showData: ShowData = {
     showId: matchedShow.id.toString(),
     showName: matchedShow.name,
-    clubName: matchedShow.club_id,
+    clubName,
     showDate: matchedShow.start_date,
     licenseKey: matchedShow.license_key,
     org: matchedShow.organization || '',
@@ -345,11 +356,14 @@ async function authenticatePasscodeClientSide(
  */
 export async function getShowByLicenseKey(licenseKey: string): Promise<ShowData | null> {
   try {
-    const { data: show, error: showError } = await supabase
+    const { data: rawShow, error: showError } = await supabase
       .from('shows')
-      .select('*')
+      .select('*, clubs(name)')
       .eq('license_key', licenseKey)
       .single();
+    const show = rawShow ? { ...rawShow, clubs: undefined } : null;
+    const clubDisplayName =
+      (rawShow?.clubs as { name?: string } | null)?.name || rawShow?.club_id || '';
 
     if (showError || !show) {
       logger.error('Error fetching show:', showError);
@@ -390,7 +404,7 @@ export async function getShowByLicenseKey(licenseKey: string): Promise<ShowData 
     return {
       showId: show.id.toString(),
       showName: show.name,
-      clubName: show.club_id,
+      clubName: clubDisplayName,
       showDate: show.start_date,
       licenseKey: show.license_key,
       org: show.organization || '',

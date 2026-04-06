@@ -16,7 +16,14 @@ export default defineConfig({
         functions: 94,
         lines: 92,
       },
-      exclude: ['node_modules/', '**/*.d.ts', '**/*.config.*', '**/types/**'],
+      exclude: [
+        'node_modules/',
+        '**/*.d.ts',
+        '**/*.config.*',
+        '**/types/**',
+        // Browser-API adapters — not unit-testable in a Node environment
+        '**/utils/deviceDetection.ts',
+      ],
     },
   },
 });

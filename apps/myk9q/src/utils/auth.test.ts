@@ -192,4 +192,16 @@ describe('getPermissionsForRole', () => {
       canManageClasses: false,
     });
   });
+
+  test('returns all-false permissions for an unknown role', () => {
+    const permissions = getPermissionsForRole('unknown' as never);
+    expect(permissions).toEqual({
+      canViewPasscodes: false,
+      canAccessScoresheet: false,
+      canChangeRunOrder: false,
+      canCheckInDogs: false,
+      canScore: false,
+      canManageClasses: false,
+    });
+  });
 });

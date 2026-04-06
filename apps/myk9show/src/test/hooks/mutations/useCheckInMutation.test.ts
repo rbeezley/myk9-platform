@@ -11,12 +11,10 @@ import type { CheckInStatus } from '@myk9/core';
 import type { ShowDayClass } from '@/types/show-day-types';
 
 // Mock supabase
-const mockUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+const mockRpc = vi.fn().mockResolvedValue({ error: null });
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn().mockReturnValue({
-      update: (...args: unknown[]) => mockUpdate(...args),
-    }),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
@@ -71,8 +69,7 @@ describe('useCheckInMutation', () => {
       },
     });
     vi.clearAllMocks();
-    // Reset the mock chain
-    mockUpdate.mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    mockRpc.mockResolvedValue({ error: null });
   });
 
   afterEach(() => {
@@ -88,10 +85,11 @@ describe('useCheckInMutation', () => {
 
     await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
 
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockRpc).toHaveBeenCalledWith(
+      'self_checkin_entry',
       expect.objectContaining({
-        check_in_status: 'checked-in',
-        updated_at: expect.any(String),
+        p_entry_id: 'entry-1',
+        p_new_status: 'checked-in',
       })
     );
   });
@@ -107,14 +105,12 @@ describe('useCheckInMutation', () => {
       result.current.mutate({ entryId: 'entry-1', newStatus: 'checked-in' });
     });
 
-    // After mutation settles, cache gets invalidated, so verify the update was called
-    expect(mockUpdate).toHaveBeenCalled();
+    // After mutation settles, cache gets invalidated, so verify the rpc was called
+    expect(mockRpc).toHaveBeenCalled();
   });
 
   it('should handle mutation error gracefully', async () => {
-    mockUpdate.mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: { message: 'Network error' } }),
-    });
+    mockRpc.mockResolvedValue({ error: { message: 'Network error' } });
 
     const { result } = renderHook(() => useCheckInMutation(), { wrapper });
 
@@ -139,7 +135,7 @@ describe('useCheckInMutation', () => {
 
     for (const status of statuses) {
       vi.clearAllMocks();
-      mockUpdate.mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+      mockRpc.mockResolvedValue({ error: null });
 
       await act(async () => {
         result.current.mutate({ entryId: 'entry-1', newStatus: status });

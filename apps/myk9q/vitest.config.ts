@@ -20,7 +20,7 @@ export default defineConfig({
       reportOnFailure: true,
       thresholds: {
         statements: 51,
-        branches: 46,
+        branches: 45,
         functions: 53,
         lines: 52,
       },

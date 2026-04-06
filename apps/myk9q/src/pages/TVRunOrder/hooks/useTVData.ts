@@ -94,6 +94,8 @@ export const useTVData = ({
       return;
     }
 
+    let cancelled = false;
+
     const fetchData = async () => {
       try {
         // Priority mapping for sorting (used in both cache and Supabase paths)
@@ -391,12 +393,14 @@ export const useTVData = ({
         });
 
         // No need to combine Novice A & B - the view already did that!
+        if (cancelled) return;
         setInProgressClasses(transformedClasses);
         setEntriesByClass(entriesByClassKey);
 
         setIsConnected(true);
         setError(null);
       } catch (err) {
+        if (cancelled) return;
         logger.error('Error fetching TV data:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
         setIsConnected(false);
@@ -413,6 +417,7 @@ export const useTVData = ({
     }
 
     return () => {
+      cancelled = true;
       if (interval) clearInterval(interval);
     };
   }, [licenseKey, enablePolling, pollingInterval]);

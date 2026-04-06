@@ -30,13 +30,18 @@ ALTER TABLE sport_class_rules ADD COLUMN IF NOT EXISTS max_time_seconds_area3 IN
 -- ---------------------------------------------------------------------------
 -- Section 2b: Expand entry_status CHECK constraint for myK9Q values
 -- ---------------------------------------------------------------------------
+-- Wrapped in a transaction so that if the ADD CONSTRAINT fails (e.g., existing
+-- data violates the new constraint), the DROP is also rolled back and the
+-- original constraint remains intact.
 
+BEGIN;
 ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_entry_status_check;
 ALTER TABLE entries ADD CONSTRAINT entries_entry_status_check CHECK (entry_status IN (
   'no-status', 'draft', 'submitted', 'paid', 'confirmed',
   'checked-in', 'at-gate', 'in-ring', 'competing', 'completed',
   'withdrawn', 'scratched', 'absent'
 ));
+COMMIT;
 
 -- ---------------------------------------------------------------------------
 -- Section 3: Create `view_myk9q_entries` view

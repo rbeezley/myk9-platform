@@ -103,11 +103,13 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
         throw new Error(`Supabase query failed: ${error.message}`);
       }
 
-      // Flatten clubs join into club_name field
-      const remoteShows = rawShows?.map(({ clubs, ...show }) => ({
-        ...show,
-        club_name: (clubs as { name?: string } | null)?.name,
-      }));
+      // Flatten clubs join into club_name field.
+      // Only include club_name when the join succeeded — omitting it avoids
+      // overwriting a previously-cached valid club name with undefined.
+      const remoteShows = rawShows?.map(({ clubs, ...show }) => {
+        const clubName = (clubs as { name?: string } | null)?.name;
+        return clubName !== undefined ? { ...show, club_name: clubName } : show;
+      });
 
       if (!remoteShows || remoteShows.length === 0) {
         logger.log(`[${this.tableName}] No updates found`);

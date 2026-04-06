@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/services/database/supabaseClient';
+import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 /**
@@ -11,7 +11,8 @@ export function useShowDayRealtime(classIds: string[]) {
   const queryClient = useQueryClient();
   const { userWithRoles } = useAuthContext();
   const userId = userWithRoles?.databaseUserId ?? '';
-  const classIdsKey = classIds.join(',');
+  // Sort before joining so classId order changes don't needlessly re-create the channel
+  const classIdsKey = [...classIds].sort().join(',');
 
   useEffect(() => {
     if (!classIdsKey || !userId) return;

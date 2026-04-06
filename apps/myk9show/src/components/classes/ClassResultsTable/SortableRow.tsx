@@ -3,7 +3,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TableRow } from '@/components/ui/table';
 
-// Context shape
 interface SortableRowContextValue {
   listeners: ReturnType<typeof useSortable>['listeners'];
   position: number;
@@ -11,7 +10,6 @@ interface SortableRowContextValue {
 
 const SortableRowContext = createContext<SortableRowContextValue | null>(null);
 
-// SortableRow: wraps <TableRow>, provides sortable bindings + position via Context
 export function SortableRow({
   id,
   position,
@@ -40,7 +38,7 @@ export function SortableRow({
   );
 }
 
-// DragHandleCell: renders handle + position number. NO <TableCell> wrapper.
+// Must NOT render its own <TableCell> — the DnD table wraps all cells.
 export function DragHandleCell() {
   const ctx = useContext(SortableRowContext);
   if (!ctx) throw new Error('DragHandleCell must be used inside SortableRow');

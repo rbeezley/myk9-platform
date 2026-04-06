@@ -1,11 +1,5 @@
 import { useReactTable, getCoreRowModel, flexRender, type ColumnDef } from '@tanstack/react-table';
-import {
-  DndContext,
-  closestCenter,
-  useSensors,
-  type DragStartEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core';
+import { DndContext, closestCenter, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
   Table,
@@ -17,22 +11,16 @@ import {
 } from '@/components/ui/table';
 import { SortableRow } from './SortableRow';
 import type { ScoringRow } from './types';
+import { useMemo } from 'react';
 
 interface DndTableViewProps {
   columns: ColumnDef<ScoringRow, unknown>[];
   orderedRows: ScoringRow[];
   sensors: ReturnType<typeof useSensors>;
-  onDragStart: (event: DragStartEvent) => void;
   onDragEnd: (event: DragEndEvent) => Promise<void>;
 }
 
-export function DndTableView({
-  columns,
-  orderedRows,
-  sensors,
-  onDragStart,
-  onDragEnd,
-}: DndTableViewProps) {
+export function DndTableView({ columns, orderedRows, sensors, onDragEnd }: DndTableViewProps) {
   const table = useReactTable({
     data: orderedRows,
     columns,
@@ -40,17 +28,11 @@ export function DndTableView({
     getRowId: row => row.entryId,
   });
 
+  const sortableItems = useMemo(() => orderedRows.map(r => r.entryId), [orderedRows]);
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-    >
-      <SortableContext
-        items={orderedRows.map(r => r.entryId)}
-        strategy={verticalListSortingStrategy}
-      >
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(hg => (

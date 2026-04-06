@@ -36,6 +36,13 @@ import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResu
 
 export type ScoringStatusTab = 'all' | 'pending' | 'completed';
 
+const DRAG_HANDLE_COL: ColumnDef<ScoringRow, unknown> = {
+  id: 'dragHandle',
+  header: '',
+  enableSorting: false,
+  cell: () => <DragHandleCell />,
+};
+
 export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   entries,
   rawEntries,
@@ -139,17 +146,14 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
   const showDragHandles = canEdit && !isClosed && scoringTab !== 'completed';
 
-  const { orderedIds, sensors, onDragStart, onDragEnd } = useRunOrderDrag({
+  const { orderedIds, sensors, onDragEnd } = useRunOrderDrag({
     rawEntries: rawEntries ?? [],
   });
 
-  const dndOrderedRows = useMemo(
-    () =>
-      orderedIds
-        .map(id => filteredRows.find(r => r.entryId === id))
-        .filter((r): r is ScoringRow => r !== undefined),
-    [orderedIds, filteredRows]
-  );
+  const dndOrderedRows = useMemo(() => {
+    const rowById = new Map(filteredRows.map(r => [r.entryId, r]));
+    return orderedIds.map(id => rowById.get(id)).filter((r): r is ScoringRow => r !== undefined);
+  }, [orderedIds, filteredRows]);
 
   /** Source entries filtered by the active scoring tab + search (for card view). */
   const filteredEntries = useMemo(() => {
@@ -411,19 +415,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     visibility,
   ]);
 
-  const dragCol = useMemo<ColumnDef<ScoringRow, unknown>>(
-    () => ({
-      id: 'dragHandle',
-      header: '',
-      enableSorting: false,
-      cell: () => <DragHandleCell />,
-    }),
-    []
-  );
-
   const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
-    () => (showDragHandles ? [dragCol, ...columns] : columns),
-    [showDragHandles, dragCol, columns]
+    () => (showDragHandles ? [DRAG_HANDLE_COL, ...columns] : columns),
+    [showDragHandles, columns]
   );
 
   return (
@@ -520,7 +514,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                   columns={dragColumns}
                   orderedRows={dndOrderedRows}
                   sensors={sensors}
-                  onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
                 />
               ) : (

@@ -11,7 +11,7 @@ const { mockChannel, mockRemoveChannel, mockInvalidateQueries } = vi.hoisted(() 
   return { mockChannel, mockRemoveChannel, mockInvalidateQueries };
 });
 
-vi.mock('@/services/database/supabaseClient', () => ({
+vi.mock('@/lib/supabase', () => ({
   supabase: {
     channel: vi.fn(() => mockChannel),
     removeChannel: mockRemoveChannel,
@@ -33,7 +33,7 @@ vi.mock('@tanstack/react-query', async () => {
 });
 
 import { useShowDayRealtime } from '../useShowDayRealtime';
-import { supabase } from '@/services/database/supabaseClient';
+import { supabase } from '@/lib/supabase';
 
 beforeEach(() => {
   vi.clearAllMocks();

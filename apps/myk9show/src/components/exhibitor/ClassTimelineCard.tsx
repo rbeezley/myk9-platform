@@ -10,6 +10,7 @@ import { cn, formatClassLabel } from '@/lib/utils';
 import { ResultBadge } from '@/components/common/ResultBadge';
 import type { CheckInStatus } from '@myk9/core';
 import type { ShowDayClass } from '@/types/show-day-types';
+import { computeDogsAhead, formatDogsAheadText } from '@/utils/dogsAhead';
 import { CheckCircle } from 'lucide-react';
 import { CheckInStatusBadge } from './CheckInStatusBadge';
 import { CheckInStatusMenu } from './CheckInStatusMenu';
@@ -35,19 +36,7 @@ export function ClassTimelineCard({
   const classLabel = formatClassLabel(classData.element, classData.level, classData.className);
   const showCheckIn = !isCompleted && classData.entryStatus !== 'no-status';
 
-  const dogsAhead =
-    !classData.isScored && classData.myRunningOrder != null
-      ? Math.max(0, classData.myRunningOrder - classData.scoredEntries - 1)
-      : null;
-
-  const dogsAheadText =
-    dogsAhead === null
-      ? null
-      : dogsAhead === 0
-        ? "You're next"
-        : dogsAhead === 1
-          ? '1 dog ahead'
-          : `${dogsAhead} dogs ahead`;
+  const dogsAheadText = formatDogsAheadText(computeDogsAhead(classData));
 
   return (
     <div

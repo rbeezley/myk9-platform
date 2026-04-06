@@ -5,7 +5,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -19,7 +18,6 @@ interface UseRunOrderDragParams {
 export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
   // dragOverride holds the reordered ids during/after a drag; null means use server order
   const [dragOverride, setDragOverride] = useState<string[] | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   const serverSortedIds = useMemo(
     () =>
@@ -41,13 +39,8 @@ export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const onDragStart = useCallback((_event: DragStartEvent) => {
-    setIsDragging(true);
-  }, []);
-
   const onDragEnd = useCallback(
     async (event: DragEndEvent) => {
-      setIsDragging(false);
       const { active, over } = event;
       if (!over || active.id === over.id) return;
 
@@ -76,5 +69,5 @@ export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
     [orderedIds]
   );
 
-  return { orderedIds, isDragging, sensors, onDragStart, onDragEnd };
+  return { orderedIds, sensors, onDragEnd };
 }

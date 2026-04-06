@@ -15,6 +15,7 @@ import type { CheckInStatus } from '@myk9/core';
 import type { ShowDayClass } from '@/types/show-day-types';
 import { ArrowUp, Timer, LogIn } from 'lucide-react';
 import { CheckInStatusMenu } from './CheckInStatusMenu';
+import { computeDogsAhead, formatDogsAheadText } from '@/utils/dogsAhead';
 
 interface NextUpCardProps {
   classData: ShowDayClass;
@@ -36,19 +37,7 @@ export function NextUpCard({
   selfCheckinDisabledReason,
   className,
 }: NextUpCardProps) {
-  const dogsAhead =
-    !classData.isScored && classData.myRunningOrder != null
-      ? Math.max(0, classData.myRunningOrder - classData.scoredEntries - 1)
-      : null;
-
-  const dogsAheadText =
-    dogsAhead === null
-      ? null
-      : dogsAhead === 0
-        ? "You're next"
-        : dogsAhead === 1
-          ? '1 dog ahead'
-          : `${dogsAhead} dogs ahead`;
+  const dogsAheadText = formatDogsAheadText(computeDogsAhead(classData));
 
   const hasScoring = classData.scoredEntries > 0 || classData.currentDogInRing != null;
   const progressPercent =

@@ -20,6 +20,7 @@ export interface RawEntryRow {
   disqualification_reason: string | null;
   scoring_completed_at: string | null;
   check_in_status: string | null;
+  run_order: number | null;
   dog: {
     id: string;
     name: string;

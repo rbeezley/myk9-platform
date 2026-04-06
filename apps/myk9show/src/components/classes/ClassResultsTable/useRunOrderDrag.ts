@@ -14,11 +14,9 @@ import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
 interface UseRunOrderDragParams {
   rawEntries: RawEntryRow[];
-  classId: string;
-  isEnabled: boolean;
 }
 
-export function useRunOrderDrag({ rawEntries, isEnabled }: UseRunOrderDragParams) {
+export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -70,5 +68,5 @@ export function useRunOrderDrag({ rawEntries, isEnabled }: UseRunOrderDragParams
     [orderedIds]
   );
 
-  return { orderedIds, isDragging, sensors, onDragStart, onDragEnd, isEnabled };
+  return { orderedIds, isDragging, sensors, onDragStart, onDragEnd };
 }

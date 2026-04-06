@@ -1,18 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { type ColumnDef, useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
+import { type ColumnDef } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
-import { DndContext, closestCenter } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow as TableRowPrimitive,
-} from '@/components/ui/table';
 import { useRunOrderDrag } from './useRunOrderDrag';
-import { SortableRow, DragHandleCell } from './SortableRow';
+import { DragHandleCell } from './SortableRow';
+import { DndTableView } from './DndTableView';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -125,7 +116,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const tabCounts = useMemo(() => {
     const completed = scoredEntryIds.size;
     return { pending: rows.length - completed, completed };
-  }, [rows.length, scoredEntryIds]);
+  }, [rows, scoredEntryIds]);
 
   const scoringTabs: SubTabDef[] = useMemo(
     () => [
@@ -150,8 +141,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
   const { orderedIds, sensors, onDragStart, onDragEnd } = useRunOrderDrag({
     rawEntries: rawEntries ?? [],
-    classId: classId ?? '',
-    isEnabled: showDragHandles,
   });
 
   const dndOrderedRows = useMemo(
@@ -437,13 +426,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     [showDragHandles, dragCol, columns]
   );
 
-  const dndTable = useReactTable({
-    data: dndOrderedRows,
-    columns: dragColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getRowId: row => row.entryId,
-  });
-
   return (
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
@@ -534,44 +516,13 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           ) : (
             <>
               {showDragHandles ? (
-                <DndContext
+                <DndTableView
+                  columns={dragColumns}
+                  orderedRows={dndOrderedRows}
                   sensors={sensors}
-                  collisionDetection={closestCenter}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
-                >
-                  <SortableContext
-                    items={dndOrderedRows.map(r => r.entryId)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <Table>
-                      <TableHeader>
-                        {dndTable.getHeaderGroups().map(hg => (
-                          <TableRowPrimitive key={hg.id}>
-                            {hg.headers.map(header => (
-                              <TableHead key={header.id}>
-                                {header.isPlaceholder
-                                  ? null
-                                  : flexRender(header.column.columnDef.header, header.getContext())}
-                              </TableHead>
-                            ))}
-                          </TableRowPrimitive>
-                        ))}
-                      </TableHeader>
-                      <TableBody>
-                        {dndTable.getRowModel().rows.map((row, idx) => (
-                          <SortableRow key={row.id} id={row.id} position={idx + 1}>
-                            {row.getVisibleCells().map(cell => (
-                              <TableCell key={cell.id}>
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </TableCell>
-                            ))}
-                          </SortableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </SortableContext>
-                </DndContext>
+                />
               ) : (
                 <DataTable<ScoringRow>
                   tableId="classResults"
@@ -626,5 +577,6 @@ export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProp
   if (prevProps.rawEntries !== nextProps.rawEntries) return false;
   if (prevProps.entries !== nextProps.entries) return false;
   if (prevProps.userPermissions !== nextProps.userPermissions) return false;
+  if (prevProps.classId !== nextProps.classId) return false;
   return true;
 });

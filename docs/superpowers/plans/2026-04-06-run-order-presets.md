@@ -559,14 +559,28 @@ const entries = [makeEntry('e1', '3'), makeEntry('e2', '1'), makeEntry('e3', '2'
 describe('useRunOrderPreset', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('calls updateEntry for each entry in correct sorted order', async () => {
+  // [EXPANDED] Use toHaveBeenCalledWith (not NthCalledWith) — parallel writes via
+  // Promise.allSettled don't guarantee call order matches sorted order.
+  it('calls updateEntry for each entry with the correct runOrder value', async () => {
     const { result } = renderHook(() => useRunOrderPreset('c1', entries));
     await act(() => result.current.applyPreset('armband-asc'));
     expect(mockUpdateEntry).toHaveBeenCalledTimes(3);
     // e2 (armband 1) → runOrder 1, e3 (armband 2) → runOrder 2, e1 (armband 3) → runOrder 3
-    expect(mockUpdateEntry).toHaveBeenNthCalledWith(1, 'e2', { runOrder: 1 });
-    expect(mockUpdateEntry).toHaveBeenNthCalledWith(2, 'e3', { runOrder: 2 });
-    expect(mockUpdateEntry).toHaveBeenNthCalledWith(3, 'e1', { runOrder: 3 });
+    expect(mockUpdateEntry).toHaveBeenCalledWith('e2', { runOrder: 1 });
+    expect(mockUpdateEntry).toHaveBeenCalledWith('e3', { runOrder: 2 });
+    expect(mockUpdateEntry).toHaveBeenCalledWith('e1', { runOrder: 3 });
+  });
+
+  // [ADDED] Partial failure: some writes succeed, one fails
+  it('shows error toast and re-throws when any updateEntry call fails', async () => {
+    mockUpdateEntry
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useRunOrderPreset('c1', entries));
+    await expect(act(() => result.current.applyPreset('armband-asc'))).rejects.toThrow();
+    expect(mockNotificationsError).toHaveBeenCalledWith('Failed to set run order');
+    // Secretary re-applies the same preset to fix the partial write state.
   });
 
   it('invalidates the class entries query key on success', async () => {
@@ -642,6 +656,13 @@ import { calculateRunOrder } from '@/lib/runOrderUtils';
 import type { RunOrderPreset } from '@/lib/runOrderUtils';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
+/**
+ * Applies a run order preset to all entries in the class.
+ * Writes are parallel via Promise.allSettled (matches useRunOrderDrag pattern).
+ * On partial failure (some writes succeed, some fail), shows an error toast
+ * and re-throws so the calling dialog stays open for retry. Re-applying the
+ * same preset overwrites all entries, fixing any partially-written state.
+ */
 export function useRunOrderPreset(classId: string | undefined, rawEntries: RawEntryRow[]) {
   const [isApplying, setIsApplying] = useState(false);
   const queryClient = useQueryClient();
@@ -656,8 +677,13 @@ export function useRunOrderPreset(classId: string | undefined, rawEntries: RawEn
           rawEntries.map(e => ({ id: e.id, armband: e.armband })),
           preset
         );
-        for (const { id, runOrder } of updates) {
-          await replicatedEntriesTable.updateEntry(id, { runOrder });
+        // [EXPANDED] Parallel writes — matches useRunOrderDrag precedent, avoids
+        // sequential latency (~50ms per entry × N entries for sequential).
+        const results = await Promise.allSettled(
+          updates.map(({ id, runOrder }) => replicatedEntriesTable.updateEntry(id, { runOrder }))
+        );
+        if (results.some(r => r.status === 'rejected')) {
+          throw new Error('Run order update failed');
         }
         await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
       } catch {

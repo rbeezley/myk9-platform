@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type ReactNode, type CSSProperties } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TableRow } from '@/components/ui/table';
@@ -9,10 +9,7 @@ interface SortableRowContextValue {
   position: number;
 }
 
-const SortableRowContext = createContext<SortableRowContextValue>({
-  listeners: undefined,
-  position: 0,
-});
+const SortableRowContext = createContext<SortableRowContextValue | null>(null);
 
 // SortableRow: wraps <TableRow>, provides sortable bindings + position via Context
 export function SortableRow({
@@ -22,12 +19,12 @@ export function SortableRow({
 }: {
   id: string;
   position: number;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
-  const style: React.CSSProperties = {
+  const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
@@ -45,17 +42,19 @@ export function SortableRow({
 
 // DragHandleCell: renders handle + position number. NO <TableCell> wrapper.
 export function DragHandleCell() {
-  const { listeners, position } = useContext(SortableRowContext);
+  const ctx = useContext(SortableRowContext);
+  if (!ctx) throw new Error('DragHandleCell must be used inside SortableRow');
+  const { listeners, position } = ctx;
   return (
     <div className="flex items-center gap-1.5">
       <span
         className="cursor-grab select-none text-[#c4c9d4]"
-        style={{ fontSize: 15 }}
+        style={{ fontSize: '15px', touchAction: 'none' }}
         {...listeners}
       >
         ⠿
       </span>
-      <span className="text-[#9ca3af] font-medium" style={{ fontSize: 12 }}>
+      <span className="text-[#9ca3af] font-medium" style={{ fontSize: '12px' }}>
         {position}
       </span>
     </div>

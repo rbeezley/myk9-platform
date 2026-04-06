@@ -2,6 +2,7 @@
  * Authentication utilities for myK9Q passcode system
  * Handles parsing mobile_app_lic_key into role-based passcodes
  */
+import { generatePasscodesFromShowId } from '@myk9/core';
 
 export type UserRole = 'admin' | 'judge' | 'steward' | 'exhibitor';
 
@@ -85,30 +86,18 @@ export function generatePasscodesFromLicenseKey(mobileAppLicKey: string): {
 } | null {
   if (!mobileAppLicKey) return null;
 
+  // UUID format (5 segments): delegate to the canonical implementation in @myk9/core
+  const uuidPasscodes = generatePasscodesFromShowId(mobileAppLicKey);
+  if (uuidPasscodes) return uuidPasscodes;
+
+  // Legacy format: myK9Q1-8hex-8hex-8hex (two roles share parts[1], sliced at different offsets)
   const parts = mobileAppLicKey.split('-');
-
-  if (parts.length === 5) {
-    // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    return {
-      admin: `a${parts[1]}`,
-      judge: `j${parts[2]}`,
-      steward: `s${parts[3]}`,
-      exhibitor: `e${parts[4].slice(0, 4)}`,
-    };
-  }
-
   if (parts.length === 4) {
-    // Legacy format: myK9Q1-8hex-8hex-8hex
-    const adminDigits = parts[1].slice(0, 4); // "d860"
-    const judgeDigits = parts[1].slice(4, 8); // "9f3b"
-    const stewardDigits = parts[2].slice(0, 4); // "d3fd"
-    const exhibitorDigits = parts[3].slice(0, 4); // "6323"
-
     return {
-      admin: `a${adminDigits}`, // "ad860"
-      judge: `j${judgeDigits}`, // "j9f3b"
-      steward: `s${stewardDigits}`, // "sd3fd"
-      exhibitor: `e${exhibitorDigits}`, // "e6323"
+      admin: `a${parts[1].slice(0, 4)}`,
+      judge: `j${parts[1].slice(4, 8)}`,
+      steward: `s${parts[2].slice(0, 4)}`,
+      exhibitor: `e${parts[3].slice(0, 4)}`,
     };
   }
 

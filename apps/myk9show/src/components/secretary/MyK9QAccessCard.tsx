@@ -4,7 +4,7 @@ import { Copy, Link, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { notifications } from '@/lib/notifications';
-import { generatePasscodesFromShowId, getExhibitorLoginUrl } from '@/utils/passcodes';
+import { generatePasscodesFromShowId } from '@/utils/passcodes';
 
 interface MyK9QAccessCardProps {
   showId: string;
@@ -14,7 +14,7 @@ interface MyK9QAccessCardProps {
 
 export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardProps) {
   const passcodes = generatePasscodesFromShowId(showId);
-  const exhibitorUrl = getExhibitorLoginUrl(showId);
+  const exhibitorUrl = passcodes ? `https://app.myk9q.com/login?code=${passcodes.exhibitor}` : '';
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
   if (!passcodes) return null;
@@ -59,10 +59,10 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
   }
 
   const rows = [
-    { role: 'Admin', code: passcodes.admin, isExhibitor: false },
-    { role: 'Judge', code: passcodes.judge, isExhibitor: false },
-    { role: 'Steward', code: passcodes.steward, isExhibitor: false },
-    { role: 'Exhibitor', code: passcodes.exhibitor, isExhibitor: true },
+    { role: 'Admin', code: passcodes.admin },
+    { role: 'Judge', code: passcodes.judge },
+    { role: 'Steward', code: passcodes.steward },
+    { role: 'Exhibitor', code: passcodes.exhibitor },
   ];
 
   return (
@@ -79,7 +79,7 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
           <QRCodeSVG value={exhibitorUrl} size={80} />
         </div>
 
-        {rows.map(({ role, code, isExhibitor }) => (
+        {rows.map(({ role, code }) => (
           <div key={role} className="flex items-center justify-between gap-2 rounded-lg border p-3">
             <div className="flex items-center gap-3">
               <span className="w-16 text-sm font-medium">{role}</span>
@@ -96,7 +96,7 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
               >
                 <Copy className="h-4 w-4" />
               </Button>
-              {isExhibitor && (
+              {role === 'Exhibitor' && (
                 <>
                   <Button
                     variant="ghost"

@@ -348,10 +348,10 @@ export function useShowCreationWizardActions({
           navigate('/secretary/dashboard');
         }
 
-        // Show success toast
+        // Show success toast (skip for non-draft when the success overlay is shown instead)
         if (status === 'draft') {
           notifications.success(`"${savedShow.name}" saved as draft`);
-        } else {
+        } else if (!onCreated) {
           notifications.success(`"${savedShow.name}" created successfully`);
         }
 

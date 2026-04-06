@@ -23,10 +23,7 @@ export function useRunOrderPreset(classId: string | undefined, rawEntries: RawEn
 
       setIsApplying(true);
       try {
-        const updates = calculateRunOrder(
-          rawEntries.map(e => ({ id: e.id, armband: e.armband })),
-          preset
-        );
+        const updates = calculateRunOrder(rawEntries, preset);
         const results = await Promise.allSettled(
           updates.map(({ id, runOrder }) => replicatedEntriesTable.updateEntry(id, { runOrder }))
         );
@@ -35,10 +32,6 @@ export function useRunOrderPreset(classId: string | undefined, rawEntries: RawEn
           throw new Error('Run order update failed');
         }
         await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
-      } catch (err) {
-        // Re-throw so the calling dialog stays open for retry.
-        // notifications.error for partial failure is shown above.
-        throw err;
       } finally {
         setIsApplying(false);
       }

@@ -1,6 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
+import {
+  Save,
+  AlertCircle,
+  ClipboardList,
+  Eraser,
+  Plus,
+  Trophy,
+  Trash2,
+  X,
+  ListOrdered,
+} from 'lucide-react';
 import { useRunOrderDrag } from './useRunOrderDrag';
 import { DragHandleCell } from './SortableRow';
 import { DndTableView } from './DndTableView';
@@ -15,6 +25,8 @@ import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { SearchBar } from '@/components/common/SearchBar';
 import { CheckInStatusBadge } from '@/components/common/CheckInStatusBadge';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
+import { RunOrderDialog } from '../RunOrderDialog';
+import { useRunOrderPreset } from './useRunOrderPreset';
 import { SubTabs, type SubTabDef } from '@/components/common/SubTabs';
 import '@/styles/myk9-show-details.css';
 import type { ClassResultsTableProps, ScoringRow, ScoringEdit } from './types';
@@ -95,6 +107,9 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     handlerName: string;
     currentStatus: CheckInStatus;
   } | null>(null);
+
+  const [runOrderDialogOpen, setRunOrderDialogOpen] = useState(false);
+  const { applyPreset } = useRunOrderPreset(classId, rawEntries ?? []);
 
   function handleStatusChange(entryId: string, newStatus: CheckInStatus) {
     checkInMutation.mutate({ entryId, newStatus, classId });
@@ -455,6 +470,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                   onChange={setViewMode}
                 />
               )}
+              {canEdit && !isClosed && (
+                <Button variant="outline" size="sm" onClick={() => setRunOrderDialogOpen(true)}>
+                  <ListOrdered className="h-4 w-4" />
+                  <span>Set Run Order</span>
+                </Button>
+              )}
               {onOpenRequirements && (
                 <Button variant="outline" size="sm" onClick={onOpenRequirements}>
                   <ClipboardList className="h-4 w-4" />
@@ -560,6 +581,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         onStatusChange={handleStatusChange}
         isStaff={isStaff}
         disabled={!isStaff && !visibility.selfCheckinEnabled}
+      />
+      <RunOrderDialog
+        open={runOrderDialogOpen}
+        onOpenChange={setRunOrderDialogOpen}
+        entryCount={entries.length}
+        onApply={applyPreset}
       />
     </TooltipProvider>
   );

@@ -71,11 +71,13 @@ function classDataToReplicatedClass(
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
   setIsLoading: (loading: boolean) => void;
+  onCreated?: (showId: string, showName: string) => void;
 }
 
 export function useShowCreationWizardActions({
   editMode,
   setIsLoading,
+  onCreated,
 }: UseShowCreationWizardActionsOptions) {
   const isSavingRef = useRef(false);
   const navigate = useNavigate();
@@ -340,6 +342,8 @@ export function useShowCreationWizardActions({
         // Navigate: drafts go to show detail, created shows go to pipeline (mission control)
         if (status === 'draft') {
           navigate(`/shows/${realShowId}`);
+        } else if (onCreated) {
+          onCreated(realShowId, savedShow.name);
         } else {
           navigate('/secretary/dashboard');
         }

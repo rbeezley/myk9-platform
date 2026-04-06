@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { AlertTriangle, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -38,6 +39,7 @@ const ShowCreationWizardPage: React.FC = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [validationExpanded, setValidationExpanded] = useState(false);
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
+  const [createdShow, setCreatedShow] = useState<{ id: string; name: string } | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
   const editModeInitializedRef = useRef<string | null>(null);
 
@@ -72,6 +74,7 @@ const ShowCreationWizardPage: React.FC = () => {
     useShowCreationWizardActions({
       editMode,
       setIsLoading,
+      onCreated: (id, name) => setCreatedShow({ id, name }),
     });
 
   // Reset wizard state when entering fresh create mode (not edit mode)
@@ -406,6 +409,30 @@ const ShowCreationWizardPage: React.FC = () => {
       }}
     >
       <div className="min-h-screen bg-background">
+        {/* Success overlay — shown after show creation, before navigating away */}
+        {createdShow && (
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-8">
+            <CheckCircle className="h-16 w-16 text-green-500" />
+            <div className="text-center">
+              <h1 className="text-3xl font-bold">Show Created!</h1>
+              <p className="mt-1 text-muted-foreground">{createdShow.name}</p>
+            </div>
+            <div className="w-full max-w-md">
+              <MyK9QAccessCard showId={createdShow.id} showName={createdShow.name} />
+            </div>
+            <Button
+              size="lg"
+              onClick={() => {
+                setCreatedShow(null);
+                resetWizard();
+                navigate('/secretary/dashboard');
+              }}
+            >
+              Go to Dashboard
+            </Button>
+          </div>
+        )}
+
         {/* Header with breadcrumb and back button */}
         <div className="border-b bg-card/95 backdrop-blur-xl sticky top-0 z-40">
           <div className="container mx-auto px-6 py-4 max-w-7xl">

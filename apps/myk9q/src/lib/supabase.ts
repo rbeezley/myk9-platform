@@ -121,7 +121,7 @@ export interface ClassQueue {
 export interface EntryQueue {
   id: number;
   class_id: number;
-  armband: string;
+  armband: number;
   handler: string;
   run_order: number;
   entry_status: string;

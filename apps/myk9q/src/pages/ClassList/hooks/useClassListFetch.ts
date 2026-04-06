@@ -291,6 +291,8 @@ async function processClassesWithEntries(
       is_scoring_finalized: cls.is_scoring_finalized || false,
       is_favorite: false, // Will be updated by component with localStorage
       time_limit_seconds: cls.time_limit_seconds,
+      // Per-area time limits exist on the classes table but are not exposed by
+      // view_myk9q_entries. myK9Q uses a single time_limit_seconds for all areas.
       time_limit_area2_seconds: undefined,
       time_limit_area3_seconds: undefined,
       area_count: cls.num_areas,

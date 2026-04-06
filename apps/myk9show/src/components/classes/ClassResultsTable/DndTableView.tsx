@@ -48,15 +48,23 @@ export function DndTableView({ columns, orderedRows, sensors, onDragEnd }: DndTa
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row, idx) => (
-              <SortableRow key={row.id} id={row.id} position={idx + 1}>
-                {row.getVisibleCells().map(cell => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </SortableRow>
-            ))}
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row, idx) => (
+                <SortableRow key={row.id} id={row.id} position={idx + 1}>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </SortableRow>
+              ))
+            ) : (
+              <TableRowPrimitive>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No results.
+                </TableCell>
+              </TableRowPrimitive>
+            )}
           </TableBody>
         </Table>
       </SortableContext>

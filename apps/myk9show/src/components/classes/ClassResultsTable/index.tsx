@@ -1,6 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { type ColumnDef } from '@tanstack/react-table';
+import { type ColumnDef, useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import { Save, AlertCircle, ClipboardList, Eraser, Plus, Trophy, Trash2, X } from 'lucide-react';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow as TableRowPrimitive,
+} from '@/components/ui/table';
+import { useRunOrderDrag } from './useRunOrderDrag';
+import { SortableRow, DragHandleCell } from './SortableRow';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +107,8 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   const showDeleteColumn = !!(userPermissions.canEditEntries && onDeleteEntry);
   const canEdit = userPermissions.canEditEntries;
 
+  const isClosed = classStatus === 'closed';
+
   const [viewMode, setViewMode] = useViewPreference('class-results', 'table');
   // Guard: card view requires classId for scoring navigation
   const effectiveViewMode = classId ? viewMode : 'table';
@@ -131,6 +145,22 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     }
     return result;
   }, [rows, scoringTab, searchQuery]);
+
+  const showDragHandles = canEdit && !isClosed && scoringTab !== 'completed';
+
+  const { orderedIds, sensors, onDragStart, onDragEnd } = useRunOrderDrag({
+    rawEntries: rawEntries ?? [],
+    classId: classId ?? '',
+    isEnabled: showDragHandles,
+  });
+
+  const dndOrderedRows = useMemo(
+    () =>
+      orderedIds
+        .map(id => filteredRows.find(r => r.entryId === id))
+        .filter((r): r is ScoringRow => r !== undefined),
+    [orderedIds, filteredRows]
+  );
 
   /** Source entries filtered by the active scoring tab + search (for card view). */
   const filteredEntries = useMemo(() => {
@@ -392,6 +422,28 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     visibility,
   ]);
 
+  const dragCol = useMemo<ColumnDef<ScoringRow, unknown>>(
+    () => ({
+      id: 'dragHandle',
+      header: '',
+      enableSorting: false,
+      cell: () => <DragHandleCell />,
+    }),
+    []
+  );
+
+  const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
+    () => (showDragHandles ? [dragCol, ...columns] : columns),
+    [showDragHandles, dragCol, columns]
+  );
+
+  const dndTable = useReactTable({
+    data: dndOrderedRows,
+    columns: dragColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: row => row.entryId,
+  });
+
   return (
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
@@ -481,13 +533,54 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             />
           ) : (
             <>
-              <DataTable<ScoringRow>
-                tableId="classResults"
-                columns={columns}
-                data={filteredRows}
-                getRowId={row => row.entryId}
-                pageSize={9999}
-              />
+              {showDragHandles ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                >
+                  <SortableContext
+                    items={dndOrderedRows.map(r => r.entryId)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <Table>
+                      <TableHeader>
+                        {dndTable.getHeaderGroups().map(hg => (
+                          <TableRowPrimitive key={hg.id}>
+                            {hg.headers.map(header => (
+                              <TableHead key={header.id}>
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(header.column.columnDef.header, header.getContext())}
+                              </TableHead>
+                            ))}
+                          </TableRowPrimitive>
+                        ))}
+                      </TableHeader>
+                      <TableBody>
+                        {dndTable.getRowModel().rows.map((row, idx) => (
+                          <SortableRow key={row.id} id={row.id} position={idx + 1}>
+                            {row.getVisibleCells().map(cell => (
+                              <TableCell key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </SortableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                <DataTable<ScoringRow>
+                  tableId="classResults"
+                  columns={columns}
+                  data={filteredRows}
+                  getRowId={row => row.entryId}
+                  pageSize={9999}
+                />
+              )}
 
               {userPermissions.canEditEntries && (
                 <div className="flex items-center justify-between border-t border-border/50 px-4 py-3">

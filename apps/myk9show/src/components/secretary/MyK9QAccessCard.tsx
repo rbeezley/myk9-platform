@@ -14,10 +14,13 @@ interface MyK9QAccessCardProps {
 
 export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardProps) {
   const passcodes = generatePasscodesFromShowId(showId);
-  const exhibitorUrl = passcodes ? `https://app.myk9q.com/login?code=${passcodes.exhibitor}` : '';
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
   if (!passcodes) return null;
+
+  // Capture narrowed value so TypeScript can see it's non-null inside closures
+  const codes = passcodes;
+  const exhibitorUrl = `https://app.myk9q.com/login?code=${codes.exhibitor}`;
 
   async function copyToClipboard(text: string, label: string) {
     await navigator.clipboard.writeText(text);
@@ -48,7 +51,7 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
     <div class="show-name">${showName ?? 'Dog Show'}</div>
     ${showDate ? `<div class="show-date">${showDate}</div>` : ''}
     <div class="qr">${svgMarkup}</div>
-    <div class="code">${passcodes.exhibitor}</div>
+    <div class="code">${codes.exhibitor}</div>
     <div class="url">app.myk9q.com</div>
   </div>
 </body>
@@ -59,10 +62,10 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
   }
 
   const rows = [
-    { role: 'Admin', code: passcodes.admin },
-    { role: 'Judge', code: passcodes.judge },
-    { role: 'Steward', code: passcodes.steward },
-    { role: 'Exhibitor', code: passcodes.exhibitor },
+    { role: 'Admin', code: codes.admin },
+    { role: 'Judge', code: codes.judge },
+    { role: 'Steward', code: codes.steward },
+    { role: 'Exhibitor', code: codes.exhibitor },
   ];
 
   return (

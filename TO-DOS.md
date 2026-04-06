@@ -125,9 +125,9 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 ## Align myK9Q to Platform Database (2026-04-02)
 
-- [ ] **Point myK9Q at myk9-platform Supabase project** — myK9Q in the monorepo was copied from the standalone production repo and likely points to a different Supabase project. Reconcile env vars, schema differences (table/column names that diverged), verify replication and scoring work against the unified DB, test edge function references. Prerequisite for passcode generation and feature stripping.
+- [x] **Point myK9Q at myk9-platform Supabase project** — Done (PR #44). Reconciled env vars, schema differences, replication layer, and edge function references against unified `myk9-platform` Supabase project.
 
-- [ ] **Build passcode generation in myK9Show** — Secretary generates per-show passcodes from myK9Show. Store in shared Supabase DB, myK9Q validates via existing edge function. Depends on database alignment above.
+- [x] **Build passcode generation in myK9Show** — Done (2026-04-06). Secretary sees all four role codes (admin/judge/steward/exhibitor) derived from show UUID on ShowSettingsPage and wizard success screen. `MyK9QAccessCard` with copy + print slip. `validate-passcode` edge function updated to derive from `show.id`. Algorithm in `@myk9/core`.
 
 - [ ] **Strip secretary/admin features from myK9Q** — Remove results control, Kanban board, volunteer scheduling, reports, show management, in-app chat, announcement creation. Low priority -- do when naturally touching those files.
 

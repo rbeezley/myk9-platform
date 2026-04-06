@@ -80,6 +80,10 @@ export function useShowCreationWizardActions({
   onCreated,
 }: UseShowCreationWizardActionsOptions) {
   const isSavingRef = useRef(false);
+  // Keep a stable ref so saveShow's useCallback doesn't need to re-run when the
+  // parent's inline onCreated arrow changes reference on every render.
+  const onCreatedRef = useRef(onCreated);
+  onCreatedRef.current = onCreated;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -342,8 +346,8 @@ export function useShowCreationWizardActions({
         // Navigate: drafts go to show detail, created shows go to pipeline (mission control)
         if (status === 'draft') {
           navigate(`/shows/${realShowId}`);
-        } else if (onCreated) {
-          onCreated(realShowId, savedShow.name);
+        } else if (onCreatedRef.current) {
+          onCreatedRef.current(realShowId, savedShow.name);
         } else {
           navigate('/secretary/dashboard');
         }
@@ -351,7 +355,7 @@ export function useShowCreationWizardActions({
         // Show success toast (skip for non-draft when the success overlay is shown instead)
         if (status === 'draft') {
           notifications.success(`"${savedShow.name}" saved as draft`);
-        } else if (!onCreated) {
+        } else if (!onCreatedRef.current) {
           notifications.success(`"${savedShow.name}" created successfully`);
         }
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   PointerSensor,
   KeyboardSensor,
@@ -34,20 +34,20 @@ export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
     [rawEntries]
   );
 
-  const orderedIds = dragOverride ?? serverSortedIds;
-
   // Once rawEntries updates to reflect the new order, hand control back to the server.
+  // Derived during render (not via effect+setState) to avoid lint violations.
   // This avoids the visual snap-back that would occur if we cleared the override immediately
   // while rawEntries still holds stale run_order values.
-  useEffect(() => {
-    if (!dragOverride) return;
+  const orderedIds = useMemo(() => {
+    if (!dragOverride) return serverSortedIds;
     if (
       dragOverride.length === serverSortedIds.length &&
       dragOverride.every((id, i) => id === serverSortedIds[i])
     ) {
-      setDragOverride(null);
+      return serverSortedIds;
     }
-  }, [serverSortedIds, dragOverride]);
+    return dragOverride;
+  }, [dragOverride, serverSortedIds]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),

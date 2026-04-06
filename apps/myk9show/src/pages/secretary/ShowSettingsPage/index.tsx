@@ -102,7 +102,12 @@ export default function ShowSettingsPage() {
       {selectedShowId && <WaitListSettingsCard showId={selectedShowId} />}
 
       {/* myK9Q Access Codes */}
-      {selectedShowId && <MyK9QAccessCard showId={selectedShowId} showName={selectedShow?.name} />}
+      {selectedShowId && (
+        <MyK9QAccessCard
+          showId={selectedShowId}
+          {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
+        />
+      )}
     </div>
   );
 }

@@ -144,7 +144,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     return result;
   }, [rows, scoringTab, searchQuery]);
 
-  const showDragHandles = canEdit && !isClosed && scoringTab !== 'completed';
+  const showDragHandles = canEdit && !isClosed && scoringTab !== 'completed' && !searchQuery;
 
   const { orderedIds, sensors, onDragEnd } = useRunOrderDrag({
     rawEntries: rawEntries ?? [],
@@ -571,5 +571,7 @@ export const MemoizedClassResultsTable = React.memo(ClassResultsTable, (prevProp
   if (prevProps.entries !== nextProps.entries) return false;
   if (prevProps.userPermissions !== nextProps.userPermissions) return false;
   if (prevProps.classId !== nextProps.classId) return false;
+  if (prevProps.classStatus !== nextProps.classStatus) return false;
+  if (prevProps.resultsReleasedAt !== nextProps.resultsReleasedAt) return false;
   return true;
 });

@@ -240,6 +240,13 @@ describe('ClassResultsTable drag handle visibility', () => {
     expect(screen.queryByTestId('drag-handle')).not.toBeInTheDocument();
   });
 
+  it('hides drag handles when search filter is active', async () => {
+    const { user } = renderTable();
+    const searchInput = screen.getByPlaceholderText(/search/i);
+    await user.type(searchInput, 'Rex');
+    expect(screen.queryByTestId('drag-handle')).not.toBeInTheDocument();
+  });
+
   it('hides drag handles for exhibitor user', () => {
     mockAuthContext = {
       isExhibitor: true,

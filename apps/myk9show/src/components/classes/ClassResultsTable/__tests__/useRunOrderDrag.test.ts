@@ -102,9 +102,73 @@ describe('useRunOrderDrag', () => {
     expect(notifications.error).toHaveBeenCalledWith('Failed to save run order');
   });
 
-  it('drag override keeps order stable while persistence is in-flight', async () => {
-    // dragOverride is set immediately on drop; rawEntries changes during the async
-    // persistence window should not disturb the displayed order.
+  it('rolls back and shows error on partial failure', async () => {
+    const { replicatedEntriesTable } =
+      await import('@/services/replication/ReplicatedEntriesTable');
+    const { notifications } = await import('@/lib/notifications');
+    let call = 0;
+    (replicatedEntriesTable.updateEntry as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      call++;
+      // First call succeeds, second fails — partial failure must trigger rollback
+      return call === 1 ? Promise.resolve(undefined) : Promise.reject(new Error('write failed'));
+    });
+
+    const entries = [makeEntry('e1', 1), makeEntry('e2', 2), makeEntry('e3', 3)];
+    const { result } = renderHook(() => useRunOrderDrag({ rawEntries: entries }));
+    const originalOrder = [...result.current.orderedIds];
+
+    await act(async () => {
+      await result.current.onDragEnd({
+        active: { id: 'e1' },
+        over: { id: 'e3' },
+      } as Parameters<typeof result.current.onDragEnd>[0]);
+    });
+
+    expect(result.current.orderedIds).toEqual(originalOrder);
+    expect(notifications.error).toHaveBeenCalledWith('Failed to save run order');
+  });
+
+  it('blocks a second drag while persistence is in-flight', async () => {
+    const { replicatedEntriesTable } =
+      await import('@/services/replication/ReplicatedEntriesTable');
+    let resolveFirst!: () => void;
+    (replicatedEntriesTable.updateEntry as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () =>
+        new Promise<void>(res => {
+          resolveFirst = res;
+        })
+    );
+
+    const entries = [makeEntry('e1', 1), makeEntry('e2', 2), makeEntry('e3', 3)];
+    const { result } = renderHook(() => useRunOrderDrag({ rawEntries: entries }));
+
+    // Start first drag (in-flight)
+    act(() => {
+      result.current.onDragEnd({
+        active: { id: 'e1' },
+        over: { id: 'e3' },
+      } as Parameters<typeof result.current.onDragEnd>[0]);
+    });
+
+    const orderAfterFirstDrag = [...result.current.orderedIds]; // ['e2', 'e3', 'e1']
+
+    // Second drag fires while first is still in-flight — must be ignored
+    await act(async () => {
+      await result.current.onDragEnd({
+        active: { id: 'e2' },
+        over: { id: 'e3' },
+      } as Parameters<typeof result.current.onDragEnd>[0]);
+    });
+
+    // Order should not have changed from first drag
+    expect(result.current.orderedIds).toEqual(orderAfterFirstDrag);
+
+    await act(async () => {
+      resolveFirst();
+    });
+  });
+
+  it('drag override keeps order stable while persistence is in-flight against a conflicting server push', async () => {
     let resolveUpdate!: () => void;
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');
@@ -120,7 +184,7 @@ describe('useRunOrderDrag', () => {
       initialProps: { rawEntries: entries },
     });
 
-    // Start a drag — override is set optimistically
+    // Start a drag — override is set optimistically to ['e2', 'e1']
     act(() => {
       result.current.onDragEnd({
         active: { id: 'e1' },
@@ -130,10 +194,10 @@ describe('useRunOrderDrag', () => {
 
     const orderAfterDrag = [...result.current.orderedIds]; // ['e2', 'e1']
 
-    // Simulate server pushing a different order via rawEntries update
-    rerender({ rawEntries: [makeEntry('e2', 1), makeEntry('e1', 2)] });
+    // Server pushes the OLD order back while persistence is still in-flight
+    rerender({ rawEntries: [makeEntry('e1', 1), makeEntry('e2', 2)] });
 
-    // dragOverride is still set → displayed order unchanged
+    // dragOverride is still set → displayed order unchanged (override wins)
     expect(result.current.orderedIds).toEqual(orderAfterDrag);
 
     // Let persistence complete
@@ -142,7 +206,7 @@ describe('useRunOrderDrag', () => {
     });
   });
 
-  it('re-syncs to server order after successful drag', async () => {
+  it('re-syncs to server order after successful drag when rawEntries reflects new order', async () => {
     const entries = [makeEntry('e1', 1), makeEntry('e2', 2)];
     const { result, rerender } = renderHook(({ rawEntries }) => useRunOrderDrag({ rawEntries }), {
       initialProps: { rawEntries: entries },
@@ -155,7 +219,8 @@ describe('useRunOrderDrag', () => {
       } as Parameters<typeof result.current.onDragEnd>[0]);
     });
 
-    // After success, dragOverride is cleared; server order now drives display
+    // After success, dragOverride persists until rawEntries confirms the new order.
+    // Simulate rawEntries updating to reflect the written order.
     rerender({ rawEntries: [makeEntry('e2', 1), makeEntry('e1', 2)] });
     expect(result.current.orderedIds).toEqual(['e2', 'e1']);
   });

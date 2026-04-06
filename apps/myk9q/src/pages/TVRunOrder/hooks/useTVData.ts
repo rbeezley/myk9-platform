@@ -127,14 +127,14 @@ export const useTVData = ({
             const entriesTable = manager.getTable('entries');
             const trialsTable = manager.getTable('trials');
 
+            const showsTable = manager.getTable('shows');
             if (classesTable && entriesTable && trialsTable) {
-              const allClasses = (await classesTable.getAll()) as Class[];
-              const allEntries = (await entriesTable.getAll()) as Entry[];
-              const allTrials = (await trialsTable.getAll()) as Trial[];
-
-              // Filter trials that belong to the current show (via shows table)
-              const showsTable = manager.getTable('shows');
-              const allShows = showsTable ? await showsTable.getAll() : [];
+              const [allClasses, allEntries, allTrials, allShows] = await Promise.all([
+                classesTable.getAll() as Promise<Class[]>,
+                entriesTable.getAll() as Promise<Entry[]>,
+                trialsTable.getAll() as Promise<Trial[]>,
+                showsTable ? showsTable.getAll() : Promise.resolve([]),
+              ]);
               const currentShow = (
                 allShows as Array<{ id: string | number; license_key: string }>
               ).find(s => s.license_key === licenseKey);

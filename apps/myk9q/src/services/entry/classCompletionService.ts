@@ -5,6 +5,7 @@ import { getReplicationManager } from '../replication/ReplicationManager';
 import type { Class } from '../replication/tables/ReplicatedClassesTable';
 import type { Entry } from '../replication/tables/ReplicatedEntriesTable';
 import { logger } from '@/utils/logger';
+import { isNationalsShow } from '@/utils/organizationUtils';
 
 /** Nested show data from joined query */
 interface NestedShow {
@@ -368,7 +369,7 @@ async function recalculateFinalPlacements(classId: number): Promise<void> {
       const trial = classData.trials as unknown as NestedTrial;
       const show = trial.shows;
       const licenseKey = show.license_key;
-      const isNationals = show.type?.toLowerCase().includes('national') || false;
+      const isNationals = isNationalsShow(show.type);
 
       await recalculatePlacementsForClass(classId, licenseKey, isNationals);
     } else {

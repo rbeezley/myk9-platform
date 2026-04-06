@@ -192,10 +192,12 @@ export function EventDetailsCard({ show }: { show: Show }) {
       </h2>
 
       <div className="show-details-grid">
-        <div className="show-detail-inline">
-          <span className="detail-label">Club:</span>
-          <span className="detail-value">{show.club_id}</span>
-        </div>
+        {(show.club_name || show.club_id) && (
+          <div className="show-detail-inline">
+            <span className="detail-label">Club:</span>
+            <span className="detail-value">{show.club_name || show.club_id}</span>
+          </div>
+        )}
 
         {show.website && (
           <a
@@ -369,7 +371,8 @@ export function UpcomingShowsCard({
                 <div className="upcoming-show-info">
                   <span className="upcoming-show-name">{show.name}</span>
                   <span className="upcoming-show-details">
-                    {show.club_id} • {formatDateRange(show.start_date, show.end_date)}
+                    {show.club_name || show.club_id} •{' '}
+                    {formatDateRange(show.start_date, show.end_date)}
                   </span>
                 </div>
               </div>

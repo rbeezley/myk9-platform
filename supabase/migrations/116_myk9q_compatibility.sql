@@ -13,6 +13,8 @@
 
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS section TEXT;
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS judge_name TEXT;
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS time_limit_area2_seconds INTEGER;
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS time_limit_area3_seconds INTEGER;
 
 -- ---------------------------------------------------------------------------
 -- Section 2: Add missing columns to `sport_class_rules`
@@ -43,12 +45,12 @@ ALTER TABLE entries ADD CONSTRAINT entries_entry_status_check CHECK (entry_statu
 CREATE OR REPLACE VIEW view_myk9q_entries AS
 SELECT
   e.id,
-  e.armband::INTEGER as armband_number,
-  e.handler as handler_name,
+  e.armband::INTEGER as armband,
+  e.handler as handler,
   d.call_name as dog_call_name,
   d.breed as dog_breed,
   e.entry_status,
-  e.run_order as exhibitor_order,
+  e.run_order as run_order,
   e.created_at,
   e.updated_at,
   e.is_scored,
@@ -69,6 +71,8 @@ SELECT
   c.section,
   c.status AS class_status,
   c.time_limit_seconds,
+  c.time_limit_area2_seconds,
+  c.time_limit_area3_seconds,
   c.num_areas AS area_count,
   c.is_scoring_finalized,
   c.results_released_at,

@@ -320,25 +320,14 @@ async function authenticatePasscodeClientSide(
     classes = classesData;
   }
 
-  // Get org and competition_type
-  const { data: licenseData, error: licenseError } = await supabase
-    .from('shows')
-    .select('organization, type')
-    .eq('license_key', matchedShow.license_key)
-    .single();
-
-  if (licenseError) {
-    logger.error('Error fetching license data:', licenseError);
-  }
-
   const showData: ShowData = {
     showId: matchedShow.id.toString(),
     showName: matchedShow.name,
     clubName: matchedShow.club_id,
     showDate: matchedShow.start_date,
     licenseKey: matchedShow.license_key,
-    org: licenseData?.organization || '',
-    competition_type: matchedShow.type || licenseData?.type || 'Regular',
+    org: matchedShow.organization || '',
+    competition_type: matchedShow.type || 'Regular',
     trials: trials || [],
     classes: classes || [],
   };
@@ -398,25 +387,14 @@ export async function getShowByLicenseKey(licenseKey: string): Promise<ShowData 
       }
     }
 
-    // Get org and competition_type from shows table
-    const { data: licenseData, error: licenseError } = await supabase
-      .from('shows')
-      .select('organization, type')
-      .eq('license_key', licenseKey)
-      .single();
-
-    if (licenseError) {
-      logger.error('Error fetching license data:', licenseError);
-    }
-
     return {
       showId: show.id.toString(),
       showName: show.name,
       clubName: show.club_id,
       showDate: show.start_date,
       licenseKey: show.license_key,
-      org: show.organization || licenseData?.organization || '', // Try show table first, then fallback
-      competition_type: show.type || licenseData?.type || 'Regular',
+      org: show.organization || '',
+      competition_type: show.type || 'Regular',
       trials: trials || [],
       classes: classes || [],
     };

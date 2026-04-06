@@ -33,6 +33,8 @@ export interface Class {
   realtime_results_enabled?: boolean;
   is_scoring_finalized?: boolean;
   time_limit_seconds?: number;
+  time_limit_area2_seconds?: number;
+  time_limit_area3_seconds?: number;
   num_areas?: number;
   actual_start_time?: string;
   actual_end_time?: string;

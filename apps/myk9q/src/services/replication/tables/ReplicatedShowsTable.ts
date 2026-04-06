@@ -20,6 +20,7 @@ export interface Show {
   license_key: string;
   name: string;
   club_id?: string;
+  club_name?: string; // Denormalized from clubs.name via join
   start_date: string;
   end_date: string;
   organization: string;
@@ -89,10 +90,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
         `[${this.tableName}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedShows.length} shows`
       );
 
-      // Fetch shows updated since last sync
-      const { data: remoteShows, error } = await supabase
+      // Fetch shows updated since last sync (join clubs for display name)
+      const { data: rawShows, error } = await supabase
         .from('shows')
-        .select('*')
+        .select('*, clubs(name)')
         .eq('license_key', licenseKey)
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });
@@ -101,6 +102,12 @@ export class ReplicatedShowsTable extends ReplicatedTable<Show> {
         errors.push(error.message);
         throw new Error(`Supabase query failed: ${error.message}`);
       }
+
+      // Flatten clubs join into club_name field
+      const remoteShows = rawShows?.map(({ clubs, ...show }) => ({
+        ...show,
+        club_name: (clubs as { name?: string } | null)?.name,
+      }));
 
       if (!remoteShows || remoteShows.length === 0) {
         logger.log(`[${this.tableName}] No updates found`);

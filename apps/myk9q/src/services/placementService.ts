@@ -8,6 +8,7 @@
 
 import { supabase } from '../lib/supabase';
 import { logger } from '@/utils/logger';
+import { isNationalsShow } from '@/utils/organizationUtils';
 
 /** Nested show data from joined query */
 interface NestedShow {
@@ -112,7 +113,7 @@ export async function manuallyRecalculatePlacements(classId: number): Promise<vo
     const trial = classData.trials as unknown as NestedTrial;
     const show = trial.shows;
     const licenseKey = show.license_key;
-    const isNationals = show.type?.toLowerCase().includes('national') || false;
+    const isNationals = isNationalsShow(show.type);
 
     await recalculatePlacementsForClass(classId, licenseKey, isNationals);
   } catch (error) {

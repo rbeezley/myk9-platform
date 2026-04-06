@@ -410,10 +410,9 @@ describe('authService', () => {
       expect(result).toBeNull();
     });
 
-    test('should use fallback organization from license data', async () => {
+    test('should return empty org when show has no organization', async () => {
       const showWithoutOrg = { ...mockShow, organization: null, type: null };
 
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockOrder = vi.fn().mockReturnThis();
@@ -428,21 +427,11 @@ describe('authService', () => {
         } as unknown as SupabaseQueryChain;
 
         if (table === 'shows') {
-          mockSelect.mockImplementation((fields: string) => {
-            if (fields === '*') {
-              mockEq.mockImplementation(() => {
-                mockSingle.mockResolvedValue({ data: showWithoutOrg, error: null });
-                return chain;
-              });
-            } else if (fields === 'organization, type') {
-              mockEq.mockImplementation(() => {
-                mockSingle.mockResolvedValue({
-                  data: { organization: 'UKC', type: 'National' },
-                  error: null,
-                });
-                return chain;
-              });
-            }
+          mockSelect.mockImplementation(() => {
+            mockEq.mockImplementation(() => {
+              mockSingle.mockResolvedValue({ data: showWithoutOrg, error: null });
+              return chain;
+            });
             return chain;
           });
         } else if (table === 'trials') {
@@ -461,8 +450,8 @@ describe('authService', () => {
       const result = await getShowByLicenseKey('myK9Q1-a260f472-e0d76a33-4b6c264c');
 
       expect(result).not.toBeNull();
-      expect(result?.org).toBe('UKC');
-      expect(result?.competition_type).toBe('National');
+      expect(result?.org).toBe('');
+      expect(result?.competition_type).toBe('Regular');
     });
   });
 

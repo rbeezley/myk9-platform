@@ -31,7 +31,7 @@ export const parseOrganizationData = (orgString: string): OrganizationData => {
     // Default to AKC Scent Work for this show based on the user's report
     return {
       organization: 'AKC',
-      activity_type: 'Scent Work'
+      activity_type: 'Scent Work',
     };
   }
 
@@ -69,6 +69,15 @@ export const hasRuleDefinedMaxTimes = (orgData: OrganizationData): boolean => {
   }
 
   return false;
+};
+
+/**
+ * Returns true if the show type indicates a Nationals competition.
+ * Used to select the Nationals placement algorithm (highest points)
+ * vs Regular (lowest faults).
+ */
+export const isNationalsShow = (showType: string | undefined): boolean => {
+  return showType?.toLowerCase().includes('national') || false;
 };
 
 /**
@@ -133,7 +142,7 @@ export const applyFixedMaxTime = async (
 
     // Update the class with the fixed time
     const updateData: Record<string, number> = {
-      time_limit_seconds: requirements.time_limit_seconds
+      time_limit_seconds: requirements.time_limit_seconds,
     };
 
     // Include area 2 and 3 times if defined
@@ -154,13 +163,15 @@ export const applyFixedMaxTime = async (
       return { applied: false, error: updateError.message };
     }
 
-    logger.info(`✅ Applied fixed max time to class ${classId}: ${requirements.time_limit_seconds}s`);
+    logger.info(
+      `✅ Applied fixed max time to class ${classId}: ${requirements.time_limit_seconds}s`
+    );
 
     return {
       applied: true,
       time_limit_seconds: requirements.time_limit_seconds,
       time_limit_area2_seconds: requirements.time_limit_area2_seconds ?? undefined,
-      time_limit_area3_seconds: requirements.time_limit_area3_seconds ?? undefined
+      time_limit_area3_seconds: requirements.time_limit_area3_seconds ?? undefined,
     };
   } catch (error) {
     logger.error('💥 Error in applyFixedMaxTime:', error);
@@ -176,7 +187,11 @@ export const getFixedMaxTime = async (
   organization: string,
   element: string,
   level: string
-): Promise<{ time_limit_seconds: number; time_limit_area2_seconds?: number; time_limit_area3_seconds?: number } | null> => {
+): Promise<{
+  time_limit_seconds: number;
+  time_limit_area2_seconds?: number;
+  time_limit_area3_seconds?: number;
+} | null> => {
   try {
     const { data, error } = await supabase
       .from('class_requirements')
@@ -193,7 +208,7 @@ export const getFixedMaxTime = async (
     return {
       time_limit_seconds: data.time_limit_seconds,
       time_limit_area2_seconds: data.time_limit_area2_seconds ?? undefined,
-      time_limit_area3_seconds: data.time_limit_area3_seconds ?? undefined
+      time_limit_area3_seconds: data.time_limit_area3_seconds ?? undefined,
     };
   } catch {
     return null;

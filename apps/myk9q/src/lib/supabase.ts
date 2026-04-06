@@ -68,6 +68,7 @@ export interface ShowQueue {
   club_id: string;
   type: string;
   status: string;
+  organization: string | null;
   description: string | null;
   venue_name: string | null;
   address: string | null;

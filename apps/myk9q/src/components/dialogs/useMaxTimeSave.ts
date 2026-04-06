@@ -74,8 +74,12 @@ export function useMaxTimeSave({
       // Use null instead of 0 for empty times (database has CHECK constraints requiring > 0 or NULL)
       const updateData: {
         time_limit_seconds: number | null;
+        time_limit_area2_seconds: number | null;
+        time_limit_area3_seconds: number | null;
       } = {
         time_limit_seconds: times[0] ? timeStringToSeconds(times[0]) : null,
+        time_limit_area2_seconds: times[1] ? timeStringToSeconds(times[1]) : null,
+        time_limit_area3_seconds: times[2] ? timeStringToSeconds(times[2]) : null,
       };
 
       // For combined Novice A & B classes, update both records
@@ -103,6 +107,8 @@ export function useMaxTimeSave({
               const updatedClass: Class = {
                 ...existingClass,
                 time_limit_seconds: updateData.time_limit_seconds || undefined,
+                time_limit_area2_seconds: updateData.time_limit_area2_seconds || undefined,
+                time_limit_area3_seconds: updateData.time_limit_area3_seconds || undefined,
               };
               await classesTable.set(String(id), updatedClass, false);
             }

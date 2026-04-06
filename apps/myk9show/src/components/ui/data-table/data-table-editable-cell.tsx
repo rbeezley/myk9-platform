@@ -186,13 +186,13 @@ export function EditableCell({
       }
     }
     setEditing(false);
-  }, [currentValue, validate, onSave]);
+  }, [currentValue, validate, onSave, setCurrentValue]);
 
   const cancel = useCallback(() => {
     setCurrentValue(originalValueRef.current);
     setValidationError(null);
     setEditing(false);
-  }, []);
+  }, [setCurrentValue]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -236,7 +236,7 @@ export function EditableCell({
         setTimeout(doNavigate, 0);
       }
     },
-    [cancel, currentValue, validate, onSave]
+    [cancel, currentValue, validate, onSave, setCurrentValue]
   );
 
   return (

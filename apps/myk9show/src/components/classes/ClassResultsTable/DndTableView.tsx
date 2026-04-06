@@ -21,6 +21,7 @@ interface DndTableViewProps {
 }
 
 export function DndTableView({ columns, orderedRows, sensors, onDragEnd }: DndTableViewProps) {
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table returns functions that React Compiler cannot memoize; this is expected
   const table = useReactTable({
     data: orderedRows,
     columns,

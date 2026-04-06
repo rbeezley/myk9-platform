@@ -158,7 +158,6 @@ export function ScratchEntriesTable({
         enableSorting: false,
         enableHiding: false,
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     ],
     [onScratch, onScratchDirect, pendingId, setPendingId]
   );

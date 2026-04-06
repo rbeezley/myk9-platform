@@ -107,6 +107,16 @@ Object.defineProperty(window, 'localStorage', {
   writable: true,
 });
 
+// Mock navigator.clipboard (not available in jsdom by default)
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+    readText: vi.fn().mockResolvedValue(''),
+  },
+  configurable: true,
+  writable: true,
+});
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

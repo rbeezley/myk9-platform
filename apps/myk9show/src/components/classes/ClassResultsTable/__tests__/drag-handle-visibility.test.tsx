@@ -123,14 +123,16 @@ vi.mock('../useClassResults', () => ({
   }),
 }));
 
+let mockAuthContext = {
+  isExhibitor: false,
+  isSecretary: true,
+  isJudge: false,
+  isAdmin: false,
+  user: { id: 'u1' },
+};
+
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({
-    isExhibitor: false,
-    isSecretary: true,
-    isJudge: false,
-    isAdmin: false,
-    user: { id: 'u1' },
-  }),
+  useAuthContext: () => mockAuthContext,
 }));
 
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
@@ -206,6 +208,13 @@ function renderTable(overrides: Partial<ClassResultsTableProps> = {}) {
 
 describe('ClassResultsTable drag handle visibility', () => {
   beforeEach(() => {
+    mockAuthContext = {
+      isExhibitor: false,
+      isSecretary: true,
+      isJudge: false,
+      isAdmin: false,
+      user: { id: 'u1' },
+    };
     vi.clearAllMocks();
   });
 
@@ -232,7 +241,13 @@ describe('ClassResultsTable drag handle visibility', () => {
   });
 
   it('hides drag handles for exhibitor user', () => {
-    // Exhibitors have canEditEntries: false — drag handles are never shown without edit permission
+    mockAuthContext = {
+      isExhibitor: true,
+      isSecretary: false,
+      isJudge: false,
+      isAdmin: false,
+      user: { id: 'u1' },
+    };
     renderTable({
       userPermissions: {
         canEditEntries: false,

@@ -35,6 +35,20 @@ export function ClassTimelineCard({
   const classLabel = formatClassLabel(classData.element, classData.level, classData.className);
   const showCheckIn = !isCompleted && classData.entryStatus !== 'no-status';
 
+  const dogsAhead =
+    !classData.isScored && classData.myRunningOrder != null
+      ? Math.max(0, classData.myRunningOrder - classData.scoredEntries - 1)
+      : null;
+
+  const dogsAheadText =
+    dogsAhead === null
+      ? null
+      : dogsAhead === 0
+        ? "You're next"
+        : dogsAhead === 1
+          ? '1 dog ahead'
+          : `${dogsAhead} dogs ahead`;
+
   return (
     <div
       className={cn(
@@ -77,6 +91,9 @@ export function ClassTimelineCard({
           <span>{classData.dogCallName}</span>
           {classData.armband && <span>&bull; #{classData.armband}</span>}
         </div>
+        {dogsAheadText && (
+          <div className="text-xs text-muted-foreground mt-0.5">{dogsAheadText}</div>
+        )}
       </button>
 
       {/* Right side: check-in badge, result badge, or estimated time */}

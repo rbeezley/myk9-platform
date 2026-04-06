@@ -26,7 +26,7 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 ## Class Details Page — Future Enhancements (2026-03-24)
 
 - [x] Dog status column (Checked In / In Ring / On Deck / Conflict) — Done. `check_in_status` column on entries table with 8 statuses, `CheckInStatusBadge` in ClassResultsTable with click-to-change `StatusPickerDialog`, `useCheckInMutation` with optimistic UI, realtime subscriptions, conflict detection utility, self-check-in control per show/trial/class.
-- Drag-and-drop run order in entries table — superseded by Port Run Order Options below
+- [x] **Drag-and-drop run order in entries table** — Done (branch feat/myk9q-db-alignment). Secretary can drag rows in Pending/All tabs to reorder; saves optimistically with rollback on failure. Exhibitor Show Day shows "X dogs ahead" / "You're next" countdown on ClassTimelineCard and NextUpCard, updated via Supabase Realtime. No migration needed (`run_order` column already existed).
 - [x] Inline score editing in table cells — Already implemented. ClassResultsTable has inline editable cells for qualification, search time, faults, and judge notes with edit buffer, optimistic UI, keyboard navigation, and batch submit.
 
 ---

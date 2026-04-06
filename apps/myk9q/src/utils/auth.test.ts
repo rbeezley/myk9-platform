@@ -6,16 +6,16 @@ import {
   parsePasscode,
   generatePasscodesFromLicenseKey,
   validatePasscodeAgainstLicenseKey,
-  getPermissionsForRole
+  getPermissionsForRole,
 } from './auth';
 
 // Test data based on the example: myK9Q1-d8609f3b-d3fd43aa-6323a604
 const testLicenseKey = 'myK9Q1-d8609f3b-d3fd43aa-6323a604';
 const expectedPasscodes = {
   admin: 'ad860',
-  judge: 'j9f3b', 
+  judge: 'j9f3b',
   steward: 'sd3fd',
-  exhibitor: 'e6323'
+  exhibitor: 'e6323',
 };
 
 describe('parsePasscode', () => {
@@ -24,7 +24,7 @@ describe('parsePasscode', () => {
     expect(result).toEqual({
       role: 'admin',
       licenseKey: 'd860',
-      isValid: true
+      isValid: true,
     });
   });
 
@@ -33,7 +33,7 @@ describe('parsePasscode', () => {
     expect(result).toEqual({
       role: 'judge',
       licenseKey: '9f3b',
-      isValid: true
+      isValid: true,
     });
   });
 
@@ -42,7 +42,7 @@ describe('parsePasscode', () => {
     expect(result).toEqual({
       role: 'steward',
       licenseKey: 'd3fd',
-      isValid: true
+      isValid: true,
     });
   });
 
@@ -51,7 +51,7 @@ describe('parsePasscode', () => {
     expect(result).toEqual({
       role: 'exhibitor',
       licenseKey: '6323',
-      isValid: true
+      isValid: true,
     });
   });
 
@@ -88,13 +88,39 @@ describe('generatePasscodesFromLicenseKey', () => {
   });
 });
 
+describe('generatePasscodesFromLicenseKey — UUID format', () => {
+  const uuid = '63165809-e025-25c6-6cf9-979f63165809';
+
+  test('derives correct passcodes from a show UUID', () => {
+    expect(generatePasscodesFromLicenseKey(uuid)).toEqual({
+      admin: 'ae025',
+      judge: 'j25c6',
+      steward: 's6cf9',
+      exhibitor: 'e979f',
+    });
+  });
+
+  test('legacy 4-part format still works', () => {
+    expect(generatePasscodesFromLicenseKey('myK9Q1-d8609f3b-d3fd43aa-6323a604')).toEqual({
+      admin: 'ad860',
+      judge: 'j9f3b',
+      steward: 'sd3fd',
+      exhibitor: 'e6323',
+    });
+  });
+
+  test('returns null for a 3-segment string', () => {
+    expect(generatePasscodesFromLicenseKey('a-b-c')).toBeNull();
+  });
+});
+
 describe('validatePasscodeAgainstLicenseKey', () => {
   test('validates correct admin passcode', () => {
     const result = validatePasscodeAgainstLicenseKey('ad860', testLicenseKey);
     expect(result).toEqual({
       role: 'admin',
       licenseKey: testLicenseKey,
-      isValid: true
+      isValid: true,
     });
   });
 
@@ -103,7 +129,7 @@ describe('validatePasscodeAgainstLicenseKey', () => {
     expect(result).toEqual({
       role: 'judge',
       licenseKey: testLicenseKey,
-      isValid: true
+      isValid: true,
     });
   });
 
@@ -127,7 +153,7 @@ describe('getPermissionsForRole', () => {
       canChangeRunOrder: true,
       canCheckInDogs: true,
       canScore: true,
-      canManageClasses: true
+      canManageClasses: true,
     });
   });
 
@@ -139,7 +165,7 @@ describe('getPermissionsForRole', () => {
       canChangeRunOrder: true,
       canCheckInDogs: true,
       canScore: true,
-      canManageClasses: true
+      canManageClasses: true,
     });
   });
 
@@ -151,7 +177,7 @@ describe('getPermissionsForRole', () => {
       canChangeRunOrder: true,
       canCheckInDogs: true,
       canScore: false,
-      canManageClasses: false
+      canManageClasses: false,
     });
   });
 
@@ -163,7 +189,7 @@ describe('getPermissionsForRole', () => {
       canChangeRunOrder: false,
       canCheckInDogs: true,
       canScore: false,
-      canManageClasses: false
+      canManageClasses: false,
     });
   });
 });

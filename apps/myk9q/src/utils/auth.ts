@@ -23,7 +23,7 @@ export interface UserPermissions {
 /**
  * Parses a 5-character passcode to extract role and license key parts
  * Format: [Role Prefix][4 digits from license key]
- * 
+ *
  * @param passcode - 5 character passcode (e.g., "ad860", "j9f3b")
  * @returns PasscodeResult with role, license key parts, and validity
  */
@@ -32,7 +32,7 @@ export function parsePasscode(passcode: string): PasscodeResult {
     return {
       role: 'exhibitor',
       licenseKey: '',
-      isValid: false
+      isValid: false,
     };
   }
 
@@ -57,22 +57,23 @@ export function parsePasscode(passcode: string): PasscodeResult {
       return {
         role: 'exhibitor',
         licenseKey: '',
-        isValid: false
+        isValid: false,
       };
   }
 
   return {
     role,
     licenseKey: digits,
-    isValid: true
+    isValid: true,
   };
 }
 
 /**
  * Generates all 4 passcodes from a mobile_app_lic_key
- * Format: myK9Q1-d8609f3b-d3fd43aa-6323a604
- * Extracts: d860, 9f3b, d3fd, 6323
- * 
+ * Supports two formats:
+ * 1. Legacy: myK9Q1-d8609f3b-d3fd43aa-6323a604 (4 parts)
+ * 2. UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (5 parts)
+ *
  * @param mobileAppLicKey - Full license key from database
  * @returns Object with all 4 passcodes
  */
@@ -84,34 +85,45 @@ export function generatePasscodesFromLicenseKey(mobileAppLicKey: string): {
 } | null {
   if (!mobileAppLicKey) return null;
 
-  // Split by hyphens: ["myK9Q1", "d8609f3b", "d3fd43aa", "6323a604"]
   const parts = mobileAppLicKey.split('-');
-  
-  if (parts.length !== 4) return null;
 
-  // Extract 4 digits from each part
-  const adminDigits = parts[1].slice(0, 4);    // "d860"
-  const judgeDigits = parts[1].slice(4, 8);    // "9f3b" 
-  const stewardDigits = parts[2].slice(0, 4);  // "d3fd"
-  const exhibitorDigits = parts[3].slice(0, 4); // "6323"
+  if (parts.length === 5) {
+    // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    return {
+      admin: `a${parts[1]}`,
+      judge: `j${parts[2]}`,
+      steward: `s${parts[3]}`,
+      exhibitor: `e${parts[4].slice(0, 4)}`,
+    };
+  }
 
-  return {
-    admin: `a${adminDigits}`,      // "ad860"
-    judge: `j${judgeDigits}`,      // "j9f3b"
-    steward: `s${stewardDigits}`,  // "sd3fd"
-    exhibitor: `e${exhibitorDigits}` // "e6323"
-  };
+  if (parts.length === 4) {
+    // Legacy format: myK9Q1-8hex-8hex-8hex
+    const adminDigits = parts[1].slice(0, 4); // "d860"
+    const judgeDigits = parts[1].slice(4, 8); // "9f3b"
+    const stewardDigits = parts[2].slice(0, 4); // "d3fd"
+    const exhibitorDigits = parts[3].slice(0, 4); // "6323"
+
+    return {
+      admin: `a${adminDigits}`, // "ad860"
+      judge: `j${judgeDigits}`, // "j9f3b"
+      steward: `s${stewardDigits}`, // "sd3fd"
+      exhibitor: `e${exhibitorDigits}`, // "e6323"
+    };
+  }
+
+  return null;
 }
 
 /**
  * Validates if a passcode matches any of the generated passcodes from a license key
- * 
+ *
  * @param passcode - User entered passcode
  * @param mobileAppLicKey - License key from database
  * @returns PasscodeResult if valid, null if invalid
  */
 export function validatePasscodeAgainstLicenseKey(
-  passcode: string, 
+  passcode: string,
   mobileAppLicKey: string
 ): PasscodeResult | null {
   const parsedPasscode = parsePasscode(passcode);
@@ -122,18 +134,18 @@ export function validatePasscodeAgainstLicenseKey(
 
   // Check if entered passcode matches any of the generated ones
   const isValidPasscode = Object.values(generatedPasscodes).includes(passcode.toLowerCase());
-  
+
   if (!isValidPasscode) return null;
 
   return {
     ...parsedPasscode,
-    licenseKey: mobileAppLicKey
+    licenseKey: mobileAppLicKey,
   };
 }
 
 /**
  * Gets user permissions based on role
- * 
+ *
  * @param role - User role
  * @returns UserPermissions object
  */
@@ -146,7 +158,7 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         canChangeRunOrder: true,
         canCheckInDogs: true,
         canScore: true,
-        canManageClasses: true
+        canManageClasses: true,
       };
     case 'judge':
       return {
@@ -155,7 +167,7 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         canChangeRunOrder: true,
         canCheckInDogs: true,
         canScore: true,
-        canManageClasses: true
+        canManageClasses: true,
       };
     case 'steward':
       return {
@@ -164,7 +176,7 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         canChangeRunOrder: true,
         canCheckInDogs: true,
         canScore: false,
-        canManageClasses: false
+        canManageClasses: false,
       };
     case 'exhibitor':
       return {
@@ -173,7 +185,7 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         canChangeRunOrder: false,
         canCheckInDogs: true,
         canScore: false,
-        canManageClasses: false
+        canManageClasses: false,
       };
     default:
       return {
@@ -182,7 +194,7 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         canChangeRunOrder: false,
         canCheckInDogs: false,
         canScore: false,
-        canManageClasses: false
+        canManageClasses: false,
       };
   }
 }

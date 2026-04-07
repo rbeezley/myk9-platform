@@ -264,6 +264,9 @@ export const queryKeys = {
   // Reports
   reportData: (showId: string, trialId: string, classId: string) =>
     ['reports', showId, trialId, classId] as const,
+
+  // Organization Agreements
+  organizationAgreement: (org: string) => ['organization-agreements', org] as const,
 } as const;
 
 // Enhanced cache strategies for different data types

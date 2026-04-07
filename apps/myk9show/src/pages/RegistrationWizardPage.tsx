@@ -314,8 +314,10 @@ function RegistrationWizardContent() {
           allEntryKeys.length > 0 && allEntryKeys.every(key => handlerAssignments[key]?.handlerName)
         );
       }
-      case 'payment':
-        return !!registrationData.paymentMethod && agreedToEntryAgreement;
+      case 'payment': {
+        const showNeedsAgreement = !!currentShow?.organization;
+        return !!registrationData.paymentMethod && (!showNeedsAgreement || agreedToEntryAgreement);
+      }
       case 'confirmation':
         return true;
       default:

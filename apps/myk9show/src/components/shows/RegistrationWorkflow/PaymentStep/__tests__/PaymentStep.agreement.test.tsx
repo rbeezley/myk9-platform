@@ -3,6 +3,7 @@ import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PaymentStep } from '../index';
+import { useShowStore } from '@/store/showStore';
 
 // Mock hooks used by PaymentStep
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -12,7 +13,7 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: [] }),
 }));
 vi.mock('@/store/showStore', () => ({
-  useShowStore: () => ({
+  useShowStore: vi.fn(() => ({
     shows: [
       {
         id: 'show-1',
@@ -21,7 +22,7 @@ vi.mock('@/store/showStore', () => ({
         acceptCashPayments: true,
       },
     ],
-  }),
+  })),
 }));
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: () => ({}),
@@ -98,5 +99,20 @@ describe('PaymentStep — entry agreement integration', () => {
 
     await user.click(screen.getByRole('checkbox'));
     expect(onAgreementChange).toHaveBeenCalledWith(true);
+  });
+
+  it('does not render agreement section when show has no organization', () => {
+    vi.mocked(useShowStore).mockReturnValueOnce({
+      shows: [
+        {
+          id: 'show-no-org',
+          acceptCheckPayments: true,
+          acceptCashPayments: true,
+        },
+      ],
+    } as ReturnType<typeof useShowStore>);
+
+    render(<PaymentStep {...baseProps} showId="show-no-org" />);
+    expect(screen.queryByText(/Entry Agreement/)).not.toBeInTheDocument();
   });
 });

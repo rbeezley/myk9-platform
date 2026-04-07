@@ -7,12 +7,12 @@
  */
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PawPrint, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddDogPanel } from '@/components/panels/edit/AddDogPanel';
-import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
+import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/types/auth-types';
-import type { Dog } from '@/types/dog-types';
 
 interface StepDogsProps {
   personId: string;
@@ -21,13 +21,31 @@ interface StepDogsProps {
   onSkip: () => void;
 }
 
+// Intentionally bypasses useDogsQuery (which returns ALL dogs for site_admin).
+// In onboarding we only ever show the current user's own dogs.
+function useMyDogs(personId: string) {
+  return useQuery({
+    queryKey: ['onboarding-dogs', personId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dogs')
+        .select('id, name, call_name, breed, registrations:dog_registrations(organization, breed)')
+        .eq('owner_id', personId)
+        .order('name');
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: Boolean(personId),
+  });
+}
+
 export function StepDogs({ personId, onNext, onBack, onSkip }: StepDogsProps) {
   const [addPanelOpen, setAddPanelOpen] = useState(false);
-  const { data: dogs = [], isLoading } = useDogsQuery();
+  const { data: dogs = [], isLoading, refetch } = useMyDogs(personId);
 
-  const handleDogCreated = (_dog: Dog) => {
+  const handleDogCreated = () => {
     setAddPanelOpen(false);
-    // useDogsQuery cache is invalidated automatically by useCreateDogMutation
+    refetch();
   };
 
   return (

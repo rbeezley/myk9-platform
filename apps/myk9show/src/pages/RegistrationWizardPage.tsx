@@ -459,7 +459,6 @@ function RegistrationWizardContent() {
   };
 
   const handleBack = () => {
-    // Reset agreement when leaving payment step
     if (currentStepId === 'payment') {
       setAgreedToEntryAgreement(false);
     }
@@ -608,6 +607,9 @@ function RegistrationWizardContent() {
                       completedSteps={completedSteps}
                       onStepClick={(step: number) => {
                         if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
+                          if (currentStepId === 'payment') {
+                            setAgreedToEntryAgreement(false);
+                          }
                           setCurrentStep(step);
                         }
                       }}

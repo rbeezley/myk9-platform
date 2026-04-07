@@ -1,55 +1,37 @@
 /**
- * Onboarding Step 2 - Add Your Dogs
- * Allows adding multiple dogs inline. Skippable.
+ * Onboarding Step 2 — Add Your Dogs
+ *
+ * Uses the existing AddDogPanel (full org + breed + registration flow)
+ * rather than a parallel inline form. Dogs are saved to the DB immediately
+ * when created; the list auto-refreshes via useDogsQuery.
  */
 
+import { useState } from 'react';
+import { PawPrint, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus, Trash2 } from 'lucide-react';
-
-export interface DogEntry {
-  id: string;
-  callName: string;
-  registeredName: string;
-  breed: string;
-  registrationNumber: string;
-}
+import { AddDogPanel } from '@/components/panels/edit/AddDogPanel';
+import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
+import { UserRole } from '@/types/auth-types';
+import type { Dog } from '@/types/dog-types';
 
 interface StepDogsProps {
-  dogs: DogEntry[];
-  onChange: (dogs: DogEntry[]) => void;
+  personId: string;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
 }
 
-function createEmptyDog(): DogEntry {
-  return {
-    id: crypto.randomUUID(),
-    callName: '',
-    registeredName: '',
-    breed: '',
-    registrationNumber: '',
-  };
-}
+export function StepDogs({ personId, onNext, onBack, onSkip }: StepDogsProps) {
+  const [addPanelOpen, setAddPanelOpen] = useState(false);
+  const { data: dogs = [], isLoading } = useDogsQuery();
 
-export function StepDogs({ dogs, onChange, onNext, onBack, onSkip }: StepDogsProps) {
-  const addDog = () => onChange([...dogs, createEmptyDog()]);
-
-  const removeDog = (id: string) => onChange(dogs.filter(d => d.id !== id));
-
-  const updateDog = (id: string, field: keyof DogEntry, value: string) => {
-    onChange(dogs.map(d => (d.id === id ? { ...d, [field]: value } : d)));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onNext();
+  const handleDogCreated = (_dog: Dog) => {
+    setAddPanelOpen(false);
+    // useDogsQuery cache is invalidated automatically by useCreateDogMutation
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" data-testid="step-dogs">
+    <div className="space-y-4" data-testid="step-dogs">
       <div>
         <h2 className="text-xl font-semibold">Add your dogs</h2>
         <p className="text-sm text-muted-foreground mt-1">
@@ -57,86 +39,48 @@ export function StepDogs({ dogs, onChange, onNext, onBack, onSkip }: StepDogsPro
         </p>
       </div>
 
-      {dogs.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center">
-          <p className="text-sm text-muted-foreground mb-3">No dogs added yet.</p>
-          <Button type="button" variant="outline" size="sm" onClick={addDog}>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+      ) : dogs.length === 0 ? (
+        <div className="rounded-md border border-dashed p-6 text-center space-y-3">
+          <PawPrint className="h-8 w-8 mx-auto text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">No dogs added yet.</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAddPanelOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
             Add a dog
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {dogs.map((dog, index) => (
-            <div
-              key={dog.id}
-              className="rounded-md border p-4 space-y-3 relative"
-              data-testid={`dog-entry-${index}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Dog {index + 1}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeDog(dog.id)}
-                  aria-label={`Remove dog ${index + 1}`}
-                >
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor={`dog-callName-${dog.id}`}>Call name *</Label>
-                  <Input
-                    id={`dog-callName-${dog.id}`}
-                    value={dog.callName}
-                    onChange={e => updateDog(dog.id, 'callName', e.target.value)}
-                    placeholder="e.g. Buddy"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor={`dog-breed-${dog.id}`}>Breed *</Label>
-                  <Input
-                    id={`dog-breed-${dog.id}`}
-                    value={dog.breed}
-                    onChange={e => updateDog(dog.id, 'breed', e.target.value)}
-                    placeholder="e.g. Border Collie"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor={`dog-registeredName-${dog.id}`}>Registered name (optional)</Label>
-                <Input
-                  id={`dog-registeredName-${dog.id}`}
-                  value={dog.registeredName}
-                  onChange={e => updateDog(dog.id, 'registeredName', e.target.value)}
-                  placeholder="e.g. CH Fancy's Best In Show"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor={`dog-regNum-${dog.id}`}>AKC / org reg number (optional)</Label>
-                <Input
-                  id={`dog-regNum-${dog.id}`}
-                  value={dog.registrationNumber}
-                  onChange={e => updateDog(dog.id, 'registrationNumber', e.target.value)}
-                  placeholder="e.g. AKC DN12345678"
-                />
+        <div className="space-y-3">
+          {dogs.map(dog => (
+            <div key={dog.id} className="flex items-center gap-3 rounded-md border px-4 py-3">
+              <PawPrint className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{dog.call_name || dog.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {dog.registrations?.[0]?.breed ?? dog.breed}
+                  {dog.registrations?.[0]?.organization
+                    ? ` · ${dog.registrations[0].organization}`
+                    : ''}
+                </p>
               </div>
             </div>
           ))}
 
-          <Button type="button" variant="outline" size="sm" onClick={addDog}>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAddPanelOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
             Add another dog
           </Button>
         </div>
       )}
+
+      <AddDogPanel
+        open={addPanelOpen}
+        onClose={() => setAddPanelOpen(false)}
+        onDogCreated={handleDogCreated}
+        userRole={UserRole.EXHIBITOR}
+        currentUserPersonId={personId}
+      />
 
       <div className="flex items-center justify-between pt-2">
         <Button type="button" variant="ghost" onClick={onBack}>
@@ -146,11 +90,11 @@ export function StepDogs({ dogs, onChange, onNext, onBack, onSkip }: StepDogsPro
           <Button type="button" variant="ghost" onClick={onSkip}>
             Skip for now
           </Button>
-          <Button type="submit" disabled={dogs.length === 0}>
+          <Button type="button" onClick={onNext}>
             Next
           </Button>
         </div>
       </div>
-    </form>
+    </div>
   );
 }

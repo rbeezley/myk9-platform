@@ -2,12 +2,26 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { StepDogs } from '../StepDogs';
-import type { DogEntry } from '../StepDogs';
+
+// useDogsQuery is called inside StepDogs — mock it so tests don't hit the DB
+vi.mock('@/hooks/queries/useDogsDatabase', () => ({
+  useDogsQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  useCreateDogMutation: vi.fn(() => ({ mutateAsync: vi.fn() })),
+}));
+
+// AddDogPanel opens a full panel — stub it so tests stay unit-level
+vi.mock('@/components/panels/edit/AddDogPanel', () => ({
+  AddDogPanel: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+    open ? (
+      <div data-testid="add-dog-panel">
+        <button onClick={onClose}>Close panel</button>
+      </div>
+    ) : null,
+}));
 
 function makeProps(overrides = {}) {
   return {
-    dogs: [] as DogEntry[],
-    onChange: vi.fn(),
+    personId: 'person-123',
     onNext: vi.fn(),
     onBack: vi.fn(),
     onSkip: vi.fn(),
@@ -16,7 +30,7 @@ function makeProps(overrides = {}) {
 }
 
 describe('StepDogs', () => {
-  it('renders the empty state when no dogs', () => {
+  it('renders the empty state when user has no dogs', () => {
     render(<StepDogs {...makeProps()} />);
     expect(screen.getByTestId('step-dogs')).toBeInTheDocument();
     expect(screen.getByText(/no dogs added yet/i)).toBeInTheDocument();
@@ -36,48 +50,35 @@ describe('StepDogs', () => {
     expect(onBack).toHaveBeenCalledOnce();
   });
 
-  it('calls onChange with a new dog when Add a dog is clicked', () => {
-    const onChange = vi.fn();
-    render(<StepDogs {...makeProps({ onChange })} />);
-    fireEvent.click(screen.getByRole('button', { name: /add a dog/i }));
-    expect(onChange).toHaveBeenCalledOnce();
-    const [newDogs] = onChange.mock.calls[0];
-    expect(newDogs).toHaveLength(1);
-    expect(newDogs[0]).toMatchObject({ callName: '', breed: '' });
-  });
-
-  it('renders dog entry fields when dogs are present', () => {
-    const dogs: DogEntry[] = [
-      {
-        id: 'dog-1',
-        callName: 'Rex',
-        registeredName: '',
-        breed: 'Labrador',
-        registrationNumber: '',
-      },
-    ];
-    render(<StepDogs {...makeProps({ dogs })} />);
-    expect(screen.getByTestId('dog-entry-0')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Rex')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Labrador')).toBeInTheDocument();
-  });
-
-  it('Next button is disabled when no dogs', () => {
+  it('opens AddDogPanel when Add a dog is clicked', () => {
     render(<StepDogs {...makeProps()} />);
-    expect(screen.getByRole('button', { name: /^next$/i })).toBeDisabled();
+    expect(screen.queryByTestId('add-dog-panel')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /add a dog/i }));
+    expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
   });
 
-  it('Next button is enabled when at least one dog exists', () => {
-    const dogs: DogEntry[] = [
-      {
-        id: 'dog-1',
-        callName: 'Max',
-        registeredName: '',
-        breed: 'Poodle',
-        registrationNumber: '',
-      },
-    ];
-    render(<StepDogs {...makeProps({ dogs })} />);
-    expect(screen.getByRole('button', { name: /^next$/i })).not.toBeDisabled();
+  it('closes AddDogPanel when panel closes itself', () => {
+    render(<StepDogs {...makeProps()} />);
+    fireEvent.click(screen.getByRole('button', { name: /add a dog/i }));
+    fireEvent.click(screen.getByRole('button', { name: /close panel/i }));
+    expect(screen.queryByTestId('add-dog-panel')).not.toBeInTheDocument();
+  });
+
+  it('calls onNext when Next is clicked', () => {
+    const onNext = vi.fn();
+    render(<StepDogs {...makeProps({ onNext })} />);
+    fireEvent.click(screen.getByRole('button', { name: /^next$/i }));
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('shows dog list when user already has dogs', async () => {
+    const { useDogsQuery } = await import('@/hooks/queries/useDogsDatabase');
+    vi.mocked(useDogsQuery).mockReturnValueOnce({
+      data: [{ id: 'd1', call_name: 'Rex', name: 'Rex', breed: 'Labrador', registrations: [] }],
+      isLoading: false,
+    } as never);
+    render(<StepDogs {...makeProps()} />);
+    expect(screen.getByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText(/labrador/i)).toBeInTheDocument();
   });
 });

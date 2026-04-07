@@ -14,9 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile, CreateExhibitorProfileData } from '@/hooks/useExhibitorProfile';
-import { useCreateDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { StepProfile, ProfileData } from './steps/StepProfile';
-import { StepDogs, DogEntry } from './steps/StepDogs';
+import { StepDogs } from './steps/StepDogs';
 import { StepAddress, AddressData } from './steps/StepAddress';
 import { StepNotifications, NotificationPrefs } from './steps/StepNotifications';
 import { StepWelcome } from './steps/StepWelcome';
@@ -43,10 +42,13 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 export default function ExhibitorOnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const { createProfileAsync, isCreatingProfile, completeOnboarding, isCompletingOnboarding } =
-    useExhibitorProfile();
-  const createDogMutation = useCreateDogMutation();
-
+  const {
+    profile: exhibitorProfile,
+    createProfileAsync,
+    isCreatingProfile,
+    completeOnboarding,
+    isCompletingOnboarding,
+  } = useExhibitorProfile();
   const userMeta = user?.user_metadata ?? {};
 
   // Wizard state
@@ -59,7 +61,6 @@ export default function ExhibitorOnboardingPage() {
     lastName: (userMeta.last_name ?? userMeta.lastName ?? '') as string,
     phone: (userMeta.phone ?? '') as string,
   });
-  const [dogs, setDogs] = useState<DogEntry[]>([]);
   const [addressData, setAddressData] = useState<AddressData>({
     street: '',
     city: '',
@@ -95,29 +96,9 @@ export default function ExhibitorOnboardingPage() {
     }
   };
 
-  // ── Step 2: create dogs (best-effort, non-blocking) ─────────────────────────
-  const handleDogsNext = async () => {
+  // ── Step 2: dogs are saved directly via AddDogPanel — just advance ───────────
+  const handleDogsNext = () => {
     setStepError('');
-    // Fire dog creation in parallel; ignore individual failures — dogs can be added later.
-    if (dogs.length > 0) {
-      const personId = user?.id; // dogs.owner_id uses person_id, fetched after profile creation.
-      // We can only create dogs after the profile (and person) exist.
-      // We attempt creation; if the person_id isn't available yet we skip silently.
-      if (personId) {
-        await Promise.allSettled(
-          dogs.map(d =>
-            createDogMutation.mutateAsync({
-              name: d.callName.trim(),
-              call_name: d.callName.trim() || null,
-              breed: d.breed.trim(),
-              akc_number: d.registrationNumber.trim() || null,
-              other_registry_number: null,
-              owner_id: personId,
-            })
-          )
-        );
-      }
-    }
     setStep(3);
   };
 
@@ -192,8 +173,7 @@ export default function ExhibitorOnboardingPage() {
           )}
           {step === 2 && (
             <StepDogs
-              dogs={dogs}
-              onChange={setDogs}
+              personId={exhibitorProfile?.person_id ?? user?.id ?? ''}
               onNext={handleDogsNext}
               onBack={goBack}
               onSkip={handleDogsSkip}

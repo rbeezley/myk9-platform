@@ -585,7 +585,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
       <RunOrderDialog
         open={runOrderDialogOpen}
         onOpenChange={setRunOrderDialogOpen}
-        entryCount={entries.length}
+        entries={rawEntries ?? []}
         onApply={applyPreset}
       />
     </TooltipProvider>

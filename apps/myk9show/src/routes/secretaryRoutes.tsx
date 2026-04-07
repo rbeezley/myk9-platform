@@ -34,6 +34,10 @@ const SecretaryClassDashboard = lazy(() =>
     default: m.SecretaryClassDashboard,
   }))
 );
+
+// People pages
+const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
+const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
 // Entry management
 const EntryManagementPage = lazy(() =>
   import('@/pages/secretary/EntryManagementPage').catch(() => ({
@@ -295,6 +299,33 @@ export const SecretaryRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <SecretaryMessagesPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
+    {/* People — browse and detail, accessible to secretaries and site admins */}
+    <Route
+      path="/people"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <BrowsePeoplePage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route path="/users" element={<Navigate to="/people" replace />} />
+    <Route
+      path="/users/:id"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <PersonDetailPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

@@ -132,13 +132,22 @@ SELECT is_platform_admin();
 
 Expected: `true`
 
-- [ ] **Step 4: Verify platform_admin role is gone**
+- [ ] **Step 4: Verify platform_admin role is gone** [EXPANDED]
 
 ```sql
 SELECT * FROM roles WHERE name = 'platform_admin';
 ```
 
 Expected: 0 rows returned.
+
+- [ ] **Step 4b: Verify no user lost access due to the DELETE** [ADDED]
+
+```sql
+SELECT count(*) FROM public.user_roles
+WHERE role_id IN (SELECT id FROM public.roles WHERE name = 'platform_admin');
+```
+
+Expected: 0 rows (the subquery returns no role IDs because `platform_admin` was just deleted, so the count is 0). If this returns > 0 before you run the migration, it means real admins had `platform_admin` role and would have lost access. Recovery in that case: `INSERT INTO user_roles (user_id, role_id, ...) SELECT ur.user_id, (SELECT id FROM roles WHERE name = 'site_admin'), ... FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.name = 'platform_admin'` — then re-run the migration.
 
 - [ ] **Step 5: Verify admin pages still load**
 

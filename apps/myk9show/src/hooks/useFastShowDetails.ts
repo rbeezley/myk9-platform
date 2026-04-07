@@ -69,13 +69,14 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   // Derive isFromCache directly from foundInCache (no state sync needed)
   const isFromCache = foundInCache;
 
-  // Only use network query if no cached data is available
+  // Only use network query if no cached or store data is available
+  const needsNetwork = !cachedShow && !storeShow;
   const {
     data: networkShow,
     isLoading: isNetworkLoading,
     isError: isNetworkError,
     refetch,
-  } = useShowQuery(showId || '');
+  } = useShowQuery(needsNetwork ? showId || '' : '');
 
   // Use cached data if available, otherwise use network data
   const show = cachedShow || storeShow || networkShow || null;

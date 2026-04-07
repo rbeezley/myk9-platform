@@ -13,7 +13,7 @@ import {
 } from '@/services/database/queries/dogQueries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
-import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
+import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import { replicatedDogsTable } from '@/services/replication';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
@@ -35,25 +35,7 @@ export const useDogsQuery = () => {
       // Fallback to replication layer (offline-first, service-role synced)
       // Returns ALL dogs — useRoleBasedDogs handles UI-level role filtering
       const replicatedDogs = await replicatedDogsTable.getAllDogs();
-      return replicatedDogs.map(d => ({
-        id: d.id,
-        name: d.name,
-        call_name: d.callName ?? null,
-        breed: d.breed,
-        sex: d.sex ?? null,
-        date_of_birth: d.dateOfBirth ?? null,
-        owner_id: d.ownerId ?? null,
-        co_owner_id: null,
-        height: d.height ?? null,
-        weight: d.weight ?? null,
-        color: d.color ?? null,
-        microchip_number: d.microchipNumber ?? null,
-        spayed_neutered: d.isSpayedNeutered ?? null,
-        image_url: d.imageUrl ?? null,
-        deleted_at: null,
-        owner: null,
-        registrations: [],
-      }));
+      return replicatedDogs.map(mapReplicatedDogToDbRow) as typeof data;
     },
     enabled: !!personId,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache

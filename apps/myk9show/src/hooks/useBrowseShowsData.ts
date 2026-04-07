@@ -77,13 +77,9 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const { userWithRoles: user, loading: authLoading } = useAuthContext();
-  const storeShows = useShowStore(s => s.shows);
-  const storeIsLoading = useShowStore(s => s.isLoading);
+  const shows = useShowStore(s => s.shows);
+  const showsLoading = useShowStore(s => s.isLoading);
   const storeErrorMsg = useShowStore(s => s.error);
-
-  // Adapt store interface to match what the rest of the hook expects
-  const shows = storeShows;
-  const showsLoading = storeIsLoading;
   const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   const { entries, isLoading: entriesLoading, error: entriesError, loadEntries } = useEntryStore();
 

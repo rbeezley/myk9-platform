@@ -96,7 +96,9 @@ export default function ReportsPage() {
         {shows.length > 0 && (
           <Select value={selectedShowId} onValueChange={handleShowChange}>
             <SelectTrigger className="w-[240px]">
-              <SelectValue placeholder="Select show" />
+              <SelectValue placeholder="Select show">
+                {selectedShow?.name ?? 'Select show'}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {shows.map(s => (

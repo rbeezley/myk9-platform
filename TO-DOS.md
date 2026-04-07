@@ -234,6 +234,18 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 
 ---
 
+## Restore People Routes for Admin — 2026-04-06
+
+- **Re-add /people and /users/:id routes for secretary and admin** — Feature Inventory Cleanup removed `/people`, `/users` redirect, and `/users/:id` from publicRoutes.tsx. But secretaries and site admins need to browse and view people. The routes should be restored behind `ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}`, not public. Re-add sidebar entry under Manage (for secretaries) and Admin (for site admins).
+
+---
+
+## RLS Blocking Direct PostgREST Queries — 2026-04-06
+
+- **Fix RLS policies blocking shows/dogs/entries SELECT for authenticated users** — Direct Supabase PostgREST queries (`getShowById`, `getAllShows`, dog queries) return 0 rows or PGRST116 errors for authenticated users, while the replication layer (which syncs differently) still sees the data. **Symptoms:** Show list page shows 0 shows, show details page fails with "We couldn't load this show", dogs page shows "No dogs yet", reports page can't fetch show data directly. Calendar and report page work because they read from the Zustand store (populated by replication sync). **Root cause:** RLS SELECT policies on `shows`, `dogs`, `entries`, and possibly `people` tables are too restrictive — they may require role-based access that the current user doesn't satisfy via the PostgREST JWT. **Scope:** Audit SELECT policies on core tables (`shows`, `trials`, `classes`, `entries`, `dogs`, `people`), verify they allow authenticated users to read data they should have access to, and fix without opening access too broadly.
+
+---
+
 ## Port Run Order Options from myK9Q to myK9Show - 2026-04-05 21:11
 
 - **Port full run order preset system to myK9Show ClassDetailsPage** — myK9Q has a complete `RunOrderDialog` and `runOrderService` with multiple ordering modes. myK9Show's ClassResultsTable has a stub "Drag-and-drop run order" placeholder but no preset system at all. **Problem:** Secretaries using myK9Show can't set run order for a class. myK9Q supports: armband low→high, armband high→low, manual drag-and-drop, random shuffle (all), random shuffle (within A/B sections), section-aware presets (A then B, B then A — each with asc/desc), scoped reordering of a single section with preserve/renumber choices. **Files:** `apps/myk9q/src/services/runOrderService.ts` (source logic — `RunOrderPreset` type, `calculateRunOrder`, `applyRunOrderPresetScoped`), `apps/myk9q/src/components/dialogs/RunOrderDialog.tsx` (source UI — 608 lines), `apps/myk9q/src/pages/EntryList/hooks/useDragAndDropEntries.ts` (drag-and-drop hook), `apps/myk9q/src/pages/EntryList/SortableEntryCard.tsx` (dnd-kit card), `apps/myk9show/src/features/secretary/class-details/ClassResultsTable.tsx` (target — add "Set Run Order" button). **Solution:** (1) Extract `runOrderService` logic into a shared `@myk9/secretary` package or duplicate into myK9Show. (2) Build shadcn/Tailwind `RunOrderDialog` mirroring the preset groups from myK9Q. (3) Wire drag-and-drop mode using `@dnd-kit` (already used in myK9Q). (4) Connect to `exhibitor_order` column via React Query mutation + optimistic UI. Preserve section-aware presets and scoped renumber step.

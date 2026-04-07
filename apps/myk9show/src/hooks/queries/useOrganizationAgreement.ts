@@ -7,11 +7,15 @@ interface OrganizationAgreement {
   agreement_text: string;
 }
 
+// Bypass generated types for table added in migration 122 (not yet in codegen)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const untypedSupabase = supabase as any;
+
 export const useOrganizationAgreement = (organization: string) => {
   return useQuery({
     queryKey: queryKeys.organizationAgreement(organization),
     queryFn: async (): Promise<OrganizationAgreement> => {
-      const { data, error } = await supabase
+      const { data, error } = await untypedSupabase
         .from('organization_agreements')
         .select('organization, agreement_text')
         .eq('organization', organization)

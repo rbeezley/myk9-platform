@@ -93,7 +93,7 @@ export function StepDogs({ dogs, onChange, onNext, onBack, onSkip }: StepDogsPro
                     id={`dog-callName-${dog.id}`}
                     value={dog.callName}
                     onChange={e => updateDog(dog.id, 'callName', e.target.value)}
-                    placeholder="Buddy"
+                    placeholder="e.g. Buddy"
                     required
                   />
                 </div>
@@ -103,7 +103,7 @@ export function StepDogs({ dogs, onChange, onNext, onBack, onSkip }: StepDogsPro
                     id={`dog-breed-${dog.id}`}
                     value={dog.breed}
                     onChange={e => updateDog(dog.id, 'breed', e.target.value)}
-                    placeholder="Border Collie"
+                    placeholder="e.g. Border Collie"
                     required
                   />
                 </div>
@@ -115,7 +115,7 @@ export function StepDogs({ dogs, onChange, onNext, onBack, onSkip }: StepDogsPro
                   id={`dog-registeredName-${dog.id}`}
                   value={dog.registeredName}
                   onChange={e => updateDog(dog.id, 'registeredName', e.target.value)}
-                  placeholder="CH Border's Best Buddy"
+                  placeholder="e.g. CH Fancy's Best In Show"
                 />
               </div>
 
@@ -125,7 +125,7 @@ export function StepDogs({ dogs, onChange, onNext, onBack, onSkip }: StepDogsPro
                   id={`dog-regNum-${dog.id}`}
                   value={dog.registrationNumber}
                   onChange={e => updateDog(dog.id, 'registrationNumber', e.target.value)}
-                  placeholder="AKC DN12345678"
+                  placeholder="e.g. AKC DN12345678"
                 />
               </div>
             </div>

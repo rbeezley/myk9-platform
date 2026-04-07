@@ -48,8 +48,11 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     if (!user) return;
     if (isExemptPath(location.pathname)) return;
 
-    // Redirect when profile row is missing or onboarding not yet completed
-    if (needsOnboarding || !onboardingCompleted) {
+    // Only redirect users who have no profile row yet (brand new accounts).
+    // The !onboardingCompleted check is intentionally omitted until migration 125
+    // is deployed and all existing users have been given a chance to complete it —
+    // otherwise every user created before this feature shipped would be redirected.
+    if (needsOnboarding) {
       navigate('/onboarding', { replace: true });
     }
   }, [isLoading, user, needsOnboarding, onboardingCompleted, navigate, location.pathname]);

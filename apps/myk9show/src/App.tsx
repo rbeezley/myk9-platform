@@ -113,7 +113,7 @@ const HomeRedirect = () => {
     if (params.get('onboarding') === 'true') {
       return <Home />;
     }
-    return <Navigate to="/shows" replace />;
+    return <Navigate to="/exhibitor/dashboard" replace />;
   }
   return <Home />;
 };

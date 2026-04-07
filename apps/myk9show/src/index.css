@@ -10,6 +10,7 @@
 @import './styles/myk9-table.css';
 @import './styles/theme-preferences.css';
 @import './styles/form-field.css';
+@import './styles/legal.css';
 
 @tailwind base;
 @tailwind components;

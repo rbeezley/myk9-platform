@@ -5,6 +5,7 @@ import HowItWorks from '@/components/landing/HowItWorks';
 import Pricing from '@/components/landing/Pricing';
 import ClubOnboardingForm from '@/components/landing/ClubOnboardingForm';
 import FAQSection from '@/components/landing/FAQSection';
+import LandingFooter from '@/components/landing/LandingFooter';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import features from '@/data/features';
 import faqs from '@/data/faqs';
@@ -70,6 +71,8 @@ const Home: React.FC = () => {
       <FadeIn>
         <FAQSection faqs={memoizedFaqs} />
       </FadeIn>
+
+      <LandingFooter />
     </div>
   );
 };

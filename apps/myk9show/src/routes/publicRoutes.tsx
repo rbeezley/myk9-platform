@@ -23,7 +23,7 @@ const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
-const LegalPlaceholderPage = lazy(() => import('@/pages/LegalPlaceholderPage'));
+const LegalPage = lazy(() => import('@/pages/LegalPage'));
 
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
@@ -424,7 +424,7 @@ export const PublicRoutes = () => (
       element={
         <SuspenseWrapper>
           <PageTransition>
-            <LegalPlaceholderPage title="Terms of Service" />
+            <LegalPage title="Terms of Service" markdownPath="/legal/terms-of-service.md" />
           </PageTransition>
         </SuspenseWrapper>
       }
@@ -435,7 +435,7 @@ export const PublicRoutes = () => (
       element={
         <SuspenseWrapper>
           <PageTransition>
-            <LegalPlaceholderPage title="Privacy Policy" />
+            <LegalPage title="Privacy Policy" markdownPath="/legal/privacy-policy.md" />
           </PageTransition>
         </SuspenseWrapper>
       }

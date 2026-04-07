@@ -64,7 +64,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     genderFilter: '',
     registrationFilter: '',
     ageFilter: '',
-    quickFilter: 'registered',
+    quickFilter: '',
   });
 
   // Advanced filters visibility
@@ -296,7 +296,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     genderFilter: '',
     registrationFilter: '',
     ageFilter: '',
-    quickFilter: 'registered',
+    quickFilter: '',
   };
 
   const clearAllFilters = () => {
@@ -310,14 +310,14 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     filters.genderFilter !== '' ||
     filters.registrationFilter !== '' ||
     filters.ageFilter !== '' ||
-    (filters.quickFilter !== '' && filters.quickFilter !== 'registered');
+    filters.quickFilter !== '';
   const activeFilterCount = [
     filters.searchQuery,
     filters.breedFilter,
     filters.genderFilter,
     filters.registrationFilter,
     filters.ageFilter,
-    filters.quickFilter !== 'registered' ? filters.quickFilter : '',
+    filters.quickFilter,
   ].filter(v => v !== '').length;
 
   // Get suggestions for current query

@@ -97,3 +97,10 @@ export interface PaymentSummaryCardProps {
   waiveFees: boolean;
   feeOverride: number | null;
 }
+
+/** Props for the EntryAgreementSection sub-component. */
+export interface EntryAgreementSectionProps {
+  organization: string;
+  agreed: boolean;
+  onAgree: (agreed: boolean) => void;
+}

@@ -1311,9 +1311,9 @@ const baseProps: ReportProps = {
   trial: { date: '2026-04-12', trialNumber: '1', judgeName: 'Dr. Smith' },
   classData: { element: 'Buried', level: 'Novice', section: '' },
   entries: [
-    makeEntry({ id: '1', armband: 142, finalPlacement: 2, searchTimeSeconds: 55.3 }),
-    makeEntry({ id: '2', armband: 108, finalPlacement: 1, searchTimeSeconds: 45.2 }),
-    makeEntry({ id: '3', armband: 215, resultText: 'nq', finalPlacement: 9996, searchTimeSeconds: null, totalFaults: 2 }),
+    makeEntry({ id: '1', armband: 142, callName: 'Buddy', finalPlacement: 2, searchTimeSeconds: 55.3 }),
+    makeEntry({ id: '2', armband: 108, callName: 'Max', finalPlacement: 1, searchTimeSeconds: 45.2 }),
+    makeEntry({ id: '3', armband: 215, callName: 'Duke', resultText: 'nq', finalPlacement: 9996, searchTimeSeconds: null, totalFaults: 2 }),
   ],
   sortOrder: 'placement',
 };
@@ -1332,7 +1332,7 @@ describe('ResultsSheet', () => {
   it('sorts by placement by default', () => {
     const { container } = render(<ResultsSheet {...baseProps} />);
     const rows = container.querySelectorAll('tbody tr');
-    // Place 1 (armband 108) first, Place 2 (armband 142) second, NQ last
+    // Place 1 (Max, armband 108) first, Place 2 (Buddy, armband 142) second, NQ last
     expect(rows[0].textContent).toContain('Max');
     expect(rows[1].textContent).toContain('Buddy');
   });
@@ -2316,17 +2316,29 @@ function buildPages(
   return pages;
 }
 
-/** Map DbEntry[] to ReportEntry[] (join data would come from expanded queries in production) */
+/**
+ * [EXPANDED] Map DbEntry[] to ReportEntry[].
+ * getEntriesByClass joins: entry.dog (call_name, breed, owner(first_name, last_name))
+ * getEntriesByShow joins the same structure.
+ * Access nested Supabase join data safely with fallbacks.
+ */
 function mapEntries(dbEntries: DbEntry[]): ReportEntry[] {
-  return dbEntries.map(e =>
-    mapDbEntryToReportEntry(
+  return dbEntries.map(e => {
+    // Supabase PostgREST joins: entry.dog.call_name, entry.dog.breed, entry.dog.owner.first_name
+    const entry = e as Record<string, unknown>;
+    const dog = entry.dog as Record<string, unknown> | null;
+    const owner = dog?.owner as Record<string, unknown> | null;
+    const handlerName = owner
+      ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim()
+      : '';
+    return mapDbEntryToReportEntry(
       e,
-      (e as Record<string, unknown>).call_name as string ?? `Dog ${e.armband ?? '?'}`,
-      (e as Record<string, unknown>).breed_name as string ?? '',
-      (e as Record<string, unknown>).handler_name as string ?? '',
-      (e as Record<string, unknown>).registration_number as string ?? null,
-    ),
-  );
+      (dog?.call_name as string) ?? `Dog ${e.armband ?? '?'}`,
+      (dog?.breed as string) ?? '',
+      handlerName,
+      null, // registration_number not in current join — acceptable for Phase 1
+    );
+  });
 }
 
 export const ReportPreview: React.FC<ReportPreviewProps> = ({
@@ -2360,7 +2372,11 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
           trial: {
             date: trial.date ?? '',
             trialNumber: String(trial.trial_number ?? ''),
-            judgeName: '', // TODO: join from judge assignments in Phase 2
+            // [EXPANDED] Judge name: query judge_assignments table joined with people
+            // for the class. For Phase 1, falls back to 'TBD' if not available.
+            // Fast follow: add judge name fetching to useReportData hook via
+            // supabase.from('judge_assignments').select('*, people(*)').eq('class_id', classData.id)
+            judgeName: (classData as Record<string, unknown>).judge_name as string ?? 'TBD',
           },
           classData: {
             element: classData.element ?? '',
@@ -2388,6 +2404,12 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
       doc.open();
       doc.write(html);
       doc.close();
+      // [ADDED] Auto-resize iframe to fit content (batch reports may exceed one page)
+      setTimeout(() => {
+        if (iframe.contentDocument?.body) {
+          iframe.style.height = iframe.contentDocument.body.scrollHeight + 'px';
+        }
+      }, 100);
     }
   }, [reportType, show, trials, classes, entries, trialId, classId, sortOrder]);
 
@@ -2411,6 +2433,15 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
     return (
       <div className="flex-1 bg-muted flex items-center justify-center">
         <p className="text-muted-foreground">Select a show to generate reports</p>
+      </div>
+    );
+  }
+
+  // [ADDED] Empty entries state per spec
+  if (entries && entries.length === 0 && !isLoading) {
+    return (
+      <div className="flex-1 bg-muted flex items-center justify-center">
+        <p className="text-muted-foreground">No entries found for this selection</p>
       </div>
     );
   }

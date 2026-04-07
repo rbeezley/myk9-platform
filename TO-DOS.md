@@ -248,7 +248,7 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 
 ## Consolidate site_admin / platform_admin Into One Role — 2026-04-07
 
-- **Remove duplicate admin role** — Both `site_admin` and `platform_admin` exist in the roles table. Migration 047 papered over the split by making `is_platform_admin()` accept both names. 284 references across 52 migration files, 32 in myK9Show frontend. **Problem:** Two names for the same concept causes confusion. New code inconsistently picks one or the other. **Solution:** Pick one canonical name (probably `site_admin` since the frontend already uses it), write a migration to: (1) update all `user_roles` rows pointing at the non-canonical role, (2) drop the non-canonical role from the `roles` table, (3) simplify `is_platform_admin()` to check a single name (or rename to `is_site_admin()`), (4) update frontend references. Must audit all RLS policies, helper functions, and seed data.
+- [x] **Remove duplicate admin role** — Done (migration 124). `is_site_admin()` created as canonical RLS helper (checks only `site_admin`, includes `is_active` guard). `is_platform_admin()` updated to a deprecated wrapper calling `is_site_admin()`. `platform_admin` role cleaned from `roles` table. All 86 existing RLS policies unchanged (wrapper preserves backward compat). Deploy: migration 124 pushed to live DB.
 
 ---
 

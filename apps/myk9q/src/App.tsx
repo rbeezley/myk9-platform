@@ -122,12 +122,6 @@ const AuditLog = React.lazy(() =>
     default: module.default,
   }))
 );
-const TrialSecretary = React.lazy(() =>
-  import('./pages/TrialSecretary/TrialSecretary').then(module => ({
-    default: module.TrialSecretary,
-  }))
-);
-
 // Create a React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -508,16 +502,6 @@ function AppWithAuth() {
             <ProtectedRoute>
               <Suspense fallback={<PageLoader message="Loading Audit Log..." />}>
                 <AuditLog />
-              </Suspense>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/secretary"
-          element={
-            <ProtectedRoute>
-              <Suspense fallback={<PageLoader message="Loading Secretary Tools..." />}>
-                <TrialSecretary />
               </Suspense>
             </ProtectedRoute>
           }

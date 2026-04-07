@@ -13,7 +13,7 @@ export function formatReportDate(dateStr: string): string {
 
 // Format time for reports in mm:ss.hh format (e.g., "00:01.76" from 1.76 seconds)
 export function formatReportTime(time: string | number | null | undefined): string {
-  if (!time) return '';
+  if (time == null || time === '') return '';
 
   const timeInSeconds = typeof time === 'string' ? parseFloat(time) : time;
 
@@ -28,7 +28,7 @@ export function formatReportTime(time: string | number | null | undefined): stri
 
 // Format time limit for display (e.g., 120 → "2 min", 150 → "2:30")
 export function formatTimeLimit(seconds: number | null | undefined): string {
-  if (!seconds) return '';
+  if (seconds == null) return '';
 
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -52,8 +52,8 @@ export function sortByArmband(entries: ReportEntry[]): ReportEntry[] {
 // Sort entries by placement: qualified first (by placement #), then absent > excused > NQ
 export function sortByPlacement(entries: ReportEntry[]): ReportEntry[] {
   return [...entries].sort((a, b) => {
-    const aResultText = a.resultText?.toLowerCase() || '';
-    const bResultText = b.resultText?.toLowerCase() || '';
+    const aResultText = a.resultText?.trim().toLowerCase() || '';
+    const bResultText = b.resultText?.trim().toLowerCase() || '';
 
     const aIsQualified = (aResultText === 'q' || aResultText === 'qualified') && a.finalPlacement;
     const bIsQualified = (bResultText === 'q' || bResultText === 'qualified') && b.finalPlacement;

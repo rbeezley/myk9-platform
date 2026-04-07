@@ -42,7 +42,7 @@ export function useReportData({ showId, trialId, classId }: UseReportDataOptions
   });
 
   const classesQuery = useQuery({
-    queryKey: queryKeys.showClasses(showId),
+    queryKey: [...queryKeys.showClasses(showId), trialId],
     queryFn: async () => {
       if (trialId === 'all') {
         const trials = trialsQuery.data ?? [];

@@ -82,8 +82,8 @@ describe('formatReportTime', () => {
     expect(formatReportTime(undefined)).toBe('');
   });
 
-  it('returns empty string for 0', () => {
-    expect(formatReportTime(0)).toBe('');
+  it('formats 0 as 00:00.00', () => {
+    expect(formatReportTime(0)).toBe('00:00.00');
   });
 
   it('handles string input', () => {
@@ -116,8 +116,8 @@ describe('formatTimeLimit', () => {
     expect(formatTimeLimit(null)).toBe('');
   });
 
-  it('returns empty string for 0', () => {
-    expect(formatTimeLimit(0)).toBe('');
+  it('formats 0 as 0 min', () => {
+    expect(formatTimeLimit(0)).toBe('0 min');
   });
 
   it('formats single-digit seconds with zero padding', () => {

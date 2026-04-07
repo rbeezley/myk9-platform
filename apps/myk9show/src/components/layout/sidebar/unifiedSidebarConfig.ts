@@ -40,6 +40,7 @@ import {
   UserCheck,
   MessageSquare,
   ClipboardList,
+  FileBarChart,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -279,6 +280,12 @@ export function buildUnifiedSidebarConfig(
           href: '/secretary/messages',
           icon: MessageSquare,
           description: 'Chat with exhibitors and participants',
+        },
+        {
+          title: 'Reports',
+          href: '/secretary/reports',
+          icon: FileBarChart,
+          description: 'Generate and print reports',
         },
       ],
     });

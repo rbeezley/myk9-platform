@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { renderReportToHtml } from '@/lib/reports/reportRenderer';
 import { getReportById } from '@/lib/reports/reportRegistry';
@@ -17,6 +17,7 @@ export interface ReportPreviewProps {
   sortOrder: string;
   isLoading: boolean;
   isError: boolean;
+  iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
 
 function mapEntries(dbEntries: DbEntry[]): ReportEntry[] {
@@ -95,8 +96,10 @@ export function ReportPreview({
   sortOrder,
   isLoading,
   isError,
+  iframeRef: externalIframeRef,
 }: ReportPreviewProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const internalIframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = externalIframeRef ?? internalIframeRef;
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -150,7 +153,19 @@ export function ReportPreview({
         iframe.style.height = iframe.contentDocument.body.scrollHeight + 'px';
       }
     }, 100);
-  }, [reportType, show, trials, classes, entries, trialId, classId, sortOrder, isLoading, isError]);
+  }, [
+    reportType,
+    show,
+    trials,
+    classes,
+    entries,
+    trialId,
+    classId,
+    sortOrder,
+    isLoading,
+    isError,
+    iframeRef,
+  ]);
 
   if (isLoading) {
     return (

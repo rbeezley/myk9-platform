@@ -46,6 +46,7 @@ const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperations
 const SecretaryTasksPage = lazy(() => import('@/pages/secretary/SecretaryTasksPage'));
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
+const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const CheckInReportPage = lazy(() => import('@/pages/secretary/CheckInReportPage'));
 const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
 const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
@@ -222,6 +223,18 @@ export const SecretaryRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <ResultsControlPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/secretary/reports"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ReportsPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

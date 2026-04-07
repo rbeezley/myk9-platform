@@ -64,12 +64,31 @@ CREATE POLICY "dogs_select" ON dogs
   );
 ```
 
-- [ ] **Step 2: Verify migration parses correctly**
+- [ ] **Step 2: [ADDED] Add rollback comment to migration**
+
+Add a rollback comment at the bottom of the migration file:
+
+```sql
+-- Rollback:
+-- DROP POLICY IF EXISTS "shows_select" ON shows;
+-- CREATE POLICY "shows_select" ON shows FOR SELECT USING (
+--   deleted_at IS NULL AND (
+--     status IN ('published', 'upcoming', 'in_progress', 'completed')
+--     OR (SELECT is_platform_admin())
+--   )
+-- );
+-- DROP POLICY IF EXISTS "dogs_select" ON dogs;
+-- CREATE POLICY "dogs_select" ON dogs FOR SELECT USING (
+--   deleted_at IS NULL OR (SELECT is_platform_admin())
+-- );
+```
+
+- [ ] **Step 3: Verify migration parses correctly**
 
 Run: `cd "/Users/richardbeezley/AI Projects/myk9-platform" && cat supabase/migrations/120_fix_shows_dogs_select_rls.sql | head -40`
 Expected: The SQL file contents display without syntax errors.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add supabase/migrations/120_fix_shows_dogs_select_rls.sql
@@ -83,6 +102,8 @@ judges, and platform admins retain full access."
 ---
 
 ### Task 2: Migrate BrowseShowsPage to Store Reads
+
+**[ADDED] Note on other `useShowsQuery` consumers:** `useShowsQuery` is also called by `useShowStoreCompat`, `CloneFromShowCombobox`, `useAdminDashboardData`, `ShowDetailsPage` (line 92), and `ShowCreationWizardPage` (line 67). These will all work correctly once migration 120 is pushed (PostgREST will return published shows). We only migrate `useBrowseShowsData` to store reads here for offline-first consistency on the most visible page. The broader migration of all `useShowsQuery` consumers to store reads is tracked as a separate TODO ("Migrate Direct PostgREST Queries to Replication Store").
 
 **Files:**
 
@@ -197,10 +218,17 @@ const { data: shows = [], isLoading: showsLoading, error: showsError } = useShow
 With:
 
 ```typescript
-const shows = useShowStore(s => s.shows);
-const showsLoading = useShowStore(s => s.isLoading);
-const showsError = useShowStore(s => s.error) ? new Error(useShowStore.getState().error!) : null;
+const storeShows = useShowStore(s => s.shows);
+const storeIsLoading = useShowStore(s => s.isLoading);
+const storeErrorMsg = useShowStore(s => s.error);
+
+// Adapt store interface to match what the rest of the hook expects
+const shows = storeShows;
+const showsLoading = storeIsLoading;
+const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
 ```
+
+**[ADDED] Edge case — store empty on first load:** The store `isLoading` flag is `true` while replication syncs, so the page will show a loading skeleton (not "No shows") during initial sync. This matches existing calendar behavior.
 
 Note: `useShowStore` exposes `error` as `string | null`, but the hook's consumers expect `Error | null`. Build the Error object conditionally. To avoid calling `useShowStore` multiple times (hook rules), refactor to a single selector:
 
@@ -541,9 +569,29 @@ export const useDogsQuery = () => {
       if (!error && data && data.length > 0) return data;
 
       // Fallback to replication layer (offline-first, service-role synced)
-      // Returns ReplicatedDog[] (camelCase, no joins) — consumers handle mapping
+      // Adapt ReplicatedDog (camelCase) to snake_case shape expected by mapDatabaseDogsArray
       const replicatedDogs = await replicatedDogsTable.getAllDogs();
-      return replicatedDogs.filter(d => d.ownerId === personId);
+      return replicatedDogs
+        .filter(d => d.ownerId === personId)
+        .map(d => ({
+          id: d.id,
+          name: d.name,
+          call_name: d.callName ?? null,
+          breed: d.breed,
+          sex: d.sex ?? null,
+          date_of_birth: d.dateOfBirth ?? null,
+          owner_id: d.ownerId ?? null,
+          co_owner_id: null,
+          height: d.height ?? null,
+          weight: d.weight ?? null,
+          color: d.color ?? null,
+          microchip_number: d.microchipNumber ?? null,
+          spayed_neutered: d.isSpayedNeutered ?? null,
+          image_url: d.imageUrl ?? null,
+          deleted_at: null,
+          owner: null, // No join data from replication — components handle null owner
+          registrations: [], // No join data from replication
+        }));
     },
     enabled: !!personId,
     ...cacheStrategies.moderate,
@@ -551,7 +599,7 @@ export const useDogsQuery = () => {
 };
 ```
 
-Note: The fallback returns `ReplicatedDog[]` which has a different shape than the PostgREST response. `mapDatabaseDogsArray` in `useDogStoreCompat` handles the mapping — verify it can handle both shapes. If not, add a simple adapter in the fallback path.
+**[ADDED] Type adapter:** The fallback maps `ReplicatedDog` (camelCase) to the snake_case shape that `mapDatabaseDogsArray` expects. The `owner` join and `registrations` are set to `null`/`[]` — components that display owner info will show gracefully degraded data when running from the replication fallback. This is acceptable as a temporary state until PostgREST starts working (after migration push).
 
 - [ ] **Step 4: Run the test to verify it passes**
 

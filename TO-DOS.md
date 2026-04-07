@@ -300,7 +300,7 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 
 ## Review UX Fix Backlog for Shows Pages - 2026-04-07 13:50
 
-- **Validate and triage UX issues in shows pages** — Read `docs/UX_FIXES_shows.md` (15 issues across P1–P4), verify each issue against current code, then fix what is valid. **Problem:** A UX audit flagged 15 issues across `/shows`, `/shows/:id`, and `/shows/:id/register` — ranging from the dog list being clipped off-screen (P1) to aria-label gaps (P3). None are confirmed against actual current code; some may already be fixed or may be inaccurate. **Files:** `docs/UX_FIXES_shows.md` (full issue list), `apps/myk9show/src/components/shows/RegistrationWorkflow/DogSelectionStepEnhanced.tsx` (P1-01 scroll, P1-02 default tab, P3-04 empty states, P4-03 max caveat), `apps/myk9show/src/pages/ShowDetailsPage.tsx` (P2-01 register vs manage, P2-04 TBD labels, P4-01 duplicate H1), `apps/myk9show/src/pages/CalendarPage.tsx` or browse shows component (P2-02 terminology, P4-02 date presets), `apps/myk9show/src/components/shows/` (P2-03 currency formatting, P2-05 show name validation), `apps/myk9show/src/components/layout/sidebar/` (P3-01 aria-labels), `apps/myk9show/src/components/shows/tabs/` (P3-02 tab keyboard nav, P3-03 toggle duplication), registration wizard header (P3-05 draft count label). **Solution:** Investigate each issue in code before fixing. Mark items done in `docs/UX_FIXES_shows.md` as completed. Start with P1s, then P2s.
+- [x] **Validate and triage UX issues in shows pages** — Done. 4 fixes applied (P1-02, P2-01, P2-03, P3-04). 11 issues closed as false positives or already fixed.
 
 ---
 

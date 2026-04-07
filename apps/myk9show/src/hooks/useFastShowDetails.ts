@@ -9,6 +9,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useShowQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { useShowStore } from '@/store/showStore';
 import type { Show } from '@/types/show-types';
 import { logger } from '@/services/LoggingService';
 
@@ -30,6 +31,8 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   const [loadStartTime] = useState(() => performance.now());
   const [loadTime, setLoadTime] = useState(0);
   const hasRecordedLoadTime = useRef(false);
+
+  const storeShows = useShowStore(s => s.shows);
 
   const showId = explicitShowId || id || null;
 
@@ -57,6 +60,12 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     return { cachedShow: null, foundInCache: false };
   }, [showId, queryClient]);
 
+  // Try store data (replication layer) as second source
+  const storeShow = useMemo(() => {
+    if (foundInCache || !showId) return null;
+    return storeShows.find(s => s.id === showId) || null;
+  }, [showId, foundInCache, storeShows]);
+
   // Derive isFromCache directly from foundInCache (no state sync needed)
   const isFromCache = foundInCache;
 
@@ -69,8 +78,8 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   } = useShowQuery(showId || '');
 
   // Use cached data if available, otherwise use network data
-  const show = cachedShow || networkShow || null;
-  const isLoading = !cachedShow && isNetworkLoading;
+  const show = cachedShow || storeShow || networkShow || null;
+  const isLoading = !cachedShow && !storeShow && isNetworkLoading;
 
   // Record load time once when data first arrives
   useEffect(() => {
@@ -93,7 +102,7 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     }
   }, [show, loadStartTime, isFromCache]);
 
-  const isError = !cachedShow && isNetworkError;
+  const isError = !cachedShow && !storeShow && isNetworkError;
 
   return {
     showId,

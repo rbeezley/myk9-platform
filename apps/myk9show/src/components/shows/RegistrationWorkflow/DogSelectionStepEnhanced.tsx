@@ -197,6 +197,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeQuickFilter, setActiveQuickFilter] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -412,6 +413,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                 dogs={accessibleDogs}
                 onDogsFiltered={setFilteredDogs}
                 onSearchQueryChange={setSearchQuery}
+                onActiveFilterChange={setActiveQuickFilter}
                 showQuickFilters={true}
                 showAdvancedFilters={true}
               />
@@ -540,9 +542,16 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             </List>
           ) : (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">No dogs found matching your criteria.</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Try adjusting your search terms or filters.
+              <p className="text-muted-foreground">
+                {searchQuery.trim()
+                  ? 'No dogs match your search. Try a different name or breed.'
+                  : activeQuickFilter === 'registered'
+                    ? 'None of your dogs are entered in this show yet. Clear the filter to see all your dogs.'
+                    : activeQuickFilter === 'unregistered'
+                      ? 'All your dogs are already entered in this show.'
+                      : activeQuickFilter === 'recent'
+                        ? 'No recently active dogs found. Clear the filter to see all your dogs.'
+                        : "You don't have any dogs yet. Add a dog from your profile to get started."}
               </p>
             </div>
           )}

@@ -20,6 +20,7 @@ interface DogSearchInterfaceProps {
   dogs: Dog[];
   onDogsFiltered: (filteredDogs: Dog[]) => void;
   onSearchQueryChange?: (query: string) => void;
+  onActiveFilterChange?: (activeFilter: string) => void;
   placeholder?: string;
   showQuickFilters?: boolean;
   showAdvancedFilters?: boolean;
@@ -48,6 +49,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   dogs,
   onDogsFiltered,
   onSearchQueryChange,
+  onActiveFilterChange,
   placeholder = 'Search by call name, breed, owner, or reg #...',
   showQuickFilters = true,
   showAdvancedFilters = true,
@@ -238,6 +240,11 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   React.useEffect(() => {
     onDogsFiltered(filteredDogs);
   }, [filteredDogs, onDogsFiltered]);
+
+  // Notify parent component when active filter changes
+  useEffect(() => {
+    onActiveFilterChange?.(filters.quickFilter);
+  }, [filters.quickFilter, onActiveFilterChange]);
 
   // Track search start time using ref (no setState needed)
   useEffect(() => {

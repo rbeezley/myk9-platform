@@ -289,8 +289,15 @@ const ShowDetailsPage: React.FC = () => {
           metadata={[]}
           closedMessage={!entryStatus.canEnter ? entryStatus.description : undefined}
           {...(entryStatus.canEnter
-            ? { primaryAction: { label: 'Register', onClick: handleRegisterForShow } }
-            : {})}
+            ? {
+                primaryAction: {
+                  label: hasUserEntries ? 'Manage Entry' : 'Register',
+                  onClick: handleRegisterForShow,
+                },
+              }
+            : hasUserEntries
+              ? { primaryAction: { label: 'View Entry', onClick: handleRegisterForShow } }
+              : {})}
           secondaryActions={
             canManageShow && (
               <div className="flex items-center gap-1">

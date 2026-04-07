@@ -31,9 +31,8 @@ export const ResultsSheet: React.FC<ReportProps> = ({
       <div className="report-header">
         <span className="report-logo">myK9Show</span>
         <h1 className="report-title">{orgTitle} Preliminary Results</h1>
+        {showName && <p className="report-subtitle">{showName}</p>}
       </div>
-
-      {showName && <p className="report-subtitle">{showName}</p>}
 
       <TrialInfoBox trial={trial} classData={classData} />
 

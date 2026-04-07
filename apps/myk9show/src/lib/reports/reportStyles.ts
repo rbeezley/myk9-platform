@@ -197,11 +197,32 @@ body {
 /* ─── Scoresheet-specific ─────────────────────────────────────────────── */
 
 .scoresheet-header {
-  position: relative;
-  text-align: center;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
+  border: 1px solid #000;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.25rem;
   border-bottom: 1px solid #ccc;
+}
+.header-entries {
+  font-size: 11px;
+  font-weight: 600;
+}
+.header-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 0.5rem 1rem;
+  font-size: 10px;
+}
+.header-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .scoresheet-entries {

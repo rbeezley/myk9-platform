@@ -5,13 +5,11 @@ import type { ReportEntry } from './types';
  * Ported from myK9Q's reportUtils, adapted for the ReportEntry type.
  */
 
-// Format date for reports (e.g., "4/12/2026" from "2026-04-12")
 export function formatReportDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
   return `${month}/${day}/${year}`;
 }
 
-// Format time for reports in mm:ss.hh format (e.g., "00:01.76" from 1.76 seconds)
 export function formatReportTime(time: string | number | null | undefined): string {
   if (time == null || time === '') return '';
 
@@ -26,7 +24,6 @@ export function formatReportTime(time: string | number | null | undefined): stri
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
 }
 
-// Format time limit for display (e.g., 120 → "2 min", 150 → "2:30")
 export function formatTimeLimit(seconds: number | null | undefined): string {
   if (seconds == null) return '';
 
@@ -35,7 +32,6 @@ export function formatTimeLimit(seconds: number | null | undefined): string {
   return secs > 0 ? `${mins}:${String(secs).padStart(2, '0')}` : `${mins} min`;
 }
 
-// Sort entries by run order, falling back to armband
 export function sortByRunOrder(entries: ReportEntry[]): ReportEntry[] {
   return [...entries].sort((a, b) => {
     const aOrder = a.runOrder ?? a.armband;
@@ -44,12 +40,11 @@ export function sortByRunOrder(entries: ReportEntry[]): ReportEntry[] {
   });
 }
 
-// Sort entries by armband number ascending
 export function sortByArmband(entries: ReportEntry[]): ReportEntry[] {
   return [...entries].sort((a, b) => a.armband - b.armband);
 }
 
-// Sort entries by placement: qualified first (by placement #), then absent > excused > NQ
+// Qualified first (by placement #), then absent > excused > NQ, tiebreak by armband
 export function sortByPlacement(entries: ReportEntry[]): ReportEntry[] {
   return [...entries].sort((a, b) => {
     const aResultText = a.resultText?.trim().toLowerCase() || '';
@@ -84,18 +79,16 @@ export function sortByPlacement(entries: ReportEntry[]): ReportEntry[] {
   });
 }
 
-// Get placement display text (number for qualified, codes for special statuses)
 export function getPlacementText(entry: ReportEntry): string {
   const placement = entry.finalPlacement;
 
   if (!placement) return '';
 
-  // Qualified entries have low placement numbers
   if (placement < 9000) {
     return placement.toString();
   }
 
-  // Special codes for non-qualifying statuses
+  // 9995+ are special placement codes from the database scoring function
   if (placement === 9995) return 'EXC';
   if (placement === 9996) return 'NQ';
   if (placement === 9997) return 'ABS';
@@ -107,7 +100,6 @@ export function getPlacementText(entry: ReportEntry): string {
   return '';
 }
 
-// Get result status text (Qualified/NQ/Absent/etc.)
 export function getResultStatusText(entry: ReportEntry): string {
   const resultText = entry.resultText?.toLowerCase();
 
@@ -122,13 +114,11 @@ export function getResultStatusText(entry: ReportEntry): string {
   return entry.resultText || '';
 }
 
-// Check if entry is qualified
 export function isQualified(entry: ReportEntry): boolean {
   const resultText = entry.resultText?.toLowerCase();
   return resultText === 'q' || resultText === 'qualified';
 }
 
-// Count qualified entries
 export function countQualified(entries: ReportEntry[]): number {
   return entries.filter(isQualified).length;
 }
@@ -149,7 +139,6 @@ export function isValidSection(section?: string | null): boolean {
   return section != null && section !== '-' && section.trim() !== '';
 }
 
-// Get organization-specific title from element name
 export function getOrgTitle(element?: string): string {
   if (!element) return '';
 
@@ -174,7 +163,6 @@ export function getOrgTitle(element?: string): string {
   return 'Dog Sport';
 }
 
-// Map a database entry row to the ReportEntry shape
 export function mapDbEntryToReportEntry(
   dbEntry: {
     id: string;

@@ -56,7 +56,7 @@ export const TrialInfoBox: React.FC<TrialInfoBoxProps> = ({ trial, classData }) 
       {isValidSection(classData?.section) && (
         <div className="info-row">
           <span className="info-label">Section:</span>
-          <span className="info-value">{classData!.section}</span>
+          <span className="info-value">{classData?.section}</span>
         </div>
       )}
     </div>

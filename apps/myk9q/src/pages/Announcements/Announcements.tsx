@@ -1,20 +1,16 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { usePermission } from '../../hooks/usePermission';
 import { useAnnouncementStore } from '../../stores/announcementStore';
-import type { Announcement } from '../../stores/announcementStore';
+
 import { HamburgerMenu, CompactOfflineIndicator, PullToRefresh } from '../../components/ui';
 import { useLongPress } from '@myk9/scoring-ui';
 import { AnnouncementCard } from '../../components/announcements/AnnouncementCard';
-import { CreateAnnouncementModal } from '../../components/announcements/CreateAnnouncementModal';
-import { DeleteConfirmationModal } from '../../components/announcements/DeleteConfirmationModal';
 import { FilterPanel } from '../../components/ui/FilterPanel';
 import { logger } from '@/utils/logger';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
 import { cn } from '@/lib/utils';
 import {
-  Plus,
   Bell,
   RefreshCw,
   Filter,
@@ -27,123 +23,122 @@ import {
   ArrowUp,
   AlertCircle,
   Mail,
-  Search
+  Search,
 } from 'lucide-react';
 import '../../components/announcements/AnnouncementComponents.css';
 
 /** Tailwind styles for Announcements page */
 const styles = {
   container: cn(
-    "min-h-screen px-3 pb-8 sm:px-6",
-    "bg-[var(--secondary)] dark:bg-[var(--background)]"
+    'min-h-screen px-3 pb-8 sm:px-6',
+    'bg-[var(--secondary)] dark:bg-[var(--background)]'
   ),
-  header: "page-header justify-between relative",
-  headerLeft: "flex items-center gap-2 flex-shrink-0",
+  header: 'page-header justify-between relative',
+  headerLeft: 'flex items-center gap-2 flex-shrink-0',
   headerCenter: cn(
-    "absolute left-1/2 -translate-x-1/2",
-    "flex flex-col items-center justify-center gap-1"
+    'absolute left-1/2 -translate-x-1/2',
+    'flex flex-col items-center justify-center gap-1'
   ),
   headerTitle: cn(
-    "m-0 text-lg font-semibold tracking-tight leading-none",
-    "text-[var(--foreground)] inline-flex items-center gap-2"
+    'm-0 text-lg font-semibold tracking-tight leading-none',
+    'text-[var(--foreground)] inline-flex items-center gap-2'
   ),
-  headerIcon: "w-5 h-5 text-[var(--primary)]",
+  headerIcon: 'w-5 h-5 text-[var(--primary)]',
   unreadBadge: cn(
-    "bg-[var(--danger)] text-white rounded-full",
-    "px-2 py-1 text-xs font-semibold min-w-6 text-center leading-none"
+    'bg-[var(--danger)] text-white rounded-full',
+    'px-2 py-1 text-xs font-semibold min-w-6 text-center leading-none'
   ),
-  headerActions: "flex items-center gap-2",
+  headerActions: 'flex items-center gap-2',
   actionBtn: cn(
-    "flex items-center justify-center w-10 h-10",
-    "border-none rounded-lg",
-    "bg-[var(--muted)] text-[var(--token-text-secondary)]",
-    "cursor-pointer transition-all duration-200",
-    "hover:text-[var(--primary)]",
-    "disabled:opacity-50 disabled:cursor-not-allowed",
-    "[&_svg]:w-5 [&_svg]:h-5"
+    'flex items-center justify-center w-10 h-10',
+    'border-none rounded-lg',
+    'bg-[var(--muted)] text-[var(--token-text-secondary)]',
+    'cursor-pointer transition-all duration-200',
+    'hover:text-[var(--primary)]',
+    'disabled:opacity-50 disabled:cursor-not-allowed',
+    '[&_svg]:w-5 [&_svg]:h-5'
   ),
-  actionBtnActive: "bg-[var(--primary)] text-white [&_svg]:text-white",
-  actionBtnPrimary: "bg-[var(--primary)] text-white hover:brightness-90",
-  menuContainer: "relative",
+  actionBtnActive: 'bg-[var(--primary)] text-white [&_svg]:text-white',
+  actionBtnPrimary: 'bg-[var(--primary)] text-white hover:brightness-90',
+  menuContainer: 'relative',
   dropdown: cn(
-    "absolute top-[calc(100%+0.5rem)] right-0",
-    "bg-[var(--card)] border border-[var(--border)]",
-    "rounded-lg shadow-lg z-[1000] overflow-hidden min-w-[200px]"
+    'absolute top-[calc(100%+0.5rem)] right-0',
+    'bg-[var(--card)] border border-[var(--border)]',
+    'rounded-lg shadow-lg z-[1000] overflow-hidden min-w-[200px]'
   ),
   dropdownItem: cn(
-    "flex items-center gap-4 w-full px-4 py-3",
-    "bg-transparent border-none text-left cursor-pointer",
-    "text-[var(--foreground)] text-base font-medium",
-    "transition-colors duration-200",
-    "hover:bg-[var(--muted)] disabled:opacity-50 disabled:cursor-not-allowed",
-    "[&_svg]:shrink-0 [&_svg]:text-current"
+    'flex items-center gap-4 w-full px-4 py-3',
+    'bg-transparent border-none text-left cursor-pointer',
+    'text-[var(--foreground)] text-base font-medium',
+    'transition-colors duration-200',
+    'hover:bg-[var(--muted)] disabled:opacity-50 disabled:cursor-not-allowed',
+    '[&_svg]:shrink-0 [&_svg]:text-current'
   ),
-  dropdownItemActive: "bg-[var(--primary)] text-white",
-  dropdownDivider: "h-px my-1 bg-[var(--border)]",
-  content: "p-4 lg:px-6",
+  dropdownItemActive: 'bg-[var(--primary)] text-white',
+  dropdownDivider: 'h-px my-1 bg-[var(--border)]',
+  content: 'p-4 lg:px-6',
   errorBanner: cn(
-    "flex items-center gap-4 p-4",
-    "bg-[var(--danger-subtle)] text-[var(--danger)]",
-    "rounded-lg mb-4",
-    "[&_svg]:w-5 [&_svg]:h-5 [&_svg]:shrink-0"
+    'flex items-center gap-4 p-4',
+    'bg-[var(--danger-subtle)] text-[var(--danger)]',
+    'rounded-lg mb-4',
+    '[&_svg]:w-5 [&_svg]:h-5 [&_svg]:shrink-0'
   ),
   retryBtn: cn(
-    "ml-auto px-4 py-2",
-    "border border-[var(--danger)] rounded-md",
-    "bg-transparent text-[var(--danger)] text-sm",
-    "cursor-pointer transition-all duration-200",
-    "hover:bg-[var(--danger)] hover:text-white"
+    'ml-auto px-4 py-2',
+    'border border-[var(--danger)] rounded-md',
+    'bg-transparent text-[var(--danger)] text-sm',
+    'cursor-pointer transition-all duration-200',
+    'hover:bg-[var(--danger)] hover:text-white'
   ),
   loadingState: cn(
-    "flex flex-col items-center justify-center",
-    "py-12 px-4 gap-4 text-[var(--token-text-secondary)]",
-    "[&_svg]:w-8 [&_svg]:h-8"
+    'flex flex-col items-center justify-center',
+    'py-12 px-4 gap-4 text-[var(--token-text-secondary)]',
+    '[&_svg]:w-8 [&_svg]:h-8'
   ),
   emptyState: cn(
-    "flex flex-col items-center justify-center",
-    "py-12 px-4 gap-4 text-center text-[var(--token-text-secondary)]"
+    'flex flex-col items-center justify-center',
+    'py-12 px-4 gap-4 text-center text-[var(--token-text-secondary)]'
   ),
-  emptyIcon: "w-12 h-12 text-[var(--text-tertiary)]",
-  emptyTitle: "text-xl font-semibold m-0 text-[var(--foreground)]",
-  emptyText: "text-sm m-0 max-w-xs",
+  emptyIcon: 'w-12 h-12 text-[var(--text-tertiary)]',
+  emptyTitle: 'text-xl font-semibold m-0 text-[var(--foreground)]',
+  emptyText: 'text-sm m-0 max-w-xs',
   clearFiltersBtn: cn(
-    "flex items-center gap-2 px-6 py-3",
-    "border border-[var(--primary)] rounded-lg",
-    "bg-transparent text-[var(--primary)] text-sm font-medium",
-    "cursor-pointer transition-all duration-200 mt-2",
-    "hover:bg-[var(--primary)] hover:text-white"
+    'flex items-center gap-2 px-6 py-3',
+    'border border-[var(--primary)] rounded-lg',
+    'bg-transparent text-[var(--primary)] text-sm font-medium',
+    'cursor-pointer transition-all duration-200 mt-2',
+    'hover:bg-[var(--primary)] hover:text-white'
   ),
-  list: "flex flex-col gap-4",
+  list: 'flex flex-col gap-4',
   activeFiltersSummary: cn(
-    "fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2",
-    "flex items-center gap-4 px-4 py-3",
-    "bg-[var(--surface)] border border-[var(--border)]",
-    "rounded-2xl sm:rounded-full shadow-lg",
-    "text-sm text-[var(--token-text-secondary)]",
-    "backdrop-blur-sm z-50"
+    'fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2',
+    'flex items-center gap-4 px-4 py-3',
+    'bg-[var(--surface)] border border-[var(--border)]',
+    'rounded-2xl sm:rounded-full shadow-lg',
+    'text-sm text-[var(--token-text-secondary)]',
+    'backdrop-blur-sm z-50'
   ),
-  infoIcon: "w-4 h-4 text-[var(--primary)]",
+  infoIcon: 'w-4 h-4 text-[var(--primary)]',
   clearAllBtn: cn(
-    "px-3 py-1 border border-[var(--primary)] rounded-full",
-    "bg-transparent text-[var(--primary)] text-xs font-medium",
-    "cursor-pointer transition-all duration-200",
-    "hover:bg-[var(--primary)] hover:text-white"
+    'px-3 py-1 border border-[var(--primary)] rounded-full',
+    'bg-transparent text-[var(--primary)] text-xs font-medium',
+    'cursor-pointer transition-all duration-200',
+    'hover:bg-[var(--primary)] hover:text-white'
   ),
   createFirstBtn: cn(
-    "flex items-center gap-2 px-6 py-3",
-    "border-none rounded-lg",
-    "bg-[var(--primary)] text-white text-sm font-medium",
-    "cursor-pointer transition-all duration-200 mt-2",
-    "hover:brightness-90",
-    "[&_svg]:w-5 [&_svg]:h-5"
+    'flex items-center gap-2 px-6 py-3',
+    'border-none rounded-lg',
+    'bg-[var(--primary)] text-white text-sm font-medium',
+    'cursor-pointer transition-all duration-200 mt-2',
+    'hover:brightness-90',
+    '[&_svg]:w-5 [&_svg]:h-5'
   ),
-  spinning: "animate-spin",
+  spinning: 'animate-spin',
 };
 
 export const Announcements: React.FC = () => {
   const navigate = useNavigate();
   const { showContext, role } = useAuth();
-  const { hasRole } = usePermission();
   const {
     announcements,
     unreadCount,
@@ -159,11 +154,8 @@ export const Announcements: React.FC = () => {
     clearFilters,
     getFilteredAnnouncements,
     enableRealtime: _enableRealtime,
-    deleteAnnouncement
   } = useAnnouncementStore();
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<string>('newest');
@@ -176,8 +168,6 @@ export const Announcements: React.FC = () => {
     { value: 'unread', label: 'Unread', icon: <Mail size={16} /> },
   ];
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; announcement: Announcement | null }>({ isOpen: false, announcement: null });
-  const [isDeleting, setIsDeleting] = useState(false);
   const [showMenuDropdown, setShowMenuDropdown] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -194,9 +184,6 @@ export const Announcements: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenuDropdown]);
-
-  // Can create announcements if admin, judge, or steward
-  const canCreateAnnouncements = hasRole(['admin', 'judge', 'steward']);
 
   // Initialize with current show context
   useEffect(() => {
@@ -302,9 +289,7 @@ export const Announcements: React.FC = () => {
           <h1 className={styles.headerTitle}>
             <Bell className={styles.headerIcon} />
             Announcements
-            {unreadCount > 0 && (
-              <span className={styles.unreadBadge}>{unreadCount}</span>
-            )}
+            {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount}</span>}
           </h1>
         </div>
 
@@ -367,20 +352,6 @@ export const Announcements: React.FC = () => {
                   </button>
                 )}
 
-                {/* Create Announcement - Role-specific action */}
-                {canCreateAnnouncements && (
-                  <button
-                    onClick={() => {
-                      setShowCreateModal(true);
-                      setShowMenuDropdown(false);
-                    }}
-                    className={styles.dropdownItem}
-                  >
-                    <Plus size={18} />
-                    <span>Create Announcement</span>
-                  </button>
-                )}
-
                 {/* Notification Settings */}
                 <button
                   onClick={() => {
@@ -413,138 +384,83 @@ export const Announcements: React.FC = () => {
       />
 
       {/* Content with Pull to Refresh */}
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        enabled
-        threshold={80}
-      >
-      <div className={styles.content}>
-        {error && (
-          <div className={styles.errorBanner}>
-            <AlertTriangle />
-            <span>Failed to load announcements: {error}</span>
-            <button onClick={handleRefresh} className={styles.retryBtn}>
-              Retry
-            </button>
-          </div>
-        )}
+      <PullToRefresh onRefresh={handleRefresh} enabled threshold={80}>
+        <div className={styles.content}>
+          {error && (
+            <div className={styles.errorBanner}>
+              <AlertTriangle />
+              <span>Failed to load announcements: {error}</span>
+              <button onClick={handleRefresh} className={styles.retryBtn}>
+                Retry
+              </button>
+            </div>
+          )}
 
-        {isLoading && announcements.length === 0 ? (
-          <div className={styles.loadingState}>
-            <RefreshCw className={styles.spinning} />
-            <span>Loading announcements...</span>
-          </div>
-        ) : filteredAnnouncements.length === 0 ? (
-          <div className={styles.emptyState}>
-            {searchTerm || Object.keys(filters).length > 1 ? (
-              <>
-                <Search className={styles.emptyIcon} />
-                <h3 className={styles.emptyTitle}>No announcements found</h3>
-                <p className={styles.emptyText}>Try adjusting your search or filters</p>
-                <button onClick={() => {
-                  setSearchTerm('');
-                  clearFilters();
-                }} className={styles.clearFiltersBtn}>
-                  Clear all filters
-                </button>
-              </>
-            ) : (
-              <>
-                <Bell className={styles.emptyIcon} />
-                <h3 className={styles.emptyTitle}>No announcements yet</h3>
-                <p className={styles.emptyText}>Check back later for updates from event staff</p>
-                {canCreateAnnouncements && (
+          {isLoading && announcements.length === 0 ? (
+            <div className={styles.loadingState}>
+              <RefreshCw className={styles.spinning} />
+              <span>Loading announcements...</span>
+            </div>
+          ) : filteredAnnouncements.length === 0 ? (
+            <div className={styles.emptyState}>
+              {searchTerm || Object.keys(filters).length > 1 ? (
+                <>
+                  <Search className={styles.emptyIcon} />
+                  <h3 className={styles.emptyTitle}>No announcements found</h3>
+                  <p className={styles.emptyText}>Try adjusting your search or filters</p>
                   <button
-                    onClick={() => setShowCreateModal(true)}
-                    className={styles.createFirstBtn}
+                    onClick={() => {
+                      setSearchTerm('');
+                      clearFilters();
+                    }}
+                    className={styles.clearFiltersBtn}
                   >
-                    <Plus />
-                    Create first announcement
+                    Clear all filters
                   </button>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
-          <div className={styles.list}>
-            {filteredAnnouncements.map((announcement) => (
-              <AnnouncementCard
-                key={announcement.id}
-                announcement={announcement}
-                currentUserRole={role || undefined}
-                onEdit={() => {
-                  setEditingAnnouncement(announcement);
-                  setShowCreateModal(true);
-                }}
-                onDelete={() => {
-                  setDeleteConfirmation({ isOpen: true, announcement });
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+                </>
+              ) : (
+                <>
+                  <Bell className={styles.emptyIcon} />
+                  <h3 className={styles.emptyTitle}>No announcements yet</h3>
+                  <p className={styles.emptyText}>Check back later for updates from event staff</p>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className={styles.list}>
+              {filteredAnnouncements.map(announcement => (
+                <AnnouncementCard
+                  key={announcement.id}
+                  announcement={announcement}
+                  currentUserRole={role || undefined}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </PullToRefresh>
 
       {/* Active Filters Summary */}
-      {(searchTerm || Object.keys(filters).some(key => key !== 'searchTerm' && filters[key as keyof typeof filters])) && (
+      {(searchTerm ||
+        Object.keys(filters).some(
+          key => key !== 'searchTerm' && filters[key as keyof typeof filters]
+        )) && (
         <div className={styles.activeFiltersSummary}>
           <Info className={styles.infoIcon} />
           <span>
             Showing {filteredAnnouncements.length} of {announcements.length} announcements
           </span>
-          <button onClick={() => {
-            setSearchTerm('');
-            clearFilters();
-          }} className={styles.clearAllBtn}>
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              clearFilters();
+            }}
+            className={styles.clearAllBtn}
+          >
             Clear all
           </button>
         </div>
       )}
-
-      {/* Create/Edit Announcement Modal */}
-      {showCreateModal && (
-        <CreateAnnouncementModal
-          licenseKey={currentLicenseKey || ''}
-          userRole={role || undefined}
-          editingAnnouncement={editingAnnouncement || undefined}
-          onClose={() => {
-            setShowCreateModal(false);
-            setEditingAnnouncement(null);
-          }}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            setEditingAnnouncement(null);
-            handleRefresh();
-          }}
-        />
-      )}
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        isOpen={deleteConfirmation.isOpen}
-        announcement={deleteConfirmation.announcement}
-        isDeleting={isDeleting}
-        onConfirm={async () => {
-          if (!deleteConfirmation.announcement) return;
-
-          setIsDeleting(true);
-          try {
-            await deleteAnnouncement(deleteConfirmation.announcement.id);
-            setDeleteConfirmation({ isOpen: false, announcement: null });
-          } catch (error) {
-            logger.error('Failed to delete announcement:', error);
-            alert('Failed to delete announcement. Please try again.');
-          } finally {
-            setIsDeleting(false);
-          }
-        }}
-        onCancel={() => {
-          if (!isDeleting) {
-            setDeleteConfirmation({ isOpen: false, announcement: null });
-          }
-        }}
-      />
     </div>
   );
 };

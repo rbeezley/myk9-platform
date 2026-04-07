@@ -4,11 +4,12 @@ import { renderReportToHtml } from '@/lib/reports/reportRenderer';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
-import type { DbShow, DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
+import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
+import type { Show } from '@/types/show-types';
 
 export interface ReportPreviewProps {
   reportType: string;
-  show: DbShow | null | undefined;
+  show: Show | null | undefined;
   trials: DbTrial[] | null | undefined;
   classes: DbClass[] | null | undefined;
   entries: DbEntry[] | null | undefined;

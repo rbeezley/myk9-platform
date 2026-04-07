@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Select,
   SelectContent,
@@ -22,11 +22,18 @@ export default function ReportsPage() {
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
+
+  useEffect(() => {
+    if (!selectedShowId && shows.length > 0) {
+      selectShow(shows[0].id);
+    }
+  }, [selectedShowId, shows, selectShow]);
+
   const { show, trials, classes, entries, isLoading, isError } = useReportData({
-    showId: selectedShowId,
+    show: selectedShow,
     trialId,
     classId,
-    reportType,
   });
 
   const trialOptions = useMemo(
@@ -50,8 +57,6 @@ export default function ReportsPage() {
       })),
     [classes]
   );
-
-  const selectedShow = shows.find(s => s.id === selectedShowId);
 
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
@@ -88,7 +93,7 @@ export default function ReportsPage() {
             <p className="text-sm text-muted-foreground mt-1">{selectedShow.name}</p>
           )}
         </div>
-        {shows.length > 1 && (
+        {shows.length > 0 && (
           <Select value={selectedShowId} onValueChange={handleShowChange}>
             <SelectTrigger className="w-[240px]">
               <SelectValue placeholder="Select show" />

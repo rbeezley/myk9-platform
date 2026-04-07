@@ -92,20 +92,9 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 ## Report Generation & Printing System - 2026-04-01 20:21
 
-- **Build report generation system with scope/sort selection** — Secretary needs to generate and print multiple report types at varying scopes with configurable sort order. **Problem:** No reporting infrastructure exists in myK9Show. Dog shows require numerous printed reports for operations, judging, and organization compliance. **Solution:** Build a report picker UI: (1) select report type, (2) select scope (show / trial / class), (3) select sort order, then generate a print-ready view. Report types fall into three categories:
+- [x] **Build report generation system (Phase 1)** — Done (PR #46). Report engine with registry-driven architecture, iframe WYSIWYG preview, browser print/PDF. Dedicated `/secretary/reports` page with cascading scope selection (show > trial > class), dynamic sort options, batch mode ("All Trials"/"All Classes" with page breaks). 3 reports ported from myK9Q: Check-in Sheet, Score Sheet, Results Sheet. 6 Phase 2 stubs registered as "(Coming Soon)". 140 tests.
 
-  **Operational Reports:**
-  - Check-in sheets (per show, trial, or class)
-  - Score sheets (per show, trial, or class)
-  - Preliminary results sheets
-  - Show catalog (full participant/entry listing)
-  - Result catalog (final results compilation)
-  - Judge's schedule
-
-  **Organization-Specific Reports** (vary by show type / sanctioning body):
-  - Trial secretary report
-  - Judge's certification report
-  - Trial chairman report
+- **Build remaining reports from Access application (Phase 2)** — 6 report types still needed: show catalog, result catalog, judge's schedule, trial secretary report, judge's certification report, trial chairman report. Stubs already in registry. Screenshots of Access reports needed to define layouts.
 
 ---
 

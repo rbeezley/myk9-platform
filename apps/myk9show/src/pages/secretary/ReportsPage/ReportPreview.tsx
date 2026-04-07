@@ -5,7 +5,12 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
+import type { ReportDefinition } from '@/lib/reports/types';
 import type { Show } from '@/types/show-types';
+
+function isShowScoped(report: ReportDefinition): boolean {
+  return report.scopes.length === 1 && report.scopes[0] === 'show';
+}
 
 export interface ReportPreviewProps {
   reportType: string;
@@ -118,38 +123,62 @@ export function ReportPreview({
     const report = getReportById(reportType);
     if (!report) return;
 
-    const pages = buildPages(trialId, classId, trials, classes, entries);
-    if (pages.length === 0) return;
+    const showScoped = isShowScoped(report);
 
-    const ReportComponent = report.component;
+    let combinedMarkup: string;
 
-    const combinedMarkup = pages
-      .map(({ trial, classData, entries: pageEntries }) => {
-        const props: ReportProps = {
-          showName: show.name ?? '',
-          trial: {
-            date: trial.date ?? '',
-            trialNumber: String(trial.trial_number ?? ''),
-            judgeName: ((classData as Record<string, unknown>).judge_name as string) ?? 'TBD',
-          },
-          classData: {
-            element: classData.element ?? '',
-            level: classData.level ?? '',
-            section: classData.section ?? '',
-            timeLimitSeconds: classData.time_limit_seconds,
-            areaCount: classData.num_areas,
-            hidesText: classData.num_hides ? String(classData.num_hides) : null,
-            distractionsText: classData.distraction_count
-              ? String(classData.distraction_count)
-              : null,
-          },
-          entries: mapEntries(pageEntries),
-          sortOrder,
-          organization: show.organization ?? undefined,
-        };
-        return ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
-      })
-      .join('');
+    if (showScoped) {
+      // Show-scoped reports (e.g. Show Flyer) don't need trial/class pages
+      const showDates =
+        show.startDate && show.endDate && show.startDate !== show.endDate
+          ? `${show.startDate} – ${show.endDate}`
+          : (show.startDate ?? undefined);
+      const props: ReportProps = {
+        showId: show.id,
+        showName: show.name ?? '',
+        clubName: show.clubName ?? undefined,
+        showDates,
+        entries: [],
+        sortOrder,
+        organization: show.organization ?? undefined,
+      };
+      const ReportComponent = report.component;
+      combinedMarkup = ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
+    } else {
+      const pages = buildPages(trialId, classId, trials, classes, entries);
+      if (pages.length === 0) return;
+
+      const ReportComponent = report.component;
+
+      combinedMarkup = pages
+        .map(({ trial, classData, entries: pageEntries }) => {
+          const props: ReportProps = {
+            showId: show.id,
+            showName: show.name ?? '',
+            trial: {
+              date: trial.date ?? '',
+              trialNumber: String(trial.trial_number ?? ''),
+              judgeName: ((classData as Record<string, unknown>).judge_name as string) ?? 'TBD',
+            },
+            classData: {
+              element: classData.element ?? '',
+              level: classData.level ?? '',
+              section: classData.section ?? '',
+              timeLimitSeconds: classData.time_limit_seconds,
+              areaCount: classData.num_areas,
+              hidesText: classData.num_hides ? String(classData.num_hides) : null,
+              distractionsText: classData.distraction_count
+                ? String(classData.distraction_count)
+                : null,
+            },
+            entries: mapEntries(pageEntries),
+            sortOrder,
+            organization: show.organization ?? undefined,
+          };
+          return ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
+        })
+        .join('');
+    }
 
     const html = renderReportToHtml(combinedMarkup);
 
@@ -202,8 +231,11 @@ export function ReportPreview({
     );
   }
 
-  const pages = buildPages(trialId, classId, trials, classes, entries);
-  const hasEntries = pages.some(p => p.entries.length > 0);
+  const report = getReportById(reportType);
+  const showScoped = report ? isShowScoped(report) : false;
+
+  const pages = showScoped ? [] : buildPages(trialId, classId, trials, classes, entries);
+  const hasEntries = showScoped || pages.some(p => p.entries.length > 0);
 
   if (!isLoading && !hasEntries) {
     return (

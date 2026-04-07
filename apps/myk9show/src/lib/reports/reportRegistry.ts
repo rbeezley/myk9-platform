@@ -2,6 +2,7 @@ import type { ReportDefinition, ReportProps } from '@/lib/reports/types';
 import { CheckInSheet } from '@/components/reports/CheckInSheet';
 import { ScoresheetReport } from '@/components/reports/ScoresheetReport';
 import { ResultsSheet } from '@/components/reports/ResultsSheet';
+import { ShowFlyerReport } from '@/components/reports/ShowFlyerReport';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -46,6 +47,17 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: PLACEMENT_SORT_OPTIONS,
     defaultSort: 'placement',
     component: ResultsSheet,
+    enabled: true,
+  },
+
+  {
+    id: 'show-flyer',
+    name: 'Show Flyer',
+    category: 'operational',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: ShowFlyerReport,
     enabled: true,
   },
 

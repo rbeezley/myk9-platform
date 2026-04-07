@@ -256,6 +256,196 @@ body {
   font-family: 'Courier New', monospace;
 }
 
+/* ─── Show Flyer ──────────────────────────────────────────────────────── */
+
+.flyer-page {
+  font-family: Arial, sans-serif;
+  color: #000;
+  background: #fff;
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 0.75in 0.75in 0.5in;
+  box-sizing: border-box;
+  min-height: 11in;
+  display: flex;
+  flex-direction: column;
+}
+
+.flyer-page + .flyer-page {
+  page-break-before: always;
+}
+
+.flyer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.flyer-brand-name {
+  font-size: 22px;
+  font-weight: bold;
+  color: #14b8a6;
+  letter-spacing: -0.5px;
+}
+
+.flyer-brand-tagline {
+  font-size: 12px;
+  color: #666;
+  margin-left: 2px;
+}
+
+.flyer-show-title {
+  font-size: 28px;
+  font-weight: bold;
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+
+.flyer-show-meta {
+  font-size: 15px;
+  color: #444;
+  margin: 0 0 40px 0;
+}
+
+.flyer-qr-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+.flyer-qr-block {
+  flex-shrink: 0;
+}
+
+.flyer-qr-label {
+  font-size: 11px;
+  color: #888;
+  text-align: center;
+  margin-top: 6px;
+}
+
+.flyer-passcode-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.flyer-passcode-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.flyer-passcode-value {
+  font-family: 'Courier New', monospace;
+  font-size: 42px;
+  font-weight: bold;
+  letter-spacing: 8px;
+  color: #14b8a6;
+  margin-bottom: 10px;
+}
+
+.flyer-passcode-hint {
+  font-size: 13px;
+  color: #555;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.flyer-passcode-url {
+  font-size: 13px;
+  color: #888;
+  margin-top: 6px;
+}
+
+.flyer-divider {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 24px 0;
+}
+
+.flyer-footer-note {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+/* Guide page (page 2) */
+
+.flyer-guide-heading {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0 0 6px 0;
+}
+
+.flyer-guide-subheading {
+  font-size: 14px;
+  color: #555;
+  margin: 0 0 32px 0;
+}
+
+.flyer-guide-section {
+  margin-bottom: 28px;
+}
+
+.flyer-guide-section-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #14b8a6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 10px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e0f2f0;
+}
+
+.flyer-guide-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #333;
+}
+
+.flyer-guide-steps {
+  counter-reset: step;
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.flyer-guide-steps li {
+  counter-increment: step;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.flyer-guide-steps li::before {
+  content: counter(step);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  background: #14b8a6;
+  color: #fff;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  margin-top: 1px;
+}
+
 /* ─── Print overrides ─────────────────────────────────────────────────── */
 
 @media print {
@@ -289,6 +479,35 @@ body {
 
   .report-table tbody tr:nth-child(even) {
     background-color: #fafafa;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .flyer-page {
+    padding: 0.75in;
+    max-width: none;
+  }
+
+  .flyer-passcode-value {
+    color: #14b8a6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .flyer-brand-name {
+    color: #14b8a6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .flyer-guide-section-title {
+    color: #14b8a6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .flyer-guide-steps li::before {
+    background: #14b8a6;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

@@ -3,27 +3,34 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Grid3X3, List, Table2, Plus, X } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { FilterBar } from '@/components/common/FilterBar';
 import type { FilterDefinition, FilterBarState } from '@/components/common/FilterBar';
 import { ErrorState } from '@/components/common/ErrorState';
+import { ViewToggle } from '@/components/common/ViewToggle';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import '@/styles/myk9-show-details.css';
-import { PeopleGridView, PeopleListView, PeopleTableView } from '@/components/users/browse';
+import { PeopleGridView, PeopleTableView } from '@/components/users/browse';
 import { BrowsePeopleSkeleton } from '@/components/common/SkeletonLoaders';
 import { UserEditPanel } from '@/components/panels/edit';
 import { useUserStore, PersonInput } from '@/store/userStore';
 import type { User } from '@/types/user-types';
 
-type ViewMode = 'grid' | 'list' | 'table';
+type ViewMode = 'grid' | 'table';
+
+const VIEW_MODES = [
+  { key: 'grid', label: 'Grid', icon: 'grid' as const },
+  { key: 'table', label: 'Table', icon: 'table' as const },
+] as const;
 
 const BrowsePeoplePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const initialViewMode = (searchParams.get('view') as ViewMode) || 'grid';
+  const rawView = searchParams.get('view');
+  const initialViewMode: ViewMode = rawView === 'grid' || rawView === 'table' ? rawView : 'grid';
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(false);
 
@@ -46,7 +53,8 @@ const BrowsePeoplePage: React.FC = () => {
 
   // Update URL when view mode changes
   const handleViewModeChange = useCallback(
-    (newViewMode: ViewMode) => {
+    (newViewMode: string) => {
+      if (newViewMode !== 'grid' && newViewMode !== 'table') return;
       if (newViewMode === viewMode) return;
       setViewMode(newViewMode);
       const params = new URLSearchParams(searchParams);
@@ -159,8 +167,6 @@ const BrowsePeoplePage: React.FC = () => {
     }
 
     switch (viewMode) {
-      case 'list':
-        return <PeopleListView people={filteredPeople} />;
       case 'table':
         return <PeopleTableView people={filteredPeople} />;
       case 'grid':
@@ -223,24 +229,11 @@ const BrowsePeoplePage: React.FC = () => {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
-                  <div className="flex bg-muted/50 rounded-lg p-1">
-                    {(['grid', 'list', 'table'] as const).map(mode => {
-                      const Icon = { grid: Grid3X3, list: List, table: Table2 }[mode];
-                      const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-                      return (
-                        <Button
-                          key={mode}
-                          variant={viewMode === mode ? 'default' : 'ghost'}
-                          size="default"
-                          onClick={() => handleViewModeChange(mode)}
-                          className="h-10 px-3 transition-all duration-200"
-                        >
-                          <Icon className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">{label}</span>
-                        </Button>
-                      );
-                    })}
-                  </div>
+                  <ViewToggle
+                    modes={VIEW_MODES}
+                    active={viewMode}
+                    onChange={handleViewModeChange}
+                  />
                 </div>
 
                 <span className="text-sm text-muted-foreground">

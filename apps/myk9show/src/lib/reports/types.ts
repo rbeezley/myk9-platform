@@ -24,6 +24,7 @@ export interface ReportSortOption {
 }
 
 export interface ReportProps {
+  showId?: string;
   showName: string;
   trial?: {
     date: string;
@@ -45,6 +46,8 @@ export interface ReportProps {
   sortOrder: string;
   organization?: string;
   activityType?: string;
+  clubName?: string;
+  showDates?: string;
 }
 
 export interface ReportDefinition {

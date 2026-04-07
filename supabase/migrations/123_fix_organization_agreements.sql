@@ -4,6 +4,7 @@
 ALTER TABLE organization_agreements
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
+DROP TRIGGER IF EXISTS set_organization_agreements_updated_at ON organization_agreements;
 CREATE TRIGGER set_organization_agreements_updated_at
   BEFORE UPDATE ON organization_agreements
   FOR EACH ROW

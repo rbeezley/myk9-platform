@@ -1,12 +1,10 @@
 import React from 'react';
 import { ChevronDown, AlertCircle } from 'lucide-react';
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from '@/components/ui/collapsible/collapsible';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
 import type { EntryAgreementSectionProps } from './types';
 
@@ -47,7 +45,7 @@ export const EntryAgreementSection: React.FC<EntryAgreementSectionProps> = ({
       <Collapsible>
         <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border bg-muted/50 px-4 py-3 text-sm font-medium hover:bg-muted transition-colors">
           <span>{organization} Entry Agreement</span>
-          <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+          <ChevronDown className="h-4 w-4" />
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="mt-2 max-h-[300px] overflow-y-auto rounded-md border bg-background p-4 text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
@@ -56,18 +54,17 @@ export const EntryAgreementSection: React.FC<EntryAgreementSectionProps> = ({
         </CollapsibleContent>
       </Collapsible>
 
-      <label className="flex items-start gap-2 cursor-pointer">
-        <input
-          type="checkbox"
+      <div className="flex items-start gap-2">
+        <Checkbox
+          id="entry-agreement"
           checked={agreed}
-          onChange={e => onAgree(e.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-ring"
-          aria-label={`I have read and agree to the ${organization} entry agreement above.`}
+          onCheckedChange={onAgree}
+          className="mt-1"
         />
-        <span className="text-sm text-muted-foreground">
+        <Label htmlFor="entry-agreement" className="text-sm text-muted-foreground cursor-pointer">
           I have read and agree to the {organization} entry agreement above.
-        </span>
-      </label>
+        </Label>
+      </div>
     </div>
   );
 };

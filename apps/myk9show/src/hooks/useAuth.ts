@@ -47,6 +47,7 @@ async function createOAuthPeopleRecord(userId: string, sessionUser: User) {
         last_name: lastName,
         email: freshUser?.email ?? sessionUser.email ?? null,
         auth_user_id: userId,
+        agreed_to_tos_at: new Date().toISOString(),
       },
     ])
     .select('id')
@@ -155,6 +156,7 @@ export function useAuth() {
                 last_name: metadata?.lastName || 'Name',
                 email: email,
                 auth_user_id: data.user.id,
+                agreed_to_tos_at: new Date().toISOString(),
               },
             ])
             .select('id')

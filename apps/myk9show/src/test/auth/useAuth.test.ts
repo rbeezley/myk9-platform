@@ -129,6 +129,44 @@ describe('useAuth', () => {
         });
       }).rejects.toThrow('Network error');
     });
+
+    it('should include agreed_to_tos_at in people insert payload', async () => {
+      const insertChain = {
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { id: 'new-person-id' }, error: null }),
+          }),
+        }),
+      };
+      const profileInsertChain = {
+        insert: vi.fn().mockResolvedValue({ data: {}, error: null }),
+      };
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'people') return insertChain;
+        if (table === 'exhibitor_profiles') return profileInsertChain;
+        return createChainableQuery();
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signUp('test@example.com', 'password123', {
+          firstName: 'Test',
+          lastName: 'User',
+        });
+      });
+
+      expect(insertChain.insert).toHaveBeenCalledWith([
+        expect.objectContaining({
+          first_name: 'Test',
+          last_name: 'User',
+          email: 'test@example.com',
+          auth_user_id: 'test-user-id',
+          agreed_to_tos_at: expect.any(String),
+        }),
+      ]);
+    });
   });
 
   describe('signIn', () => {
@@ -388,6 +426,7 @@ describe('useAuth', () => {
           last_name: 'Doe',
           email: 'test@example.com',
           auth_user_id: 'test-user-id',
+          agreed_to_tos_at: expect.any(String),
         }),
       ]);
       expect(profileInsertChain.insert).toHaveBeenCalledWith({

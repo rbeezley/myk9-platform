@@ -13,6 +13,9 @@ import Home from './pages/Home';
 import { logger } from '@/services/LoggingService';
 
 // Lazy load non-critical pages to improve initial bundle size
+const ExhibitorOnboardingPage = React.lazy(
+  () => import('./pages/onboarding/ExhibitorOnboardingPage')
+);
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const SignInPage = React.lazy(() => import('./pages/SignInPage'));
 const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
@@ -317,6 +320,16 @@ function App() {
                               element={
                                 <Suspense fallback={<PageLoadingFallback />}>
                                   <ResetPasswordPage />
+                                </Suspense>
+                              }
+                            />
+
+                            {/* Onboarding wizard — full-page, no sidebar */}
+                            <Route
+                              path="/onboarding"
+                              element={
+                                <Suspense fallback={<PageLoadingFallback />}>
+                                  <ExhibitorOnboardingPage />
                                 </Suspense>
                               }
                             />

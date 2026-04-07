@@ -35,3 +35,19 @@ export { resolveVisibilityCascade, getVisibleResultFields } from './visibility/v
 
 // Check-in cascade
 export { resolveCheckinCascade } from './checkin/checkin-cascade';
+
+// Results submission — types, registry, and built-in formatters
+export type {
+  SubmissionEntry,
+  SubmissionShow,
+  SubmissionTrial,
+  SubmissionData,
+  ResultFormatter,
+} from './results';
+export {
+  registerFormatter,
+  getFormatter,
+  listFormatters,
+  clearFormatters,
+  AKCScentWorkFormatter,
+} from './results';

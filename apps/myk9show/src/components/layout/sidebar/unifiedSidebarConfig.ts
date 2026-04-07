@@ -41,6 +41,7 @@ import {
   MessageSquare,
   ClipboardList,
   FileBarChart,
+  Send,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -286,6 +287,12 @@ export function buildUnifiedSidebarConfig(
           href: '/secretary/reports',
           icon: FileBarChart,
           description: 'Generate and print reports',
+        },
+        {
+          title: 'Submit Results',
+          href: '/secretary/results-submission',
+          icon: Send,
+          description: 'Send results to AKC, UKC, and others',
         },
       ],
     });

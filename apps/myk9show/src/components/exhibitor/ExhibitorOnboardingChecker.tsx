@@ -1,46 +1,58 @@
 /**
- * Component that checks if the current user needs to complete onboarding
- * Wraps children and shows modal if profile is missing
+ * Component that checks if the current user needs to complete onboarding.
+ * Wraps children and redirects to /onboarding when:
+ *   - user is authenticated
+ *   - no exhibitor_profiles row exists (needsOnboarding)
+ *   - onboarding has not been completed (onboarding_completed_at is null)
+ *
+ * ExhibitorOnboardingModal is kept as dead code for edge-case reference
+ * but is no longer rendered here.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
-import { ExhibitorOnboardingModal } from './ExhibitorOnboardingModal';
 
 interface ExhibitorOnboardingCheckerProps {
   children: React.ReactNode;
 }
 
+// Routes that should never trigger an onboarding redirect (auth pages, the
+// onboarding route itself, legal pages, and TV display).
+const EXEMPT_PATHS = [
+  '/onboarding',
+  '/sign-in',
+  '/sign-up',
+  '/forgot-password',
+  '/reset-password',
+  '/auth/callback',
+  '/terms',
+  '/privacy',
+];
+
+function isExemptPath(pathname: string): boolean {
+  return EXEMPT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+}
+
 export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingCheckerProps) {
   const { user, loading: authLoading } = useAuthContext();
-  const { needsOnboarding, isLoading: profileLoading, refetch } = useExhibitorProfile();
-  const [skipped, setSkipped] = useState(false);
+  const { needsOnboarding, onboardingCompleted, isLoading: profileLoading } = useExhibitorProfile();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Don't show modal while auth or profile is loading
   const isLoading = authLoading || profileLoading;
 
-  // Only show modal if user is logged in, needs onboarding, and hasn't skipped
-  const showModal = !isLoading && user && needsOnboarding && !skipped;
+  useEffect(() => {
+    if (isLoading) return;
+    if (!user) return;
+    if (isExemptPath(location.pathname)) return;
 
-  const handleComplete = () => {
-    // Refetch profile to update state
-    refetch();
-  };
+    // Redirect when profile row is missing or onboarding not yet completed
+    if (needsOnboarding || !onboardingCompleted) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [isLoading, user, needsOnboarding, onboardingCompleted, navigate, location.pathname]);
 
-  const handleSkip = () => {
-    // Allow user to skip for this session (modal will show again on next visit)
-    setSkipped(true);
-  };
-
-  return (
-    <>
-      {children}
-      <ExhibitorOnboardingModal
-        open={showModal || false}
-        onComplete={handleComplete}
-        onSkip={handleSkip}
-      />
-    </>
-  );
+  return <>{children}</>;
 }

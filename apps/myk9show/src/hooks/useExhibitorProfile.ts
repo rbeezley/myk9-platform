@@ -16,6 +16,7 @@ export interface ExhibitorProfile {
   subscription_tier: 'free' | 'premium';
   subscription_expires_at: string | null;
   stripe_customer_id: string | null;
+  onboarding_completed_at: string | null;
   created_at: string;
   updated_at: string;
   person?: {
@@ -54,6 +55,7 @@ function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile 
         : (data.subscription_tier as string)) as 'free' | 'premium') || 'free',
     subscription_expires_at: data.subscription_expires_at as string | null,
     stripe_customer_id: data.stripe_customer_id as string | null,
+    onboarding_completed_at: (data.onboarding_completed_at as string | null) ?? null,
     created_at: (data.created_at as string) || new Date().toISOString(),
     updated_at: (data.updated_at as string) || new Date().toISOString(),
     ...(personData !== undefined && { person: personData }),
@@ -199,6 +201,24 @@ export function useExhibitorProfile() {
     },
   });
 
+  // Mark onboarding as complete
+  const completeOnboardingMutation = useMutation({
+    mutationFn: async (): Promise<void> => {
+      if (!user?.id) throw new Error('User not authenticated');
+      if (!profile?.id) throw new Error('No exhibitor profile found');
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.from('exhibitor_profiles') as any)
+        .update({ onboarding_completed_at: new Date().toISOString() })
+        .eq('id', profile.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exhibitorProfile', user?.id] });
+    },
+  });
+
   return {
     profile,
     isLoading,
@@ -207,10 +227,13 @@ export function useExhibitorProfile() {
     // Derived state
     needsOnboarding: !isLoading && user && !profile,
     hasProfile: !!profile,
+    onboardingCompleted: !!profile?.onboarding_completed_at,
     // Mutations
     createProfile: createProfileMutation.mutate,
     createProfileAsync: createProfileMutation.mutateAsync,
     isCreatingProfile: createProfileMutation.isPending,
     createProfileError: createProfileMutation.error,
+    completeOnboarding: completeOnboardingMutation.mutateAsync,
+    isCompletingOnboarding: completeOnboardingMutation.isPending,
   };
 }

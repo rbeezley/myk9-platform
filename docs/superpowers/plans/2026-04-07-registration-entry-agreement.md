@@ -113,10 +113,22 @@ In `apps/myk9show/src/lib/queryClient.ts`, add after the `reportData` entry (lin
 Create `apps/myk9show/src/hooks/queries/__tests__/useOrganizationAgreement.test.ts`:
 
 ```typescript
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useOrganizationAgreement } from '../useOrganizationAgreement';
-import { createTestQueryClientWrapper } from '@/test/utils/testUtils';
+
+// [EXPANDED] testUtils exports createTestQueryClient but not a wrapper component.
+// Build an inline wrapper for renderHook.
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
 
 // Mock supabase
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -148,7 +160,7 @@ describe('useOrganizationAgreement', () => {
     });
 
     const { result } = renderHook(() => useOrganizationAgreement('AKC'), {
-      wrapper: createTestQueryClientWrapper(),
+      wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -158,7 +170,7 @@ describe('useOrganizationAgreement', () => {
 
   it('is disabled when organization is empty', () => {
     const { result } = renderHook(() => useOrganizationAgreement(''), {
-      wrapper: createTestQueryClientWrapper(),
+      wrapper: createWrapper(),
     });
 
     expect(result.current.isFetching).toBe(false);
@@ -177,7 +189,7 @@ describe('useOrganizationAgreement', () => {
     });
 
     const { result } = renderHook(() => useOrganizationAgreement('UNKNOWN'), {
-      wrapper: createTestQueryClientWrapper(),
+      wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
@@ -554,8 +566,39 @@ describe('PaymentStep — entry agreement integration', () => {
     await user.click(checkbox);
     expect(checkbox).toBeChecked();
   });
+
+  // [ADDED] Submit gate tests — spec requires verifying disabled state
+  it('calls onAgreementChange when checkbox toggled (controlled mode)', async () => {
+    const user = userEvent.setup();
+    const onAgreementChange = vi.fn();
+    render(
+      <PaymentStep
+        {...baseProps}
+        agreedToEntryAgreement={false}
+        onAgreementChange={onAgreementChange}
+      />
+    );
+
+    await user.click(screen.getByRole('checkbox'));
+    expect(onAgreementChange).toHaveBeenCalledWith(true);
+  });
+
+  // [ADDED] Verify agreement section renders when show has no organization
+  it('does not render agreement section when show has no organization', () => {
+    // Re-mock showStore with no organization
+    vi.mocked(
+      await import('@/store/showStore')
+    ).useShowStore.mockReturnValue({
+      shows: [{ id: 'show-1', acceptCheckPayments: true, acceptCashPayments: true }],
+    } as ReturnType<typeof import('@/store/showStore').useShowStore>);
+
+    render(<PaymentStep {...baseProps} />);
+    expect(screen.queryByText(/Entry Agreement/)).not.toBeInTheDocument();
+  });
 });
 ```
+
+> **Note to implementer:** The submit-disabled behavior is tested at the `RegistrationWizardPage` level via the `canProceed()` function, not at the PaymentStep component level. PaymentStep does not own a submit button — `WizardNavigation` does, and it is gated by `canProceed()` which now checks `agreedToEntryAgreement` (see Task 4, Step 7b). A full integration test of the wizard page with submit gating would require mocking the entire wizard state machine, which is out of scope for this unit test file. The `canProceed` logic change is verified via typecheck + manual smoke test (Task 5).
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -638,17 +681,31 @@ In `apps/myk9show/src/components/shows/RegistrationWorkflow/WorkflowStepContent.
 
 Add `agreedToEntryAgreement` and `onAgreementChange` to the component's props interface and destructuring. These will be passed from the parent `RegistrationWizardPage`.
 
-- [ ] **Step 7: Add agreement state to RegistrationWizardPage**
+- [ ] **Step 7: Add agreement state to RegistrationWizardPage** `[EXPANDED]`
 
 In `apps/myk9show/src/pages/RegistrationWizardPage.tsx`:
 
-Add state:
+**7a.** Add state near the other useState declarations (around line 129):
 
 ```typescript
 const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
 ```
 
-Pass through to `WorkflowStepContent`:
+**7b.** Wire into `canProceed()` — the `'payment'` case (line 316-317). Change:
+
+```typescript
+      case 'payment':
+        return !!registrationData.paymentMethod;
+```
+
+to:
+
+```typescript
+      case 'payment':
+        return !!registrationData.paymentMethod && agreedToEntryAgreement;
+```
+
+**7c.** Pass through to `WorkflowStepContent` (around line 630-665 where it's rendered):
 
 ```tsx
 <WorkflowStepContent
@@ -658,9 +715,19 @@ Pass through to `WorkflowStepContent`:
 />
 ```
 
-Find the submit button logic and add `agreedToEntryAgreement` to the disabled condition. The submit button should be disabled when `!agreedToEntryAgreement` is true (in addition to existing conditions).
+**7d.** Reset when navigating away from payment step. In `handleBack` (line 458) and wherever `setCurrentStep` is called to move away from payment, add:
 
-Reset `agreedToEntryAgreement` to `false` when navigating away from the payment step (in the step change handler), so re-entering the step requires re-checking.
+```typescript
+const handleBack = () => {
+  // Reset agreement when leaving payment step
+  if (currentStepId === 'payment') {
+    setAgreedToEntryAgreement(false);
+  }
+  setCurrentStep(prev => prev - 1);
+};
+```
+
+Also in the `handleNext` success path (around line 437/455) where it advances past payment, the agreement should already have been checked (gated by `canProceed`), so no reset needed on forward navigation.
 
 - [ ] **Step 8: Run full PaymentStep test suite**
 

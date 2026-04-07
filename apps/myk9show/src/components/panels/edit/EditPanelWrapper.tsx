@@ -9,6 +9,9 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+export type EditPanelVariant = 'panel' | 'dialog';
 
 export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   // Panel configuration
@@ -38,6 +41,8 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   footerActions?: React.ReactNode;
   headerActions?: React.ReactNode;
   className?: string;
+
+  variant?: EditPanelVariant;
 
   // For create forms where hasChanges tracking doesn't apply
   forceHasChanges?: boolean;
@@ -73,6 +78,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   footerActions,
   headerActions,
   className,
+  variant = 'panel',
   forceHasChanges = false,
   onDataChange,
   onValidationChange,
@@ -274,8 +280,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     onValidationFail,
   ]);
 
-  // Handle close with unsaved changes warning
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if ((hasChanges || forceHasChanges) && showUnsavedWarning) {
       const shouldClose = window.confirm(
         'You have unsaved changes. Are you sure you want to close?'
@@ -283,7 +288,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       if (!shouldClose) return;
     }
     onClose();
-  };
+  }, [hasChanges, forceHasChanges, showUnsavedWarning, onClose]);
 
   // Context value
   const contextValue: EditPanelContextValue<Record<string, unknown>> = {
@@ -349,6 +354,27 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       </div>
     </div>
   );
+
+  if (variant === 'dialog') {
+    return (
+      <EditPanelContext.Provider value={contextValue}>
+        <Dialog
+          open={open}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) handleClose();
+          }}
+        >
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+              <DialogTitle>{title}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{children}</div>
+            <div className="border-t px-6 py-4 shrink-0">{footer}</div>
+          </DialogContent>
+        </Dialog>
+      </EditPanelContext.Provider>
+    );
+  }
 
   return (
     <EditPanelContext.Provider value={contextValue}>

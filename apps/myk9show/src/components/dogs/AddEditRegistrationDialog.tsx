@@ -188,7 +188,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
           <DialogTitle>{initialData ? 'Edit Registration' : 'Add New Registration'}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+        <div className="space-y-4 overflow-y-auto flex-1 -mx-1 px-3 py-1">
           <FormField
             label="Registration Organization"
             fieldId="organization"
@@ -229,12 +229,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
           </FormField>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              label="Registered Breed"
-              fieldId="breed"
-              required
-              error={breedError}
-            >
+            <FormField label="Registered Breed" fieldId="breed" required error={breedError}>
               <Select
                 value={form.data.breed}
                 onValueChange={handleBreedChange}

@@ -118,7 +118,9 @@ Goal: myK9Show becomes the complete platform for exhibitors. myK9Q stays as the 
 
 - [x] **Build passcode generation in myK9Show** — Done (2026-04-06). Secretary sees all four role codes (admin/judge/steward/exhibitor) derived from show UUID on ShowSettingsPage and wizard success screen. `MyK9QAccessCard` with copy + print slip. `validate-passcode` edge function updated to derive from `show.id`. Algorithm in `@myk9/core`.
 
-- [x] **Strip secretary/admin features from myK9Q** — In progress (parallel agent).
+- [x] **Strip secretary/admin features from myK9Q** — Done. Removed TrialSecretary page (Kanban, volunteer scheduling, results control, check-in reports, flyer printing), /secretary route, hamburger nav link, announcement creation UI. All features confirmed present in myK9Show except flyer printing (tracked separately below).
+
+- [ ] **Port "Print Show Flyer" to myK9Show** — The show flyer PDF generator (`generateShowFlyer` in myK9Q's `reportService.ts`) was removed with the TrialSecretary page and has no equivalent in myK9Show. It generated a printable flyer with show name, exhibitor passcode, login URL, club name, dates, secretary, and chairman. Port to myK9Show's ReportsPage or ShowSettingsPage. The source logic was in `apps/myk9q/src/services/reportService.ts` (now deleted — see git history).
 
 ---
 

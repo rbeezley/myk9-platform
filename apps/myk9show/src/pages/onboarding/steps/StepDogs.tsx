@@ -98,6 +98,7 @@ export function StepDogs({ personId, onNext, onBack, onSkip }: StepDogsProps) {
         onDogCreated={handleDogCreated}
         userRole={UserRole.EXHIBITOR}
         currentUserPersonId={personId}
+        variant="dialog"
       />
 
       <div className="flex items-center justify-between pt-2">

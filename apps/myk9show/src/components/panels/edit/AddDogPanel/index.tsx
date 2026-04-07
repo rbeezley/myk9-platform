@@ -26,6 +26,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
   onDogCreated,
   userRole = UserRole.EXHIBITOR,
   currentUserPersonId,
+  variant = 'panel',
 }) => {
   const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
 
@@ -77,6 +78,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
       saveLabel={isSaving ? 'Creating...' : 'Create Dog'}
       enableAutoSave={false}
       showUnsavedWarning={true}
+      variant={variant}
     >
       <AddDogPanelContent
         open={open}

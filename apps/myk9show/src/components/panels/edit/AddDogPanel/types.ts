@@ -1,5 +1,6 @@
 import type { Dog as DogType, Registration } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
+import type { EditPanelVariant } from '../EditPanelWrapper';
 
 export interface AddDogPanelProps {
   open: boolean;
@@ -7,6 +8,7 @@ export interface AddDogPanelProps {
   onDogCreated: (dog: DogType) => void;
   userRole?: UserRole | undefined;
   currentUserPersonId?: string | undefined;
+  variant?: EditPanelVariant;
 }
 
 export interface DogFormData extends Record<string, unknown> {

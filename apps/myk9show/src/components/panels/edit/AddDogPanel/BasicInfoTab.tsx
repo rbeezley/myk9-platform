@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, User, Camera, Edit } from 'lucide-react';
+import { Heart, User, Camera, Edit, PawPrint } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { UserRole } from '@/types/auth-types';
 import { FormField } from '@/components/common/FormField';
@@ -36,16 +36,13 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const { data: formData } = form;
 
   return (
-    <Card className="group relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80 border border-border/30 rounded-2xl backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <Card className="group relative overflow-hidden border border-border/30 rounded-2xl transition-all duration-300 hover:shadow-md">
       <CardHeader className="relative">
         <CardTitle className="flex items-center gap-3 text-lg font-semibold tracking-tight">
           <div className="p-2 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl">
             <Heart className="h-5 w-5 text-primary" />
           </div>
-          <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-            Essential Information
-          </span>
+          <span>Essential Information</span>
         </CardTitle>
         <p className="text-sm text-muted-foreground/80 mt-1 leading-relaxed">
           Basic details to get started with your dog's profile
@@ -64,12 +61,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 <AvatarImage src={formData.imageUrl} alt="Dog photo" className="object-cover" />
               ) : (
                 <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/8 text-2xl font-semibold text-primary">
-                  {formData.callName ? formData.callName[0].toUpperCase() : '\uD83D\uDC15'}
+                  {formData.callName ? (
+                    formData.callName[0].toUpperCase()
+                  ) : (
+                    <PawPrint className="h-8 w-8 text-primary/60" />
+                  )}
                 </AvatarFallback>
               )}
             </Avatar>
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/0 via-black/0 to-black/0 group-hover:from-black/20 group-hover:via-black/30 group-hover:to-black/20 transition-all duration-500 rounded-full backdrop-blur-sm">
-              <div className="p-3 bg-card/95 dark:bg-gray-900/95 rounded-full opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-500 shadow-lg backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center group-hover:bg-black/20 transition-all duration-300 rounded-full">
+              <div className="p-3 bg-card rounded-full opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-300 shadow-md">
                 <Camera className="w-5 h-5 text-primary" />
               </div>
             </div>

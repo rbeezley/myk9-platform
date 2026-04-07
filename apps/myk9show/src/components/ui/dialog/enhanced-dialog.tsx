@@ -15,9 +15,9 @@ const EnhancedDialogContent = React.forwardRef<
     ref={ref}
     className={cn(
       // Default light/dark mode backgrounds and borders
-      'bg-popover dark:bg-gray-900 border border-gray-200 dark:border-gray-700',
+      'bg-card dark:bg-card border border-border',
       // Ensure text is visible
-      'text-gray-900 dark:text-gray-100',
+      'text-foreground',
       className
     )}
     {...props}
@@ -34,7 +34,7 @@ const EnhancedDialogHeader: React.FC<
   <OriginalDialogHeader
     className={cn(
       // Ensure header content is visible
-      'text-gray-900 dark:text-gray-100',
+      'text-foreground',
       className
     )}
     {...props}
@@ -51,7 +51,7 @@ const EnhancedDialogTitle = React.forwardRef<
     ref={ref}
     className={cn(
       // Ensure title is always visible
-      'text-gray-900 dark:text-gray-100',
+      'text-foreground',
       className
     )}
     {...props}

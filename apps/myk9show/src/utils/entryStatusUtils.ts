@@ -5,11 +5,11 @@
 import type { Show } from '@/types/show-types';
 
 export type EntryStatus =
-  | 'not_yet_open'    // Before entry open date
-  | 'accepting'       // Currently accepting entries
-  | 'closing_soon'    // Closing within 7 days
-  | 'closed'          // After entry close date
-  | 'submitted';      // User has submitted entries
+  | 'not_yet_open' // Before entry open date
+  | 'accepting' // Currently accepting entries
+  | 'closing_soon' // Closing within 7 days
+  | 'closed' // After entry close date
+  | 'submitted'; // User has submitted entries
 
 export interface EntryStatusInfo {
   status: EntryStatus;
@@ -23,23 +23,10 @@ export interface EntryStatusInfo {
 /**
  * Get entry status for a show
  */
-export function getEntryStatus(
-  show: Show,
-  userHasEntries: boolean = false
-): EntryStatusInfo {
+export function getEntryStatus(show: Show, userHasEntries: boolean = false): EntryStatusInfo {
   const now = new Date();
   const openDate = new Date(show.entryOpenDate);
   const closeDate = new Date(show.entryCloseDate);
-
-  // User has already submitted entries
-  if (userHasEntries) {
-    return {
-      status: 'submitted',
-      label: 'Entry Submitted',
-      description: 'You have entries for this show',
-      canEnter: true, // Can still add more entries
-    };
-  }
 
   // Before entry open date
   if (now < openDate) {
@@ -63,6 +50,16 @@ export function getEntryStatus(
     };
   }
 
+  // User has already submitted entries and entries are still open
+  if (userHasEntries) {
+    return {
+      status: 'submitted',
+      label: 'Entry Submitted',
+      description: 'You have entries for this show',
+      canEnter: true, // Can still add more entries while open
+    };
+  }
+
   // Currently accepting entries
   const daysUntilClose = Math.ceil((closeDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -70,7 +67,10 @@ export function getEntryStatus(
   if (daysUntilClose <= 7) {
     return {
       status: 'closing_soon',
-      label: daysUntilClose === 0 ? 'Closes Today!' : `Closes in ${daysUntilClose} day${daysUntilClose !== 1 ? 's' : ''}`,
+      label:
+        daysUntilClose === 0
+          ? 'Closes Today!'
+          : `Closes in ${daysUntilClose} day${daysUntilClose !== 1 ? 's' : ''}`,
       description: `Hurry! Entries close on ${closeDate.toLocaleDateString()}`,
       daysUntilClose,
       canEnter: true,
@@ -102,7 +102,8 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
       };
     case 'closing_soon':
       return {
-        className: 'bg-warning-orange/10 text-warning-orange border-warning-orange/20 border animate-pulse',
+        className:
+          'bg-warning-orange/10 text-warning-orange border-warning-orange/20 border animate-pulse',
         variant: 'default',
       };
     case 'closed':

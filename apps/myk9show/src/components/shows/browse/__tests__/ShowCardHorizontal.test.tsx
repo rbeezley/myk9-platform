@@ -145,6 +145,16 @@ describe('ShowCardHorizontal', () => {
 
     expect(screen.getByText('Spring Agility Trial')).toBeInTheDocument();
   });
+
+  it('renders entry fee with currency formatting', () => {
+    render(<ShowCardHorizontal show={createMockShow({ preEntryFee: '30' })} />);
+    expect(screen.getByText('$30.00')).toBeInTheDocument();
+  });
+
+  it('does not render fee when preEntryFee is empty', () => {
+    render(<ShowCardHorizontal show={createMockShow({ preEntryFee: '' })} />);
+    expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+  });
 });
 
 describe('ShowCardHorizontalSkeleton', () => {

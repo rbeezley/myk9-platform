@@ -107,7 +107,18 @@ vi.mock('@/components/common/PageHeader', () => ({
   PageHeader: () => <div data-testid="page-header" />,
 }));
 vi.mock('@/components/common/DetailHero', () => ({
-  DetailHero: ({ name }: { name: string }) => <div data-testid="detail-hero">{name}</div>,
+  DetailHero: ({
+    name,
+    primaryAction,
+  }: {
+    name: string;
+    primaryAction?: { label: string; onClick: () => void };
+  }) => (
+    <div data-testid="detail-hero">
+      {name}
+      {primaryAction && <button data-testid="hero-action">{primaryAction.label}</button>}
+    </div>
+  ),
 }));
 vi.mock('@/components/common/NotFoundState', () => ({
   NotFoundState: () => <div data-testid="not-found">Show Not Found</div>,
@@ -140,6 +151,8 @@ describe('ShowDetailsPage', () => {
       clubName: 'Bluegrass KC',
       events: ['Agility'],
       status: 'Upcoming',
+      entryOpenDate: '2026-01-01',
+      entryCloseDate: '2027-12-31',
     };
     mockLoading = false;
     mockUserEntries = [];
@@ -197,5 +210,42 @@ describe('ShowDetailsPage', () => {
     mockLoading = true;
     const { container } = renderPage();
     expect(container.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
+  });
+
+  it('shows "Register" button when user has no entries and entries are open', () => {
+    mockUserEntries = [];
+    renderPage();
+    const btn = screen.getByTestId('hero-action');
+    expect(btn).toHaveTextContent('Register');
+  });
+
+  it('shows "Manage Entry" button when user has entries and entries are open', () => {
+    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    renderPage();
+    const btn = screen.getByTestId('hero-action');
+    expect(btn).toHaveTextContent('Manage Entry');
+  });
+
+  it('shows "View Entry" button when user has entries and entries are closed', () => {
+    mockShow = {
+      ...mockShow,
+      entryOpenDate: '2020-01-01',
+      entryCloseDate: '2020-12-31',
+    };
+    mockUserEntries = [{ id: 'e1', showId: 'show-1' }];
+    renderPage();
+    const btn = screen.getByTestId('hero-action');
+    expect(btn).toHaveTextContent('View Entry');
+  });
+
+  it('shows no action button when entries are closed and user has no entries', () => {
+    mockShow = {
+      ...mockShow,
+      entryOpenDate: '2020-01-01',
+      entryCloseDate: '2020-12-31',
+    };
+    mockUserEntries = [];
+    renderPage();
+    expect(screen.queryByTestId('hero-action')).not.toBeInTheDocument();
   });
 });

@@ -55,6 +55,10 @@ interface WorkflowStepContentProps {
   setEntryStatus: (status: EntryStatus) => void;
   /** True while dogs are loading (used for auto-select loading state) */
   dogsLoading?: boolean;
+  /** Current state of the entry agreement checkbox on the payment step. */
+  agreedToEntryAgreement?: boolean | undefined;
+  /** Callback when the entry agreement checkbox is toggled on the payment step. */
+  onAgreementChange?: ((agreed: boolean) => void) | undefined;
 }
 
 export function WorkflowStepContent({
@@ -77,6 +81,8 @@ export function WorkflowStepContent({
   setPaymentStatus,
   setEntryStatus,
   dogsLoading,
+  agreedToEntryAgreement,
+  onAgreementChange,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
@@ -178,6 +184,8 @@ export function WorkflowStepContent({
             }}
             showId={showId}
             registrationId={registrationId}
+            agreedToEntryAgreement={agreedToEntryAgreement}
+            onAgreementChange={onAgreementChange}
           />
         </PaymentErrorBoundary>
       )}

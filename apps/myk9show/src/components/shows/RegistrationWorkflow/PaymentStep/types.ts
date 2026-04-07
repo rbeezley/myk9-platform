@@ -20,6 +20,10 @@ export interface PaymentStepProps {
   onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
   showId?: string | undefined;
   registrationId?: string | undefined;
+  /** Callback when the entry agreement checkbox is toggled. */
+  onAgreementChange?: ((agreed: boolean) => void) | undefined;
+  /** Current state of the entry agreement checkbox. */
+  agreedToEntryAgreement?: boolean | undefined;
 }
 
 /** A single class entry within a dog's fee breakdown. */

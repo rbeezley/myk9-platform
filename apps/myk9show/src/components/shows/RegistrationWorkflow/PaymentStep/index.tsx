@@ -11,6 +11,7 @@ import { RegistrationSummary } from './RegistrationSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
 import { PaymentSummaryCard } from './PaymentSummaryCard';
+import { EntryAgreementSection } from './EntryAgreementSection';
 import { PAYMENT_MESSAGES } from './types';
 import type { PaymentStepProps } from './types';
 
@@ -28,6 +29,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onPaymentDetailsChange,
   onPaymentStatusChange,
   onEntryStatusChange,
+  onAgreementChange,
+  agreedToEntryAgreement = false,
   showId,
 }) => {
   const { dogs } = useDogStoreCompat();
@@ -45,6 +48,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   // Shared state: fee override and waiver (used by both SecretaryPaymentManagement and PaymentSummaryCard)
   const [feeOverride, setFeeOverride] = useState<number | null>(null);
   const [waiveFees, setWaiveFees] = useState(false);
+
+  // Agreement state: controlled when onAgreementChange is provided, local otherwise
+  const [localAgreed, setLocalAgreed] = useState(false);
+  const agreed = onAgreementChange ? agreedToEntryAgreement : localAgreed;
+  const handleAgree = onAgreementChange ?? setLocalAgreed;
 
   const feeCalculation = calculateTotalFees(selectedDogs, classSelections, dogs, classes, show);
 
@@ -88,6 +96,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         waiveFees={waiveFees}
         feeOverride={feeOverride}
       />
+
+      {/* Entry Agreement */}
+      {show?.organization && (
+        <EntryAgreementSection
+          organization={show.organization}
+          agreed={agreed}
+          onAgree={handleAgree}
+        />
+      )}
 
       {/* Payment Info Notice */}
       <Alert>

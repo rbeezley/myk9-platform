@@ -127,6 +127,7 @@ function RegistrationWizardContent() {
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
   const paymentDetailsRef = useRef<PaymentDetails>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
   const submittingRef = useRef(false);
   const mountedRef = useRef(true);
   const hasAutoSelectedDogs = useRef(false);
@@ -314,7 +315,7 @@ function RegistrationWizardContent() {
         );
       }
       case 'payment':
-        return !!registrationData.paymentMethod;
+        return !!registrationData.paymentMethod && agreedToEntryAgreement;
       case 'confirmation':
         return true;
       default:
@@ -456,6 +457,10 @@ function RegistrationWizardContent() {
   };
 
   const handleBack = () => {
+    // Reset agreement when leaving payment step
+    if (currentStepId === 'payment') {
+      setAgreedToEntryAgreement(false);
+    }
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     } else {
@@ -663,6 +668,8 @@ function RegistrationWizardContent() {
                     setPaymentStatus={setPaymentStatus}
                     setEntryStatus={setEntryStatus}
                     dogsLoading={dogsLoading}
+                    agreedToEntryAgreement={agreedToEntryAgreement}
+                    onAgreementChange={setAgreedToEntryAgreement}
                   />
                 </div>
 

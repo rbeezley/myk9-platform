@@ -47,6 +47,6 @@ describe('ReportsPage', () => {
 
   it('renders show name', () => {
     render(<ReportsPage />);
-    expect(screen.getByText('Spring Scent Trial 2026')).toBeInTheDocument();
+    expect(screen.getAllByText('Spring Scent Trial 2026').length).toBeGreaterThan(0);
   });
 });

@@ -38,7 +38,7 @@ export function calculateRunOrder(
     sorted = [...entries].sort((a, b) => parseArmband(b.armband) - parseArmband(a.armband));
   } else {
     // random
-    sorted = shuffleArray([...entries]);
+    sorted = shuffleArray(entries);
   }
 
   return sorted.map((entry, index) => ({ id: entry.id, runOrder: index + 1 }));

@@ -28,10 +28,12 @@ export function useRunOrderPreset(classId: string | undefined, rawEntries: RawEn
           updates.map(({ id, runOrder }) => replicatedEntriesTable.updateEntry(id, { runOrder }))
         );
         if (results.some(r => r.status === 'rejected')) {
-          notifications.error('Failed to set run order');
           throw new Error('Run order update failed');
         }
         await queryClient.invalidateQueries({ queryKey: ['classes', classId, 'entries'] });
+      } catch (err) {
+        notifications.error('Failed to set run order');
+        throw err;
       } finally {
         setIsApplying(false);
       }

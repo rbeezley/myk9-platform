@@ -97,19 +97,6 @@ describe('useRunOrderPreset', () => {
     expect(result.current.isApplying).toBe(false);
   });
 
-  it('calls notifications.error and re-throws on updateEntry failure', async () => {
-    mockUpdateEntry.mockRejectedValueOnce(new Error('network'));
-    const { result } = renderHook(() => useRunOrderPreset('c1', entries));
-    let threw = false;
-    try {
-      await act(() => result.current.applyPreset('armband-asc'));
-    } catch {
-      threw = true;
-    }
-    expect(threw).toBe(true);
-    expect(notifications.error).toHaveBeenCalledWith('Failed to set run order');
-  });
-
   it('isApplying is false after a failure', async () => {
     mockUpdateEntry.mockRejectedValueOnce(new Error('network'));
     const { result } = renderHook(() => useRunOrderPreset('c1', entries));

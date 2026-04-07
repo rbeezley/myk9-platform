@@ -1,5 +1,6 @@
 import type { Show } from '@/types/show-types';
 import { Badge } from '@/components/ui/badge';
+import { formatFee } from '@/utils/format';
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
@@ -59,8 +60,8 @@ export function QuickInfoCards({ show }: QuickInfoCardsProps) {
       <MetadataItem label="Date" value={dateStr} secondary={entryCloseText} />
       <MetadataItem
         label="Entry Fee"
-        value={show.preEntryFee || 'TBD'}
-        secondary={show.dayOfShowFee ? `Day of show: ${show.dayOfShowFee}` : null}
+        value={show.preEntryFee ? formatFee(show.preEntryFee) : 'TBD'}
+        secondary={show.dayOfShowFee ? `Day of show: ${formatFee(show.dayOfShowFee)}` : null}
       />
       <MetadataItem label="Location" value={show.location || 'TBD'} />
       <MetadataItem label="Host Club" value={show.clubName || 'TBD'} />
@@ -69,9 +70,19 @@ export function QuickInfoCards({ show }: QuickInfoCardsProps) {
           Payment Methods
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>Card</Badge>
-          {show.acceptCheckPayments && <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>Check</Badge>}
-          {show.acceptCashPayments && <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>Cash</Badge>}
+          <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
+            Card
+          </Badge>
+          {show.acceptCheckPayments && (
+            <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
+              Check
+            </Badge>
+          )}
+          {show.acceptCashPayments && (
+            <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
+              Cash
+            </Badge>
+          )}
         </div>
       </div>
     </div>

@@ -2,7 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MapPin, DollarSign } from 'lucide-react';
+import { MapPin } from 'lucide-react';
+import { formatFee } from '@/utils/format';
 import { DateCircle } from '@/components/shows/DateCircle';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
@@ -85,10 +86,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
               </div>
             )}
             {show.preEntryFee && (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <DollarSign className="h-3.5 w-3.5" />
-                <span>{show.preEntryFee}</span>
-              </div>
+              <span className="flex-shrink-0">{formatFee(show.preEntryFee)}</span>
             )}
           </div>
 

@@ -6,6 +6,7 @@ CREATE TABLE organization_agreements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization TEXT NOT NULL UNIQUE,
   agreement_text TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -29,6 +30,11 @@ CREATE POLICY "organization_agreements_update" ON organization_agreements
 CREATE POLICY "organization_agreements_delete" ON organization_agreements
   FOR DELETE TO authenticated
   USING ((SELECT is_platform_admin()));
+
+CREATE TRIGGER set_organization_agreements_updated_at
+  BEFORE UPDATE ON organization_agreements
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
 
 -- Seed AKC Scent Work entry agreement
 INSERT INTO organization_agreements (organization, agreement_text) VALUES (

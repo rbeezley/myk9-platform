@@ -15,6 +15,7 @@ import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
 import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
+import { replicatedDogsTable } from '@/services/replication';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
 // Get all dogs owned/co-owned by the current user
@@ -24,9 +25,34 @@ export const useDogsQuery = () => {
   return useQuery({
     queryKey: [...queryKeys.dogs, personId],
     queryFn: async () => {
+      // Try PostgREST first (rich data with owner join + registrations)
       const { data, error } = await getAllDogs(personId!);
-      if (error) throw error;
-      return data;
+      if (!error && data && data.length > 0) return data;
+
+      // Fallback to replication layer (offline-first, service-role synced)
+      // Adapt ReplicatedDog (camelCase) to snake_case shape expected by mapDatabaseDogsArray
+      const replicatedDogs = await replicatedDogsTable.getAllDogs();
+      return replicatedDogs
+        .filter(d => d.ownerId === personId)
+        .map(d => ({
+          id: d.id,
+          name: d.name,
+          call_name: d.callName ?? null,
+          breed: d.breed,
+          sex: d.sex ?? null,
+          date_of_birth: d.dateOfBirth ?? null,
+          owner_id: d.ownerId ?? null,
+          co_owner_id: null,
+          height: d.height ?? null,
+          weight: d.weight ?? null,
+          color: d.color ?? null,
+          microchip_number: d.microchipNumber ?? null,
+          spayed_neutered: d.isSpayedNeutered ?? null,
+          image_url: d.imageUrl ?? null,
+          deleted_at: null,
+          owner: null,
+          registrations: [],
+        }));
     },
     enabled: !!personId,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache

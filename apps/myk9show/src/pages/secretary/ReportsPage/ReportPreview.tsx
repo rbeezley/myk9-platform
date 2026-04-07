@@ -65,12 +65,20 @@ function buildPages(
 
   const isAll = trialId === 'all' || classId === 'all';
 
+  // Pre-index entries by class_id for O(1) lookups
+  const entriesByClass = new Map<string, DbEntry[]>();
+  for (const e of entries) {
+    const key = e.class_id ?? '';
+    if (!entriesByClass.has(key)) entriesByClass.set(key, []);
+    entriesByClass.get(key)!.push(e);
+  }
+
   if (isAll) {
     const pages: PageData[] = [];
     for (const trial of trials) {
       const trialClasses = classes.filter(c => c.trial_id === trial.id);
       for (const classData of trialClasses) {
-        const classEntries = entries.filter(e => e.class_id === classData.id);
+        const classEntries = entriesByClass.get(classData.id) ?? [];
         pages.push({ trial, classData, entries: classEntries });
       }
     }
@@ -81,7 +89,7 @@ function buildPages(
   const classData = classes.find(c => c.id === classId);
   if (!trial || !classData) return [];
 
-  const classEntries = entries.filter(e => e.class_id === classId);
+  const classEntries = entriesByClass.get(classId) ?? [];
   return [{ trial, classData, entries: classEntries }];
 }
 
@@ -148,11 +156,13 @@ export function ReportPreview({
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
 
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       if (iframe.contentDocument?.body) {
         iframe.style.height = iframe.contentDocument.body.scrollHeight + 'px';
       }
     }, 100);
+
+    return () => clearTimeout(timerId);
   }, [
     reportType,
     show,

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   Select,
   SelectContent,
@@ -28,6 +28,28 @@ export default function ReportsPage() {
     classId,
     reportType,
   });
+
+  const trialOptions = useMemo(
+    () =>
+      (trials ?? []).map(t => ({
+        id: t.id,
+        trial_number: Number(t.trial_number ?? 0),
+        date: t.date ?? '',
+      })),
+    [trials]
+  );
+
+  const classOptions = useMemo(
+    () =>
+      (classes ?? []).map(c => ({
+        id: c.id,
+        element: c.element ?? '',
+        level: c.level ?? '',
+        section: c.section ?? '',
+        trial_id: c.trial_id ?? '',
+      })),
+    [classes]
+  );
 
   const selectedShow = shows.find(s => s.id === selectedShowId);
 
@@ -88,18 +110,8 @@ export default function ReportsPage() {
         trialId={trialId}
         classId={classId}
         sortOrder={sortOrder}
-        trials={(trials ?? []).map(t => ({
-          id: t.id,
-          trial_number: Number(t.trial_number ?? 0),
-          date: t.date ?? '',
-        }))}
-        classes={(classes ?? []).map(c => ({
-          id: c.id,
-          element: c.element ?? '',
-          level: c.level ?? '',
-          section: c.section ?? '',
-          trial_id: c.trial_id ?? '',
-        }))}
+        trials={trialOptions}
+        classes={classOptions}
         onReportTypeChange={handleReportTypeChange}
         onTrialChange={handleTrialChange}
         onClassChange={setClassId}

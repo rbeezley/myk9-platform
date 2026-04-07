@@ -1,11 +1,7 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
-import {
-  formatReportDate,
-  sortByRunOrder,
-  sortByArmband,
-  getOrgTitle,
-} from '@/lib/reports/reportUtils';
+import { sortByRunOrder, sortByArmband, buildReportOrgTitle } from '@/lib/reports/reportUtils';
+import { TrialInfoBox } from './TrialInfoBox';
 
 export const CheckInSheet: React.FC<ReportProps> = ({
   showName,
@@ -18,12 +14,7 @@ export const CheckInSheet: React.FC<ReportProps> = ({
 }) => {
   const sortedEntries = sortOrder === 'armband' ? sortByArmband(entries) : sortByRunOrder(entries);
 
-  const orgTitle =
-    organization && activityType
-      ? `${organization} ${activityType}`
-      : organization
-        ? `${organization} ${classData?.element ?? ''}`
-        : getOrgTitle(classData?.element);
+  const orgTitle = buildReportOrgTitle(organization, activityType, classData?.element);
 
   return (
     <div className="report-page">
@@ -33,46 +24,7 @@ export const CheckInSheet: React.FC<ReportProps> = ({
         {showName && <p className="report-subtitle">{showName}</p>}
       </div>
 
-      {(trial || classData) && (
-        <div className="trial-info-box">
-          {trial?.date && (
-            <div className="info-row">
-              <span className="info-label">Trial Date:</span>
-              <span className="info-value">{formatReportDate(trial.date)}</span>
-            </div>
-          )}
-          {classData?.element && (
-            <div className="info-row">
-              <span className="info-label">Element:</span>
-              <span className="info-value">{classData.element}</span>
-            </div>
-          )}
-          {trial?.trialNumber && (
-            <div className="info-row">
-              <span className="info-label">Trial #:</span>
-              <span className="info-value">{trial.trialNumber}</span>
-            </div>
-          )}
-          {classData?.level && (
-            <div className="info-row">
-              <span className="info-label">Level:</span>
-              <span className="info-value">{classData.level}</span>
-            </div>
-          )}
-          {trial?.judgeName && (
-            <div className="info-row">
-              <span className="info-label">Judge:</span>
-              <span className="info-value">{trial.judgeName}</span>
-            </div>
-          )}
-          {classData?.section && classData.section !== '-' && classData.section.trim() !== '' && (
-            <div className="info-row">
-              <span className="info-label">Section:</span>
-              <span className="info-value">{classData.section}</span>
-            </div>
-          )}
-        </div>
-      )}
+      <TrialInfoBox trial={trial} classData={classData} />
 
       <table className="report-table">
         <thead>

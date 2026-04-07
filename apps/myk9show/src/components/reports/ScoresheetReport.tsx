@@ -4,7 +4,8 @@ import {
   formatReportDate,
   sortByRunOrder,
   sortByArmband,
-  getOrgTitle,
+  buildReportOrgTitle,
+  isValidSection,
   formatTimeLimit,
 } from '@/lib/reports/reportUtils';
 
@@ -80,12 +81,7 @@ export const ScoresheetReport: React.FC<ReportProps> = ({
 }) => {
   const sortedEntries = sortOrder === 'armband' ? sortByArmband(entries) : sortByRunOrder(entries);
 
-  const orgTitle =
-    organization && activityType
-      ? `${organization} ${activityType}`
-      : organization
-        ? `${organization} ${classData?.element ?? ''}`
-        : getOrgTitle(classData?.element);
+  const orgTitle = buildReportOrgTitle(organization, activityType, classData?.element);
 
   const areaCount = classData?.areaCount ?? 1;
 
@@ -178,10 +174,10 @@ export const ScoresheetReport: React.FC<ReportProps> = ({
                 <span className="info-value">{classData.level}</span>
               </div>
             )}
-            {classData?.section && classData.section !== '-' && classData.section.trim() !== '' && (
+            {isValidSection(classData?.section) && (
               <div className="info-row">
                 <span className="info-label">Section: </span>
-                <span className="info-value">{classData.section}</span>
+                <span className="info-value">{classData?.section}</span>
               </div>
             )}
           </div>

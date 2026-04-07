@@ -133,6 +133,22 @@ export function countQualified(entries: ReportEntry[]): number {
   return entries.filter(isQualified).length;
 }
 
+/** Build the organization title for report headers */
+export function buildReportOrgTitle(
+  organization?: string,
+  activityType?: string,
+  element?: string
+): string {
+  if (organization && activityType) return `${organization} ${activityType}`;
+  if (organization) return `${organization} ${element ?? ''}`;
+  return getOrgTitle(element);
+}
+
+/** Check if a section value is displayable (not null, empty, or '-') */
+export function isValidSection(section?: string | null): boolean {
+  return section != null && section !== '-' && section.trim() !== '';
+}
+
 // Get organization-specific title from element name
 export function getOrgTitle(element?: string): string {
   if (!element) return '';

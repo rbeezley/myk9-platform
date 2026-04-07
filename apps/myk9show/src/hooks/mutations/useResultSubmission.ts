@@ -44,12 +44,7 @@ export const resultSubmissionKeys = {
 // ---------------------------------------------------------------------------
 
 async function insertSubmission(input: ResultSubmissionInsert): Promise<ResultSubmissionRow> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from('result_submissions')
-    .insert(input)
-    .select()
-    .single();
+  const { data, error } = await supabase.from('result_submissions').insert(input).select().single();
 
   if (error) throw new Error(`Failed to record submission: ${error.message}`);
   return data as ResultSubmissionRow;
@@ -73,8 +68,7 @@ export function useResultSubmission(showId?: string) {
 // ---------------------------------------------------------------------------
 
 async function fetchSubmissions(showId: string): Promise<ResultSubmissionRow[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('result_submissions')
     .select('*')
     .eq('show_id', showId)

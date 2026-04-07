@@ -18,7 +18,9 @@ import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import { replicatedDogsTable } from '@/services/replication';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
-// Get all dogs owned/co-owned by the current user
+// Get all dogs visible to the current user
+// RLS (migration 120) handles scoping: exhibitors see own dogs, secretaries/judges/admins see all
+// useRoleBasedDogs further filters in the UI layer for exhibitors
 export const useDogsQuery = () => {
   const personId = useCurrentPersonId();
 
@@ -26,33 +28,32 @@ export const useDogsQuery = () => {
     queryKey: [...queryKeys.dogs, personId],
     queryFn: async () => {
       // Try PostgREST first (rich data with owner join + registrations)
+      // RLS handles access control — no application-level owner filter needed
       const { data, error } = await getAllDogs(personId!);
       if (!error && data && data.length > 0) return data;
 
       // Fallback to replication layer (offline-first, service-role synced)
-      // Adapt ReplicatedDog (camelCase) to snake_case shape expected by mapDatabaseDogsArray
+      // Returns ALL dogs — useRoleBasedDogs handles UI-level role filtering
       const replicatedDogs = await replicatedDogsTable.getAllDogs();
-      return replicatedDogs
-        .filter(d => d.ownerId === personId)
-        .map(d => ({
-          id: d.id,
-          name: d.name,
-          call_name: d.callName ?? null,
-          breed: d.breed,
-          sex: d.sex ?? null,
-          date_of_birth: d.dateOfBirth ?? null,
-          owner_id: d.ownerId ?? null,
-          co_owner_id: null,
-          height: d.height ?? null,
-          weight: d.weight ?? null,
-          color: d.color ?? null,
-          microchip_number: d.microchipNumber ?? null,
-          spayed_neutered: d.isSpayedNeutered ?? null,
-          image_url: d.imageUrl ?? null,
-          deleted_at: null,
-          owner: null,
-          registrations: [],
-        }));
+      return replicatedDogs.map(d => ({
+        id: d.id,
+        name: d.name,
+        call_name: d.callName ?? null,
+        breed: d.breed,
+        sex: d.sex ?? null,
+        date_of_birth: d.dateOfBirth ?? null,
+        owner_id: d.ownerId ?? null,
+        co_owner_id: null,
+        height: d.height ?? null,
+        weight: d.weight ?? null,
+        color: d.color ?? null,
+        microchip_number: d.microchipNumber ?? null,
+        spayed_neutered: d.isSpayedNeutered ?? null,
+        image_url: d.imageUrl ?? null,
+        deleted_at: null,
+        owner: null,
+        registrations: [],
+      }));
     },
     enabled: !!personId,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache

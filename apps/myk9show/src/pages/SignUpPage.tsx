@@ -17,6 +17,7 @@ const SignUp: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { signUp, signInWithGoogle, loading: authLoading } = useAuthContext();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const isLoading = loading || authLoading;
 
@@ -113,7 +114,7 @@ const SignUp: React.FC = () => {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={isLoading || googleLoading}
+          disabled={isLoading || googleLoading || !agreedToTerms}
           className="w-full flex items-center justify-center gap-3 border border-input bg-background text-foreground py-2 px-4 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <GoogleIcon className="h-5 w-5" />
@@ -219,7 +220,7 @@ const SignUp: React.FC = () => {
             </div>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-4">
             <label className="block mb-1 font-medium" htmlFor="confirmPassword">
               Confirm password
             </label>
@@ -249,11 +250,31 @@ const SignUp: React.FC = () => {
             </div>
           </div>
 
+          <div className="mb-6 flex items-start gap-2">
+            <input
+              type="checkbox"
+              id="agreedToTerms"
+              checked={agreedToTerms}
+              onChange={e => setAgreedToTerms(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-ring"
+            />
+            <label htmlFor="agreedToTerms" className="text-sm text-muted-foreground">
+              I agree to the{' '}
+              <Link to="/terms" className="text-primary hover:underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </Link>
+            </label>
+          </div>
+
           {error && <div className="text-destructive mb-4 text-center">{error}</div>}
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !agreedToTerms}
             className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 dark:bg-primary/90 dark:text-white dark:hover:bg-primary/80"
           >
             {isLoading ? (

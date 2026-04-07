@@ -1,7 +1,7 @@
 import { useMemo, useCallback, useEffect } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { useShowStore } from '@/store/showStore';
 import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
 import type { UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
@@ -77,7 +77,14 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const { userWithRoles: user, loading: authLoading } = useAuthContext();
-  const { data: shows = [], isLoading: showsLoading, error: showsError } = useShowsQuery();
+  const storeShows = useShowStore(s => s.shows);
+  const storeIsLoading = useShowStore(s => s.isLoading);
+  const storeErrorMsg = useShowStore(s => s.error);
+
+  // Adapt store interface to match what the rest of the hook expects
+  const shows = storeShows;
+  const showsLoading = storeIsLoading;
+  const showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   const { entries, isLoading: entriesLoading, error: entriesError, loadEntries } = useEntryStore();
 
   // Consolidated loading and error states

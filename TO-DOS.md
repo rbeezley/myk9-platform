@@ -236,7 +236,7 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 
 ## Restore People Routes for Admin — 2026-04-06
 
-- **Re-add /people and /users/:id routes for secretary and admin** — Feature Inventory Cleanup removed `/people`, `/users` redirect, and `/users/:id` from publicRoutes.tsx. But secretaries and site admins need to browse and view people. The routes should be restored behind `ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}`, not public. Re-add sidebar entry under Manage (for secretaries) and Admin (for site admins).
+- [x] **Re-add /people and /users/:id routes for secretary and admin** — Done. Routes added to `secretaryRoutes.tsx` behind `[SECRETARY, SITE_ADMIN]`; `/users` redirects to `/people`. Sidebar "People" entry was already present. 11 tests.
 
 ---
 
@@ -262,7 +262,7 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 
 - [x] **Port basic run order presets to myK9Show ClassDetailsPage** — Done. `RunOrderDialog` with 4 presets (armband-asc, armband-desc, random, manual) implemented in myK9Show. Files: `apps/myk9show/src/components/classes/RunOrderDialog.tsx`, `apps/myk9show/src/lib/runOrderUtils.ts`, `apps/myk9show/src/components/classes/ClassResultsTable/useRunOrderPreset.ts`. Tests in place.
 
-- **Port advanced section-aware run order presets from myK9Q** — The basic presets are done but myK9Q has additional section-aware ordering modes not yet ported. **Problem:** Classes with A/B sections (e.g., Novice A / Novice B) need section-specific ordering that the current 4-preset system doesn't support. **Files:** `apps/myk9q/src/services/runOrderService.ts` (source — `applyRunOrderPresetScoped`, section-aware logic), `apps/myk9q/src/components/dialogs/RunOrderDialog.tsx` (source UI — section preset groups), `apps/myk9show/src/lib/runOrderUtils.ts` (target — extend `RunOrderPreset` type), `apps/myk9show/src/components/classes/RunOrderDialog.tsx` (target — add section preset UI). **Solution:** Add missing presets: random shuffle within A/B sections, section-ordered presets (A then B / B then A, each with asc/desc sub-sort), scoped reordering of a single section with preserve/renumber choices. Port logic from myK9Q's `runOrderService.ts` into myK9Show's `runOrderUtils.ts`.
+- [x] **Port advanced section-aware run order presets from myK9Q** — Done. Added random-within-sections, a-then-b-asc/desc, b-then-a-asc/desc, and scoped single-section reorder with preserve/renumber step to `runOrderUtils.ts` and `RunOrderDialog.tsx`. Section groups only shown when entries have 2+ distinct non-null sections. 52 tests (33 unit + 19 component).
 
 ---
 
@@ -304,4 +304,4 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 
 ## Admin Password Reset for Users - 2026-04-07 07:58
 
-- **Add admin-triggered password reset to UserDetailsDialog** — Site admins need to reset a user's password on their behalf (e.g., user locked out, can't find reset email). Standard SaaS pattern: admin triggers a reset email, never sees or sets the password directly. **Problem:** No admin password reset capability exists. The only reset path is self-service via the login page's "Forgot Password" link. If a user can't receive that email or needs help, admin has no way to assist. **Files:** `apps/myk9show/src/components/admin/users/UserDetailsDialog.tsx` (add "Send Password Reset Email" button), `apps/myk9show/src/hooks/useAuth.ts` (existing `resetPasswordForEmail` can be reused for the email path), `supabase/functions/` (new edge function needed for "Generate Reset Link" fallback using `auth.admin.generateLink()` with service role key). **Solution:** Two actions on UserDetailsDialog: (1) "Send Password Reset Email" — calls `supabase.auth.resetPasswordForEmail(userEmail)` with the user's email, shows success toast. (2) "Generate Reset Link" fallback — edge function calls `supabase.auth.admin.generateLink({ type: 'recovery', email })` and returns a copyable URL the admin can share directly (for cases where email delivery fails). Both are standard SaaS best practices — admin never knows the password.
+- [x] **Add admin-triggered password reset to UserDetailsDialog** — Done. Security tab added (admin-only) with two actions: "Send Password Reset Email" (direct Supabase auth call + toast) and "Generate Reset Link" (new `admin-generate-reset-link` edge function, verifies site_admin, returns copyable URL). Edge function deployed. 10 tests.

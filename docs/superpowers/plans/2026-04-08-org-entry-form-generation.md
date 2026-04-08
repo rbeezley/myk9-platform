@@ -16,7 +16,7 @@
 
 | File                                                                           | Action | Responsibility                                                                                      |
 | ------------------------------------------------------------------------------ | ------ | --------------------------------------------------------------------------------------------------- |
-| `apps/myk9show/src/lib/reports/types.ts`                                       | Modify | Add `dogId?`, `dogName?` to `ReportProps`; add `supportsDogFilter?` to `ReportDefinition`           |
+| `apps/myk9show/src/lib/reports/types.ts`                                       | Modify | Add `dogId?`, `trialId?` to `ReportProps`; add `supportsDogFilter?` to `ReportDefinition`           |
 | `apps/myk9show/src/lib/reports/entryFormTypes.ts`                              | Create | Types for entry form data: `EntryFormDog`, `EntryFormSecretary`, `EntryFormTrial`, `EntryFormClass` |
 | `apps/myk9show/src/lib/reports/entryFormUtils.ts`                              | Create | Pure functions: `buildClassGrid`, `groupEntriesByDog`, `sortEntryFormDogs`                          |
 | `apps/myk9show/src/hooks/queries/useEntryFormData.ts`                          | Create | React Query hook fetching joined entry form data                                                    |
@@ -41,9 +41,9 @@
 
 No runtime test needed — these are type-only changes. Verify by running the type checker after modification.
 
-- [ ] **Step 2: Add `dogId` and `dogName` to `ReportProps`**
+- [ ] **Step 2: Add `dogId` and `trialId` to `ReportProps`** `[PATCHED]`
 
-In `apps/myk9show/src/lib/reports/types.ts`, add two optional fields to the `ReportProps` interface:
+In `apps/myk9show/src/lib/reports/types.ts`, add two optional fields to the `ReportProps` interface. (`dogName` was removed — the component fetches its own data including dog names, so it's unused.)
 
 ```typescript
 export interface ReportProps {
@@ -72,7 +72,7 @@ export interface ReportProps {
   clubName?: string;
   showDates?: string;
   dogId?: string;
-  dogName?: string;
+  trialId?: string;
 }
 ```
 
@@ -810,19 +810,24 @@ async function fetchEntryFormData(
   const entriesByDog = groupEntriesByDog(allEntries);
   const dogIds = [...entriesByDog.keys()].filter(Boolean);
 
-  // 4. Fetch dog details
-  const { data: dogsRaw } = await supabase
-    .from('dogs')
-    .select('id, call_name, breed, sex, date_of_birth, owner_id, breeder_id')
-    .in('id', dogIds);
+  // 4-6. [PATCHED] Fetch dogs, registrations, pedigree in parallel
+  const [{ data: dogsRaw }, { data: regsRaw }, { data: pedigreeRaw }] = await Promise.all([
+    supabase
+      .from('dogs')
+      .select('id, call_name, breed, sex, date_of_birth, owner_id, breeder_id')
+      .in('id', dogIds),
+    supabase
+      .from('dog_registrations')
+      .select('dog_id, registered_name, registration_number, organization, variety')
+      .in('dog_id', dogIds),
+    supabase
+      .from('pedigree_ancestors')
+      .select('dog_id, position, registered_name')
+      .in('dog_id', dogIds)
+      .in('position', ['sire', 'dam']),
+  ]);
 
-  // 5. Fetch dog registrations (prefer AKC)
-  const { data: regsRaw } = await supabase
-    .from('dog_registrations')
-    .select('dog_id, registered_name, registration_number, organization, variety')
-    .in('dog_id', dogIds);
-
-  // 6. Collect person IDs (owners + breeders)
+  // 7. Collect person IDs (owners + breeders), then fetch people
   const ownerIds = new Set<string>();
   const breederIds = new Set<string>();
   for (const dog of dogsRaw ?? []) {
@@ -838,13 +843,6 @@ async function fetchEntryFormData(
     .in('id', allPersonIds);
 
   const personMap = new Map((personsRaw ?? []).map(p => [p.id, p]));
-
-  // 7. Fetch pedigree ancestors (sire/dam) for all dogs
-  const { data: pedigreeRaw } = await supabase
-    .from('pedigree_ancestors')
-    .select('dog_id, position, registered_name')
-    .in('dog_id', dogIds)
-    .in('position', ['sire', 'dam']);
 
   // Index pedigree by dog_id
   const pedigreeMap = new Map<string, { sire: string | null; dam: string | null }>();
@@ -1190,6 +1188,50 @@ describe('AKCScentWorkEntryForm', () => {
   it('shows error state when showId is missing', () => {
     render(<AKCScentWorkEntryForm {...baseProps} showId={undefined} />);
     expect(screen.getByText(/Show ID is required/)).toBeInTheDocument();
+  });
+
+  // [PATCHED] Edge case tests added by verification
+  it('renders gracefully when dog has no registration data', async () => {
+    const { useEntryFormData } = await import('@/hooks/queries/useEntryFormData');
+    vi.mocked(useEntryFormData).mockReturnValue({
+      dogs: [{ ...mockDogs[0], registration: null }],
+      secretary: mockSecretary,
+      trials: mockTrials,
+      classes: mockClasses,
+      isLoading: false,
+      isError: false,
+    });
+    render(<AKCScentWorkEntryForm {...baseProps} />);
+    expect(screen.getByText(/Star/)).toBeInTheDocument();
+    expect(screen.getByText('OFFICIAL ENTRY FORM')).toBeInTheDocument();
+  });
+
+  it('renders handler when different from owner', async () => {
+    const { useEntryFormData } = await import('@/hooks/queries/useEntryFormData');
+    vi.mocked(useEntryFormData).mockReturnValue({
+      dogs: [{ ...mockDogs[0], handler: 'Bob Handler' }],
+      secretary: mockSecretary,
+      trials: mockTrials,
+      classes: mockClasses,
+      isLoading: false,
+      isError: false,
+    });
+    render(<AKCScentWorkEntryForm {...baseProps} />);
+    expect(screen.getByText(/Bob Handler/)).toBeInTheDocument();
+  });
+
+  it('renders empty state when no dogs found', async () => {
+    const { useEntryFormData } = await import('@/hooks/queries/useEntryFormData');
+    vi.mocked(useEntryFormData).mockReturnValue({
+      dogs: [],
+      secretary: mockSecretary,
+      trials: mockTrials,
+      classes: mockClasses,
+      isLoading: false,
+      isError: false,
+    });
+    render(<AKCScentWorkEntryForm {...baseProps} />);
+    expect(screen.getByText(/No entries found/)).toBeInTheDocument();
   });
 });
 ```
@@ -1576,9 +1618,11 @@ export const AKCScentWorkEntryForm: React.FC<ReportProps> = ({
   showId,
   sortOrder,
   dogId,
+  trialId, // [PATCHED] accept trialId for trial-scope filtering
 }) => {
   const { dogs, secretary, trials, isLoading, isError } = useEntryFormData({
     showId: showId ?? '',
+    trialId,
     dogId,
   });
 
@@ -1675,7 +1719,7 @@ Then add the registry entry after the `show-flyer` entry and before the Phase 2 
     id: 'akc-scent-work-entry-form',
     name: 'AKC Scent Work Entry Form',
     category: 'organization',
-    scopes: ['show'],
+    scopes: ['show', 'trial'], // [PATCHED] include trial for optional trial-scope filtering
     sortOptions: [
       { value: 'armband', label: 'Armband Number' },
       { value: 'owner-name', label: 'Owner Last Name' },
@@ -1811,30 +1855,57 @@ const [dogId, setDogId] = useState<string>('all');
 
 Reset dogId when report type, show, or trial changes — add `setDogId('all')` to `handleReportTypeChange`, `handleShowChange`, and `handleTrialChange`.
 
-Add a `dogOptions` memo. For now, this will be populated from the entry form data hook when the entry form report is selected. A simple approach: fetch a lightweight dog list from entries for the show:
+`[PATCHED]` Add a `dogOptions` query. The original memo couldn't show registered names because entries don't join `dog_registrations`. Use a lightweight React Query fetch instead. Add `useQuery` and `supabase` imports to the file:
 
 ```typescript
-// Build dog options for the dog picker (only when a dog-filter report is selected)
-const dogOptions = useMemo(() => {
-  if (!report?.supportsDogFilter) return [];
-  // Extract unique dogs from entries
-  const dogMap = new Map<
-    string,
-    { id: string; callName: string; registeredName: string | null; armband: number | null }
-  >();
-  for (const entry of (entries ?? []) as Array<Record<string, unknown>>) {
-    const dogId = entry.dog_id as string;
-    if (!dogId || dogMap.has(dogId)) continue;
-    const dog = entry.dog as Record<string, unknown> | null;
-    dogMap.set(dogId, {
-      id: dogId,
-      callName: (dog?.call_name as string) ?? `Dog ${entry.armband ?? '?'}`,
-      registeredName: null, // Not available in the current entries join
-      armband: entry.armband != null ? Number(entry.armband) : null,
-    });
-  }
-  return [...dogMap.values()].sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
-}, [entries, report?.supportsDogFilter]);
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+```
+
+Then add the query:
+
+```typescript
+// [PATCHED] Dog options for the dog picker — fetches registered names
+const { data: dogOptionsRaw } = useQuery({
+  queryKey: ['entry-form-dog-options', selectedShowId],
+  queryFn: async () => {
+    if (!selectedShowId) return [];
+    const { data: entryDogs } = await supabase
+      .from('entries')
+      .select('dog_id, armband, dog:dogs!inner(id, call_name)')
+      .eq('show_id', selectedShowId)
+      .is('deleted_at', null);
+
+    if (!entryDogs?.length) return [];
+
+    const dogIds = [...new Set(entryDogs.map(e => e.dog_id).filter(Boolean))] as string[];
+    const { data: regs } = await supabase
+      .from('dog_registrations')
+      .select('dog_id, registered_name')
+      .in('dog_id', dogIds);
+
+    const regMap = new Map((regs ?? []).map(r => [r.dog_id, r.registered_name]));
+    const seen = new Set<string>();
+
+    return entryDogs
+      .filter(e => {
+        if (!e.dog_id || seen.has(e.dog_id)) return false;
+        seen.add(e.dog_id);
+        return true;
+      })
+      .map(e => ({
+        id: e.dog_id!,
+        callName: ((e.dog as Record<string, unknown>)?.call_name as string) ?? '',
+        registeredName: regMap.get(e.dog_id!) ?? null,
+        armband: e.armband != null ? Number(e.armband) : null,
+      }))
+      .sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
+  },
+  enabled: !!selectedShowId && (report?.supportsDogFilter ?? false),
+  staleTime: 5 * 60 * 1000,
+});
+
+const dogOptions = dogOptionsRaw ?? [];
 ```
 
 Pass new props to `ReportControlsBar`:
@@ -1862,11 +1933,12 @@ Pass new props to `ReportControlsBar`:
 
 In `apps/myk9show/src/pages/secretary/ReportsPage/ReportPreview.tsx`:
 
-Add `dogId: string` to `ReportPreviewProps`.
+Add `dogId: string` and `trialId` (already exists) to `ReportPreviewProps`.
 
-In the `showScoped` branch of the useEffect, add `dogId` to the props passed to the component:
+In the `showScoped` branch of the useEffect, add `dogId` and `trialId` to the props passed to the component:
 
 ```typescript
+// [PATCHED] pass both dogId and trialId for entry form filtering
 const props: ReportProps = {
   showId: show.id,
   showName: show.name ?? '',
@@ -1876,6 +1948,7 @@ const props: ReportProps = {
   sortOrder,
   organization: show.organization ?? undefined,
   dogId: dogId !== 'all' ? dogId : undefined,
+  trialId: trialId !== 'all' ? trialId : undefined,
 };
 ```
 

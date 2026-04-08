@@ -233,26 +233,10 @@ async function fetchEntryFormData(
     const pedigree = pedigreeMap.get(dog.id);
     const reg = regMap.get(dog.id) ?? null;
 
-    // Handler: if entry has a handler name different from owner, build a minimal EntryFormPerson
+    // Handler — use first non-owner handler name string from entries
     const ownerFullName = `${owner.firstName ?? ''} ${owner.lastName ?? ''}`.trim();
     const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
-    let handler: EntryFormPerson | null = null;
-    if (handlerEntry?.handler) {
-      // Handler is stored as a name string in entries; build a minimal person
-      const parts = handlerEntry.handler.trim().split(/\s+/);
-      const lastName = parts.length > 1 ? parts[parts.length - 1] : null;
-      const firstName = parts.length > 1 ? parts.slice(0, -1).join(' ') : (parts[0] ?? null);
-      handler = {
-        firstName,
-        lastName,
-        streetAddress: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        phone: null,
-        email: null,
-      };
-    }
+    const handler = handlerEntry?.handler ?? null;
 
     const armband = dogEntries.find(e => e.armband != null)?.armband ?? null;
     const agreementDate = dogEntries.find(e => e.submittedAt)?.submittedAt ?? null;

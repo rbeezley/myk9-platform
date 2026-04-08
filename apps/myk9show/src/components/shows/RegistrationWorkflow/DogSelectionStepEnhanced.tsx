@@ -85,6 +85,20 @@ interface DogRowProps {
   };
 }
 
+function getEmptyStateMessage(searchQuery: string, activeQuickFilter: string): string {
+  if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
+  switch (activeQuickFilter) {
+    case 'registered':
+      return 'None of your dogs are entered in this show yet. Clear the filter to see all your dogs.';
+    case 'unregistered':
+      return 'All your dogs are already entered in this show.';
+    case 'recent':
+      return 'No recently active dogs found. Clear the filter to see all your dogs.';
+    default:
+      return "You don't have any dogs yet. Add a dog from your profile to get started.";
+  }
+}
+
 // Compact table row for virtual list
 const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   const { dogs, selectedDogs, onToggle, getDogEligibilityStatus } = data;
@@ -543,15 +557,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground">
-                {searchQuery.trim()
-                  ? 'No dogs match your search. Try a different name or breed.'
-                  : activeQuickFilter === 'registered'
-                    ? 'None of your dogs are entered in this show yet. Clear the filter to see all your dogs.'
-                    : activeQuickFilter === 'unregistered'
-                      ? 'All your dogs are already entered in this show.'
-                      : activeQuickFilter === 'recent'
-                        ? 'No recently active dogs found. Clear the filter to see all your dogs.'
-                        : "You don't have any dogs yet. Add a dog from your profile to get started."}
+                {getEmptyStateMessage(searchQuery, activeQuickFilter)}
               </p>
             </div>
           )}

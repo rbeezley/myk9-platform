@@ -1,28 +1,9 @@
 import { useState, useCallback } from 'react';
-
-/**
- * Inline defaults — prefer importing from @/lib/labels/ once those modules exist.
- * See labelTemplates.ts (DEFAULT_TEMPLATE_ID) and armbandLabelTypes.ts (DEFAULT_CONTENT_CONFIG).
- */
-const DEFAULT_TEMPLATE_ID = '18262';
-
-export interface LabelContentConfig {
-  callName: boolean;
-  trialDate: boolean;
-  handlerName: boolean;
-  clubLogo: boolean;
-  myk9qCode: boolean;
-  venueWifi: boolean;
-}
-
-const DEFAULT_CONTENT_CONFIG: LabelContentConfig = {
-  callName: true,
-  trialDate: true,
-  handlerName: false,
-  clubLogo: false,
-  myk9qCode: true,
-  venueWifi: false,
-};
+import { DEFAULT_TEMPLATE_ID } from '@/lib/labels/labelTemplates';
+import {
+  DEFAULT_CONTENT_CONFIG,
+  type LabelContentConfig,
+} from '@/lib/labels/armbandLabelTypes';
 
 const STORAGE_KEY = 'myk9show-label-prefs';
 

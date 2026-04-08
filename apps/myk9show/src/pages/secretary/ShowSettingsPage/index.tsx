@@ -14,6 +14,7 @@ import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
 import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
+import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
 
 export default function ShowSettingsPage() {
   const { selectedShowId, shows } = useShowStore();
@@ -106,6 +107,19 @@ export default function ShowSettingsPage() {
         <MyK9QAccessCard
           showId={selectedShowId}
           {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
+        />
+      )}
+
+      {/* Venue WiFi */}
+      {selectedShowId && (
+        <VenueWifiCard
+          showId={selectedShowId}
+          network=""
+          password=""
+          onSave={(network, password) => {
+            // TODO: wire to mutation after Supabase types regenerated (migration 127)
+            console.log('Save WiFi:', network, password);
+          }}
         />
       )}
     </div>

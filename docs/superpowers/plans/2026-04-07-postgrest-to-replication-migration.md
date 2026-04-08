@@ -92,6 +92,47 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 
 All replicated tables sync non-deleted rows only (sync queries include `.is('deleted_at', null)`). The query functions that filter `deleted_at IS NULL` don't need explicit filtering after migration — the data is already clean. Functions that query deleted records (e.g. `getDeletedShows`) stay on PostgREST since deleted records aren't synced.
 
+### [ADDED] Error Handling and Fallback
+
+Every migrated SELECT function must wrap replicated table reads in a try/catch. If IndexedDB throws (corruption, quota exceeded, circuit breaker tripped), fall back to the original PostgREST query. This ensures the migration is non-breaking even when offline storage fails:
+
+```typescript
+export async function getAllShows() {
+  try {
+    const shows = await replicatedShowsTable.getAllShows();
+    // ... join + map
+    return { data: mapped, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store is unavailable
+    const { data, error } = await supabase.from('shows').select('...').is('deleted_at', null);
+    return { data, error };
+  }
+}
+```
+
+Keep the original PostgREST query code in a `_fallback` suffix function (e.g. `getAllShows_fallback`) or inline in the catch block. This means the `supabase` import stays in each file — it's just no longer the primary path.
+
+### [ADDED] N+1 Join Batching
+
+When joining across replicated tables (e.g. shows + clubs), avoid per-row lookups. Instead, batch-read all related records first, then join in memory via a Map:
+
+```typescript
+const shows = await replicatedShowsTable.getAllShows();
+const allClubs = await replicatedClubsTable.getAllClubs();
+const clubMap = new Map(allClubs.map(c => [c.id, c]));
+const mapped = shows.map(s => mapToShowRow(s, clubMap.get(s.clubId)));
+```
+
+This converts N+1 reads to 2 reads. Apply this pattern in any function that joins across tables for a list of records. Single-record functions (e.g. `getShowById`) can use direct `.get()` calls.
+
+### [ADDED] Existing Test Updates
+
+When a query file is migrated, its existing test file (e.g. `showQueries.test.ts`) will break because the functions no longer call `supabase.from()`. For each migrated file:
+
+1. Update the existing test to mock replicated table singletons instead of supabase
+2. Or delete the existing test if the new `.replication.test.ts` file provides equivalent or better coverage
+3. At minimum, run the existing test to confirm it fails, then decide whether to update or replace
+
 ---
 
 ## Task 1: Migrate showQueries.ts
@@ -356,7 +397,7 @@ Read these files first:
 The mapper must handle multiple join shapes:
 
 1. Standard: entry + dog + class + show
-2. Financial: entry + dog + class + promo_code + trial (promo_code stays PostgREST — not replicated)
+2. Financial: entry + dog + class + promo_code + trial. [ADDED] `promo_codes` is not replicated — use a targeted PostgREST batch query: collect unique `promo_code_id` values from entries, then `supabase.from('promo_codes').select('id, code, discount_type, discount_value').in('id', promoCodeIds)`. Attach results to entries via Map lookup. This keeps the function's return shape identical.
 3. By-class: entry + dog (plus armband backfill)
 4. By-dog: entry + class + show
 
@@ -514,6 +555,19 @@ git commit -m "refactor(queries): migrate dogQueries SELECTs to replication stor
 **SELECT functions to migrate:** `getArmbandCountForShow`, `lookupDogByArmband`
 
 **Functions staying on PostgREST:** `assignArmband` (RPC call)
+
+- [ ] **Step 0: [ADDED] Verify `updated_at` columns and bump IndexedDB schema version**
+
+Before creating new replicated tables, verify the prerequisite columns exist:
+
+1. Check `armbands` table has an `updated_at` column: `grep -r 'armbands' supabase/migrations/ | grep updated_at`. If missing, create a migration adding `updated_at timestamptz DEFAULT now()` with a trigger to auto-update on row change. Same for `waitlist_entries`.
+2. Bump `DB_VERSION` in `packages/replication/src/constants.ts` (currently 5, increment to 6).
+3. Update `DatabaseManager.ts` to create the new IndexedDB object stores for `armbands` and `waitlist_entries` in the version upgrade handler. Add compound indexes for `showId` and `dogId` (armbands) and `classId` and `dogId` (waitlist_entries).
+4. Update `TOTAL_REPLICATED_TABLES` constant from current value to +2.
+
+Run: `cd apps/myk9show && npx vitest run --reporter=verbose 2>&1 | tail -20` to verify nothing breaks.
+
+Commit: `git commit -m "chore(replication): bump DB_VERSION and add stores for armbands/waitlist"`
 
 - [ ] **Step 1: Create ReplicatedArmbandsTable**
 

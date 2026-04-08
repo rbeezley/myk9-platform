@@ -102,7 +102,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
         logger.log(`[${this.getTableName()}] No armbands found`);
 
         // Clear local cache since there are no remote armbands
-        await this.clear();
+        await this.clearCache();
 
         await this.updateSyncMetadata({
           lastIncrementalSyncAt: Date.now(),

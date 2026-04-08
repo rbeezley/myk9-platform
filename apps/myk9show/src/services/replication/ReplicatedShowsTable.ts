@@ -190,6 +190,12 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
         throw new Error(`Supabase query failed: ${error.message}`);
       }
 
+      logger.log(
+        `[${this.getTableName()}] Remote shows fetched: ${remoteShows?.length ?? 0} (licenseKey filter applied: ${Boolean(
+          licenseKey
+        )})`
+      );
+
       if (!remoteShows || remoteShows.length === 0) {
         logger.log(`[${this.getTableName()}] No updates found`);
 

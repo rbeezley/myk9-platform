@@ -44,4 +44,13 @@ describe('VenueWifiCard', () => {
     );
     expect(screen.getByText(/armband label/i)).toBeInTheDocument();
   });
+
+  it('shows "Coming soon" and disables inputs when onSave not provided', () => {
+    render(
+      <VenueWifiCard showId="test-id" network="" password="" />
+    );
+    expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/network/i)).toBeDisabled();
+    expect(screen.getByLabelText(/password/i)).toBeDisabled();
+  });
 });

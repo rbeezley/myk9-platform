@@ -15,7 +15,7 @@ interface VenueWifiCardProps {
   showId: string;
   network: string;
   password: string;
-  onSave: (network: string, password: string) => void;
+  onSave?: (network: string, password: string) => void;
   isSaving?: boolean;
 }
 
@@ -29,6 +29,7 @@ export function VenueWifiCard({
   const [password, setPassword] = useState(initialPassword);
 
   const hasChanges = network !== initialNetwork || password !== initialPassword;
+  const canSave = !!onSave;
 
   return (
     <Card>
@@ -36,7 +37,14 @@ export function VenueWifiCard({
         <div className="flex items-center gap-2">
           <Wifi className="h-5 w-5 text-muted-foreground" />
           <div>
-            <CardTitle>Venue WiFi</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Venue WiFi
+              {!canSave && (
+                <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                  Coming soon
+                </span>
+              )}
+            </CardTitle>
             <CardDescription>
               Displayed on armband labels so exhibitors can connect on-site
             </CardDescription>
@@ -52,6 +60,7 @@ export function VenueWifiCard({
               value={network}
               onChange={(e) => setNetwork(e.target.value)}
               placeholder="e.g. VenueWiFi"
+              disabled={!canSave}
             />
           </div>
           <div className="space-y-2">
@@ -61,10 +70,11 @@ export function VenueWifiCard({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Leave blank if open"
+              disabled={!canSave}
             />
           </div>
         </div>
-        {hasChanges && (
+        {canSave && hasChanges && (
           <Button
             size="sm"
             onClick={() => onSave(network, password)}

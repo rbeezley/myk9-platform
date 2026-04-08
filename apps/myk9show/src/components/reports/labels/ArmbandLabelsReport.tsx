@@ -210,6 +210,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                   onChange={(e) => setSpecificArmband(e.target.value)}
                   className="w-20 ml-2 px-2 py-0.5 border rounded text-sm"
                   placeholder="#"
+                  aria-label="Armband number"
                 />
               )}
             </label>

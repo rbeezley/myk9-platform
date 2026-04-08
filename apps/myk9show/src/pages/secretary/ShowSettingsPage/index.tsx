@@ -110,17 +110,9 @@ export default function ShowSettingsPage() {
         />
       )}
 
-      {/* Venue WiFi */}
+      {/* Venue WiFi — onSave omitted until migration 127 pushed and types regenerated */}
       {selectedShowId && (
-        <VenueWifiCard
-          showId={selectedShowId}
-          network=""
-          password=""
-          onSave={(network, password) => {
-            // TODO: wire to mutation after Supabase types regenerated (migration 127)
-            console.log('Save WiFi:', network, password);
-          }}
-        />
+        <VenueWifiCard showId={selectedShowId} network="" password="" />
       )}
     </div>
   );

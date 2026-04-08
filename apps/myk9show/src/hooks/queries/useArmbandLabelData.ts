@@ -45,11 +45,12 @@ export function useArmbandLabelData(
     queryKey: ['armband-label-entries', showId],
     queryFn: async () => {
       if (!showId) return [];
-      // @ts-expect-error -- column added in migration 127, types not yet regenerated
+      // TODO: remove @ts-ignore after migration 127 pushed and types regenerated
+      // @ts-ignore -- is_day_of_show column added in migration 127
       const { data } = await supabase
         .from('entries')
         .select(
-          'id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!inner(trial:trials!inner(date))',
+          'id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!left(trial:trials!left(date))',
         )
         .eq('show_id', showId)
         .is('deleted_at', null)
@@ -64,7 +65,8 @@ export function useArmbandLabelData(
     queryKey: ['show-wifi', showId],
     queryFn: async () => {
       if (!showId) return null;
-      // @ts-expect-error -- columns added in migration 127, types not yet regenerated
+      // TODO: remove @ts-ignore after migration 127 pushed and types regenerated
+      // @ts-ignore -- venue_wifi columns added in migration 127
       const { data } = await supabase
         .from('shows')
         .select('venue_wifi_network, venue_wifi_password')

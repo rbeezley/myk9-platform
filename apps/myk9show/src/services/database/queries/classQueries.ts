@@ -1,8 +1,19 @@
 // Class Database Query Layer - Phase 2.5: Class Store Integration
-// Handles all class and entry-related database operations with comprehensive error handling
+// SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
+// Mutation functions (create, update, delete) remain on PostgREST.
 
-import { supabase, createDatabaseError } from '../supabaseClient';
+import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import {
+  mapReplicatedClassToDbRow,
+  mapReplicatedEntryToDetailRow,
+} from '@/services/mappers/classMappers';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 
 // Re-export entry operations from sibling module for backward compatibility
 export {
@@ -16,64 +27,236 @@ export {
   getDeletedEntries,
 } from './classQueries.entries';
 
-// Helper function to log queries with the correct signature - temporary no-op to pass build
-const log = (...args: unknown[]) => {
-  // Temporarily disabled logging to fix build
-  void args; // Suppress unused variable warning
-};
-// type ClassWithRelations = DbClass & {
-//   trial?: unknown;
-//   entry?: unknown[];
-// };
-// type EntryWithRelations = DbEntry & {
-//   dog?: unknown;
-//   class?: unknown;
-// };
+// ---------------------------------------------------------------------------
+// Helpers — batch-load related data into Maps to avoid N+1 reads
+// ---------------------------------------------------------------------------
+
+async function loadTrialsMap(): Promise<Map<string, ReplicatedTrial>> {
+  const trials = await replicatedTrialsTable.getAll();
+  return new Map(trials.map(t => [t.id, t]));
+}
+
+async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
+  const entries = await replicatedEntriesTable.getAll();
+  const map = new Map<string, number>();
+  for (const e of entries) {
+    if (e.classId) {
+      map.set(e.classId, (map.get(e.classId) ?? 0) + 1);
+    }
+  }
+  return map;
+}
+
+/**
+ * Map an array of ReplicatedClass to DB-row-shaped objects using pre-loaded
+ * lookup maps.
+ */
+function mapClassesWithJoins(
+  classes: ReplicatedClass[],
+  trialsMap: Map<string, ReplicatedTrial>,
+  entryCountsMap: Map<string, number>
+): Record<string, unknown>[] {
+  return classes.map(cls => {
+    const trial = cls.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
+
+    // Build judge_assignments from denormalized fields on ReplicatedClass
+    const judgeAssignments =
+      cls.judgeId && cls.judgeName
+        ? [
+            {
+              person_id: cls.judgeId,
+              people: {
+                first_name: cls.judgeName.split(' ')[0] || '',
+                last_name: cls.judgeName.split(' ').slice(1).join(' ') || '',
+              },
+            },
+          ]
+        : [];
+
+    return mapReplicatedClassToDbRow(cls, {
+      trial: trial
+        ? {
+            id: trial.id,
+            name: trial.name,
+            date: trial.date,
+            ...(trial.trialNumber != null && { trialNumber: trial.trialNumber }),
+            ...(trial.status != null && { status: trial.status }),
+          }
+        : null,
+      entryCount: entryCountsMap.get(cls.id) ?? 0,
+      judgeAssignments,
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// PostgREST fallback wrappers (original implementations)
+// ---------------------------------------------------------------------------
+
+async function postgrestGetAllClasses() {
+  const { data, error } = await supabase
+    .from('classes')
+    .select(
+      `
+      *,
+      trial:trials (
+        id,
+        name,
+        date,
+        trial_number,
+        status
+      ),
+      entries (
+        id
+      ),
+      judge_assignments!judge_assignments_class_id_fkey (
+        person_id,
+        people!inner (
+          first_name,
+          last_name
+        )
+      )
+    `
+    )
+    .is('deleted_at', null)
+    .order('start_time', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'class', 'select_all');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetClassById(id: string) {
+  const { data, error } = await supabase
+    .from('classes')
+    .select(
+      `
+      *,
+      trial:trials (
+        id,
+        name,
+        date,
+        trial_number,
+        status,
+        max_entries_per_dog,
+        max_entries_per_handler
+      ),
+      entries (
+        id,
+        entry_status,
+        points_earned,
+        search_time_seconds,
+        final_placement,
+        dog:dogs (
+          id,
+          name,
+          breed,
+          owner:people (
+            id,
+            first_name,
+            last_name
+          )
+        )
+      )
+    `
+    )
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) throw createDatabaseError(error, 'class', 'select_by_id');
+  return { data, error: null };
+}
+
+async function postgrestGetClassesByTrialId(trialId: string) {
+  const { data, error } = await supabase
+    .from('classes')
+    .select(
+      `
+      *,
+      entries (
+        id
+      )
+    `
+    )
+    .eq('trial_id', trialId)
+    .is('deleted_at', null)
+    .order('start_time', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'class', 'select_by_trial');
+  return { data: data || [], error: null };
+}
+
+async function postgrestSearchClasses(searchTerm: string, limit: number) {
+  const { data, error } = await supabase
+    .from('classes')
+    .select(
+      `
+      *,
+      trial:trials (
+        id,
+        name,
+        date
+      )
+    `
+    )
+    .or(
+      `name.ilike.%${searchTerm}%,` +
+        `level.ilike.%${searchTerm}%,` +
+        `description.ilike.%${searchTerm}%`
+    )
+    .is('deleted_at', null)
+    .order('start_time', { ascending: true })
+    .limit(limit);
+
+  if (error) throw createDatabaseError(error, 'class', 'search');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetClassStatistics() {
+  const { error, count } = await supabase
+    .from('classes')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null);
+
+  if (error) throw createDatabaseError(error, 'class', 'statistics');
+  return { data: { total: count || 0 }, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// SELECT functions — read from replication store, fallback to PostgREST
+// ---------------------------------------------------------------------------
 
 /**
  * Get all classes with trial relationships and entry counts (excluding soft-deleted)
  */
 export const getAllClasses = async () => {
+  const startTime = Date.now();
+
   try {
-    log('class', 'select_all_with_relations');
+    const [classes, trialsMap, entryCountsMap] = await Promise.all([
+      replicatedClassesTable.getAll(),
+      loadTrialsMap(),
+      loadEntryCountsByClassMap(),
+    ]);
 
-    const { data, error } = await supabase
-      .from('classes')
-      .select(
-        `
-        *,
-        trial:trials (
-          id,
-          name,
-          date,
-          trial_number,
-          status
-        ),
-        entries (
-          id
-        ),
-        judge_assignments!judge_assignments_class_id_fkey (
-          person_id,
-          people!inner (
-            first_name,
-            last_name
-          )
-        )
-      `
-      )
-      .is('deleted_at', null)
-      .order('start_time', { ascending: true });
+    const data = mapClassesWithJoins(classes, trialsMap, entryCountsMap);
 
-    if (error) {
-      log('class', 'select_all_error', { error });
-      return { data: [], error: createDatabaseError(error) };
+    const duration = Date.now() - startTime;
+    logQuery('class', 'select_all_with_relations', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store fails
+    try {
+      const result = await postgrestGetAllClasses();
+      const duration = Date.now() - startTime;
+      logQuery('class', 'select_all_with_relations_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'class', 'select_all');
+      logQuery('class', 'select_all_with_relations', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    log('class', 'select_all_success', { count: data?.length || 0 });
-    return { data: data || [], error: null };
-  } catch (error) {
-    log('class', 'select_all_exception', { error });
-    return { data: [], error: createDatabaseError(error) };
   }
 };
 
@@ -81,59 +264,57 @@ export const getAllClasses = async () => {
  * Get a class by ID with full details including entries (excluding soft-deleted)
  */
 export const getClassById = async (id: string) => {
+  const startTime = Date.now();
+
   try {
-    log('getClassById', 'Fetching class by ID', { id });
-
-    const { data, error } = await supabase
-      .from('classes')
-      .select(
-        `
-        *,
-        trial:trials (
-          id,
-          name,
-          date,
-          trial_number,
-          status,
-          max_entries_per_dog,
-          max_entries_per_handler
-        ),
-        entries (
-          id,
-          entry_status,
-          points_earned,
-          search_time_seconds,
-          final_placement,
-          dog:dogs (
-            id,
-            name,
-            breed,
-            owner:people (
-              id,
-              first_name,
-              last_name
-            )
-          )
-        )
-      `
-      )
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single();
-
-    if (error) {
-      log('getClassById', 'Error fetching class', { id, error });
-      return { data: null, error: createDatabaseError(error) };
+    const cls = await replicatedClassesTable.getClassById(id);
+    if (!cls) {
+      const duration = Date.now() - startTime;
+      logQuery('class', 'select_by_id', duration);
+      return { data: null, error: null };
     }
 
-    log('getClassById', 'Successfully fetched class', {
-      id,
-      entryCount: data?.entries?.length || 0,
+    const [trial, classEntries, allDogs] = await Promise.all([
+      cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),
+      replicatedEntriesTable.getEntriesByClass(id),
+      replicatedDogsTable.getAll(),
+    ]);
+
+    const dogsMap = new Map(allDogs.map(d => [d.id, d]));
+
+    const entries = classEntries.map(entry => {
+      const dog = entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null;
+      return mapReplicatedEntryToDetailRow(entry, dog);
     });
+
+    const trialObj = trial
+      ? {
+          id: trial.id,
+          name: trial.name,
+          date: trial.date,
+          ...(trial.trialNumber != null && { trialNumber: trial.trialNumber }),
+          ...(trial.status != null && { status: trial.status }),
+        }
+      : null;
+
+    const data = mapReplicatedClassToDbRow(cls, { trial: trialObj, entries });
+
+    const duration = Date.now() - startTime;
+    logQuery('class', 'select_by_id', duration);
     return { data, error: null };
-  } catch (error) {
-    log('getClassById', 'Unexpected error', { id, error });
-    return { data: null, error: createDatabaseError(error) };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestGetClassById(id);
+      const duration = Date.now() - startTime;
+      logQuery('class', 'select_by_id_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'class', 'select_by_id');
+      logQuery('class', 'select_by_id', duration, dbError.message);
+      return { data: null, error: dbError };
+    }
   }
 };
 
@@ -141,37 +322,46 @@ export const getClassById = async (id: string) => {
  * Get classes by trial ID (excluding soft-deleted)
  */
 export const getClassesByTrialId = async (trialId: string) => {
+  const startTime = Date.now();
+
   try {
-    log('getClassesByTrialId', 'Fetching classes by trial ID', { trialId });
+    const [classes, entryCountsMap] = await Promise.all([
+      replicatedClassesTable.getClassesByTrial(trialId),
+      loadEntryCountsByClassMap(),
+    ]);
 
-    const { data, error } = await supabase
-      .from('classes')
-      .select(
-        `
-        *,
-        entries (
-          id
-        )
-      `
-      )
-      .eq('trial_id', trialId)
-      .is('deleted_at', null)
-      .order('start_time', { ascending: true });
+    const data = classes.map(cls =>
+      mapReplicatedClassToDbRow(cls, {
+        entryCount: entryCountsMap.get(cls.id) ?? 0,
+      })
+    );
 
-    if (error) {
-      log('getClassesByTrialId', 'Error fetching classes by trial', { trialId, error });
-      return { data: [], error: createDatabaseError(error) };
+    const duration = Date.now() - startTime;
+    logQuery('class', 'select_by_trial', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestGetClassesByTrialId(trialId);
+      const duration = Date.now() - startTime;
+      logQuery('class', 'select_by_trial_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'class', 'select_by_trial');
+      logQuery('class', 'select_by_trial', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    log('getClassesByTrialId', 'Successfully fetched classes by trial', {
-      trialId,
-      count: data?.length || 0,
-    });
-    return { data: data || [], error: null };
-  } catch (error) {
-    log('getClassesByTrialId', 'Unexpected error', { trialId, error });
-    return { data: [], error: createDatabaseError(error) };
   }
+};
+
+// ---------------------------------------------------------------------------
+// Mutation functions — remain on PostgREST (DO NOT CHANGE)
+// ---------------------------------------------------------------------------
+
+// Helper function to log mutations - temporary no-op to pass build
+const log = (...args: unknown[]) => {
+  void args;
 };
 
 /**
@@ -296,43 +486,39 @@ export const deleteClass = async (id: string, deletedBy?: string) => {
  * Search classes by name, level, or description (excluding soft-deleted)
  */
 export const searchClasses = async (searchTerm: string, limit = 50) => {
+  const startTime = Date.now();
+
   try {
-    log('searchClasses', 'Searching classes', { searchTerm, limit });
+    const allClasses = await replicatedClassesTable.getAll();
+    const term = searchTerm.toLowerCase();
 
-    const { data, error } = await supabase
-      .from('classes')
-      .select(
-        `
-        *,
-        trial:trials (
-          id,
-          name,
-          date
-        )
-      `
+    const filtered = allClasses
+      .filter(
+        cls =>
+          cls.name.toLowerCase().includes(term) ||
+          (cls.level && cls.level.toLowerCase().includes(term)) ||
+          (cls.description && cls.description.toLowerCase().includes(term))
       )
-      .or(
-        `name.ilike.%${searchTerm}%,` +
-          `level.ilike.%${searchTerm}%,` +
-          `description.ilike.%${searchTerm}%`
-      )
-      .is('deleted_at', null)
-      .order('start_time', { ascending: true })
-      .limit(limit);
+      .slice(0, limit);
 
-    if (error) {
-      log('searchClasses', 'Error searching classes', { searchTerm, error });
-      return { data: [], error: createDatabaseError(error) };
+    const data = filtered.map(cls => mapReplicatedClassToDbRow(cls));
+
+    const duration = Date.now() - startTime;
+    logQuery('class', 'search', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestSearchClasses(searchTerm, limit);
+      const duration = Date.now() - startTime;
+      logQuery('class', 'search_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'class', 'search');
+      logQuery('class', 'search', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    log('searchClasses', 'Successfully searched classes', {
-      searchTerm,
-      resultCount: data?.length || 0,
-    });
-    return { data: data || [], error: null };
-  } catch (error) {
-    log('searchClasses', 'Unexpected error', { searchTerm, error });
-    return { data: [], error: createDatabaseError(error) };
   }
 };
 
@@ -340,27 +526,31 @@ export const searchClasses = async (searchTerm: string, limit = 50) => {
  * Get class statistics (total count, by level, etc.) (excluding soft-deleted)
  */
 export const getClassStatistics = async () => {
+  const startTime = Date.now();
+
   try {
-    log('getClassStatistics', 'Fetching class statistics');
+    const allClasses = await replicatedClassesTable.getAll();
 
-    const { error, count } = await supabase
-      .from('classes')
-      .select('id', { count: 'exact', head: true })
-      .is('deleted_at', null);
-
-    if (error) {
-      log('getClassStatistics', 'Error fetching class statistics', { error });
-      return { data: null, error: createDatabaseError(error) };
-    }
-
-    log('getClassStatistics', 'Successfully fetched class statistics', { total: count });
-    return {
-      data: { total: count || 0 },
-      error: null,
+    const stats = {
+      total: allClasses.length,
     };
-  } catch (error) {
-    log('getClassStatistics', 'Unexpected error', { error });
-    return { data: null, error: createDatabaseError(error) };
+
+    const duration = Date.now() - startTime;
+    logQuery('class', 'statistics', duration);
+    return { data: stats, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetClassStatistics();
+      const duration = Date.now() - startTime;
+      logQuery('class', 'statistics_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'class', 'statistics');
+      logQuery('class', 'statistics', duration, dbError.message);
+      return { data: null, error: dbError };
+    }
   }
 };
 

@@ -1,5 +1,6 @@
 // Class Data Mappers - Phase 2.5: Class Store Integration
-// Handles type conversion between classStore types and database types
+// Handles type conversion between classStore types and database types,
+// and replication-to-DB-row mapping for offline-first reads.
 
 import type {
   DbClass,
@@ -15,6 +16,9 @@ import type {
   SyncableClassData,
   SyncableEntryData,
 } from '@/store/classStore';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 
 // ===== JOINED DATA TYPES =====
 
@@ -372,4 +376,131 @@ const mapDatabaseEntryStatus = (
     pending: 'Not Qualified',
   };
   return statusMap[status] || 'Not Qualified';
+};
+
+// ---------------------------------------------------------------------------
+// Replication mappers — convert camelCase replicated types to snake_case DB
+// row shapes so downstream consumers (stores, UI) see the same shape as
+// PostgREST responses.
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a ReplicatedClass to the snake_case DB row shape that consumers
+ * expect from PostgREST `select('*')`.
+ *
+ * Optionally attach joined `trial`, `entries`, and `judge_assignments` when
+ * the corresponding replicated data is provided.
+ */
+export const mapReplicatedClassToDbRow = (
+  cls: ReplicatedClass,
+  options?: {
+    trial?: {
+      id: string;
+      name: string;
+      date: string;
+      trialNumber?: string;
+      status?: string;
+    } | null;
+    entryCount?: number;
+    judgeAssignments?: Array<{
+      person_id: string;
+      people: { first_name: string; last_name: string };
+    }>;
+    entries?: Array<Record<string, unknown>>;
+  }
+): Record<string, unknown> => {
+  const row: Record<string, unknown> = {
+    id: cls.id,
+    trial_id: cls.trialId ?? null,
+    name: cls.name,
+    description: cls.description ?? null,
+    entry_fee: cls.entryFee ?? null,
+    jump_heights: cls.jumpHeights ?? null,
+    max_entries: cls.maxEntries ?? null,
+    allow_waitlist: cls.allowsWaitlist ?? null,
+    max_dogs_per_handler: cls.maxDogsPerHandler ?? null,
+    level: cls.level ?? null,
+    breed_restrictions: cls.breedRestrictions ?? null,
+    age_min: cls.ageMin ?? null,
+    age_max: cls.ageMax ?? null,
+    height_min: cls.heightMin ?? null,
+    height_max: cls.heightMax ?? null,
+    handler_age_min: cls.handlerAgeMin ?? null,
+    handler_age_max: cls.handlerAgeMax ?? null,
+    start_time: cls.startTime ?? null,
+    estimated_duration: cls.estimatedDuration ?? null,
+    element: cls.element ?? null,
+    section: cls.section ?? null,
+    status: cls.classStatus ?? null,
+    class_order: cls.classOrder ?? null,
+    is_completed: cls.isCompleted ?? false,
+    is_scoring_finalized: cls.isScoringFinalized ?? false,
+    is_results_reviewed: cls.isResultsReviewed ?? false,
+    deleted_at: null,
+  };
+
+  // Attach trial sub-object when provided
+  if (options?.trial) {
+    row.trial = {
+      id: options.trial.id,
+      name: options.trial.name,
+      date: options.trial.date,
+      trial_number: options.trial.trialNumber ?? null,
+      status: options.trial.status ?? null,
+    };
+  } else {
+    row.trial = null;
+  }
+
+  // Attach entries array (id-only for count) when entryCount is provided
+  if (options?.entryCount !== undefined) {
+    row.entries = Array.from({ length: options.entryCount }, (_, i) => ({ id: `entry-${i}` }));
+  }
+
+  // Attach full entries when provided (for getClassById detail shape)
+  if (options?.entries) {
+    row.entries = options.entries;
+  }
+
+  // Attach judge_assignments when provided
+  if (options?.judgeAssignments) {
+    row.judge_assignments = options.judgeAssignments;
+  }
+
+  return row;
+};
+
+/**
+ * Map a ReplicatedEntry to the snake_case entry sub-object shape returned
+ * by PostgREST when selecting entries with dog join in getClassById.
+ */
+export const mapReplicatedEntryToDetailRow = (
+  entry: ReplicatedEntry,
+  dog?: ReplicatedDog | null
+): Record<string, unknown> => {
+  const entryRow: Record<string, unknown> = {
+    id: entry.id,
+    entry_status: entry.entryStatus ?? null,
+    points_earned: entry.totalPoints ?? null,
+    search_time_seconds: entry.searchTimeSeconds ?? null,
+    final_placement: entry.finalPlacement ?? null,
+  };
+
+  if (dog) {
+    entryRow.dog = {
+      id: dog.id,
+      name: dog.name,
+      breed: dog.breed,
+      owner: null, // people table not replicated — omit deep owner detail
+    };
+  } else {
+    entryRow.dog = {
+      id: entry.dogId ?? null,
+      name: entry.dogCallName ?? 'Unknown',
+      breed: entry.dogBreed ?? '',
+      owner: null,
+    };
+  }
+
+  return entryRow;
 };

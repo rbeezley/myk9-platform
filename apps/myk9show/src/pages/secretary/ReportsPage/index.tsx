@@ -38,22 +38,22 @@ export default function ReportsPage() {
 
   const trialOptions = useMemo(
     () =>
-      (trials ?? []).map(t => ({
-        id: t.id,
+      ((trials ?? []) as Array<Record<string, unknown>>).map(t => ({
+        id: t.id as string,
         trial_number: Number(t.trial_number ?? 0),
-        date: t.date ?? '',
+        date: (t.date ?? '') as string,
       })),
     [trials]
   );
 
   const classOptions = useMemo(
     () =>
-      (classes ?? []).map(c => ({
-        id: c.id,
-        element: c.element ?? '',
-        level: c.level ?? '',
-        section: c.section ?? '',
-        trial_id: c.trial_id ?? '',
+      ((classes ?? []) as Array<Record<string, unknown>>).map(c => ({
+        id: c.id as string,
+        element: (c.element ?? '') as string,
+        level: (c.level ?? '') as string,
+        section: (c.section ?? '') as string,
+        trial_id: (c.trial_id ?? '') as string,
       })),
     [classes]
   );
@@ -131,8 +131,8 @@ export default function ReportsPage() {
         <ReportPreview
           reportType={reportType}
           show={show}
-          trials={trials}
-          classes={classes}
+          trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
+          classes={classes as Parameters<typeof ReportPreview>[0]['classes']}
           entries={entries}
           trialId={trialId}
           classId={classId}

@@ -134,10 +134,11 @@ const EntryManagementPage: React.FC = () => {
 
   // Trial/class data for filter dropdowns and roster view
   const { data: trials = [], isLoading: isLoadingTrials } = useShowTrials(selectedShowId);
-  const { data: trialClasses = [], isLoading: isLoadingClasses } = useClassesByTrialQuery(
+  const { data: rawTrialClasses = [], isLoading: isLoadingClasses } = useClassesByTrialQuery(
     trialFilter || '',
     !!trialFilter
   );
+  const trialClasses = rawTrialClasses as Array<{ id: string; name: string | null }>;
   const { data: trialEntryRows = [], isLoading: isLoadingTrialEntries } = useTrialEntries(
     trialFilter || ''
   );
@@ -341,7 +342,7 @@ const EntryManagementPage: React.FC = () => {
               trialFilter
                 ? (() => {
                     const t = trials.find(tr => tr.id === trialFilter);
-                    return t ? (t.name || `Trial ${t.trial_number}`) : null;
+                    return t ? t.name || `Trial ${t.trial_number}` : null;
                   })()
                 : null
             }

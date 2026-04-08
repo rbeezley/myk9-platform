@@ -12,6 +12,23 @@ import type {
   EntryFormPerson,
 } from '@/lib/reports/entryFormTypes';
 
+function formatPersonName(person: {
+  first_name?: string | null;
+  last_name?: string | null;
+}): string {
+  return `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
+}
+
+function buildSecretary(person: Record<string, unknown>): EntryFormSecretary {
+  return {
+    name: formatPersonName(person as { first_name?: string | null; last_name?: string | null }),
+    streetAddress: (person.street_address as string) ?? null,
+    city: (person.city as string) ?? null,
+    state: (person.state as string) ?? null,
+    zipCode: (person.zip_code as string) ?? null,
+  };
+}
+
 export interface UseEntryFormDataOptions {
   showId: string;
   trialId?: string;
@@ -169,30 +186,17 @@ async function fetchEntryFormData(
 
   let secretary: EntryFormSecretary | null = null;
   if (secretaryRole?.user_id) {
-    const secPerson = personMap.get(secretaryRole.user_id);
+    let secPerson = personMap.get(secretaryRole.user_id);
     if (!secPerson) {
       const { data: secData } = await supabase
         .from('people')
         .select('first_name, last_name, street_address, city, state, zip_code')
         .eq('id', secretaryRole.user_id)
         .maybeSingle();
-      if (secData) {
-        secretary = {
-          name: `${secData.first_name ?? ''} ${secData.last_name ?? ''}`.trim(),
-          streetAddress: secData.street_address,
-          city: secData.city,
-          state: secData.state,
-          zipCode: secData.zip_code,
-        };
-      }
-    } else {
-      secretary = {
-        name: `${secPerson.first_name ?? ''} ${secPerson.last_name ?? ''}`.trim(),
-        streetAddress: secPerson.street_address,
-        city: secPerson.city,
-        state: secPerson.state,
-        zipCode: secPerson.zip_code,
-      };
+      secPerson = secData ?? undefined;
+    }
+    if (secPerson) {
+      secretary = buildSecretary(secPerson as Record<string, unknown>);
     }
   }
 
@@ -226,15 +230,15 @@ async function fetchEntryFormData(
         };
 
     const breederRaw = dog.breeder_id ? personMap.get(dog.breeder_id) : null;
-    const breederName = breederRaw
-      ? `${breederRaw.first_name ?? ''} ${breederRaw.last_name ?? ''}`.trim()
-      : null;
+    const breederName = breederRaw ? formatPersonName(breederRaw) : null;
 
     const pedigree = pedigreeMap.get(dog.id);
     const reg = regMap.get(dog.id) ?? null;
 
-    // Handler — use first non-owner handler name string from entries
-    const ownerFullName = `${owner.firstName ?? ''} ${owner.lastName ?? ''}`.trim();
+    const ownerFullName = formatPersonName({
+      first_name: owner.firstName,
+      last_name: owner.lastName,
+    });
     const handlerEntry = dogEntries.find(e => e.handler && e.handler !== ownerFullName);
     const handler = handlerEntry?.handler ?? null;
 

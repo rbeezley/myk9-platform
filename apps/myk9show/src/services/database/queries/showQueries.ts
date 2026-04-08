@@ -1,72 +1,394 @@
 // Show-related database queries
+// SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
+// Mutation functions (create, update, delete) remain on PostgREST.
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
+import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
+import { mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
+import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
+import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
+
+// ---------------------------------------------------------------------------
+// Helpers — batch-load related data into Maps to avoid N+1 reads
+// ---------------------------------------------------------------------------
+
+async function loadClubsMap(): Promise<Map<string, ReplicatedClub>> {
+  const clubs = await replicatedClubsTable.getAllClubs();
+  return new Map(clubs.map(c => [c.id, c]));
+}
+
+async function loadTrialsByShowMap(): Promise<Map<string, ReplicatedTrial[]>> {
+  const trials = await replicatedTrialsTable.getAll();
+  const map = new Map<string, ReplicatedTrial[]>();
+  for (const t of trials) {
+    if (t.showId) {
+      const list = map.get(t.showId) ?? [];
+      list.push(t);
+      map.set(t.showId, list);
+    }
+  }
+  return map;
+}
+
+async function loadJudgeAssignmentsByShowMap(): Promise<Map<string, ReplicatedJudgeAssignment[]>> {
+  const assignments = await replicatedJudgeAssignmentsTable.getAll();
+  const map = new Map<string, ReplicatedJudgeAssignment[]>();
+  for (const a of assignments) {
+    if (a.showId) {
+      const list = map.get(a.showId) ?? [];
+      list.push(a);
+      map.set(a.showId, list);
+    }
+  }
+  return map;
+}
+
+/**
+ * Map an array of ReplicatedShow to DB-row-shaped objects using pre-loaded
+ * lookup maps. Set `clubDetail` to true for the detailed club sub-object.
+ */
+function mapShowsWithJoins(
+  shows: ReplicatedShow[],
+  clubsMap: Map<string, ReplicatedClub>,
+  trialsMap: Map<string, ReplicatedTrial[]>,
+  judgeAssignmentsMap: Map<string, ReplicatedJudgeAssignment[]>,
+  clubDetail = false
+): Record<string, unknown>[] {
+  return shows.map(show =>
+    mapReplicatedShowToDbRow(show, {
+      club: show.clubId ? (clubsMap.get(show.clubId) ?? null) : null,
+      trials: trialsMap.get(show.id) ?? [],
+      judgeAssignments: judgeAssignmentsMap.get(show.id) ?? [],
+      clubDetail,
+    })
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PostgREST fallback wrappers (original implementations)
+// ---------------------------------------------------------------------------
+
+async function postgrestGetAllShows() {
+  const { data, error } = await supabase
+    .from('shows')
+    .select(
+      `
+      *,
+      club:clubs(
+        id,
+        name,
+        logo_url,
+        cover_image_url,
+        accent_color
+      ),
+      trials(
+        id,
+        name,
+        date,
+        trial_number,
+        status,
+        trial_type,
+        max_entries_per_dog,
+        max_total_entries,
+        max_entries_per_handler
+      ),
+      judge_assignments(
+        id,
+        person_id,
+        show_id,
+        trial_id,
+        class_id,
+        status,
+        invited_at,
+        confirmed_at,
+        fee,
+        notes,
+        judge:people(
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      )
+    `
+    )
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'show', 'select_all');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetUpcomingShows(limit: number) {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('shows')
+    .select(
+      `
+      *,
+      club:clubs(
+        id,
+        name,
+        logo_url,
+        cover_image_url,
+        accent_color
+      ),
+      trials(
+        id,
+        name,
+        date,
+        trial_number,
+        status
+      )
+    `
+    )
+    .gte('start_date', today)
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true })
+    .limit(limit);
+
+  if (error) throw createDatabaseError(error, 'show', 'select_upcoming');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetShowsByDateRange(startDate: string, endDate: string) {
+  const { data, error } = await supabase
+    .from('shows')
+    .select(
+      `
+      *,
+      club:clubs(
+        id,
+        name,
+        logo_url,
+        cover_image_url,
+        accent_color
+      ),
+      trials(
+        id,
+        name,
+        date,
+        trial_number,
+        status
+      )
+    `
+    )
+    .gte('start_date', startDate)
+    .lte('end_date', endDate)
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'show', 'select_by_date_range');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetShowsByClub(clubId: string) {
+  const { data, error } = await supabase
+    .from('shows')
+    .select(
+      `
+      *,
+      club:clubs(
+        id,
+        name,
+        logo_url,
+        cover_image_url,
+        accent_color
+      ),
+      trials(
+        id,
+        name,
+        date,
+        trial_number,
+        status
+      )
+    `
+    )
+    .eq('club_id', clubId)
+    .is('deleted_at', null)
+    .order('start_date', { ascending: false });
+
+  if (error) throw createDatabaseError(error, 'show', 'select_by_club');
+  return { data: data || [], error: null };
+}
+
+async function postgrestSearchShows(searchTerm: string) {
+  const { data, error } = await supabase
+    .from('shows')
+    .select('*')
+    .or(
+      `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,location.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+    )
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'show', 'search');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetShowStatistics() {
+  const { error, count } = await supabase
+    .from('shows')
+    .select('id', { count: 'exact', head: true })
+    .is('deleted_at', null);
+
+  if (error) throw createDatabaseError(error, 'show', 'statistics');
+  return { data: { total: count || 0 }, error: null };
+}
+
+async function postgrestGetShowsWithEntryCounts() {
+  const { data, error } = await supabase
+    .from('shows')
+    .select(
+      `
+      *,
+      club:clubs(
+        id,
+        name,
+        logo_url,
+        cover_image_url,
+        accent_color
+      )
+    `
+    )
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'show', 'select_with_entry_counts');
+  const dataWithCounts =
+    data?.map(show => ({
+      ...show,
+      entry_count: 0,
+    })) || [];
+  return { data: dataWithCounts, error: null };
+}
+
+async function postgrestGetShowsByStatus(status: string) {
+  const { data, error } = await supabase
+    .from('shows')
+    .select('*')
+    .eq('status', status)
+    .is('deleted_at', null)
+    .order('start_date', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'show', 'select_by_status');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetSecretaryShows() {
+  const { data, error } = await supabase
+    .from('shows')
+    .select(
+      `
+      id,
+      name,
+      start_date,
+      end_date
+    `
+    )
+    .is('deleted_at', null)
+    .order('start_date', { ascending: false });
+
+  if (error) throw createDatabaseError(error, 'show', 'select_secretary_shows');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetShowById(id: string) {
+  const { data, error } = await supabase
+    .from('shows')
+    .select(
+      `
+      *,
+      club:clubs(
+        id,
+        name,
+        address,
+        phone,
+        email,
+        website,
+        logo_url,
+        cover_image_url,
+        accent_color
+      ),
+      trials(
+        id,
+        name,
+        date,
+        trial_number,
+        status,
+        trial_type,
+        max_entries_per_dog,
+        max_total_entries,
+        max_entries_per_handler
+      ),
+      judge_assignments(
+        id,
+        person_id,
+        show_id,
+        trial_id,
+        class_id,
+        status,
+        invited_at,
+        confirmed_at,
+        fee,
+        notes,
+        judge:people(
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      )
+    `
+    )
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) throw createDatabaseError(error, 'show', 'select_by_id');
+  return { data, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// SELECT functions — read from replication store, fallback to PostgREST
+// ---------------------------------------------------------------------------
 
 // Get all shows with club and trial information (excluding soft-deleted)
 export const getAllShows = async () => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select(
-        `
-        *,
-        club:clubs(
-          id,
-          name,
-          logo_url,
-          cover_image_url,
-          accent_color
-        ),
-        trials(
-          id,
-          name,
-          date,
-          trial_number,
-          status,
-          trial_type,
-          max_entries_per_dog,
-          max_total_entries,
-          max_entries_per_handler
-        ),
-        judge_assignments(
-          id,
-          person_id,
-          show_id,
-          trial_id,
-          class_id,
-          status,
-          invited_at,
-          confirmed_at,
-          fee,
-          notes,
-          judge:people(
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        )
-      `
-      )
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true });
+    const [shows, clubsMap, trialsMap, judgeAssignmentsMap] = await Promise.all([
+      replicatedShowsTable.getAllShows(),
+      loadClubsMap(),
+      loadTrialsByShowMap(),
+      loadJudgeAssignmentsByShowMap(),
+    ]);
+
+    const data = mapShowsWithJoins(shows, clubsMap, trialsMap, judgeAssignmentsMap);
 
     const duration = Date.now() - startTime;
-    logQuery('show', 'select_all_detailed', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_all');
+    logQuery('show', 'select_all_detailed', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store fails
+    try {
+      const result = await postgrestGetAllShows();
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_all_detailed_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_all');
+      logQuery('show', 'select_all_detailed', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_all');
-    logQuery('show', 'select_all_detailed', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -75,118 +397,76 @@ export const getShowById = async (id: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select(
-        `
-        *,
-        club:clubs(
-          id,
-          name,
-          address,
-          phone,
-          email,
-          website,
-          logo_url,
-          cover_image_url,
-          accent_color
-        ),
-        trials(
-          id,
-          name,
-          date,
-          trial_number,
-          status,
-          trial_type,
-          max_entries_per_dog,
-          max_total_entries,
-          max_entries_per_handler
-        ),
-        judge_assignments(
-          id,
-          person_id,
-          show_id,
-          trial_id,
-          class_id,
-          status,
-          invited_at,
-          confirmed_at,
-          fee,
-          notes,
-          judge:people(
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        )
-      `
-      )
-      .eq('id', id)
-      .is('deleted_at', null)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('show', 'select_by_id_complete', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_by_id');
+    const show = await replicatedShowsTable.getShowById(id);
+    if (!show) {
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_by_id_complete', duration);
+      return { data: null, error: null };
     }
 
-    return { data, error: null };
-  } catch (error) {
+    const [club, trials, judgeAssignments] = await Promise.all([
+      show.clubId ? replicatedClubsTable.getClubById(show.clubId) : Promise.resolve(null),
+      replicatedTrialsTable.getTrialsByShow(id),
+      replicatedJudgeAssignmentsTable.getByShowId(id),
+    ]);
+
+    const data = mapReplicatedShowToDbRow(show, {
+      club,
+      trials,
+      judgeAssignments,
+      clubDetail: true,
+    });
+
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_by_id');
-    logQuery('show', 'select_by_id_complete', duration, dbError.message);
-    return { data: null, error: dbError };
+    logQuery('show', 'select_by_id_complete', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestGetShowById(id);
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_by_id_complete_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_by_id');
+      logQuery('show', 'select_by_id_complete', duration, dbError.message);
+      return { data: null, error: dbError };
+    }
   }
 };
 
 // Get upcoming shows (excluding soft-deleted)
 export const getUpcomingShows = async (limit = 10) => {
   const startTime = Date.now();
-  const today = new Date().toISOString().split('T')[0];
 
   try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select(
-        `
-        *,
-        club:clubs(
-          id,
-          name,
-          logo_url,
-          cover_image_url,
-          accent_color
-        ),
-        trials(
-          id,
-          name,
-          date,
-          trial_number,
-          status
-        )
-      `
-      )
-      .gte('start_date', today)
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true })
-      .limit(limit);
+    const [shows, clubsMap, trialsMap] = await Promise.all([
+      replicatedShowsTable.getUpcomingShows(),
+      loadClubsMap(),
+      loadTrialsByShowMap(),
+    ]);
+
+    const limited = shows.slice(0, limit);
+    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
+    const data = mapShowsWithJoins(limited, clubsMap, trialsMap, emptyJudgeMap);
 
     const duration = Date.now() - startTime;
-    logQuery('show', 'select_upcoming', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_upcoming');
+    logQuery('show', 'select_upcoming', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetUpcomingShows(limit);
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_upcoming_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_upcoming');
+      logQuery('show', 'select_upcoming', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_upcoming');
-    logQuery('show', 'select_upcoming', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -195,45 +475,35 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select(
-        `
-        *,
-        club:clubs(
-          id,
-          name,
-          logo_url,
-          cover_image_url,
-          accent_color
-        ),
-        trials(
-          id,
-          name,
-          date,
-          trial_number,
-          status
-        )
-      `
-      )
-      .gte('start_date', startDate)
-      .lte('end_date', endDate)
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true });
+    const [allShows, clubsMap, trialsMap] = await Promise.all([
+      replicatedShowsTable.getAllShows(),
+      loadClubsMap(),
+      loadTrialsByShowMap(),
+    ]);
+
+    const filtered = allShows.filter(
+      show => show.startDate >= startDate && show.endDate <= endDate
+    );
+
+    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
+    const data = mapShowsWithJoins(filtered, clubsMap, trialsMap, emptyJudgeMap);
 
     const duration = Date.now() - startTime;
-    logQuery('show', 'select_by_date_range', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_by_date_range');
+    logQuery('show', 'select_by_date_range', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetShowsByDateRange(startDate, endDate);
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_by_date_range_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_by_date_range');
+      logQuery('show', 'select_by_date_range', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_by_date_range');
-    logQuery('show', 'select_by_date_range', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -242,46 +512,214 @@ export const getShowsByClub = async (clubId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select(
-        `
-        *,
-        club:clubs(
-          id,
-          name,
-          logo_url,
-          cover_image_url,
-          accent_color
-        ),
-        trials(
-          id,
-          name,
-          date,
-          trial_number,
-          status
-        )
-      `
-      )
-      .eq('club_id', clubId)
-      .is('deleted_at', null)
-      .order('start_date', { ascending: false });
+    const [shows, clubsMap, trialsMap] = await Promise.all([
+      replicatedShowsTable.getShowsByClub(clubId),
+      loadClubsMap(),
+      loadTrialsByShowMap(),
+    ]);
+
+    // Sort descending by start_date (matching original PostgREST behavior)
+    shows.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+
+    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
+    const data = mapShowsWithJoins(shows, clubsMap, trialsMap, emptyJudgeMap);
 
     const duration = Date.now() - startTime;
-    logQuery('show', 'select_by_club', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_by_club');
+    logQuery('show', 'select_by_club', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetShowsByClub(clubId);
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_by_club_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_by_club');
+      logQuery('show', 'select_by_club', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_by_club');
-    logQuery('show', 'select_by_club', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
+
+// Search shows by name or location (excluding soft-deleted)
+export const searchShows = async (searchTerm: string) => {
+  const startTime = Date.now();
+
+  try {
+    const allShows = await replicatedShowsTable.getAllShows();
+    const term = searchTerm.toLowerCase();
+
+    const filtered = allShows.filter(
+      show =>
+        show.name.toLowerCase().includes(term) ||
+        (show.location && show.location.toLowerCase().includes(term))
+    );
+
+    // Return bare rows (no joins) matching original searchShows select('*')
+    const data = filtered.map(show => mapReplicatedShowToDbRow(show));
+
+    const duration = Date.now() - startTime;
+    logQuery('show', 'search', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestSearchShows(searchTerm);
+      const duration = Date.now() - startTime;
+      logQuery('show', 'search_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'search');
+      logQuery('show', 'search', duration, dbError.message);
+      return { data: [], error: dbError };
+    }
+  }
+};
+
+// Get show statistics (excluding soft-deleted)
+export const getShowStatistics = async () => {
+  const startTime = Date.now();
+
+  try {
+    const allShows = await replicatedShowsTable.getAllShows();
+
+    const stats = {
+      total: allShows.length,
+    };
+
+    const duration = Date.now() - startTime;
+    logQuery('show', 'statistics', duration);
+    return { data: stats, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetShowStatistics();
+      const duration = Date.now() - startTime;
+      logQuery('show', 'statistics_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'statistics');
+      logQuery('show', 'statistics', duration, dbError.message);
+      return { data: null, error: dbError };
+    }
+  }
+};
+
+// Get shows with entry counts (simplified, excluding soft-deleted)
+export const getShowsWithEntryCounts = async () => {
+  const startTime = Date.now();
+
+  try {
+    const [shows, clubsMap] = await Promise.all([
+      replicatedShowsTable.getAllShows(),
+      loadClubsMap(),
+    ]);
+
+    const emptyTrialsMap = new Map<string, ReplicatedTrial[]>();
+    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
+    const rows = mapShowsWithJoins(shows, clubsMap, emptyTrialsMap, emptyJudgeMap);
+
+    // Add basic entry count as 0 for now (matching original behavior)
+    const data = rows.map(row => ({
+      ...row,
+      entry_count: 0,
+    }));
+
+    const duration = Date.now() - startTime;
+    logQuery('show', 'select_with_entry_counts', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetShowsWithEntryCounts();
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_with_entry_counts_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_with_entry_counts');
+      logQuery('show', 'select_with_entry_counts', duration, dbError.message);
+      return { data: [], error: dbError };
+    }
+  }
+};
+
+// Get shows by status (excluding soft-deleted)
+export const getShowsByStatus = async (status: string) => {
+  const startTime = Date.now();
+
+  try {
+    const allShows = await replicatedShowsTable.getAllShows();
+    const filtered = allShows.filter(show => show.status === status);
+
+    // Return bare rows (no joins) matching original getShowsByStatus select('*')
+    const data = filtered.map(show => mapReplicatedShowToDbRow(show));
+
+    const duration = Date.now() - startTime;
+    logQuery('show', 'select_by_status', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetShowsByStatus(status);
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_by_status_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_by_status');
+      logQuery('show', 'select_by_status', duration, dbError.message);
+      return { data: [], error: dbError };
+    }
+  }
+};
+
+// Get shows where user is a secretary (excluding soft-deleted)
+export const getSecretaryShows = async (_userId: string) => {
+  const startTime = Date.now();
+
+  try {
+    const allShows = await replicatedShowsTable.getAllShows();
+
+    // Sort descending by start_date (matching original PostgREST behavior)
+    const sorted = [...allShows].sort(
+      (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+    );
+
+    // Return only the fields the original query selected
+    const data = sorted.map(show => ({
+      id: show.id,
+      name: show.name,
+      start_date: show.startDate,
+      end_date: show.endDate,
+    }));
+
+    const duration = Date.now() - startTime;
+    logQuery('show', 'select_secretary_shows', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store unavailable
+    try {
+      const result = await postgrestGetSecretaryShows();
+      const duration = Date.now() - startTime;
+      logQuery('show', 'select_secretary_shows_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'show', 'select_secretary_shows');
+      logQuery('show', 'select_secretary_shows', duration, dbError.message);
+      return { data: [], error: dbError };
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Mutation functions — remain on PostgREST (DO NOT CHANGE)
+// ---------------------------------------------------------------------------
 
 // Create new show
 export const createShow = async (showData: DbShowInsert) => {
@@ -517,175 +955,5 @@ export const legacyDeleteShow = async (id: string) => {
     const dbError = createDatabaseError(error, 'show', 'delete');
     logQuery('show', 'delete', duration, dbError.message);
     return { data: null, error: dbError };
-  }
-};
-
-// Search shows by name or location (excluding soft-deleted)
-export const searchShows = async (searchTerm: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select('*')
-      .or(
-        `name.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,location.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-      )
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true });
-
-    const duration = Date.now() - startTime;
-    logQuery('show', 'search', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'search');
-    }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'search');
-    logQuery('show', 'search', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
-// Get show statistics (excluding soft-deleted)
-export const getShowStatistics = async () => {
-  const startTime = Date.now();
-
-  try {
-    const { error, count } = await supabase
-      .from('shows')
-      .select('id', { count: 'exact', head: true })
-      .is('deleted_at', null);
-
-    const duration = Date.now() - startTime;
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'statistics');
-    }
-
-    const stats = {
-      total: count || 0,
-    };
-
-    logQuery('show', 'statistics', duration);
-    return { data: stats, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'statistics');
-    logQuery('show', 'statistics', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-// Get shows with entry counts (simplified, excluding soft-deleted)
-export const getShowsWithEntryCounts = async () => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select(
-        `
-        *,
-        club:clubs(
-          id,
-          name,
-          logo_url,
-          cover_image_url,
-          accent_color
-        )
-      `
-      )
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true });
-
-    const duration = Date.now() - startTime;
-    logQuery('show', 'select_with_entry_counts', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_with_entry_counts');
-    }
-
-    // Add basic entry count as 0 for now
-    const dataWithCounts =
-      data?.map(show => ({
-        ...show,
-        entry_count: 0,
-      })) || [];
-
-    return { data: dataWithCounts, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_with_entry_counts');
-    logQuery('show', 'select_with_entry_counts', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
-// Get shows by status (excluding soft-deleted)
-export const getShowsByStatus = async (status: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('shows')
-      .select('*')
-      .eq('status', status)
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true });
-
-    const duration = Date.now() - startTime;
-    logQuery('show', 'select_by_status', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_by_status');
-    }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_by_status');
-    logQuery('show', 'select_by_status', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
-// Get shows where user is a secretary (excluding soft-deleted)
-export const getSecretaryShows = async (_userId: string) => {
-  const startTime = Date.now();
-
-  try {
-    // First, get shows where user is explicitly assigned as secretary
-    // For now, we'll get all shows since secretary assignment table may not exist
-    // In a full implementation, this would check secretary_assignments or show_staff table
-    const { data, error } = await supabase
-      .from('shows')
-      .select(
-        `
-        id,
-        name,
-        start_date,
-        end_date
-      `
-      )
-      .is('deleted_at', null)
-      .order('start_date', { ascending: false });
-
-    const duration = Date.now() - startTime;
-    logQuery('show', 'select_secretary_shows', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'select_secretary_shows');
-    }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'select_secretary_shows');
-    logQuery('show', 'select_secretary_shows', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };

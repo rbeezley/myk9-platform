@@ -6,6 +6,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useShowStore } from '@/store/showStore';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
@@ -18,6 +20,7 @@ export default function ReportsPage() {
   const [reportType, setReportType] = useState('check-in-sheet');
   const [trialId, setTrialId] = useState<string>('all');
   const [classId, setClassId] = useState<string>('all');
+  const [dogId, setDogId] = useState<string>('all');
   const report = getReportById(reportType);
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -58,16 +61,59 @@ export default function ReportsPage() {
     [classes]
   );
 
+  const { data: dogOptionsRaw } = useQuery({
+    queryKey: ['entry-form-dog-options', selectedShowId],
+    queryFn: async () => {
+      if (!selectedShowId) return [];
+      const { data: entryDogs } = await supabase
+        .from('entries')
+        .select('dog_id, armband, dog:dogs!inner(id, call_name)')
+        .eq('show_id', selectedShowId)
+        .is('deleted_at', null);
+
+      if (!entryDogs?.length) return [];
+
+      const dogIds = [...new Set(entryDogs.map(e => e.dog_id).filter(Boolean))] as string[];
+      const { data: regs } = await supabase
+        .from('dog_registrations')
+        .select('dog_id, registered_name')
+        .in('dog_id', dogIds);
+
+      const regMap = new Map((regs ?? []).map(r => [r.dog_id, r.registered_name]));
+      const seen = new Set<string>();
+
+      return entryDogs
+        .filter(e => {
+          if (!e.dog_id || seen.has(e.dog_id)) return false;
+          seen.add(e.dog_id);
+          return true;
+        })
+        .map(e => ({
+          id: e.dog_id!,
+          callName: ((e.dog as Record<string, unknown>)?.call_name as string) ?? '',
+          registeredName: regMap.get(e.dog_id!) ?? null,
+          armband: e.armband != null ? Number(e.armband) : null,
+        }))
+        .sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
+    },
+    enabled: !!selectedShowId && (report?.supportsDogFilter ?? false),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const dogOptions = dogOptionsRaw ?? [];
+
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
     const newReport = getReportById(value);
     setSortOrder(newReport?.defaultSort ?? 'run-order');
     setTrialId('all');
     setClassId('all');
+    setDogId('all');
   };
 
   const handleTrialChange = (value: string) => {
     setTrialId(value);
+    setDogId('all');
     if (value === 'all') {
       setClassId('all');
     }
@@ -77,6 +123,7 @@ export default function ReportsPage() {
     selectShow(value);
     setTrialId('all');
     setClassId('all');
+    setDogId('all');
   };
 
   const handlePrint = () => {
@@ -116,12 +163,15 @@ export default function ReportsPage() {
         reportType={reportType}
         trialId={trialId}
         classId={classId}
+        dogId={dogId}
         sortOrder={sortOrder}
         trials={trialOptions}
         classes={classOptions}
+        dogs={dogOptions}
         onReportTypeChange={handleReportTypeChange}
         onTrialChange={handleTrialChange}
         onClassChange={setClassId}
+        onDogChange={setDogId}
         onSortChange={setSortOrder}
         onPrint={handlePrint}
       />
@@ -136,6 +186,7 @@ export default function ReportsPage() {
           entries={entries}
           trialId={trialId}
           classId={classId}
+          dogId={dogId}
           sortOrder={sortOrder}
           isLoading={isLoading}
           isError={isError}

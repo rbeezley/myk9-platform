@@ -20,6 +20,7 @@ export interface ReportPreviewProps {
   entries: DbEntry[] | null | undefined;
   trialId: string;
   classId: string;
+  dogId: string;
   sortOrder: string;
   isLoading: boolean;
   isError: boolean;
@@ -107,6 +108,7 @@ export function ReportPreview({
   entries,
   trialId,
   classId,
+  dogId,
   sortOrder,
   isLoading,
   isError,
@@ -141,6 +143,8 @@ export function ReportPreview({
         entries: [],
         sortOrder,
         organization: show.organization ?? undefined,
+        dogId: dogId !== 'all' ? dogId : undefined,
+        trialId: trialId !== 'all' ? trialId : undefined,
       };
       const ReportComponent = report.component;
       combinedMarkup = ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
@@ -201,6 +205,7 @@ export function ReportPreview({
     entries,
     trialId,
     classId,
+    dogId,
     sortOrder,
     isLoading,
     isError,

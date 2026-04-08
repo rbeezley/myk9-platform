@@ -14,6 +14,7 @@ interface ReportControlsBarProps {
   reportType: string;
   trialId: string;
   classId: string;
+  dogId: string;
   sortOrder: string;
   trials: Array<{ id: string; trial_number: number; date: string }>;
   classes: Array<{
@@ -23,9 +24,16 @@ interface ReportControlsBarProps {
     section: string;
     trial_id: string;
   }>;
+  dogs: Array<{
+    id: string;
+    callName: string;
+    registeredName: string | null;
+    armband: number | null;
+  }>;
   onReportTypeChange: (value: string) => void;
   onTrialChange: (value: string) => void;
   onClassChange: (value: string) => void;
+  onDogChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onPrint: () => void;
 }
@@ -37,12 +45,15 @@ export function ReportControlsBar({
   reportType,
   trialId,
   classId,
+  dogId,
   sortOrder,
   trials,
   classes,
+  dogs,
   onReportTypeChange,
   onTrialChange,
   onClassChange,
+  onDogChange,
   onSortChange,
   onPrint,
 }: ReportControlsBarProps) {
@@ -50,6 +61,7 @@ export function ReportControlsBar({
 
   const hasTrialScope = selectedReport?.scopes.includes('trial') ?? false;
   const hasClassScope = selectedReport?.scopes.includes('class') ?? false;
+  const hasDogFilter = selectedReport?.supportsDogFilter ?? false;
   const hasSortOptions = (selectedReport?.sortOptions.length ?? 0) > 0;
 
   const filteredClasses = trialId === 'all' ? classes : classes.filter(c => c.trial_id === trialId);
@@ -120,6 +132,28 @@ export function ReportControlsBar({
                 <SelectItem key={cls.id} value={cls.id}>
                   {cls.element} {cls.level}
                   {cls.section ? ` — ${cls.section}` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Dog dropdown — hidden if report doesn't support dog filter */}
+      {hasDogFilter && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-muted-foreground">Dog</label>
+          <Select value={dogId} onValueChange={onDogChange}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue placeholder="All Dogs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dogs</SelectItem>
+              {dogs.map(dog => (
+                <SelectItem key={dog.id} value={dog.id}>
+                  {dog.callName}
+                  {dog.registeredName ? ` (${dog.registeredName})` : ''}
+                  {dog.armband != null ? ` — #${dog.armband}` : ''}
                 </SelectItem>
               ))}
             </SelectContent>

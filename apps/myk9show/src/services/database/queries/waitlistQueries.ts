@@ -13,6 +13,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
+import { buildMapFromArray } from './queryUtils';
 
 export interface WaitlistEntry {
   id: string;
@@ -89,7 +90,7 @@ export const getWaitlistByShow = async (showId: string) => {
     const waitlistEntries = allWaitlist.flat();
 
     // Build lookup maps
-    const classesMap = new Map(classes.map(c => [c.id, c]));
+    const classesMap = buildMapFromArray(classes, c => c.id);
     const dogIds = [...new Set(waitlistEntries.map(e => e.dogId))];
     const dogs = await Promise.all(dogIds.map(did => replicatedDogsTable.getDogById(did)));
     const dogsMap = new Map(
@@ -172,7 +173,7 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
     }
 
     // Build trial lookup map
-    const trialsMap = new Map(trials.map(t => [t.id, t]));
+    const trialsMap = buildMapFromArray(trials, t => t.id);
 
     // Get classes for these trials
     const allClasses = await Promise.all(

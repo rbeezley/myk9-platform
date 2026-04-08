@@ -11,9 +11,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
-import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
-import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
-import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import { buildMapFromArray } from './queryUtils';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -272,9 +270,9 @@ export const getUserEntries = async (userId: string) => {
       replicatedShowsTable.getAllShows(),
     ]);
 
-    const dogsMap = new Map(dogs.map(d => [d.id, d]));
-    const classesMap = new Map(classes.map(c => [c.id, c]));
-    const showsMap = new Map(shows.map(s => [s.id, s]));
+    const dogsMap = buildMapFromArray(dogs, d => d.id);
+    const classesMap = buildMapFromArray(classes, c => c.id);
+    const showsMap = buildMapFromArray(shows, s => s.id);
 
     const filtered = allEntries.filter(e => e.handlerId === userId);
 
@@ -316,9 +314,9 @@ export const searchEntries = async (searchTerm: string) => {
       replicatedShowsTable.getAllShows(),
     ]);
 
-    const dogsMap = new Map<string, ReplicatedDog>(dogs.map(d => [d.id, d]));
-    const classesMap = new Map<string, ReplicatedClass>(classes.map(c => [c.id, c]));
-    const showsMap = new Map<string, ReplicatedShow>(shows.map(s => [s.id, s]));
+    const dogsMap = buildMapFromArray(dogs, d => d.id);
+    const classesMap = buildMapFromArray(classes, c => c.id);
+    const showsMap = buildMapFromArray(shows, s => s.id);
 
     const term = searchTerm.toLowerCase();
 

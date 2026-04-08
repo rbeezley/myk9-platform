@@ -384,6 +384,8 @@ const mapDatabaseEntryStatus = (
 // PostgREST responses.
 // ---------------------------------------------------------------------------
 
+import { mapFields } from './mapperUtils';
+
 /**
  * Convert a ReplicatedClass to the snake_case DB row shape that consumers
  * expect from PostgREST `select('*')`.
@@ -410,29 +412,31 @@ export const mapReplicatedClassToDbRow = (
   }
 ): Record<string, unknown> => {
   const row: Record<string, unknown> = {
-    id: cls.id,
-    trial_id: cls.trialId ?? null,
-    name: cls.name,
-    description: cls.description ?? null,
-    entry_fee: cls.entryFee ?? null,
-    jump_heights: cls.jumpHeights ?? null,
-    max_entries: cls.maxEntries ?? null,
-    allow_waitlist: cls.allowsWaitlist ?? null,
-    max_dogs_per_handler: cls.maxDogsPerHandler ?? null,
-    level: cls.level ?? null,
-    breed_restrictions: cls.breedRestrictions ?? null,
-    age_min: cls.ageMin ?? null,
-    age_max: cls.ageMax ?? null,
-    height_min: cls.heightMin ?? null,
-    height_max: cls.heightMax ?? null,
-    handler_age_min: cls.handlerAgeMin ?? null,
-    handler_age_max: cls.handlerAgeMax ?? null,
-    start_time: cls.startTime ?? null,
-    estimated_duration: cls.estimatedDuration ?? null,
-    element: cls.element ?? null,
-    section: cls.section ?? null,
-    status: cls.classStatus ?? null,
-    class_order: cls.classOrder ?? null,
+    ...mapFields(cls as unknown as Record<string, unknown>, {
+      id: 'id',
+      trial_id: 'trialId',
+      name: 'name',
+      description: 'description',
+      entry_fee: 'entryFee',
+      jump_heights: 'jumpHeights',
+      max_entries: 'maxEntries',
+      allow_waitlist: 'allowsWaitlist',
+      max_dogs_per_handler: 'maxDogsPerHandler',
+      level: 'level',
+      breed_restrictions: 'breedRestrictions',
+      age_min: 'ageMin',
+      age_max: 'ageMax',
+      height_min: 'heightMin',
+      height_max: 'heightMax',
+      handler_age_min: 'handlerAgeMin',
+      handler_age_max: 'handlerAgeMax',
+      start_time: 'startTime',
+      estimated_duration: 'estimatedDuration',
+      element: 'element',
+      section: 'section',
+      status: 'classStatus',
+      class_order: 'classOrder',
+    }),
     is_completed: cls.isCompleted ?? false,
     is_scoring_finalized: cls.isScoringFinalized ?? false,
     is_results_reviewed: cls.isResultsReviewed ?? false,
@@ -478,13 +482,16 @@ export const mapReplicatedEntryToDetailRow = (
   entry: ReplicatedEntry,
   dog?: ReplicatedDog | null
 ): Record<string, unknown> => {
-  const entryRow: Record<string, unknown> = {
-    id: entry.id,
-    entry_status: entry.entryStatus ?? null,
-    points_earned: entry.totalPoints ?? null,
-    search_time_seconds: entry.searchTimeSeconds ?? null,
-    final_placement: entry.finalPlacement ?? null,
-  };
+  const entryRow: Record<string, unknown> = mapFields(
+    entry as unknown as Record<string, unknown>,
+    {
+      id: 'id',
+      entry_status: 'entryStatus',
+      points_earned: 'totalPoints',
+      search_time_seconds: 'searchTimeSeconds',
+      final_placement: 'finalPlacement',
+    }
+  );
 
   if (dog) {
     entryRow.dog = {

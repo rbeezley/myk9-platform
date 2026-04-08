@@ -9,6 +9,7 @@ import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTabl
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { mapReplicatedShowToDbRow } from '@/services/mappers/showMappers';
+import { buildMapFromArray } from './queryUtils';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -23,7 +24,7 @@ const EMPTY_TRIALS_MAP = new Map<string, ReplicatedTrial[]>();
 
 async function loadClubsMap(): Promise<Map<string, ReplicatedClub>> {
   const clubs = await replicatedClubsTable.getAllClubs();
-  return new Map(clubs.map(c => [c.id, c]));
+  return buildMapFromArray(clubs, c => c.id);
 }
 
 async function loadTrialsByShowMap(): Promise<Map<string, ReplicatedTrial[]>> {

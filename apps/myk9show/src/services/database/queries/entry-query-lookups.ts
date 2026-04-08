@@ -13,6 +13,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
+import { buildMapFromArray } from './queryUtils';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
@@ -24,17 +25,17 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 
 async function loadDogsMap(): Promise<Map<string, ReplicatedDog>> {
   const dogs = await replicatedDogsTable.getAllDogs();
-  return new Map(dogs.map(d => [d.id, d]));
+  return buildMapFromArray(dogs, d => d.id);
 }
 
 async function loadClassesMap(): Promise<Map<string, ReplicatedClass>> {
   const classes = await replicatedClassesTable.getAll();
-  return new Map(classes.map(c => [c.id, c]));
+  return buildMapFromArray(classes, c => c.id);
 }
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   const shows = await replicatedShowsTable.getAllShows();
-  return new Map(shows.map(s => [s.id, s]));
+  return buildMapFromArray(shows, s => s.id);
 }
 
 /**
@@ -556,7 +557,10 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
     ]);
 
     // Build trial lookup map
-    const trialsMap = new Map(trials.map(t => [t.id, { id: t.id, name: t.name }]));
+    const trialsMap = buildMapFromArray(
+      trials.map(t => ({ id: t.id, name: t.name })),
+      t => t.id
+    );
 
     // Collect unique promo_code_ids for batch PostgREST fetch
     // promoCodeId is not in the ReplicatedEntry type but may exist on the raw object
@@ -576,7 +580,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
         .select('id, code, discount_type, discount_value')
         .in('id', promoCodeIds);
       if (promoCodes) {
-        promoCodesMap = new Map(promoCodes.map(pc => [pc.id, pc]));
+        promoCodesMap = buildMapFromArray(promoCodes, pc => pc.id);
       }
     }
 
@@ -626,7 +630,7 @@ export const getEntriesByTrial = async (trialId: string) => {
     ]);
 
     const trialClassIds = new Set(trialClasses.map(c => c.id));
-    const classesMap = new Map(trialClasses.map(c => [c.id, c]));
+    const classesMap = buildMapFromArray(trialClasses, c => c.id);
 
     // Filter entries to only those whose classId is in the trial's classes (inner join)
     const filtered = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));

@@ -77,15 +77,15 @@ export function useArmbandLabelData(
   const entries = useMemo(
     () =>
       (entriesRaw ?? [])
-        .map((e) => mapEntryToArmbandLabelEntry(e as unknown as Record<string, unknown>))
+        .map((e) => mapEntryToArmbandLabelEntry(e as Record<string, unknown>))
         .filter((e): e is ArmbandLabelEntry => e !== null),
     [entriesRaw]
   );
 
   return {
     entries,
-    wifiNetwork: (showWifi as Record<string, unknown> | null)?.venue_wifi_network as string | null ?? null,
-    wifiPassword: (showWifi as Record<string, unknown> | null)?.venue_wifi_password as string | null ?? null,
+    wifiNetwork: showWifi?.venue_wifi_network ?? null,
+    wifiPassword: showWifi?.venue_wifi_password ?? null,
     isLoading: entriesLoading || wifiLoading,
   };
 }

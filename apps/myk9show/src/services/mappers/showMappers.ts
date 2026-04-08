@@ -395,47 +395,52 @@ export const createDefaultShowInput = (): Partial<ShowInput> => {
 // PostgREST responses.
 // ---------------------------------------------------------------------------
 
+import { mapFields } from './mapperUtils';
+
 /**
  * Convert a ReplicatedClub to the snake_case club sub-object shape returned
  * by PostgREST when selecting `club:clubs(id, name, logo_url, ...)`.
  *
  * Two variants: "summary" (used by list queries) and "detail" (used by getShowById).
  */
-export const mapReplicatedClubToSummaryRow = (club: ReplicatedClub): Record<string, unknown> => ({
-  id: club.id,
-  name: club.name,
-  logo_url: club.logoUrl ?? null,
-  cover_image_url: club.coverImageUrl ?? null,
-  accent_color: club.accentColor ?? null,
-});
+export const mapReplicatedClubToSummaryRow = (club: ReplicatedClub): Record<string, unknown> =>
+  mapFields(club as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    logo_url: 'logoUrl',
+    cover_image_url: 'coverImageUrl',
+    accent_color: 'accentColor',
+  });
 
-export const mapReplicatedClubToDetailRow = (club: ReplicatedClub): Record<string, unknown> => ({
-  id: club.id,
-  name: club.name,
-  address: club.address ?? null,
-  phone: club.phone ?? null,
-  email: club.email ?? null,
-  website: club.website ?? null,
-  logo_url: club.logoUrl ?? null,
-  cover_image_url: club.coverImageUrl ?? null,
-  accent_color: club.accentColor ?? null,
-});
+export const mapReplicatedClubToDetailRow = (club: ReplicatedClub): Record<string, unknown> =>
+  mapFields(club as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    address: 'address',
+    phone: 'phone',
+    email: 'email',
+    website: 'website',
+    logo_url: 'logoUrl',
+    cover_image_url: 'coverImageUrl',
+    accent_color: 'accentColor',
+  });
 
 /**
  * Convert a ReplicatedTrial to the snake_case trial sub-object shape
  * returned by PostgREST `trials(...)` select.
  */
-export const mapReplicatedTrialToRow = (trial: ReplicatedTrial): Record<string, unknown> => ({
-  id: trial.id,
-  name: trial.name,
-  date: trial.date,
-  trial_number: trial.trialNumber ?? null,
-  status: trial.status ?? null,
-  trial_type: trial.trialType ?? null,
-  max_entries_per_dog: trial.maxEntriesPerDog ?? null,
-  max_total_entries: trial.maxTotalEntries ?? null,
-  max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
-});
+export const mapReplicatedTrialToRow = (trial: ReplicatedTrial): Record<string, unknown> =>
+  mapFields(trial as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    date: 'date',
+    trial_number: 'trialNumber',
+    status: 'status',
+    trial_type: 'trialType',
+    max_entries_per_dog: 'maxEntriesPerDog',
+    max_total_entries: 'maxTotalEntries',
+    max_entries_per_handler: 'maxEntriesPerHandler',
+  });
 
 /**
  * Convert a ReplicatedJudgeAssignment to the snake_case row shape
@@ -446,16 +451,18 @@ export const mapReplicatedTrialToRow = (trial: ReplicatedTrial): Record<string, 
 export const mapReplicatedJudgeAssignmentToRow = (
   assignment: ReplicatedJudgeAssignment
 ): Record<string, unknown> => ({
-  id: assignment.id,
-  person_id: assignment.personId,
-  show_id: assignment.showId ?? null,
-  trial_id: assignment.trialId ?? null,
-  class_id: assignment.classId ?? null,
-  status: assignment.status ?? null,
-  invited_at: assignment.invitedAt ?? null,
-  confirmed_at: assignment.confirmedAt ?? null,
-  fee: assignment.fee ?? null,
-  notes: assignment.notes ?? null,
+  ...mapFields(assignment as unknown as Record<string, unknown>, {
+    id: 'id',
+    person_id: 'personId',
+    show_id: 'showId',
+    trial_id: 'trialId',
+    class_id: 'classId',
+    status: 'status',
+    invited_at: 'invitedAt',
+    confirmed_at: 'confirmedAt',
+    fee: 'fee',
+    notes: 'notes',
+  }),
   judge: null, // people table not replicated yet
 });
 
@@ -476,26 +483,28 @@ export const mapReplicatedShowToDbRow = (
   }
 ): Record<string, unknown> => {
   const row: Record<string, unknown> = {
-    id: show.id,
-    name: show.name,
-    organization: show.organization,
-    start_date: show.startDate,
-    end_date: show.endDate,
-    location: show.location ?? null,
-    status: show.status ?? null,
-    entry_open_date: show.entryOpenDate ?? null,
-    entry_close_date: show.entryCloseDate ?? null,
-    pre_entry_fee: show.preEntryFee ?? null,
-    day_of_show_fee: show.dayOfShowFee ?? null,
-    club_id: show.clubId ?? null,
-    max_entries_per_dog: show.maxEntriesPerDog ?? null,
-    max_total_entries: show.maxTotalEntries ?? null,
-    allow_non_owner_handlers: show.allowsNonOwnerHandlers ?? null,
-    accept_check_payments: show.acceptCheckPayments ?? null,
-    accept_cash_payments: show.acceptCashPayments ?? null,
-    logo_url: show.logoUrl ?? null,
-    cover_image_url: show.coverImageUrl ?? null,
-    accent_color: show.accentColor ?? null,
+    ...mapFields(show as unknown as Record<string, unknown>, {
+      id: 'id',
+      name: 'name',
+      organization: 'organization',
+      start_date: 'startDate',
+      end_date: 'endDate',
+      location: 'location',
+      status: 'status',
+      entry_open_date: 'entryOpenDate',
+      entry_close_date: 'entryCloseDate',
+      pre_entry_fee: 'preEntryFee',
+      day_of_show_fee: 'dayOfShowFee',
+      club_id: 'clubId',
+      max_entries_per_dog: 'maxEntriesPerDog',
+      max_total_entries: 'maxTotalEntries',
+      allow_non_owner_handlers: 'allowsNonOwnerHandlers',
+      accept_check_payments: 'acceptCheckPayments',
+      accept_cash_payments: 'acceptCashPayments',
+      logo_url: 'logoUrl',
+      cover_image_url: 'coverImageUrl',
+      accent_color: 'accentColor',
+    }),
     deleted_at: null,
   };
 

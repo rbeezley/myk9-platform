@@ -5,6 +5,52 @@ import { getAllShows, createShow } from '@/services/database/queries/showQueries
 import type { DbDogInsert, DbUserInsert, DbShowInsert } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
+// Force PostgREST fallback by making the replication layer throw
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: {
+    getAllDogs: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getDogsByOwner: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    searchDogs: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getDogById: vi.fn().mockRejectedValue(new Error('no replication in test')),
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
+  replicatedShowsTable: {
+    getAllShows: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getShowById: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getUpcomingShows: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getShowsByClub: vi.fn().mockRejectedValue(new Error('no replication in test')),
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    getAll: vi.fn().mockRejectedValue(new Error('no replication in test')),
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
+  replicatedClubsTable: {
+    getAllClubs: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getClubById: vi.fn().mockRejectedValue(new Error('no replication in test')),
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: {
+    getAll: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getTrialsByShow: vi.fn().mockRejectedValue(new Error('no replication in test')),
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => ({
+  replicatedJudgeAssignmentsTable: {
+    getAll: vi.fn().mockRejectedValue(new Error('no replication in test')),
+    getByShowId: vi.fn().mockRejectedValue(new Error('no replication in test')),
+  },
+}));
+
 const TEST_PERSON_ID = 'test-person-123';
 
 describe('Database Queries Integration Tests', () => {

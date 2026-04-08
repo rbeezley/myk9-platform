@@ -14,6 +14,7 @@ import {
 } from '@/services/mappers/classMappers';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import { buildMapFromArray } from './queryUtils';
 
 // Re-export entry operations from sibling module for backward compatibility
 export {
@@ -33,7 +34,7 @@ export {
 
 async function loadTrialsMap(): Promise<Map<string, ReplicatedTrial>> {
   const trials = await replicatedTrialsTable.getAll();
-  return new Map(trials.map(t => [t.id, t]));
+  return buildMapFromArray(trials, t => t.id);
 }
 
 async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
@@ -280,7 +281,7 @@ export const getClassById = async (id: string) => {
       replicatedDogsTable.getAll(),
     ]);
 
-    const dogsMap = new Map(allDogs.map(d => [d.id, d]));
+    const dogsMap = buildMapFromArray(allDogs, d => d.id);
 
     const entries = classEntries.map(entry => {
       const dog = entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null;

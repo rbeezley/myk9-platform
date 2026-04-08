@@ -6,6 +6,7 @@ import type { Database } from '@/types/supabase';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { mapReplicatedTrialToDbRow } from '@/services/mappers/trialMappers';
+import { buildMapFromArray } from './queryUtils';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 
@@ -18,7 +19,7 @@ type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
   const shows = await replicatedShowsTable.getAllShows();
-  return new Map(shows.map(s => [s.id, s]));
+  return buildMapFromArray(shows, s => s.id);
 }
 
 /**

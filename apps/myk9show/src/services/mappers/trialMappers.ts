@@ -159,17 +159,19 @@ export const mapTrialToTrialInput = (trial: Trial): TrialInput => {
 
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import { mapFields } from './mapperUtils';
 
 /**
  * Convert a ReplicatedShow to the snake_case show sub-object shape returned
  * by PostgREST when selecting `show:shows(id, name, start_date, end_date)`.
  */
-export const mapReplicatedShowToTrialJoinRow = (show: ReplicatedShow): Record<string, unknown> => ({
-  id: show.id,
-  name: show.name,
-  start_date: show.startDate,
-  end_date: show.endDate,
-});
+export const mapReplicatedShowToTrialJoinRow = (show: ReplicatedShow): Record<string, unknown> =>
+  mapFields(show as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    start_date: 'startDate',
+    end_date: 'endDate',
+  });
 
 /**
  * Convert a ReplicatedTrial to the full snake_case DB row shape that
@@ -184,23 +186,25 @@ export const mapReplicatedTrialToDbRow = (
   }
 ): Record<string, unknown> => {
   const row: Record<string, unknown> = {
-    id: trial.id,
-    show_id: trial.showId ?? null,
-    name: trial.name,
-    date: trial.date,
-    trial_number: trial.trialNumber ?? null,
-    status: trial.status ?? null,
-    trial_type: trial.trialType ?? null,
-    max_entries_per_dog: trial.maxEntriesPerDog ?? null,
-    max_total_entries: trial.maxTotalEntries ?? null,
-    max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
-    planned_start_time: trial.plannedStartTime ?? null,
-    actual_start_time: trial.actualStartTime ?? null,
-    actual_end_time: trial.actualEndTime ?? null,
-    event_number: trial.eventNumber ?? null,
-    display_order: trial.displayOrder ?? null,
-    category: trial.category ?? null,
-    image_url: trial.imageUrl ?? null,
+    ...mapFields(trial as unknown as Record<string, unknown>, {
+      id: 'id',
+      show_id: 'showId',
+      name: 'name',
+      date: 'date',
+      trial_number: 'trialNumber',
+      status: 'status',
+      trial_type: 'trialType',
+      max_entries_per_dog: 'maxEntriesPerDog',
+      max_total_entries: 'maxTotalEntries',
+      max_entries_per_handler: 'maxEntriesPerHandler',
+      planned_start_time: 'plannedStartTime',
+      actual_start_time: 'actualStartTime',
+      actual_end_time: 'actualEndTime',
+      event_number: 'eventNumber',
+      display_order: 'displayOrder',
+      category: 'category',
+      image_url: 'imageUrl',
+    }),
     deleted_at: null,
   };
 

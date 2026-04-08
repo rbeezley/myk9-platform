@@ -128,6 +128,8 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
   return update;
 };
 
+import { mapFields } from './mapperUtils';
+
 /**
  * Convert ReplicatedDog (camelCase, no joins) to the snake_case DB row shape
  * that mapDatabaseToDog / mapDatabaseDogsArray expects.
@@ -159,20 +161,22 @@ export const mapReplicatedDogToDbRow = (
   }
 ): Record<string, unknown> => {
   const row: Record<string, unknown> = {
-    id: d.id,
-    name: d.name,
-    call_name: d.callName ?? null,
-    breed: d.breed,
-    sex: d.sex ?? null,
-    date_of_birth: d.dateOfBirth ?? null,
-    owner_id: d.ownerId ?? null,
+    ...mapFields(d as unknown as Record<string, unknown>, {
+      id: 'id',
+      name: 'name',
+      call_name: 'callName',
+      breed: 'breed',
+      sex: 'sex',
+      date_of_birth: 'dateOfBirth',
+      owner_id: 'ownerId',
+      height: 'height',
+      weight: 'weight',
+      color: 'color',
+      microchip_number: 'microchipNumber',
+      spayed_neutered: 'isSpayedNeutered',
+      image_url: 'imageUrl',
+    }),
     co_owner_id: null,
-    height: d.height ?? null,
-    weight: d.weight ?? null,
-    color: d.color ?? null,
-    microchip_number: d.microchipNumber ?? null,
-    spayed_neutered: d.isSpayedNeutered ?? null,
-    image_url: d.imageUrl ?? null,
     deleted_at: null,
     owner: options?.owner ?? null,
     registrations: options?.registrations ?? [],

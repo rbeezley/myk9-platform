@@ -1359,6 +1359,7 @@ export type Database = {
           handler_id: string | null
           has_video_review: boolean | null
           id: string
+          is_day_of_show: boolean | null
           is_in_ring: boolean | null
           is_scored: boolean | null
           judge_notes: string | null
@@ -1431,6 +1432,7 @@ export type Database = {
           handler_id?: string | null
           has_video_review?: boolean | null
           id?: string
+          is_day_of_show?: boolean | null
           is_in_ring?: boolean | null
           is_scored?: boolean | null
           judge_notes?: string | null
@@ -1503,6 +1505,7 @@ export type Database = {
           handler_id?: string | null
           has_video_review?: boolean | null
           id?: string
+          is_day_of_show?: boolean | null
           is_in_ring?: boolean | null
           is_scored?: boolean | null
           judge_notes?: string | null
@@ -4741,6 +4744,8 @@ export type Database = {
           status: string | null
           updated_at: string | null
           venue_name: string | null
+          venue_wifi_network: string | null
+          venue_wifi_password: string | null
           waitlist_payment_deadline_hours: number
           zip_code: string | null
         }
@@ -4785,6 +4790,8 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           venue_name?: string | null
+          venue_wifi_network?: string | null
+          venue_wifi_password?: string | null
           waitlist_payment_deadline_hours?: number
           zip_code?: string | null
         }
@@ -4829,6 +4836,8 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
           venue_name?: string | null
+          venue_wifi_network?: string | null
+          venue_wifi_password?: string | null
           waitlist_payment_deadline_hours?: number
           zip_code?: string | null
         }

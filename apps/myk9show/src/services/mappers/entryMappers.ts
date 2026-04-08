@@ -301,6 +301,7 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import { mapFields } from './mapperUtils';
 
 /**
  * Convert a ReplicatedEntry to the snake_case DB row shape that consumers
@@ -319,36 +320,38 @@ export const mapReplicatedEntryToDbRow = (
   }
 ): Record<string, unknown> => {
   const row: Record<string, unknown> = {
-    id: entry.id,
-    class_id: entry.classId ?? null,
-    show_id: entry.showId ?? null,
-    dog_id: entry.dogId ?? null,
-    handler_id: entry.handlerId ?? null,
-    armband: entry.armband ?? null,
-    handler: entry.handler ?? null,
-    entry_status: entry.entryStatus ?? null,
+    ...mapFields(entry as unknown as Record<string, unknown>, {
+      id: 'id',
+      class_id: 'classId',
+      show_id: 'showId',
+      dog_id: 'dogId',
+      handler_id: 'handlerId',
+      armband: 'armband',
+      handler: 'handler',
+      entry_status: 'entryStatus',
+      jump_height: 'jumpHeight',
+      entry_fee: 'entryFee',
+      total_fees: 'totalFees',
+      payment_status: 'paymentStatus',
+      run_order: 'runOrder',
+      move_up_requested: 'moveUpRequested',
+      preferred_judge: 'preferredJudge',
+      special_requests: 'specialRequests',
+      submitted_at: 'submittedAt',
+      registration_id: 'registrationId',
+      result_status: 'resultStatus',
+      search_time_seconds: 'searchTimeSeconds',
+      total_faults: 'totalFaults',
+      final_placement: 'finalPlacement',
+      disqualification_reason: 'disqualification_reason',
+      judge_notes: 'judgeNotes',
+      scoring_completed_at: 'scoringCompletedAt',
+      ring_entry_time: 'ring_entry_time',
+      ring_exit_time: 'ring_exit_time',
+      updated_at: 'updated_at',
+    }),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
-    jump_height: entry.jumpHeight ?? null,
-    entry_fee: entry.entryFee ?? null,
-    total_fees: entry.totalFees ?? null,
-    payment_status: entry.paymentStatus ?? null,
-    run_order: entry.runOrder ?? null,
-    move_up_requested: entry.moveUpRequested ?? null,
-    preferred_judge: entry.preferredJudge ?? null,
-    special_requests: entry.specialRequests ?? null,
-    submitted_at: entry.submittedAt ?? null,
-    registration_id: entry.registrationId ?? null,
     is_scored: entry.isScored ?? false,
-    result_status: entry.resultStatus ?? null,
-    search_time_seconds: entry.searchTimeSeconds ?? null,
-    total_faults: entry.totalFaults ?? null,
-    final_placement: entry.finalPlacement ?? null,
-    disqualification_reason: entry.disqualification_reason ?? null,
-    judge_notes: entry.judgeNotes ?? null,
-    scoring_completed_at: entry.scoringCompletedAt ?? null,
-    ring_entry_time: entry.ring_entry_time ?? null,
-    ring_exit_time: entry.ring_exit_time ?? null,
-    updated_at: entry.updated_at ?? null,
     created_at: entry.submittedAt ?? entry.updated_at ?? null,
     deleted_at: null,
   };
@@ -392,10 +395,12 @@ export const mapReplicatedEntryToDbRow = (
  * by PostgREST when selecting `dog:dog_id(...)`.
  */
 export const mapReplicatedDogToEntryRow = (dog: ReplicatedDog): Record<string, unknown> => ({
-  id: dog.id,
-  name: dog.name,
-  call_name: dog.callName ?? null,
-  breed: dog.breed,
+  ...mapFields(dog as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    call_name: 'callName',
+    breed: 'breed',
+  }),
   owner: dog.ownerId
     ? {
         id: dog.ownerId,
@@ -412,10 +417,12 @@ export const mapReplicatedDogToEntryRow = (dog: ReplicatedDog): Record<string, u
  * Convert a ReplicatedDog to the detailed dog sub-object shape (includes registration_number).
  */
 export const mapReplicatedDogToDetailRow = (dog: ReplicatedDog): Record<string, unknown> => ({
-  id: dog.id,
-  name: dog.name,
-  call_name: dog.callName ?? null,
-  breed: dog.breed,
+  ...mapFields(dog as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    call_name: 'callName',
+    breed: 'breed',
+  }),
   registration_number: null, // Not available from ReplicatedDog
   owner: dog.ownerId
     ? {
@@ -437,25 +444,28 @@ export const mapReplicatedDogToDetailRow = (dog: ReplicatedDog): Record<string, 
  * by PostgREST when selecting `class:class_id(...)`.
  */
 export const mapReplicatedClassToEntryRow = (cls: ReplicatedClass): Record<string, unknown> => ({
-  id: cls.id,
-  name: cls.name,
+  ...mapFields(cls as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    entry_fee: 'entryFee',
+    max_entries: 'maxEntries',
+    description: 'description',
+    trial_id: 'trialId',
+  }),
   class_number: null, // class_number is not on ReplicatedClass
-  entry_fee: cls.entryFee ?? null,
-  max_entries: cls.maxEntries ?? null,
-  description: cls.description ?? null,
   jump_height: cls.jumpHeights?.[0] ?? null,
-  trial_id: cls.trialId ?? null,
 });
 
 /**
  * Convert a ReplicatedShow to the snake_case show sub-object shape returned
  * by PostgREST when selecting `show:show_id(...)`.
  */
-export const mapReplicatedShowToEntryRow = (show: ReplicatedShow): Record<string, unknown> => ({
-  id: show.id,
-  name: show.name,
-  start_date: show.startDate,
-  end_date: show.endDate,
-  location: show.location ?? null,
-  status: show.status ?? null,
-});
+export const mapReplicatedShowToEntryRow = (show: ReplicatedShow): Record<string, unknown> =>
+  mapFields(show as unknown as Record<string, unknown>, {
+    id: 'id',
+    name: 'name',
+    start_date: 'startDate',
+    end_date: 'endDate',
+    location: 'location',
+    status: 'status',
+  });

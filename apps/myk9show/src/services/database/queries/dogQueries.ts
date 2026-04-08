@@ -1,62 +1,257 @@
 // Dog-related database queries
+// SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
+// Mutation functions (create, update, delete) remain on PostgREST.
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
+import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
+
+/**
+ * Filter replicated dogs by ownership (owner or co-owner).
+ * Note: ReplicatedDog only has `ownerId` — co_owner_id is not replicated.
+ * Co-owned dogs that are not primary-owned will be caught by the PostgREST fallback.
+ */
+function filterByOwnership(dogs: ReplicatedDog[], personId: string): ReplicatedDog[] {
+  return dogs.filter(d => d.ownerId === personId);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers — batch-load owner data from PostgREST (people is NOT replicated)
+// ---------------------------------------------------------------------------
+
+interface OwnerRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>> {
+  if (ownerIds.length === 0) return new Map();
+  const uniqueIds = [...new Set(ownerIds)];
+  const { data } = await supabase
+    .from('people')
+    .select('id, first_name, last_name, email, phone')
+    .in('id', uniqueIds);
+  const map = new Map<string, OwnerRow>();
+  if (data) {
+    for (const row of data) {
+      map.set(row.id, row as OwnerRow);
+    }
+  }
+  return map;
+}
+
+/**
+ * Map an array of ReplicatedDog to DB-row-shaped objects, attaching owner
+ * sub-objects from a pre-loaded owners Map.
+ */
+function mapDogsWithOwners(
+  dogs: ReplicatedDog[],
+  ownersMap: Map<string, OwnerRow>
+): Record<string, unknown>[] {
+  return dogs.map(dog => {
+    const owner = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
+    return mapReplicatedDogToDbRow(dog, { owner });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// PostgREST fallback wrappers (original implementations)
+// ---------------------------------------------------------------------------
+
+async function postgrestGetAllDogs(personId: string) {
+  const { data, error } = await supabase
+    .from('dogs')
+    .select(
+      `
+      *,
+      owner:people!dogs_owner_id_fkey(
+        id,
+        first_name,
+        last_name,
+        email,
+        phone
+      ),
+      registrations:dog_registrations(*)
+    `
+    )
+    .or(ownedByPerson(personId))
+    .is('deleted_at', null)
+    .order('name', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'dog', 'select_all');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetDogById(id: string) {
+  const { data, error } = await supabase
+    .from('dogs')
+    .select(
+      `
+      *,
+      owner:people!dogs_owner_id_fkey(
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        street_address,
+        city,
+        state,
+        zip_code
+      ),
+      registrations:dog_registrations(*),
+      health_records(*),
+      entries(
+        *,
+        class:classes(
+          id,
+          name,
+          class_number
+        ),
+        show:shows(
+          id,
+          name,
+          start_date,
+          end_date
+        )
+      )
+    `
+    )
+    .eq('id', id)
+    .is('deleted_at', null)
+    .single();
+
+  if (error) throw createDatabaseError(error, 'dog', 'select_by_id');
+  return { data, error: null };
+}
+
+async function postgrestGetDogsByOwner(ownerId: string) {
+  const { data, error } = await supabase
+    .from('dogs')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .is('deleted_at', null)
+    .order('name', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'dog', 'select_by_owner');
+  return { data: data || [], error: null };
+}
+
+async function postgrestSearchDogs(searchTerm: string, personId: string) {
+  const sanitized = sanitizePostgRESTFilter(searchTerm);
+  const { data, error } = await supabase
+    .from('dogs')
+    .select('*')
+    .or(ownedByPerson(personId))
+    .or(`name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%,call_name.ilike.%${sanitized}%`)
+    .is('deleted_at', null)
+    .order('name', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'dog', 'search');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetDogsWithUpcomingShows(personId: string) {
+  const { data, error } = await supabase
+    .from('dogs')
+    .select(
+      `
+      *,
+      owner:people!dogs_owner_id_fkey(first_name, last_name)
+    `
+    )
+    .or(ownedByPerson(personId))
+    .is('deleted_at', null)
+    .order('name', { ascending: true });
+
+  if (error) throw createDatabaseError(error, 'dog', 'select_with_upcoming_shows');
+  return { data: data || [], error: null };
+}
+
+async function postgrestGetDogStatistics(personId: string) {
+  const { error, count } = await supabase
+    .from('dogs')
+    .select('id', { count: 'exact', head: true })
+    .or(ownedByPerson(personId))
+    .is('deleted_at', null);
+
+  if (error) throw createDatabaseError(error, 'dog', 'statistics');
+  return { data: { total: count || 0 }, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// SELECT functions — read from replication store, fallback to PostgREST
+// ---------------------------------------------------------------------------
 
 // Get all dogs owned or co-owned by the given person
 export const getAllDogs = async (personId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('dogs')
-      .select(
-        `
-        *,
-        owner:people!dogs_owner_id_fkey(
-          id,
-          first_name,
-          last_name,
-          email,
-          phone
-        ),
-        registrations:dog_registrations(*)
-      `
-      )
-      .or(ownedByPerson(personId))
-      .is('deleted_at', null)
-      .order('name', { ascending: true });
+    const allDogs = await replicatedDogsTable.getAllDogs();
+    const filtered = filterByOwnership(allDogs, personId);
+
+    // Sort by name ascending (matching original PostgREST behavior)
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Batch-load owner data from PostgREST (people is not replicated)
+    const ownerIds = filtered.map(d => d.ownerId).filter((id): id is string => !!id);
+    const ownersMap = await loadOwnersMap(ownerIds);
+
+    const data = mapDogsWithOwners(filtered, ownersMap);
 
     const duration = Date.now() - startTime;
-    logQuery('dog', 'select_all_with_owners', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog', 'select_all');
+    logQuery('dog', 'select_all_with_owners', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST if replication store fails
+    try {
+      const result = await postgrestGetAllDogs(personId);
+      const duration = Date.now() - startTime;
+      logQuery('dog', 'select_all_with_owners_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'dog', 'select_all');
+      logQuery('dog', 'select_all_with_owners', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog', 'select_all');
-    logQuery('dog', 'select_all_with_owners', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
 // Get dog by ID with full details
+// HYBRID: reads dog from replication, entries from replication,
+// but uses PostgREST for owner details + dog_registrations + health_records (not replicated)
 export const getDogById = async (id: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
+    const dog = await replicatedDogsTable.getDogById(id);
+    if (!dog) {
+      const duration = Date.now() - startTime;
+      logQuery('dog', 'select_by_id_detailed', duration);
+      return { data: null, error: null };
+    }
+
+    // Load entries from replication store
+    const allEntries = await replicatedEntriesTable.getAll();
+    const dogEntries = allEntries.filter(e => e.dogId === id);
+
+    // Load owner, registrations, and health records from PostgREST (not replicated)
+    const { data: supplemental } = await supabase
       .from('dogs')
       .select(
         `
-        *,
         owner:people!dogs_owner_id_fkey(
           id,
           first_name,
@@ -69,40 +264,65 @@ export const getDogById = async (id: string) => {
           zip_code
         ),
         registrations:dog_registrations(*),
-        health_records(*),
-        entries(
-          *,
-          class:classes(
-            id,
-            name,
-            class_number
-          ),
-          show:shows(
-            id,
-            name,
-            start_date,
-            end_date
-          )
-        )
+        health_records(*)
       `
       )
       .eq('id', id)
-      .is('deleted_at', null)
       .single();
 
+    const owner = (supplemental as Record<string, unknown>)?.owner ?? null;
+    const registrations =
+      ((supplemental as Record<string, unknown>)?.registrations as Record<string, unknown>[]) ?? [];
+    const healthRecords =
+      ((supplemental as Record<string, unknown>)?.health_records as Record<string, unknown>[]) ??
+      [];
+
+    // Map entries to the shape PostgREST returns (with class/show sub-objects from snake_case)
+    const entries = dogEntries.map(e => ({
+      id: e.id,
+      class_id: e.classId ?? null,
+      show_id: e.showId ?? null,
+      dog_id: e.dogId ?? null,
+      handler_id: e.handlerId ?? null,
+      armband: e.armband ?? null,
+      handler: e.handler ?? null,
+      entry_status: e.entryStatus ?? null,
+      jump_height: e.jumpHeight ?? null,
+      entry_fee: e.entryFee ?? null,
+      payment_status: e.paymentStatus ?? null,
+      run_order: e.runOrder ?? null,
+      move_up_requested: e.moveUpRequested ?? null,
+      preferred_judge: e.preferredJudge ?? null,
+      special_requests: e.specialRequests ?? null,
+      submitted_at: e.submittedAt ?? null,
+      // class and show sub-objects not available from replication — set null
+      class: null,
+      show: null,
+    }));
+
+    const data = mapReplicatedDogToDbRow(dog, {
+      owner: owner as Record<string, unknown> | null,
+      registrations,
+      entries,
+      healthRecords,
+    });
+
     const duration = Date.now() - startTime;
-    logQuery('dog', 'select_by_id_detailed', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog', 'select_by_id');
-    }
-
+    logQuery('dog', 'select_by_id_detailed', duration);
     return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog', 'select_by_id');
-    logQuery('dog', 'select_by_id_detailed', duration, dbError.message);
-    return { data: null, error: dbError };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestGetDogById(id);
+      const duration = Date.now() - startTime;
+      logQuery('dog', 'select_by_id_detailed_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'dog', 'select_by_id');
+      logQuery('dog', 'select_by_id_detailed', duration, dbError.message);
+      return { data: null, error: dbError };
+    }
   }
 };
 
@@ -111,26 +331,30 @@ export const getDogsByOwner = async (ownerId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('dogs')
-      .select('*')
-      .eq('owner_id', ownerId)
-      .is('deleted_at', null)
-      .order('name', { ascending: true });
+    const dogs = await replicatedDogsTable.getDogsByOwner(ownerId);
+
+    // Sort by name ascending (matching original PostgREST behavior)
+    dogs.sort((a, b) => a.name.localeCompare(b.name));
+
+    // No joins needed — minimal query matching original select('*')
+    const data = dogs.map(dog => mapReplicatedDogToDbRow(dog));
 
     const duration = Date.now() - startTime;
-    logQuery('dog', 'select_by_owner', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog', 'select_by_owner');
+    logQuery('dog', 'select_by_owner', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestGetDogsByOwner(ownerId);
+      const duration = Date.now() - startTime;
+      logQuery('dog', 'select_by_owner_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'dog', 'select_by_owner');
+      logQuery('dog', 'select_by_owner', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog', 'select_by_owner');
-    logQuery('dog', 'select_by_owner', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -274,29 +498,31 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
   const startTime = Date.now();
 
   try {
-    const sanitized = sanitizePostgRESTFilter(searchTerm);
-    const { data, error } = await supabase
-      .from('dogs')
-      .select('*')
-      // Chained .or() calls are ANDed by PostgREST: must be owned by person AND match search term
-      .or(ownedByPerson(personId))
-      .or(`name.ilike.%${sanitized}%,breed.ilike.%${sanitized}%,call_name.ilike.%${sanitized}%`)
-      .is('deleted_at', null)
-      .order('name', { ascending: true });
+    const results = await replicatedDogsTable.searchDogs(searchTerm);
+    const filtered = filterByOwnership(results, personId);
+
+    // Sort by name ascending (matching original PostgREST behavior)
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+    // No joins needed — minimal query matching original select('*')
+    const data = filtered.map(dog => mapReplicatedDogToDbRow(dog));
 
     const duration = Date.now() - startTime;
-    logQuery('dog', 'search', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog', 'search');
+    logQuery('dog', 'search', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestSearchDogs(searchTerm, personId);
+      const duration = Date.now() - startTime;
+      logQuery('dog', 'search_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'dog', 'search');
+      logQuery('dog', 'search', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog', 'search');
-    logQuery('dog', 'search', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -305,31 +531,41 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('dogs')
-      .select(
-        `
-        *,
-        owner:people!dogs_owner_id_fkey(first_name, last_name)
-      `
-      )
-      .or(ownedByPerson(personId))
-      .is('deleted_at', null)
-      .order('name', { ascending: true });
+    const allDogs = await replicatedDogsTable.getAllDogs();
+    const filtered = filterByOwnership(allDogs, personId);
+
+    // Sort by name ascending (matching original PostgREST behavior)
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Batch-load owner names from PostgREST
+    const ownerIds = filtered.map(d => d.ownerId).filter((id): id is string => !!id);
+    const ownersMap = await loadOwnersMap(ownerIds);
+
+    // Original query only selects owner(first_name, last_name) — attach minimal owner
+    const data = filtered.map(dog => {
+      const ownerRow = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
+      const owner = ownerRow
+        ? { first_name: ownerRow.first_name, last_name: ownerRow.last_name }
+        : null;
+      return mapReplicatedDogToDbRow(dog, { owner });
+    });
 
     const duration = Date.now() - startTime;
-    logQuery('dog', 'select_with_upcoming_shows', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog', 'select_with_upcoming_shows');
+    logQuery('dog', 'select_with_upcoming_shows', duration);
+    return { data, error: null };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestGetDogsWithUpcomingShows(personId);
+      const duration = Date.now() - startTime;
+      logQuery('dog', 'select_with_upcoming_shows_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'dog', 'select_with_upcoming_shows');
+      logQuery('dog', 'select_with_upcoming_shows', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog', 'select_with_upcoming_shows');
-    logQuery('dog', 'select_with_upcoming_shows', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -338,29 +574,29 @@ export const getDogStatistics = async (personId: string) => {
   const startTime = Date.now();
 
   try {
-    const { error, count } = await supabase
-      .from('dogs')
-      .select('id', { count: 'exact', head: true })
-      .or(ownedByPerson(personId))
-      .is('deleted_at', null);
-
-    const duration = Date.now() - startTime;
-
-    if (error) {
-      throw createDatabaseError(error, 'dog', 'statistics');
-    }
+    const allDogs = await replicatedDogsTable.getAllDogs();
+    const filtered = filterByOwnership(allDogs, personId);
 
     const stats = {
-      total: count || 0,
+      total: filtered.length,
     };
 
+    const duration = Date.now() - startTime;
     logQuery('dog', 'statistics', duration);
     return { data: stats, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog', 'statistics');
-    logQuery('dog', 'statistics', duration, dbError.message);
-    return { data: null, error: dbError };
+  } catch {
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestGetDogStatistics(personId);
+      const duration = Date.now() - startTime;
+      logQuery('dog', 'statistics_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'dog', 'statistics');
+      logQuery('dog', 'statistics', duration, dbError.message);
+      return { data: null, error: dbError };
+    }
   }
 };
 

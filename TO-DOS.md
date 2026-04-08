@@ -313,3 +313,15 @@ Full audit in `docs/feature-inventory-audit.md`. Items below are the "Consider H
 ## Standardize View Modes to Grid + Table Only - 2026-04-07 14:44
 
 - [x] **Remove "List" view mode and standardize the view switcher UI across all pages** — Done. `ViewToggle` upgraded to labeled icon buttons with shadcn `Button`. Fixed table icon mapping (was `List`, now `Table2`). BrowsePeoplePage reduced to Grid + Table, now uses shared `ViewToggle`. All 7 existing consumers verified compatible. 6 tests.
+
+---
+
+## Refactor Replication Query Layer — Structural Cleanup - 2026-04-07
+
+Follow-up from the PostgREST → replication migration. Three structural patterns were identified across the 7 migrated query files and 7 mapper files that warrant a shared-utilities pass.
+
+- [ ] **Extract `withReplicationFallback()` helper** — The try-replication / catch-fallback-to-PostgREST pattern is duplicated verbatim across 40+ functions in `showQueries.ts`, `trialQueries.ts`, `classQueries.ts`, `entry-query-lookups.ts`, `entry-query-search.ts`, `dogQueries.ts`, `armbandQueries.ts`, and `waitlistQueries.ts`. **Problem:** Each function contains ~10 lines of identical boilerplate (try/catch, `startTime`, `logQuery`, `createDatabaseError`). A bug fix or logging change must be applied to 40+ locations. **Solution:** Extract a generic `withReplicationFallback<T>(replicationFn, postgrestFn, table, operation)` wrapper in `apps/myk9show/src/services/database/replicationUtils.ts` that handles timing, error creation, and logging. Each query function collapses to a single `return withReplicationFallback(...)` call. ~800 LOC reduction estimated.
+
+- [ ] **Extract `buildMapFromArray()` utility** — The pattern `const map = new Map(items.map(item => [item.id, item]))` (and variants with `Promise.all` to batch-load related records into Maps) is duplicated across showQueries, trialQueries, classQueries, entry-query-lookups, dogQueries, and waitlistQueries. **Solution:** Add `buildMapFromArray<T>(items: T[], keyFn: (item: T) => string): Map<string, T>` utility. ~150 LOC reduction estimated.
+
+- [ ] **Extract generic camelCase→snake_case mapper utility** — All 7 mapper files (`showMappers.ts`, `trialMappers.ts`, `classMappers.ts`, `entryMappers.ts`, `dogMappers.ts`, `armbandMappers.ts`, `waitlistMappers.ts`) manually map camelCase replicated type fields to snake_case DB row shapes. The mapping logic is hand-rolled per file with no shared abstraction. **Solution:** Evaluate whether a small `mapKeys(obj, keyTransform)` utility (or a typed field-map declaration approach) can unify the pattern across mapper files. ~300 LOC reduction estimated.

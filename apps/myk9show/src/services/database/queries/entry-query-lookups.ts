@@ -11,6 +11,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -66,6 +67,8 @@ function mapEntriesWithStandardJoins(
  * The `entries.armband` column is a denormalized copy that may lag behind
  * if the replication UPDATE mutation hasn't synced yet. The `armbands` table
  * is the authoritative source (written atomically by the assign_armband RPC).
+ *
+ * Reads from replicatedArmbandsTable first, falls back to PostgREST.
  */
 async function fetchMissingArmbands(
   entries: ReadonlyArray<{ armband: string | null; show_id: string | null; dog_id: string | null }>
@@ -74,17 +77,32 @@ async function fetchMissingArmbands(
   if (missing.length === 0) return new Map();
 
   const showIds = [...new Set(missing.map(e => e.show_id!))];
-  const dogIds = [...new Set(missing.map(e => e.dog_id!))];
+  const dogIds = new Set(missing.map(e => e.dog_id!));
 
-  const { data: armbandRows } = await supabase
-    .from('armbands')
-    .select('show_id, dog_id, armband_number')
-    .in('show_id', showIds)
-    .in('dog_id', dogIds);
+  try {
+    // Read from replication store
+    const armbandsByShow = await Promise.all(
+      showIds.map(sid => replicatedArmbandsTable.getByShow(sid))
+    );
+    const allArmbands = armbandsByShow.flat();
 
-  if (!armbandRows || armbandRows.length === 0) return new Map();
+    // Filter to only the dog IDs we need
+    const relevant = allArmbands.filter(a => a.dogId && dogIds.has(a.dogId));
+    if (relevant.length === 0) return new Map();
 
-  return new Map(armbandRows.map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)]));
+    return new Map(relevant.map(a => [`${a.showId}:${a.dogId}`, a.armbandNumber]));
+  } catch {
+    // Fallback to PostgREST
+    const { data: armbandRows } = await supabase
+      .from('armbands')
+      .select('show_id, dog_id, armband_number')
+      .in('show_id', showIds)
+      .in('dog_id', [...dogIds]);
+
+    if (!armbandRows || armbandRows.length === 0) return new Map();
+
+    return new Map(armbandRows.map(a => [`${a.show_id}:${a.dog_id}`, String(a.armband_number)]));
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -32,6 +32,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
+import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -59,6 +60,7 @@ const REPLICATED_TABLES = [
   { name: 'dogs', table: replicatedDogsTable },
   { name: 'clubs', table: replicatedClubsTable },
   { name: 'judge_assignments', table: replicatedJudgeAssignmentsTable },
+  { name: 'armbands', table: replicatedArmbandsTable },
 ] as const;
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface

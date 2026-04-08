@@ -45,8 +45,6 @@ export function useArmbandLabelData(
     queryKey: ['armband-label-entries', showId],
     queryFn: async () => {
       if (!showId) return [];
-      // TODO: remove @ts-expect-error after migration 127 pushed and types regenerated
-      // @ts-expect-error -- is_day_of_show column added in migration 127
       const { data } = await supabase
         .from('entries')
         .select(
@@ -65,8 +63,6 @@ export function useArmbandLabelData(
     queryKey: ['show-wifi', showId],
     queryFn: async () => {
       if (!showId) return null;
-      // TODO: remove @ts-expect-error after migration 127 pushed and types regenerated
-      // @ts-expect-error -- venue_wifi columns added in migration 127
       const { data } = await supabase
         .from('shows')
         .select('venue_wifi_network, venue_wifi_password')

@@ -60,7 +60,7 @@ function mapDogsWithOwners(
 ): Record<string, unknown>[] {
   return dogs.map(dog => {
     const owner = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
-    return mapReplicatedDogToDbRow(dog, { owner });
+    return mapReplicatedDogToDbRow(dog, { owner: owner as Record<string, unknown> | null });
   });
 }
 

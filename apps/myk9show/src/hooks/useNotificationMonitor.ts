@@ -73,7 +73,7 @@ export function useNotificationMonitor(): void {
   const dogIdsKey = useMemo(() => {
     const dogs = dogsQuery.data ?? [];
     return dogs
-      .map((d: { id: string }) => d.id)
+      .map(d => (d as { id: string }).id)
       .sort()
       .join(',');
   }, [dogsQuery.data]);

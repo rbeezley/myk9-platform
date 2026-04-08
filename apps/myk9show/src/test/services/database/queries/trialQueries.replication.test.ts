@@ -276,7 +276,6 @@ describe('trialQueries (replication)', () => {
   // -----------------------------------------------------------------------
   describe('getUpcomingTrials', () => {
     it('filters by date >= today and respects limit', async () => {
-      const futureDate = '2099-01-01';
       const trials = Array.from({ length: 5 }, (_, i) =>
         makeTrial({ id: `trial-${i}`, date: `2099-0${i + 1}-01` })
       );

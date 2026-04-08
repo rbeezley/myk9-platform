@@ -45,8 +45,8 @@ export function useArmbandLabelData(
     queryKey: ['armband-label-entries', showId],
     queryFn: async () => {
       if (!showId) return [];
-      // TODO: remove @ts-ignore after migration 127 pushed and types regenerated
-      // @ts-ignore -- is_day_of_show column added in migration 127
+      // TODO: remove @ts-expect-error after migration 127 pushed and types regenerated
+      // @ts-expect-error -- is_day_of_show column added in migration 127
       const { data } = await supabase
         .from('entries')
         .select(
@@ -65,8 +65,8 @@ export function useArmbandLabelData(
     queryKey: ['show-wifi', showId],
     queryFn: async () => {
       if (!showId) return null;
-      // TODO: remove @ts-ignore after migration 127 pushed and types regenerated
-      // @ts-ignore -- venue_wifi columns added in migration 127
+      // TODO: remove @ts-expect-error after migration 127 pushed and types regenerated
+      // @ts-expect-error -- venue_wifi columns added in migration 127
       const { data } = await supabase
         .from('shows')
         .select('venue_wifi_network, venue_wifi_password')
@@ -81,15 +81,15 @@ export function useArmbandLabelData(
   const entries = useMemo(
     () =>
       (entriesRaw ?? [])
-        .map((e) => mapEntryToArmbandLabelEntry(e as Record<string, unknown>))
+        .map((e) => mapEntryToArmbandLabelEntry(e as unknown as Record<string, unknown>))
         .filter((e): e is ArmbandLabelEntry => e !== null),
     [entriesRaw]
   );
 
   return {
     entries,
-    wifiNetwork: showWifi?.venue_wifi_network ?? null,
-    wifiPassword: showWifi?.venue_wifi_password ?? null,
+    wifiNetwork: (showWifi as Record<string, unknown> | null)?.venue_wifi_network as string | null ?? null,
+    wifiPassword: (showWifi as Record<string, unknown> | null)?.venue_wifi_password as string | null ?? null,
     isLoading: entriesLoading || wifiLoading,
   };
 }

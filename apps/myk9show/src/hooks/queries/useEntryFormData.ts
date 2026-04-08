@@ -31,8 +31,8 @@ function buildSecretary(person: Record<string, unknown>): EntryFormSecretary {
 
 export interface UseEntryFormDataOptions {
   showId: string;
-  trialId?: string;
-  dogId?: string;
+  trialId?: string | undefined;
+  dogId?: string | undefined;
 }
 
 export interface UseEntryFormDataResult {
@@ -65,7 +65,7 @@ async function fetchEntryFormData(
   const trials: EntryFormTrial[] = (trialsRaw ?? []).map(t => ({
     id: t.id,
     date: t.date ?? '',
-    trialNumber: t.trial_number ?? 0,
+    trialNumber: Number(t.trial_number ?? 0),
   }));
 
   const trialIds = trialId ? [trialId] : trials.map(t => t.id);
@@ -193,7 +193,7 @@ async function fetchEntryFormData(
         .select('first_name, last_name, street_address, city, state, zip_code')
         .eq('id', secretaryRole.user_id)
         .maybeSingle();
-      secPerson = secData ?? undefined;
+      secPerson = (secData as unknown as typeof secPerson) ?? undefined;
     }
     if (secPerson) {
       secretary = buildSecretary(secPerson as Record<string, unknown>);

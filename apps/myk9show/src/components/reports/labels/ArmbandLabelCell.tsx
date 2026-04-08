@@ -7,9 +7,9 @@ interface ArmbandLabelCellProps {
   item: ArmbandLabelItem;
   config: LabelContentConfig;
   labelHeight: number;
-  passcode?: string;
-  wifiNetwork?: string;
-  wifiPassword?: string;
+  passcode?: string | undefined;
+  wifiNetwork?: string | undefined;
+  wifiPassword?: string | undefined;
 }
 
 export const ArmbandLabelCell: React.FC<ArmbandLabelCellProps> = ({

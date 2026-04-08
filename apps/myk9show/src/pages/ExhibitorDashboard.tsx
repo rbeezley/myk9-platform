@@ -183,7 +183,7 @@ const ExhibitorDashboard: React.FC = () => {
       />
 
       {/* Title Progress — free-tier visible, one row per dog */}
-      {dogs.length > 0 && <TitleProgressCard dogs={dogs} />}
+      {dogs.length > 0 && <TitleProgressCard dogs={dogs as Parameters<typeof TitleProgressCard>[0]['dogs']} />}
 
       {/* Upcoming Entries — always visible */}
       <FadeIn>

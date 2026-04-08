@@ -138,13 +138,13 @@ export function ReportPreview({
       const props: ReportProps = {
         showId: show.id,
         showName: show.name ?? '',
-        clubName: show.clubName ?? undefined,
-        showDates,
         entries: [],
         sortOrder,
-        organization: show.organization ?? undefined,
-        dogId: dogId !== 'all' ? dogId : undefined,
-        trialId: trialId !== 'all' ? trialId : undefined,
+        ...(show.clubName ? { clubName: show.clubName } : {}),
+        ...(showDates ? { showDates } : {}),
+        ...(show.organization ? { organization: show.organization } : {}),
+        ...(dogId !== 'all' ? { dogId } : {}),
+        ...(trialId !== 'all' ? { trialId } : {}),
       };
       const ReportComponent = report.component;
       combinedMarkup = ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);

@@ -197,7 +197,7 @@ export default function ReportsPage() {
             show={show}
             trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
             classes={classes as Parameters<typeof ReportPreview>[0]['classes']}
-            entries={entries}
+            entries={entries as Parameters<typeof ReportPreview>[0]['entries']}
             trialId={trialId}
             classId={classId}
             dogId={dogId}

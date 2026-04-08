@@ -35,7 +35,7 @@ export const useDogsQuery = () => {
       // Fallback to replication layer (offline-first, service-role synced)
       // Returns ALL dogs — useRoleBasedDogs handles UI-level role filtering
       const replicatedDogs = await replicatedDogsTable.getAllDogs();
-      return replicatedDogs.map(mapReplicatedDogToDbRow) as typeof data;
+      return replicatedDogs.map(d => mapReplicatedDogToDbRow(d)) as typeof data;
     },
     enabled: !!personId,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache

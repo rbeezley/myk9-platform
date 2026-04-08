@@ -199,7 +199,7 @@ export const useShowsWithEntryCountsQuery = () => {
       const { data, error } = await getShowsWithEntryCounts();
       if (error) throw error;
       return data.map(show => ({
-        ...mapDatabaseToShow(show),
+        ...mapDatabaseToShow(show as unknown as Parameters<typeof mapDatabaseToShow>[0]),
         entryCount: show.entry_count || 0
       }));
     },

@@ -38,7 +38,7 @@ export interface PlatformStatisticsSectionProps {
 export interface AdminDashboardData {
   users: User[];
   shows: Show[];
-  dogs: { id: string }[];
+  dogs: Record<string, unknown>[];
   isLoading: boolean;
   hasError: boolean;
 }

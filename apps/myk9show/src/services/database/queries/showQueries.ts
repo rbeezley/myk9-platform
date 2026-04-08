@@ -18,6 +18,9 @@ import type { ReplicatedJudgeAssignment } from '@/services/replication/Replicate
 // Helpers — batch-load related data into Maps to avoid N+1 reads
 // ---------------------------------------------------------------------------
 
+const EMPTY_JUDGE_MAP = new Map<string, ReplicatedJudgeAssignment[]>();
+const EMPTY_TRIALS_MAP = new Map<string, ReplicatedTrial[]>();
+
 async function loadClubsMap(): Promise<Map<string, ReplicatedClub>> {
   const clubs = await replicatedClubsTable.getAllClubs();
   return new Map(clubs.map(c => [c.id, c]));
@@ -448,8 +451,7 @@ export const getUpcomingShows = async (limit = 10) => {
     ]);
 
     const limited = shows.slice(0, limit);
-    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
-    const data = mapShowsWithJoins(limited, clubsMap, trialsMap, emptyJudgeMap);
+    const data = mapShowsWithJoins(limited, clubsMap, trialsMap, EMPTY_JUDGE_MAP);
 
     const duration = Date.now() - startTime;
     logQuery('show', 'select_upcoming', duration);
@@ -485,8 +487,7 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
       show => show.startDate >= startDate && show.endDate <= endDate
     );
 
-    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
-    const data = mapShowsWithJoins(filtered, clubsMap, trialsMap, emptyJudgeMap);
+    const data = mapShowsWithJoins(filtered, clubsMap, trialsMap, EMPTY_JUDGE_MAP);
 
     const duration = Date.now() - startTime;
     logQuery('show', 'select_by_date_range', duration);
@@ -521,8 +522,7 @@ export const getShowsByClub = async (clubId: string) => {
     // Sort descending by start_date (matching original PostgREST behavior)
     shows.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
-    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
-    const data = mapShowsWithJoins(shows, clubsMap, trialsMap, emptyJudgeMap);
+    const data = mapShowsWithJoins(shows, clubsMap, trialsMap, EMPTY_JUDGE_MAP);
 
     const duration = Date.now() - startTime;
     logQuery('show', 'select_by_club', duration);
@@ -619,9 +619,7 @@ export const getShowsWithEntryCounts = async () => {
       loadClubsMap(),
     ]);
 
-    const emptyTrialsMap = new Map<string, ReplicatedTrial[]>();
-    const emptyJudgeMap = new Map<string, ReplicatedJudgeAssignment[]>();
-    const rows = mapShowsWithJoins(shows, clubsMap, emptyTrialsMap, emptyJudgeMap);
+    const rows = mapShowsWithJoins(shows, clubsMap, EMPTY_TRIALS_MAP, EMPTY_JUDGE_MAP);
 
     // Add basic entry count as 0 for now (matching original behavior)
     const data = rows.map(row => ({

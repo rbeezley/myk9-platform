@@ -239,12 +239,12 @@ export const lookupDogByArmband = async (showId: string, armbandNumber: string) 
       string,
       Awaited<ReturnType<typeof replicatedClassesTable.getClassById>>
     >();
-    for (const classId of classIds) {
-      const cls = await replicatedClassesTable.getClassById(classId);
-      if (cls) {
-        classesMap.set(classId, cls);
-      }
-    }
+    const classResults = await Promise.all(
+      classIds.map(id => replicatedClassesTable.getClassById(id))
+    );
+    classIds.forEach((id, i) => {
+      if (classResults[i]) classesMap.set(id, classResults[i]);
+    });
 
     const result = mapArmbandLookup(armband, dog, owner, dogEntries, classesMap as never);
 

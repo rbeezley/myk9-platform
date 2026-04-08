@@ -265,14 +265,14 @@ describe('waitlistQueries (replication)', () => {
 
       mockTrialsTable.getTrialsByShow.mockResolvedValue([trial]);
       mockClassesTable.getClassesByTrial.mockResolvedValue([cls]);
-      mockEntriesTable.getEntriesByClass.mockResolvedValue([
-        makeEntry({ entryStatus: 'accepted' }),
-        makeEntry({ id: 'entry-2', entryStatus: 'accepted' }),
-        makeEntry({ id: 'entry-3', entryStatus: 'pending' }),
+      mockEntriesTable.getAll.mockResolvedValue([
+        makeEntry({ classId: 'class-1', entryStatus: 'accepted' }),
+        makeEntry({ id: 'entry-2', classId: 'class-1', entryStatus: 'accepted' }),
+        makeEntry({ id: 'entry-3', classId: 'class-1', entryStatus: 'pending' }),
       ]);
-      mockWaitlistTable.getByClass.mockResolvedValue([
-        makeWaitlistEntry({ id: 'wl-1' }),
-        makeWaitlistEntry({ id: 'wl-2' }),
+      mockWaitlistTable.getAll.mockResolvedValue([
+        makeWaitlistEntry({ id: 'wl-1', classId: 'class-1' }),
+        makeWaitlistEntry({ id: 'wl-2', classId: 'class-1' }),
       ]);
 
       const result = await getClassesWithWaitlistCounts('show-1');
@@ -301,8 +301,8 @@ describe('waitlistQueries (replication)', () => {
         makeClass({ id: 'c2', name: 'Open', trialId: 'trial-1' }),
         makeClass({ id: 'c1', name: 'Advanced', trialId: 'trial-1' }),
       ]);
-      mockEntriesTable.getEntriesByClass.mockResolvedValue([]);
-      mockWaitlistTable.getByClass.mockResolvedValue([]);
+      mockEntriesTable.getAll.mockResolvedValue([]);
+      mockWaitlistTable.getAll.mockResolvedValue([]);
 
       const result = await getClassesWithWaitlistCounts('show-1');
 
@@ -313,8 +313,8 @@ describe('waitlistQueries (replication)', () => {
     it('returns zero counts when no entries or waitlist', async () => {
       mockTrialsTable.getTrialsByShow.mockResolvedValue([makeTrial()]);
       mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
-      mockEntriesTable.getEntriesByClass.mockResolvedValue([]);
-      mockWaitlistTable.getByClass.mockResolvedValue([]);
+      mockEntriesTable.getAll.mockResolvedValue([]);
+      mockWaitlistTable.getAll.mockResolvedValue([]);
 
       const result = await getClassesWithWaitlistCounts('show-1');
 

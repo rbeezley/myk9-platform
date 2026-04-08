@@ -180,25 +180,25 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
     );
     const classes = allClasses.flat();
 
-    // Get all entries and waitlist entries for counting
-    const classesWithCounts = await Promise.all(
-      classes.map(async cls => {
-        // Get accepted count from replicated entries
-        const entries = await replicatedEntriesTable.getEntriesByClass(cls.id);
-        const acceptedCount = entries.filter(e => e.entryStatus === 'accepted').length;
+    // Batch-load all entries and waitlist entries once, count per class in JS
+    const [allEntries, allWaitlist] = await Promise.all([
+      replicatedEntriesTable.getAll(),
+      replicatedWaitlistEntriesTable.getAll(),
+    ]);
 
-        // Get waitlist count from replicated waitlist entries
-        const waitlistEntries = await replicatedWaitlistEntriesTable.getByClass(cls.id);
-        const waitlistCount = waitlistEntries.length;
+    const classesWithCounts = classes.map(cls => {
+      const acceptedCount = allEntries.filter(
+        e => e.classId === cls.id && e.entryStatus === 'accepted'
+      ).length;
+      const waitlistCount = allWaitlist.filter(w => w.classId === cls.id).length;
 
-        return mapClassWithWaitlistCount(
-          cls,
-          trialsMap.get(cls.trialId ?? '') ?? null,
-          acceptedCount,
-          waitlistCount
-        );
-      })
-    );
+      return mapClassWithWaitlistCount(
+        cls,
+        trialsMap.get(cls.trialId ?? '') ?? null,
+        acceptedCount,
+        waitlistCount
+      );
+    });
 
     // Sort by name
     classesWithCounts.sort((a, b) => a.name.localeCompare(b.name));

@@ -49,6 +49,14 @@ export interface EntryFormPerson {
   email: string;
 }
 
+export interface EntryFormSecretary {
+  name: string;
+  streetAddress: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+}
+
 export interface EntryFormDog {
   dogId: string;
   callName: string;

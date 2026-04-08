@@ -150,3 +150,66 @@ export const mapTrialToTrialInput = (trial: Trial): TrialInput => {
     timeEnded: trial.timeEnded,
   };
 };
+
+// ---------------------------------------------------------------------------
+// Replication mappers — convert camelCase replicated types to snake_case DB
+// row shapes so downstream consumers (stores, UI) see the same shape as
+// PostgREST responses.
+// ---------------------------------------------------------------------------
+
+import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+
+/**
+ * Convert a ReplicatedShow to the snake_case show sub-object shape returned
+ * by PostgREST when selecting `show:shows(id, name, start_date, end_date)`.
+ */
+export const mapReplicatedShowToTrialJoinRow = (show: ReplicatedShow): Record<string, unknown> => ({
+  id: show.id,
+  name: show.name,
+  start_date: show.startDate,
+  end_date: show.endDate,
+});
+
+/**
+ * Convert a ReplicatedTrial to the full snake_case DB row shape that
+ * consumers expect from PostgREST `select('*')`.
+ *
+ * Optionally attach the joined `show` sub-object when provided.
+ */
+export const mapReplicatedTrialToDbRow = (
+  trial: ReplicatedTrial,
+  options?: {
+    show?: ReplicatedShow | null;
+  }
+): Record<string, unknown> => {
+  const row: Record<string, unknown> = {
+    id: trial.id,
+    show_id: trial.showId ?? null,
+    name: trial.name,
+    date: trial.date,
+    trial_number: trial.trialNumber ?? null,
+    status: trial.status ?? null,
+    trial_type: trial.trialType ?? null,
+    max_entries_per_dog: trial.maxEntriesPerDog ?? null,
+    max_total_entries: trial.maxTotalEntries ?? null,
+    max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
+    planned_start_time: trial.plannedStartTime ?? null,
+    actual_start_time: trial.actualStartTime ?? null,
+    actual_end_time: trial.actualEndTime ?? null,
+    event_number: trial.eventNumber ?? null,
+    display_order: trial.displayOrder ?? null,
+    category: trial.category ?? null,
+    image_url: trial.imageUrl ?? null,
+    deleted_at: null,
+  };
+
+  // Attach show sub-object when provided
+  if (options?.show) {
+    row.show = mapReplicatedShowToTrialJoinRow(options.show);
+  } else {
+    row.show = null;
+  }
+
+  return row;
+};

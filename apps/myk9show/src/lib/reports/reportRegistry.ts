@@ -3,6 +3,7 @@ import { CheckInSheet } from '@/components/reports/CheckInSheet';
 import { ScoresheetReport } from '@/components/reports/ScoresheetReport';
 import { ResultsSheet } from '@/components/reports/ResultsSheet';
 import { ShowFlyerReport } from '@/components/reports/ShowFlyerReport';
+import { AKCScentWorkEntryForm } from '@/components/reports/AKCScentWorkEntryForm';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -59,6 +60,22 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: ShowFlyerReport,
     enabled: true,
+  },
+
+  {
+    id: 'akc-scent-work-entry-form',
+    name: 'AKC Scent Work Entry Form',
+    category: 'organization',
+    scopes: ['show', 'trial'],
+    sortOptions: [
+      { value: 'armband', label: 'Armband Number' },
+      { value: 'owner-name', label: 'Owner Last Name' },
+      { value: 'dog-name', label: 'Dog Registered Name' },
+    ],
+    defaultSort: 'armband',
+    component: AKCScentWorkEntryForm,
+    enabled: true,
+    supportsDogFilter: true,
   },
 
   // Phase 2 — stubs (disabled)

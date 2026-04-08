@@ -78,6 +78,17 @@ export const reportRegistry: ReportDefinition[] = [
     supportsDogFilter: true,
   },
 
+  {
+    id: 'armband-labels',
+    name: 'Armband Labels',
+    category: 'operational',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: PlaceholderReport, // Rendered directly by ReportsPage, not via ReportPreview
+    enabled: true,
+  },
+
   // Phase 2 — stubs (disabled)
   {
     id: 'show-catalog',

@@ -14,6 +14,7 @@ import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
 import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
+import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
 
 export default function ShowSettingsPage() {
   const { selectedShowId, shows } = useShowStore();
@@ -107,6 +108,11 @@ export default function ShowSettingsPage() {
           showId={selectedShowId}
           {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
         />
+      )}
+
+      {/* Venue WiFi — onSave omitted until migration 127 pushed and types regenerated */}
+      {selectedShowId && (
+        <VenueWifiCard showId={selectedShowId} network="" password="" />
       )}
     </div>
   );

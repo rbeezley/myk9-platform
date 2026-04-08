@@ -2,6 +2,10 @@
 import type { Show, ShowInput } from '@/types/show-types';
 import type { DbShow, DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
 import { logger } from '@/services/LoggingService';
+import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable';
+import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -383,4 +387,136 @@ export const createDefaultShowInput = (): Partial<ShowInput> => {
     assignedJudges: [],
     trials: [],
   };
+};
+
+// ---------------------------------------------------------------------------
+// Replication mappers — convert camelCase replicated types to snake_case DB
+// row shapes so downstream consumers (stores, UI) see the same shape as
+// PostgREST responses.
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a ReplicatedClub to the snake_case club sub-object shape returned
+ * by PostgREST when selecting `club:clubs(id, name, logo_url, ...)`.
+ *
+ * Two variants: "summary" (used by list queries) and "detail" (used by getShowById).
+ */
+export const mapReplicatedClubToSummaryRow = (club: ReplicatedClub): Record<string, unknown> => ({
+  id: club.id,
+  name: club.name,
+  logo_url: club.logoUrl ?? null,
+  cover_image_url: club.coverImageUrl ?? null,
+  accent_color: club.accentColor ?? null,
+});
+
+export const mapReplicatedClubToDetailRow = (club: ReplicatedClub): Record<string, unknown> => ({
+  id: club.id,
+  name: club.name,
+  address: club.address ?? null,
+  phone: club.phone ?? null,
+  email: club.email ?? null,
+  website: club.website ?? null,
+  logo_url: club.logoUrl ?? null,
+  cover_image_url: club.coverImageUrl ?? null,
+  accent_color: club.accentColor ?? null,
+});
+
+/**
+ * Convert a ReplicatedTrial to the snake_case trial sub-object shape
+ * returned by PostgREST `trials(...)` select.
+ */
+export const mapReplicatedTrialToRow = (trial: ReplicatedTrial): Record<string, unknown> => ({
+  id: trial.id,
+  name: trial.name,
+  date: trial.date,
+  trial_number: trial.trialNumber ?? null,
+  status: trial.status ?? null,
+  trial_type: trial.trialType ?? null,
+  max_entries_per_dog: trial.maxEntriesPerDog ?? null,
+  max_total_entries: trial.maxTotalEntries ?? null,
+  max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
+});
+
+/**
+ * Convert a ReplicatedJudgeAssignment to the snake_case row shape
+ * returned by PostgREST `judge_assignments(...)` select.
+ * The nested `judge` key is NOT populated here — it requires a separate
+ * people lookup which is not yet replicated. Pass `null` for now.
+ */
+export const mapReplicatedJudgeAssignmentToRow = (
+  assignment: ReplicatedJudgeAssignment
+): Record<string, unknown> => ({
+  id: assignment.id,
+  person_id: assignment.personId,
+  show_id: assignment.showId ?? null,
+  trial_id: assignment.trialId ?? null,
+  class_id: assignment.classId ?? null,
+  status: assignment.status ?? null,
+  invited_at: assignment.invitedAt ?? null,
+  confirmed_at: assignment.confirmedAt ?? null,
+  fee: assignment.fee ?? null,
+  notes: assignment.notes ?? null,
+  judge: null, // people table not replicated yet
+});
+
+/**
+ * Convert a ReplicatedShow to the snake_case DB row shape that consumers
+ * expect from PostgREST `select('*')`.
+ *
+ * Optionally attach joined `club`, `trials`, and `judge_assignments` when
+ * the corresponding replicated data is provided.
+ */
+export const mapReplicatedShowToDbRow = (
+  show: ReplicatedShow,
+  options?: {
+    club?: ReplicatedClub | null;
+    trials?: ReplicatedTrial[];
+    judgeAssignments?: ReplicatedJudgeAssignment[];
+    clubDetail?: boolean;
+  }
+): Record<string, unknown> => {
+  const row: Record<string, unknown> = {
+    id: show.id,
+    name: show.name,
+    organization: show.organization,
+    start_date: show.startDate,
+    end_date: show.endDate,
+    location: show.location ?? null,
+    status: show.status ?? null,
+    entry_open_date: show.entryOpenDate ?? null,
+    entry_close_date: show.entryCloseDate ?? null,
+    pre_entry_fee: show.preEntryFee ?? null,
+    day_of_show_fee: show.dayOfShowFee ?? null,
+    club_id: show.clubId ?? null,
+    max_entries_per_dog: show.maxEntriesPerDog ?? null,
+    max_total_entries: show.maxTotalEntries ?? null,
+    allow_non_owner_handlers: show.allowsNonOwnerHandlers ?? null,
+    accept_check_payments: show.acceptCheckPayments ?? null,
+    accept_cash_payments: show.acceptCashPayments ?? null,
+    logo_url: show.logoUrl ?? null,
+    cover_image_url: show.coverImageUrl ?? null,
+    accent_color: show.accentColor ?? null,
+    deleted_at: null,
+  };
+
+  // Attach club sub-object when provided
+  if (options?.club) {
+    row.club = options.clubDetail
+      ? mapReplicatedClubToDetailRow(options.club)
+      : mapReplicatedClubToSummaryRow(options.club);
+  } else {
+    row.club = null;
+  }
+
+  // Attach trials array when provided
+  if (options?.trials) {
+    row.trials = options.trials.map(mapReplicatedTrialToRow);
+  }
+
+  // Attach judge_assignments array when provided
+  if (options?.judgeAssignments) {
+    row.judge_assignments = options.judgeAssignments.map(mapReplicatedJudgeAssignmentToRow);
+  }
+
+  return row;
 };

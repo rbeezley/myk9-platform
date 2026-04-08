@@ -16,6 +16,41 @@ import {
 import type { DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
+// Force replication tables to throw so PostgREST fallback is exercised
+vi.mock('@/services/replication/ReplicatedShowsTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return {
+    replicatedShowsTable: {
+      getAllShows: t(),
+      getShowById: t(),
+      getUpcomingShows: t(),
+      getShowsByClub: t(),
+      getAll: t(),
+    },
+  };
+});
+
+vi.mock('@/services/replication/ReplicatedClubsTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return {
+    replicatedClubsTable: { getAllClubs: t(), getClubById: t(), getAll: t() },
+  };
+});
+
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return {
+    replicatedTrialsTable: { getTrialsByShow: t(), getAll: t() },
+  };
+});
+
+vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return {
+    replicatedJudgeAssignmentsTable: { getByShowId: t(), getAll: t() },
+  };
+});
+
 describe('Show Queries', () => {
   afterEach(() => {
     vi.restoreAllMocks();

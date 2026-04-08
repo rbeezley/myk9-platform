@@ -2,78 +2,261 @@
  * Entry statistics, search, and eligibility queries
  *
  * Read-only operations for statistics aggregation, searching, and eligibility checks.
+ * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
+import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+
+// ---------------------------------------------------------------------------
+// PostgREST fallback wrappers (original implementations)
+// ---------------------------------------------------------------------------
+
+async function postgrestGetEntryStatistics(showId?: string) {
+  let query = supabase
+    .from('entries')
+    .select('entry_status, entry_fee, payment_status')
+    .is('deleted_at', null);
+
+  if (showId) {
+    query = query.eq('show_id', showId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw createDatabaseError(error, 'entries', 'statistics');
+
+  // Calculate statistics
+  const stats = {
+    totalEntries: data?.length || 0,
+    byStatus: {} as Record<string, number>,
+    totalRevenue: 0,
+    paidRevenue: 0,
+    completionRate: 0,
+  };
+
+  if (data) {
+    data.forEach(entry => {
+      const status = entry.entry_status || 'unknown';
+      stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+
+      const fee = entry.entry_fee || 0;
+      stats.totalRevenue += fee;
+
+      if (entry.payment_status === 'paid') {
+        stats.paidRevenue += fee;
+      }
+    });
+
+    const completedEntries = stats.byStatus['completed'] || 0;
+    const paidEntries = data.filter(e => e.payment_status === 'paid').length;
+    stats.completionRate = paidEntries > 0 ? (completedEntries / paidEntries) * 100 : 0;
+  }
+
+  return { data: stats, error: null };
+}
+
+async function postgrestGetUserEntries(userId: string) {
+  const { data, error } = await supabase
+    .from('entries')
+    .select(
+      `
+      id,
+      dog_id,
+      show_id,
+      class_id,
+      trial_id,
+      handler,
+      handler_id,
+      payment_status,
+      entry_status,
+      entry_fee,
+      armband,
+      run_order,
+      jump_height,
+      special_requests,
+      is_scored,
+      result_status,
+      search_time_seconds,
+      total_faults,
+      final_placement,
+      submitted_at,
+      created_at,
+      updated_at,
+      registration_id,
+      registration:registration_id (
+        id,
+        confirmation_number
+      ),
+      dog:dog_id (
+        id,
+        name,
+        call_name,
+        breed
+      ),
+      show:show_id (
+        id,
+        name,
+        start_date,
+        end_date,
+        venue,
+        city,
+        state
+      ),
+      class:class_id (
+        id,
+        name,
+        class_number
+      )
+    `
+    )
+    .eq('handler_id', userId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  if (error) throw createDatabaseError(error, 'entries', 'select_user_entries');
+  return { data: data || [], error: null };
+}
+
+async function postgrestSearchEntries(searchTerm: string) {
+  const { data, error } = await supabase
+    .from('entries')
+    .select(
+      `
+      *,
+      dog:dog_id (
+        id,
+        name,
+        call_name,
+        breed,
+        owner:owner_id (
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      ),
+      class:class_id (
+        id,
+        name,
+        class_number,
+        entry_fee
+      ),
+      show:show_id (
+        id,
+        name,
+        start_date,
+        end_date
+      )
+    `
+    )
+    .or(
+      `armband.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,handler.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
+    )
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw createDatabaseError(error, 'entries', 'search');
+  return { data: data || [], error: null };
+}
+
+async function postgrestCanModifyEntry(
+  showId: string
+): Promise<{ canModify: boolean; reason?: string }> {
+  const { data: show, error } = await supabase
+    .from('shows')
+    .select('entry_close_date, status')
+    .eq('id', showId)
+    .single();
+
+  if (error || !show) {
+    return { canModify: false, reason: 'Show not found' };
+  }
+
+  const now = new Date();
+  const closeDate = show.entry_close_date ? new Date(show.entry_close_date) : null;
+
+  if (closeDate && closeDate < now) {
+    return { canModify: false, reason: 'Entry deadline has passed' };
+  }
+
+  if (show.status === 'completed' || show.status === 'cancelled') {
+    return { canModify: false, reason: 'Show is no longer active' };
+  }
+
+  return { canModify: true };
+}
+
+// ---------------------------------------------------------------------------
+// SELECT functions — read from replication store, fallback to PostgREST
+// ---------------------------------------------------------------------------
 
 // Get entry statistics for a show
 export const getEntryStatistics = async (showId?: string) => {
   const startTime = Date.now();
 
   try {
-    let query = supabase
-      .from('entries')
-      .select('entry_status, entry_fee, payment_status')
-      .is('deleted_at', null);
+    const entries = showId
+      ? await replicatedEntriesTable.getEntriesByShow(showId)
+      : await replicatedEntriesTable.getAll();
 
-    if (showId) {
-      query = query.eq('show_id', showId);
-    }
-
-    const { data, error } = await query;
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'statistics', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'statistics');
-    }
-
-    // Calculate statistics
+    // Calculate statistics in JS
     const stats = {
-      totalEntries: data?.length || 0,
+      totalEntries: entries.length,
       byStatus: {} as Record<string, number>,
       totalRevenue: 0,
       paidRevenue: 0,
       completionRate: 0,
     };
 
-    if (data) {
-      data.forEach(entry => {
-        // Count by status
-        const status = entry.entry_status || 'unknown';
-        stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+    for (const entry of entries) {
+      const status = entry.entryStatus || 'unknown';
+      stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
 
-        // Calculate revenue
-        const fee = entry.entry_fee || 0;
-        stats.totalRevenue += fee;
+      const fee = entry.entryFee || 0;
+      stats.totalRevenue += fee;
 
-        if (entry.payment_status === 'paid') {
-          stats.paidRevenue += fee;
-        }
-      });
-
-      // Calculate completion rate
-      const completedEntries = stats.byStatus['completed'] || 0;
-      const paidEntries = data.filter(e => e.payment_status === 'paid').length;
-      stats.completionRate = paidEntries > 0 ? (completedEntries / paidEntries) * 100 : 0;
+      if (entry.paymentStatus === 'paid') {
+        stats.paidRevenue += fee;
+      }
     }
 
-    return { data: stats, error: null };
-  } catch (error) {
+    const completedEntries = stats.byStatus['completed'] || 0;
+    const paidEntries = entries.filter(e => e.paymentStatus === 'paid').length;
+    stats.completionRate = paidEntries > 0 ? (completedEntries / paidEntries) * 100 : 0;
+
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'statistics');
-    logQuery('entries', 'statistics', duration, dbError.message);
-    return {
-      data: {
-        totalEntries: 0,
-        byStatus: {},
-        totalRevenue: 0,
-        paidRevenue: 0,
-        completionRate: 0,
-      },
-      error: dbError,
-    };
+    logQuery('entries', 'statistics', duration);
+    return { data: stats, error: null };
+  } catch {
+    try {
+      const result = await postgrestGetEntryStatistics(showId);
+      const duration = Date.now() - startTime;
+      logQuery('entries', 'statistics_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'entries', 'statistics');
+      logQuery('entries', 'statistics', duration, dbError.message);
+      return {
+        data: {
+          totalEntries: 0,
+          byStatus: {},
+          totalRevenue: 0,
+          paidRevenue: 0,
+          completionRate: 0,
+        },
+        error: dbError,
+      };
+    }
   }
 };
 
@@ -82,76 +265,42 @@ export const getUserEntries = async (userId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        id,
-        dog_id,
-        show_id,
-        class_id,
-        trial_id,
-        handler,
-        handler_id,
-        payment_status,
-        entry_status,
-        entry_fee,
-        armband,
-        run_order,
-        jump_height,
-        special_requests,
-        is_scored,
-        result_status,
-        search_time_seconds,
-        total_faults,
-        final_placement,
-        submitted_at,
-        created_at,
-        updated_at,
-        registration_id,
-        registration:registration_id (
-          id,
-          confirmation_number
-        ),
-        dog:dog_id (
-          id,
-          name,
-          call_name,
-          breed
-        ),
-        show:show_id (
-          id,
-          name,
-          start_date,
-          end_date,
-          venue,
-          city,
-          state
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number
-        )
-      `
-      )
-      .eq('handler_id', userId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+    const [allEntries, dogs, classes, shows] = await Promise.all([
+      replicatedEntriesTable.getAll(),
+      replicatedDogsTable.getAllDogs(),
+      replicatedClassesTable.getAll(),
+      replicatedShowsTable.getAllShows(),
+    ]);
+
+    const dogsMap = new Map(dogs.map(d => [d.id, d]));
+    const classesMap = new Map(classes.map(c => [c.id, c]));
+    const showsMap = new Map(shows.map(s => [s.id, s]));
+
+    const filtered = allEntries.filter(e => e.handlerId === userId);
+
+    const data = filtered.map(entry =>
+      mapReplicatedEntryToDbRow(entry, {
+        dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+        cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+        show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+      })
+    );
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'select_user_entries', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'select_user_entries');
+    logQuery('entries', 'select_user_entries', duration);
+    return { data, error: null };
+  } catch {
+    try {
+      const result = await postgrestGetUserEntries(userId);
+      const duration = Date.now() - startTime;
+      logQuery('entries', 'select_user_entries_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'entries', 'select_user_entries');
+      logQuery('entries', 'select_user_entries', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'select_user_entries');
-    logQuery('entries', 'select_user_entries', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -160,57 +309,50 @@ export const searchEntries = async (searchTerm: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('entries')
-      .select(
-        `
-        *,
-        dog:dog_id (
-          id,
-          name,
-          call_name,
-          breed,
-          owner:owner_id (
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          entry_fee
-        ),
-        show:show_id (
-          id,
-          name,
-          start_date,
-          end_date
-        )
-      `
+    const [allEntries, dogs, classes, shows] = await Promise.all([
+      replicatedEntriesTable.getAll(),
+      replicatedDogsTable.getAllDogs(),
+      replicatedClassesTable.getAll(),
+      replicatedShowsTable.getAllShows(),
+    ]);
+
+    const dogsMap = new Map<string, ReplicatedDog>(dogs.map(d => [d.id, d]));
+    const classesMap = new Map<string, ReplicatedClass>(classes.map(c => [c.id, c]));
+    const showsMap = new Map<string, ReplicatedShow>(shows.map(s => [s.id, s]));
+
+    const term = searchTerm.toLowerCase();
+
+    const filtered = allEntries
+      .filter(
+        e =>
+          (e.armband && e.armband.toLowerCase().includes(term)) ||
+          (e.handler && e.handler.toLowerCase().includes(term))
       )
-      .or(
-        `armband.ilike.%${sanitizePostgRESTFilter(searchTerm)}%,handler.ilike.%${sanitizePostgRESTFilter(searchTerm)}%`
-      )
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .slice(0, 50);
+
+    const data = filtered.map(entry =>
+      mapReplicatedEntryToDbRow(entry, {
+        dog: entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null,
+        cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+        show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+      })
+    );
 
     const duration = Date.now() - startTime;
-    logQuery('entries', 'search', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'search');
+    logQuery('entries', 'search', duration);
+    return { data, error: null };
+  } catch {
+    try {
+      const result = await postgrestSearchEntries(searchTerm);
+      const duration = Date.now() - startTime;
+      logQuery('entries', 'search_fallback', duration);
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const dbError = createDatabaseError(error, 'entries', 'search');
+      logQuery('entries', 'search', duration, dbError.message);
+      return { data: [], error: dbError };
     }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'search');
-    logQuery('entries', 'search', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 
@@ -221,21 +363,16 @@ export const canModifyEntry = async (
   const startTime = Date.now();
 
   try {
-    const { data: show, error } = await supabase
-      .from('shows')
-      .select('entry_close_date, status')
-      .eq('id', showId)
-      .single();
+    const show = await replicatedShowsTable.getShowById(showId);
 
-    const duration = Date.now() - startTime;
-    logQuery('shows', 'check_can_modify', duration, error?.message);
-
-    if (error || !show) {
+    if (!show) {
+      const duration = Date.now() - startTime;
+      logQuery('shows', 'check_can_modify', duration);
       return { canModify: false, reason: 'Show not found' };
     }
 
     const now = new Date();
-    const closeDate = show.entry_close_date ? new Date(show.entry_close_date) : null;
+    const closeDate = show.entryCloseDate ? new Date(show.entryCloseDate) : null;
 
     if (closeDate && closeDate < now) {
       return { canModify: false, reason: 'Entry deadline has passed' };
@@ -245,8 +382,18 @@ export const canModifyEntry = async (
       return { canModify: false, reason: 'Show is no longer active' };
     }
 
+    const duration = Date.now() - startTime;
+    logQuery('shows', 'check_can_modify', duration);
     return { canModify: true };
   } catch {
-    return { canModify: false, reason: 'Unable to verify modification eligibility' };
+    // Fallback to PostgREST
+    try {
+      const result = await postgrestCanModifyEntry(showId);
+      const duration = Date.now() - startTime;
+      logQuery('shows', 'check_can_modify_fallback', duration);
+      return result;
+    } catch {
+      return { canModify: false, reason: 'Unable to verify modification eligibility' };
+    }
   }
 };

@@ -15,7 +15,6 @@ import type {
   LabelContentConfig,
   LabelFilterConfig,
 } from '@/lib/labels/armbandLabelTypes';
-import { DEFAULT_CONTENT_CONFIG } from '@/lib/labels/armbandLabelTypes';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
 import { generatePasscodesFromShowId } from '@myk9/core';
 import { useLabelPreferences } from '@/hooks/useLabelPreferences';
@@ -31,23 +30,19 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   iframeRef: externalIframeRef,
 }) => {
   const [prefs, setPrefs] = useLabelPreferences();
-  const [templateId, setTemplateId] = useState(
-    prefs.templateId ?? DEFAULT_TEMPLATE_ID
-  );
-  const [config, setConfig] = useState<LabelContentConfig>(
-    prefs.contentConfig ?? DEFAULT_CONTENT_CONFIG
-  );
   const [filter, setFilter] = useState<LabelFilterConfig>({
     earlyEntries: true,
     dayOfShowEntries: true,
   });
-  const [skip, setSkip] = useState(prefs.skip ?? 0);
-  const [pitchAdjustment, setPitchAdjustment] = useState(
-    prefs.pitchAdjustment ?? 0
-  );
   const [specificArmband, setSpecificArmband] = useState('');
   const [showSpecific, setShowSpecific] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Derive from prefs — single source of truth
+  const templateId = prefs.templateId ?? DEFAULT_TEMPLATE_ID;
+  const config = prefs.contentConfig;
+  const skip = prefs.skip;
+  const pitchAdjustment = prefs.pitchAdjustment;
 
   const {
     entries: allEntries,
@@ -56,7 +51,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     isLoading,
   } = useArmbandLabelData(showId);
   const template = LABEL_TEMPLATES[templateId];
-  const passcodes = showId ? generatePasscodesFromShowId(showId) : null;
+  const passcodes = useMemo(
+    () => (showId ? generatePasscodesFromShowId(showId) : null),
+    [showId]
+  );
 
   const filterConfig: LabelFilterConfig = useMemo(
     () => ({
@@ -80,7 +78,17 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     [template, items, skip]
   );
 
-  // Write printable HTML to iframe whenever label output changes
+  const sharedCellProps = useMemo(
+    () => ({
+      config,
+      labelHeight: template.labelHeight,
+      passcode: passcodes?.exhibitor,
+      wifiNetwork: config.venueWifi ? (wifiNetwork ?? undefined) : undefined,
+      wifiPassword: config.venueWifi ? (wifiPassword ?? undefined) : undefined,
+    }),
+    [config, template.labelHeight, passcodes, wifiNetwork, wifiPassword]
+  );
+
   useEffect(() => {
     const iframe = externalIframeRef?.current;
     if (!iframe || pages.length === 0) return;
@@ -93,18 +101,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               return `<div class="label-cell label-cell--${cell.type}"></div>`;
             }
             const cellMarkup = ReactDOMServer.renderToStaticMarkup(
-              <ArmbandLabelCell
-                item={cell.item}
-                config={config}
-                labelHeight={template.labelHeight}
-                passcode={passcodes?.exhibitor}
-                wifiNetwork={
-                  config.venueWifi ? (wifiNetwork ?? undefined) : undefined
-                }
-                wifiPassword={
-                  config.venueWifi ? (wifiPassword ?? undefined) : undefined
-                }
-              />
+              <ArmbandLabelCell item={cell.item} {...sharedCellProps} />
             );
             return `<div class="label-cell">${cellMarkup}</div>`;
           })
@@ -119,36 +116,13 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     iframe.contentDocument?.open();
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
-  }, [
-    pages,
-    config,
-    template,
-    pitchAdjustment,
-    passcodes,
-    wifiNetwork,
-    wifiPassword,
-    externalIframeRef,
-  ]);
+  }, [pages, sharedCellProps, template, pitchAdjustment, externalIframeRef]);
 
-  // Persist preferences
-  const updateTemplate = (id: string) => {
-    setTemplateId(id);
-    setPrefs((p) => ({ ...p, templateId: id }));
-  };
   const updateConfig = (key: keyof LabelContentConfig, value: boolean) => {
-    setConfig((prev) => {
-      const next = { ...prev, [key]: value };
-      setPrefs((p) => ({ ...p, contentConfig: next }));
-      return next;
-    });
-  };
-  const updateSkip = (value: number) => {
-    setSkip(value);
-    setPrefs((p) => ({ ...p, skip: value }));
-  };
-  const updatePitch = (value: number) => {
-    setPitchAdjustment(value);
-    setPrefs((p) => ({ ...p, pitchAdjustment: value }));
+    setPrefs((p) => ({
+      ...p,
+      contentConfig: { ...p.contentConfig, [key]: value },
+    }));
   };
 
   if (isLoading) {
@@ -164,7 +138,6 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
   return (
     <div className="w-full max-w-[8.5in] mx-auto">
-      {/* Config panel */}
       <div className="border rounded-lg bg-muted/30 p-4 mb-6 space-y-4">
         {/* Label Size */}
         <div>
@@ -181,7 +154,9 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                   type="radio"
                   name="labelTemplate"
                   checked={templateId === t.id}
-                  onChange={() => updateTemplate(t.id)}
+                  onChange={() =>
+                    setPrefs((p) => ({ ...p, templateId: t.id }))
+                  }
                 />
                 {t.name} — {t.labelsPerSheet}/sheet
               </label>
@@ -306,7 +281,12 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               min={0}
               max={template.labelsPerSheet - 1}
               value={skip}
-              onChange={(e) => updateSkip(Math.max(0, Number(e.target.value)))}
+              onChange={(e) =>
+                setPrefs((p) => ({
+                  ...p,
+                  skip: Math.max(0, Number(e.target.value)),
+                }))
+              }
               className="w-16 px-2 py-0.5 border rounded text-sm"
             />
           </div>
@@ -341,7 +321,12 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                   min={-20}
                   max={20}
                   value={pitchAdjustment}
-                  onChange={(e) => updatePitch(Number(e.target.value))}
+                  onChange={(e) =>
+                    setPrefs((p) => ({
+                      ...p,
+                      pitchAdjustment: Number(e.target.value),
+                    }))
+                  }
                   className="w-48"
                 />
                 <span className="text-sm font-mono w-20">
@@ -351,7 +336,9 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 {pitchAdjustment !== 0 && (
                   <button
                     type="button"
-                    onClick={() => updatePitch(0)}
+                    onClick={() =>
+                      setPrefs((p) => ({ ...p, pitchAdjustment: 0 }))
+                    }
                     className="text-xs text-muted-foreground hover:text-foreground underline"
                   >
                     Reset
@@ -405,18 +392,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               }}
             >
               {cell.type === 'item' && cell.item && (
-                <ArmbandLabelCell
-                  item={cell.item}
-                  config={config}
-                  labelHeight={template.labelHeight}
-                  passcode={passcodes?.exhibitor}
-                  wifiNetwork={
-                    config.venueWifi ? (wifiNetwork ?? undefined) : undefined
-                  }
-                  wifiPassword={
-                    config.venueWifi ? (wifiPassword ?? undefined) : undefined
-                  }
-                />
+                <ArmbandLabelCell item={cell.item} {...sharedCellProps} />
               )}
             </div>
           ))}

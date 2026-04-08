@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { ArmbandLabelEntry } from '@/lib/labels/armbandLabelTypes';
+import { formatReportDate } from '@/lib/reports/reportUtils';
 
 /** Exported for unit testing — pure function, no hooks */
 export function mapEntryToArmbandLabelEntry(
@@ -15,11 +17,7 @@ export function mapEntryToArmbandLabelEntry(
   const trial = cls?.trial as Record<string, unknown> | null;
 
   const rawDate = (trial?.date as string) ?? '';
-  let trialDate = '';
-  if (rawDate) {
-    const d = new Date(rawDate + 'T00:00:00');
-    trialDate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-  }
+  const trialDate = rawDate ? formatReportDate(rawDate) : '';
 
   return {
     id: raw.id as string,
@@ -78,9 +76,13 @@ export function useArmbandLabelData(
     staleTime: 5 * 60 * 1000,
   });
 
-  const entries = (entriesRaw ?? [])
-    .map((e) => mapEntryToArmbandLabelEntry(e as Record<string, unknown>))
-    .filter((e): e is ArmbandLabelEntry => e !== null);
+  const entries = useMemo(
+    () =>
+      (entriesRaw ?? [])
+        .map((e) => mapEntryToArmbandLabelEntry(e as Record<string, unknown>))
+        .filter((e): e is ArmbandLabelEntry => e !== null),
+    [entriesRaw]
+  );
 
   return {
     entries,

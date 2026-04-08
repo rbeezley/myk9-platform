@@ -1,7 +1,13 @@
 // Type mapping utilities for Entry Store <-> Database integration
 // Entry Store Integration - React Query Implementation
 
-import type { ShowEntry, ShowEntryInput, RegistrationData, CompetitionData, EntryStatus } from '@/store/entryStore';
+import type {
+  ShowEntry,
+  ShowEntryInput,
+  RegistrationData,
+  CompetitionData,
+  EntryStatus,
+} from '@/store/entryStore';
 import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 import { logger } from '@/services/LoggingService';
 
@@ -87,17 +93,20 @@ export const mapEntryInputToUpdate = (input: Partial<ShowEntryInput>): DbEntryUp
   // Map registration data fields
   if (input.registrationData) {
     const regData = input.registrationData;
-    
+
     if (regData.handler !== undefined) update.handler = regData.handler;
     if (regData.handlerId !== undefined) update.handler_id = regData.handlerId || null;
     if (regData.entryFee !== undefined) update.entry_fee = regData.entryFee;
     if (regData.paymentStatus !== undefined) update.payment_status = regData.paymentStatus;
-    if (regData.specialRequests !== undefined) update.special_requests = regData.specialRequests || null;
+    if (regData.specialRequests !== undefined)
+      update.special_requests = regData.specialRequests || null;
     if (regData.armband !== undefined) update.armband = regData.armband || null;
     if (regData.runOrder !== undefined) update.run_order = regData.runOrder || null;
     if (regData.jumpHeight !== undefined) update.jump_height = regData.jumpHeight || null;
-    if (regData.preferredJudge !== undefined) update.preferred_judge = regData.preferredJudge || null;
-    if (regData.moveUpRequested !== undefined) update.move_up_requested = regData.moveUpRequested || false;
+    if (regData.preferredJudge !== undefined)
+      update.preferred_judge = regData.preferredJudge || null;
+    if (regData.moveUpRequested !== undefined)
+      update.move_up_requested = regData.moveUpRequested || false;
     if (regData.submittedAt !== undefined) update.submitted_at = regData.submittedAt;
   }
 
@@ -120,12 +129,14 @@ export const mapRegistrationDataToUpdate = (regData: Partial<RegistrationData>):
   if (regData.handlerId !== undefined) update.handler_id = regData.handlerId || null;
   if (regData.entryFee !== undefined) update.entry_fee = regData.entryFee;
   if (regData.paymentStatus !== undefined) update.payment_status = regData.paymentStatus;
-  if (regData.specialRequests !== undefined) update.special_requests = regData.specialRequests || null;
+  if (regData.specialRequests !== undefined)
+    update.special_requests = regData.specialRequests || null;
   if (regData.armband !== undefined) update.armband = regData.armband || null;
   if (regData.runOrder !== undefined) update.run_order = regData.runOrder || null;
   if (regData.jumpHeight !== undefined) update.jump_height = regData.jumpHeight || null;
   if (regData.preferredJudge !== undefined) update.preferred_judge = regData.preferredJudge || null;
-  if (regData.moveUpRequested !== undefined) update.move_up_requested = regData.moveUpRequested || false;
+  if (regData.moveUpRequested !== undefined)
+    update.move_up_requested = regData.moveUpRequested || false;
   if (regData.submittedAt !== undefined) update.submitted_at = regData.submittedAt;
 
   return update;
@@ -145,7 +156,11 @@ export const mapCompetitionDataToUpdate = (_compData: Partial<CompetitionData>):
 
   // Competition data fields are not in the entry table - they belong in the result table
   // This function is deprecated and should not be used for actual entry updates
-  logger.warn('mapCompetitionDataToUpdate is deprecated - competition data belongs in the result table', 'services', {});
+  logger.warn(
+    'mapCompetitionDataToUpdate is deprecated - competition data belongs in the result table',
+    'services',
+    {}
+  );
 
   return update;
 };
@@ -190,17 +205,21 @@ export const mapDatabaseToEntry = (dbEntry: Record<string, unknown>): ShowEntry 
   }
 
   // Build status history from database entry_status_history relation
-  const statusHistory = (dbEntry.entry_status_history as Array<Record<string, unknown>>)?.map((history) => ({
-    status: history.status as EntryStatus,
-    timestamp: history.changed_at as string,
-    userId: history.changed_by as string,
-    reason: history.reason as string,
-  })) || [{
-    status: (dbEntry.entry_status || dbEntry.status) as EntryStatus,
-    timestamp: dbEntry.created_at as string,
-    userId: 'system',
-    reason: 'Entry created',
-  }];
+  const statusHistory = (dbEntry.entry_status_history as Array<Record<string, unknown>>)?.map(
+    history => ({
+      status: history.status as EntryStatus,
+      timestamp: history.changed_at as string,
+      userId: history.changed_by as string,
+      reason: history.reason as string,
+    })
+  ) || [
+    {
+      status: (dbEntry.entry_status || dbEntry.status) as EntryStatus,
+      timestamp: dbEntry.created_at as string,
+      userId: 'system',
+      reason: 'Entry created',
+    },
+  ];
 
   return {
     id: dbEntry.id as string,
@@ -240,7 +259,9 @@ export interface EntryWithRelations extends ShowEntry {
 /**
  * Convert database entry with relations to ShowEntry with expanded data
  */
-export const mapDatabaseToEntryWithRelations = (dbEntry: DbEntryWithRelations): EntryWithRelations => {
+export const mapDatabaseToEntryWithRelations = (
+  dbEntry: DbEntryWithRelations
+): EntryWithRelations => {
   const baseEntry = mapDatabaseToEntry(dbEntry);
 
   return {
@@ -248,7 +269,9 @@ export const mapDatabaseToEntryWithRelations = (dbEntry: DbEntryWithRelations): 
     // Add dog information
     dogName: dbEntry.dog?.call_name || dbEntry.dog?.name,
     dogBreed: dbEntry.dog?.breed,
-    ownerName: dbEntry.dog?.owner ? `${dbEntry.dog.owner.first_name} ${dbEntry.dog.owner.last_name}`.trim() : undefined,
+    ownerName: dbEntry.dog?.owner
+      ? `${dbEntry.dog.owner.first_name} ${dbEntry.dog.owner.last_name}`.trim()
+      : undefined,
     ownerEmail: dbEntry.dog?.owner?.email,
     // Add class information
     className: dbEntry.class?.name,
@@ -262,6 +285,177 @@ export const mapDatabaseToEntryWithRelations = (dbEntry: DbEntryWithRelations): 
 /**
  * Convert array of database entries with relations to ShowEntry array with expanded data
  */
-export const mapDatabaseEntriesWithRelationsArray = (dbEntries: DbEntryWithRelations[]): EntryWithRelations[] => {
+export const mapDatabaseEntriesWithRelationsArray = (
+  dbEntries: DbEntryWithRelations[]
+): EntryWithRelations[] => {
   return dbEntries.map(mapDatabaseToEntryWithRelations);
 };
+
+// ---------------------------------------------------------------------------
+// Replication mappers — convert camelCase replicated types to snake_case DB
+// row shapes so downstream consumers (stores, UI) see the same shape as
+// PostgREST responses.
+// ---------------------------------------------------------------------------
+
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
+
+/**
+ * Convert a ReplicatedEntry to the snake_case DB row shape that consumers
+ * expect from PostgREST `select('*')`.
+ *
+ * Optionally attach joined `dog`, `class`, `show` sub-objects when provided.
+ */
+export const mapReplicatedEntryToDbRow = (
+  entry: ReplicatedEntry,
+  options?: {
+    dog?: ReplicatedDog | null;
+    cls?: ReplicatedClass | null;
+    show?: ReplicatedShow | null;
+    promoCode?: Record<string, unknown> | null;
+    trial?: Record<string, unknown> | null;
+  }
+): Record<string, unknown> => {
+  const row: Record<string, unknown> = {
+    id: entry.id,
+    class_id: entry.classId ?? null,
+    show_id: entry.showId ?? null,
+    dog_id: entry.dogId ?? null,
+    handler_id: entry.handlerId ?? null,
+    armband: entry.armband ?? null,
+    handler: entry.handler ?? null,
+    entry_status: entry.entryStatus ?? null,
+    check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
+    jump_height: entry.jumpHeight ?? null,
+    entry_fee: entry.entryFee ?? null,
+    total_fees: entry.totalFees ?? null,
+    payment_status: entry.paymentStatus ?? null,
+    run_order: entry.runOrder ?? null,
+    move_up_requested: entry.moveUpRequested ?? null,
+    preferred_judge: entry.preferredJudge ?? null,
+    special_requests: entry.specialRequests ?? null,
+    submitted_at: entry.submittedAt ?? null,
+    registration_id: entry.registrationId ?? null,
+    is_scored: entry.isScored ?? false,
+    result_status: entry.resultStatus ?? null,
+    search_time_seconds: entry.searchTimeSeconds ?? null,
+    total_faults: entry.totalFaults ?? null,
+    final_placement: entry.finalPlacement ?? null,
+    disqualification_reason: entry.disqualification_reason ?? null,
+    judge_notes: entry.judgeNotes ?? null,
+    scoring_completed_at: entry.scoringCompletedAt ?? null,
+    ring_entry_time: entry.ring_entry_time ?? null,
+    ring_exit_time: entry.ring_exit_time ?? null,
+    updated_at: entry.updated_at ?? null,
+    created_at: entry.submittedAt ?? entry.updated_at ?? null,
+    deleted_at: null,
+  };
+
+  // Attach dog sub-object when provided
+  if (options?.dog) {
+    row.dog = mapReplicatedDogToEntryRow(options.dog);
+  } else if (options?.dog === null) {
+    row.dog = null;
+  }
+
+  // Attach class sub-object when provided
+  if (options?.cls) {
+    row.class = mapReplicatedClassToEntryRow(options.cls);
+  } else if (options?.cls === null) {
+    row.class = null;
+  }
+
+  // Attach show sub-object when provided
+  if (options?.show) {
+    row.show = mapReplicatedShowToEntryRow(options.show);
+  } else if (options?.show === null) {
+    row.show = null;
+  }
+
+  // Attach promo_code sub-object when provided (already snake_case from PostgREST batch)
+  if (options?.promoCode !== undefined) {
+    row.promo_code = options.promoCode;
+  }
+
+  // Attach trial sub-object when provided (already snake_case)
+  if (options?.trial !== undefined) {
+    row.trial = options.trial;
+  }
+
+  return row;
+};
+
+/**
+ * Convert a ReplicatedDog to the snake_case dog sub-object shape returned
+ * by PostgREST when selecting `dog:dog_id(...)`.
+ */
+export const mapReplicatedDogToEntryRow = (dog: ReplicatedDog): Record<string, unknown> => ({
+  id: dog.id,
+  name: dog.name,
+  call_name: dog.callName ?? null,
+  breed: dog.breed,
+  owner: dog.ownerId
+    ? {
+        id: dog.ownerId,
+        // Owner details are not available from ReplicatedDog — set to null
+        first_name: null,
+        last_name: null,
+        email: null,
+        phone: null,
+      }
+    : null,
+});
+
+/**
+ * Convert a ReplicatedDog to the detailed dog sub-object shape (includes registration_number).
+ */
+export const mapReplicatedDogToDetailRow = (dog: ReplicatedDog): Record<string, unknown> => ({
+  id: dog.id,
+  name: dog.name,
+  call_name: dog.callName ?? null,
+  breed: dog.breed,
+  registration_number: null, // Not available from ReplicatedDog
+  owner: dog.ownerId
+    ? {
+        id: dog.ownerId,
+        first_name: null,
+        last_name: null,
+        email: null,
+        phone: null,
+        address: null,
+        city: null,
+        state: null,
+        postal_code: null,
+      }
+    : null,
+});
+
+/**
+ * Convert a ReplicatedClass to the snake_case class sub-object shape returned
+ * by PostgREST when selecting `class:class_id(...)`.
+ */
+export const mapReplicatedClassToEntryRow = (cls: ReplicatedClass): Record<string, unknown> => ({
+  id: cls.id,
+  name: cls.name,
+  class_number: null, // class_number is not on ReplicatedClass
+  entry_fee: cls.entryFee ?? null,
+  max_entries: cls.maxEntries ?? null,
+  description: cls.description ?? null,
+  jump_height: cls.jumpHeights?.[0] ?? null,
+  trial_id: cls.trialId ?? null,
+});
+
+/**
+ * Convert a ReplicatedShow to the snake_case show sub-object shape returned
+ * by PostgREST when selecting `show:show_id(...)`.
+ */
+export const mapReplicatedShowToEntryRow = (show: ReplicatedShow): Record<string, unknown> => ({
+  id: show.id,
+  name: show.name,
+  start_date: show.startDate,
+  end_date: show.endDate,
+  location: show.location ?? null,
+  status: show.status ?? null,
+});

@@ -2,7 +2,12 @@
 // Provides classStore-compatible API while using database operations
 
 import { useMemo } from 'react';
-import type { ClassInput, EntryInput, SyncableClassData, SyncableEntryData } from '@/store/classStore';
+import type {
+  ClassInput,
+  EntryInput,
+  SyncableClassData,
+  SyncableEntryData,
+} from '@/store/classStore';
 import type { GeneratedClass } from '@/types/class-template-types';
 import {
   useClassesQuery,
@@ -27,6 +32,7 @@ import {
   mapEntryInputToUpdate,
   mapDatabaseToEntry,
   mapDatabaseEntriesArray,
+  type DbClassWithRelations,
 } from '@/services/mappers/classMappers';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import {
@@ -56,7 +62,7 @@ export const useClassStoreCompat = () => {
   // Convert database results to classStore format for backward compatibility
   const classes = useMemo(() => {
     if (!classesQuery.data) return [];
-    return mapDatabaseClassesArray(classesQuery.data);
+    return mapDatabaseClassesArray(classesQuery.data as DbClassWithRelations[]);
   }, [classesQuery.data]);
 
   const entries = useMemo(() => {
@@ -73,28 +79,32 @@ export const useClassStoreCompat = () => {
     deleteClassMutation.isPending,
     createEntryMutation.isPending,
     updateEntryMutation.isPending,
-    deleteEntryMutation.isPending,
+    deleteEntryMutation.isPending
   );
 
-  const error = useMemo(() => aggregateQueryErrors(
-    classesQuery.error,
-    entriesQuery.error,
-    createClassMutation.error,
-    updateClassMutation.error,
-    deleteClassMutation.error,
-    createEntryMutation.error,
-    updateEntryMutation.error,
-    deleteEntryMutation.error,
-  ), [
-    classesQuery.error,
-    entriesQuery.error,
-    createClassMutation.error,
-    updateClassMutation.error,
-    deleteClassMutation.error,
-    createEntryMutation.error,
-    updateEntryMutation.error,
-    deleteEntryMutation.error,
-  ]);
+  const error = useMemo(
+    () =>
+      aggregateQueryErrors(
+        classesQuery.error,
+        entriesQuery.error,
+        createClassMutation.error,
+        updateClassMutation.error,
+        deleteClassMutation.error,
+        createEntryMutation.error,
+        updateEntryMutation.error,
+        deleteEntryMutation.error
+      ),
+    [
+      classesQuery.error,
+      entriesQuery.error,
+      createClassMutation.error,
+      updateClassMutation.error,
+      deleteClassMutation.error,
+      createEntryMutation.error,
+      updateEntryMutation.error,
+      deleteEntryMutation.error,
+    ]
+  );
 
   // ===== CLASS OPERATIONS =====
 
@@ -105,7 +115,10 @@ export const useClassStoreCompat = () => {
     return mapDatabaseToClass(result);
   };
 
-  const updateClass = async (id: string, updates: Partial<ClassInput>): Promise<SyncableClassData | null> => {
+  const updateClass = async (
+    id: string,
+    updates: Partial<ClassInput>
+  ): Promise<SyncableClassData | null> => {
     validateClassUpdate(id, updates);
     const dbUpdates = mapClassInputToUpdate(updates);
     const result = await updateClassMutation.mutateAsync({ id, updates: dbUpdates });
@@ -134,7 +147,10 @@ export const useClassStoreCompat = () => {
     return mapDatabaseToEntry(result);
   };
 
-  const updateEntry = async (id: string, updates: Partial<EntryInput>): Promise<SyncableEntryData | null> => {
+  const updateEntry = async (
+    id: string,
+    updates: Partial<EntryInput>
+  ): Promise<SyncableEntryData | null> => {
     const dbUpdates = mapEntryInputToUpdate(updates);
     const result = await updateEntryMutation.mutateAsync({ id, updates: dbUpdates });
     return result ? mapDatabaseToEntry(result) : null;
@@ -168,7 +184,9 @@ export const useClassStoreCompat = () => {
   // Legacy compatibility methods (no-op implementations)
   const setClasses = () => {};
   const setEntries = () => {};
-  const loadClasses = async (): Promise<void> => { await refetch(); };
+  const loadClasses = async (): Promise<void> => {
+    await refetch();
+  };
   const setSelectedClassId = () => {};
 
   // Template method — delegates to helper
@@ -256,7 +274,7 @@ export const useClassWithQuery = (id: string, enabled = true) => {
 
   const classData = useMemo(() => {
     if (!classQuery.data) return null;
-    return mapDatabaseToClass(classQuery.data);
+    return mapDatabaseToClass(classQuery.data as DbClassWithRelations);
   }, [classQuery.data]);
 
   return {
@@ -276,7 +294,7 @@ export const useTrialClassesWithQuery = (trialId: string, enabled = true) => {
 
   const classes = useMemo(() => {
     if (!trialClassesQuery.data) return [];
-    return mapDatabaseClassesArray(trialClassesQuery.data);
+    return mapDatabaseClassesArray(trialClassesQuery.data as DbClassWithRelations[]);
   }, [trialClassesQuery.data]);
 
   return {

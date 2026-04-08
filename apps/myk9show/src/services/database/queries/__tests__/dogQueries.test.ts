@@ -12,6 +12,42 @@ import {
 import type { DbDogInsert, DbDogUpdate } from '../../../../types/database-mappings';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
+// Force replication tables to throw so PostgREST fallback is exercised
+vi.mock('@/services/replication/ReplicatedDogsTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return {
+    replicatedDogsTable: {
+      getAllDogs: t(),
+      getDogById: t(),
+      getDogsByOwner: t(),
+      searchDogs: t(),
+      getAll: t(),
+      get: t(),
+    },
+  };
+});
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return {
+    replicatedEntriesTable: {
+      getAll: t(),
+      getEntriesByShow: t(),
+      getEntriesByClass: t(),
+    },
+  };
+});
+
+vi.mock('@/services/replication/ReplicatedClassesTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return { replicatedClassesTable: { get: t(), getAll: t() } };
+});
+
+vi.mock('@/services/replication/ReplicatedShowsTable', () => {
+  const t = () => vi.fn().mockRejectedValue(new Error('IndexedDB unavailable'));
+  return { replicatedShowsTable: { get: t(), getAll: t() } };
+});
+
 const TEST_PERSON_ID = 'test-person-123';
 
 describe('Dog Queries', () => {

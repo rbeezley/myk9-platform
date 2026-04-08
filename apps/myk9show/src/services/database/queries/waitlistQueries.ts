@@ -2,10 +2,17 @@
  * Waitlist Management Queries
  *
  * Database queries for managing class waitlists for trial secretaries.
- * Uses the waitlist_entries table for waitlist tracking and entries table for accepted entries.
+ * SELECT queries use replication-first with PostgREST fallback.
+ * Mutations (INSERT/UPDATE/DELETE) stay on PostgREST.
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
 
 export interface WaitlistEntry {
   id: string;
@@ -50,81 +57,60 @@ export interface ClassWithWaitlistCount {
 
 /**
  * Get all waitlisted entries for a show
+ * Replication-first with PostgREST fallback.
  */
 export const getWaitlistByShow = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // First get all classes for the show's trials
-    const { data: trials, error: trialsError } = await supabase
-      .from('trials')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trials', 'get_trials_for_waitlist');
-    }
-
-    const trialIds = trials?.map((t) => t.id) || [];
+    // Get trials for the show from replication
+    const trials = await replicatedTrialsTable.getTrialsByShow(showId);
+    const trialIds = trials.map(t => t.id);
 
     if (trialIds.length === 0) {
       return { data: [], error: null };
     }
 
     // Get classes for these trials
-    const { data: classes, error: classesError } = await supabase
-      .from('classes')
-      .select('id')
-      .in('trial_id', trialIds);
+    const allClasses = await Promise.all(
+      trialIds.map(tid => replicatedClassesTable.getClassesByTrial(tid))
+    );
+    const classes = allClasses.flat();
+    const classIds = new Set(classes.map(c => c.id));
 
-    if (classesError) {
-      throw createDatabaseError(classesError, 'classes', 'get_classes_for_waitlist');
-    }
-
-    const classIds = classes?.map((c) => c.id) || [];
-
-    if (classIds.length === 0) {
+    if (classIds.size === 0) {
       return { data: [], error: null };
     }
 
     // Get waitlist entries for these classes
-    const { data, error } = await supabase
-      .from('waitlist_entries')
-      .select(`
-        id,
-        class_id,
-        dog_id,
-        exhibitor_id,
-        handler_id,
-        position,
-        status,
-        offered_at,
-        offer_expires_at,
-        created_at,
-        updated_at,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          max_entries
+    const allWaitlist = await Promise.all(
+      [...classIds].map(cid => replicatedWaitlistEntriesTable.getByClass(cid))
+    );
+    const waitlistEntries = allWaitlist.flat();
+
+    // Build lookup maps
+    const classesMap = new Map(classes.map(c => [c.id, c]));
+    const dogIds = [...new Set(waitlistEntries.map(e => e.dogId))];
+    const dogs = await Promise.all(dogIds.map(did => replicatedDogsTable.getDogById(did)));
+    const dogsMap = new Map(
+      dogIds.map((did, i) => [did, dogs[i]] as const).filter(([, d]) => d !== null)
+    );
+
+    // Map and sort by position
+    const data = waitlistEntries
+      .map(entry =>
+        mapWaitlistEntry(
+          entry,
+          dogsMap.get(entry.dogId) ?? null,
+          classesMap.get(entry.classId) ?? null
         )
-      `)
-      .in('class_id', classIds)
-      .order('position', { ascending: true });
+      )
+      .sort((a, b) => a.position - b.position);
 
     const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'get_waitlist_by_show', duration, error?.message);
+    logQuery('waitlist_entries', 'get_waitlist_by_show', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'waitlist_entries', 'get_waitlist_by_show');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'waitlist_entries', 'get_waitlist_by_show');
@@ -135,48 +121,32 @@ export const getWaitlistByShow = async (showId: string) => {
 
 /**
  * Get waitlisted entries for a specific class
+ * Replication-first with PostgREST fallback.
  */
 export const getWaitlistByClass = async (classId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('waitlist_entries')
-      .select(`
-        id,
-        class_id,
-        dog_id,
-        exhibitor_id,
-        handler_id,
-        position,
-        status,
-        offered_at,
-        offer_expires_at,
-        created_at,
-        updated_at,
-        dog:dog_id (
-          id,
-          name,
-          call_name
-        ),
-        class:class_id (
-          id,
-          name,
-          class_number,
-          max_entries
-        )
-      `)
-      .eq('class_id', classId)
-      .order('position', { ascending: true });
+    const waitlistEntries = await replicatedWaitlistEntriesTable.getByClass(classId);
+
+    // Look up class once
+    const cls = await replicatedClassesTable.getClassById(classId);
+
+    // Look up dogs
+    const dogIds = [...new Set(waitlistEntries.map(e => e.dogId))];
+    const dogs = await Promise.all(dogIds.map(did => replicatedDogsTable.getDogById(did)));
+    const dogsMap = new Map(
+      dogIds.map((did, i) => [did, dogs[i]] as const).filter(([, d]) => d !== null)
+    );
+
+    const data = waitlistEntries
+      .map(entry => mapWaitlistEntry(entry, dogsMap.get(entry.dogId) ?? null, cls))
+      .sort((a, b) => a.position - b.position);
 
     const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'get_waitlist_by_class', duration, error?.message);
+    logQuery('waitlist_entries', 'get_waitlist_by_class', duration);
 
-    if (error) {
-      throw createDatabaseError(error, 'waitlist_entries', 'get_waitlist_by_class');
-    }
-
-    return { data: data || [], error: null };
+    return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'waitlist_entries', 'get_waitlist_by_class');
@@ -187,74 +157,51 @@ export const getWaitlistByClass = async (classId: string) => {
 
 /**
  * Get classes with waitlist counts for a show
+ * Replication-first with PostgREST fallback.
  */
 export const getClassesWithWaitlistCounts = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // First get all classes for the show's trials
-    const { data: trials, error: trialsError } = await supabase
-      .from('trials')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trials', 'get_trials_for_waitlist');
-    }
-
-    const trialIds = trials?.map((t) => t.id) || [];
+    // Get trials for the show
+    const trials = await replicatedTrialsTable.getTrialsByShow(showId);
+    const trialIds = trials.map(t => t.id);
 
     if (trialIds.length === 0) {
       return { data: [], error: null };
     }
 
-    // Get classes with counts
-    const { data: classes, error: classError } = await supabase
-      .from('classes')
-      .select(`
-        id,
-        name,
-        class_number,
-        max_entries,
-        trial_id,
-        trial:trial_id (
-          id,
-          name,
-          date
-        )
-      `)
-      .in('trial_id', trialIds)
-      .is('deleted_at', null)
-      .order('name', { ascending: true });
+    // Build trial lookup map
+    const trialsMap = new Map(trials.map(t => [t.id, t]));
 
-    if (classError) {
-      throw createDatabaseError(classError, 'classes', 'get_classes_for_waitlist');
-    }
+    // Get classes for these trials
+    const allClasses = await Promise.all(
+      trialIds.map(tid => replicatedClassesTable.getClassesByTrial(tid))
+    );
+    const classes = allClasses.flat();
 
-    // Get counts for each class
+    // Get all entries and waitlist entries for counting
     const classesWithCounts = await Promise.all(
-      (classes || []).map(async (cls) => {
-        // Get accepted count from entries table
-        const { count: acceptedCount } = await supabase
-          .from('entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('class_id', cls.id)
-          .eq('entry_status', 'accepted')
-          .is('deleted_at', null);
+      classes.map(async cls => {
+        // Get accepted count from replicated entries
+        const entries = await replicatedEntriesTable.getEntriesByClass(cls.id);
+        const acceptedCount = entries.filter(e => e.entryStatus === 'accepted').length;
 
-        // Get waitlist count from waitlist_entries table
-        const { count: waitlistCount } = await supabase
-          .from('waitlist_entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('class_id', cls.id);
+        // Get waitlist count from replicated waitlist entries
+        const waitlistEntries = await replicatedWaitlistEntriesTable.getByClass(cls.id);
+        const waitlistCount = waitlistEntries.length;
 
-        return {
-          ...cls,
-          accepted_count: acceptedCount || 0,
-          waitlist_count: waitlistCount || 0,
-        };
+        return mapClassWithWaitlistCount(
+          cls,
+          trialsMap.get(cls.trialId ?? '') ?? null,
+          acceptedCount,
+          waitlistCount
+        );
       })
     );
+
+    // Sort by name
+    classesWithCounts.sort((a, b) => a.name.localeCompare(b.name));
 
     const duration = Date.now() - startTime;
     logQuery('classes', 'get_classes_with_waitlist_counts', duration);
@@ -287,7 +234,8 @@ export const offerWaitlistSpot = async (waitlistEntryId: string, expirationHours
         updated_at: new Date().toISOString(),
       })
       .eq('id', waitlistEntryId)
-      .select(`
+      .select(
+        `
         id,
         class_id,
         dog_id,
@@ -305,7 +253,8 @@ export const offerWaitlistSpot = async (waitlistEntryId: string, expirationHours
           name,
           class_number
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;
@@ -355,23 +304,20 @@ export const removeFromWaitlist = async (waitlistEntryId: string) => {
 };
 
 /**
- * Get waitlist position for a specific entry (uses the position column directly)
+ * Get waitlist position for a specific entry
+ * Replication-first with PostgREST fallback.
  */
 export const getWaitlistPosition = async (waitlistEntryId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data: entry, error: entryError } = await supabase
-      .from('waitlist_entries')
-      .select('position')
-      .eq('id', waitlistEntryId)
-      .single();
+    const entry = await replicatedWaitlistEntriesTable.getById(waitlistEntryId);
 
     const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'get_waitlist_position', duration, entryError?.message);
+    logQuery('waitlist_entries', 'get_waitlist_position', duration);
 
-    if (entryError || !entry) {
-      return { position: null, error: entryError };
+    if (!entry) {
+      return { position: null, error: null };
     }
 
     return { position: entry.position, error: null };
@@ -421,7 +367,8 @@ export const joinWaitlist = async (
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .select(`
+      .select(
+        `
         id,
         class_id,
         dog_id,
@@ -441,7 +388,8 @@ export const joinWaitlist = async (
           class_number,
           max_entries
         )
-      `)
+      `
+      )
       .single();
 
     const duration = Date.now() - startTime;
@@ -470,7 +418,8 @@ export const acceptWaitlistOffer = async (waitlistEntryId: string) => {
     // Get the waitlist entry details
     const { data: waitlistEntry, error: fetchError } = await supabase
       .from('waitlist_entries')
-      .select(`
+      .select(
+        `
         id,
         class_id,
         dog_id,
@@ -480,13 +429,18 @@ export const acceptWaitlistOffer = async (waitlistEntryId: string) => {
           trial_id,
           entry_fee
         )
-      `)
+      `
+      )
       .eq('id', waitlistEntryId)
       .eq('status', 'offered')
       .single();
 
     if (fetchError || !waitlistEntry) {
-      throw createDatabaseError(fetchError || new Error('Waitlist entry not found or not offered'), 'waitlist_entries', 'accept_waitlist_offer');
+      throw createDatabaseError(
+        fetchError || new Error('Waitlist entry not found or not offered'),
+        'waitlist_entries',
+        'accept_waitlist_offer'
+      );
     }
 
     // Create the entry
@@ -512,10 +466,7 @@ export const acceptWaitlistOffer = async (waitlistEntryId: string) => {
     }
 
     // Remove from waitlist
-    await supabase
-      .from('waitlist_entries')
-      .delete()
-      .eq('id', waitlistEntryId);
+    await supabase.from('waitlist_entries').delete().eq('id', waitlistEntryId);
 
     const duration = Date.now() - startTime;
     logQuery('waitlist_entries', 'accept_waitlist_offer', duration);

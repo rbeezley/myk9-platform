@@ -33,10 +33,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     queryKey: [...queryKeys.showClasses(showId), trialId],
     queryFn: async () => {
       if (trialId === 'all') {
-        const trials = trialsQuery.data ?? [];
-        const results = await Promise.all(
-          trials.map((trial: { id: string }) => getClassesByTrialId(trial.id))
-        );
+        const trials = (trialsQuery.data ?? []) as Array<{ id: string }>;
+        const results = await Promise.all(trials.map(trial => getClassesByTrialId(trial.id)));
         return results.flatMap(({ data }) => data ?? []);
       }
       const { data, error } = await getClassesByTrialId(trialId);

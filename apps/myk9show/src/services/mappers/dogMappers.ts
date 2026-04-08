@@ -131,40 +131,62 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
 /**
  * Convert ReplicatedDog (camelCase, no joins) to the snake_case DB row shape
  * that mapDatabaseToDog / mapDatabaseDogsArray expects.
+ *
+ * Optionally attach an `owner` sub-object and `registrations` array when
+ * the corresponding data is provided via `options`.
  */
-export const mapReplicatedDogToDbRow = (d: {
-  id: string;
-  name: string;
-  callName?: string | undefined;
-  breed: string;
-  sex?: string | undefined;
-  dateOfBirth?: string | undefined;
-  ownerId?: string | undefined;
-  height?: string | undefined;
-  weight?: string | undefined;
-  color?: string | undefined;
-  microchipNumber?: string | undefined;
-  isSpayedNeutered?: boolean | undefined;
-  imageUrl?: string | undefined;
-}): Record<string, unknown> => ({
-  id: d.id,
-  name: d.name,
-  call_name: d.callName ?? null,
-  breed: d.breed,
-  sex: d.sex ?? null,
-  date_of_birth: d.dateOfBirth ?? null,
-  owner_id: d.ownerId ?? null,
-  co_owner_id: null,
-  height: d.height ?? null,
-  weight: d.weight ?? null,
-  color: d.color ?? null,
-  microchip_number: d.microchipNumber ?? null,
-  spayed_neutered: d.isSpayedNeutered ?? null,
-  image_url: d.imageUrl ?? null,
-  deleted_at: null,
-  owner: null,
-  registrations: [],
-});
+export const mapReplicatedDogToDbRow = (
+  d: {
+    id: string;
+    name: string;
+    callName?: string | undefined;
+    breed: string;
+    sex?: string | undefined;
+    dateOfBirth?: string | undefined;
+    ownerId?: string | undefined;
+    height?: string | undefined;
+    weight?: string | undefined;
+    color?: string | undefined;
+    microchipNumber?: string | undefined;
+    isSpayedNeutered?: boolean | undefined;
+    imageUrl?: string | undefined;
+  },
+  options?: {
+    owner?: Record<string, unknown> | null;
+    registrations?: Record<string, unknown>[];
+    entries?: Record<string, unknown>[];
+    healthRecords?: Record<string, unknown>[];
+  }
+): Record<string, unknown> => {
+  const row: Record<string, unknown> = {
+    id: d.id,
+    name: d.name,
+    call_name: d.callName ?? null,
+    breed: d.breed,
+    sex: d.sex ?? null,
+    date_of_birth: d.dateOfBirth ?? null,
+    owner_id: d.ownerId ?? null,
+    co_owner_id: null,
+    height: d.height ?? null,
+    weight: d.weight ?? null,
+    color: d.color ?? null,
+    microchip_number: d.microchipNumber ?? null,
+    spayed_neutered: d.isSpayedNeutered ?? null,
+    image_url: d.imageUrl ?? null,
+    deleted_at: null,
+    owner: options?.owner ?? null,
+    registrations: options?.registrations ?? [],
+  };
+
+  if (options?.entries) {
+    row.entries = options.entries;
+  }
+  if (options?.healthRecords) {
+    row.health_records = options.healthRecords;
+  }
+
+  return row;
+};
 
 /**
  * Convert database dog result to Dog type (for backward compatibility)

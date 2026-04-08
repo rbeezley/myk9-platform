@@ -48,6 +48,8 @@ export interface ReportProps {
   activityType?: string;
   clubName?: string;
   showDates?: string;
+  dogId?: string;
+  trialId?: string;
 }
 
 export interface ReportDefinition {
@@ -59,6 +61,7 @@ export interface ReportDefinition {
   defaultSort: string;
   component: React.ComponentType<ReportProps>;
   enabled: boolean;
+  supportsDogFilter?: boolean;
 }
 
 export interface ReportDataSet {

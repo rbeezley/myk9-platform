@@ -14,6 +14,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { ReportPreview } from './ReportPreview';
 import { printIframe } from './reportPreviewUtils';
+import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 
 export default function ReportsPage() {
   const { selectedShowId, shows, selectShow } = useShowStore();
@@ -178,20 +179,34 @@ export default function ReportsPage() {
 
       {/* Preview */}
       <div className="mt-6 flex justify-center">
-        <ReportPreview
-          reportType={reportType}
-          show={show}
-          trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
-          classes={classes as Parameters<typeof ReportPreview>[0]['classes']}
-          entries={entries}
-          trialId={trialId}
-          classId={classId}
-          dogId={dogId}
-          sortOrder={sortOrder}
-          isLoading={isLoading}
-          isError={isError}
-          iframeRef={iframeRef}
-        />
+        {reportType === 'armband-labels' ? (
+          <div className="w-full">
+            <ArmbandLabelsReport
+              showId={selectedShowId}
+              iframeRef={iframeRef}
+            />
+            <iframe
+              ref={iframeRef}
+              title="Label Print"
+              style={{ display: 'none' }}
+            />
+          </div>
+        ) : (
+          <ReportPreview
+            reportType={reportType}
+            show={show}
+            trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
+            classes={classes as Parameters<typeof ReportPreview>[0]['classes']}
+            entries={entries}
+            trialId={trialId}
+            classId={classId}
+            dogId={dogId}
+            sortOrder={sortOrder}
+            isLoading={isLoading}
+            isError={isError}
+            iframeRef={iframeRef}
+          />
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { withReplicationFallback } from './replicationUtils';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
@@ -195,37 +196,25 @@ async function postgrestGetDogStatistics(personId: string) {
 
 // Get all dogs owned or co-owned by the given person
 export const getAllDogs = async (personId: string) => {
-  const startTime = Date.now();
-
   try {
-    const allDogs = await replicatedDogsTable.getAllDogs();
-    const filtered = filterByOwnership(allDogs, personId);
-
-    // Sort by name ascending (matching original PostgREST behavior)
-    filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-    // Batch-load owner data from PostgREST (people is not replicated)
-    const ownerIds = filtered.map(d => d.ownerId).filter((id): id is string => !!id);
-    const ownersMap = await loadOwnersMap(ownerIds);
-
-    const data = mapDogsWithOwners(filtered, ownersMap);
-
-    const duration = Date.now() - startTime;
-    logQuery('dog', 'select_all_with_owners', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST if replication store fails
-    try {
-      const result = await postgrestGetAllDogs(personId);
-      const duration = Date.now() - startTime;
-      logQuery('dog', 'select_all_with_owners_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'dog', 'select_all');
-      logQuery('dog', 'select_all_with_owners', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const allDogs = await replicatedDogsTable.getAllDogs();
+        const filtered = filterByOwnership(allDogs, personId);
+        // Sort by name ascending (matching original PostgREST behavior)
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        // Batch-load owner data from PostgREST (people is not replicated)
+        const ownerIds = filtered.map(d => d.ownerId).filter((id): id is string => !!id);
+        const ownersMap = await loadOwnersMap(ownerIds);
+        const data = mapDogsWithOwners(filtered, ownersMap);
+        return { data, error: null };
+      },
+      () => postgrestGetAllDogs(personId),
+      'dog',
+      'select_all_with_owners'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'dog', 'select_all') };
   }
 };
 
@@ -233,128 +222,107 @@ export const getAllDogs = async (personId: string) => {
 // HYBRID: reads dog from replication, entries from replication,
 // but uses PostgREST for owner details + dog_registrations + health_records (not replicated)
 export const getDogById = async (id: string) => {
-  const startTime = Date.now();
-
   try {
-    const dog = await replicatedDogsTable.getDogById(id);
-    if (!dog) {
-      const duration = Date.now() - startTime;
-      logQuery('dog', 'select_by_id_detailed', duration);
-      return { data: null, error: null };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const dog = await replicatedDogsTable.getDogById(id);
+        if (!dog) return { data: null, error: null };
 
-    // Load entries from replication store
-    const allEntries = await replicatedEntriesTable.getAll();
-    const dogEntries = allEntries.filter(e => e.dogId === id);
+        // Load entries from replication store
+        const allEntries = await replicatedEntriesTable.getAll();
+        const dogEntries = allEntries.filter(e => e.dogId === id);
 
-    // Load owner, registrations, and health records from PostgREST (not replicated)
-    const { data: supplemental } = await supabase
-      .from('dogs')
-      .select(
-        `
-        owner:people!dogs_owner_id_fkey(
-          id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          street_address,
-          city,
-          state,
-          zip_code
-        ),
-        registrations:dog_registrations(*),
-        health_records(*)
-      `
-      )
-      .eq('id', id)
-      .single();
+        // Load owner, registrations, and health records from PostgREST (not replicated)
+        const { data: supplemental } = await supabase
+          .from('dogs')
+          .select(
+            `
+            owner:people!dogs_owner_id_fkey(
+              id,
+              first_name,
+              last_name,
+              email,
+              phone,
+              street_address,
+              city,
+              state,
+              zip_code
+            ),
+            registrations:dog_registrations(*),
+            health_records(*)
+          `
+          )
+          .eq('id', id)
+          .single();
 
-    const owner = (supplemental as Record<string, unknown>)?.owner ?? null;
-    const registrations =
-      ((supplemental as Record<string, unknown>)?.registrations as Record<string, unknown>[]) ?? [];
-    const healthRecords =
-      ((supplemental as Record<string, unknown>)?.health_records as Record<string, unknown>[]) ??
-      [];
+        const owner = (supplemental as Record<string, unknown>)?.owner ?? null;
+        const registrations =
+          ((supplemental as Record<string, unknown>)?.registrations as Record<string, unknown>[]) ??
+          [];
+        const healthRecords =
+          ((supplemental as Record<string, unknown>)?.health_records as Record<
+            string,
+            unknown
+          >[]) ?? [];
 
-    // Map entries to the shape PostgREST returns (with class/show sub-objects from snake_case)
-    const entries = dogEntries.map(e => ({
-      id: e.id,
-      class_id: e.classId ?? null,
-      show_id: e.showId ?? null,
-      dog_id: e.dogId ?? null,
-      handler_id: e.handlerId ?? null,
-      armband: e.armband ?? null,
-      handler: e.handler ?? null,
-      entry_status: e.entryStatus ?? null,
-      jump_height: e.jumpHeight ?? null,
-      entry_fee: e.entryFee ?? null,
-      payment_status: e.paymentStatus ?? null,
-      run_order: e.runOrder ?? null,
-      move_up_requested: e.moveUpRequested ?? null,
-      preferred_judge: e.preferredJudge ?? null,
-      special_requests: e.specialRequests ?? null,
-      submitted_at: e.submittedAt ?? null,
-      // class and show sub-objects not available from replication — set null
-      class: null,
-      show: null,
-    }));
+        // Map entries to the shape PostgREST returns (with class/show sub-objects from snake_case)
+        const entries = dogEntries.map(e => ({
+          id: e.id,
+          class_id: e.classId ?? null,
+          show_id: e.showId ?? null,
+          dog_id: e.dogId ?? null,
+          handler_id: e.handlerId ?? null,
+          armband: e.armband ?? null,
+          handler: e.handler ?? null,
+          entry_status: e.entryStatus ?? null,
+          jump_height: e.jumpHeight ?? null,
+          entry_fee: e.entryFee ?? null,
+          payment_status: e.paymentStatus ?? null,
+          run_order: e.runOrder ?? null,
+          move_up_requested: e.moveUpRequested ?? null,
+          preferred_judge: e.preferredJudge ?? null,
+          special_requests: e.specialRequests ?? null,
+          submitted_at: e.submittedAt ?? null,
+          // class and show sub-objects not available from replication — set null
+          class: null,
+          show: null,
+        }));
 
-    const data = mapReplicatedDogToDbRow(dog, {
-      owner: owner as Record<string, unknown> | null,
-      registrations,
-      entries,
-      healthRecords,
-    });
-
-    const duration = Date.now() - startTime;
-    logQuery('dog', 'select_by_id_detailed', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetDogById(id);
-      const duration = Date.now() - startTime;
-      logQuery('dog', 'select_by_id_detailed_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'dog', 'select_by_id');
-      logQuery('dog', 'select_by_id_detailed', duration, dbError.message);
-      return { data: null, error: dbError };
-    }
+        const data = mapReplicatedDogToDbRow(dog, {
+          owner: owner as Record<string, unknown> | null,
+          registrations,
+          entries,
+          healthRecords,
+        });
+        return { data, error: null };
+      },
+      () => postgrestGetDogById(id),
+      'dog',
+      'select_by_id_detailed'
+    );
+  } catch (error) {
+    return { data: null, error: createDatabaseError(error, 'dog', 'select_by_id') };
   }
 };
 
 // Get dogs by owner ID
 export const getDogsByOwner = async (ownerId: string) => {
-  const startTime = Date.now();
-
   try {
-    const dogs = await replicatedDogsTable.getDogsByOwner(ownerId);
-
-    // Sort by name ascending (matching original PostgREST behavior)
-    dogs.sort((a, b) => a.name.localeCompare(b.name));
-
-    // No joins needed — minimal query matching original select('*')
-    const data = dogs.map(dog => mapReplicatedDogToDbRow(dog));
-
-    const duration = Date.now() - startTime;
-    logQuery('dog', 'select_by_owner', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetDogsByOwner(ownerId);
-      const duration = Date.now() - startTime;
-      logQuery('dog', 'select_by_owner_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'dog', 'select_by_owner');
-      logQuery('dog', 'select_by_owner', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const dogs = await replicatedDogsTable.getDogsByOwner(ownerId);
+        // Sort by name ascending (matching original PostgREST behavior)
+        dogs.sort((a, b) => a.name.localeCompare(b.name));
+        // No joins needed — minimal query matching original select('*')
+        const data = dogs.map(dog => mapReplicatedDogToDbRow(dog));
+        return { data, error: null };
+      },
+      () => postgrestGetDogsByOwner(ownerId),
+      'dog',
+      'select_by_owner'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'dog', 'select_by_owner') };
   }
 };
 
@@ -495,108 +463,72 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
 
 // Search dogs by name or breed, scoped to the given person's dogs
 export const searchDogs = async (searchTerm: string, personId: string) => {
-  const startTime = Date.now();
-
   try {
-    const results = await replicatedDogsTable.searchDogs(searchTerm);
-    const filtered = filterByOwnership(results, personId);
-
-    // Sort by name ascending (matching original PostgREST behavior)
-    filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-    // No joins needed — minimal query matching original select('*')
-    const data = filtered.map(dog => mapReplicatedDogToDbRow(dog));
-
-    const duration = Date.now() - startTime;
-    logQuery('dog', 'search', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestSearchDogs(searchTerm, personId);
-      const duration = Date.now() - startTime;
-      logQuery('dog', 'search_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'dog', 'search');
-      logQuery('dog', 'search', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const results = await replicatedDogsTable.searchDogs(searchTerm);
+        const filtered = filterByOwnership(results, personId);
+        // Sort by name ascending (matching original PostgREST behavior)
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        // No joins needed — minimal query matching original select('*')
+        const data = filtered.map(dog => mapReplicatedDogToDbRow(dog));
+        return { data, error: null };
+      },
+      () => postgrestSearchDogs(searchTerm, personId),
+      'dog',
+      'search'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'dog', 'search') };
   }
 };
 
 // Get dogs with upcoming shows, scoped to the given person
 export const getDogsWithUpcomingShows = async (personId: string) => {
-  const startTime = Date.now();
-
   try {
-    const allDogs = await replicatedDogsTable.getAllDogs();
-    const filtered = filterByOwnership(allDogs, personId);
-
-    // Sort by name ascending (matching original PostgREST behavior)
-    filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-    // Batch-load owner names from PostgREST
-    const ownerIds = filtered.map(d => d.ownerId).filter((id): id is string => !!id);
-    const ownersMap = await loadOwnersMap(ownerIds);
-
-    // Original query only selects owner(first_name, last_name) — attach minimal owner
-    const data = filtered.map(dog => {
-      const ownerRow = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
-      const owner = ownerRow
-        ? { first_name: ownerRow.first_name, last_name: ownerRow.last_name }
-        : null;
-      return mapReplicatedDogToDbRow(dog, { owner });
-    });
-
-    const duration = Date.now() - startTime;
-    logQuery('dog', 'select_with_upcoming_shows', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetDogsWithUpcomingShows(personId);
-      const duration = Date.now() - startTime;
-      logQuery('dog', 'select_with_upcoming_shows_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'dog', 'select_with_upcoming_shows');
-      logQuery('dog', 'select_with_upcoming_shows', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const allDogs = await replicatedDogsTable.getAllDogs();
+        const filtered = filterByOwnership(allDogs, personId);
+        // Sort by name ascending (matching original PostgREST behavior)
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        // Batch-load owner names from PostgREST
+        const ownerIds = filtered.map(d => d.ownerId).filter((id): id is string => !!id);
+        const ownersMap = await loadOwnersMap(ownerIds);
+        // Original query only selects owner(first_name, last_name) — attach minimal owner
+        const data = filtered.map(dog => {
+          const ownerRow = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
+          const owner = ownerRow
+            ? { first_name: ownerRow.first_name, last_name: ownerRow.last_name }
+            : null;
+          return mapReplicatedDogToDbRow(dog, { owner });
+        });
+        return { data, error: null };
+      },
+      () => postgrestGetDogsWithUpcomingShows(personId),
+      'dog',
+      'select_with_upcoming_shows'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'dog', 'select_with_upcoming_shows') };
   }
 };
 
 // Get dog statistics for the given person's dogs
 export const getDogStatistics = async (personId: string) => {
-  const startTime = Date.now();
-
   try {
-    const allDogs = await replicatedDogsTable.getAllDogs();
-    const filtered = filterByOwnership(allDogs, personId);
-
-    const stats = {
-      total: filtered.length,
-    };
-
-    const duration = Date.now() - startTime;
-    logQuery('dog', 'statistics', duration);
-    return { data: stats, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetDogStatistics(personId);
-      const duration = Date.now() - startTime;
-      logQuery('dog', 'statistics_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'dog', 'statistics');
-      logQuery('dog', 'statistics', duration, dbError.message);
-      return { data: null, error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const allDogs = await replicatedDogsTable.getAllDogs();
+        const filtered = filterByOwnership(allDogs, personId);
+        return { data: { total: filtered.length }, error: null };
+      },
+      () => postgrestGetDogStatistics(personId),
+      'dog',
+      'statistics'
+    );
+  } catch (error) {
+    return { data: null, error: createDatabaseError(error, 'dog', 'statistics') };
   }
 };
 

@@ -1,12 +1,13 @@
 // Trial-related database queries
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
-import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError } from '../supabaseClient';
 import type { Database } from '@/types/supabase';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { mapReplicatedTrialToDbRow } from '@/services/mappers/trialMappers';
 import { buildMapFromArray } from './queryUtils';
+import { withReplicationFallback } from './replicationUtils';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 
@@ -242,280 +243,187 @@ async function postgrestGetTrialStatistics() {
 
 // Get all trials with show information (excluding soft-deleted)
 export const getAllTrials = async () => {
-  const startTime = Date.now();
-
   try {
-    const [trials, showsMap] = await Promise.all([replicatedTrialsTable.getAll(), loadShowsMap()]);
-
-    // Sort by date ascending (matching original PostgREST behavior)
-    trials.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const data = mapTrialsWithJoins(trials, showsMap);
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'select_all', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST if replication store fails
-    try {
-      const result = await postgrestGetAllTrials();
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'select_all_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'select_all');
-      logQuery('trial', 'select_all', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const [trials, showsMap] = await Promise.all([
+          replicatedTrialsTable.getAll(),
+          loadShowsMap(),
+        ]);
+        // Sort by date ascending (matching original PostgREST behavior)
+        trials.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const data = mapTrialsWithJoins(trials, showsMap);
+        return { data, error: null };
+      },
+      postgrestGetAllTrials,
+      'trial',
+      'select_all'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'trial', 'select_all') };
   }
 };
 
 // Get trial by ID (excluding soft-deleted)
 export const getTrialById = async (id: string) => {
-  const startTime = Date.now();
-
   try {
-    const trial = await replicatedTrialsTable.getTrialById(id);
-    if (!trial) {
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'select_by_id', duration);
-      return { data: null, error: null };
-    }
-
-    const show = trial.showId ? await replicatedShowsTable.getShowById(trial.showId) : null;
-
-    const data = mapReplicatedTrialToDbRow(trial, { show });
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'select_by_id', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetTrialById(id);
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'select_by_id_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'select_by_id');
-      logQuery('trial', 'select_by_id', duration, dbError.message);
-      return { data: null, error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const trial = await replicatedTrialsTable.getTrialById(id);
+        if (!trial) return { data: null, error: null };
+        const show = trial.showId ? await replicatedShowsTable.getShowById(trial.showId) : null;
+        const data = mapReplicatedTrialToDbRow(trial, { show });
+        return { data, error: null };
+      },
+      () => postgrestGetTrialById(id),
+      'trial',
+      'select_by_id'
+    );
+  } catch (error) {
+    return { data: null, error: createDatabaseError(error, 'trial', 'select_by_id') };
   }
 };
 
 // Get trials by show ID (excluding soft-deleted)
 export const getTrialsByShow = async (showId: string) => {
-  const startTime = Date.now();
-
   try {
-    const [trials, show] = await Promise.all([
-      replicatedTrialsTable.getTrialsByShow(showId),
-      replicatedShowsTable.getShowById(showId),
-    ]);
-
-    const data = trials.map(trial => mapReplicatedTrialToDbRow(trial, { show }));
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'select_by_show', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetTrialsByShow(showId);
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'select_by_show_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'select_by_show');
-      logQuery('trial', 'select_by_show', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const [trials, show] = await Promise.all([
+          replicatedTrialsTable.getTrialsByShow(showId),
+          replicatedShowsTable.getShowById(showId),
+        ]);
+        const data = trials.map(trial => mapReplicatedTrialToDbRow(trial, { show }));
+        return { data, error: null };
+      },
+      () => postgrestGetTrialsByShow(showId),
+      'trial',
+      'select_by_show'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'trial', 'select_by_show') };
   }
 };
 
 // Search trials by name (excluding soft-deleted)
 export const searchTrials = async (searchTerm: string) => {
-  const startTime = Date.now();
-
   try {
-    const [allTrials, showsMap] = await Promise.all([
-      replicatedTrialsTable.getAll(),
-      loadShowsMap(),
-    ]);
-
-    const term = searchTerm.toLowerCase();
-    const filtered = allTrials.filter(trial => trial.name.toLowerCase().includes(term));
-
-    const data = mapTrialsWithJoins(filtered, showsMap);
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'search', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestSearchTrials(searchTerm);
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'search_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'search');
-      logQuery('trial', 'search', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const [allTrials, showsMap] = await Promise.all([
+          replicatedTrialsTable.getAll(),
+          loadShowsMap(),
+        ]);
+        const term = searchTerm.toLowerCase();
+        const filtered = allTrials.filter(trial => trial.name.toLowerCase().includes(term));
+        const data = mapTrialsWithJoins(filtered, showsMap);
+        return { data, error: null };
+      },
+      () => postgrestSearchTrials(searchTerm),
+      'trial',
+      'search'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'trial', 'search') };
   }
 };
 
 // Get trials by status (excluding soft-deleted)
 export const getTrialsByStatus = async (status: string) => {
-  const startTime = Date.now();
-
   try {
-    const [allTrials, showsMap] = await Promise.all([
-      replicatedTrialsTable.getAll(),
-      loadShowsMap(),
-    ]);
-
-    const filtered = allTrials.filter(trial => trial.status === status);
-
-    // Sort by date ascending (matching original PostgREST behavior)
-    filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const data = mapTrialsWithJoins(filtered, showsMap);
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'select_by_status', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetTrialsByStatus(status);
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'select_by_status_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'select_by_status');
-      logQuery('trial', 'select_by_status', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const [allTrials, showsMap] = await Promise.all([
+          replicatedTrialsTable.getAll(),
+          loadShowsMap(),
+        ]);
+        const filtered = allTrials.filter(trial => trial.status === status);
+        // Sort by date ascending (matching original PostgREST behavior)
+        filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const data = mapTrialsWithJoins(filtered, showsMap);
+        return { data, error: null };
+      },
+      () => postgrestGetTrialsByStatus(status),
+      'trial',
+      'select_by_status'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'trial', 'select_by_status') };
   }
 };
 
 // Get upcoming trials (excluding soft-deleted)
 export const getUpcomingTrials = async (limit?: number) => {
-  const startTime = Date.now();
-
   try {
-    const [allTrials, showsMap] = await Promise.all([
-      replicatedTrialsTable.getAll(),
-      loadShowsMap(),
-    ]);
-
-    const today = new Date().toISOString().split('T')[0];
-    const filtered = allTrials
-      .filter(trial => trial.date >= today)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const limited = limit ? filtered.slice(0, limit) : filtered;
-    const data = mapTrialsWithJoins(limited, showsMap);
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'select_upcoming', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetUpcomingTrials(limit);
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'select_upcoming_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'select_upcoming');
-      logQuery('trial', 'select_upcoming', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const [allTrials, showsMap] = await Promise.all([
+          replicatedTrialsTable.getAll(),
+          loadShowsMap(),
+        ]);
+        const today = new Date().toISOString().split('T')[0];
+        const filtered = allTrials
+          .filter(trial => trial.date >= today)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const limited = limit ? filtered.slice(0, limit) : filtered;
+        const data = mapTrialsWithJoins(limited, showsMap);
+        return { data, error: null };
+      },
+      () => postgrestGetUpcomingTrials(limit),
+      'trial',
+      'select_upcoming'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'trial', 'select_upcoming') };
   }
 };
 
 // Get trials by date range (excluding soft-deleted)
 export const getTrialsByDateRange = async (startDate: string, endDate: string) => {
-  const startTime = Date.now();
-
   try {
-    const [allTrials, showsMap] = await Promise.all([
-      replicatedTrialsTable.getAll(),
-      loadShowsMap(),
-    ]);
-
-    const filtered = allTrials
-      .filter(trial => trial.date >= startDate && trial.date <= endDate)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const data = mapTrialsWithJoins(filtered, showsMap);
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'select_by_date_range', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetTrialsByDateRange(startDate, endDate);
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'select_by_date_range_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'select_by_date_range');
-      logQuery('trial', 'select_by_date_range', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const [allTrials, showsMap] = await Promise.all([
+          replicatedTrialsTable.getAll(),
+          loadShowsMap(),
+        ]);
+        const filtered = allTrials
+          .filter(trial => trial.date >= startDate && trial.date <= endDate)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const data = mapTrialsWithJoins(filtered, showsMap);
+        return { data, error: null };
+      },
+      () => postgrestGetTrialsByDateRange(startDate, endDate),
+      'trial',
+      'select_by_date_range'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'trial', 'select_by_date_range') };
   }
 };
 
 // Get trial statistics (excluding soft-deleted)
 export const getTrialStatistics = async () => {
-  const startTime = Date.now();
-
   try {
-    const allTrials = await replicatedTrialsTable.getAll();
-
-    const byStatus = allTrials.reduce(
-      (acc: Record<string, number>, trial) => {
-        const status = trial.status || 'Unknown';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
+    return await withReplicationFallback(
+      async () => {
+        const allTrials = await replicatedTrialsTable.getAll();
+        const byStatus = allTrials.reduce(
+          (acc: Record<string, number>, trial) => {
+            const status = trial.status || 'Unknown';
+            acc[status] = (acc[status] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        );
+        return { data: { total: allTrials.length, byStatus }, error: null };
       },
-      {} as Record<string, number>
+      postgrestGetTrialStatistics,
+      'trial',
+      'statistics'
     );
-
-    const stats = {
-      total: allTrials.length,
-      byStatus,
-    };
-
-    const duration = Date.now() - startTime;
-    logQuery('trial', 'statistics', duration);
-    return { data: stats, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetTrialStatistics();
-      const duration = Date.now() - startTime;
-      logQuery('trial', 'statistics_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'trial', 'statistics');
-      logQuery('trial', 'statistics', duration, dbError.message);
-      return { data: null, error: dbError };
-    }
+  } catch (error) {
+    return { data: null, error: createDatabaseError(error, 'trial', 'statistics') };
   }
 };
 

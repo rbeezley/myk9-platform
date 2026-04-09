@@ -2,7 +2,8 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
 
-import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError } from '../supabaseClient';
+import { withReplicationFallback } from './replicationUtils';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -231,33 +232,23 @@ async function postgrestGetClassStatistics() {
  * Get all classes with trial relationships and entry counts (excluding soft-deleted)
  */
 export const getAllClasses = async () => {
-  const startTime = Date.now();
-
   try {
-    const [classes, trialsMap, entryCountsMap] = await Promise.all([
-      replicatedClassesTable.getAll(),
-      loadTrialsMap(),
-      loadEntryCountsByClassMap(),
-    ]);
-
-    const data = mapClassesWithJoins(classes, trialsMap, entryCountsMap);
-
-    const duration = Date.now() - startTime;
-    logQuery('class', 'select_all_with_relations', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST if replication store fails
-    try {
-      const result = await postgrestGetAllClasses();
-      const duration = Date.now() - startTime;
-      logQuery('class', 'select_all_with_relations_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'class', 'select_all');
-      logQuery('class', 'select_all_with_relations', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const [classes, trialsMap, entryCountsMap] = await Promise.all([
+          replicatedClassesTable.getAll(),
+          loadTrialsMap(),
+          loadEntryCountsByClassMap(),
+        ]);
+        const data = mapClassesWithJoins(classes, trialsMap, entryCountsMap);
+        return { data, error: null };
+      },
+      postgrestGetAllClasses,
+      'class',
+      'select_all_with_relations'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'class', 'select_all') };
   }
 };
 
@@ -265,57 +256,43 @@ export const getAllClasses = async () => {
  * Get a class by ID with full details including entries (excluding soft-deleted)
  */
 export const getClassById = async (id: string) => {
-  const startTime = Date.now();
-
   try {
-    const cls = await replicatedClassesTable.getClassById(id);
-    if (!cls) {
-      const duration = Date.now() - startTime;
-      logQuery('class', 'select_by_id', duration);
-      return { data: null, error: null };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const cls = await replicatedClassesTable.getClassById(id);
+        if (!cls) return { data: null, error: null };
 
-    const [trial, classEntries, allDogs] = await Promise.all([
-      cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),
-      replicatedEntriesTable.getEntriesByClass(id),
-      replicatedDogsTable.getAll(),
-    ]);
+        const [trial, classEntries, allDogs] = await Promise.all([
+          cls.trialId ? replicatedTrialsTable.getTrialById(cls.trialId) : Promise.resolve(null),
+          replicatedEntriesTable.getEntriesByClass(id),
+          replicatedDogsTable.getAll(),
+        ]);
 
-    const dogsMap = buildMapFromArray(allDogs, d => d.id);
+        const dogsMap = buildMapFromArray(allDogs, d => d.id);
+        const entries = classEntries.map(entry => {
+          const dog = entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null;
+          return mapReplicatedEntryToDetailRow(entry, dog);
+        });
 
-    const entries = classEntries.map(entry => {
-      const dog = entry.dogId ? (dogsMap.get(entry.dogId) ?? null) : null;
-      return mapReplicatedEntryToDetailRow(entry, dog);
-    });
+        const trialObj = trial
+          ? {
+              id: trial.id,
+              name: trial.name,
+              date: trial.date,
+              ...(trial.trialNumber != null && { trialNumber: trial.trialNumber }),
+              ...(trial.status != null && { status: trial.status }),
+            }
+          : null;
 
-    const trialObj = trial
-      ? {
-          id: trial.id,
-          name: trial.name,
-          date: trial.date,
-          ...(trial.trialNumber != null && { trialNumber: trial.trialNumber }),
-          ...(trial.status != null && { status: trial.status }),
-        }
-      : null;
-
-    const data = mapReplicatedClassToDbRow(cls, { trial: trialObj, entries });
-
-    const duration = Date.now() - startTime;
-    logQuery('class', 'select_by_id', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetClassById(id);
-      const duration = Date.now() - startTime;
-      logQuery('class', 'select_by_id_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'class', 'select_by_id');
-      logQuery('class', 'select_by_id', duration, dbError.message);
-      return { data: null, error: dbError };
-    }
+        const data = mapReplicatedClassToDbRow(cls, { trial: trialObj, entries });
+        return { data, error: null };
+      },
+      () => postgrestGetClassById(id),
+      'class',
+      'select_by_id'
+    );
+  } catch (error) {
+    return { data: null, error: createDatabaseError(error, 'class', 'select_by_id') };
   }
 };
 
@@ -323,36 +300,24 @@ export const getClassById = async (id: string) => {
  * Get classes by trial ID (excluding soft-deleted)
  */
 export const getClassesByTrialId = async (trialId: string) => {
-  const startTime = Date.now();
-
   try {
-    const [classes, entryCountsMap] = await Promise.all([
-      replicatedClassesTable.getClassesByTrial(trialId),
-      loadEntryCountsByClassMap(),
-    ]);
-
-    const data = classes.map(cls =>
-      mapReplicatedClassToDbRow(cls, {
-        entryCount: entryCountsMap.get(cls.id) ?? 0,
-      })
+    return await withReplicationFallback(
+      async () => {
+        const [classes, entryCountsMap] = await Promise.all([
+          replicatedClassesTable.getClassesByTrial(trialId),
+          loadEntryCountsByClassMap(),
+        ]);
+        const data = classes.map(cls =>
+          mapReplicatedClassToDbRow(cls, { entryCount: entryCountsMap.get(cls.id) ?? 0 })
+        );
+        return { data, error: null };
+      },
+      () => postgrestGetClassesByTrialId(trialId),
+      'class',
+      'select_by_trial'
     );
-
-    const duration = Date.now() - startTime;
-    logQuery('class', 'select_by_trial', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetClassesByTrialId(trialId);
-      const duration = Date.now() - startTime;
-      logQuery('class', 'select_by_trial_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'class', 'select_by_trial');
-      logQuery('class', 'select_by_trial', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'class', 'select_by_trial') };
   }
 };
 
@@ -487,39 +452,28 @@ export const deleteClass = async (id: string, deletedBy?: string) => {
  * Search classes by name, level, or description (excluding soft-deleted)
  */
 export const searchClasses = async (searchTerm: string, limit = 50) => {
-  const startTime = Date.now();
-
   try {
-    const allClasses = await replicatedClassesTable.getAll();
-    const term = searchTerm.toLowerCase();
-
-    const filtered = allClasses
-      .filter(
-        cls =>
-          cls.name.toLowerCase().includes(term) ||
-          (cls.level && cls.level.toLowerCase().includes(term)) ||
-          (cls.description && cls.description.toLowerCase().includes(term))
-      )
-      .slice(0, limit);
-
-    const data = filtered.map(cls => mapReplicatedClassToDbRow(cls));
-
-    const duration = Date.now() - startTime;
-    logQuery('class', 'search', duration);
-    return { data, error: null };
-  } catch {
-    // Fallback to PostgREST if replication store unavailable
-    try {
-      const result = await postgrestSearchClasses(searchTerm, limit);
-      const duration = Date.now() - startTime;
-      logQuery('class', 'search_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'class', 'search');
-      logQuery('class', 'search', duration, dbError.message);
-      return { data: [], error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const allClasses = await replicatedClassesTable.getAll();
+        const term = searchTerm.toLowerCase();
+        const filtered = allClasses
+          .filter(
+            cls =>
+              cls.name.toLowerCase().includes(term) ||
+              (cls.level && cls.level.toLowerCase().includes(term)) ||
+              (cls.description && cls.description.toLowerCase().includes(term))
+          )
+          .slice(0, limit);
+        const data = filtered.map(cls => mapReplicatedClassToDbRow(cls));
+        return { data, error: null };
+      },
+      () => postgrestSearchClasses(searchTerm, limit),
+      'class',
+      'search'
+    );
+  } catch (error) {
+    return { data: [], error: createDatabaseError(error, 'class', 'search') };
   }
 };
 
@@ -527,31 +481,18 @@ export const searchClasses = async (searchTerm: string, limit = 50) => {
  * Get class statistics (total count, by level, etc.) (excluding soft-deleted)
  */
 export const getClassStatistics = async () => {
-  const startTime = Date.now();
-
   try {
-    const allClasses = await replicatedClassesTable.getAll();
-
-    const stats = {
-      total: allClasses.length,
-    };
-
-    const duration = Date.now() - startTime;
-    logQuery('class', 'statistics', duration);
-    return { data: stats, error: null };
-  } catch {
-    // Fallback to PostgREST if replication store unavailable
-    try {
-      const result = await postgrestGetClassStatistics();
-      const duration = Date.now() - startTime;
-      logQuery('class', 'statistics_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const dbError = createDatabaseError(error, 'class', 'statistics');
-      logQuery('class', 'statistics', duration, dbError.message);
-      return { data: null, error: dbError };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const allClasses = await replicatedClassesTable.getAll();
+        return { data: { total: allClasses.length }, error: null };
+      },
+      postgrestGetClassStatistics,
+      'class',
+      'statistics'
+    );
+  } catch (error) {
+    return { data: null, error: createDatabaseError(error, 'class', 'statistics') };
   }
 };
 

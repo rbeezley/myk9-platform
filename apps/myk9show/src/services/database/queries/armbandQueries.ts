@@ -3,7 +3,8 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (assignArmband) stay on PostgREST (RPC call — DO NOT CHANGE).
 
-import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError } from '../supabaseClient';
+import { withReplicationFallback } from './replicationUtils';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -138,28 +139,18 @@ async function postgrestLookupDogByArmband(showId: string, armbandNumber: string
  * Get the count of armbands assigned for a given show.
  */
 export const getArmbandCountForShow = async (showId: string) => {
-  const startTime = Date.now();
-
   try {
-    const armbands = await replicatedArmbandsTable.getByShow(showId);
-    const duration = Date.now() - startTime;
-    logQuery('armbands', 'count_for_show', duration);
-    return { count: armbands.length, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestGetArmbandCountForShow(showId);
-      const duration = Date.now() - startTime;
-      logQuery('armbands', 'count_for_show_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      logQuery('armbands', 'count_for_show', duration, String(error));
-      return {
-        count: 0,
-        error: createDatabaseError(error, 'armbands', 'count_for_show'),
-      };
-    }
+    return await withReplicationFallback(
+      async () => {
+        const armbands = await replicatedArmbandsTable.getByShow(showId);
+        return { count: armbands.length, error: null };
+      },
+      () => postgrestGetArmbandCountForShow(showId),
+      'armbands',
+      'count_for_show'
+    );
+  } catch (error) {
+    return { count: 0, error: createDatabaseError(error, 'armbands', 'count_for_show') };
   }
 };
 
@@ -196,75 +187,55 @@ export const assignArmband = async (
  * Owner data falls back to PostgREST (people table is not replicated).
  */
 export const lookupDogByArmband = async (showId: string, armbandNumber: string) => {
-  const startTime = Date.now();
-
   try {
-    // Step 1: Find armband from replication
-    const armband = await replicatedArmbandsTable.lookupByArmbandNumber(showId, armbandNumber);
+    return await withReplicationFallback(
+      async () => {
+        // Step 1: Find armband from replication
+        const armband = await replicatedArmbandsTable.lookupByArmbandNumber(showId, armbandNumber);
+        if (!armband || !armband.dogId) return { data: null, error: null };
 
-    if (!armband || !armband.dogId) {
-      const duration = Date.now() - startTime;
-      logQuery('armbands', 'lookup_by_armband', duration);
-      return { data: null, error: null };
-    }
+        // Step 2: Get dog from replication
+        const dog = await replicatedDogsTable.getDogById(armband.dogId);
+        if (!dog) return { data: null, error: null };
 
-    // Step 2: Get dog from replication
-    const dog = await replicatedDogsTable.getDogById(armband.dogId);
-    if (!dog) {
-      const duration = Date.now() - startTime;
-      logQuery('armbands', 'lookup_by_armband', duration);
-      return { data: null, error: null };
-    }
+        // Step 3: Get owner from PostgREST (people table not replicated)
+        let owner = { first_name: 'Unknown', last_name: '' };
+        if (dog.ownerId) {
+          const { data: ownerData } = await supabase
+            .from('people')
+            .select('first_name, last_name')
+            .eq('id', dog.ownerId)
+            .maybeSingle();
+          if (ownerData) {
+            owner = { first_name: ownerData.first_name, last_name: ownerData.last_name };
+          }
+        }
 
-    // Step 3: Get owner from PostgREST (people table not replicated)
-    let owner = { first_name: 'Unknown', last_name: '' };
-    if (dog.ownerId) {
-      const { data: ownerData } = await supabase
-        .from('people')
-        .select('first_name, last_name')
-        .eq('id', dog.ownerId)
-        .maybeSingle();
-      if (ownerData) {
-        owner = { first_name: ownerData.first_name, last_name: ownerData.last_name };
-      }
-    }
+        // Step 4: Get entries for this dog in the show from replication
+        const allEntries = await replicatedEntriesTable.getAll();
+        const dogEntries = allEntries.filter(e => e.dogId === armband.dogId && e.showId === showId);
 
-    // Step 4: Get entries for this dog in the show from replication
-    const allEntries = await replicatedEntriesTable.getAll();
-    const dogEntries = allEntries.filter(e => e.dogId === armband.dogId && e.showId === showId);
+        // Step 5: Build classes map for the entries
+        const classIds = [...new Set(dogEntries.map(e => e.classId).filter(Boolean))] as string[];
+        const classesMap = new Map<
+          string,
+          Awaited<ReturnType<typeof replicatedClassesTable.getClassById>>
+        >();
+        const classResults = await Promise.all(
+          classIds.map(id => replicatedClassesTable.getClassById(id))
+        );
+        classIds.forEach((id, i) => {
+          if (classResults[i]) classesMap.set(id, classResults[i]);
+        });
 
-    // Step 5: Build classes map for the entries
-    const classIds = [...new Set(dogEntries.map(e => e.classId).filter(Boolean))] as string[];
-    const classesMap = new Map<
-      string,
-      Awaited<ReturnType<typeof replicatedClassesTable.getClassById>>
-    >();
-    const classResults = await Promise.all(
-      classIds.map(id => replicatedClassesTable.getClassById(id))
+        const result = mapArmbandLookup(armband, dog, owner, dogEntries, classesMap as never);
+        return { data: result, error: null };
+      },
+      () => postgrestLookupDogByArmband(showId, armbandNumber),
+      'armbands',
+      'lookup_by_armband'
     );
-    classIds.forEach((id, i) => {
-      if (classResults[i]) classesMap.set(id, classResults[i]);
-    });
-
-    const result = mapArmbandLookup(armband, dog, owner, dogEntries, classesMap as never);
-
-    const duration = Date.now() - startTime;
-    logQuery('armbands', 'lookup_by_armband', duration);
-    return { data: result, error: null };
-  } catch {
-    // Fallback to PostgREST
-    try {
-      const result = await postgrestLookupDogByArmband(showId, armbandNumber);
-      const duration = Date.now() - startTime;
-      logQuery('armbands', 'lookup_by_armband_fallback', duration);
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      logQuery('armbands', 'lookup_by_armband', duration, String(error));
-      return {
-        data: null,
-        error: createDatabaseError(error, 'armbands', 'lookup_by_armband'),
-      };
-    }
+  } catch (error) {
+    return { data: null, error: createDatabaseError(error, 'armbands', 'lookup_by_armband') };
   }
 };

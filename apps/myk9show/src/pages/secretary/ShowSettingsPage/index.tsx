@@ -15,6 +15,8 @@ import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
 import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
 import { VenueWifiCard } from '@/components/secretary/VenueWifiCard';
+import { useVenueWifiMutation } from '@/hooks/mutations/useVenueWifiMutation';
+import { useShowVenueWifi } from '@/hooks/queries/useShowVenueWifi';
 
 export default function ShowSettingsPage() {
   const { selectedShowId, shows } = useShowStore();
@@ -22,6 +24,8 @@ export default function ShowSettingsPage() {
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
   const { data: settings, isLoading } = useShowSettings(selectedShowId || null);
+  const { data: venueWifi } = useShowVenueWifi(selectedShowId || null);
+  const venueWifiMutation = useVenueWifiMutation();
 
   if (!selectedShowId) {
     return (
@@ -110,9 +114,17 @@ export default function ShowSettingsPage() {
         />
       )}
 
-      {/* Venue WiFi — onSave omitted until migration 127 pushed and types regenerated */}
+      {/* Venue WiFi */}
       {selectedShowId && (
-        <VenueWifiCard showId={selectedShowId} network="" password="" />
+        <VenueWifiCard
+          showId={selectedShowId}
+          network={venueWifi?.venueWifiNetwork ?? ''}
+          password={venueWifi?.venueWifiPassword ?? ''}
+          onSave={(network, password) =>
+            venueWifiMutation.mutate({ showId: selectedShowId, network, password })
+          }
+          isSaving={venueWifiMutation.isPending}
+        />
       )}
     </div>
   );

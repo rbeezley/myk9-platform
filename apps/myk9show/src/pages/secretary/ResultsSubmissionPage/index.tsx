@@ -106,13 +106,7 @@ export default function ResultsSubmissionPage() {
     isAKCScentWork ? (selectedShowId ?? '') : ''
   );
 
-  // Generate XML preview
-  const xmlPreview =
-    isAKCScentWork && akcData
-      ? AKCScentWorkFormatter.formatXml(akcData)
-      : isAKCScentWork && isAKCLoading
-        ? ''
-        : '';
+  const xmlPreview = isAKCScentWork && akcData ? AKCScentWorkFormatter.formatXml(akcData) : '';
 
   // Pre-flight: count entries missing AKC reg numbers
   const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;

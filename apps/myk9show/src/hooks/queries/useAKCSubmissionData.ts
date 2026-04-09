@@ -16,8 +16,9 @@ export function useAKCSubmissionData(showId: string) {
   return useQuery({
     queryKey: ['akc-submission-data', showId],
     queryFn: async (): Promise<AKCSubmissionData> => {
-      // Round 1: show + club, secretary profile, trials — parallel
-      const [showRes, secretaryRes, trialsRes] = await Promise.all([
+      // Round 1: show + club, secretary profile, trials, entries — all parallel
+      // (entries only need show_id, not trialIds, so can run upfront)
+      const [showRes, secretaryRes, trialsRes, entriesRes] = await Promise.all([
         supabase.from('shows').select('id, name, club_id, clubs(name)').eq('id', showId).single(),
         supabase
           .from('people')
@@ -30,10 +31,18 @@ export function useAKCSubmissionData(showId: string) {
           .eq('show_id', showId)
           .is('deleted_at', null)
           .order('date'),
+        supabase
+          .from('entries')
+          .select(
+            'id, dog_id, class_id, trial_id, armband, search_time_seconds, final_placement, result_status, entry_status, check_in_status, run_order'
+          )
+          .eq('show_id', showId)
+          .is('deleted_at', null),
       ]);
 
       if (showRes.error) throw showRes.error;
       if (trialsRes.error) throw trialsRes.error;
+      if (entriesRes.error) throw entriesRes.error;
 
       const showRow = showRes.data;
       const clubRow = showRow.clubs as { name: string } | null;
@@ -74,24 +83,14 @@ export function useAKCSubmissionData(showId: string) {
         return { show, trials, entries: [] };
       }
 
-      // Round 2: classes + entries — parallel
-      const [classesRes, entriesRes] = await Promise.all([
-        supabase
-          .from('classes')
-          .select('id, element, level, section, time_limit_seconds, trial_id, name')
-          .in('trial_id', trialIds)
-          .is('deleted_at', null),
-        supabase
-          .from('entries')
-          .select(
-            'id, dog_id, class_id, trial_id, armband, search_time_seconds, final_placement, result_status, entry_status, check_in_status, run_order'
-          )
-          .eq('show_id', showId)
-          .is('deleted_at', null),
-      ]);
+      // Round 2: classes (needs trialIds from Round 1)
+      const classesRes = await supabase
+        .from('classes')
+        .select('id, element, level, section, time_limit_seconds, trial_id, name')
+        .in('trial_id', trialIds)
+        .is('deleted_at', null);
 
       if (classesRes.error) throw classesRes.error;
-      if (entriesRes.error) throw entriesRes.error;
 
       const classRows = (classesRes.data ?? []) as Array<{
         id: string;

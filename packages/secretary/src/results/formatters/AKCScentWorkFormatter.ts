@@ -45,7 +45,7 @@ function mapPrimaryClass(level: string, section: string | null): string {
   if (level.startsWith('Advanced')) return 'SWADV';
   if (level.startsWith('Excellent')) return 'SWEXC';
   if (level.startsWith('Master')) return 'SWMAST';
-  if (level.startsWith('Detective') || level === 'Detective') return 'SWDC';
+  if (level.startsWith('Detective')) return 'SWDC';
   return 'SWNOVA'; // safe fallback
 }
 
@@ -95,6 +95,8 @@ function generateAKCXml(data: AKCSubmissionData): string {
       ` responseEmail="${esc(data.show.secretaryEmail ?? '')}">`
   );
 
+  const entriesByTrial = groupBy(data.entries, e => e.trialId);
+
   for (const trial of data.trials) {
     lines.push(
       `  <event akceventid="${esc(trial.eventNumber ?? '')}"` +
@@ -102,7 +104,7 @@ function generateAKCXml(data: AKCSubmissionData): string {
         ` eventDate="${esc(trial.date ?? '')}">`
     );
 
-    const trialEntries = data.entries.filter(e => e.trialId === trial.id);
+    const trialEntries = entriesByTrial.get(trial.id) ?? [];
     const byClass = groupBy(trialEntries, e => e.classId);
 
     for (const [, classEntries] of byClass) {

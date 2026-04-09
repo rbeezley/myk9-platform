@@ -107,7 +107,7 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
   const fetchEntries = useCallback(async (classId: string): Promise<PrintReportEntry[]> => {
     const { data, error } = await getEntriesByClass(classId);
     if (error) throw error;
-    return (data as EntryRow[]).map(mapEntry);
+    return (data as unknown as EntryRow[]).map(mapEntry);
   }, []);
 
   const makePrintHandler = useCallback(

@@ -62,7 +62,7 @@ export const useClassStoreCompat = () => {
   // Convert database results to classStore format for backward compatibility
   const classes = useMemo(() => {
     if (!classesQuery.data) return [];
-    return mapDatabaseClassesArray(classesQuery.data as DbClassWithRelations[]);
+    return mapDatabaseClassesArray(classesQuery.data as unknown as DbClassWithRelations[]);
   }, [classesQuery.data]);
 
   const entries = useMemo(() => {
@@ -274,7 +274,7 @@ export const useClassWithQuery = (id: string, enabled = true) => {
 
   const classData = useMemo(() => {
     if (!classQuery.data) return null;
-    return mapDatabaseToClass(classQuery.data as DbClassWithRelations);
+    return mapDatabaseToClass(classQuery.data as unknown as DbClassWithRelations);
   }, [classQuery.data]);
 
   return {
@@ -294,7 +294,7 @@ export const useTrialClassesWithQuery = (trialId: string, enabled = true) => {
 
   const classes = useMemo(() => {
     if (!trialClassesQuery.data) return [];
-    return mapDatabaseClassesArray(trialClassesQuery.data as DbClassWithRelations[]);
+    return mapDatabaseClassesArray(trialClassesQuery.data as unknown as DbClassWithRelations[]);
   }, [trialClassesQuery.data]);
 
   return {

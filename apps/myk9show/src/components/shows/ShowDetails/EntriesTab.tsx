@@ -120,7 +120,7 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
     queryFn: async () => {
       const result = await getEntriesByShow(showId);
       if (result.error) throw result.error;
-      return (result.data as ShowEntryRow[]) || [];
+      return (result.data as unknown as ShowEntryRow[]) || [];
     },
     enabled: !!showId,
     ...cacheStrategies.dynamic,

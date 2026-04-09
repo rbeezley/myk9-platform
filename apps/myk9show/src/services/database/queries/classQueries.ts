@@ -2,7 +2,7 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
 
-import { supabase, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -248,7 +248,7 @@ export const getAllClasses = async () => {
       'select_all_with_relations'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'class', 'select_all') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -292,7 +292,7 @@ export const getClassById = async (id: string) => {
       'select_by_id'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'class', 'select_by_id') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 
@@ -317,7 +317,7 @@ export const getClassesByTrialId = async (trialId: string) => {
       'select_by_trial'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'class', 'select_by_trial') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -473,7 +473,7 @@ export const searchClasses = async (searchTerm: string, limit = 50) => {
       'search'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'class', 'search') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -492,7 +492,7 @@ export const getClassStatistics = async () => {
       'statistics'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'class', 'statistics') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 

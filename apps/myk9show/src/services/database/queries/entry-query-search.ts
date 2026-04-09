@@ -4,7 +4,7 @@
  * Read-only operations for statistics aggregation, searching, and eligibility checks.
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  */
-import { supabase, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -236,7 +236,7 @@ export const getEntryStatistics = async (showId?: string) => {
   } catch (error) {
     return {
       data: { totalEntries: 0, byStatus: {}, totalRevenue: 0, paidRevenue: 0, completionRate: 0 },
-      error: createDatabaseError(error, 'entries', 'statistics'),
+      error: error as DatabaseError,
     };
   }
 };
@@ -270,7 +270,7 @@ export const getUserEntries = async (userId: string) => {
       'select_user_entries'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_user_entries') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -310,7 +310,7 @@ export const searchEntries = async (searchTerm: string) => {
       'search'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'search') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 

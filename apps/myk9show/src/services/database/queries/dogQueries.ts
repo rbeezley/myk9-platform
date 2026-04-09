@@ -1,7 +1,7 @@
 // Dog-related database queries
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
-import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { supabase, logQuery, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { logger } from '@/services/LoggingService';
@@ -214,7 +214,7 @@ export const getAllDogs = async (personId: string) => {
       'select_all_with_owners'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'dog', 'select_all') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -301,7 +301,7 @@ export const getDogById = async (id: string) => {
       'select_by_id_detailed'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'dog', 'select_by_id') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 
@@ -322,7 +322,7 @@ export const getDogsByOwner = async (ownerId: string) => {
       'select_by_owner'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'dog', 'select_by_owner') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -479,7 +479,7 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
       'search'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'dog', 'search') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -510,7 +510,7 @@ export const getDogsWithUpcomingShows = async (personId: string) => {
       'select_with_upcoming_shows'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'dog', 'select_with_upcoming_shows') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -528,7 +528,7 @@ export const getDogStatistics = async (personId: string) => {
       'statistics'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'dog', 'statistics') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 

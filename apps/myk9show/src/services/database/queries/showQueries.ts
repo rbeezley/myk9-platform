@@ -1,7 +1,7 @@
 // Show-related database queries
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
-import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { supabase, logQuery, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -383,7 +383,7 @@ export const getAllShows = async () => {
       'select_all_detailed'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'select_all') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -414,7 +414,7 @@ export const getShowById = async (id: string) => {
       'select_by_id_complete'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'show', 'select_by_id') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 
@@ -437,7 +437,7 @@ export const getUpcomingShows = async (limit = 10) => {
       'select_upcoming'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'select_upcoming') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -462,7 +462,7 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
       'select_by_date_range'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'select_by_date_range') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -486,7 +486,7 @@ export const getShowsByClub = async (clubId: string) => {
       'select_by_club'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'select_by_club') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -511,7 +511,7 @@ export const searchShows = async (searchTerm: string) => {
       'search'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'search') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -528,7 +528,7 @@ export const getShowStatistics = async () => {
       'statistics'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'show', 'statistics') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 
@@ -551,7 +551,7 @@ export const getShowsWithEntryCounts = async () => {
       'select_with_entry_counts'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'select_with_entry_counts') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -571,7 +571,7 @@ export const getShowsByStatus = async (status: string) => {
       'select_by_status'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'select_by_status') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -599,7 +599,7 @@ export const getSecretaryShows = async (_userId: string) => {
       'select_secretary_shows'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'show', 'select_secretary_shows') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 

@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { ArmbandLabelEntry } from '@/lib/labels/armbandLabelTypes';
 import { formatReportDate } from '@/lib/reports/reportUtils';
+import { useShowVenueWifi } from './useShowVenueWifi';
 
 /** Exported for unit testing — pure function, no hooks */
 export function mapEntryToArmbandLabelEntry(
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): ArmbandLabelEntry | null {
   const armband = raw.armband as number | null;
   if (!armband) return null;
@@ -23,9 +24,7 @@ export function mapEntryToArmbandLabelEntry(
     id: raw.id as string,
     armband,
     callName: (dog?.call_name as string) ?? '',
-    handler: owner
-      ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim()
-      : '',
+    handler: owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '',
     trialDate,
     isDayOfShow: (raw.is_day_of_show as boolean) ?? false,
   };
@@ -38,9 +37,7 @@ export interface ArmbandLabelDataResult {
   isLoading: boolean;
 }
 
-export function useArmbandLabelData(
-  showId: string | undefined,
-): ArmbandLabelDataResult {
+export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDataResult {
   const { data: entriesRaw, isLoading: entriesLoading } = useQuery({
     queryKey: ['armband-label-entries', showId],
     queryFn: async () => {
@@ -48,7 +45,7 @@ export function useArmbandLabelData(
       const { data } = await supabase
         .from('entries')
         .select(
-          'id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!left(trial:trials!left(date))',
+          'id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!left(trial:trials!left(date))'
         )
         .eq('show_id', showId)
         .is('deleted_at', null)
@@ -59,33 +56,20 @@ export function useArmbandLabelData(
     staleTime: 2 * 60 * 1000,
   });
 
-  const { data: showWifi, isLoading: wifiLoading } = useQuery({
-    queryKey: ['show-wifi', showId],
-    queryFn: async () => {
-      if (!showId) return null;
-      const { data } = await supabase
-        .from('shows')
-        .select('venue_wifi_network, venue_wifi_password')
-        .eq('id', showId)
-        .single();
-      return data;
-    },
-    enabled: !!showId,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: venueWifi, isLoading: wifiLoading } = useShowVenueWifi(showId ?? null);
 
   const entries = useMemo(
     () =>
       (entriesRaw ?? [])
-        .map((e) => mapEntryToArmbandLabelEntry(e as Record<string, unknown>))
+        .map(e => mapEntryToArmbandLabelEntry(e as Record<string, unknown>))
         .filter((e): e is ArmbandLabelEntry => e !== null),
     [entriesRaw]
   );
 
   return {
     entries,
-    wifiNetwork: showWifi?.venue_wifi_network ?? null,
-    wifiPassword: showWifi?.venue_wifi_password ?? null,
+    wifiNetwork: venueWifi?.venueWifiNetwork ?? null,
+    wifiPassword: venueWifi?.venueWifiPassword ?? null,
     isLoading: entriesLoading || wifiLoading,
   };
 }

@@ -3,7 +3,7 @@
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (assignArmband) stay on PostgREST (RPC call — DO NOT CHANGE).
 
-import { supabase, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -24,7 +24,7 @@ async function postgrestGetArmbandCountForShow(showId: string) {
   if (error) {
     return {
       count: 0,
-      error: createDatabaseError(error, 'armbands', 'count_for_show'),
+      error: error as DatabaseError,
     };
   }
 
@@ -150,7 +150,7 @@ export const getArmbandCountForShow = async (showId: string) => {
       'count_for_show'
     );
   } catch (error) {
-    return { count: 0, error: createDatabaseError(error, 'armbands', 'count_for_show') };
+    return { count: 0, error: error as DatabaseError };
   }
 };
 
@@ -190,15 +190,13 @@ export const lookupDogByArmband = async (showId: string, armbandNumber: string) 
   try {
     return await withReplicationFallback(
       async () => {
-        // Step 1: Find armband from replication
         const armband = await replicatedArmbandsTable.lookupByArmbandNumber(showId, armbandNumber);
         if (!armband || !armband.dogId) return { data: null, error: null };
 
-        // Step 2: Get dog from replication
         const dog = await replicatedDogsTable.getDogById(armband.dogId);
         if (!dog) return { data: null, error: null };
 
-        // Step 3: Get owner from PostgREST (people table not replicated)
+        // people table is not replicated — owner always fetched from PostgREST
         let owner = { first_name: 'Unknown', last_name: '' };
         if (dog.ownerId) {
           const { data: ownerData } = await supabase
@@ -211,11 +209,9 @@ export const lookupDogByArmband = async (showId: string, armbandNumber: string) 
           }
         }
 
-        // Step 4: Get entries for this dog in the show from replication
         const allEntries = await replicatedEntriesTable.getAll();
         const dogEntries = allEntries.filter(e => e.dogId === armband.dogId && e.showId === showId);
 
-        // Step 5: Build classes map for the entries
         const classIds = [...new Set(dogEntries.map(e => e.classId).filter(Boolean))] as string[];
         const classesMap = new Map<
           string,
@@ -236,6 +232,6 @@ export const lookupDogByArmband = async (showId: string, armbandNumber: string) 
       'lookup_by_armband'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'armbands', 'lookup_by_armband') };
+    return { data: null, error: error as DatabaseError };
   }
 };

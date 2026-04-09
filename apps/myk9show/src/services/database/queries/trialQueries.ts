@@ -1,7 +1,7 @@
 // Trial-related database queries
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
-import { supabase, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import type { Database } from '@/types/supabase';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -260,7 +260,7 @@ export const getAllTrials = async () => {
       'select_all'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'trial', 'select_all') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -280,7 +280,7 @@ export const getTrialById = async (id: string) => {
       'select_by_id'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'trial', 'select_by_id') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 
@@ -301,7 +301,7 @@ export const getTrialsByShow = async (showId: string) => {
       'select_by_show'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'trial', 'select_by_show') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -324,7 +324,7 @@ export const searchTrials = async (searchTerm: string) => {
       'search'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'trial', 'search') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -348,7 +348,7 @@ export const getTrialsByStatus = async (status: string) => {
       'select_by_status'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'trial', 'select_by_status') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -374,7 +374,7 @@ export const getUpcomingTrials = async (limit?: number) => {
       'select_upcoming'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'trial', 'select_upcoming') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -398,7 +398,7 @@ export const getTrialsByDateRange = async (startDate: string, endDate: string) =
       'select_by_date_range'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'trial', 'select_by_date_range') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -423,7 +423,7 @@ export const getTrialStatistics = async () => {
       'statistics'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'trial', 'statistics') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 

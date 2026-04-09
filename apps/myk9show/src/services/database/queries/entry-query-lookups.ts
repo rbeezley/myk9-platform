@@ -5,7 +5,7 @@
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  * Mutation functions remain in entry-query-mutations.ts (DO NOT TOUCH).
  */
-import { supabase, createDatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError , type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from './replicationUtils';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -456,7 +456,7 @@ export const getAllEntries = async () => {
       'select_all_with_details'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_all') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -482,7 +482,7 @@ export const getEntryById = async (id: string) => {
       'select_by_id_detailed'
     );
   } catch (error) {
-    return { data: null, error: createDatabaseError(error, 'entries', 'select_by_id') };
+    return { data: null, error: error as DatabaseError };
   }
 };
 
@@ -509,7 +509,7 @@ export const getEntriesByShow = async (showId: string) => {
       'select_by_show'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_by_show') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -570,7 +570,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
       'select_by_show_financials'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_by_show_financials') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -602,7 +602,7 @@ export const getEntriesByTrial = async (trialId: string) => {
       'select_by_trial'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_by_trial') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -650,7 +650,7 @@ export const getEntriesByClass = async (classId: string) => {
       'select_by_class'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_by_class') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -678,7 +678,7 @@ export const getEntriesByDog = async (dogId: string) => {
       'select_by_dog'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_by_dog') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 
@@ -702,7 +702,7 @@ export const getEntriesByStatus = async (status: string) => {
       'select_by_status'
     );
   } catch (error) {
-    return { data: [], error: createDatabaseError(error, 'entries', 'select_by_status') };
+    return { data: [], error: error as DatabaseError };
   }
 };
 

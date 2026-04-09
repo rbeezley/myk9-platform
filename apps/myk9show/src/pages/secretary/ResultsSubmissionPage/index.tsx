@@ -1,14 +1,4 @@
-/**
- * ResultsSubmissionPage — generate and submit electronic results to
- * sanctioning organizations (AKC, UKC, NACSW, etc.).
- *
- * Flow:
- *  1. Select show
- *  2. Select organization / formatter
- *  3. Preview generated XML
- *  4. Download XML file  — or —  Mark as Submitted
- *  5. View submission history below
- */
+// apps/myk9show/src/pages/secretary/ResultsSubmissionPage/index.tsx
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -29,9 +19,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useShowStore } from '@/store/showStore';
-import { listFormatters } from '@myk9/secretary';
-import type { SubmissionData } from '@myk9/secretary';
+import { supabase } from '@/services/database/supabaseClient';
+import { listFormatters, AKCScentWorkFormatter } from '@myk9/secretary';
+import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission';
 
@@ -39,30 +40,10 @@ import type { ResultSubmissionRow } from '@/hooks/mutations/useResultSubmission'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildStubData(
-  showId: string,
-  showName: string,
-  organization: string,
-  sportType: string
-): SubmissionData {
-  return {
-    show: {
-      id: showId,
-      name: showName,
-      clubName: null,
-      date: null,
-      clubLicenseNumber: null,
-    },
-    trial: {
-      id: '',
-      trialNumber: 1,
-      date: null,
-      judgeName: '',
-      organization,
-      sportType,
-    },
-    entries: [],
-  };
+function buildFilename(showName: string): string {
+  const slug = showName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+  const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  return `${slug}-Results_${ts}.xml`;
 }
 
 function downloadXml(xml: string, filename: string): void {
@@ -102,10 +83,16 @@ export default function ResultsSubmissionPage() {
   const [formatterKey, setFormatterKey] = useState<string>(
     formatters.length > 0 ? `${formatters[0].organization}:${formatters[0].sportType}` : ''
   );
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendSuccess, setSendSuccess] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const activeFormatter = formatters.find(f => `${f.organization}:${f.sportType}` === formatterKey);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
+  const isAKCScentWork =
+    activeFormatter?.organization === 'AKC' && activeFormatter?.sportType === 'scent_work';
 
   // Auto-select first show
   useEffect(() => {
@@ -114,33 +101,73 @@ export default function ResultsSubmissionPage() {
     }
   }, [selectedShowId, shows, selectShow]);
 
-  // Generate XML preview whenever show or formatter changes
-  const xmlPreview =
-    selectedShow && activeFormatter
-      ? activeFormatter.formatXml(
-          buildStubData(
-            selectedShow.id,
-            selectedShow.name,
-            activeFormatter.organization,
-            activeFormatter.sportType
-          )
-        )
-      : '';
+  // Fetch real AKC data when AKC scent work formatter is selected
+  const { data: akcData, isLoading: isAKCLoading } = useAKCSubmissionData(
+    isAKCScentWork ? (selectedShowId ?? '') : ''
+  );
 
-  const {
-    mutate: recordSubmission,
-    isPending: isSubmitting,
-    isError: submitError,
-  } = useResultSubmission(selectedShowId);
+  // Generate XML preview
+  const xmlPreview =
+    isAKCScentWork && akcData
+      ? AKCScentWorkFormatter.formatXml(akcData)
+      : isAKCScentWork && isAKCLoading
+        ? ''
+        : '';
+
+  // Pre-flight: count entries missing AKC reg numbers
+  const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;
+
+  const filename = selectedShow ? buildFilename(selectedShow.name) : 'results.xml';
+
+  const { mutate: recordSubmission } = useResultSubmission(selectedShowId);
 
   const { data: history = [], isLoading: historyLoading } = useResultSubmissions(
     selectedShowId ?? ''
   );
 
   const handleDownload = () => {
-    if (!xmlPreview || !activeFormatter || !selectedShow) return;
-    const slug = `${selectedShow.name.replace(/\s+/g, '_')}_${activeFormatter.organization}_${activeFormatter.sportType}`;
-    downloadXml(xmlPreview, `${slug}.xml`);
+    if (!xmlPreview) return;
+    downloadXml(xmlPreview, filename);
+  };
+
+  const handleSend = async () => {
+    if (!xmlPreview || !activeFormatter || !selectedShowId || !akcData) return;
+
+    setSendError(null);
+    setSendSuccess(false);
+    setIsSending(true);
+    setShowConfirm(false);
+
+    try {
+      const { error } = await supabase.functions.invoke('send-results', {
+        body: {
+          xml: xmlPreview,
+          filename,
+          organization: activeFormatter.organization,
+          sportType: activeFormatter.sportType,
+          secretaryEmail: akcData.show.secretaryEmail ?? '',
+        },
+      });
+
+      if (error) throw error;
+
+      // Auto-record submission on success
+      recordSubmission({
+        show_id: selectedShowId,
+        organization: activeFormatter.organization,
+        sport_type: activeFormatter.sportType,
+        xml_payload: xmlPreview,
+        status: 'sent',
+      });
+
+      setSendSuccess(true);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'Failed to send. Please download and email manually.';
+      setSendError(msg);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleMarkSubmitted = () => {
@@ -165,7 +192,6 @@ export default function ResultsSubmissionPage() {
           </p>
         </div>
 
-        {/* Show selector */}
         {shows.length > 0 && (
           <Select value={selectedShowId ?? ''} onValueChange={selectShow}>
             <SelectTrigger className="w-[240px]" data-testid="show-selector">
@@ -186,7 +212,6 @@ export default function ResultsSubmissionPage() {
 
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4">
-        {/* Organization / formatter selector */}
         <div className="space-y-1">
           <label className="text-sm font-medium" htmlFor="org-select">
             Organization
@@ -208,8 +233,40 @@ export default function ResultsSubmissionPage() {
           </Select>
         </div>
 
-        {/* Action buttons */}
         <div className="flex gap-2 pb-0.5">
+          {activeFormatter?.submissionEmail && (
+            <>
+              <Button
+                onClick={() => setShowConfirm(true)}
+                disabled={!xmlPreview || isSending}
+                data-testid="send-btn"
+              >
+                {isSending ? 'Sending...' : `Send to ${activeFormatter.organization}`}
+              </Button>
+              <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+                <AlertDialogContent data-testid="send-confirm-dialog">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Send results to {activeFormatter.organization}?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will email the XML file to {activeFormatter.organization} and CC your
+                      secretary address. This action cannot be undone.
+                      {akcData && akcData.entries.length > 0 && (
+                        <> {akcData.entries.length} entries will be included.</>
+                      )}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSend} data-testid="send-confirm-btn">
+                      Send
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
           <Button
             variant="outline"
             onClick={handleDownload}
@@ -219,25 +276,46 @@ export default function ResultsSubmissionPage() {
             Download XML
           </Button>
           <Button
+            variant="outline"
             onClick={handleMarkSubmitted}
-            disabled={!selectedShowId || !activeFormatter || isSubmitting}
+            disabled={!selectedShowId || !activeFormatter}
             data-testid="mark-submitted-btn"
           >
-            {isSubmitting ? 'Saving...' : 'Mark as Submitted'}
+            Mark as Submitted
           </Button>
         </div>
-
-        {submitError && (
-          <p className="text-sm text-destructive">Failed to record submission. Please try again.</p>
-        )}
       </div>
+
+      {/* Send feedback */}
+      {sendSuccess && (
+        <p className="text-sm text-green-600" data-testid="send-success">
+          Results sent successfully. A copy was CC&apos;d to your email.
+        </p>
+      )}
+      {sendError && (
+        <p className="text-sm text-destructive" data-testid="send-error">
+          {sendError}
+        </p>
+      )}
+
+      {/* Pre-flight warning */}
+      {missingAKCCount > 0 && (
+        <div
+          className="rounded-md border border-yellow-400 bg-yellow-50 px-4 py-3 text-sm text-yellow-800"
+          data-testid="preflight-warning"
+        >
+          {missingAKCCount} {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC
+          registration numbers and will export with a blank akcDogRegnum. Verify dog registrations
+          before submitting.
+        </div>
+      )}
 
       {/* XML preview */}
       <div className="space-y-2">
         <h2 className="text-sm font-medium">XML Preview</h2>
         <Textarea
           readOnly
-          value={xmlPreview}
+          value={isAKCLoading ? 'Fetching show data...' : xmlPreview}
           placeholder="Select a show and organization to preview the XML."
           className="font-mono text-xs min-h-[220px] resize-y"
           data-testid="xml-preview"

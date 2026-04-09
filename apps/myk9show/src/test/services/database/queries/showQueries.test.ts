@@ -102,7 +102,7 @@ describe('Show Queries', () => {
       expect(result.error).toBeDefined();
       expect(result.error.message).toBe('Database unavailable');
       expect(result.error.table).toBe('show');
-      expect(result.error.operation).toBe('select_all');
+      expect(result.error.operation).toBe('select_all_detailed');
     });
 
     it('should return empty array when no shows exist', async () => {

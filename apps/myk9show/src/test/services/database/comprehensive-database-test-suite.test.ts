@@ -1,4 +1,30 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+
+// ---------------------------------------------------------------------------
+// Mock replication tables so functions fall back to the Supabase path,
+// which is what mockSupabase controls in these tests.
+// ---------------------------------------------------------------------------
+const { mockDogsTable, mockShowsTable } = vi.hoisted(() => ({
+  mockDogsTable: {
+    getAllDogs: vi.fn(),
+    getDogById: vi.fn(),
+    searchDogs: vi.fn(),
+    getAll: vi.fn(),
+  },
+  mockShowsTable: {
+    getAllShows: vi.fn(),
+    getShowById: vi.fn(),
+    getAll: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: mockDogsTable,
+}));
+
+vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
+  replicatedShowsTable: mockShowsTable,
+}));
 
 /**
  * Comprehensive Database Test Suite
@@ -51,6 +77,18 @@ const TEST_PERSON_ID = 'test-person-123';
 describe('Comprehensive Database Test Suite', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  // Re-apply replication mock implementations after vi.restoreAllMocks() clears them.
+  beforeEach(() => {
+    const replicationError = new Error('replication unavailable');
+    mockDogsTable.getAllDogs.mockRejectedValue(replicationError);
+    mockDogsTable.getDogById.mockRejectedValue(replicationError);
+    mockDogsTable.searchDogs.mockRejectedValue(replicationError);
+    mockDogsTable.getAll.mockRejectedValue(replicationError);
+    mockShowsTable.getAllShows.mockRejectedValue(replicationError);
+    mockShowsTable.getShowById.mockRejectedValue(replicationError);
+    mockShowsTable.getAll.mockRejectedValue(replicationError);
   });
 
   describe('Dog Queries Coverage', () => {

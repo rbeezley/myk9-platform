@@ -49,15 +49,15 @@ describe('entryStatusUtils', () => {
         expect(result.canEnter).toBe(true);
       });
 
-      it('should return submitted even when entries are closed', () => {
+      it('should return closed when entries are closed, even with user entries', () => {
         const now = new Date('2024-03-01'); // After close date
         vi.setSystemTime(now);
 
         const show = createMockShow();
         const result = getEntryStatus(show, true);
 
-        expect(result.status).toBe('submitted');
-        expect(result.canEnter).toBe(true); // Can still add more entries
+        expect(result.status).toBe('closed');
+        expect(result.canEnter).toBe(false);
       });
     });
 
@@ -261,11 +261,7 @@ describe('entryStatusUtils', () => {
   describe('userHasEntriesForShow', () => {
     it('should return true when user has entry with matching showId', () => {
       const showId = 'show-123';
-      const userEntries = [
-        { showId: 'show-456' },
-        { showId: 'show-123' },
-        { showId: 'show-789' },
-      ];
+      const userEntries = [{ showId: 'show-456' }, { showId: 'show-123' }, { showId: 'show-789' }];
 
       const result = userHasEntriesForShow(showId, userEntries);
 
@@ -274,10 +270,7 @@ describe('entryStatusUtils', () => {
 
     it('should return true when user has entry with matching show_id (snake_case)', () => {
       const showId = 'show-123';
-      const userEntries = [
-        { show_id: 'show-456' },
-        { show_id: 'show-123' },
-      ];
+      const userEntries = [{ show_id: 'show-456' }, { show_id: 'show-123' }];
 
       const result = userHasEntriesForShow(showId, userEntries);
 
@@ -286,10 +279,7 @@ describe('entryStatusUtils', () => {
 
     it('should return false when no entries match', () => {
       const showId = 'show-123';
-      const userEntries = [
-        { showId: 'show-456' },
-        { showId: 'show-789' },
-      ];
+      const userEntries = [{ showId: 'show-456' }, { showId: 'show-789' }];
 
       const result = userHasEntriesForShow(showId, userEntries);
 

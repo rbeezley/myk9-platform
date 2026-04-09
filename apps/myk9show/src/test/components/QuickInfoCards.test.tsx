@@ -6,7 +6,7 @@ import type { Show } from '@/types/show-types';
 const baseShow = {
   startDate: '2026-03-21',
   endDate: '2026-03-21',
-  preEntryFee: '$30',
+  preEntryFee: '30',
   location: 'Olathe, KS',
   clubName: 'Jayhawk Agility Club',
   entryCloseDate: '2099-03-15',
@@ -35,7 +35,7 @@ describe('QuickInfoCards', () => {
 
   it('displays entry fee', () => {
     render(<QuickInfoCards show={baseShow} />);
-    expect(screen.getByText('$30')).toBeInTheDocument();
+    expect(screen.getByText('$30.00')).toBeInTheDocument();
   });
 
   it('displays location', () => {

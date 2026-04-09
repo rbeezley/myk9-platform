@@ -70,14 +70,14 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
-  it('redirects to /onboarding when profile exists but onboarding not completed', () => {
+  it('does not redirect when profile exists but onboarding not completed (omitted until migration 125)', () => {
     setupMocks({ needsOnboarding: false, onboardingCompleted: false });
     render(
       <ExhibitorOnboardingChecker>
         <div>Dashboard content</div>
       </ExhibitorOnboardingChecker>
     );
-    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('does not redirect when user is not authenticated', () => {

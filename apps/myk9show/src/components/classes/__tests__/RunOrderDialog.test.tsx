@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { RunOrderDialog } from '../RunOrderDialog';
+import type { RunOrderEntry } from '@/lib/runOrderUtils';
 
 const defaultProps = {
   open: true,
   onOpenChange: vi.fn(),
-  entryCount: 5,
+  entries: [] as RunOrderEntry[],
   onApply: vi.fn().mockResolvedValue(undefined),
 };
 
@@ -39,14 +40,14 @@ describe('RunOrderDialog', () => {
     const { user } = render(<RunOrderDialog {...defaultProps} />);
     await user.click(screen.getByText('Armband Low to High'));
     await user.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(defaultProps.onApply).toHaveBeenCalledWith('armband-asc');
+    expect(defaultProps.onApply).toHaveBeenCalledWith('armband-asc', 'all');
   });
 
   it('calls onApply with manual when Manual Drag and Drop is selected', async () => {
     const { user } = render(<RunOrderDialog {...defaultProps} />);
     await user.click(screen.getByText('Manual Drag and Drop'));
     await user.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(defaultProps.onApply).toHaveBeenCalledWith('manual');
+    expect(defaultProps.onApply).toHaveBeenCalledWith('manual', 'all');
   });
 
   it('calls onOpenChange(false) after successful apply', async () => {
@@ -63,6 +64,10 @@ describe('RunOrderDialog', () => {
     user.click(screen.getByRole('button', { name: 'Apply' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Applying...' })).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    // Drain the pending timer before the test ends to prevent leaking state into the next test
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled(), {
+      timeout: 500,
+    });
   });
 
   it('stays open and re-enables Apply when onApply throws', async () => {
@@ -75,8 +80,9 @@ describe('RunOrderDialog', () => {
   });
 
   it('displays the entry count in the description', () => {
-    render(<RunOrderDialog {...defaultProps} entryCount={12} />);
-    expect(screen.getByText(/12 entries/)).toBeInTheDocument();
+    const entries = Array.from({ length: 12 }, (_, i) => ({ id: `e${i}`, armband: String(i + 1) }));
+    render(<RunOrderDialog {...defaultProps} entries={entries} />);
+    expect(screen.getByText(/12/)).toBeInTheDocument();
   });
 
   it('does not render when open is false', () => {

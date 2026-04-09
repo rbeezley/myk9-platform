@@ -94,7 +94,7 @@ describe('Dog Queries', () => {
       expect(result.error).toBeDefined();
       expect(result.error.message).toBe('Connection failed');
       expect(result.error.table).toBe('dog');
-      expect(result.error.operation).toBe('select_all');
+      expect(result.error.operation).toBe('select_all_with_owners');
     });
 
     it('should handle network timeout errors', async () => {

@@ -1,4 +1,5 @@
 // Type mapping utilities for Show entity between Zustand and Supabase
+import { mapFields } from './mapperUtils';
 import type { Show, ShowInput } from '@/types/show-types';
 import type { DbShow, DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
 import { logger } from '@/services/LoggingService';
@@ -394,8 +395,6 @@ export const createDefaultShowInput = (): Partial<ShowInput> => {
 // row shapes so downstream consumers (stores, UI) see the same shape as
 // PostgREST responses.
 // ---------------------------------------------------------------------------
-
-import { mapFields } from './mapperUtils';
 
 /**
  * Convert a ReplicatedClub to the snake_case club sub-object shape returned

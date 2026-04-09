@@ -2,6 +2,7 @@
 // Handles type conversion between classStore types and database types,
 // and replication-to-DB-row mapping for offline-first reads.
 
+import { mapFields } from './mapperUtils';
 import type {
   DbClass,
   DbClassInsert,
@@ -383,8 +384,6 @@ const mapDatabaseEntryStatus = (
 // row shapes so downstream consumers (stores, UI) see the same shape as
 // PostgREST responses.
 // ---------------------------------------------------------------------------
-
-import { mapFields } from './mapperUtils';
 
 /**
  * Convert a ReplicatedClass to the snake_case DB row shape that consumers

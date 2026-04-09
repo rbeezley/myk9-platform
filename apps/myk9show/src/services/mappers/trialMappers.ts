@@ -1,4 +1,5 @@
 // Mappers for Trial data between database and application formats
+import { mapFields } from './mapperUtils';
 import type { Trial, TrialInput } from '@/store/trialStore';
 import type { Database } from '@/types/supabase';
 
@@ -159,7 +160,6 @@ export const mapTrialToTrialInput = (trial: Trial): TrialInput => {
 
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
-import { mapFields } from './mapperUtils';
 
 /**
  * Convert a ReplicatedShow to the snake_case show sub-object shape returned

@@ -1,6 +1,7 @@
 // Type mapping utilities for Entry Store <-> Database integration
 // Entry Store Integration - React Query Implementation
 
+import { mapFields } from './mapperUtils';
 import type {
   ShowEntry,
   ShowEntryInput,
@@ -301,7 +302,6 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
-import { mapFields } from './mapperUtils';
 
 /**
  * Convert a ReplicatedEntry to the snake_case DB row shape that consumers

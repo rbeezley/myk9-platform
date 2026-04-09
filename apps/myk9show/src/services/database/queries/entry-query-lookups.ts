@@ -557,10 +557,7 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
     ]);
 
     // Build trial lookup map
-    const trialsMap = buildMapFromArray(
-      trials.map(t => ({ id: t.id, name: t.name })),
-      t => t.id
-    );
+    const trialsMap = new Map(trials.map(t => [t.id, { id: t.id, name: t.name }]));
 
     // Collect unique promo_code_ids for batch PostgREST fetch
     // promoCodeId is not in the ReplicatedEntry type but may exist on the raw object

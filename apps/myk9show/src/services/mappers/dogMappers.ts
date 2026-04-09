@@ -1,6 +1,7 @@
 // Type mapping utilities for Dog Store <-> Database integration
 // Phase 2.1: Dog Store Integration
 
+import { mapFields } from './mapperUtils';
 import type { Dog, DogStatus } from '@/types/dog-types';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
@@ -127,8 +128,6 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
 
   return update;
 };
-
-import { mapFields } from './mapperUtils';
 
 /**
  * Convert ReplicatedDog (camelCase, no joins) to the snake_case DB row shape

@@ -19,9 +19,26 @@ pnpm typecheck
 pnpm lint
 ```
 
-### Step 1b: Run Related Tests
+### Step 1b: Run Tests
+
+Count the number of source files being changed (not test files). Use `git diff --stat` from Step 2 or `git status` to determine this.
+
+**If >3 source files changed → run the full app test suite:**
+
+```bash
+# myK9Show
+cd apps/myk9show && pnpm vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*'
+
+# myK9Q
+cd apps/myk9q && pnpm vitest run --reporter=default
+```
+
+Run only the suite(s) for the app(s) that have changed files.
+
+**If ≤3 source files changed → run related tests only:**
 
 Identify test files related to the modified source files:
+
 - For `src/components/Foo.tsx` → look for `Foo.test.tsx`, `Foo.test.ts`
 - For `src/services/Bar.ts` → look for `Bar.test.ts`
 - For `src/hooks/useBaz.ts` → look for `useBaz.test.ts`
@@ -36,13 +53,14 @@ cd apps/myk9show && pnpm vitest run <test-file> --reporter=verbose
 cd apps/myk9q && pnpm vitest run <test-file> --reporter=verbose
 ```
 
+If no related test files exist, skip this step (don't create tests during a commit).
+
 If tests fail:
+
 1. Read the failure output carefully
 2. Fix the root cause (not just symptoms)
 3. Re-run the failing tests
 4. Maximum 5 fix iterations — stop and report if still failing
-
-If no related test files exist, skip this step (don't create tests during a commit).
 
 **Known flaky tests to ignore:** PresenceService.test.ts, PerformanceService.test.ts (see MEMORY.md for details).
 
@@ -71,6 +89,7 @@ git add <specific-files>
 ### Step 4: Commit
 
 Draft a conventional commit message:
+
 - Prefix: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
 - Scope: affected area (e.g., `myk9q`, `scoring`, `ui`)
 - Summary: concise, present tense, under 70 chars
@@ -97,6 +116,7 @@ git push
 ```
 
 If upstream not set:
+
 ```bash
 git push -u origin HEAD
 ```

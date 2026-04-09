@@ -11,6 +11,9 @@ export type {
   SubmissionTrial,
   SubmissionData,
   ResultFormatter,
+  AKCOwnerAddress,
+  AKCSubmissionEntry,
+  AKCSubmissionData,
 } from './types';
 export { registerFormatter, getFormatter, listFormatters, clearFormatters } from './registry';
 export { AKCScentWorkFormatter } from './formatters/AKCScentWorkFormatter';

@@ -1,3 +1,5 @@
+// packages/secretary/src/results/types.ts
+
 /**
  * Types for electronic result submission to sanctioning organizations.
  */
@@ -24,6 +26,10 @@ export interface SubmissionEntry {
   finalPlacement: number | null;
   /** Armband number assigned to this entry */
   armbandNumber: number;
+  /** Trial this entry belongs to — used by formatters to group entries per event */
+  trialId: string;
+  /** Class this entry belongs to — used by formatters to group entries per class */
+  classId: string;
 }
 
 export interface SubmissionShow {
@@ -35,6 +41,10 @@ export interface SubmissionShow {
   date: string | null;
   /** AKC/UKC club number or similar */
   clubLicenseNumber: string | null;
+  /** Trial secretary full name — drives the <sender name> attribute */
+  secretaryName: string | null;
+  /** Trial secretary email — drives the <sender responseEmail> attribute */
+  secretaryEmail: string | null;
 }
 
 export interface SubmissionTrial {
@@ -46,11 +56,14 @@ export interface SubmissionTrial {
   organization: string;
   /** E.g. 'scent_work', 'fast_cat' */
   sportType: string;
+  /** Sanctioning organization event number (e.g. trials.event_number for AKC) */
+  eventNumber: string | null;
 }
 
 export interface SubmissionData {
   show: SubmissionShow;
-  trial: SubmissionTrial;
+  /** All trials included in this submission (one <event> per trial for AKC) */
+  trials: SubmissionTrial[];
   entries: SubmissionEntry[];
 }
 
@@ -59,6 +72,49 @@ export interface ResultFormatter {
   organization: string;
   /** Sport type slug, e.g. 'scent_work' */
   sportType: string;
+  /**
+   * Destination email for electronic submission.
+   * null means this formatter does not support direct email sending.
+   */
+  submissionEmail?: string | null;
   /** Produce the XML string for electronic submission */
   formatXml(data: SubmissionData): string;
+}
+
+// ---------------------------------------------------------------------------
+// AKC-specific types
+// ---------------------------------------------------------------------------
+
+export interface AKCOwnerAddress {
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  country: string | null;
+}
+
+/** Extends SubmissionEntry with fields required by the AKC electres.xsd schema */
+export interface AKCSubmissionEntry extends SubmissionEntry {
+  /** Registered name from dog_registrations (AKC org) — for dogName XML attribute */
+  dogRegisteredName: string | null;
+  /** D = dog (male), B = bitch (female) — from dogs.sex */
+  dogGender: 'D' | 'B' | null;
+  /** Owner full name (people.first_name + last_name) */
+  ownerName: string | null;
+  /** Owner mailing address */
+  ownerAddress: AKCOwnerAddress | null;
+  /** Class time limit in seconds — for courseTime on <class> element */
+  timeLimitSeconds: number | null;
+  /** entries.entry_status — 'accepted', 'withdrawn', etc. */
+  entryStatus: string | null;
+  /** entries.check_in_status — 'present', 'absent', etc. */
+  checkInStatus: string | null;
+  /** entries.result_status — 'Q', 'NQ', 'disqualified', 'excused', etc. */
+  resultStatus: string | null;
+}
+
+export interface AKCSubmissionData {
+  show: SubmissionShow;
+  trials: SubmissionTrial[];
+  entries: AKCSubmissionEntry[];
 }

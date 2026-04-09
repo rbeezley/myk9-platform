@@ -43,6 +43,9 @@ export type {
   SubmissionTrial,
   SubmissionData,
   ResultFormatter,
+  AKCOwnerAddress,
+  AKCSubmissionEntry,
+  AKCSubmissionData,
 } from './results';
 export {
   registerFormatter,

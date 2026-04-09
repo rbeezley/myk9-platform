@@ -6,6 +6,7 @@ function makeFormatter(org: string, sport: string): ResultFormatter {
   return {
     organization: org,
     sportType: sport,
+    submissionEmail: null,
     formatXml: () => `<${org}/>`,
   };
 }

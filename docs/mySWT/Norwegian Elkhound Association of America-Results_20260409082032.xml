@@ -1,0 +1,1985 @@
+<?xml version="1.0"?>
+<sender xmlns="http://www.akc.org" schemaVersion="1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.akc.org electres.xsd" name="Christine Allen" responseEmail="ruff.entries@gmail.com">
+  <event akceventid="2025193001" clubName="Norwegian Elkhound Association of America" eventDate="2025-06-11">
+    <class compGroup="SCWK" primaryClass="SWNOVA" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="14" numStarters="14" numQualifying="10" numWithdrawals="0">
+      <results akcDogRegnum="HP66613103" gender="B" dogName="Norwinds Designed To Please" breedCode="ALLB" catalogNumber="145" courseTime="6" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Dani Seitner</ownerName>
+        <ownerAddress>
+          <addressLine>11131 Havermale Rd</addressLine>
+          <city>Farmersville</city>
+          <USState>OH</USState>
+          <USPostalCode>45325</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67250602" gender="B" dogName="Silhouette Hope's Follow Your Heart" breedCode="ALLB" catalogNumber="111" courseTime="7.94" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>	Denise Bristol</ownerName>
+        <ownerAddress>
+          <addressLine>207 Forest Circle</addressLine>
+          <city>	Paducah</city>
+          <USState>KY</USState>
+          <USPostalCode>	42001</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS29988301" gender="D" dogName="Dunmorr's Chocolate Covered Pretzel" breedCode="ALLB" catalogNumber="160" courseTime="14.57" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP66613102" gender="B" dogName="Norwinds True To Design" breedCode="ALLB" catalogNumber="147" courseTime="15.71" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Deanna Seitner</ownerName>
+        <ownerAddress>
+          <addressLine>11131 Havermale Rd</addressLine>
+          <city>Farmersville</city>
+          <USState>OH</USState>
+          <USPostalCode>45325</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN70984105" gender="D" dogName="	Thanagar Wodan Crash Bandicoot" breedCode="ALLB" catalogNumber="108" courseTime="17.5" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Taylor R Justice</ownerName>
+        <ownerAddress>
+          <addressLine>3218 Hwy MM</addressLine>
+          <city>	Gray Summit</city>
+          <USState>MO</USState>
+          <USPostalCode>	63039</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS28883507" gender="B" dogName="Dunmorr's Midnight Pop Star" breedCode="ALLB" catalogNumber="168" courseTime="34.12" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>	Marianne Kitchell</ownerName>
+        <ownerAddress>
+          <addressLine>516 Millennium Dr.</addressLine>
+          <city>Union</city>
+          <USState>MO</USState>
+          <USPostalCode>63084</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP49847101" gender="D" dogName="Sol Mist Just Trouble" breedCode="ALLB" catalogNumber="123" courseTime="38.09" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Sally Prescher</ownerName>
+        <ownerAddress>
+          <addressLine>12170 Hollywood Rd</addressLine>
+          <city>Nekoosa</city>
+          <USState>WI</USState>
+          <USPostalCode>544577562</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS40091301" gender="B" dogName="Darmorr's Taken By The Wind" breedCode="ALLB" catalogNumber="150" courseTime="44.88" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Darla Morris</ownerName>
+        <ownerAddress>
+          <addressLine>1810 Majestic Oaks Dr</addressLine>
+          <city>Wentzville</city>
+          <USState>MO</USState>
+          <USPostalCode>63385</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS42070501" gender="D" dogName="Dunmorr's Razzle Me Dazzle Me" breedCode="ALLB" catalogNumber="159" courseTime="51.87" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909704" gender="D" dogName="The Great And Powerful Oz Of Somerri" breedCode="ALLB" catalogNumber="105" courseTime="73.78" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Andrea Davies</ownerName>
+        <ownerAddress>
+          <addressLine>93 Rogers Road</addressLine>
+          <city>Belmont</city>
+          <USState>NH</USState>
+          <USPostalCode>03220</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59077301" gender="D" dogName="Leraan's Special Reserve" breedCode="ALLB" catalogNumber="125" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Randi L Johnson</ownerName>
+        <ownerAddress>
+          <addressLine>1111 Crestridge Dr</addressLine>
+          <city>Greenwood Village</city>
+          <USState>CO</USState>
+          <USPostalCode>80121</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP69115803" gender="D" dogName="Sol Mist Look At Me Now Of Janor" breedCode="ALLB" catalogNumber="124" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sally Prescher</ownerName>
+        <ownerAddress>
+          <addressLine>12170 Hollywood Rd</addressLine>
+          <city>Nekoosa</city>
+          <USState>WI</USState>
+          <USPostalCode>544577562</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP70041304" gender="D" dogName="Kingdomndaggarwoods Music City's Certified Star" breedCode="ALLB" catalogNumber="114" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Grace Davis</ownerName>
+        <ownerAddress>
+          <addressLine>Po Box 295</addressLine>
+          <city>Denver</city>
+          <USState>IN</USState>
+          <USPostalCode>46926</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67034603" gender="B" dogName="Wildwood's Devilish Storm" breedCode="ALLB" catalogNumber="101" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Chris Allen</ownerName>
+        <ownerAddress>
+          <addressLine>322 Tooley Branch Road</addressLine>
+          <city>Westmoreland</city>
+          <USState>TN</USState>
+          <USPostalCode>37186</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVB" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="10" numStarters="9" numQualifying="4" numWithdrawals="0">
+      <results akcDogRegnum="SR87699802" gender="B" dogName="Foxvale's One Lucky Bug" breedCode="ALLB" catalogNumber="164" courseTime="6.47" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Kristin Heiden</ownerName>
+        <ownerAddress>
+          <addressLine>3378 E. 900th Ave</addressLine>
+          <city>Altamont</city>
+          <USState>IL</USState>
+          <USPostalCode>62411</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR95515401" gender="B" dogName="Sposans Here Comes The Sun" breedCode="ALLB" catalogNumber="172" courseTime="11.47" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Sandy Rolands</ownerName>
+        <ownerAddress>
+          <addressLine>2424 Our Court</addressLine>
+          <city>High Ridge</city>
+          <USState>MO</USState>
+          <USPostalCode>63049</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52955705" gender="D" dogName="Dinor's Thor Av Asgard Sã¿Lv Hammer Av Hus Freyjah" breedCode="ALLB" catalogNumber="122" courseTime="14.31" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Sherry Parsons</ownerName>
+        <ownerAddress>
+          <addressLine>6001 Old Hickory Blvd apt 437</addressLine>
+          <city>Hermitage</city>
+          <USState>TN</USState>
+          <USPostalCode>37076</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52584405" gender="B" dogName="Stony Banks Hot Child In The City" breedCode="ALLB" catalogNumber="170" courseTime="46.72" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Demetra Almonroeder</ownerName>
+        <ownerAddress>
+          <addressLine>2321 Edwards St</addressLine>
+          <city>Alton</city>
+          <USState>IL</USState>
+          <USPostalCode>62002</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP71435402" gender="B" dogName="Somerri Vex Defender Of The Gray Hunt" breedCode="ALLB" catalogNumber="176" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62111702" gender="B" dogName="Sterling Denmar's Brida Cruising On A Joy Ride" breedCode="ALLB" catalogNumber="112" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN38075507" gender="B" dogName="Aria Von Tajgetosz" breedCode="ALLB" catalogNumber="171" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mercy B Colberg</ownerName>
+        <ownerAddress>
+          <addressLine>4114 Hidden Meadows Dr</addressLine>
+          <city>Arnold</city>
+          <USState>MO</USState>
+          <USPostalCode>63010</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP41963102" gender="D" dogName="Ornre One Dixieland Delight" breedCode="ALLB" catalogNumber="157" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64804201" gender="D" dogName="Janor's Norsk Hocus Pocus" breedCode="ALLB" catalogNumber="119" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Dennis Bell</ownerName>
+        <ownerAddress>
+          <addressLine>P.O. Box 641</addressLine>
+          <city>Gresham</city>
+          <USState>OR</USState>
+          <USPostalCode>97030</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62944102" gender="D" dogName="Finsaadal Edel's Koselige Roggin 2" breedCode="ALLB" catalogNumber="144" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Edith Finsdaadal</ownerName>
+        <ownerAddress>
+          <addressLine>311 S. Rose Farm Road</addressLine>
+          <city>Woodstock</city>
+          <USState>IL</USState>
+          <USPostalCode>60098</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWADV" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="12" numStarters="11" numQualifying="3" numWithdrawals="0">
+      <results akcDogRegnum="HP53995902" gender="B" dogName="Ellyka's Norwegian Ice Diamond" breedCode="ALLB" catalogNumber="103" courseTime="36.4" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP49847103" gender="B" dogName="Sol Mist Special Agent Double Trouble" breedCode="ALLB" catalogNumber="104" courseTime="38.25" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP51614003" gender="B" dogName="Janor's Poetry In Motion" breedCode="ALLB" catalogNumber="120" courseTime="118.18" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Dennis Bell</ownerName>
+        <ownerAddress>
+          <addressLine>P.O. Box 641</addressLine>
+          <city>Gresham</city>
+          <USState>OR</USState>
+          <USPostalCode>97030</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP71117602" gender="D" dogName="Somerri's Where It All Began" breedCode="ALLB" catalogNumber="121" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sarah Epstein</ownerName>
+        <ownerAddress>
+          <addressLine>9 Clough St</addressLine>
+          <city>Bow</city>
+          <USState>NH</USState>
+          <USPostalCode>03304</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59365005" gender="B" dogName="Kamgaard Kristelle" breedCode="ALLB" catalogNumber="110" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52584405" gender="B" dogName="Stony Banks Hot Child In The City" breedCode="ALLB" catalogNumber="170" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Demetra Almonroeder</ownerName>
+        <ownerAddress>
+          <addressLine>2321 Edwards St</addressLine>
+          <city>Alton</city>
+          <USState>IL</USState>
+          <USPostalCode>62002</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN41496501" gender="D" dogName="Jazzcreek's Take A Chance" breedCode="ALLB" catalogNumber="165" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Joan Plank</ownerName>
+        <ownerAddress>
+          <addressLine>3126 KK Rd</addressLine>
+          <city>Waterloo</city>
+          <USState>IL</USState>
+          <USPostalCode>62298</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="TS64297001" gender="D" dogName="Odyssey's Circle Of Life" breedCode="ALLB" catalogNumber="158" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR88351403" gender="D" dogName="Dunmorr's Faster Than A Speeding Bullet" breedCode="ALLB" catalogNumber="156" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52554205" gender="D" dogName="Somerri Sawyer A Toast To Scotch" breedCode="ALLB" catalogNumber="115" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP55396603" gender="B" dogName="Silverdal's All That Bling @ Wil-Mar" breedCode="ALLB" catalogNumber="102" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marlene Schlichtig</ownerName>
+        <ownerAddress>
+          <addressLine>	9403 Van Buren S</addressLine>
+          <city>	Lanham</city>
+          <USState>MD</USState>
+          <USPostalCode>	20706</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62944101" gender="B" dogName="Finsaadal Edel's Snille Raske Anna" breedCode="ALLB" catalogNumber="146" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Edith Finsdaadal</ownerName>
+        <ownerAddress>
+          <addressLine>311 S. Rose Farm Road</addressLine>
+          <city>Woodstock</city>
+          <USState>IL</USState>
+          <USPostalCode>60098</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWEXC" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="180.00" numEntries="14" numStarters="12" numQualifying="4" numWithdrawals="0">
+      <results akcDogRegnum="RN22226105" gender="B" dogName="Eringlo Riverdance" breedCode="ALLB" catalogNumber="133" courseTime="72.69" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Janine Mroz</ownerName>
+        <ownerAddress>
+          <addressLine>995 Stonecastle Drive</addressLine>
+          <city>St. Paul</city>
+          <USState>MO</USState>
+          <USPostalCode>63366</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS06580102" gender="B" dogName="Huntleigh's Break The Ice" breedCode="ALLB" catalogNumber="137" courseTime="96.72" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>April Adams</ownerName>
+        <ownerAddress>
+          <addressLine>209 Churchhill Dr</addressLine>
+          <city>Belleville</city>
+          <USState>IL</USState>
+          <USPostalCode>62223</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN54794402" gender="D" dogName="GCH Wildifox Freedom Hymn" breedCode="ALLB" catalogNumber="152" courseTime="106.13" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Diane Sprung</ownerName>
+        <ownerAddress>
+          <addressLine>650 Clark Ave</addressLine>
+          <city>Webster Groves</city>
+          <USState>MO</USState>
+          <USPostalCode>63119</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS14661208" gender="D" dogName="Kan-Point's Stl Blues Hero" breedCode="ALLB" catalogNumber="169" courseTime="162.03" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Theresa Boxdorfer</ownerName>
+        <ownerAddress>
+          <addressLine>4415 Mattis Rd</addressLine>
+          <city>St. Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63128</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909701" gender="B" dogName="Somerri Kima Defender Of Hy Mountain" breedCode="ALLB" catalogNumber="116" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR88982203" gender="D" dogName="Foxvale's Gipsy Danger" breedCode="ALLB" catalogNumber="175" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Kristin Heiden</ownerName>
+        <ownerAddress>
+          <addressLine>3378 E. 900th Ave</addressLine>
+          <city>Altamont</city>
+          <USState>IL</USState>
+          <USPostalCode>62411</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="MA40903801" gender="D" dogName="World's Deadliest Spy" breedCode="ALLB" catalogNumber="167" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Jennifer Sullivan</ownerName>
+        <ownerAddress>
+          <addressLine>408 Stallworth Ct</addressLine>
+          <city>Columbia</city>
+          <USState>MO</USState>
+          <USPostalCode>65203</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64772801" gender="D" dogName="Karway And Dreamworks For The Love Of The Game" breedCode="ALLB" catalogNumber="155" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP48381101" gender="D" dogName="Lenans Denmar First Frost Is Magic" breedCode="ALLB" catalogNumber="113" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP43225203" gender="B" dogName="Kamgaard Kalistadora" breedCode="ALLB" catalogNumber="109" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP56921404" gender="B" dogName="Denmar's P-38 Lightning" breedCode="ALLB" catalogNumber="106" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marti Kincaid</ownerName>
+        <ownerAddress>
+          <addressLine>3849 B North 3700 East</addressLine>
+          <city>Hansen</city>
+          <USState>ID</USState>
+          <USPostalCode>83334</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP55396603" gender="B" dogName="Silverdal's All That Bling @ Wil-Mar" breedCode="ALLB" catalogNumber="102" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marlene Schlichtig</ownerName>
+        <ownerAddress>
+          <addressLine>	9403 Van Buren S</addressLine>
+          <city>	Lanham</city>
+          <USState>MD</USState>
+          <USPostalCode>	20706</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="PAL285400" gender="B" dogName="Bindi IV" breedCode="ALLB" catalogNumber="153" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Connie Cline</ownerName>
+        <ownerAddress>
+          <addressLine>1021Autumn Valley Court</addressLine>
+          <city>Fenton</city>
+          <USState>MO</USState>
+          <USPostalCode>63026</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS40091302" gender="B" dogName="Darmorr's Little Piece Of My Heart" breedCode="ALLB" catalogNumber="131" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Darla Morris</ownerName>
+        <ownerAddress>
+          <addressLine>1810 Majestic Oaks Dr</addressLine>
+          <city>Wentzville</city>
+          <USState>MO</USState>
+          <USPostalCode>63385</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWMAST" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="240.00" numEntries="5" numStarters="5" numQualifying="0" numWithdrawals="0">
+      <results akcDogRegnum="SS14661208" gender="D" dogName="Kan-Point's Stl Blues Hero" breedCode="ALLB" catalogNumber="169" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Theresa Boxdorfer</ownerName>
+        <ownerAddress>
+          <addressLine>4415 Mattis Rd</addressLine>
+          <city>St. Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63128</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="TS61037001" gender="D" dogName="Deor Magic Moment" breedCode="ALLB" catalogNumber="154" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Connie Cline</ownerName>
+        <ownerAddress>
+          <addressLine>1021Autumn Valley Court</addressLine>
+          <city>Fenton</city>
+          <USState>MO</USState>
+          <USPostalCode>63026</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN54794401" gender="B" dogName="Wildifox Live With Abandon" breedCode="ALLB" catalogNumber="151" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Diane Sprung</ownerName>
+        <ownerAddress>
+          <addressLine>650 Clark Ave</addressLine>
+          <city>Webster Groves</city>
+          <USState>MO</USState>
+          <USPostalCode>63119</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS13325601" gender="D" dogName="Redwyn's Shoreline Trickster" breedCode="ALLB" catalogNumber="149" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Patty Forth</ownerName>
+        <ownerAddress>
+          <addressLine>2500 Forst Dr</addressLine>
+          <city>O'Fallon</city>
+          <USState>MO</USState>
+          <USPostalCode>63368</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS18392102" gender="D" dogName="Futura's Evergrace One Two Punch" breedCode="ALLB" catalogNumber="128" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Shirley Peskie</ownerName>
+        <ownerAddress>
+          <addressLine>6095 Clovergreen PL</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63129</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVA" secondaryClass="INTERIOR" breedCode="ALLB" gender="C" courseTime="60.30" numEntries="13" numStarters="13" numQualifying="10" numWithdrawals="0">
+      <results akcDogRegnum="SS28883507" gender="B" dogName="Dunmorr's Midnight Pop Star" breedCode="ALLB" catalogNumber="168" courseTime="10.63" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>	Marianne Kitchell</ownerName>
+        <ownerAddress>
+          <addressLine>516 Millennium Dr.</addressLine>
+          <city>Union</city>
+          <USState>MO</USState>
+          <USPostalCode>63084</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67250602" gender="B" dogName="Silhouette Hope's Follow Your Heart" breedCode="ALLB" catalogNumber="111" courseTime="11.94" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>	Denise Bristol</ownerName>
+        <ownerAddress>
+          <addressLine>207 Forest Circle</addressLine>
+          <city>	Paducah</city>
+          <USState>KY</USState>
+          <USPostalCode>	42001</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR95515401" gender="B" dogName="Sposans Here Comes The Sun" breedCode="ALLB" catalogNumber="172" courseTime="18.34" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Sandy Rolands</ownerName>
+        <ownerAddress>
+          <addressLine>2424 Our Court</addressLine>
+          <city>High Ridge</city>
+          <USState>MO</USState>
+          <USPostalCode>63049</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP66613103" gender="B" dogName="Norwinds Designed To Please" breedCode="ALLB" catalogNumber="145" courseTime="19.31" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Dani Seitner</ownerName>
+        <ownerAddress>
+          <addressLine>11131 Havermale Rd</addressLine>
+          <city>Farmersville</city>
+          <USState>OH</USState>
+          <USPostalCode>45325</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN70984105" gender="D" dogName="	Thanagar Wodan Crash Bandicoot" breedCode="ALLB" catalogNumber="108" courseTime="21.03" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Taylor R Justice</ownerName>
+        <ownerAddress>
+          <addressLine>3218 Hwy MM</addressLine>
+          <city>	Gray Summit</city>
+          <USState>MO</USState>
+          <USPostalCode>	63039</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59365005" gender="B" dogName="Kamgaard Kristelle" breedCode="ALLB" catalogNumber="110" courseTime="22.47" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP70041304" gender="D" dogName="Kingdomndaggarwoods Music City's Certified Star" breedCode="ALLB" catalogNumber="114" courseTime="28.04" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Grace Davis</ownerName>
+        <ownerAddress>
+          <addressLine>Po Box 295</addressLine>
+          <city>Denver</city>
+          <USState>IN</USState>
+          <USPostalCode>46926</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59077301" gender="D" dogName="Leraan's Special Reserve" breedCode="ALLB" catalogNumber="125" courseTime="33.25" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Randi L Johnson</ownerName>
+        <ownerAddress>
+          <addressLine>1111 Crestridge Dr</addressLine>
+          <city>Greenwood Village</city>
+          <USState>CO</USState>
+          <USPostalCode>80121</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP48381101" gender="D" dogName="Lenans Denmar First Frost Is Magic" breedCode="ALLB" catalogNumber="113" courseTime="35.72" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS40091301" gender="B" dogName="Darmorr's Taken By The Wind" breedCode="ALLB" catalogNumber="150" courseTime="41.71" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Darla Morris</ownerName>
+        <ownerAddress>
+          <addressLine>1810 Majestic Oaks Dr</addressLine>
+          <city>Wentzville</city>
+          <USState>MO</USState>
+          <USPostalCode>63385</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="TS64297001" gender="D" dogName="Odyssey's Circle Of Life" breedCode="ALLB" catalogNumber="158" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP69115803" gender="D" dogName="Sol Mist Look At Me Now Of Janor" breedCode="ALLB" catalogNumber="124" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sally Prescher</ownerName>
+        <ownerAddress>
+          <addressLine>12170 Hollywood Rd</addressLine>
+          <city>Nekoosa</city>
+          <USState>WI</USState>
+          <USPostalCode>544577562</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP49847101" gender="D" dogName="Sol Mist Just Trouble" breedCode="ALLB" catalogNumber="123" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sally Prescher</ownerName>
+        <ownerAddress>
+          <addressLine>12170 Hollywood Rd</addressLine>
+          <city>Nekoosa</city>
+          <USState>WI</USState>
+          <USPostalCode>544577562</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVB" secondaryClass="INTERIOR" breedCode="ALLB" gender="C" courseTime="60.30" numEntries="9" numStarters="8" numQualifying="5" numWithdrawals="0">
+      <results akcDogRegnum="SR87699802" gender="B" dogName="Foxvale's One Lucky Bug" breedCode="ALLB" catalogNumber="164" courseTime="4.44" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Kristin Heiden</ownerName>
+        <ownerAddress>
+          <addressLine>3378 E. 900th Ave</addressLine>
+          <city>Altamont</city>
+          <USState>IL</USState>
+          <USPostalCode>62411</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP53995902" gender="B" dogName="Ellyka's Norwegian Ice Diamond" breedCode="ALLB" catalogNumber="103" courseTime="11.03" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP71435402" gender="B" dogName="Somerri Vex Defender Of The Gray Hunt" breedCode="ALLB" catalogNumber="176" courseTime="15.28" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52955705" gender="D" dogName="Dinor's Thor Av Asgard Sã¿Lv Hammer Av Hus Freyjah" breedCode="ALLB" catalogNumber="122" courseTime="19.19" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Sherry Parsons</ownerName>
+        <ownerAddress>
+          <addressLine>6001 Old Hickory Blvd apt 437</addressLine>
+          <city>Hermitage</city>
+          <USState>TN</USState>
+          <USPostalCode>37076</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52584405" gender="B" dogName="Stony Banks Hot Child In The City" breedCode="ALLB" catalogNumber="170" courseTime="84.03" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Demetra Almonroeder</ownerName>
+        <ownerAddress>
+          <addressLine>2321 Edwards St</addressLine>
+          <city>Alton</city>
+          <USState>IL</USState>
+          <USPostalCode>62002</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62111702" gender="B" dogName="Sterling Denmar's Brida Cruising On A Joy Ride" breedCode="ALLB" catalogNumber="112" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN41496501" gender="D" dogName="Jazzcreek's Take A Chance" breedCode="ALLB" catalogNumber="165" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Joan Plank</ownerName>
+        <ownerAddress>
+          <addressLine>3126 KK Rd</addressLine>
+          <city>Waterloo</city>
+          <USState>IL</USState>
+          <USPostalCode>62298</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64804201" gender="D" dogName="Janor's Norsk Hocus Pocus" breedCode="ALLB" catalogNumber="119" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Dennis Bell</ownerName>
+        <ownerAddress>
+          <addressLine>P.O. Box 641</addressLine>
+          <city>Gresham</city>
+          <USState>OR</USState>
+          <USPostalCode>97030</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62944102" gender="D" dogName="Finsaadal Edel's Koselige Roggin 2" breedCode="ALLB" catalogNumber="144" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Edith Finsdaadal</ownerName>
+        <ownerAddress>
+          <addressLine>311 S. Rose Farm Road</addressLine>
+          <city>Woodstock</city>
+          <USState>IL</USState>
+          <USPostalCode>60098</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWADV" secondaryClass="INTERIOR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="16" numStarters="14" numQualifying="9" numWithdrawals="0">
+      <results akcDogRegnum="HP49847103" gender="B" dogName="Sol Mist Special Agent Double Trouble" breedCode="ALLB" catalogNumber="104" courseTime="21.25" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN54794402" gender="D" dogName="GCH Wildifox Freedom Hymn" breedCode="ALLB" catalogNumber="152" courseTime="45.04" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Diane Sprung</ownerName>
+        <ownerAddress>
+          <addressLine>650 Clark Ave</addressLine>
+          <city>Webster Groves</city>
+          <USState>MO</USState>
+          <USPostalCode>63119</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="WS64262801" gender="D" dogName="Premiere Roux's Ironing Out The Wrinkles" breedCode="ALLB" catalogNumber="173" courseTime="58.66" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Melissa James</ownerName>
+        <ownerAddress>
+          <addressLine>	4800 Stonington Dr</addressLine>
+          <city>Columbia</city>
+          <USState>MO</USState>
+          <USPostalCode>65203</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="MA40903801" gender="D" dogName="World's Deadliest Spy" breedCode="ALLB" catalogNumber="167" courseTime="61.63" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Jennifer Sullivan</ownerName>
+        <ownerAddress>
+          <addressLine>408 Stallworth Ct</addressLine>
+          <city>Columbia</city>
+          <USState>MO</USState>
+          <USPostalCode>65203</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP51614003" gender="B" dogName="Janor's Poetry In Motion" breedCode="ALLB" catalogNumber="120" courseTime="64.69" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Dennis Bell</ownerName>
+        <ownerAddress>
+          <addressLine>P.O. Box 641</addressLine>
+          <city>Gresham</city>
+          <USState>OR</USState>
+          <USPostalCode>97030</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP55396603" gender="B" dogName="Silverdal's All That Bling @ Wil-Mar" breedCode="ALLB" catalogNumber="102" courseTime="64.84" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Marlene Schlichtig</ownerName>
+        <ownerAddress>
+          <addressLine>	9403 Van Buren S</addressLine>
+          <city>	Lanham</city>
+          <USState>MD</USState>
+          <USPostalCode>	20706</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52554205" gender="D" dogName="Somerri Sawyer A Toast To Scotch" breedCode="ALLB" catalogNumber="115" courseTime="93.72" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR88351403" gender="D" dogName="Dunmorr's Faster Than A Speeding Bullet" breedCode="ALLB" catalogNumber="156" courseTime="112.18" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP71117602" gender="D" dogName="Somerri's Where It All Began" breedCode="ALLB" catalogNumber="121" courseTime="119.35" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Sarah Epstein</ownerName>
+        <ownerAddress>
+          <addressLine>9 Clough St</addressLine>
+          <city>Bow</city>
+          <USState>NH</USState>
+          <USPostalCode>03304</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52584405" gender="B" dogName="Stony Banks Hot Child In The City" breedCode="ALLB" catalogNumber="170" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Demetra Almonroeder</ownerName>
+        <ownerAddress>
+          <addressLine>2321 Edwards St</addressLine>
+          <city>Alton</city>
+          <USState>IL</USState>
+          <USPostalCode>62002</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS37868102" gender="D" dogName="Huntleigh's Call It Fate" breedCode="ALLB" catalogNumber="166" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>April Adams</ownerName>
+        <ownerAddress>
+          <addressLine>209 Churchhill Dr</addressLine>
+          <city>Belleville</city>
+          <USState>IL</USState>
+          <USPostalCode>62223</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909704" gender="D" dogName="The Great And Powerful Oz Of Somerri" breedCode="ALLB" catalogNumber="105" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Andrea Davies</ownerName>
+        <ownerAddress>
+          <addressLine>93 Rogers Road</addressLine>
+          <city>Belmont</city>
+          <USState>NH</USState>
+          <USPostalCode>03220</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67034603" gender="B" dogName="Wildwood's Devilish Storm" breedCode="ALLB" catalogNumber="101" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Chris Allen</ownerName>
+        <ownerAddress>
+          <addressLine>322 Tooley Branch Road</addressLine>
+          <city>Westmoreland</city>
+          <USState>TN</USState>
+          <USPostalCode>37186</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP43225203" gender="B" dogName="Kamgaard Kalistadora" breedCode="ALLB" catalogNumber="109" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="TS61037001" gender="D" dogName="Deor Magic Moment" breedCode="ALLB" catalogNumber="154" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Connie Cline</ownerName>
+        <ownerAddress>
+          <addressLine>1021Autumn Valley Court</addressLine>
+          <city>Fenton</city>
+          <USState>MO</USState>
+          <USPostalCode>63026</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62944101" gender="B" dogName="Finsaadal Edel's Snille Raske Anna" breedCode="ALLB" catalogNumber="146" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Edith Finsdaadal</ownerName>
+        <ownerAddress>
+          <addressLine>311 S. Rose Farm Road</addressLine>
+          <city>Woodstock</city>
+          <USState>IL</USState>
+          <USPostalCode>60098</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWEXC" secondaryClass="INTERIOR" breedCode="ALLB" gender="C" courseTime="60.30" numEntries="11" numStarters="11" numQualifying="5" numWithdrawals="0">
+      <results akcDogRegnum="SS13325601" gender="D" dogName="Redwyn's Shoreline Trickster" breedCode="ALLB" catalogNumber="149" courseTime="100.9" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Patty Forth</ownerName>
+        <ownerAddress>
+          <addressLine>2500 Forst Dr</addressLine>
+          <city>O'Fallon</city>
+          <USState>MO</USState>
+          <USPostalCode>63368</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="RN22226105" gender="B" dogName="Eringlo Riverdance" breedCode="ALLB" catalogNumber="133" courseTime="108.06" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Janine Mroz</ownerName>
+        <ownerAddress>
+          <addressLine>995 Stonecastle Drive</addressLine>
+          <city>St. Paul</city>
+          <USState>MO</USState>
+          <USPostalCode>63366</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS14661208" gender="D" dogName="Kan-Point's Stl Blues Hero" breedCode="ALLB" catalogNumber="169" courseTime="132.65" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Theresa Boxdorfer</ownerName>
+        <ownerAddress>
+          <addressLine>4415 Mattis Rd</addressLine>
+          <city>St. Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63128</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64772801" gender="D" dogName="Karway And Dreamworks For The Love Of The Game" breedCode="ALLB" catalogNumber="155" courseTime="111.47" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP56921404" gender="B" dogName="Denmar's P-38 Lightning" breedCode="ALLB" catalogNumber="106" courseTime="183.09" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Marti Kincaid</ownerName>
+        <ownerAddress>
+          <addressLine>3849 B North 3700 East</addressLine>
+          <city>Hansen</city>
+          <USState>ID</USState>
+          <USPostalCode>83334</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="PAL285400" gender="B" dogName="Bindi IV" breedCode="ALLB" catalogNumber="153" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Connie Cline</ownerName>
+        <ownerAddress>
+          <addressLine>1021Autumn Valley Court</addressLine>
+          <city>Fenton</city>
+          <USState>MO</USState>
+          <USPostalCode>63026</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN54794401" gender="B" dogName="Wildifox Live With Abandon" breedCode="ALLB" catalogNumber="151" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Diane Sprung</ownerName>
+        <ownerAddress>
+          <addressLine>650 Clark Ave</addressLine>
+          <city>Webster Groves</city>
+          <USState>MO</USState>
+          <USPostalCode>63119</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS06580102" gender="B" dogName="Huntleigh's Break The Ice" breedCode="ALLB" catalogNumber="137" courseTime="53.84" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>April Adams</ownerName>
+        <ownerAddress>
+          <addressLine>209 Churchhill Dr</addressLine>
+          <city>Belleville</city>
+          <USState>IL</USState>
+          <USPostalCode>62223</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS40091302" gender="B" dogName="Darmorr's Little Piece Of My Heart" breedCode="ALLB" catalogNumber="131" courseTime="61.09" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Darla Morris</ownerName>
+        <ownerAddress>
+          <addressLine>1810 Majestic Oaks Dr</addressLine>
+          <city>Wentzville</city>
+          <USState>MO</USState>
+          <USPostalCode>63385</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909701" gender="B" dogName="Somerri Kima Defender Of Hy Mountain" breedCode="ALLB" catalogNumber="116" courseTime="74.21" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP55396603" gender="B" dogName="Silverdal's All That Bling @ Wil-Mar" breedCode="ALLB" catalogNumber="102" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marlene Schlichtig</ownerName>
+        <ownerAddress>
+          <addressLine>	9403 Van Buren S</addressLine>
+          <city>	Lanham</city>
+          <USState>MD</USState>
+          <USPostalCode>	20706</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWMAST" secondaryClass="INTERIOR" breedCode="ALLB" gender="C" courseTime="60.30" numEntries="4" numStarters="4" numQualifying="2" numWithdrawals="0">
+      <results akcDogRegnum="SR94393102" gender="B" dogName="Evergrace's Four Square" breedCode="ALLB" catalogNumber="138" courseTime="167" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Shirley Peskie</ownerName>
+        <ownerAddress>
+          <addressLine>6095 Clovergreen PL</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63129</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR82193703" gender="D" dogName="Caliber's Cause For Alarm" breedCode="ALLB" catalogNumber="148" courseTime="221.27" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Patty Forth</ownerName>
+        <ownerAddress>
+          <addressLine>2500 Forst Dr</addressLine>
+          <city>O'Fallon</city>
+          <USState>MO</USState>
+          <USPostalCode>63368</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS14661208" gender="D" dogName="Kan-Point's Stl Blues Hero" breedCode="ALLB" catalogNumber="169" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Theresa Boxdorfer</ownerName>
+        <ownerAddress>
+          <addressLine>4415 Mattis Rd</addressLine>
+          <city>St. Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63128</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR87888901" gender="D" dogName="Dunmorr Thanks For Willie Wonka" breedCode="ALLB" catalogNumber="161" courseTime="107" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+  </event>
+  <event akceventid="2025193002" clubName="Norwegian Elkhound Association of America" eventDate="2025-06-11">
+    <class compGroup="SCWK" primaryClass="SWNOVA" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="14" numStarters="13" numQualifying="4" numWithdrawals="0">
+      <results akcDogRegnum="HP66613103" gender="B" dogName="Norwinds Designed To Please" breedCode="ALLB" catalogNumber="145" courseTime="16.78" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Dani Seitner</ownerName>
+        <ownerAddress>
+          <addressLine>11131 Havermale Rd</addressLine>
+          <city>Farmersville</city>
+          <USState>OH</USState>
+          <USPostalCode>45325</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS28883507" gender="B" dogName="Dunmorr's Midnight Pop Star" breedCode="ALLB" catalogNumber="168" courseTime="24.53" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>	Marianne Kitchell</ownerName>
+        <ownerAddress>
+          <addressLine>516 Millennium Dr.</addressLine>
+          <city>Union</city>
+          <USState>MO</USState>
+          <USPostalCode>63084</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS42070501" gender="D" dogName="Dunmorr's Razzle Me Dazzle Me" breedCode="ALLB" catalogNumber="159" courseTime="58.25" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP66613102" gender="B" dogName="Norwinds True To Design" breedCode="ALLB" catalogNumber="147" courseTime="15.94" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Deanna Seitner</ownerName>
+        <ownerAddress>
+          <addressLine>11131 Havermale Rd</addressLine>
+          <city>Farmersville</city>
+          <USState>OH</USState>
+          <USPostalCode>45325</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909704" gender="D" dogName="The Great And Powerful Oz Of Somerri" breedCode="ALLB" catalogNumber="105" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Andrea Davies</ownerName>
+        <ownerAddress>
+          <addressLine>93 Rogers Road</addressLine>
+          <city>Belmont</city>
+          <USState>NH</USState>
+          <USPostalCode>03220</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59077301" gender="D" dogName="Leraan's Special Reserve" breedCode="ALLB" catalogNumber="125" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Randi L Johnson</ownerName>
+        <ownerAddress>
+          <addressLine>1111 Crestridge Dr</addressLine>
+          <city>Greenwood Village</city>
+          <USState>CO</USState>
+          <USPostalCode>80121</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS29988301" gender="D" dogName="Dunmorr's Chocolate Covered Pretzel" breedCode="ALLB" catalogNumber="160" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP69115803" gender="D" dogName="Sol Mist Look At Me Now Of Janor" breedCode="ALLB" catalogNumber="124" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sally Prescher</ownerName>
+        <ownerAddress>
+          <addressLine>12170 Hollywood Rd</addressLine>
+          <city>Nekoosa</city>
+          <USState>WI</USState>
+          <USPostalCode>544577562</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP49847101" gender="D" dogName="Sol Mist Just Trouble" breedCode="ALLB" catalogNumber="123" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sally Prescher</ownerName>
+        <ownerAddress>
+          <addressLine>12170 Hollywood Rd</addressLine>
+          <city>Nekoosa</city>
+          <USState>WI</USState>
+          <USPostalCode>544577562</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP70041304" gender="D" dogName="Kingdomndaggarwoods Music City's Certified Star" breedCode="ALLB" catalogNumber="114" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Grace Davis</ownerName>
+        <ownerAddress>
+          <addressLine>Po Box 295</addressLine>
+          <city>Denver</city>
+          <USState>IN</USState>
+          <USPostalCode>46926</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67250602" gender="B" dogName="Silhouette Hope's Follow Your Heart" breedCode="ALLB" catalogNumber="111" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>	Denise Bristol</ownerName>
+        <ownerAddress>
+          <addressLine>207 Forest Circle</addressLine>
+          <city>	Paducah</city>
+          <USState>KY</USState>
+          <USPostalCode>	42001</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN70984105" gender="D" dogName="	Thanagar Wodan Crash Bandicoot" breedCode="ALLB" catalogNumber="108" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Taylor R Justice</ownerName>
+        <ownerAddress>
+          <addressLine>3218 Hwy MM</addressLine>
+          <city>	Gray Summit</city>
+          <USState>MO</USState>
+          <USPostalCode>	63039</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67034603" gender="B" dogName="Wildwood's Devilish Storm" breedCode="ALLB" catalogNumber="101" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Chris Allen</ownerName>
+        <ownerAddress>
+          <addressLine>322 Tooley Branch Road</addressLine>
+          <city>Westmoreland</city>
+          <USState>TN</USState>
+          <USPostalCode>37186</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS40091301" gender="B" dogName="Darmorr's Taken By The Wind" breedCode="ALLB" catalogNumber="150" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Darla Morris</ownerName>
+        <ownerAddress>
+          <addressLine>1810 Majestic Oaks Dr</addressLine>
+          <city>Wentzville</city>
+          <USState>MO</USState>
+          <USPostalCode>63385</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVB" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="9" numStarters="8" numQualifying="3" numWithdrawals="0">
+      <results akcDogRegnum="HP41963102" gender="D" dogName="Ornre One Dixieland Delight" breedCode="ALLB" catalogNumber="157" courseTime="23.4" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62111702" gender="B" dogName="Sterling Denmar's Brida Cruising On A Joy Ride" breedCode="ALLB" catalogNumber="112" courseTime="50.87" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP71435402" gender="B" dogName="Somerri Vex Defender Of The Gray Hunt" breedCode="ALLB" catalogNumber="176" courseTime="83.85" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR95515401" gender="B" dogName="Sposans Here Comes The Sun" breedCode="ALLB" catalogNumber="172" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sandy Rolands</ownerName>
+        <ownerAddress>
+          <addressLine>2424 Our Court</addressLine>
+          <city>High Ridge</city>
+          <USState>MO</USState>
+          <USPostalCode>63049</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN38075507" gender="B" dogName="Aria Von Tajgetosz" breedCode="ALLB" catalogNumber="171" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mercy B Colberg</ownerName>
+        <ownerAddress>
+          <addressLine>4114 Hidden Meadows Dr</addressLine>
+          <city>Arnold</city>
+          <USState>MO</USState>
+          <USPostalCode>63010</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52584405" gender="B" dogName="Stony Banks Hot Child In The City" breedCode="ALLB" catalogNumber="170" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Demetra Almonroeder</ownerName>
+        <ownerAddress>
+          <addressLine>2321 Edwards St</addressLine>
+          <city>Alton</city>
+          <USState>IL</USState>
+          <USPostalCode>62002</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52955705" gender="D" dogName="Dinor's Thor Av Asgard Sã¿Lv Hammer Av Hus Freyjah" breedCode="ALLB" catalogNumber="122" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sherry Parsons</ownerName>
+        <ownerAddress>
+          <addressLine>6001 Old Hickory Blvd apt 437</addressLine>
+          <city>Hermitage</city>
+          <USState>TN</USState>
+          <USPostalCode>37076</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64804201" gender="D" dogName="Janor's Norsk Hocus Pocus" breedCode="ALLB" catalogNumber="119" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Dennis Bell</ownerName>
+        <ownerAddress>
+          <addressLine>P.O. Box 641</addressLine>
+          <city>Gresham</city>
+          <USState>OR</USState>
+          <USPostalCode>97030</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62944102" gender="D" dogName="Finsaadal Edel's Koselige Roggin 2" breedCode="ALLB" catalogNumber="144" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Edith Finsdaadal</ownerName>
+        <ownerAddress>
+          <addressLine>311 S. Rose Farm Road</addressLine>
+          <city>Woodstock</city>
+          <USState>IL</USState>
+          <USPostalCode>60098</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWADV" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="12" numStarters="11" numQualifying="5" numWithdrawals="0">
+      <results akcDogRegnum="HP49847103" gender="B" dogName="Sol Mist Special Agent Double Trouble" breedCode="ALLB" catalogNumber="104" courseTime="32.44" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52554205" gender="D" dogName="Somerri Sawyer A Toast To Scotch" breedCode="ALLB" catalogNumber="115" courseTime="40.72" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR88351403" gender="D" dogName="Dunmorr's Faster Than A Speeding Bullet" breedCode="ALLB" catalogNumber="156" courseTime="59.31" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP71117602" gender="D" dogName="Somerri's Where It All Began" breedCode="ALLB" catalogNumber="121" courseTime="90.97" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Sarah Epstein</ownerName>
+        <ownerAddress>
+          <addressLine>9 Clough St</addressLine>
+          <city>Bow</city>
+          <USState>NH</USState>
+          <USPostalCode>03304</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN41496501" gender="D" dogName="Jazzcreek's Take A Chance" breedCode="ALLB" catalogNumber="165" courseTime="96.91" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Joan Plank</ownerName>
+        <ownerAddress>
+          <addressLine>3126 KK Rd</addressLine>
+          <city>Waterloo</city>
+          <USState>IL</USState>
+          <USPostalCode>62298</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59365005" gender="B" dogName="Kamgaard Kristelle" breedCode="ALLB" catalogNumber="110" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52584405" gender="B" dogName="Stony Banks Hot Child In The City" breedCode="ALLB" catalogNumber="170" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Demetra Almonroeder</ownerName>
+        <ownerAddress>
+          <addressLine>2321 Edwards St</addressLine>
+          <city>Alton</city>
+          <USState>IL</USState>
+          <USPostalCode>62002</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="TS64297001" gender="D" dogName="Odyssey's Circle Of Life" breedCode="ALLB" catalogNumber="158" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP51614003" gender="B" dogName="Janor's Poetry In Motion" breedCode="ALLB" catalogNumber="120" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Dennis Bell</ownerName>
+        <ownerAddress>
+          <addressLine>P.O. Box 641</addressLine>
+          <city>Gresham</city>
+          <USState>OR</USState>
+          <USPostalCode>97030</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP53995902" gender="B" dogName="Ellyka's Norwegian Ice Diamond" breedCode="ALLB" catalogNumber="103" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP55396603" gender="B" dogName="Silverdal's All That Bling @ Wil-Mar" breedCode="ALLB" catalogNumber="102" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marlene Schlichtig</ownerName>
+        <ownerAddress>
+          <addressLine>	9403 Van Buren S</addressLine>
+          <city>	Lanham</city>
+          <USState>MD</USState>
+          <USPostalCode>	20706</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62944101" gender="B" dogName="Finsaadal Edel's Snille Raske Anna" breedCode="ALLB" catalogNumber="146" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Edith Finsdaadal</ownerName>
+        <ownerAddress>
+          <addressLine>311 S. Rose Farm Road</addressLine>
+          <city>Woodstock</city>
+          <USState>IL</USState>
+          <USPostalCode>60098</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWEXC" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="180.00" numEntries="14" numStarters="12" numQualifying="6" numWithdrawals="0">
+      <results akcDogRegnum="SR88982203" gender="D" dogName="Foxvale's Gipsy Danger" breedCode="ALLB" catalogNumber="175" courseTime="39" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Kristin Heiden</ownerName>
+        <ownerAddress>
+          <addressLine>3378 E. 900th Ave</addressLine>
+          <city>Altamont</city>
+          <USState>IL</USState>
+          <USPostalCode>62411</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="RN22226105" gender="B" dogName="Eringlo Riverdance" breedCode="ALLB" catalogNumber="133" courseTime="49.16" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Janine Mroz</ownerName>
+        <ownerAddress>
+          <addressLine>995 Stonecastle Drive</addressLine>
+          <city>St. Paul</city>
+          <USState>MO</USState>
+          <USPostalCode>63366</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="MA40903801" gender="D" dogName="World's Deadliest Spy" breedCode="ALLB" catalogNumber="167" courseTime="58.34" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Jennifer Sullivan</ownerName>
+        <ownerAddress>
+          <addressLine>408 Stallworth Ct</addressLine>
+          <city>Columbia</city>
+          <USState>MO</USState>
+          <USPostalCode>65203</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN54794402" gender="D" dogName="GCH Wildifox Freedom Hymn" breedCode="ALLB" catalogNumber="152" courseTime="89.78" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Diane Sprung</ownerName>
+        <ownerAddress>
+          <addressLine>650 Clark Ave</addressLine>
+          <city>Webster Groves</city>
+          <USState>MO</USState>
+          <USPostalCode>63119</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64772801" gender="D" dogName="Karway And Dreamworks For The Love Of The Game" breedCode="ALLB" catalogNumber="155" courseTime="117.88" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS14661208" gender="D" dogName="Kan-Point's Stl Blues Hero" breedCode="ALLB" catalogNumber="169" courseTime="147.06" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Theresa Boxdorfer</ownerName>
+        <ownerAddress>
+          <addressLine>4415 Mattis Rd</addressLine>
+          <city>St. Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63128</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909701" gender="B" dogName="Somerri Kima Defender Of Hy Mountain" breedCode="ALLB" catalogNumber="116" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS06580102" gender="B" dogName="Huntleigh's Break The Ice" breedCode="ALLB" catalogNumber="137" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>April Adams</ownerName>
+        <ownerAddress>
+          <addressLine>209 Churchhill Dr</addressLine>
+          <city>Belleville</city>
+          <USState>IL</USState>
+          <USPostalCode>62223</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP48381101" gender="D" dogName="Lenans Denmar First Frost Is Magic" breedCode="ALLB" catalogNumber="113" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP43225203" gender="B" dogName="Kamgaard Kalistadora" breedCode="ALLB" catalogNumber="109" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP56921404" gender="B" dogName="Denmar's P-38 Lightning" breedCode="ALLB" catalogNumber="106" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marti Kincaid</ownerName>
+        <ownerAddress>
+          <addressLine>3849 B North 3700 East</addressLine>
+          <city>Hansen</city>
+          <USState>ID</USState>
+          <USPostalCode>83334</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP55396603" gender="B" dogName="Silverdal's All That Bling @ Wil-Mar" breedCode="ALLB" catalogNumber="102" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marlene Schlichtig</ownerName>
+        <ownerAddress>
+          <addressLine>	9403 Van Buren S</addressLine>
+          <city>	Lanham</city>
+          <USState>MD</USState>
+          <USPostalCode>	20706</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="PAL285400" gender="B" dogName="Bindi IV" breedCode="ALLB" catalogNumber="153" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Connie Cline</ownerName>
+        <ownerAddress>
+          <addressLine>1021Autumn Valley Court</addressLine>
+          <city>Fenton</city>
+          <USState>MO</USState>
+          <USPostalCode>63026</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS40091302" gender="B" dogName="Darmorr's Little Piece Of My Heart" breedCode="ALLB" catalogNumber="131" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Darla Morris</ownerName>
+        <ownerAddress>
+          <addressLine>1810 Majestic Oaks Dr</addressLine>
+          <city>Wentzville</city>
+          <USState>MO</USState>
+          <USPostalCode>63385</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWMAST" secondaryClass="CONTAINR" breedCode="ALLB" gender="C" courseTime="240.00" numEntries="5" numStarters="5" numQualifying="3" numWithdrawals="0">
+      <results akcDogRegnum="SS18392102" gender="D" dogName="Futura's Evergrace One Two Punch" breedCode="ALLB" catalogNumber="128" courseTime="77.37" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Shirley Peskie</ownerName>
+        <ownerAddress>
+          <addressLine>6095 Clovergreen PL</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63129</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR82193703" gender="D" dogName="Caliber's Cause For Alarm" breedCode="ALLB" catalogNumber="148" courseTime="127" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Patty Forth</ownerName>
+        <ownerAddress>
+          <addressLine>2500 Forst Dr</addressLine>
+          <city>O'Fallon</city>
+          <USState>MO</USState>
+          <USPostalCode>63368</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS14661208" gender="D" dogName="Kan-Point's Stl Blues Hero" breedCode="ALLB" catalogNumber="169" courseTime="193.32" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Theresa Boxdorfer</ownerName>
+        <ownerAddress>
+          <addressLine>4415 Mattis Rd</addressLine>
+          <city>St. Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63128</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="TS61037001" gender="D" dogName="Deor Magic Moment" breedCode="ALLB" catalogNumber="154" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Connie Cline</ownerName>
+        <ownerAddress>
+          <addressLine>1021Autumn Valley Court</addressLine>
+          <city>Fenton</city>
+          <USState>MO</USState>
+          <USPostalCode>63026</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN54794401" gender="B" dogName="Wildifox Live With Abandon" breedCode="ALLB" catalogNumber="151" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Diane Sprung</ownerName>
+        <ownerAddress>
+          <addressLine>650 Clark Ave</addressLine>
+          <city>Webster Groves</city>
+          <USState>MO</USState>
+          <USPostalCode>63119</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVA" secondaryClass="EXTERIOR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="11" numStarters="11" numQualifying="8" numWithdrawals="0">
+      <results akcDogRegnum="SS40091301" gender="B" dogName="Darmorr's Taken By The Wind" breedCode="ALLB" catalogNumber="150" courseTime="10.81" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Darla Morris</ownerName>
+        <ownerAddress>
+          <addressLine>1810 Majestic Oaks Dr</addressLine>
+          <city>Wentzville</city>
+          <USState>MO</USState>
+          <USPostalCode>63385</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59365005" gender="B" dogName="Kamgaard Kristelle" breedCode="ALLB" catalogNumber="110" courseTime="17.87" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67034603" gender="B" dogName="Wildwood's Devilish Storm" breedCode="ALLB" catalogNumber="101" courseTime="19.12" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Chris Allen</ownerName>
+        <ownerAddress>
+          <addressLine>322 Tooley Branch Road</addressLine>
+          <city>Westmoreland</city>
+          <USState>TN</USState>
+          <USPostalCode>37186</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP66613103" gender="B" dogName="Norwinds Designed To Please" breedCode="ALLB" catalogNumber="145" courseTime="24.63" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Dani Seitner</ownerName>
+        <ownerAddress>
+          <addressLine>11131 Havermale Rd</addressLine>
+          <city>Farmersville</city>
+          <USState>OH</USState>
+          <USPostalCode>45325</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS29988301" gender="D" dogName="Dunmorr's Chocolate Covered Pretzel" breedCode="ALLB" catalogNumber="160" courseTime="29.19" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Kristine G Morrow</ownerName>
+        <ownerAddress>
+          <addressLine>2006 Wild Horse Creek Road</addressLine>
+          <city>Wildwood</city>
+          <USState>MO</USState>
+          <USPostalCode>630381202</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN70984105" gender="D" dogName="	Thanagar Wodan Crash Bandicoot" breedCode="ALLB" catalogNumber="108" courseTime="33.78" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Taylor R Justice</ownerName>
+        <ownerAddress>
+          <addressLine>3218 Hwy MM</addressLine>
+          <city>	Gray Summit</city>
+          <USState>MO</USState>
+          <USPostalCode>	63039</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP67250602" gender="B" dogName="Silhouette Hope's Follow Your Heart" breedCode="ALLB" catalogNumber="111" courseTime="34.34" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>	Denise Bristol</ownerName>
+        <ownerAddress>
+          <addressLine>207 Forest Circle</addressLine>
+          <city>	Paducah</city>
+          <USState>KY</USState>
+          <USPostalCode>	42001</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909704" gender="D" dogName="The Great And Powerful Oz Of Somerri" breedCode="ALLB" catalogNumber="105" courseTime="41.16" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Andrea Davies</ownerName>
+        <ownerAddress>
+          <addressLine>93 Rogers Road</addressLine>
+          <city>Belmont</city>
+          <USState>NH</USState>
+          <USPostalCode>03220</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP59077301" gender="D" dogName="Leraan's Special Reserve" breedCode="ALLB" catalogNumber="125" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Randi L Johnson</ownerName>
+        <ownerAddress>
+          <addressLine>1111 Crestridge Dr</addressLine>
+          <city>Greenwood Village</city>
+          <USState>CO</USState>
+          <USPostalCode>80121</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP69115803" gender="D" dogName="Sol Mist Look At Me Now Of Janor" breedCode="ALLB" catalogNumber="124" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Sally Prescher</ownerName>
+        <ownerAddress>
+          <addressLine>12170 Hollywood Rd</addressLine>
+          <city>Nekoosa</city>
+          <USState>WI</USState>
+          <USPostalCode>544577562</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP70041304" gender="D" dogName="Kingdomndaggarwoods Music City's Certified Star" breedCode="ALLB" catalogNumber="114" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Grace Davis</ownerName>
+        <ownerAddress>
+          <addressLine>Po Box 295</addressLine>
+          <city>Denver</city>
+          <USState>IN</USState>
+          <USPostalCode>46926</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVB" secondaryClass="EXTERIOR" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="14" numStarters="13" numQualifying="9" numWithdrawals="0">
+      <results akcDogRegnum="HP71435402" gender="B" dogName="Somerri Vex Defender Of The Gray Hunt" breedCode="ALLB" catalogNumber="176" courseTime="17.06" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Holly Lewis</ownerName>
+        <ownerAddress>
+          <addressLine>12 Hall Ave</addressLine>
+          <city>Merrimack</city>
+          <USState>NH</USState>
+          <USPostalCode>03054</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SR95515401" gender="B" dogName="Sposans Here Comes The Sun" breedCode="ALLB" catalogNumber="172" courseTime="17.28" actionCode="PLAC">
+        <resultCode>2</resultCode>
+        <ownerName>Sandy Rolands</ownerName>
+        <ownerAddress>
+          <addressLine>2424 Our Court</addressLine>
+          <city>High Ridge</city>
+          <USState>MO</USState>
+          <USPostalCode>63049</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64804201" gender="D" dogName="Janor's Norsk Hocus Pocus" breedCode="ALLB" catalogNumber="119" courseTime="21.72" actionCode="PLAC">
+        <resultCode>3</resultCode>
+        <ownerName>Dennis Bell</ownerName>
+        <ownerAddress>
+          <addressLine>P.O. Box 641</addressLine>
+          <city>Gresham</city>
+          <USState>OR</USState>
+          <USPostalCode>97030</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="MA40903801" gender="D" dogName="World's Deadliest Spy" breedCode="ALLB" catalogNumber="167" courseTime="22.03" actionCode="PLAC">
+        <resultCode>4</resultCode>
+        <ownerName>Jennifer Sullivan</ownerName>
+        <ownerAddress>
+          <addressLine>408 Stallworth Ct</addressLine>
+          <city>Columbia</city>
+          <USState>MO</USState>
+          <USPostalCode>65203</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP53995902" gender="B" dogName="Ellyka's Norwegian Ice Diamond" breedCode="ALLB" catalogNumber="103" courseTime="28.53" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64772801" gender="D" dogName="Karway And Dreamworks For The Love Of The Game" breedCode="ALLB" catalogNumber="155" courseTime="34.87" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Joan Braun</ownerName>
+        <ownerAddress>
+          <addressLine>3069 Sedan Drive</addressLine>
+          <city>St Louis</city>
+          <USState>MO</USState>
+          <USPostalCode>63125</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62111702" gender="B" dogName="Sterling Denmar's Brida Cruising On A Joy Ride" breedCode="ALLB" catalogNumber="112" courseTime="56.82" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52955705" gender="D" dogName="Dinor's Thor Av Asgard Sã¿Lv Hammer Av Hus Freyjah" breedCode="ALLB" catalogNumber="122" courseTime="63" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Sherry Parsons</ownerName>
+        <ownerAddress>
+          <addressLine>6001 Old Hickory Blvd apt 437</addressLine>
+          <city>Hermitage</city>
+          <USState>TN</USState>
+          <USPostalCode>37076</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN38075507" gender="B" dogName="Aria Von Tajgetosz" breedCode="ALLB" catalogNumber="171" courseTime="81.6" actionCode="CNT">
+        <resultCode>Q</resultCode>
+        <ownerName>Mercy B Colberg</ownerName>
+        <ownerAddress>
+          <addressLine>4114 Hidden Meadows Dr</addressLine>
+          <city>Arnold</city>
+          <USState>MO</USState>
+          <USPostalCode>63010</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP52584405" gender="B" dogName="Stony Banks Hot Child In The City" breedCode="ALLB" catalogNumber="170" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Demetra Almonroeder</ownerName>
+        <ownerAddress>
+          <addressLine>2321 Edwards St</addressLine>
+          <city>Alton</city>
+          <USState>IL</USState>
+          <USPostalCode>62002</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="SS37868102" gender="D" dogName="Huntleigh's Call It Fate" breedCode="ALLB" catalogNumber="166" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>April Adams</ownerName>
+        <ownerAddress>
+          <addressLine>209 Churchhill Dr</addressLine>
+          <city>Belleville</city>
+          <USState>IL</USState>
+          <USPostalCode>62223</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN41496501" gender="D" dogName="Jazzcreek's Take A Chance" breedCode="ALLB" catalogNumber="165" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Joan Plank</ownerName>
+        <ownerAddress>
+          <addressLine>3126 KK Rd</addressLine>
+          <city>Waterloo</city>
+          <USState>IL</USState>
+          <USPostalCode>62298</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP49847103" gender="B" dogName="Sol Mist Special Agent Double Trouble" breedCode="ALLB" catalogNumber="104" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Ann Smith</ownerName>
+        <ownerAddress>
+          <addressLine>21310 Negaunee</addressLine>
+          <city>Southfield</city>
+          <USState>MI</USState>
+          <USPostalCode>48033</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP62944102" gender="D" dogName="Finsaadal Edel's Koselige Roggin 2" breedCode="ALLB" catalogNumber="144" courseTime="0" actionCode="ABSN">
+        <resultCode>A</resultCode>
+        <ownerName>Edith Finsdaadal</ownerName>
+        <ownerAddress>
+          <addressLine>311 S. Rose Farm Road</addressLine>
+          <city>Woodstock</city>
+          <USState>IL</USState>
+          <USPostalCode>60098</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVA" secondaryClass="HANDDISC" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="5" numStarters="5" numQualifying="1" numWithdrawals="0">
+      <results akcDogRegnum="DN70984105" gender="D" dogName="	Thanagar Wodan Crash Bandicoot" breedCode="ALLB" catalogNumber="108" courseTime="30.53" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Taylor R Justice</ownerName>
+        <ownerAddress>
+          <addressLine>3218 Hwy MM</addressLine>
+          <city>	Gray Summit</city>
+          <USState>MO</USState>
+          <USPostalCode>	63039</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP48381101" gender="D" dogName="Lenans Denmar First Frost Is Magic" breedCode="ALLB" catalogNumber="113" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Stephanie Braun</ownerName>
+        <ownerAddress>
+          <addressLine>921 E Ashford St</addressLine>
+          <city>Meridian</city>
+          <USState>ID</USState>
+          <USPostalCode>83642</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP43225203" gender="B" dogName="Kamgaard Kalistadora" breedCode="ALLB" catalogNumber="109" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Mary Jo Benedetti</ownerName>
+        <ownerAddress>
+          <addressLine>6 Pinewood Terrace</addressLine>
+          <city>Pittsburgh</city>
+          <USState>PA</USState>
+          <USPostalCode>15237</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP56921404" gender="B" dogName="Denmar's P-38 Lightning" breedCode="ALLB" catalogNumber="106" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Marti Kincaid</ownerName>
+        <ownerAddress>
+          <addressLine>3849 B North 3700 East</addressLine>
+          <city>Hansen</city>
+          <USState>ID</USState>
+          <USPostalCode>83334</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="HP64909704" gender="D" dogName="The Great And Powerful Oz Of Somerri" breedCode="ALLB" catalogNumber="105" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Andrea Davies</ownerName>
+        <ownerAddress>
+          <addressLine>93 Rogers Road</addressLine>
+          <city>Belmont</city>
+          <USState>NH</USState>
+          <USPostalCode>03220</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+    <class compGroup="SCWK" primaryClass="SWNOVB" secondaryClass="HANDDISC" breedCode="ALLB" gender="C" courseTime="120.00" numEntries="2" numStarters="2" numQualifying="1" numWithdrawals="0">
+      <results akcDogRegnum="SS13325601" gender="D" dogName="Redwyn's Shoreline Trickster" breedCode="ALLB" catalogNumber="149" courseTime="3.94" actionCode="PLAC">
+        <resultCode>1</resultCode>
+        <ownerName>Patty Forth</ownerName>
+        <ownerAddress>
+          <addressLine>2500 Forst Dr</addressLine>
+          <city>O'Fallon</city>
+          <USState>MO</USState>
+          <USPostalCode>63368</USPostalCode>
+        </ownerAddress>
+      </results>
+      <results akcDogRegnum="DN41496501" gender="D" dogName="Jazzcreek's Take A Chance" breedCode="ALLB" catalogNumber="165" courseTime="0" actionCode="CNT">
+        <resultCode>NQ</resultCode>
+        <ownerName>Joan Plank</ownerName>
+        <ownerAddress>
+          <addressLine>3126 KK Rd</addressLine>
+          <city>Waterloo</city>
+          <USState>IL</USState>
+          <USPostalCode>62298</USPostalCode>
+        </ownerAddress>
+      </results>
+    </class>
+  </event>
+</sender>

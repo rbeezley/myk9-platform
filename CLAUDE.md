@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Communication Style
+
+Keep responses concise, short, and to the point. Lead with the answer or action. Skip preamble, filler, and summaries of completed work.
 
 ## Project Overview
 
@@ -17,10 +19,6 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 3. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
 4. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
 5. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate. When making UX changes, check if they preserve the role's target feeling (see `docs/INTENT.md`)
-
-## Git Operations
-
-When asked to pull from GitHub or sync, always do `git fetch` then `git pull` before any other analysis or review work.
 
 ## Worktrees
 
@@ -44,7 +42,6 @@ pnpm dev:q            # Run myK9Q dev server
 pnpm build            # Build all packages and apps
 pnpm typecheck        # TypeScript check across monorepo
 pnpm lint             # ESLint across monorepo
-pnpm clean            # Clean all build artifacts
 
 # Testing (run from app directories)
 cd apps/myk9q && pnpm test        # myK9Q unit tests (vitest)
@@ -56,8 +53,6 @@ cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
 cd apps/myk9show && npx vitest run src/path/to/file.test.ts
 # Run tests matching a name pattern
 cd apps/myk9show && npx vitest run -t "pattern"
-# Run with coverage
-cd apps/myk9show && pnpm test:coverage
 ```
 
 ## Architecture Decisions
@@ -78,12 +73,6 @@ cd apps/myk9show && pnpm test:coverage
 - **myK9Show staging:** myk9-platform-myk9show.vercel.app (auto-deploys from `main`)
 - **myK9Q staging:** myk9-platform-myk9q.vercel.app (auto-deploys from `main`)
 - **Legacy production:** myk9q.com (separate repo, untouched)
-
-## Stripe Integration
-
-- **Client:** `apps/myk9show/src/lib/stripe.ts` — uses `supabase.functions.invoke()` for all Stripe calls
-- **Pattern:** Frontend calls Supabase Edge Function → Edge Function calls Stripe API with `STRIPE_SECRET_KEY`
-- **Status:** Test mode (needs test products/prices + `sk_test_*` key for full testing)
 
 ## Key Patterns
 

@@ -21,12 +21,7 @@ Items to address in future sessions.
 
 Port 6 reports from the Access application (mySWT). Phase 1 infrastructure (report engine, preview iframe, print dialog) is complete (PR #46). 6 stub entries exist in `reportRegistry.ts` with `enabled: false`. Access screenshots are in `docs/mySWT/`. Design spec: `docs/superpowers/specs/2026-04-06-report-generation-design.md`.
 
-- [ ] **Show Catalog** — Full catalog of entries for a show/trial. Scope: show, trial.
-- [ ] **Result Catalog** — Published results formatted for distribution. Scope: show, trial.
-- [ ] **Judge's Schedule** — Per-judge schedule across trials/classes for the show. Scope: show.
-- [ ] **Trial Secretary Report** — AKC-required trial secretary report. Scope: trial. Reference: `docs/mySWT/akc_trial_secretary_report.png`.
-- [ ] **Judge's Certification Report** — AKC judge certification form. Scope: trial. Reference: `docs/mySWT/akc_judge_certification.png`.
-- [ ] **Trial Chairman Report** — AKC trial chairman report. Scope: trial. Reference: `docs/mySWT/akc_trial_chair.png`.
+- [ ] **Phase 2 Reports (6 total)** — Show Catalog, Result Catalog, Judge's Schedule, Trial Secretary Report, Judge's Certification, Trial Chairman Report. Plan: `docs/superpowers/plans/2026-04-09-phase2-reports.md`. 8 tasks, TDD, ~60 steps.
 
 ---
 

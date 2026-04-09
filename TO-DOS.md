@@ -17,18 +17,6 @@ Items to address in future sessions.
 
 ---
 
-## Refactor Replication Query Layer — Structural Cleanup (2026-04-07)
-
-- [ ] **Extract `withReplicationFallback()` helper** — The try-replication / catch-fallback-to-PostgREST pattern is duplicated verbatim across 40+ functions in `showQueries.ts`, `trialQueries.ts`, `classQueries.ts`, `entry-query-lookups.ts`, `entry-query-search.ts`, `dogQueries.ts`, `armbandQueries.ts`, and `waitlistQueries.ts`. **Problem:** Each function contains ~10 lines of identical boilerplate (try/catch, `startTime`, `logQuery`, `createDatabaseError`). A bug fix or logging change must be applied to 40+ locations. **Solution:** Extract a generic `withReplicationFallback<T>(replicationFn, postgrestFn, table, operation)` wrapper in `apps/myk9show/src/services/database/replicationUtils.ts` that handles timing, error creation, and logging. Each query function collapses to a single `return withReplicationFallback(...)` call. ~800 LOC reduction estimated.
-
----
-
-## Avery Labels Follow-up — Post-Migration Cleanup (2026-04-08)
-
-- [ ] **Wire VenueWifiCard save mutation** — Connect the VenueWifiCard to a Supabase update mutation so secretaries can actually save venue WiFi info. **Problem:** Card currently shows "Coming soon" with disabled inputs because `onSave` is omitted — no data persists. **Files:** `apps/myk9show/src/components/secretary/VenueWifiCard.tsx`, `apps/myk9show/src/pages/secretary/ShowSettingsPage/index.tsx:113-116`. **Solution:** Create a mutation that updates `venue_wifi_network` and `venue_wifi_password` on the shows table. Pass as `onSave` prop in ShowSettingsPage. Load current WiFi values from the show record to pre-populate the card inputs (currently hardcoded to empty strings).
-
----
-
 ## Report Generation Phase 2 — Access Application Reports (2026-04-06)
 
 Port 6 reports from the Access application (mySWT). Phase 1 infrastructure (report engine, preview iframe, print dialog) is complete (PR #46). 6 stub entries exist in `reportRegistry.ts` with `enabled: false`. Access screenshots are in `docs/mySWT/`. Design spec: `docs/superpowers/specs/2026-04-06-report-generation-design.md`.
@@ -39,3 +27,9 @@ Port 6 reports from the Access application (mySWT). Phase 1 infrastructure (repo
 - [ ] **Trial Secretary Report** — AKC-required trial secretary report. Scope: trial. Reference: `docs/mySWT/akc_trial_secretary_report.png`.
 - [ ] **Judge's Certification Report** — AKC judge certification form. Scope: trial. Reference: `docs/mySWT/akc_judge_certification.png`.
 - [ ] **Trial Chairman Report** — AKC trial chairman report. Scope: trial. Reference: `docs/mySWT/akc_trial_chair.png`.
+
+---
+
+## AKC Electronic Results XML Export — 2026-04-09 08:25
+
+- **Build AKC XML results export for myK9Show** — Generate and email the AKC-format `electres.xml` results file so trial secretaries can submit results electronically directly from myK9Show. **Problem:** Trial secretaries currently use a Microsoft Access application (mySWT) to produce this XML file and email it to AKC. The goal is to replicate this workflow natively in myK9Show. **Files:** `docs/mySWT/mod_XML.bas` (VBA source — XML structure reference), `docs/mySWT/Norwegian Elkhound Association of America-Results_20260409082032.xml` (sample output — AKC schema `http://www.akc.org` / `electres.xsd`), `apps/myk9show/src/lib/reports/reportRegistry.ts`, `apps/myk9show/src/pages/secretary/ReportsPage/index.tsx`. **Solution:** (1) Build a TypeScript XML generator that produces the same `<sender>/<event>/<class>/<results>` structure (namespace `http://www.akc.org`, schema version 1.0). Map fields from existing entry/dog/owner queries — key fields: `akcDogRegnum`, `catalogNumber`, `courseTime`, `actionCode`, `resultCode`, placings, owner address, AKC JR handler info. (2) Surface as a "Export to AKC" action on the ReportsPage or trial settings page — generates the XML file and triggers download. (3) Add optional mailto link pre-filled with AKC's submission email address so the secretary can attach and send. No new migration needed if we use existing entry data.

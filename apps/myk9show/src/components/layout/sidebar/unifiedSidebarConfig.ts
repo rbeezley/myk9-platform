@@ -2,8 +2,18 @@
  * Unified Sidebar Configuration Builder
  *
  * Builds a single SidebarConfig from the user's active roles.
- * Browse section is always visible; role-specific sections appear
- * only when the user holds the corresponding role.
+ *
+ * Section Ordering (priority/visual hierarchy):
+ * 1. Admin (if SITE_ADMIN)
+ * 2. Manage (if SECRETARY, CLUB_ADMIN, or SITE_ADMIN)
+ * 3. Judging (if JUDGE)
+ * 4. My Shows (if EXHIBITOR with other roles)
+ * 5. Browse (always visible for non-exhibitor-only users)
+ * 6. My Club (if CLUB_ADMIN or SITE_ADMIN with club context)
+ *
+ * This ordering ensures primary role-based navigation appears first,
+ * followed by browsing/discovery, then secondary management sections.
+ * Exhibitor-only users get a simplified, role-agnostic sidebar.
  */
 
 import {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { buildUnifiedSidebarConfig } from '@/components/layout/sidebar/unifiedSidebarConfig';
 import { UserRole } from '@/types/auth-types';
 
@@ -123,6 +123,69 @@ describe('buildUnifiedSidebarConfig', () => {
       const browseIndex = config.groups.findIndex(g => g.title === 'Browse');
       const manageIndex = config.groups.findIndex(g => g.title === 'Manage');
       expect(browseIndex).toBeGreaterThan(manageIndex);
+    });
+  });
+
+  describe('sidebar section ordering (priority order)', () => {
+    it('verifies global ordering: Admin > Manage > Judging > My Shows > Browse > My Club', () => {
+      // This test documents the intended visual priority order for users
+      // with multiple roles. More operational/critical sections appear first.
+
+      // Test case: admin + secretary + judge + exhibitor (all roles)
+      const config = buildUnifiedSidebarConfig(
+        [UserRole.SITE_ADMIN, UserRole.SECRETARY, UserRole.JUDGE, UserRole.EXHIBITOR],
+        { clubId: 'club-1', clubName: 'Test Club' }
+      );
+
+      const sectionTitles = config.groups.map(g => g.title);
+
+      // Extract the order of role-specific sections
+      const adminIndex = sectionTitles.indexOf('Admin');
+      const manageIndex = sectionTitles.indexOf('Manage');
+      const judgingIndex = sectionTitles.indexOf('Judging');
+      const myShowsIndex = sectionTitles.indexOf('My Shows');
+      const browseIndex = sectionTitles.indexOf('Browse');
+      const myClubIndex = sectionTitles.indexOf('My Club');
+
+      // Verify ordering: Admin (first) → Manage → Judging → My Shows → Browse → My Club (last)
+      expect(adminIndex).toBeLessThan(manageIndex);
+      expect(manageIndex).toBeLessThan(judgingIndex);
+      expect(judgingIndex).toBeLessThan(myShowsIndex);
+      expect(myShowsIndex).toBeLessThan(browseIndex);
+      expect(browseIndex).toBeLessThan(myClubIndex);
+    });
+
+    it('preserves exhibitor-only structure (no reordering)', () => {
+      // Exhibitor-only users have 4 untitled groups in their own order
+      const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+      expect(config.groups).toHaveLength(4);
+      config.groups.forEach(g => {
+        expect(g.title).toBe('');
+      });
+    });
+
+    it('admin with secretary shows Manage after Admin', () => {
+      const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN, UserRole.SECRETARY]);
+      const titles = config.groups.map(g => g.title);
+
+      const adminIdx = titles.indexOf('Admin');
+      const manageIdx = titles.indexOf('Manage');
+
+      expect(adminIdx).toBeGreaterThanOrEqual(0);
+      expect(manageIdx).toBeGreaterThanOrEqual(0);
+      expect(adminIdx).toBeLessThan(manageIdx);
+    });
+
+    it('judge with exhibitor shows Judging before Browse', () => {
+      const config = buildUnifiedSidebarConfig([UserRole.JUDGE, UserRole.EXHIBITOR]);
+      const titles = config.groups.map(g => g.title);
+
+      const judgingIdx = titles.indexOf('Judging');
+      const browseIdx = titles.indexOf('Browse');
+
+      expect(judgingIdx).toBeGreaterThanOrEqual(0);
+      expect(browseIdx).toBeGreaterThanOrEqual(0);
+      expect(judgingIdx).toBeLessThan(browseIdx);
     });
   });
 });

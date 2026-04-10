@@ -12,6 +12,7 @@ import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQueries';
 import { replicatedClassesTable } from '@/services/replication';
 import { queryClient } from '@/lib/queryClient';
+import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import StandardDialog from '@/components/common/StandardDialog';
 import {
   AlertDialog,
@@ -461,7 +462,12 @@ const TrialDetailsPage: React.FC = () => {
                 // Refresh both data layers so UI reflects the new judge
                 await replicatedClassesTable.sync('');
                 useTrialStore.getState().loadTrialClasses();
-                queryClient.invalidateQueries({ queryKey: ['classes'] });
+                // Invalidate specific query keys for classes
+                queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+                if (currentTrial?.id) {
+                  queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentTrial.id) });
+                }
+                queryClient.invalidateQueries({ queryKey: classKeys.detail(selectedClassForEdit.id) });
               } catch {
                 // Non-blocking — class data already saved
               }

@@ -187,7 +187,7 @@ Deno.serve(async (req: Request) => {
     const { data: registration, error: regError } = await supabase
       .from('registrations')
       .select(
-        '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message, club_id), person:people(first_name, last_name, email, auth_user_id)'
+        '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message, club_id, secretary_email), person:people(first_name, last_name, email, auth_user_id)'
       )
       .eq('id', registrationId)
       .single();
@@ -260,6 +260,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Get show secretary email for CC (if available and enabled)
+    const secretaryEmail = registration.show?.secretary_email || null;
+
     const show = registration.show;
     const html = buildRegistrationEmailHtml({
       firstName: registration.person?.first_name || 'there',
@@ -282,6 +285,24 @@ Deno.serve(async (req: Request) => {
     });
 
     // Send via Resend with idempotency key
+    const emailPayload: {
+      from: string;
+      to: string;
+      subject: string;
+      html: string;
+      cc?: string[];
+    } = {
+      from: FROM_EMAIL,
+      to: recipientEmail,
+      subject: `Registration Confirmed — ${registration.confirmation_number || 'myK9Show'}`,
+      html,
+    };
+
+    // Add secretary as CC if available
+    if (secretaryEmail) {
+      emailPayload.cc = [secretaryEmail];
+    }
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -289,12 +310,7 @@ Deno.serve(async (req: Request) => {
         Authorization: `Bearer ${resendApiKey}`,
         'Idempotency-Key': registrationId,
       },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: recipientEmail,
-        subject: `Registration Confirmed — ${registration.confirmation_number || 'myK9Show'}`,
-        html,
-      }),
+      body: JSON.stringify(emailPayload),
     });
 
     let resendMessageId: string | undefined;

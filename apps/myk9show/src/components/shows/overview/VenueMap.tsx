@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { MapPin, Navigation } from 'lucide-react';
+import { ExternalLink, MapPin, Navigation } from 'lucide-react';
 
 interface VenueMapProps {
   location?: string | null;
@@ -10,8 +10,18 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
   if (!location?.trim()) return null;
 
   const encodedAddress = encodeURIComponent(location);
-  const mapSrc = `https://maps.google.com/maps?q=${encodedAddress}&output=embed`;
+  const embedApiKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY as string | undefined;
+  // The documented Embed API reliably handles short queries like "Olathe, KS".
+  // The keyless `maps.google.com/maps?q=...&output=embed` endpoint often returns
+  // a blank iframe for city/state-only locations, so we prefer the Embed API when
+  // an API key is configured and fall back to the keyless embed otherwise.
+  const mapSrc = embedApiKey
+    ? `https://www.google.com/maps/embed/v1/place?key=${embedApiKey}&q=${encodedAddress}`
+    : `https://maps.google.com/maps?q=${encodedAddress}&output=embed`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`;
+  // Documented search URL — always works even when the keyless iframe embed
+  // silently fails (no onError fires for content-level failures).
+  const viewOnMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
 
   return (
     <Card className="overflow-hidden">
@@ -31,15 +41,26 @@ export function VenueMap({ location, venueName }: VenueMapProps) {
             <div className="text-sm text-muted-foreground">{location}</div>
           </div>
         </div>
-        <a
-          href={directionsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
-        >
-          <Navigation className="h-4 w-4" />
-          Get Directions
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={directionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+          >
+            <Navigation className="h-4 w-4" />
+            Get Directions
+          </a>
+          <a
+            href={viewOnMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 h-12 px-4 text-sm font-medium rounded-lg border border-border bg-background hover:bg-accent transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" />
+            View on Google Maps
+          </a>
+        </div>
       </div>
     </Card>
   );

@@ -13,6 +13,7 @@ import { upsertClassJudgeAssignment } from '@/services/database/queries/judgeQue
 import { replicatedClassesTable } from '@/services/replication';
 import { useTrialStore } from '@/store/trialStore';
 import { queryClient } from '@/lib/queryClient';
+import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
@@ -128,7 +129,12 @@ const ClassDetailsPage: React.FC = () => {
             // Refresh both data layers so UI reflects the new judge
             await replicatedClassesTable.sync('');
             useTrialStore.getState().loadTrialClasses();
-            queryClient.invalidateQueries({ queryKey: ['classes'] });
+            // Invalidate specific query keys for classes
+            queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+            if (currentClass?.trialId) {
+              queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentClass.trialId) });
+            }
+            queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
           } catch (judgeError) {
             logger.warn('Failed to save judge assignment', 'classes', {
               classId,

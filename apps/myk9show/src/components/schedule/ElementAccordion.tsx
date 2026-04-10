@@ -1,4 +1,4 @@
-import { CLASS_STATUS } from '@myk9/core';
+import { CLASS_STATUS, getClassStatusBadgeClasses, getClassStatusDisplay } from '@myk9/core';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { ElementSummary } from './schedule-timeline.types';
 import { formatStartTime } from './schedule-timeline.utils';
@@ -17,6 +17,7 @@ export function ElementAccordion({ element, onNavigateToClass }: ElementAccordio
     : `${element.completedCount}/${element.totalCount}`;
 
   const formattedTime = formatStartTime(element.startTime) ?? 'TBD';
+  const badgeClasses = getClassStatusBadgeClasses(element.status);
 
   return (
     <Collapsible defaultOpen={isInProgress}>
@@ -30,15 +31,7 @@ export function ElementAccordion({ element, onNavigateToClass }: ElementAccordio
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{formattedTime}</span>
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] ${
-                isComplete
-                  ? 'bg-green-500/10 text-green-500'
-                  : isInProgress
-                    ? 'bg-amber-500/10 text-amber-500'
-                    : 'bg-muted text-muted-foreground'
-              }`}
-            >
+            <span className={`rounded px-1.5 py-0.5 text-[10px] ${badgeClasses}`}>
               {progressLabel}
             </span>
           </div>

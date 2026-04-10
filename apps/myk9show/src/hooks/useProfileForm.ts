@@ -135,6 +135,20 @@ export function useProfileForm() {
     }
   };
 
+  const reset = () => {
+    if (person) {
+      setValues({
+        firstName: person.firstName || '',
+        lastName: person.lastName || '',
+        phone: person.phone || '',
+        streetAddress: person.streetAddress || person.address || '',
+        city: person.city || '',
+        state: person.state || '',
+        zipCode: person.zipCode || '',
+      });
+    }
+  };
+
   return {
     values,
     setValue,
@@ -143,6 +157,7 @@ export function useProfileForm() {
     isDirty,
     saving,
     save,
+    reset,
     isLoading,
     person,
     personId,

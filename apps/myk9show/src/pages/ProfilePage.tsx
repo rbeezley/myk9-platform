@@ -266,16 +266,26 @@ export default function ProfilePage() {
             <Lock className="h-3.5 w-3.5" />
             Need to change your password?
           </Link>
-          <Button type="submit" disabled={!form.isDirty || !form.isValid || form.saving}>
-            {form.saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!form.isDirty || form.saving}
+              onClick={form.reset}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!form.isDirty || !form.isValid || form.saving}>
+              {form.saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
         </div>
       </form>
     </div>

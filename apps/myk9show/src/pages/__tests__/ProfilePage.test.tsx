@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock profile form hook
@@ -20,6 +20,7 @@ const mockFormReturn = {
   isDirty: false,
   saving: false,
   save: vi.fn(),
+  reset: vi.fn(),
   isLoading: false,
   person: {
     id: 'person-1',
@@ -131,5 +132,60 @@ describe('ProfilePage', () => {
 
     const saveButton = screen.getByRole('button', { name: 'Save Changes' });
     expect(saveButton).toBeDisabled();
+  });
+
+  it('renders Cancel button next to Save button', () => {
+    mockUseProfileForm.mockReturnValue({ ...mockFormReturn, isDirty: true, isValid: true });
+
+    renderPage();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+    expect(cancelButton).toBeInTheDocument();
+    expect(cancelButton).not.toBeDisabled();
+  });
+
+  it('cancel button is disabled when form is not dirty', () => {
+    mockUseProfileForm.mockReturnValue({ ...mockFormReturn, isDirty: false, isValid: true });
+
+    renderPage();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+    expect(cancelButton).toBeDisabled();
+  });
+
+  it('cancel button is disabled while saving', () => {
+    mockUseProfileForm.mockReturnValue({ ...mockFormReturn, isDirty: true, saving: true });
+
+    renderPage();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+    expect(cancelButton).toBeDisabled();
+  });
+
+  it('calls form.reset() when Cancel button is clicked', () => {
+    const resetFn = vi.fn();
+    mockUseProfileForm.mockReturnValue({
+      ...mockFormReturn,
+      isDirty: true,
+      saving: false,
+      reset: resetFn,
+    });
+
+    renderPage();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelButton);
+
+    expect(resetFn).toHaveBeenCalledOnce();
+  });
+
+  it('cancel button has outline variant', () => {
+    mockUseProfileForm.mockReturnValue({ ...mockFormReturn, isDirty: true, isValid: true });
+
+    renderPage();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+    // shadcn Button with variant="outline" adds border and secondary colors
+    expect(cancelButton).toHaveClass('border', 'bg-secondary');
   });
 });

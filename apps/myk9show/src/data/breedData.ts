@@ -212,6 +212,7 @@ export const AKC_BREEDS: BreedInfo[] = [
   { name: 'Canaan Dog', varieties: [], group: 'Herding' },
   { name: 'Cardigan Welsh Corgi', varieties: [], group: 'Herding' },
   { name: 'Collie', varieties: ['Rough', 'Smooth'], group: 'Herding' },
+  { name: 'Dutch Shepherd', varieties: ['Short Hair', 'Long Hair', 'Wire Hair'], group: 'Herding' },
   { name: 'Entlebucher Mountain Dog', varieties: [], group: 'Herding' },
   { name: 'Finnish Lapphund', varieties: [], group: 'Herding' },
   { name: 'German Shepherd Dog', varieties: [], group: 'Herding' },

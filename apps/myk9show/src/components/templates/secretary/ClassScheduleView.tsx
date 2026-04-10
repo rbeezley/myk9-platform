@@ -43,9 +43,26 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
   const schedule = useMemo(() => timeEngine.calculateSchedule(classes), [timeEngine, classes]);
   const stats = useMemo(() => timeEngine.getScheduleStats(schedule), [timeEngine, schedule]);
 
+  // Build a map of judgeId to judge name from the classes data
+  const judgeNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    classes.forEach(cls => {
+      if (cls.personnel?.judgeId && cls.personnel?.judgeName) {
+        map.set(cls.personnel.judgeId, cls.personnel.judgeName);
+      }
+    });
+    return map;
+  }, [classes]);
+
   // Get unique judges and elements for filtering
   const judges = Array.from(new Set(schedule.map(s => s.personnel.judgeId).filter(Boolean)));
   const elements = Array.from(new Set(schedule.map(s => s.element)));
+
+  // Helper to get judge display name
+  const getJudgeDisplayName = (judgeId: string | undefined) => {
+    if (!judgeId) return 'TBD';
+    return judgeNameMap.get(judgeId) || judgeId;
+  };
 
   // Filter schedule based on selected filters
   const filteredSchedule = schedule.filter(item => {
@@ -195,7 +212,7 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                   <SelectItem value="">All Judges</SelectItem>
                   {judges.map(judgeId => (
                     <SelectItem key={judgeId} value={judgeId || ''}>
-                      Judge {judgeId}
+                      {getJudgeDisplayName(judgeId)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -320,7 +337,7 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                   </div>
                   <div className="text-center">
                     <Badge variant="outline" className="text-xs">
-                      Judge {item.personnel.judgeId || 'TBD'}
+                      {getJudgeDisplayName(item.personnel.judgeId)}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-1">
@@ -341,7 +358,7 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                 <div key={judgeId} className="space-y-3">
                   <h3 className="font-semibold flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    Judge {judgeId}
+                    {getJudgeDisplayName(judgeId === 'Unassigned' ? undefined : judgeId)}
                     <Badge variant="outline">{judgeClasses.length} classes</Badge>
                   </h3>
                   <div className="grid gap-2">
@@ -382,7 +399,7 @@ export const ClassScheduleView: React.FC<ClassScheduleViewProps> = ({
                         <div className="text-sm font-mono">
                           {formatTime(item.calculatedStartTime)}
                         </div>
-                        <div className="text-sm">Judge {item.personnel.judgeId || 'TBD'}</div>
+                        <div className="text-sm">{getJudgeDisplayName(item.personnel.judgeId)}</div>
                         {getConflictIcon(item.conflicts)}
                       </div>
                     ))}

@@ -132,19 +132,199 @@ export function buildUnifiedSidebarConfig(
       ],
     });
   } else {
-    // Browse — visible for non-exhibitor-only users
-    groups.push({
-      title: 'Browse',
-      items: [
-        { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
-        { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
-        { title: 'People', href: '/people', icon: Users, description: 'Browse people' },
-        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
-        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
-      ],
-    });
+    // Multi-role users: Build sections in priority order
+    // 1. Admin section (highest priority)
+    if (hasAnyRole(userRoles, [UserRole.SITE_ADMIN])) {
+      groups.push({
+        title: 'Admin',
+        items: [
+          {
+            title: 'Dashboard',
+            href: '/admin/dashboard',
+            icon: LayoutDashboard,
+            description: 'System overview',
+          },
+          { title: 'Alerts', href: '/admin/alerts', icon: Bell, description: 'System alerts' },
+          {
+            title: 'Performance',
+            href: '/admin/performance',
+            icon: TrendingUp,
+            description: 'Performance metrics',
+          },
+          {
+            title: 'Analytics',
+            href: '/admin/analytics',
+            icon: BarChart3,
+            description: 'Usage analytics',
+          },
+          {
+            title: 'Data Lifecycle',
+            href: '/admin/data-lifecycle',
+            icon: Database,
+            description: 'Data management',
+          },
+          {
+            title: 'Performance Mode',
+            href: '/admin/performance-mode',
+            icon: Zap,
+            description: 'System performance controls',
+          },
+          {
+            title: 'Load Testing',
+            href: '/admin/load-testing',
+            icon: TestTube,
+            description: 'Load testing and benchmarks',
+          },
+          {
+            title: 'Sync',
+            href: '/admin/sync',
+            icon: RefreshCw,
+            description: 'Data synchronization',
+          },
+          { title: 'Users', href: '/admin/users', icon: Users, description: 'User accounts' },
+          {
+            title: 'Roles & Permissions',
+            href: '/admin/permissions',
+            icon: Shield,
+            description: 'Access control',
+          },
+          {
+            title: 'Permission Audit',
+            href: '/admin/permissions/audit',
+            icon: FileSearch,
+            description: 'Security audit',
+          },
+          {
+            title: 'Templates',
+            href: '/admin/templates',
+            icon: FileText,
+            description: 'Show and class templates',
+          },
+          {
+            title: 'Onboarding',
+            href: '/admin/onboarding',
+            icon: UserPlus,
+            description: 'Club onboarding requests',
+          },
+        ],
+      });
+    }
 
-    // My Shows (exhibitor with other roles)
+    // 2. Manage section (secretary / club admin)
+    if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
+      groups.push({
+        title: 'Manage',
+        items: [
+          {
+            title: 'Pipeline',
+            href: '/secretary/dashboard',
+            icon: LayoutDashboard,
+            description: 'Show management pipeline',
+          },
+          {
+            title: 'Create Show',
+            href: '/secretary/create-show',
+            icon: Plus,
+            description: 'Start a new show',
+          },
+          {
+            title: 'Entries',
+            href: '/secretary/entries',
+            icon: FileText,
+            description: 'Manage show entries',
+          },
+          {
+            title: 'Day-of Ops',
+            href: '/secretary/day-of',
+            icon: ClipboardCheck,
+            description: 'Walk-ins, scratches, move-ups',
+          },
+          {
+            title: 'Check-In',
+            href: '/secretary/check-in',
+            icon: UserCheck,
+            description: 'Check-in status and management',
+          },
+          {
+            title: 'Volunteers',
+            href: '/secretary/volunteers',
+            icon: Users,
+            description: 'Schedule and manage volunteers',
+          },
+          {
+            title: 'Tasks',
+            href: '/secretary/tasks',
+            icon: KanbanSquare,
+            description: 'Kanban task board',
+          },
+          {
+            title: 'Run Orders',
+            href: '/secretary/run-order',
+            icon: List,
+            description: 'Class scheduling and ordering',
+          },
+          {
+            title: 'Settings',
+            href: '/secretary/settings',
+            icon: Settings,
+            description: 'Results visibility and check-in settings',
+          },
+          {
+            title: 'Wait List',
+            href: '/secretary/waitlist',
+            icon: ClipboardList,
+            description: 'Manage wait lists and judge-day capacity',
+          },
+          {
+            title: 'Messages',
+            href: '/secretary/messages',
+            icon: MessageSquare,
+            description: 'Chat with exhibitors and participants',
+          },
+          {
+            title: 'Reports',
+            href: '/secretary/reports',
+            icon: FileBarChart,
+            description: 'Generate and print reports',
+          },
+          {
+            title: 'Submit Results',
+            href: '/secretary/results-submission',
+            icon: Send,
+            description: 'Send results to AKC, UKC, and others',
+          },
+        ],
+      });
+    }
+
+    // 3. Judging section
+    if (hasAnyRole(userRoles, [UserRole.JUDGE])) {
+      groups.push({
+        title: 'Judging',
+        items: [
+          {
+            title: 'Dashboard',
+            href: '/judge/dashboard',
+            icon: LayoutDashboard,
+            description: "Today's assignments",
+          },
+          {
+            title: 'My Stats',
+            href: '/judge/stats',
+            icon: BarChart3,
+            description: 'Season performance',
+          },
+          {
+            title: 'Check-In',
+            href: '/judge/check-in',
+            icon: ClipboardCheck,
+            description: 'Class check-in management',
+          },
+        ],
+      });
+    }
+
+    // 4. My Shows section (exhibitor with other roles)
     if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
       groups.push({
         title: 'My Shows',
@@ -182,224 +362,45 @@ export function buildUnifiedSidebarConfig(
         ],
       });
     }
-  }
 
-  // Judging
-  if (hasAnyRole(userRoles, [UserRole.JUDGE])) {
+    // 5. Browse section (always visible for non-exhibitor-only users)
     groups.push({
-      title: 'Judging',
+      title: 'Browse',
       items: [
-        {
-          title: 'Dashboard',
-          href: '/judge/dashboard',
-          icon: LayoutDashboard,
-          description: "Today's assignments",
-        },
-        {
-          title: 'My Stats',
-          href: '/judge/stats',
-          icon: BarChart3,
-          description: 'Season performance',
-        },
-        {
-          title: 'Check-In',
-          href: '/judge/check-in',
-          icon: ClipboardCheck,
-          description: 'Class check-in management',
-        },
+        { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
+        { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
+        { title: 'People', href: '/people', icon: Users, description: 'Browse people' },
+        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
+        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
       ],
     });
-  }
 
-  // Manage (secretary / club admin / site admin)
-  if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
-    groups.push({
-      title: 'Manage',
-      items: [
-        {
-          title: 'Pipeline',
-          href: '/secretary/dashboard',
-          icon: LayoutDashboard,
-          description: 'Show management pipeline',
-        },
-        {
-          title: 'Create Show',
-          href: '/secretary/create-show',
-          icon: Plus,
-          description: 'Start a new show',
-        },
-        {
-          title: 'Entries',
-          href: '/secretary/entries',
-          icon: FileText,
-          description: 'Manage show entries',
-        },
-        {
-          title: 'Day-of Ops',
-          href: '/secretary/day-of',
-          icon: ClipboardCheck,
-          description: 'Walk-ins, scratches, move-ups',
-        },
-        {
-          title: 'Check-In',
-          href: '/secretary/check-in',
-          icon: UserCheck,
-          description: 'Check-in status and management',
-        },
-        {
-          title: 'Volunteers',
-          href: '/secretary/volunteers',
-          icon: Users,
-          description: 'Schedule and manage volunteers',
-        },
-        {
-          title: 'Tasks',
-          href: '/secretary/tasks',
-          icon: KanbanSquare,
-          description: 'Kanban task board',
-        },
-        {
-          title: 'Run Orders',
-          href: '/secretary/run-order',
-          icon: List,
-          description: 'Class scheduling and ordering',
-        },
-        {
-          title: 'Settings',
-          href: '/secretary/settings',
-          icon: Settings,
-          description: 'Results visibility and check-in settings',
-        },
-        {
-          title: 'Wait List',
-          href: '/secretary/waitlist',
-          icon: ClipboardList,
-          description: 'Manage wait lists and judge-day capacity',
-        },
-        {
-          title: 'Messages',
-          href: '/secretary/messages',
-          icon: MessageSquare,
-          description: 'Chat with exhibitors and participants',
-        },
-        {
-          title: 'Reports',
-          href: '/secretary/reports',
-          icon: FileBarChart,
-          description: 'Generate and print reports',
-        },
-        {
-          title: 'Submit Results',
-          href: '/secretary/results-submission',
-          icon: Send,
-          description: 'Send results to AKC, UKC, and others',
-        },
-      ],
-    });
-  }
-
-  // My Club (club admin — only if club context is available)
-  if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
-    groups.push({
-      title: 'My Club',
-      items: [
-        {
-          title: 'Our Shows',
-          href: `/shows?club=${clubContext.clubId}`,
-          icon: Calendar,
-          description: `Shows for ${clubContext.clubName}`,
-        },
-        {
-          title: 'Members',
-          href: '/club-admin/members',
-          icon: Users,
-          description: 'Manage club members',
-        },
-        {
-          title: 'Club Profile',
-          href: `/clubs/${clubContext.clubId}`,
-          icon: Building2,
-          description: 'Club details and settings',
-        },
-      ],
-    });
-  }
-
-  // Admin
-  if (hasAnyRole(userRoles, [UserRole.SITE_ADMIN])) {
-    groups.push({
-      title: 'Admin',
-      items: [
-        {
-          title: 'Dashboard',
-          href: '/admin/dashboard',
-          icon: LayoutDashboard,
-          description: 'System overview',
-        },
-        { title: 'Alerts', href: '/admin/alerts', icon: Bell, description: 'System alerts' },
-        {
-          title: 'Performance',
-          href: '/admin/performance',
-          icon: TrendingUp,
-          description: 'Performance metrics',
-        },
-        {
-          title: 'Analytics',
-          href: '/admin/analytics',
-          icon: BarChart3,
-          description: 'Usage analytics',
-        },
-        {
-          title: 'Data Lifecycle',
-          href: '/admin/data-lifecycle',
-          icon: Database,
-          description: 'Data management',
-        },
-        {
-          title: 'Performance Mode',
-          href: '/admin/performance-mode',
-          icon: Zap,
-          description: 'System performance controls',
-        },
-        {
-          title: 'Load Testing',
-          href: '/admin/load-testing',
-          icon: TestTube,
-          description: 'Load testing and benchmarks',
-        },
-        {
-          title: 'Sync',
-          href: '/admin/sync',
-          icon: RefreshCw,
-          description: 'Data synchronization',
-        },
-        { title: 'Users', href: '/admin/users', icon: Users, description: 'User accounts' },
-        {
-          title: 'Roles & Permissions',
-          href: '/admin/permissions',
-          icon: Shield,
-          description: 'Access control',
-        },
-        {
-          title: 'Permission Audit',
-          href: '/admin/permissions/audit',
-          icon: FileSearch,
-          description: 'Security audit',
-        },
-        {
-          title: 'Templates',
-          href: '/admin/templates',
-          icon: FileText,
-          description: 'Show and class templates',
-        },
-        {
-          title: 'Onboarding',
-          href: '/admin/onboarding',
-          icon: UserPlus,
-          description: 'Club onboarding requests',
-        },
-      ],
-    });
+    // 6. My Club section (club admin — only if club context is available)
+    if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
+      groups.push({
+        title: 'My Club',
+        items: [
+          {
+            title: 'Our Shows',
+            href: `/shows?club=${clubContext.clubId}`,
+            icon: Calendar,
+            description: `Shows for ${clubContext.clubName}`,
+          },
+          {
+            title: 'Members',
+            href: '/club-admin/members',
+            icon: Users,
+            description: 'Manage club members',
+          },
+          {
+            title: 'Club Profile',
+            href: `/clubs/${clubContext.clubId}`,
+            icon: Building2,
+            description: 'Club details and settings',
+          },
+        ],
+      });
+    }
   }
 
   // Determine header/footer branding based on highest role

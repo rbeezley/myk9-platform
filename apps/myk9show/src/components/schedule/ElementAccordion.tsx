@@ -1,4 +1,5 @@
-import { CLASS_STATUS, getClassStatusBadgeClasses, getClassStatusDisplay } from '@myk9/core';
+import { useState } from 'react';
+import { CLASS_STATUS, getClassStatusBadgeClasses } from '@myk9/core';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import type { ElementSummary } from './schedule-timeline.types';
 import { formatStartTime } from './schedule-timeline.utils';
@@ -19,8 +20,10 @@ export function ElementAccordion({ element, onNavigateToClass }: ElementAccordio
   const formattedTime = formatStartTime(element.startTime) ?? 'TBD';
   const badgeClasses = getClassStatusBadgeClasses(element.status);
 
+  const [isOpen, setIsOpen] = useState(isInProgress);
+
   return (
-    <Collapsible defaultOpen={isInProgress}>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className="rounded-md border border-border bg-card">
         <CollapsibleTrigger className="flex w-full items-center justify-between p-2.5 text-left">
           <div className="flex items-center gap-1.5">

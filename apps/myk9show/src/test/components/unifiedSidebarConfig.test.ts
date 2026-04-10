@@ -77,8 +77,8 @@ describe('buildUnifiedSidebarConfig', () => {
   describe('exhibitor + judge (multi-role)', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR, UserRole.JUDGE]);
 
-    it('gets Browse section', () => {
-      expect(config.groups[0].title).toBe('Browse');
+    it('gets Judging section first (role navigation before browse)', () => {
+      expect(config.groups[0].title).toBe('Judging');
     });
 
     it('gets My Shows section', () => {
@@ -87,25 +87,42 @@ describe('buildUnifiedSidebarConfig', () => {
       expect(myShows!.items[0].title).toBe('Dashboard');
     });
 
-    it('gets Judging section', () => {
-      const judging = config.groups.find(g => g.title === 'Judging');
-      expect(judging).toBeDefined();
+    it('gets Browse section after role sections', () => {
+      const browse = config.groups.find(g => g.title === 'Browse');
+      expect(browse).toBeDefined();
+      const browseIndex = config.groups.findIndex(g => g.title === 'Browse');
+      const judgingIndex = config.groups.findIndex(g => g.title === 'Judging');
+      expect(browseIndex).toBeGreaterThan(judgingIndex);
     });
   });
 
   describe('non-exhibitor users', () => {
-    it('admin gets Browse + Admin', () => {
+    it('admin gets Admin section first (before Browse)', () => {
       const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
-      expect(config.groups[0].title).toBe('Browse');
+      expect(config.groups[0].title).toBe('Admin');
       const admin = config.groups.find(g => g.title === 'Admin');
       expect(admin).toBeDefined();
     });
 
-    it('secretary gets Browse + Manage', () => {
+    it('admin has Browse section after Admin', () => {
+      const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+      const browseIndex = config.groups.findIndex(g => g.title === 'Browse');
+      const adminIndex = config.groups.findIndex(g => g.title === 'Admin');
+      expect(browseIndex).toBeGreaterThan(adminIndex);
+    });
+
+    it('secretary gets Manage section first (before Browse)', () => {
       const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-      expect(config.groups[0].title).toBe('Browse');
+      expect(config.groups[0].title).toBe('Manage');
       const manage = config.groups.find(g => g.title === 'Manage');
       expect(manage).toBeDefined();
+    });
+
+    it('secretary has Browse section after Manage', () => {
+      const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+      const browseIndex = config.groups.findIndex(g => g.title === 'Browse');
+      const manageIndex = config.groups.findIndex(g => g.title === 'Manage');
+      expect(browseIndex).toBeGreaterThan(manageIndex);
     });
   });
 });

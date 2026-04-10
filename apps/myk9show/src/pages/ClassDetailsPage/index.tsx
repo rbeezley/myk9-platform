@@ -119,30 +119,33 @@ const ClassDetailsPage: React.FC = () => {
   const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
     if (classId && currentClass) {
       try {
-        await updateClass(classId, data as Partial<ClassData>);
-
-        // Save judge assignment separately via judge_assignments table
+        // Save judge assignment FIRST (with replication sync) before updateClass,
+        // so React Query's onSuccess refetch reads fresh judge data from replication cache
         const judgeId = (data as Record<string, unknown>).judgeId as string | undefined;
         if (judgeId !== undefined && parentShow?.id) {
           try {
             await upsertClassJudgeAssignment(parentShow.id, classId, judgeId);
-            // Refresh both data layers so UI reflects the new judge
+            // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data
             await replicatedClassesTable.sync('');
-            useTrialStore.getState().loadTrialClasses();
-            // Invalidate specific query keys for classes
-            queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-            if (currentClass?.trialId) {
-              queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentClass.trialId) });
-            }
-            queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
           } catch (judgeError) {
             logger.warn('Failed to save judge assignment', 'classes', {
               classId,
               error: judgeError instanceof Error ? judgeError.message : String(judgeError),
             });
-            toast.warning('Class saved, but judge assignment could not be saved');
+            // Continue to class update even if judge assignment fails
           }
         }
+
+        // Now update class — its onSuccess invalidation will refetch fresh judge data
+        await updateClass(classId, data as Partial<ClassData>);
+
+        useTrialStore.getState().loadTrialClasses();
+        // Invalidate specific query keys for classes (safety net after fresh refetch)
+        queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+        if (currentClass?.trialId) {
+          queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentClass.trialId) });
+        }
+        queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
 
         toast.success('Class updated successfully');
       } catch (error) {

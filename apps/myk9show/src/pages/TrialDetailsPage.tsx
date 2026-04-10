@@ -452,26 +452,29 @@ const TrialDetailsPage: React.FC = () => {
         {...(parentShow?.id !== undefined && { showId: parentShow.id })}
         onSave={async classData => {
           if (selectedClassForEdit?.id) {
-            updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });
-
-            // Save judge assignment separately via judge_assignments table
+            // Save judge assignment FIRST (with replication sync) before updateClass,
+            // so React Query's onSuccess refetch reads fresh judge data from replication cache
             const judgeId = (classData as Record<string, unknown>).judgeId as string | undefined;
             if (judgeId !== undefined && parentShow?.id) {
               try {
                 await upsertClassJudgeAssignment(parentShow.id, selectedClassForEdit.id, judgeId);
-                // Refresh both data layers so UI reflects the new judge
+                // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data
                 await replicatedClassesTable.sync('');
-                useTrialStore.getState().loadTrialClasses();
-                // Invalidate specific query keys for classes
-                queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-                if (currentTrial?.id) {
-                  queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentTrial.id) });
-                }
-                queryClient.invalidateQueries({ queryKey: classKeys.detail(selectedClassForEdit.id) });
               } catch {
-                // Non-blocking — class data already saved
+                // Non-blocking — continue to class update
               }
             }
+
+            // Now update class — its onSuccess invalidation will refetch fresh judge data
+            await updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });
+
+            useTrialStore.getState().loadTrialClasses();
+            // Invalidate specific query keys for classes (safety net after fresh refetch)
+            queryClient.invalidateQueries({ queryKey: classKeys.lists() });
+            if (currentTrial?.id) {
+              queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentTrial.id) });
+            }
+            queryClient.invalidateQueries({ queryKey: classKeys.detail(selectedClassForEdit.id) });
 
             setEditClassPanelOpen(false);
             setSelectedClassForEdit(null);

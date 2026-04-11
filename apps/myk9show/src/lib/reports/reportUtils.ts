@@ -163,6 +163,14 @@ export function getOrgTitle(element?: string): string {
   return 'Dog Sport';
 }
 
+export function sortByHandler(entries: ReportEntry[]): ReportEntry[] {
+  return [...entries].sort((a, b) => a.handler.localeCompare(b.handler));
+}
+
+export function sortByBreed(entries: ReportEntry[]): ReportEntry[] {
+  return [...entries].sort((a, b) => a.breed.localeCompare(b.breed));
+}
+
 export function mapDbEntryToReportEntry(
   dbEntry: {
     id: string;

@@ -534,4 +534,151 @@ body {
     page-break-after: avoid;
   }
 }
+
+/* ─── Catalog layouts ─────────────────────────────────────────────────── */
+
+.catalog-trial-section {
+  margin-bottom: 24px;
+}
+
+.catalog-trial-header {
+  font-size: 14px;
+  font-weight: bold;
+  border-bottom: 2px solid #14b8a6;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+}
+
+.catalog-class-section {
+  margin-bottom: 20px;
+}
+
+.catalog-class-header {
+  font-size: 13px;
+  font-weight: bold;
+  background: #f0fdfa;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+}
+
+.catalog-class-summary {
+  font-size: 10px;
+  color: #555;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.catalog-empty {
+  color: #888;
+  font-style: italic;
+  font-size: 11px;
+}
+
+/* ─── AKC Form layouts ────────────────────────────────────────────────── */
+
+.form-section {
+  margin-bottom: 16px;
+}
+
+.form-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.form-table td {
+  padding: 4px 8px;
+  vertical-align: top;
+}
+
+.form-label {
+  font-weight: bold;
+  white-space: nowrap;
+  width: 180px;
+  font-size: 11px;
+}
+
+.form-value {
+  border-bottom: 1px solid #000;
+  min-width: 160px;
+  font-size: 11px;
+}
+
+.form-address {
+  font-size: 10px;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.form-question {
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.form-checkbox-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.form-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.form-inline-label {
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.form-blank-lines {
+  margin-top: 6px;
+}
+
+.form-blank-line {
+  border-bottom: 1px solid #000;
+  min-height: 20px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.form-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.form-signature-section {
+  margin-top: 32px;
+  border-top: 1px solid #ccc;
+  padding-top: 16px;
+}
+
+.signature-line {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  margin-bottom: 16px;
+}
+
+.signature-label {
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+.signature-blank {
+  border-bottom: 1px solid #000;
+  flex: 1;
+  min-height: 18px;
+  display: block;
+}
+
+.total-row td {
+  border-top: 2px solid #000;
+}
 `.trim();

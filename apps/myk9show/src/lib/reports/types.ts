@@ -16,6 +16,15 @@ export interface ReportEntry {
   searchTimeSeconds: number | null;
   totalFaults: number | null;
   finalPlacement: number | null;
+  // Class/trial context — populated for show-level and trial-level catalog reports
+  classId?: string;
+  classElement?: string;
+  classLevel?: string;
+  classSection?: string;
+  trialId?: string;
+  trialNumber?: string;
+  trialDate?: string;
+  judgeName?: string;
 }
 
 export interface ReportSortOption {
@@ -50,6 +59,21 @@ export interface ReportProps {
   showDates?: string;
   dogId?: string;
   trialId?: string;
+  // For show-scoped reports: all trials and classes in the show
+  allTrials?: Array<{
+    id: string;
+    date: string;
+    trialNumber: string;
+    judgeName?: string;
+  }>;
+  allClasses?: Array<{
+    id: string;
+    trialId: string;
+    element: string;
+    level: string;
+    section?: string;
+    judgeName?: string;
+  }>;
 }
 
 export interface ReportDefinition {

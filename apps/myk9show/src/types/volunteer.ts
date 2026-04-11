@@ -1,5 +1,5 @@
 /** Ring roles assigned per-class */
-export const RING_ROLES = ['Gate Steward', 'Timer', 'Ring Steward'] as const;
+export const RING_ROLES = ['Table Steward', 'Gate Steward', 'Timer', 'Ring Steward'] as const;
 
 /** General duties assigned per-show */
 export const GENERAL_DUTY_ROLES = ['Hospitality', 'Equipment', 'Ring Setup', 'Ribbons'] as const;

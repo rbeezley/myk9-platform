@@ -7,8 +7,8 @@ import {
 
 describe('volunteer types', () => {
   describe('RING_ROLES', () => {
-    it('contains exactly 3 ring roles', () => {
-      expect(RING_ROLES).toEqual(['Gate Steward', 'Timer', 'Ring Steward']);
+    it('contains exactly 4 ring roles', () => {
+      expect(RING_ROLES).toEqual(['Table Steward', 'Gate Steward', 'Timer', 'Ring Steward']);
     });
   });
 
@@ -19,8 +19,8 @@ describe('volunteer types', () => {
   });
 
   describe('ALL_VOLUNTEER_ROLES', () => {
-    it('contains all 7 roles', () => {
-      expect(ALL_VOLUNTEER_ROLES).toHaveLength(7);
+    it('contains all 8 roles', () => {
+      expect(ALL_VOLUNTEER_ROLES).toHaveLength(8);
       expect(ALL_VOLUNTEER_ROLES).toEqual([...RING_ROLES, ...GENERAL_DUTY_ROLES]);
     });
   });

@@ -75,8 +75,9 @@ export interface ReportProps {
     trialId: string;
     element: string;
     level: string;
-    section?: string;
+    section?: string | null;
     judgeName?: string;
+    stewards?: Record<string, string>;
   }>;
   includeEstimatedTime?: boolean;
 }

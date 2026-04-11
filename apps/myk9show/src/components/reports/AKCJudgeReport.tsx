@@ -46,9 +46,15 @@ export const AKCJudgeReport: React.FC<ReportProps> = ({ showName, clubName, tria
             <td className="form-value">___________________________</td>
           </tr>
           <tr>
+            <td className="form-label">Show Name:</td>
+            <td className="form-value" colSpan={3}>
+              {showName ?? ''}
+            </td>
+          </tr>
+          <tr>
             <td className="form-label">Club Name:</td>
             <td className="form-value" colSpan={3}>
-              {clubName ?? showName ?? '___________'}
+              {clubName ?? '___________'}
             </td>
           </tr>
           <tr>

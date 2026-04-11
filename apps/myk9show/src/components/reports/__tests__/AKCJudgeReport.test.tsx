@@ -30,10 +30,15 @@ describe('AKCJudgeReport', () => {
     expect(screen.getByText(/04\/12\/2026/)).toBeInTheDocument();
   });
 
-  it('renders at least one yes/no question with checkboxes', () => {
+  it('renders at least 3 yes/no question sections with checkboxes', () => {
     render(<AKCJudgeReport {...baseProps} />);
     const yesCheckboxes = screen.getAllByText(/☐ Yes/);
-    expect(yesCheckboxes.length).toBeGreaterThan(0);
+    expect(yesCheckboxes.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('renders show name when provided', () => {
+    render(<AKCJudgeReport {...baseProps} />);
+    expect(screen.getByText('Spring Scent Trial 2026')).toBeInTheDocument();
   });
 
   it('renders a signature line', () => {

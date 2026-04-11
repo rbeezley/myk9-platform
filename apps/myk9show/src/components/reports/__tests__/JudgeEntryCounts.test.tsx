@@ -106,4 +106,9 @@ describe('JudgeEntryCounts', () => {
     // 2 entries × 45s = 90s = 1:30
     expect(screen.getByText('1:30')).toBeInTheDocument();
   });
+
+  it('shows estimated time column when includeEstimatedTime=true', () => {
+    render(<JudgeEntryCounts {...baseProps} includeEstimatedTime={true} />);
+    expect(screen.getAllByText('Est. Time').length).toBeGreaterThan(0);
+  });
 });

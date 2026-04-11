@@ -27,7 +27,7 @@ describe('AKCJudgeReport', () => {
 
   it('renders trial date in header', () => {
     render(<AKCJudgeReport {...baseProps} />);
-    expect(screen.getByText(/04\/12\/2026/)).toBeInTheDocument();
+    expect(screen.getByText(/4\/12\/2026/)).toBeInTheDocument();
   });
 
   it('renders at least 3 yes/no question sections with checkboxes', () => {

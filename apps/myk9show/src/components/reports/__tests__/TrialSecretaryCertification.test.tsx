@@ -63,6 +63,6 @@ describe('TrialSecretaryCertification', () => {
 
   it('renders trial date', () => {
     render(<TrialSecretaryCertification {...baseProps} />);
-    expect(screen.getByText(/04\/12\/2026/)).toBeInTheDocument();
+    expect(screen.getByText(/4\/12\/2026/)).toBeInTheDocument();
   });
 });

@@ -39,7 +39,7 @@ describe('TrialSecretaryReport', () => {
 
   it('shows trial date', () => {
     render(<TrialSecretaryReport {...baseProps} />);
-    expect(screen.getByText(/04\/12\/2026/)).toBeInTheDocument();
+    expect(screen.getByText(/4\/12\/2026/)).toBeInTheDocument();
   });
 
   it('shows entry count', () => {

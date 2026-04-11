@@ -82,10 +82,12 @@ export interface ReportProps {
   includeEstimatedTime?: boolean;
 }
 
+export type ReportCategory = 'operational' | 'organization' | 'statistics' | 'financial';
+
 export interface ReportDefinition {
   id: string;
   name: string;
-  category: string;
+  category: ReportCategory;
   scopes: ('show' | 'trial' | 'class')[];
   sortOptions: ReportSortOption[];
   defaultSort: string;

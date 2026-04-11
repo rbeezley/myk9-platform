@@ -10,6 +10,7 @@ import { JudgesSchedule } from '@/components/reports/JudgesSchedule';
 import { TrialSecretaryReport } from '@/components/reports/TrialSecretaryReport';
 import { JudgesCertification } from '@/components/reports/JudgesCertification';
 import { TrialChairmanReport } from '@/components/reports/TrialChairmanReport';
+import { FinancialReport } from '@/components/reports/FinancialReport';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -165,6 +166,19 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: TrialChairmanReport,
+    enabled: true,
+  },
+  {
+    id: 'financial-report',
+    name: 'Financial Report',
+    category: 'organization',
+    scopes: ['show'],
+    sortOptions: [
+      { value: 'accepted', label: 'Accepted Entries' },
+      { value: 'waitlist', label: 'Waitlisted Entries' },
+    ],
+    defaultSort: 'accepted',
+    component: FinancialReport,
     enabled: true,
   },
 ];

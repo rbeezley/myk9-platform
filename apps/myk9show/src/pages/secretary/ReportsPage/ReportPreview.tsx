@@ -64,6 +64,11 @@ function mapEntries(dbEntries: DbEntry[], trial?: DbTrial, classData?: DbClass):
     );
     return {
       ...base,
+      ...(entry.entry_fee != null ? { entryFee: Number(entry.entry_fee) } : {}),
+      ...(entry.payment_status
+        ? { paymentStatus: entry.payment_status as NonNullable<ReportEntry['paymentStatus']> }
+        : {}),
+      ...(entry.payment_method ? { paymentMethod: entry.payment_method as string } : {}),
       ...(trial
         ? {
             trialId: trial.id,

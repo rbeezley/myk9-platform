@@ -16,6 +16,10 @@ export interface ReportEntry {
   searchTimeSeconds: number | null;
   totalFaults: number | null;
   finalPlacement: number | null;
+  // Financial fields — populated when DB has entry_fee/payment columns
+  entryFee?: number;
+  paymentStatus?: 'accepted' | 'waitlisted' | 'withdrawn';
+  paymentMethod?: string;
   // Class/trial context — populated for show-level and trial-level catalog reports
   classId?: string;
   classElement?: string;

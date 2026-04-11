@@ -11,7 +11,7 @@ You have a show date, a premium list, and a list of judges. Your job is to trans
 
 ### Steps
 
-1. You open the Secretary Dashboard → review your upcoming shows list.
+1. You open **Mission Control** (the secretary home screen) → review your upcoming shows list.
 2. You click **Create Show** → `ShowCreationWizardPage` opens at Step 1 (Show Details).
 3. You fill in show name, sanctioning organization (AKC / UKC / Other), start/end dates, entry fees, and entry open/close dates → click **Next**.
 4. You are on Step 2 (Trial Configuration) → add each trial with its date/time, event number, and trial type; repeat for every trial in the show → click **Next**.
@@ -31,7 +31,7 @@ You have a show date, a premium list, and a list of judges. Your job is to trans
 
 ```mermaid
 flowchart TD
-    A([Secretary Dashboard]) --> B[Click 'Create Show']
+    A([Mission Control]) --> B[Click 'Create Show']
     B --> C[ShowCreationWizardPage\nStep 1: Show Details]
     C --> D[Step 2: Trial Configuration\nadd trials + dates]
     D --> E[Step 3: Class Selection\npick classes, assign judges]
@@ -53,11 +53,11 @@ Entries start arriving — online via Stripe and by mail with paper checks. You 
 3. A class fills to its limit → you click **Waitlist** on the next pending entry → entry appears in `WaitlistManagementPage`.
 4. A spot opens (someone scratches) → you open `WaitlistManagementPage` → click **Offer Spot** on the next waitlist entry → entry is promoted to Accepted.
 5. A paper check arrives in the mail → you click **Add Entry** in `EntryManagementPage` → search for the dog/person (or create records if new) → select the class → enter check number and amount paid → **Save**.
-6. You select all accepted entries → click the bulk email action → send entry confirmations; you send a separate message to waitlisted exhibitors.
+6. You select all accepted entries → click the bulk email action → `SecretaryMessagesPage` opens → send entry confirmations; you send a separate message to waitlisted exhibitors.
 
 ### Current-state notes
 
-- mySWT emails exhibitors via Outlook or webmail using 10 message templates (§3.14); myK9Show's communication tab exists but outbound email (confirmations, waitlist notices, rejections) is a fall 2026 deliverable in active development — the UI scaffolding is present but not fully wired.
+- mySWT emails exhibitors via Outlook or webmail using 10 message templates (§3.14); outbound email (confirmations, waitlist notices, rejections) is a fall 2026 deliverable in active development — `SecretaryMessagesPage` is routed and scaffolded but not fully wired.
 - mySWT handled waitlists on paper; `WaitlistManagementPage` is a purpose-built replacement with judge capacity visibility (`JudgeCapacityOverview`).
 - Rejection notices (outbound email on reject) are a fall deliverable; the status change itself works today but the triggered email does not yet fire.
 - Pre-show exhibitor-initiated move-ups are a post-fall deliverable per `docs/roles/secretary.md`; class changes requested before show day are handled manually and recorded as a new entry/scratch pair.
@@ -139,12 +139,12 @@ The last dog has run. Now you need to verify every result is correct, release th
 4. You print / download each report → distribute to judges and the club's trial chairman.
 5. You open `ResultsSubmissionPage` → select the show → preview the generated AKC XML → click **Download XML** → email the file to eresults@akc.org with the club name, event dates, and event numbers in the message body.
 6. You return to `EntryManagementPage` → filter by show → review the accepted entries list against payments recorded → note any outstanding balances for the club treasurer.
-7. You open `ShowManagementPage` → click **Close Out Show** → all open trials and classes are marked closed.
+7. You open `ShowManagementPage` → click **Close Out Show** → all open trials and classes are marked closed. _(Fall 2026 deliverable — not yet built; verify action name and cascade behavior before Phase 2 implementation.)_
 
 ### Current-state notes
 
 - mySWT auto-populates fillable AKC PDF forms (Trial Secretary Report, High in Trial, §3.15) by writing directly into PDFs via Adobe Reader. `ReportsPage` generates equivalent reports; the exact AKC PDF format fidelity should be verified against AKC's current submission requirements before the first fall show.
-- mySWT closes show/trial/class in explicit steps from three separate ribbon buttons (§3.30); myK9Show's Close Out action in `ShowManagementPage` cascades to all trials and classes in one step.
+- mySWT closes show/trial/class in explicit steps from three separate ribbon buttons (§3.30); a **Close Out Show** action in `ShowManagementPage` that cascades to all trials and classes is a fall 2026 deliverable — not yet built.
 - Financial reconciliation is a fall 2026 deliverable; today `EntryManagementPage` shows payment data per entry but there is no dedicated reconciliation report or totals view.
 - Result labels (§3.28, ribbon stickers for qualifying dogs) appear in `ReportsPage` — confirm label template format against Avery 18262 stock before first use.
 - The AKC XML submission path (`ResultsSubmissionPage`) downloads the file; the secretary still emails it manually to eresults@akc.org, matching the mySWT workflow (§3.14 Send Results to AKC).

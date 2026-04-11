@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { reportRegistry, getReportById, getEnabledReports } from '@/lib/reports/reportRegistry';
 
 describe('reportRegistry', () => {
-  it('has 12 total entries', () => {
-    expect(reportRegistry).toHaveLength(12);
+  it('has 22 total entries', () => {
+    expect(reportRegistry).toHaveLength(22);
   });
 
-  it('has exactly 12 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(12);
+  it('has exactly 22 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(22);
   });
 
   it('has all unique IDs', () => {
@@ -75,6 +75,41 @@ describe('reportRegistry', () => {
       expect(report?.scopes).toContain('trial');
       expect(report?.scopes).toContain('class');
       expect(report?.defaultSort).toBe('placement');
+    });
+  });
+
+  describe('Phase 2 extended reports', () => {
+    const PHASE_2_EXTENDED_IDS = [
+      'show-entry-counts',
+      'trial-entry-counts',
+      'breed-entry-counts',
+      'judge-entry-counts',
+      'financial-report',
+      'waitlist-report',
+      'steward-report',
+      'result-labels',
+      'akc-judge-report',
+      'trial-secretary-certification',
+    ];
+
+    it('all phase 2 extended reports are registered and enabled', () => {
+      for (const id of PHASE_2_EXTENDED_IDS) {
+        const report = getReportById(id);
+        expect(report, `${id} should be registered`).toBeDefined();
+        expect(report!.enabled, `${id} should be enabled`).toBe(true);
+      }
+    });
+
+    it('all phase 2 extended reports have non-placeholder components', () => {
+      for (const id of PHASE_2_EXTENDED_IDS) {
+        const report = getReportById(id)!;
+        expect(() => report.component).not.toThrow();
+      }
+    });
+
+    it('financial-report has category financial', () => {
+      const report = getReportById('financial-report');
+      expect(report?.category).toBe('financial');
     });
   });
 

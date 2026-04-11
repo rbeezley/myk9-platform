@@ -11,6 +11,15 @@ import { TrialSecretaryReport } from '@/components/reports/TrialSecretaryReport'
 import { JudgesCertification } from '@/components/reports/JudgesCertification';
 import { TrialChairmanReport } from '@/components/reports/TrialChairmanReport';
 import { FinancialReport } from '@/components/reports/FinancialReport';
+import { ShowEntryCounts } from '@/components/reports/ShowEntryCounts';
+import { TrialEntryCounts } from '@/components/reports/TrialEntryCounts';
+import { BreedEntryCounts } from '@/components/reports/BreedEntryCounts';
+import { JudgeEntryCounts } from '@/components/reports/JudgeEntryCounts';
+import { WaitlistReport } from '@/components/reports/WaitlistReport';
+import { StewardReport } from '@/components/reports/StewardReport';
+import { ResultLabels } from '@/components/reports/ResultLabels';
+import { AKCJudgeReport } from '@/components/reports/AKCJudgeReport';
+import { TrialSecretaryCertification } from '@/components/reports/TrialSecretaryCertification';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -171,7 +180,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'financial-report',
     name: 'Financial Report',
-    category: 'organization',
+    category: 'financial',
     scopes: ['show'],
     sortOptions: [
       { value: 'accepted', label: 'Accepted Entries' },
@@ -179,6 +188,103 @@ export const reportRegistry: ReportDefinition[] = [
     ],
     defaultSort: 'accepted',
     component: FinancialReport,
+    enabled: true,
+  },
+  // Phase 2 Extended Scope
+  {
+    id: 'show-entry-counts',
+    name: 'Show Entry Counts',
+    category: 'statistics',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: ShowEntryCounts,
+    enabled: true,
+  },
+  {
+    id: 'trial-entry-counts',
+    name: 'Trial Entry Counts',
+    category: 'statistics',
+    scopes: ['trial'],
+    sortOptions: [],
+    defaultSort: '',
+    component: TrialEntryCounts,
+    enabled: true,
+  },
+  {
+    id: 'breed-entry-counts',
+    name: 'Breed Entry Counts',
+    category: 'statistics',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: BreedEntryCounts,
+    enabled: true,
+  },
+  {
+    id: 'judge-entry-counts',
+    name: 'Judge Entry Counts',
+    category: 'statistics',
+    scopes: ['show'],
+    sortOptions: [
+      { value: 'standard', label: 'Standard' },
+      { value: 'with-time', label: 'Include Estimated Time' },
+    ],
+    defaultSort: 'standard',
+    component: JudgeEntryCounts,
+    enabled: true,
+  },
+  {
+    id: 'waitlist-report',
+    name: 'Waitlist Report',
+    category: 'operational',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: WaitlistReport,
+    enabled: true,
+  },
+  {
+    id: 'steward-report',
+    name: "Steward's Report",
+    category: 'operational',
+    scopes: ['trial'],
+    sortOptions: [],
+    defaultSort: '',
+    component: StewardReport,
+    enabled: true,
+  },
+  {
+    id: 'result-labels',
+    name: 'Result Labels',
+    category: 'operational',
+    scopes: ['trial', 'class'],
+    sortOptions: [
+      { value: 'placement', label: 'Placement' },
+      { value: 'armband', label: 'Armband #' },
+    ],
+    defaultSort: 'placement',
+    component: ResultLabels,
+    enabled: true,
+  },
+  {
+    id: 'akc-judge-report',
+    name: "AKC Judge's Report",
+    category: 'organization',
+    scopes: ['trial'],
+    sortOptions: [],
+    defaultSort: '',
+    component: AKCJudgeReport,
+    enabled: true,
+  },
+  {
+    id: 'trial-secretary-certification',
+    name: 'Trial Secretary Certification',
+    category: 'organization',
+    scopes: ['trial'],
+    sortOptions: [],
+    defaultSort: '',
+    component: TrialSecretaryCertification,
     enabled: true,
   },
 ];

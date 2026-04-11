@@ -12,12 +12,7 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
   trial,
   entries,
 }) => {
-  const trialDate = trial?.date
-    ? (() => {
-        const [year, month, day] = trial.date.split('-').map(Number);
-        return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`;
-      })()
-    : '___________';
+  const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
   const entryCount = entries.length;
   const totalFee = (entryCount * AKC_FEE_PER_ENTRY).toFixed(2);
@@ -62,10 +57,9 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
             <td className="form-value">{judgeName}</td>
           </tr>
           <tr>
-            <td className="form-label">
-              ${AKC_FEE_PER_ENTRY.toFixed(2)} per entry × {entryCount} entries =
+            <td className="form-label" colSpan={2}>
+              ${AKC_FEE_PER_ENTRY.toFixed(2)} per entry × {entryCount} entries = ${totalFee} Total Service Charge
             </td>
-            <td className="form-value">${totalFee} Total Service Charge</td>
           </tr>
         </tbody>
       </table>

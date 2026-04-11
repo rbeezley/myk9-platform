@@ -7,7 +7,7 @@ import type { ReportEntry } from './types';
 
 export function formatReportDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
-  return `${month}/${day}/${year}`;
+  return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`;
 }
 
 export function formatReportTime(time: string | number | null | undefined): string {

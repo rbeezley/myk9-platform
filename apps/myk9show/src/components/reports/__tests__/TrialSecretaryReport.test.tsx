@@ -61,4 +61,9 @@ describe('TrialSecretaryReport', () => {
     render(<TrialSecretaryReport {...baseProps} />);
     expect(screen.getByText(/Signature/i)).toBeInTheDocument();
   });
+
+  it('shows fee calculation', () => {
+    render(<TrialSecretaryReport {...baseProps} />);
+    expect(screen.getByText(/\$3\.50 per entry × 12 entries = \$42\.00 Total Service Charge/)).toBeInTheDocument();
+  });
 });

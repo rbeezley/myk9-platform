@@ -25,7 +25,12 @@ export const JudgeEntryCounts: React.FC<ReportProps> = ({
 }) => {
   const showTime = sortOrder === 'with-time' || includeEstimatedTime === true;
 
-  // Group classes by judge
+  const entriesByClassId = new Map<string, number>();
+  for (const e of entries) {
+    const key = e.classId ?? '';
+    entriesByClassId.set(key, (entriesByClassId.get(key) ?? 0) + 1);
+  }
+
   const judgeMap = new Map<string, typeof allClasses>();
   for (const cls of allClasses ?? []) {
     const judge = cls.judgeName ?? 'TBD';
@@ -34,8 +39,19 @@ export const JudgeEntryCounts: React.FC<ReportProps> = ({
   }
 
   const orgTitle = organization ? `${organization} ` : '';
-  let grandTotal = 0;
-  let grandTimeSeconds = 0;
+
+  const judgeData = [...judgeMap.entries()].map(([judge, classes]) => {
+    const rows = (classes ?? []).map(cls => {
+      const count = entriesByClassId.get(cls.id) ?? 0;
+      return { cls, count, estSeconds: count * 45 };
+    });
+    const judgeTotal = rows.reduce((s, r) => s + r.count, 0);
+    const judgeTimeSeconds = rows.reduce((s, r) => s + r.estSeconds, 0);
+    return { judge, rows, judgeTotal, judgeTimeSeconds };
+  });
+
+  const grandTotal = judgeData.reduce((s, d) => s + d.judgeTotal, 0);
+  const grandTimeSeconds = judgeData.reduce((s, d) => s + d.judgeTimeSeconds, 0);
 
   return (
     <div className="report-page">
@@ -45,17 +61,7 @@ export const JudgeEntryCounts: React.FC<ReportProps> = ({
         {showName && <p className="report-subtitle">{orgTitle}{showName}</p>}
       </div>
 
-      {[...judgeMap.entries()].map(([judge, classes]) => {
-        const rows = (classes ?? []).map(cls => {
-          const count = entries.filter(e => e.classId === cls.id).length;
-          const estSeconds = count * 45;
-          return { cls, count, estSeconds };
-        });
-        const judgeTotal = rows.reduce((s, r) => s + r.count, 0);
-        const judgeTimeSeconds = rows.reduce((s, r) => s + r.estSeconds, 0);
-        grandTotal += judgeTotal;
-        grandTimeSeconds += judgeTimeSeconds;
-
+      {judgeData.map(({ judge, rows, judgeTotal, judgeTimeSeconds }) => {
         return (
           <div key={judge} className="stats-section">
             <div className="stats-section-header">{judge}</div>

@@ -1,9 +1,6 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
-
-function formatFee(amount: number): string {
-  return `$${amount.toFixed(2)}`;
-}
+import { formatFee } from '@/utils/format';
 
 export const FinancialReport: React.FC<ReportProps> = ({
   showName,
@@ -18,7 +15,6 @@ export const FinancialReport: React.FC<ReportProps> = ({
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
   const variantLabel = filterStatus === 'accepted' ? 'Accepted Entries' : 'Waitlisted Entries';
 
-  // Group by handler
   const exhibitorMap = new Map<string, typeof filtered>();
   for (const entry of filtered) {
     const handler = entry.handler || 'Unknown';
@@ -28,16 +24,20 @@ export const FinancialReport: React.FC<ReportProps> = ({
 
   const grandTotal = filtered.reduce((sum, e) => sum + (e.entryFee ?? 0), 0);
 
+  const header = (
+    <div className="report-header">
+      <div className="report-logo">myK9Show</div>
+      <h1 className="report-title">{orgTitle} Financial Report</h1>
+      {showName && <p className="report-subtitle">{showName}</p>}
+      {showDates && <p className="report-subtitle">{showDates}</p>}
+      <p className="report-subtitle">{variantLabel}</p>
+    </div>
+  );
+
   if (filtered.length === 0) {
     return (
       <div className="report-page">
-        <div className="report-header">
-          <div className="report-logo">myK9Show</div>
-          <h1 className="report-title">{orgTitle} Financial Report</h1>
-          {showName && <p className="report-subtitle">{showName}</p>}
-          {showDates && <p className="report-subtitle">{showDates}</p>}
-          <p className="report-subtitle">{variantLabel}</p>
-        </div>
+        {header}
         <p className="report-empty-state">No entries match the selected filter.</p>
       </div>
     );
@@ -45,13 +45,7 @@ export const FinancialReport: React.FC<ReportProps> = ({
 
   return (
     <div className="report-page">
-      <div className="report-header">
-        <div className="report-logo">myK9Show</div>
-        <h1 className="report-title">{orgTitle} Financial Report</h1>
-        {showName && <p className="report-subtitle">{showName}</p>}
-        {showDates && <p className="report-subtitle">{showDates}</p>}
-        <p className="report-subtitle">{variantLabel}</p>
-      </div>
+      {header}
 
       {[...exhibitorMap.entries()].map(([handler, exhibitorEntries]) => {
         const subtotal = exhibitorEntries.reduce((sum, e) => sum + (e.entryFee ?? 0), 0);

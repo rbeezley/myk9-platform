@@ -6,20 +6,23 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
   const waitlisted = entries.filter(e => e.paymentStatus === 'waitlisted');
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
 
+  const header = (
+    <div className="report-header">
+      <div className="report-logo">myK9Show</div>
+      <h1 className="report-title">{orgTitle} Waitlist</h1>
+      {showName && <p className="report-subtitle">{showName}</p>}
+    </div>
+  );
+
   if (waitlisted.length === 0) {
     return (
       <div className="report-page">
-        <div className="report-header">
-          <div className="report-logo">myK9Show</div>
-          <h1 className="report-title">{orgTitle} Waitlist</h1>
-          {showName && <p className="report-subtitle">{showName}</p>}
-        </div>
+        {header}
         <p className="report-empty-state">No waitlisted entries.</p>
       </div>
     );
   }
 
-  // Group by trialId → classId
   const trialMap = new Map<string, { trialNumber: string; trialDate: string; classes: Map<string, { element: string; level: string; entries: ReportEntry[] }> }>();
   for (const entry of waitlisted) {
     const trialKey = entry.trialId ?? 'unknown';
@@ -44,17 +47,13 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
 
   return (
     <div className="report-page">
-      <div className="report-header">
-        <div className="report-logo">myK9Show</div>
-        <h1 className="report-title">{orgTitle} Waitlist</h1>
-        {showName && <p className="report-subtitle">{showName}</p>}
-      </div>
+      {header}
 
       {[...trialMap.entries()].map(([trialId, trial]) => (
         <div key={trialId} className="catalog-trial-section">
           <h2 className="catalog-trial-header">
             Trial {trial.trialNumber}
-            {trial.trialDate ? `   ${formatReportDate(trial.trialDate)}` : ''}
+            {trial.trialDate ? ` — ${formatReportDate(trial.trialDate)}` : ''}
           </h2>
 
           {[...trial.classes.entries()].map(([classId, cls]) => (

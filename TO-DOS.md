@@ -26,6 +26,20 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 ---
 
+## Phase 2 — Exhibitor Golden Path Items
+
+Items identified during Phase 0 journey review. Address while walking the exhibitor golden path in Phase 2.
+
+#### Rename `registrations` table → `enrollments`
+
+The `registrations` table (migration 054) stores one row per handler per show with a `MK9-XXXXXX` confirmation number sequence. In the dog sport world "registration" means a dog's AKC/UKC registration number — using the same word for show enrollment will cause confusion in the UI and in support conversations. Rename the table and all references to `enrollments` before building on top of it in Phase 2.
+
+#### Wire order confirmation number into checkout
+
+Today `CheckoutSuccessPage` shows a raw UUID from `stripe_orders`. The `registrations` table (soon `enrollments`) has a `MK9-000001` sequence but is never written to during checkout — the two systems are disconnected. Phase 2 must: (1) insert an `enrollments` row when payment succeeds, (2) link it to `stripe_orders`, (3) display the `MK9-XXXXXX` order confirmation number on `CheckoutSuccessPage` and in the confirmation email.
+
+---
+
 ## Testing Findings from 2026-04-10 Session — Triage in Phase 1
 
 During yesterday's manual testing session, 22 bugs and UX issues were logged in full detail. **Don't work these individually before Phase 0.** They will be formally triaged in Phase 1 against the journey maps produced in Phase 0, then either:

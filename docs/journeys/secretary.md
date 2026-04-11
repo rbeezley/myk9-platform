@@ -88,13 +88,15 @@ Show morning. The entry window is closed, the show is running, and your desk is 
 
 ### Steps
 
-1. You open `DayOfOperationsPage` for the show → see the class availability table and the check-in queue.
-2. An exhibitor arrives → you search by armband number or name → click **Check In** → status updates instantly.
-3. A new exhibitor arrives without a pre-entry → you open `DayOfEntryDialog` → find or create the dog and person records → assign to an available class → record payment → **Save**.
-4. An exhibitor cannot run → you open `ScratchDialog` → select the entry → confirm the scratch → class count updates.
-5. An exhibitor hands you a move-up form → you open `MoveUpDialog` → select the entry and the destination class → confirm → armband carries over.
-6. You open `RunOrderPage` for the trial → review the class sequence, ring assignments, and start times; drag to reorder if needed → **Export** the run order for ring stewards.
-7. You check the task board → `SecretaryTasksPage` (Kanban) → move open tasks to Done as stewards report back.
+1. You open `ReportsPage` → print scoresheets for each class → hand them to the judges before the first class starts. Judges are required to retain the handwritten scoresheets for one year.
+2. You open `DayOfOperationsPage` for the show → see the class availability table and the check-in queue.
+3. An exhibitor arrives → you search by armband number or name → click **Check In** → status updates instantly.
+4. A new exhibitor arrives without a pre-entry → you open `DayOfEntryDialog` → find or create the dog and person records → assign to an available class → record payment → **Save**.
+5. An exhibitor cannot run → you open `ScratchDialog` → select the entry → confirm the scratch → class count updates.
+6. An exhibitor hands you a move-up form → you open `MoveUpDialog` → select the entry and the destination class → confirm → armband carries over.
+7. You open `RunOrderPage` for the trial → review the class sequence, ring assignments, and start times; drag to reorder if needed → **Export** the run order for ring stewards.
+8. A class finishes → the judge returns the completed scoresheet → you open `ReportsPage` → print the **Preliminary Results** sheet for that class → post it on the wall for exhibitors to view. (Electronic release to exhibitor accounts is a future step; paper posting is the current standard.)
+9. You check the task board → `SecretaryTasksPage` (Kanban) → move open tasks to Done as stewards report back.
 
 ### Current-state notes
 
@@ -108,17 +110,20 @@ Show morning. The entry window is closed, the show is running, and your desk is 
 
 ```mermaid
 flowchart TD
-    A([DayOfOperationsPage]) --> B{Action needed?}
-    B -- Check-in --> C[Search by armband\nMark checked in]
-    B -- Day-of entry --> D[DayOfEntryDialog\ncreate/find dog → assign class → pay]
-    B -- Scratch --> E[ScratchDialog\nconfirm scratch]
-    B -- Move-up --> F[MoveUpDialog\nselect entry + destination class]
-    C --> G([Class counts updated])
-    D --> G
-    E --> G
-    F --> G
-    G --> H[RunOrderPage\nreview + export run order]
-    H --> I[SecretaryTasksPage\ntrack open tasks]
+    A([ReportsPage\nPrint scoresheets → give to judges]) --> B([DayOfOperationsPage])
+    B --> C{Action needed?}
+    C -- Check-in --> D[Search by armband\nMark checked in]
+    C -- Day-of entry --> E[DayOfEntryDialog\ncreate/find dog → assign class → pay]
+    C -- Scratch --> F[ScratchDialog\nconfirm scratch]
+    C -- Move-up --> G[MoveUpDialog\nselect entry + destination class]
+    D --> H([Class counts updated])
+    E --> H
+    F --> H
+    G --> H
+    H --> I[RunOrderPage\nreview + export run order]
+    I --> J[Class finishes\nJudge returns scoresheet]
+    J --> K[ReportsPage\nPrint Preliminary Results → post on wall]
+    K --> L[SecretaryTasksPage\ntrack open tasks]
 ```
 
 ---
@@ -132,11 +137,12 @@ The last dog has run. Now you need to verify every result is correct, release th
 1. You open `ResultsControlPage` → review each trial's classes; confirm all entries have a recorded result (pass / NQ / absent) → cross-check against paper scoresheets where needed.
 2. You toggle **Release Results** → results become visible to exhibitors in their accounts.
 3. You open `ReportsPage` → generate the following in order:
+   - Show Catalog (required AKC submission — printed and mailed to AKC along with the electronic results)
    - Results Catalog (full results per class, equivalent to mySWT §3.26)
    - Judge Report (per judge, equivalent to mySWT AKC Judge Certification)
    - Trial Secretary Report (equivalent to mySWT §3.15 AKC Trial Secretary Report)
    - Result labels (for qualifying ribbons, equivalent to mySWT §3.28)
-4. You print / download each report → distribute to judges and the club's trial chairman.
+4. You print / download each report → distribute to judges and the club's trial chairman → mail the printed Show Catalog to AKC.
 5. You open `ResultsSubmissionPage` → select the show → preview the generated AKC XML → click **Download XML** → email the file to eresults@akc.org with the club name, event dates, and event numbers in the message body.
 6. You return to `EntryManagementPage` → filter by show → review the accepted entries list against payments recorded → note any outstanding balances for the club treasurer.
 7. You open `ShowManagementPage` → click **Close Out Show** → all open trials and classes are marked closed. _(Fall 2026 deliverable — not yet built; verify action name and cascade behavior before Phase 2 implementation.)_

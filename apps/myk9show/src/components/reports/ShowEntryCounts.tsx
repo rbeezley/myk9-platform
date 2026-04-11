@@ -1,6 +1,8 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 
+type ClassGroup = { level: string; section: string; count: number };
+
 export const ShowEntryCounts: React.FC<ReportProps> = ({
   showName,
   organization,
@@ -8,14 +10,16 @@ export const ShowEntryCounts: React.FC<ReportProps> = ({
   entries,
 }) => {
   // Group entries by element → (level, section)
-  const elementMap = new Map<string, Map<string, number>>();
+  const elementMap = new Map<string, Map<string, ClassGroup>>();
   for (const entry of entries) {
     const element = entry.classElement ?? 'Unknown';
-    const key =
-      [entry.classLevel ?? '', entry.classSection ?? ''].filter(Boolean).join(' / ') || 'General';
+    const level = entry.classLevel ?? '';
+    const section = entry.classSection ?? '';
+    const key = `${level}||${section}`;
     if (!elementMap.has(element)) elementMap.set(element, new Map());
     const classMap = elementMap.get(element)!;
-    classMap.set(key, (classMap.get(key) ?? 0) + 1);
+    if (!classMap.has(key)) classMap.set(key, { level, section, count: 0 });
+    classMap.get(key)!.count += 1;
   }
 
   const uniquePeople = new Set(entries.map(e => e.handler)).size;
@@ -33,22 +37,24 @@ export const ShowEntryCounts: React.FC<ReportProps> = ({
       </div>
 
       {[...elementMap.entries()].map(([element, classMap]) => {
-        const elementTotal = [...classMap.values()].reduce((s, n) => s + n, 0);
+        const elementTotal = [...classMap.values()].reduce((s, g) => s + g.count, 0);
         return (
           <div key={element} className="stats-section">
             <div className="stats-section-header">{element}</div>
             <table className="report-table">
               <thead>
                 <tr>
-                  <th>Level / Section</th>
+                  <th>Level</th>
+                  <th>Section</th>
                   <th>Entries</th>
                 </tr>
               </thead>
               <tbody>
-                {[...classMap.entries()].map(([classKey, count]) => (
-                  <tr key={classKey}>
-                    <td>{classKey}</td>
-                    <td>{count}</td>
+                {[...classMap.entries()].map(([key, group]) => (
+                  <tr key={key}>
+                    <td>{group.level}</td>
+                    <td>{group.section}</td>
+                    <td>{group.count}</td>
                   </tr>
                 ))}
               </tbody>

@@ -2564,15 +2564,21 @@ Column header labels match the Access screenshot exactly: "Table Steward", "Time
 
 Before wiring up the registry (Task 20), verify these possible overlaps with existing Phase 1 / Phase 2 reports:
 
-- [ ] **Step 1: Compare `docs/mySWT/preliminary_results.png` against the existing `ResultsSheet` (Phase 1)**
+- [x] **Step 1: Compare `docs/mySWT/preliminary_results.png` against the existing `ResultsSheet` (Phase 1)**
   - If the same, skip — no new component needed
   - If different, add a new task following the `ResultsSheet` pattern
-- [ ] **Step 2: Compare `docs/mySWT/show_catalog_addresses.png` against Task 2's `ShowCatalog`**
+- [x] **Step 2: Compare `docs/mySWT/show_catalog_addresses.png` against Task 2's `ShowCatalog`**
   - Likely a sort/option variant of Show Catalog that includes owner addresses
   - Add an `include-addresses` sort option to the Show Catalog registry entry rather than a new report
   - Add a conditional `<td>` block in `ShowCatalog.tsx` that renders owner address when this option is selected
   - **Data:** requires owner address fields from Supabase. If not yet populated in replication, this step reduces to "design note: blocked on owner address replication, defer to Phase 3"
-- [ ] **Step 3: Document reconciliation findings** in this plan file under Task 19
+- [x] **Step 3: Document reconciliation findings** in this plan file under Task 19
+
+### Reconciliation Results
+
+- **Preliminary Results (`preliminary_results.png`) vs `ResultsSheet.tsx`:** Same layout — identical columns (Place, Armband, Call Name, Breed, Handler, Qualified, Faults, Time) and same footer (Class Entries / Qualified Entries). `ResultsSheet` already renders with "Preliminary Results" in its title. No new component needed.
+- **Show Catalog with Addresses (`show_catalog_addresses.png`) vs `ShowCatalog.tsx`:** The addresses variant adds owner address fields (street, city, state, zip) per entry. The `people` table in Supabase has `street_address`, `city`, `state`, `zip_code`, but `ReportEntry` and `mapDbEntryToReportEntry` do not include these fields — the report pipeline only maps scoring/placement data. **Blocked on owner address replication; deferred to Phase 3.**
+- No changes to source files in this task. Task 20 (registry wiring) can proceed without the addresses variant.
 
 ---
 

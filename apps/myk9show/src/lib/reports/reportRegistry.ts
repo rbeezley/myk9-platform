@@ -4,6 +4,12 @@ import { ScoresheetReport } from '@/components/reports/ScoresheetReport';
 import { ResultsSheet } from '@/components/reports/ResultsSheet';
 import { ShowFlyerReport } from '@/components/reports/ShowFlyerReport';
 import { AKCScentWorkEntryForm } from '@/components/reports/AKCScentWorkEntryForm';
+import { ShowCatalog } from '@/components/reports/ShowCatalog';
+import { ResultCatalog } from '@/components/reports/ResultCatalog';
+import { JudgesSchedule } from '@/components/reports/JudgesSchedule';
+import { TrialSecretaryReport } from '@/components/reports/TrialSecretaryReport';
+import { JudgesCertification } from '@/components/reports/JudgesCertification';
+import { TrialChairmanReport } from '@/components/reports/TrialChairmanReport';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -89,36 +95,47 @@ export const reportRegistry: ReportDefinition[] = [
     enabled: true,
   },
 
-  // Phase 2 — stubs (disabled)
+  // Phase 2 — enabled
   {
     id: 'show-catalog',
     name: 'Show Catalog',
     category: 'operational',
     scopes: ['show', 'trial'],
-    sortOptions: [],
-    defaultSort: '',
-    component: PlaceholderReport,
-    enabled: false,
+    sortOptions: [
+      { value: 'armband', label: 'Armband #' },
+      { value: 'handler', label: 'Handler Name' },
+      { value: 'breed', label: 'Breed' },
+    ],
+    defaultSort: 'armband',
+    component: ShowCatalog,
+    enabled: true,
   },
   {
     id: 'result-catalog',
     name: 'Result Catalog',
     category: 'operational',
     scopes: ['show', 'trial'],
-    sortOptions: [],
-    defaultSort: '',
-    component: PlaceholderReport,
-    enabled: false,
+    sortOptions: [
+      { value: 'placement', label: 'Placement' },
+      { value: 'armband', label: 'Armband #' },
+      { value: 'handler', label: 'Handler Name' },
+    ],
+    defaultSort: 'placement',
+    component: ResultCatalog,
+    enabled: true,
   },
   {
     id: 'judges-schedule',
     name: "Judge's Schedule",
     category: 'operational',
     scopes: ['show'],
-    sortOptions: [],
-    defaultSort: '',
-    component: PlaceholderReport,
-    enabled: false,
+    sortOptions: [
+      { value: 'trial-date', label: 'Trial Date' },
+      { value: 'judge-name', label: 'Judge Name' },
+    ],
+    defaultSort: 'trial-date',
+    component: JudgesSchedule,
+    enabled: true,
   },
   {
     id: 'trial-secretary-report',
@@ -127,8 +144,8 @@ export const reportRegistry: ReportDefinition[] = [
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
-    component: PlaceholderReport,
-    enabled: false,
+    component: TrialSecretaryReport,
+    enabled: true,
   },
   {
     id: 'judges-certification',
@@ -137,8 +154,8 @@ export const reportRegistry: ReportDefinition[] = [
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
-    component: PlaceholderReport,
-    enabled: false,
+    component: JudgesCertification,
+    enabled: true,
   },
   {
     id: 'trial-chairman-report',
@@ -147,8 +164,8 @@ export const reportRegistry: ReportDefinition[] = [
     scopes: ['trial'],
     sortOptions: [],
     defaultSort: '',
-    component: PlaceholderReport,
-    enabled: false,
+    component: TrialChairmanReport,
+    enabled: true,
   },
 ];
 

@@ -6,8 +6,8 @@ describe('reportRegistry', () => {
     expect(reportRegistry).toHaveLength(12);
   });
 
-  it('has exactly 6 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(6);
+  it('has exactly 12 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(12);
   });
 
   it('has all unique IDs', () => {
@@ -78,8 +78,8 @@ describe('reportRegistry', () => {
     });
   });
 
-  describe('Phase 2 stub reports', () => {
-    const phase2Ids = [
+  describe('Phase 2 reports', () => {
+    const PHASE_2_IDS = [
       'show-catalog',
       'result-catalog',
       'judges-schedule',
@@ -88,11 +88,19 @@ describe('reportRegistry', () => {
       'trial-chairman-report',
     ];
 
-    it('all Phase 2 stubs are disabled', () => {
-      for (const id of phase2Ids) {
-        const report = getReportById(id);
-        expect(report, `${id} should exist`).toBeDefined();
-        expect(report?.enabled, `${id} should be disabled`).toBe(false);
+    it('all Phase 2 reports are enabled', () => {
+      for (const id of PHASE_2_IDS) {
+        const report = reportRegistry.find(r => r.id === id);
+        expect(report?.enabled, `${id} should be enabled`).toBe(true);
+      }
+    });
+
+    it('all Phase 2 reports have real components (not PlaceholderReport)', () => {
+      for (const id of PHASE_2_IDS) {
+        const report = reportRegistry.find(r => r.id === id);
+        expect(report?.component, `${id} should have a component`).toBeDefined();
+        const result = report?.component({ showName: 'Test', entries: [], sortOrder: '' });
+        expect(result, `${id} component should not return null`).not.toBeNull();
       }
     });
   });

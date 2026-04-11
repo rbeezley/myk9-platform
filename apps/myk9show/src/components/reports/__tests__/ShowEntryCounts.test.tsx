@@ -46,24 +46,26 @@ describe('ShowEntryCounts', () => {
   it('shows element total', () => {
     render(<ShowEntryCounts {...baseProps} />);
     // Container total = 3
-    expect(screen.getByText(/Container.*Total|Element Total.*3/i)).toBeInTheDocument();
+    expect(screen.getByText('Container Element Total: 3')).toBeInTheDocument();
   });
 
   it('shows show entry total', () => {
     render(<ShowEntryCounts {...baseProps} />);
-    // Total = 5 entries
-    expect(screen.getByText(/Show Entry Total.*5|Total.*5/i)).toBeInTheDocument();
+    const footer = document.querySelector('.stats-footer')!;
+    expect(footer).toHaveTextContent('Show Entry Total: 5');
   });
 
   it('shows unique people count', () => {
     render(<ShowEntryCounts {...baseProps} />);
-    // Unique handlers: Jane, Bob, Alice, Carol = 4
-    expect(screen.getByText(/People.*4|4.*People/i)).toBeInTheDocument();
+    const footer = document.querySelector('.stats-footer')!;
+    expect(footer).toHaveTextContent('People: 4');
   });
 
   it('shows unique dogs count', () => {
     render(<ShowEntryCounts {...baseProps} />);
-    // Unique dogs: Buddy, Max, Rex, Daisy = 4
-    expect(screen.getByText(/Dogs.*4|4.*Dogs/i)).toBeInTheDocument();
+    // registrationNumber is null for all, falls back to callName
+    // Unique dogs: Buddy (appears twice but same callName), Max, Rex, Daisy = 4
+    const footer = document.querySelector('.stats-footer')!;
+    expect(footer).toHaveTextContent('Dogs: 4');
   });
 });

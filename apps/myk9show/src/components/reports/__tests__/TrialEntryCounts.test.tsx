@@ -38,24 +38,24 @@ describe('TrialEntryCounts', () => {
   it('shows element total', () => {
     render(<TrialEntryCounts {...baseProps} />);
     // Container element total = 2
-    expect(screen.getByText(/Container.*Total|Element Total.*2/i)).toBeInTheDocument();
+    expect(screen.getByText('Container Element Total: 2')).toBeInTheDocument();
   });
 
   it('shows trial entry total', () => {
     render(<TrialEntryCounts {...baseProps} />);
-    // Total = 3 entries
-    expect(screen.getByText(/Trial Entry Total.*3|Total.*3/i)).toBeInTheDocument();
+    const footer = document.querySelector('.stats-footer')!;
+    expect(footer).toHaveTextContent('Trial Entry Total: 3');
   });
 
   it('shows unique people count', () => {
     render(<TrialEntryCounts {...baseProps} />);
-    // Unique handlers: Jane, Bob, Carlos = 3
-    expect(screen.getByText(/People.*3|3.*People/i)).toBeInTheDocument();
+    const footer = document.querySelector('.stats-footer')!;
+    expect(footer).toHaveTextContent('People: 3');
   });
 
   it('shows unique dogs count', () => {
     render(<TrialEntryCounts {...baseProps} />);
-    // Unique dogs: Buddy, Rex, Max = 3
-    expect(screen.getByText(/Dogs.*3|3.*Dogs/i)).toBeInTheDocument();
+    const footer = document.querySelector('.stats-footer')!;
+    expect(footer).toHaveTextContent('Dogs: 3');
   });
 });

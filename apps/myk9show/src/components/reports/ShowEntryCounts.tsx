@@ -23,7 +23,7 @@ export const ShowEntryCounts: React.FC<ReportProps> = ({
   }
 
   const uniquePeople = new Set(entries.map(e => e.handler)).size;
-  const uniqueDogs = new Set(entries.map(e => e.callName)).size;
+  const uniqueDogs = new Set(entries.map(e => e.registrationNumber ?? e.callName)).size;
   const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
 
   return (

@@ -111,6 +111,12 @@ describe('BreedEntryCounts', () => {
     expect(breedCells[2]).toBe('Labrador Retriever');
   });
 
+  it('renders showName and showDates in the header', () => {
+    render(<BreedEntryCounts {...baseProps} />);
+    expect(screen.getByText('Spring Scent Trial 2026')).toBeInTheDocument();
+    expect(screen.getByText('2026-04-12')).toBeInTheDocument();
+  });
+
   it('shows total breeds and total entries in footer', () => {
     render(<BreedEntryCounts {...baseProps} />);
     const footer = screen.getByText(/Total Breeds/i);

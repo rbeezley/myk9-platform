@@ -12,31 +12,6 @@ Higher-level planning documents that govern how the items below should be sequen
 
 ---
 
-## Active Pre-Work (execute now, before Phase 0)
-
-These two in-flight feature plans must complete before North Star Phase 0 begins. See the North Star plan (linked above) for sequencing rationale.
-
-### Report Generation Phase 2 — Access Application Reports (2026-04-06)
-
-Port reports from the Access application (mySWT) to reach parity with production `mySWT`. Phase 1 infrastructure (report engine, preview iframe, print dialog) is complete (PR #46). Stub entries exist in `reportRegistry.ts` with `enabled: false`. Access screenshots are in `docs/mySWT/`. Design spec: `docs/superpowers/specs/2026-04-06-report-generation-design.md`.
-
-- [ ] **Phase 2 Reports (16 total)** — Plan: [`docs/superpowers/plans/2026-04-09-phase2-reports.md`](docs/superpowers/plans/2026-04-09-phase2-reports.md). 20 tasks, TDD. **Scope expanded from 6 → 16 reports.**
-  - **Original 6:** Show Catalog, Result Catalog, Judge's Schedule, Trial Secretary Report, Judge's Certification, Trial Chairman Report (Tasks 1–8).
-  - **Additional 10:** Show/Trial/Breed/Judge Entry Counts, Financial Report (Accepted + Waitlist variants), Waitlist Report, Steward Report, Result Labels, AKC Judge's Report, Trial Secretary Certification (Tasks 9–20).
-  - **Infrastructure:** new show-scoped and trial-level rendering modes in `ReportPreview` via a `getReportRenderingMode` helper; extends `ReportEntry` / `ReportProps` with class/trial metadata and `allTrials` / `allClasses`.
-
-### AKC Electronic Results XML Export — 2026-04-09 08:25
-
-- [ ] **Build AKC XML results export for myK9Show** — Replace the stub `AKCScentWorkFormatter` with a real implementation that generates AKC-compliant `electres.xml` (namespace `http://www.akc.org`, schema version 1.0), wires `ResultsSubmissionPage` to real show data, and adds a one-click "Send to AKC" button that emails the XML via a new Supabase Edge Function. Plan: [`docs/superpowers/plans/2026-04-09-akc-xml-results-export.md`](docs/superpowers/plans/2026-04-09-akc-xml-results-export.md). **5 tasks, TDD.**
-  - **Task 1:** Update types in `packages/secretary` (new `AKCSubmissionData` + AKC-specific fields).
-  - **Task 2:** Implement real `AKCScentWorkFormatter` (pure TS — `<sender>/<event>/<class>/<results>`; maps `akcDogRegnum`, `catalogNumber`, `courseTime`, `actionCode`, `resultCode`, placings, owner address, AKC JR handler info).
-  - **Task 3:** Build `useAKCSubmissionData` React Query hook — fetches and assembles show/trial/entry/owner data from Supabase.
-  - **Task 4:** New `supabase/functions/send-results/` Edge Function — receives XML and sends via Resend (reuses `RESEND_API_KEY`), CC's the secretary. (Replaces the old mailto approach.)
-  - **Task 5:** Wire `ResultsSubmissionPage` to real data + Send button; update tests.
-  - **Reference:** `docs/mySWT/mod_XML.bas` (VBA source), `docs/mySWT/Norwegian Elkhound Association of America-Results_20260409082032.xml` (sample output). No new migration needed.
-
----
-
 ## Fall 2026 Stabilization Phases (North Star) — 2026-04-11
 
 The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy/2026-04-11-north-star-fall-2026.md`](docs/plans/strategy/2026-04-11-north-star-fall-2026.md). Task-level progress lives inside the plan document, not here.

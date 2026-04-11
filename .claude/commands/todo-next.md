@@ -12,13 +12,16 @@ allowed-tools:
 
 1. Read TO-DOS.md in the working directory (if doesn't exist, say "No outstanding todos" and exit)
 
-2. Parse and display todos:
-   - Extract all list items starting with `- **` (active todos)
-   - If none exist, say "No outstanding todos" and exit
+2. Parse and display todos grouped by North Star phase:
+   - Organize items under their parent `##` section headings (Pre-Work, Phase 0, Phase 1, Phase 2, Phase 3, Housekeeping)
+   - Within **Pre-Work** and **Housekeeping**: list each `- **` item individually
+   - Within **North Star Phases** (Phase 0–3): list each phase as a single item (the `- [ ] **Phase N…**` line), not the sub-items inside it
+   - Within **Testing Findings**: do NOT list individual sub-items — instead show a single line: "Testing Findings (NN items, triage in Phase 1)" where NN is the count of `- **` items in that section
+   - Skip the **Strategic Plans** section (it's context, not a todo)
+   - If no items remain, say "No outstanding todos" and exit
    - Display compact numbered list showing:
-     - Number (for selection)
-     - Bold title only (part between `**` markers)
-     - Date from h2 heading above it
+     - Section heading (bold, not numbered)
+     - Number (for selection), bold title, and date
    - Prompt: "Reply with the number of the todo you'd like to work on."
    - Wait for user to reply with a number
 
@@ -48,9 +51,22 @@ allowed-tools:
 ```
 Outstanding Todos:
 
-1. Add structured format to add-to-todos (2025-11-15 14:23)
-2. Create check-todos command (2025-11-15 14:23)
-3. Fix cookie-extractor MCP workflow (2025-11-14 09:15)
+**Pre-Work (execute now)**
+1. Phase 2 Reports (16 total) (2026-04-06)
+2. Build AKC XML results export (2026-04-09)
+
+**Fall 2026 Stabilization Phases**
+3. Phase 0 — Write Down the Truth (2026-04-11)
+4. Phase 1 — Quiet the Noise (2026-04-11)
+5. Phase 2 — Walk the Golden Paths (2026-04-11)
+6. Phase 3 — Real-User Testing (2026-04-11)
+
+**Testing Findings**
+   22 items — triage in Phase 1 (do not work individually before Phase 0)
+
+**Pre-Launch Housekeeping**
+7. CI-gated Vercel deploys
+8. Require PRs to merge into main
 
 Reply with the number of the todo you'd like to work on.
 ```

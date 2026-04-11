@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { TrialEntryCounts } from '../TrialEntryCounts';
 import type { ReportProps } from '@/lib/reports/types';
 

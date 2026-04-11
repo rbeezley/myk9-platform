@@ -10,7 +10,7 @@ const baseProps: ReportProps = {
   classData: {
     element: 'Container',
     level: 'Novice',
-    section: null,
+    section: '',
     timeLimitSeconds: null,
     areaCount: null,
     hidesText: null,

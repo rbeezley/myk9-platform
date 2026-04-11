@@ -67,9 +67,7 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
                   <tr>
                     <th>Armband</th>
                     <th>Call Name</th>
-                    <th>Handler</th>
-                    <th>Payment Method</th>
-                    <th>Entry Fee</th>
+                    <th>Owner</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -78,8 +76,6 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
                       <td>{entry.armband}</td>
                       <td>{entry.callName}</td>
                       <td>{entry.handler}</td>
-                      <td>{entry.paymentMethod ?? '—'}</td>
-                      <td>{entry.entryFee != null ? `$${entry.entryFee.toFixed(2)}` : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

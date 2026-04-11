@@ -1,9 +1,14 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
+import type { RingRole } from '@/types/volunteer';
 
-const ROLE_ORDER = ['Table Steward', 'Timer', 'Gate Steward', 'Ring Steward'] as const;
-const ROLE_LABELS = ['Table Steward', 'Timer Steward', 'Gate Steward', 'Ring Steward'];
+const ROLE_COLUMNS: { key: RingRole; label: string }[] = [
+  { key: 'Table Steward', label: 'Table Steward' },
+  { key: 'Timer',         label: 'Timer Steward' },
+  { key: 'Gate Steward',  label: 'Gate Steward'  },
+  { key: 'Ring Steward',  label: 'Ring Steward'  },
+];
 
 export const StewardReport: React.FC<ReportProps> = ({
   showName,
@@ -35,8 +40,8 @@ export const StewardReport: React.FC<ReportProps> = ({
             <th>Element</th>
             <th>Level</th>
             <th>Section</th>
-            {ROLE_LABELS.map(label => (
-              <th key={label}>{label}</th>
+            {ROLE_COLUMNS.map(col => (
+              <th key={col.key}>{col.label}</th>
             ))}
           </tr>
         </thead>
@@ -46,8 +51,8 @@ export const StewardReport: React.FC<ReportProps> = ({
               <td>{cls.element}</td>
               <td>{cls.level}</td>
               <td>{cls.section ?? ''}</td>
-              {ROLE_ORDER.map(role => (
-                <td key={role}>{cls.stewards?.[role] ?? ''}</td>
+              {ROLE_COLUMNS.map(col => (
+                <td key={col.key}>{cls.stewards?.[col.key] ?? ''}</td>
               ))}
             </tr>
           ))}

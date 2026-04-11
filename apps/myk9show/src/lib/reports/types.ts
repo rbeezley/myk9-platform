@@ -74,6 +74,7 @@ export interface ReportProps {
     section?: string;
     judgeName?: string;
   }>;
+  includeEstimatedTime?: boolean;
 }
 
 export interface ReportDefinition {

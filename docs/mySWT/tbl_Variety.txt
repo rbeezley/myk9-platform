@@ -1,0 +1,38 @@
+1,"Gronendael",77,4
+2,"Laekenois",24,3
+3,"Malinois",78,2
+4,"Tervueren",82,1
+5,"Toy",57,2
+6,"Miniature",155,1
+7,"Toy",70,3
+8,"Miniature",97,2
+9,"Standard",187,1
+10,"Miniature",15,2
+11,"Standard",15,1
+12,"Coated",17,2
+13,"Hairless",17,1
+14,"Rough",111,2
+15,"Smooth",111,1
+16,"Miniature",115,2
+17,"Standard",115,1
+18,"Toy",234,2
+19,"Standard",234,1
+20,"Grande Smooth",276,2
+21,"Grande Wire",276,1
+22,"Medio Smooth",276,4
+23,"Medio Wire",276,3
+24,"Pequeno Smooth",276,6
+25,"Pequeno Wired",276,5
+26,"Miniature",290,2
+27,"Standard",290,1
+30,"Toy",368,3
+31,"Miniature",368,2
+32,"Standard",368,1
+33,"Rough Faced",47,2
+34,"Smooth Faced",47,1
+35,"Orange & White",142,1
+36,"All other colors",142,2
+37,"Toy",378,2
+38,"Miniature",378,1
+39,"Miniature",260,2
+40,"Standard",260,1

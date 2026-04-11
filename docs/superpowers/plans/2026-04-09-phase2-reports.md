@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement 6 new Phase 2 reports (Show Catalog, Result Catalog, Judge's Schedule, Trial Secretary Report, Judge's Certification, Trial Chairman Report) in myK9Show.
+**Goal:** Implement 6 original Phase 2 reports (Show Catalog, Result Catalog, Judge's Schedule, Trial Secretary Report, Judge's Certification, Trial Chairman Report) plus 10 additional reports (Show/Trial/Breed/Judge Entry Counts, Financial Report with Accepted+Waitlist variants, Waitlist Report, Steward Report, Result Labels, AKC Judge's Report, Trial Secretary Certification) in myK9Show — total 16 report components, bringing parity with the Access `mySWT` production app.
 
 **Architecture:** Each report is a React component receiving `ReportProps`, rendered via `renderToStaticMarkup` into the iframe preview. Catalog and schedule reports (show-scoped) need a new rendering mode that passes all trials/classes/entries in one call. AKC organizational forms (Trial Secretary, Judge's Cert, Trial Chairman) need a trial-level rendering mode (one call per trial, not per class). `ReportPreview` is updated to support these modes using a `getReportRenderingMode` helper.
 
@@ -2210,6 +2210,533 @@ git commit -m "feat(reports): enable all 6 Phase 2 reports in registry"
 
 ---
 
+# Phase 2 Extended Scope: Additional Reports
+
+**Why this section exists.** Walking the Access app (`docs/mySWT/`) revealed 11 reports that exist in production but are in neither Phase 1 (already shipped) nor the original Phase 2 plan above. These are required for fall launch because real secretaries expect them from their Access workflow. Tasks 9–19 follow the same patterns as Tasks 2–7 — reference those for test/component boilerplate instead of duplicating it here.
+
+**Shared conventions for Tasks 9–19:**
+- Each new report component is a React FC<ReportProps> under `apps/myk9show/src/components/reports/`
+- Each has a matching test file under `apps/myk9show/src/components/reports/__tests__/`
+- Each test follows the same "render + assert key text/structure" pattern as Task 2 (`ShowCatalog.test.tsx`)
+- Each task ends with typecheck + vitest + commit (omitted from individual steps for brevity — run them at the end of every task)
+- All new reports get registered in Task 20
+- Reference screenshots live under `docs/mySWT/`
+- Printed-form PDF references live under `docs/mySWT/SW-*.pdf`
+
+---
+
+## Task 9: Show Entry Counts
+
+**Reference:** `docs/mySWT/show_entry_counts.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/ShowEntryCounts.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/ShowEntryCounts.test.tsx`
+- Modify: `apps/myk9show/src/lib/reports/reportStyles.ts` — add `.stats-section`, `.stats-row`, `.stats-total`, `.stats-footer` CSS (derive from `catalog-*` patterns)
+
+**Purpose:** Aggregated entry counts for the whole show, grouped by `element → level → section`, with per-element totals and a grand total at the bottom showing total entries, unique people, and unique dogs.
+
+**Scope:** `['show']` — show-mode rendering
+
+**Data requirements:**
+- Input: `allClasses` (for element/level/section metadata) and `entries` (each enriched with `classId` via Task 1 mapEntries)
+- Aggregation: group entries by joining on `classId` → class. Count entries per (element, level, section).
+- Footer totals: entry total (len of entries), unique people count (distinct `handler`), unique dogs count (distinct `dogId` or dog name if dogId absent).
+
+**Layout per screenshot:**
+- Header: "Scent Work Entry Counts" + club/show name
+- Sub-header: "Entry Counts by Show" + show date range
+- Table per element with columns: Level, Section, Entries
+- Row below each element: "Element Total: N"
+- Footer row: "Show Entry Total: X   People: Y   Dogs: Z"
+
+- [ ] **Step 1: Write failing test** — render with 6 entries across 2 elements (Container and Interior), assert element totals and grand total appear
+- [ ] **Step 2: Implement `ShowEntryCounts.tsx`** — follow `ShowCatalog.tsx` pattern for show-mode rendering, swap the row-per-entry logic for grouped aggregation
+- [ ] **Step 3: Add CSS classes to `reportStyles.ts`**
+- [ ] **Step 4: Typecheck, test, commit**
+
+---
+
+## Task 10: Trial Entry Counts
+
+**Reference:** `docs/mySWT/trial_entry_counts.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/TrialEntryCounts.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/TrialEntryCounts.test.tsx`
+
+**Purpose:** Same aggregation as Task 9 but scoped to a single trial — used when a secretary wants counts for one day/trial rather than the whole show.
+
+**Scope:** `['trial']` — trial-mode rendering (one render per selected trial)
+
+**Data:** Same as Task 9 but filtered by `trialId`. The trial-mode branch in `ReportPreview.tsx` (Task 1 Step 6) already filters entries to a single trial, so the component just aggregates what it receives.
+
+- [ ] **Step 1: Test** — render with entries from one trial, assert element totals + trial grand total
+- [ ] **Step 2: Implement** — copy `ShowEntryCounts` and switch header to trial-scoped (use `props.trial.trialNumber` and `props.trial.date`)
+- [ ] **Step 3: Typecheck, test, commit**
+
+---
+
+## Task 11: Breed Entry Counts
+
+**Reference:** `docs/mySWT/breed_entry_counts.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/BreedEntryCounts.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/BreedEntryCounts.test.tsx`
+
+**Purpose:** Show-wide counts grouped by breed — used for club statistics and sanction reporting.
+
+**Scope:** `['show']`
+
+**Data:** Group `entries` by `breed`, count. No class aggregation needed. Sort alphabetically by breed.
+
+**Layout:** Single table, columns: Breed, Entries. Footer: "Total Breeds: N, Total Entries: M".
+
+- [ ] **Step 1: Test** — render with entries across 3 breeds, assert each breed row and totals
+- [ ] **Step 2: Implement** — simple group-by-breed aggregation
+- [ ] **Step 3: Typecheck, test, commit**
+
+---
+
+## Task 12: Judge Entry Counts (with optional Estimated Time)
+
+**References:** `docs/mySWT/judge_entry_counts.png`, `docs/mySWT/judge_entry_counts_estimated_time.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/JudgeEntryCounts.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/JudgeEntryCounts.test.tsx`
+
+**Purpose:** Counts per judge, grouped by judge → classes they're judging → entry count. The "Estimated Time" variant adds a calculated time column (`entries × time_per_entry`, where `time_per_entry` is a per-level constant drawn from the class configuration).
+
+**Scope:** `['show']` (secretary wants this at show level for scheduling across days)
+
+**Decision:** implement as ONE report with an `includeEstimatedTime?: boolean` prop on `ReportProps`, defaulting to `false`. Add a sort/option in the registry like `{ value: 'with-time', label: 'Include Estimated Time' }` so the user toggles it from the `ReportsPage` dropdown.
+
+**Data:**
+- Group `allClasses` by `judgeName`
+- For each judge's classes, count entries (via `entries` filtered by `classId`)
+- Estimated time = sum over classes of `(entry count × time_per_entry_seconds)`; `time_per_entry_seconds` comes from `classData.timeLimitSeconds` as an upper bound, or from a lookup table of per-level average times (define constants if needed)
+
+- [ ] **Step 1: Extend `ReportProps`** — add `includeEstimatedTime?: boolean` in `types.ts`
+- [ ] **Step 2: Write failing test** — render with 2 judges, 3 classes, assert counts and (when flag set) time column
+- [ ] **Step 3: Implement** — judge aggregation + optional time calculation
+- [ ] **Step 4: Typecheck, test, commit**
+
+---
+
+## Task 13: Financial Report (Accepted + Waitlist)
+
+**References:** `docs/mySWT/financial_report_accepted.png`, `docs/mySWT/financial_report_waitlist.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/FinancialReport.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/FinancialReport.test.tsx`
+- Modify: `apps/myk9show/src/lib/reports/types.ts` — extend `ReportEntry` with `entryFee?: number`, `paymentStatus?: 'accepted' | 'waitlisted' | 'withdrawn'`, `paymentMethod?: string`
+
+**Purpose:** Per-exhibitor financial breakdown of entries and fees. One row per entry with fee; exhibitor subtotal after their entries; grand total at bottom. Two variants selected via a dropdown option:
+- **Accepted** — entries where `paymentStatus === 'accepted'`
+- **Waitlist** — entries where `paymentStatus === 'waitlisted'`
+
+**Scope:** `['show']`
+
+**Data:**
+- Requires `entries` enriched with fee/payment fields from the `entries` Supabase table (see `tbl_Entry.txt` for Access field names; map to current Supabase columns during Task 1 extension of `mapEntries`)
+- Group by exhibitor (owner) — use `handler` as group key initially; if owner entity diverges from handler, revisit
+- Per-exhibitor subtotal: sum of `entryFee` across that exhibitor's entries
+- Grand total: sum across all exhibitors
+
+**Layout:** Grouped table with exhibitor name headers. Columns: Date, Trial, Class, Dog, Fee, Payment Method. Subtotal row per exhibitor. Grand total row at the bottom.
+
+- [ ] **Step 1: Extend `ReportEntry`** — add fee/payment fields (nullable)
+- [ ] **Step 2: Extend `mapEntries` in `ReportPreview.tsx`** — populate fee/payment from `entries` row
+- [ ] **Step 3: Add registry sort options** — `{ value: 'accepted', label: 'Accepted' }`, `{ value: 'waitlist', label: 'Waitlist' }`; `defaultSort: 'accepted'`
+- [ ] **Step 4: Write failing test** — render with 2 exhibitors, 4 entries, assert subtotals and grand total; filter test for waitlist variant
+- [ ] **Step 5: Implement `FinancialReport.tsx`** — use `sortOrder` prop to switch between accepted/waitlist filters
+- [ ] **Step 6: Typecheck, test, commit**
+
+**Database note:** If `entries.entry_fee` or payment columns don't exist in the current Supabase schema, add a migration before this task. Check `supabase/migrations/` and compare to `docs/mySWT/tbl_Entry.txt` fields `Entry_Fee`, `Payment_Status`, `Payment_Method`.
+
+---
+
+## Task 14: Waitlist Report
+
+**Reference:** `docs/mySWT/waitlist.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/WaitlistReport.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/WaitlistReport.test.tsx`
+
+**Purpose:** Simple list of waitlisted entries, grouped by trial → class. One row per waitlisted entry.
+
+**Scope:** `['show']`
+
+**Data:** Filter `entries` where `paymentStatus === 'waitlisted'` (from Task 13 extension), group by trial → class.
+
+**Layout per screenshot:** Header rows showing "Trial N   Element   Level   Section" followed by entry rows. Columns per entry row: Armband, Call Name, Owner, Entry type (Early/Regular), Date Entered.
+
+- [ ] **Step 1: Test** — 2 waitlisted entries across 1 class, assert header + rows
+- [ ] **Step 2: Implement** — straightforward filtered list with grouping
+- [ ] **Step 3: Typecheck, test, commit**
+
+---
+
+## Task 15: Steward Report
+
+**Reference:** `docs/mySWT/steward_report.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/StewardReport.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/StewardReport.test.tsx`
+- Modify: `apps/myk9show/src/types/volunteer.ts` — add `'Table Steward'` to `RING_ROLES`
+- Modify: `apps/myk9show/src/lib/reports/types.ts` — extend `allClasses[i]` with `stewards?: { [roleName: string]: string }` (role → volunteer name map)
+- Modify: `apps/myk9show/src/pages/secretary/ReportsPage/ReportPreview.tsx` — populate `allClasses[i].stewards` from class assignments
+
+**Purpose:** Per-trial table of classes with steward assignments, used by the trial secretary to verify the steward roster before day-of operations.
+
+**Scope:** `['trial']` — trial-mode rendering (one per trial)
+
+**Layout:** Header showing club/show name + trial number + date. Table columns: Element, Level, Section, Table Steward, Timer Steward, Gate Steward, Ring Steward. Rows are the classes of that trial (plus a "Waitlist" row if applicable).
+
+**Data — reuses existing Volunteer Scheduling feature.** This report does NOT need new schema. The `class_assignments` table from migration `supabase/migrations/095_volunteer_scheduling.sql` already stores `(volunteer_id, class_id, role_name)` tuples. Ring roles defined in `apps/myk9show/src/types/volunteer.ts` are the exact vocabulary this report uses.
+
+**Existing infrastructure to reuse:**
+- Design spec: `docs/superpowers/specs/2026-03-30-volunteer-scheduling-design.md`
+- Data hooks: `apps/myk9show/src/hooks/queries/volunteerQueries.ts`
+- Type definitions: `apps/myk9show/src/types/volunteer.ts` (`RING_ROLES`, `ClassAssignment`)
+- Scheduling UI: `apps/myk9show/src/pages/secretary/VolunteerSchedulingPage` (where users assign stewards)
+
+**Role mapping (Access → myK9Show):**
+| Access column   | myK9Show `RING_ROLES` entry |
+| --------------- | --------------------------- |
+| Table Steward   | `'Table Steward'` (NEW — add to array) |
+| Timer Steward   | `'Timer'` (existing)        |
+| Gate Steward    | `'Gate Steward'` (existing) |
+| Ring Steward 1  | `'Ring Steward'` (existing) |
+
+- [ ] **Step 1: Add `'Table Steward'` to `RING_ROLES`**
+
+In `apps/myk9show/src/types/volunteer.ts`:
+
+```typescript
+export const RING_ROLES = ['Table Steward', 'Gate Steward', 'Timer', 'Ring Steward'] as const;
+```
+
+Run existing volunteer tests to catch any hardcoded 3-role assumptions:
+
+```bash
+cd apps/myk9show && npx vitest run src/types/__tests__/volunteer.test.ts src/hooks/queries/__tests__/volunteerQueries.test.tsx src/components/volunteers/__tests__/
+```
+
+If any test or component hardcodes the 3-role list, update to use `RING_ROLES` (or `RING_ROLES.length`). Do not hardcode counts.
+
+- [ ] **Step 2: Extend `allClasses` in `ReportProps`**
+
+In `apps/myk9show/src/lib/reports/types.ts`, extend the `allClasses[i]` shape added in Task 1:
+
+```typescript
+allClasses?: Array<{
+  id: string;
+  trialId: string;
+  element: string;
+  level: string;
+  section?: string;
+  judgeName?: string;
+  stewards?: Record<string, string>; // roleName → volunteer display name
+}>;
+```
+
+- [ ] **Step 3: Populate `stewards` in `ReportPreview.tsx`**
+
+Before rendering a report in trial-mode or show-mode, fetch class assignments for the relevant classes and build a `stewards` map per class. Reuse `volunteerQueries.ts` — pull the assignments-by-show query (or add one if not already present) and do the join in-memory.
+
+Pseudocode:
+```typescript
+const assignmentsByClassId = groupBy(classAssignments, 'classId');
+const allClassesWithStewards = allClasses.map(c => ({
+  ...c,
+  stewards: Object.fromEntries(
+    (assignmentsByClassId[c.id] ?? []).map(a => [a.roleName, a.volunteerName])
+  ),
+}));
+```
+
+Only Task 15 consumes `stewards`, so it's OK if this enrichment happens lazily (only when the selected report id is `'steward-report'`) to avoid extra queries for other reports.
+
+- [ ] **Step 4: Write failing test** — render with 3 classes where each has a different subset of the 4 stewards assigned; assert all 4 columns render with correct names (and blank where unassigned)
+
+- [ ] **Step 5: Implement `StewardReport.tsx`**
+
+```typescript
+const ROLE_ORDER = ['Table Steward', 'Timer', 'Gate Steward', 'Ring Steward'] as const;
+
+// For each class in props.allClasses (filtered to this trial in trial-mode):
+//   render a row with element, level, section, and one cell per ROLE_ORDER[i]
+//   cell value = class.stewards?.[role] ?? '' (blank if unassigned)
+```
+
+Column header labels match the Access screenshot exactly: "Table Steward", "Timer Steward", "Gate Steward", "Ring Steward". Note: the display label for `'Timer'` in the volunteer data becomes "Timer Steward" in the report header — handle the label mapping in the component.
+
+- [ ] **Step 6: Typecheck, test, commit**
+
+---
+
+## Task 16: Result Labels
+
+**Reference:** `docs/mySWT/result_labels.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/ResultLabels.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/ResultLabels.test.tsx`
+
+**Purpose:** Printable Avery-label-style sheet with one label per entry. Each label shows: armband, call name, handler, club/show, trial+class, placement, search time, faults. Used to stick labels on ribbons.
+
+**Scope:** `['trial', 'class']` — class-mode rendering (existing behavior, one render per class) so the labels come in class order
+
+**Layout per screenshot:** 2-column × multiple rows grid of labels, each label a small bordered box with the data above. Avery 5160 or 5164 dimensions — follow existing `armband_labels` component in Phase 1 for CSS and page-break rules.
+
+**Data:** `entries` with result fields (`finalPlacement`, `searchTimeSeconds`, `totalFaults`) already populated via existing `mapEntries`.
+
+- [ ] **Step 1: Read existing `ArmbandLabels` component** — reuse its label-grid CSS
+- [ ] **Step 2: Write failing test** — 4 entries, assert each label's armband + placement
+- [ ] **Step 3: Implement `ResultLabels.tsx`**
+- [ ] **Step 4: Typecheck, test, commit**
+
+---
+
+## Task 17: AKC Judge's Report
+
+**References:** `docs/mySWT/akc_judge_report.png`, `docs/mySWT/SW-JudgeReport.pdf`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/AKCJudgeReport.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/AKCJudgeReport.test.tsx`
+
+**Purpose:** AKC-mandated judge's report form, one per judge per trial. A fillable-form layout with pre-populated show/trial/judge metadata and yes/no question checkboxes for the judge to sign off on (reportable problems, club adequacy, donation/food policy compliance, 60-day advance info, etc.). Renders to PDF via the preview iframe and the judge prints and signs.
+
+**Scope:** `['trial']` — trial-mode rendering, one per trial per judge
+
+**Data:**
+- Header: show, trial, AKC event number (from `trials.event_number`), club, judge name + judge AKC number
+- Body: the list of AKC yes/no/comment questions from the screenshot + PDF. These are static text; the component just lays them out with blank lines for judge to fill in.
+- Trial might have multiple judges across classes — render one form per distinct judge in the trial
+
+**Layout:** Use the `form-*` CSS classes from Task 1 Step 4b for labels, blanks, checkbox rows, signature section.
+
+- [ ] **Step 1: Read full question list from `SW-JudgeReport.pdf`** — use Poppler or ask user for text extraction; list every question verbatim
+- [ ] **Step 2: Write failing test** — render with trial data + 1 judge, assert header fields and at least 3 question labels render
+- [ ] **Step 3: Implement `AKCJudgeReport.tsx`** — iterate over distinct judges in the trial's classes, render one form per judge
+- [ ] **Step 4: Typecheck, test, commit**
+
+**Scope boundary:** This is a printed form. No database writes. The judge fills it in by hand or electronically in Adobe Reader.
+
+---
+
+## Task 18: AKC Trial Secretary Certification
+
+**Reference:** `docs/mySWT/ac_secretary_certification.png`
+
+**Files:**
+- Create: `apps/myk9show/src/components/reports/TrialSecretaryCertification.tsx`
+- Create: `apps/myk9show/src/components/reports/__tests__/TrialSecretaryCertification.test.tsx`
+
+**Purpose:** Short AKC certification page stating totals for the trial: total entries, total runs (starters/participants), total withdrawals, total qualifying scores. Signed by trial secretary.
+
+**Scope:** `['trial']`
+
+**Data:**
+- Total entries = count of `entries` for the trial
+- Total runs = count where `checkInStatus === 'present'`
+- Total withdrawals = count where `entryStatus === 'withdrawn'`
+- Total qualifying = count where `resultStatus === 'Q'`
+
+**Layout per screenshot:** Header "Scent Work Trial Secretary's Certification" + club/trial info. A boxed certification statement with 4 numeric fields showing the totals. Signature line at the bottom.
+
+- [ ] **Step 1: Test** — trial with 5 entries (3 present, 1 withdrawn, 2 Q), assert totals
+- [ ] **Step 2: Implement** — aggregation + `form-*` CSS layout
+- [ ] **Step 3: Typecheck, test, commit**
+
+**Distinguish from existing Task 5 Trial Secretary Report.** Task 5 is the larger AKC Trial Secretary Report (more questions, fee calculation). This Task 18 is the shorter *certification* page that often accompanies it. Both are separate AKC forms.
+
+---
+
+## Task 19: Extended infrastructure reconcile
+
+Before wiring up the registry (Task 20), verify these possible overlaps with existing Phase 1 / Phase 2 reports:
+
+- [ ] **Step 1: Compare `docs/mySWT/preliminary_results.png` against the existing `ResultsSheet` (Phase 1)**
+  - If the same, skip — no new component needed
+  - If different, add a new task following the `ResultsSheet` pattern
+- [ ] **Step 2: Compare `docs/mySWT/show_catalog_addresses.png` against Task 2's `ShowCatalog`**
+  - Likely a sort/option variant of Show Catalog that includes owner addresses
+  - Add an `include-addresses` sort option to the Show Catalog registry entry rather than a new report
+  - Add a conditional `<td>` block in `ShowCatalog.tsx` that renders owner address when this option is selected
+  - **Data:** requires owner address fields from Supabase. If not yet populated in replication, this step reduces to "design note: blocked on owner address replication, defer to Phase 3"
+- [ ] **Step 3: Document reconciliation findings** in this plan file under Task 19
+
+---
+
+## Task 20: Wire up extended registry — enable all new reports
+
+**Files:**
+- Modify: `apps/myk9show/src/lib/reports/reportRegistry.ts`
+- Modify: `apps/myk9show/src/lib/reports/__tests__/reportRegistry.test.ts`
+
+- [ ] **Step 1: Add imports**
+
+```typescript
+import { ShowEntryCounts } from '@/components/reports/ShowEntryCounts';
+import { TrialEntryCounts } from '@/components/reports/TrialEntryCounts';
+import { BreedEntryCounts } from '@/components/reports/BreedEntryCounts';
+import { JudgeEntryCounts } from '@/components/reports/JudgeEntryCounts';
+import { FinancialReport } from '@/components/reports/FinancialReport';
+import { WaitlistReport } from '@/components/reports/WaitlistReport';
+import { StewardReport } from '@/components/reports/StewardReport';
+import { ResultLabels } from '@/components/reports/ResultLabels';
+import { AKCJudgeReport } from '@/components/reports/AKCJudgeReport';
+import { TrialSecretaryCertification } from '@/components/reports/TrialSecretaryCertification';
+```
+
+- [ ] **Step 2: Append to `reportRegistry` array**
+
+```typescript
+// Phase 2 Extended Scope
+{
+  id: 'show-entry-counts',
+  name: 'Show Entry Counts',
+  category: 'statistics',
+  scopes: ['show'],
+  sortOptions: [],
+  defaultSort: '',
+  component: ShowEntryCounts,
+  enabled: true,
+},
+{
+  id: 'trial-entry-counts',
+  name: 'Trial Entry Counts',
+  category: 'statistics',
+  scopes: ['trial'],
+  sortOptions: [],
+  defaultSort: '',
+  component: TrialEntryCounts,
+  enabled: true,
+},
+{
+  id: 'breed-entry-counts',
+  name: 'Breed Entry Counts',
+  category: 'statistics',
+  scopes: ['show'],
+  sortOptions: [],
+  defaultSort: '',
+  component: BreedEntryCounts,
+  enabled: true,
+},
+{
+  id: 'judge-entry-counts',
+  name: 'Judge Entry Counts',
+  category: 'statistics',
+  scopes: ['show'],
+  sortOptions: [
+    { value: 'standard', label: 'Standard' },
+    { value: 'with-time', label: 'Include Estimated Time' },
+  ],
+  defaultSort: 'standard',
+  component: JudgeEntryCounts,
+  enabled: true,
+},
+{
+  id: 'financial-report',
+  name: 'Financial Report',
+  category: 'financial',
+  scopes: ['show'],
+  sortOptions: [
+    { value: 'accepted', label: 'Accepted' },
+    { value: 'waitlist', label: 'Waitlist' },
+  ],
+  defaultSort: 'accepted',
+  component: FinancialReport,
+  enabled: true,
+},
+{
+  id: 'waitlist-report',
+  name: 'Waitlist Report',
+  category: 'operational',
+  scopes: ['show'],
+  sortOptions: [],
+  defaultSort: '',
+  component: WaitlistReport,
+  enabled: true,
+},
+{
+  id: 'steward-report',
+  name: "Steward's Report",
+  category: 'operational',
+  scopes: ['trial'],
+  sortOptions: [],
+  defaultSort: '',
+  component: StewardReport,
+  enabled: true,
+},
+{
+  id: 'result-labels',
+  name: 'Result Labels',
+  category: 'operational',
+  scopes: ['trial', 'class'],
+  sortOptions: [
+    { value: 'placement', label: 'Placement' },
+    { value: 'armband', label: 'Armband #' },
+  ],
+  defaultSort: 'placement',
+  component: ResultLabels,
+  enabled: true,
+},
+{
+  id: 'akc-judge-report',
+  name: "AKC Judge's Report",
+  category: 'organization',
+  scopes: ['trial'],
+  sortOptions: [],
+  defaultSort: '',
+  component: AKCJudgeReport,
+  enabled: true,
+},
+{
+  id: 'trial-secretary-certification',
+  name: 'Trial Secretary Certification',
+  category: 'organization',
+  scopes: ['trial'],
+  sortOptions: [],
+  defaultSort: '',
+  component: TrialSecretaryCertification,
+  enabled: true,
+},
+```
+
+- [ ] **Step 3: Add `'statistics'` and `'financial'` to the `ReportCategory` type union** in `types.ts`
+
+- [ ] **Step 4: Update `reportRegistry.test.ts`** — add the 10 new IDs to a `PHASE_2_EXTENDED_IDS` list, assert all enabled and have non-placeholder components
+
+- [ ] **Step 5: Run full test suite**
+
+```bash
+cd apps/myk9show && pnpm test
+```
+
+- [ ] **Step 6: Typecheck**
+
+```bash
+cd apps/myk9show && pnpm typecheck
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add apps/myk9show/src/lib/reports/reportRegistry.ts apps/myk9show/src/lib/reports/__tests__/reportRegistry.test.ts apps/myk9show/src/lib/reports/types.ts
+git commit -m "feat(reports): enable Phase 2 extended scope (10 additional reports)"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
@@ -2229,6 +2756,18 @@ git commit -m "feat(reports): enable all 6 Phase 2 reports in registry"
 | `getReportRenderingMode` tested                                                | Task 1        |
 | `sortByHandler` and `sortByBreed` utilities                                    | Task 1        |
 | New CSS classes for form and catalog layouts                                   | Task 1        |
+| Show Entry Counts — element/level/section aggregation with show totals         | Task 9        |
+| Trial Entry Counts — per-trial aggregation                                     | Task 10       |
+| Breed Entry Counts — per-breed aggregation                                     | Task 11       |
+| Judge Entry Counts (+ Estimated Time variant)                                  | Task 12       |
+| Financial Report — Accepted and Waitlist variants with exhibitor subtotals     | Task 13       |
+| Waitlist Report — filtered entry list grouped by trial/class                   | Task 14       |
+| Steward Report — per-trial class table with 4 steward roles                    | Task 15       |
+| Result Labels — Avery-label-style sheet per class with result data             | Task 16       |
+| AKC Judge's Report — printable form with questions + signature                 | Task 17       |
+| Trial Secretary Certification — totals certification form                      | Task 18       |
+| Preliminary Results + Show Catalog with Addresses reconciliation               | Task 19       |
+| Registry enabled for all extended reports with correct sort options            | Task 20       |
 
 **Placeholder scan:** No TBD, TODO, or vague steps. All steps include exact commands and code.
 

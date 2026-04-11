@@ -1,0 +1,2093 @@
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+mySWT User Guide 
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+May 2020 
+
+Version 2.0 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+ 
+
+Richard Beezley 
+
+
+Document Revisions 
+
+Date 
+
+Version 
+Number 
+
+Document Changes 
+
+8/5/17 
+
+0.1 
+
+Initial Draft 
+
+9/10/17 
+
+1.0.4 
+
+Corrected club name issues 
+
+9/23/17 
+
+1.0.5 
+
+Added Results Report for posting 
+
+2/1/2018 
+
+1.2.0 
+
+Added registration number checking 
+
+2/1/2018 
+
+1.2.0 
+
+Enhanced Enter a Dog in a Class 
+
+2/1/2018 
+
+1.2.0 
+
+Added combined section check-in sheet 
+
+6/1/2018 
+
+1.3.0 
+
+Moved handler to each entry vs dog 
+
+1/1/2019 
+
+1.4.0 
+
+Added per club license 
+
+1/1/2019 
+
+1.4.0 
+
+Added automated license keys via shopping cart 
+
+8/30/2019 
+
+1.6.0 
+
+Added additional filters to Enter a Dog in a Class 
+
+8/30/2019 
+
+1.6.0 
+
+Added judging time calculation to Judgin counts report 
+
+8/30/2019 
+
+1.6.0 
+
+Added sending results electronically to AKC 
+
+10/30/2019 
+
+1.7.0 
+
+Modified electronic results per AKC request 
+
+10/30/2019 
+
+1.7.0 
+
+Added Daily check-in sheet to show page 
+
+10/30/2019 
+
+1.7.0 
+
+Added multiple area search times for interior excellent and master 
+classes 
+
+10/30/2019 
+
+1.7.0 
+
+Added Registered Name to Enter a Dog in a Class page. 
+
+5/27/2020 
+
+2.0.0 
+
+Added Regional Championships 
+
+5/27/2020 
+
+2.0.0 
+
+Added Import and Export of Dogs, People and Entries to Excel 
+
+5/27/2020 
+
+2.0.0 
+
+Added Import of online entries 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+ 
+
+
+Table of Contents 
+1 Introduction ................................................................................................................................................................ 6 
+1.1 .... Thank you! ............................................................................................................................................................................. 6 
+1.2 .... Application Overview ....................................................................................................................................................... 6 
+2 Installation ................................................................................................................................................................... 7 
+2.1 .... Requirements ....................................................................................................................................................................... 7 
+2.2 .... Recommended...................................................................................................................................................................... 7 
+2.3 .... Microsoft Access .................................................................................................................................................................. 8 
+2.4 .... mySWT Application Installation ................................................................................................................................. 9 
+3 Application Use ....................................................................................................................................................... 12 
+3.1 .... First Time Launch ........................................................................................................................................................... 12 
+3.2 .... Login...................................................................................................................................................................................... 14 
+3.2.1 Initial Login ................................................................................................................................................................................. 14 
+3.3 .... Networked Installation ................................................................................................................................................ 15 
+3.4 .... Terminology....................................................................................................................................................................... 16 
+3.5 .... The Ribbon ......................................................................................................................................................................... 19 
+3.6 .... Navigation .......................................................................................................................................................................... 20 
+3.7 .... Home Page.......................................................................................................................................................................... 22 
+3.8 .... Clubs Page .......................................................................................................................................................................... 25 
+3.9 .... Add a New Show .............................................................................................................................................................. 27 
+3.10 .. Add a New Trial ............................................................................................................................................................... 29 
+3.11 .. Add a New Class ............................................................................................................................................................... 30 
+3.12 .. Add a New Person ........................................................................................................................................................... 32 
+3.13 .. Add a New Dog ................................................................................................................................................................. 34 
+3.14 .. Shows Page......................................................................................................................................................................... 36 
+3.15 .. Trials Page.......................................................................................................................................................................... 51 
+3.16 .. Classes Page ....................................................................................................................................................................... 56 
+3.17 .. People Page ........................................................................................................................................................................ 60 
+3.18 .. Dogs Page ........................................................................................................................................................................... 62 
+3.18.1 AKC Entry Form................................................................................................................................................................. 64 
+3.18.2 AKC Change Form ............................................................................................................................................................. 65 
+3.19 .. Scoreboard ......................................................................................................................................................................... 67 
+3.20 .. Using the Application during a Trial ..................................................................................................................... 68 
+3.20.1 Setup ....................................................................................................................................................................................... 68 
+3.20.2 Classes ................................................................................................................................................................................... 68 
+3.21 .. Entries List.......................................................................................................................................................................... 72 
+3.22 .. Backup Database............................................................................................................................................................. 74 
+3.23 .. Armband Labels ............................................................................................................................................................... 75 
+3.24 .. Check-In Sheets ................................................................................................................................................................ 78 
+3.25 .. Score Sheets ....................................................................................................................................................................... 80 
+3.26 .. Results Catalog ................................................................................................................................................................. 83 
+3.27 .. Result Report ..................................................................................................................................................................... 85 
+3.28 .. Result Labels ...................................................................................................................................................................... 85 
+3.29 .. Statistics Reports ............................................................................................................................................................. 87 
+3.29.1 Show Statistics Report .................................................................................................................................................... 87 
+3.29.2 Trial Statistics Report ..................................................................................................................................................... 89 
+3.30 .. Close Out a Show, Trial or Class ............................................................................................................................... 90 
+4 Support....................................................................................................................................................................... 91 
+4.1.1 Upgrades ...................................................................................................................................................................................... 91 
+4.1.2 Support ......................................................................................................................................................................................... 91 
+
+
+ 
+
+
+1 Introduction 
+
+1.1 Thank you! 
+
+First let me sincerely thank you for purchasing mySWT (my Scent Work Trial). I believe you 
+will find it to be a useful and helpful tool in administrating Scent Work Trials. 
+
+1.2 Application Overview 
+
+The mySWT application is a desktop software application that assists with all of the 
+administrative tasks of holding a Scent Work trial. The application and data are stored on 
+your local PC, so there is no concern with data privacy. 
+
+A few of the major features are: 
+
+ Record all of the required information of an exhibitor. 
+ Record the trials and Classes an exhibitor has entered. 
+ Track judges and steward information. 
+ Print check-in sheets for the gate steward. 
+ Print prefilled score sheets for the judge 
+ Record the results within the application as it is happening. 
+ Automated calculation of placements. 
+ Automated population of AKC Results Catalog. 
+ Automated population of AKC Trial Chairman and Trial Secretary Reports 
+ Print various Trial statistics such as number of Classes, number pass/fail and high 
+in trial. 
+ Print Exhibitor Armband Labels. 
+ Print Exhibitor Result Labels 
+ Email Exhibitor confirmation of their entry, results and an invitation to your next 
+trial 
+
+
+ 
+
+ 
+
+
+2 Installation 
+
+2.1 Requirements 
+
+ Windows 10 PC. 
+ Microsoft Access 2013. mySWT is a Microsoft Access 2013 database application 
+therefore either the full version or the runtime version of Microsoft Access 2013 is 
+required. The runtime version is free and allows you to run applications designed 
+for Microsoft Access like mySWT therefore it is NOT necessary to purchase 
+Microsoft Access 2013. If you do not already have the full version follow the steps in 
+section 2.3 to download and install the free runtime version. 
+ Adobe Reader. The Judge’s books and AKC Trial Report are fillable PDF files 
+created by AKC. mySWT will fill in these PDF files for you based on the data in the 
+database. In order for this to occur you need Adobe Reader installed. You can 
+download Adobe reader for free at https://get.adobe.com/reader/ 
+
+
+2.2 Recommended 
+
+ Microsoft Outlook. mySWT has the capability of sending emails to exhibitors. 
+Microsoft Outlook is an email client that runs on your local PC and handles the 
+management of emails with the email account provided to you by your internet 
+service provider or free services such as Gmail or Yahoo. mySWT can send emails 
+via Gmail or Yahoo webmail clients, but having and using the Microsoft Outlook 
+email client is the preferred method and provides several advantages such as being 
+able to preview emails generated by mySWT before sending them and having a copy 
+of sent emails in a local sent folder. Microsoft Outlook can be purchased as a 
+standalone application or part of the Office suite. Again it is NOT a requirement for 
+mySWT to send emails and only recommended. 
+
+
+
+2.3 Microsoft Access 
+
+ The mySWT application is a Microsoft database application and therefore requires 
+Microsoft Access to run. If you already have Microsoft Access 2013 installed on your 
+PC you can skip to the next section. 
+ If you do NOT have Microsoft Access 2013 you can install the free runtime 32 bit 
+(x86) version by downloading it at the link below and following the install 
+instructions. The name of the file you want to download is AccessRuntime_x86_en-
+us.exe. http://www.microsoft.com/en-us/download/details.aspx?id=39358 
+
+
+ 
+
+ 
+
+
+2.4 mySWT Application Installation 
+
+ Download the application from my website by using PayPal as the payment method. 
+http://myk9t.com 
+ Save the executable file on your desktop or a known location. 
+ Double click the executable file and follow the onscreen instructions. 
+ NOTE *It is possible, depending on your PC setup, to get Windows or Virus Software 
+warning messages when trying to install either the Access Runtime version or the 
+mySWT application. Answer yes to any of these messages.* 
+ Highly recommended to use all defaults. 
+
+
+ 
+
+ Read the Welcome message and click Next>. 
+
+
+ 
+
+ 
+
+ 
+
+
+ Read and Accept the License Agreement and click Next> 
+
+
+ 
+
+ 
+
+ Wait for mySWT to be installed 
+
+
+ 
+
+ 
+
+
+ 
+
+ Click OK> 
+
+
+ 
+
+ Read Notice regarding linking data files and Click OK> 
+
+
+ 
+
+ A shortcut icon to launch the mySWT application will be placed on your desktop and 
+in your start menu. 
+
+
+
+3 Application Use 
+
+The sections below explain the general use of the mySWT application. They are in the order 
+that you should follow for the first time use and setup of the application. 
+
+ 
+
+3.1 First Time Launch 
+
+The first time mySWT is started it will prompt you for the location of the three data files 
+(mySWT_data.aacde and myShare.accdb and License.accdb). 
+
+ The mySWT_data.accdb file contains information about your Scent Work shows, 
+trials, Classes and entries. 
+ The myShare.accdb file contains information about your club, exhibitors (dogs), and 
+people (owners, handlers, judges, stewards, and users). 
+ The mySWT_License file contains your License information. 
+
+
+The default location is C:\mySWT {version #}\data. Simply select the file being requested in 
+the Title of the dialog box and click open. 
+
+If mySWT is ever moved to another location or it cannot find the data files for some reason 
+you will be prompted again for their location. 
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+3.2 Login 
+
+3.2.1 Initial Login 
+
+The mySWT application comes with an initial user preloaded. The user name is “Admin” 
+and the password is “admin”. This initial Admin user can be used but it is recommended 
+that you add yourself as a user with your own password. 
+
+ Select “Admin” from the user name dropdown list. 
+ Enter “admin” in the password field. 
+ Click the Login button. 
+ The Re-Link Data File button can be used to manually re-link the data and 
+application files or point the application file to a different data files such as a backup 
+files. 
+
+
+ 
+
+ 
+
+
+3.3 Networked Installation 
+
+It is possible to install mySWT in a multi PC environment where PCs are networked 
+together. This will require some advanced computer knowledge and is beyond the 
+scope of this document. 
+
+It is beyond the scope of this document to explain how PCs can be networked together, but 
+the two most common ways would be a homegroup or a shared drive. You can google these 
+two terms to find information on how to accomplish this. If you already have or have set up 
+this type of environment make sure both PCs have full permissions (read and write) to 
+the location where the mySWT_data.accdb file will be stored. 
+
+The advantage of this type on installation is the mySWT application could be running 
+simultaneously on two different PCs and both would be storing their data in a single data 
+file. This would allow you to be doing tasks such as printing judge’s books or result labels or 
+getting ready for the next trial on one PC while the other PC is in the ring recording the 
+scores and times of Classes at the same time. The other use would be for a PC just displaying 
+the Scoreboard. 
+
+mySWT would be installed on two different PCs. You would use the same setup.exe file and 
+license key you downloaded. One of the PCs need to be classified as the primary. It will host 
+the mySWT_data.accdb file. The second PC will be classified as the secondary and needs to 
+be linked to the data file on the primary. This can be done by using the Re-Link Data File 
+button on the login screen. 
+
+Test the setup by starting mySWT on both PCs. Make a change to something on the primary 
+PC, say to an exhibitor’s address or phone number. View that same exhibitor on the 
+secondary PC and make sure you see the new information. Do the reverse to make sure you 
+can make changes on both PCs and the other PC can see those changes. 
+
+I would recommend that you rename the mySWT_data.accdb file on the secondary PC to 
+something like mySWT_data_secondary.accde or mySWT_data_NotUsed.accde to avoid any 
+confusion. This data file will not be used. 
+
+ 
+
+cid:image002.png@01D0A5C1.4CC34080
+
+3.4 Terminology 
+
+The table below gives the definition of some of the terms and conventions used 
+throughout the mySWT application. A good understanding of these terms will help in 
+using the application more efficiently. 
+
+Show 
+
+The term used to define the entire event which could consist of one or 
+more days. A show will contain one or more trials. Typically, a show will 
+be held over a weekend and contain a morning and an afternoon trial each 
+day. 
+
+Trial 
+
+The term used to define a set of Classes. A trial will be assigned to a show. 
+
+Exhibitor 
+
+An exhibitor is a dog and handler team that is competing in a Class. 
+
+Score 
+
+The score is the exhibitor’s result of that Class. For example, pass, false 
+alert or absent. 
+
+Fault 
+
+A fault can be given to an exhibitor by the judge for a handler error such 
+as guiding the dog or a safety violation. Faults are used in calculating 
+placements. If you see a faster time but lower placement on an AKC form, 
+it is due to a fault. 
+
+Class 
+
+A class is an overall term that includes the Element, Level and Section. For 
+example, container Novice A. 
+
+Element 
+
+An element is a type of search such as Container, Interior, Exterior, Buried 
+or Handler Discrimination. 
+
+Level 
+
+A level is the level of the Class such as Novice, Advanced, Excellent, 
+Master. 
+
+Section 
+
+The section is A or B. See rules for criteria. 
+
+Run Time 
+
+The run time is the amount of searching time to find all hides in that Class. 
+The run time is paused when the handler calls alert and then restarted 
+when the handler gives the search command for the next hide. 
+
+Hide 
+
+The location of the hidden odor for which the dog is searching. 
+
+Record 
+
+A database entity. For example, each exhibitor, each show, each trial, each 
+Class, etc., would be a record in the database. 
+
+Status 
+
+Shows, Trials and Classes are all assigned a status of either open or closed. 
+This status is used throughout the system for determining what choices 
+are given. For example, only open Classes are presented for entering an 
+
+
+
+
+exhibitor. It is important to update the applicable status as the show 
+progresses. 
+
+System 
+Hierarchy 
+
+The hierarchy of the system is Shows contain Trials. Trials contain 
+Classes. Classes contain Exhibitors. It is important to keep this concept in 
+mind when setting up your shows. 
+
+Bold Field 
+Label 
+
+A field label that is bold and contains an asterisk is a required field and 
+must be entered in order to save that record. For example, you cannot 
+enter a new exhibitor without providing a AKC Registration number, 
+register name, breed and handler name. 
+
+Drop Down 
+box or 
+Combo Box 
+
+A graphical control element, similar to a list box, that allows the user to 
+choose one value from a list. When a drop-down list is inactive, it displays 
+a single value. When activated, it displays (drops down) a list of values, 
+from which the user may select one. When the user selects a new value, 
+the control reverts to its inactive state, displaying the selected value. It is 
+often used in the design of graphical user interfaces, including web design. 
+
+ 
+
+List Box 
+
+A graphical control element that allows the user to select one or more 
+items from a list contained within a static, multiple line text box. The user 
+clicks inside the box on an item to select it. A list box is always expanded 
+unlike a drop down box. 
+
+ 
+
+ 
+
+Ribbon 
+
+ 
+
+In computer interface design, a ribbon is a graphical control element in 
+the form of a set of toolbars placed on several tabs. In 2007 Microsoft 
+products introduced a form of modular ribbon as their main interface 
+where large tabbed toolbars, filled with graphical buttons and other 
+graphical control elements, are grouped by functionality. Such ribbons use 
+
+
+
+
+tabs to expose different sets of controls, eliminating the need for many 
+parallel toolbars. Contextual tabs are tabs that appear only when the user 
+needs them. For instance, in a word processor, an image-related tab may 
+appear when the user selects an image in a document, allowing the user to 
+interact with that image. 
+
+Application 
+File 
+
+The application file is named mySWT_application.accde. This is a 
+compiled access file and contains all the forms, queries, reports and visual 
+basic code. 
+
+Data File 
+
+The data file is named mySWT_data.accdb. This is also a compiled access 
+file and it contains all of the tables and your data. This file is unique to 
+your installation. 
+
+Field Labels 
+
+Bold labels with an asterisk * are required fields and must be entered. 
+
+ 
+
+ 
+
+
+
+ 
+
+ 
+
+
+3.5 The Ribbon 
+
+mySWT uses custom ribbons to provide access to its screens and features. The ribbon has 
+become the standard for all Microsoft office applications. The ribbon is a set of toolbars 
+placed on tabs at the top of the screen. 
+
+The tabs are grouped into sections and contain graphical buttons that perform functions. I 
+have grouped the mySWT specific buttons into things you will want to do before a trial and 
+things you will want to do after the trial. 
+
+mySWT has a custom ribbon for each main page; Home, Shows, Trials, Classes, Exhibitors, 
+People, Clubs, and Entries List. 
+
+For example, the Home tab is shown below. 
+
+ 
+
+ The File tab contains buttons for printing and exiting the application, but these 
+functions are available on the custom mySWT ribbons. 
+
+
+ 
+
+ 
+
+
+3.6 Navigation 
+
+ The primary navigation of the application is accomplished from the home page 
+ribbon. Each button in the View section of the Ribbon will take you to the 
+corresponding page. Each page has a customized ribbon as mentioned earlier to 
+accomplish tasks specific to that page. The large icon choices will be the ones used 
+most often. The small icon choices are more supporting type pages that will be used 
+less often. 
+
+
+ 
+
+ 
+
+
+ The secondary form of navigation is accomplished by using the record navigation 
+buttons at the bottom of each screen when applicable. Think of these navigation 
+buttons like a VCR or tape player where the far left button takes you to the first 
+record, the next button to the right takes you to the previous record, the first button 
+to the right of the record count takes you to the next record, the next button to the 
+right takes to the last record and the far right button when enabled takes you to a 
+new record. 
+
+
+ 
+
+ 
+
+
+3.7 Home Page 
+
+ The home page is the first page displayed after logging into mySWT and is the 
+starting point for all tasks in mySWT. 
+ It is the starting point for setting up a new Show, Trial and Class, to add a new 
+person and dog and to enter a Dog into a Class. 
+ It is the starting point for viewing existing Shows, Trials, Classes, People, Dogs, Clubs 
+and Entries. 
+ The ribbon is divided into 5 sections with buttons for completing these tasks. 
+
+
+
+ 
+
+ The Import file button allows you to import Dogs, People and Entries from an 
+excel file. The first row must be a header row and the columns must match the 
+same format as the export Dogs, People or Entries. 
+
+
+
+ 
+
+
+ 
+
+ 
+
+3.8 Clubs Page 
+
+ 
+
+ Click the “Clubs” button on the home page ribbon to display the Clubs page. 
+ This where you enter information about your club. 
+ Each Club needs a valid license. The license key will be on your order and in the 
+order email. 
+ The license key must be entered and activated for each Club. 
+ An internet connection is required for the activation. 
+ The demo also requires a license key. 
+ The Club Name and Club Number are required fields. 
+ The club logo and club report logo are used in other parts of the application. Proper 
+sizing of these images as indicated will provide the best results. 
+
+
+
+ 
+
+ 
+
+
+3.9 Add a New Show 
+
+ 
+
+ Click the “Add a New Show” button on the home page ribbon to open the Add a 
+New Show dialog box. 
+
+
+ 
+
+
+ The information at the show level are things that would be common to the entire 
+show such as the host club, trial chairman, trial secretary and entry fees. Complete 
+the information and click the Save and Close button. 
+ Be sure to enter a unique and meaningful show name. This will make identifying the 
+show easier in other parts of the application. 
+
+
+ 
+
+ mySWT is licensed to a specific club for its trials only. The club information should 
+be one of the first things set up and only needs to be done once. 
+ If you are using mySWT for multiple clubs each club needs a valid license. 
+ Only clubs with a valid license will appear in the drop down for Host Club. 
+
+
+ 
+
+
+3.10 Add a New Trial 
+
+ 
+
+ Click the “Add a New Trial” button on the home page ribbon to open the Add a New 
+Trial and Classes wizard. This wizard will gather some information about your trial 
+and Classes and then create both the trial and all the applicable Classes for you. 
+Ensure that you have already created the show and select the show name in the 
+wizard dialog. Ensure that you select all of the elements that are offered in this 
+specific trial including a Pre-Trial if applicable. 
+
+
+ 
+
+ 
+
+ Each trial needs to be added separately by repeating this process. For example, if 
+you were offering 4 Container trials over a weekend you would run this wizard 4 
+times with the applicable dates. 
+
+
+
+3.11 Add a New Class 
+
+ 
+
+ Click the “Add a New Class” button on the home page ribbon to open the Add a New 
+Class dialog box. 
+ Select an existing Trial, Judge and the elements and levels this judge is judging. 
+ If you have more than one judge you will need to repeat this process for each judge. 
+ Click “Save and Close” 
+
+
+
+ 
+
+ 
+
+
+3.12 Add a New Person 
+
+ 
+
+ Clicking the “Add a New Person” button on the ribbon allows you to add a new 
+person. A person will be an owner, handler, steward, judge, chairman, secretary, or 
+mySWT user. 
+ Complete the information in the box and click “Save and Close”. 
+
+
+ 
+
+ 
+
+
+ The Roles tab controls if this person has additional roles and responsibilities beyond 
+just being an owner or handler. The three types are a mySWT user, judge or 
+steward. For example, it is recommended that you add yourself as a mySWT user. 
+You would complete the information on the Info tab and enter a password in the 
+user’s password field on the Roles tab. The next time you login you will see yourself 
+listed along with Admin in the username drop down list. A steward is someone who 
+helps in any capacity with the trial. If someone is a steward, check the Steward 
+checkbox and they will now be available as a choice in all steward fields which 
+includes chairman and secretary. For judges enter their judge’s number and they 
+will be listed as a choice for a judge. 
+
+
+ 
+
+ 
+
+
+3.13 Add a New Dog 
+
+ 
+
+ Click the “Add a New Dog” button on the home page ribbon to open the Add a New 
+Dog dialog box. The dog, owner and handler are stored separately in the database 
+because an owner or handler can have more than one dog and this keeps you from 
+having to enter duplicate information. 
+ The AKC Number, Registered Name, Breed, Owner and Handler Name are required 
+fields and must be entered to save the Dog’s record. The large box to the right is for 
+attachments and is a nice place to place a picture of the dog. 
+ The Exhibitor ID number is automatically assigned based on the ID number assigned 
+to the Dog by the mySWT application. It is displayed as New until the first field is 
+entered. Displaying it on this screen is helpful when doing Day of Show entries. 
+
+
+ 
+
+ If the owner and\or handler already exists, simply choose their name from the drop 
+down list on the Owner and Handler Details tabs. An owner and a handler must be 
+selected. Most times this will be the same person, but if a person has two dogs 
+competing in the same class they will need someone else to handle one of their dogs. 
+This is when you would select that person as the handler for that dog, but leave the 
+owner as the actual owner of the dog. 
+ If not, click the edit list icon which will appear at the bottom when the Owner or 
+Handler Name drop down box is expanded. 
+
+
+
+ 
+
+ This will open the Add a New Person page. Complete the information and click 
+“Save and Close”. 
+
+
+ 
+
+ You can then select their name in the Owner and\or Handler Details drop down list 
+on the Add a New Dog page. 
+ Complete the remaining information and click Save and Close. 
+
+
+ 
+
+
+3.14 Shows Page 
+
+ 
+
+ Click the “View Shows” button on the home page ribbon and choose Show Details or 
+Show List to display your Shows in one of two ways. 
+ The Show List page displays a list of shows in columns and rows much like a 
+spreadsheet. Each column can be sorted and filtered. 
+ The Show Details page is divided into two parts. The upper part displays 
+information for that show. The bottom part (Trials Datasheet) displays the trials 
+that are a part of that show. 
+ The first column on the Trials Datasheet is the Trial ID which is a unique Identifier 
+automatically assigned by the system when the trial is created. This ID is a hyperlink 
+and clicking on it will open the Trials page with that trial displayed. When 
+navigating to a trial in this manner the open and closed filter mentioned below is 
+disabled. 
+ The logo on the right will be your club logo which is set on the Clubs page. 
+ The page is initially filtered to display only Open Shows. Change the shows 
+displayed by selecting one of the three radio buttons to display open shows, closed 
+shows or both. 
+
+
+ 
+
+ 
+
+
+ 
+
+ 
+
+
+ The Shows ribbon has 15 buttons specific to mySWT; 
+o Add a New Show – This will add a new show to mySWT. 
+o Custom Entry Form – This will create a custom entry form for this show 
+which will only display the elements and classes you are offering. This 
+option leaves the Dog and owner information blank, so it can be printed and 
+completed by the owner. The email invitation option pre-fills the dog and 
+owner information for exhibitors that are already in your database. 
+o Enter a Dog in a Class – This will open the screen which allows you to enter 
+a Dog in an available Class for this show. 
+ Entries are made by selecting the Dog from the drop down list. This 
+list contains 6 pieces of information which can be used to find the 
+correct dog. It can be sorted by any of these pieces of information by 
+selecting the appropriate radio button. When a ssearch by is selected 
+it will become the first column in the drop down list. When a dog is 
+selected their information will be shown in the gray boxes. This lets 
+you know which dog you are working on. 
+ You can type in the dropdown box to search for a dog. In the example 
+below the drop down list is sorted by Call Name and typing the letter 
+B will highlight the first dog with a Call Name that begins with B. 
+
+
+
+
+
+
+
+ 
+
+ Armband numbers are assigned automatically for each Show starting 
+with the number specified when creating the show when they are 
+entered in the first Class. Exhibitors who have not yet been entered 
+in a Class will have Armband number of zero. 
+ All available Classes for this show are listed in the left list box. 
+Available meaning Classes that are not closed out and the dog is not 
+already entered in. 
+ Double click or highlight and click the green plus sign to enter the 
+selected dog in the Class. The Class will move from the available 
+Classes to the Entered Classes in the list box on the right. 
+ Double click or highlight and click the Red minus sign to remove a 
+dog from a class, for example, because of a mistake or a move up. 
+
+
+
+
+
+
+
+ Select Day of Show if this is a Day of Show entry prior to entering the 
+dog in the Class. 
+ Entry received defaults to today’s date, but can be changed. 
+ The dollar amount paid per class is taken from what was entered 
+when creating the Show. This can also be modified per entry. 
+ You can also record the check # 
+
+
+
+
+
+
+ 
+
+o Import Online Entries 
+ I have developd an online entry system where you can publish your 
+events and exhibitors can enter and pay online. Please go to 
+https://events.myk9t.com. These entries can be imported directly 
+into mySWT. This should save trial secretaries a lot of time and 
+effort. 
+
+
+
+
+
+
+ 
+
+ 
+
+ Your Show, Trials and classes need to be added first, so the import 
+has a place to put the entries. 
+
+
+
+
+
+
+
+ 
+
+ 
+
+ You can import entries in two different ways 
+ Direct from the event website 
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+
+ Via CSV (comma sepaerated value) File. The CSV file can be 
+downloaded from the website (https://events/myk9t.com) 
+under the events menu. You must be a store owner or staff 
+member to see this menu. 
+
+
+
+
+
+
+
+
+ 
+
+ 
+
+
+ 
+
+
+ After the import you can see how many Orders and Entries 
+were imported and how many dogs and people were added. 
+
+
+
+
+
+
+
+
+ 
+
+ 
+
+o Email 
+ Email All Exhibitors – This will provide the ability to email all 
+exhibitors in your database. You can attach a custom entry form, a 
+verification report and a file such as your premium. 
+ Email Entered Exhibitors – This will provide the ability to email all 
+exhibitors entered in this show. You can attach a verification report, 
+confirmation, report, judging schedule, entry counts report, results 
+report and a file such as your premium 
+ Send Results to AKC – This will export the results in XML format 
+and save the file in the reports folder. You can then choose to email 
+this file to AKC. AKC can then import this file into their system. The 
+email should be sent to eresults@akc.org Please include your club 
+name, event date(s), and event number(s) in your email message. 
+ There are 10 message templates you can use for saving your 
+message subject and body. Select the message template you want to 
+send from the drop down list. 
+ There two email clients to choose from Outlook and Webmail. 
+Outlook is the preferred choice. Webmail will send directly via the 
+SMTP protocol. You must enter a reply to address for webmail. 
+
+
+
+
+
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+ 
+
+ 
+
+o Armband Labels – This will print an armband label for each exhibitor of this 
+show. A dialog box will open allowing you to choose if you want to print Early 
+entries, Day of show entries, a specific armband number or entries entered into 
+the system on a specifc date.. This allows you to print all of your armbands for 
+Early entries a head of time and then print Day of Show armbands after Day of 
+Show entries close. 
+o 
+ You can also select to include the Dog’s name, Handler’s name, Trial 
+Date and your club logo on each label. 
+ If you have a partial sheet of labels you can select the number of 
+label positions to skip. 
+
+
+
+
+
+
+
+ 
+
+ Armband labels can also be printed at the Trial and Class levels, but 
+this is not recommended as labels could be duplicated. For example, 
+an exhibitor entered more than one class. The labels are Avery 
+(18262) 1 and 1/3”x 4” labels. 
+
+
+
+
+
+
+ 
+
+o Check-in Sheets – You can print check-in sheets for the entire show in two 
+formats. 
+ Check-in Sheets by Trial\Class – These sheets will be grouped by 
+trial and class 
+
+
+
+
+
+
+
+ 
+
+ Check-in Sheets by Day – These sheets will be grouped by day. 
+These are useful if running both trials simultaneously. 
+
+
+
+
+
+
+ 
+
+ 
+
+o Envelope Labels – This will print a label with just the Handler’s name. The 
+envelopes can be used to keep all of the armband labels for that handler 
+together. 
+
+
+
+
+
+o Score Sheets – This will print an AKC score sheet for each exhibitor entered 
+in this show or the compact score sheet list. A dialog box will open allowing 
+you to choose if you want to print all score sheets for this show or just score 
+sheets for exhibitors that entered a class today (Day of Show Entries). This 
+allows you to print all of your score sheets for pre-entries ahead of time and 
+then print Day of Show score sheets after Day of Show entries close. 
+
+
+
+
+ 
+
+o They can be used by the judge if they prefer keeping the score on paper or 
+when entering the score immediately into mySWT is not feasible, such as in 
+an exterior trial. 
+o You can also print score sheet labels which can be attached to an official 
+score sheet which contains the search area diagram. 
+o Judging Counts – This will open a report displaying which Classes each 
+judge has been assigned to judge and how many exhibitors have entered 
+each class and the judging time for that class. The report totals the number 
+of Classes per day and for the entire show as well as the judging time. This is 
+helpful in ensuring a judge is not exceeding the amount of time they are 
+allowed to judge per day. This report can also be emailed to exhibitors when 
+using the email confirmation option. 
+
+
+
+
+
+ 
+
+o Show Judging Schedule – This is the show judging schedule which can be 
+printed and displays each exhibitor grouped by trial, element, class and 
+division. It can be printed in portrait or landscape view. 
+o Results 
+ Results Catalog – The Results Catalog is a report that can be printed 
+and displays each class in this Show with each exhibitor’s results and 
+placements. 
+ Results Report – This report can be printed and posted for exhibitors 
+ Result Labels – Result labels can be printed for each qualified 
+exhibitor showing their results and placements. This can be attached 
+to their qualifying ribbon. The labels are Avery (18262) 1 and 1/3”x 
+4” labels (same as Armband). 
+ Send Results to AKC – This will export the results in XML format and 
+save the file in the reports folder. You can then choose to email this 
+file to AKC. AKC can then import this file into their system. The email 
+should be sent to eresults@akc.org Please include your club name, 
+event date(s), and event number(s) in your email message. 
+
+
+o Show Statistics – This creates a report with some statistics for the entire 
+show. 
+o Close Out Show – This button will mark the status of the show as closed and 
+will also close any open trials and Classes associated to this show that have 
+not already been closed. 
+
+
+
+
+
+3.15 Trials Page 
+
+ 
+
+ Click the “View Trials” button on the home page ribbon and choose Trial Details or 
+Trial List to display your Trials in one of two ways. 
+ The Trial List page displays a list of trials in columns and rows much like a 
+spreadsheet. Each column can be sorted and filtered. 
+ The Trial Details page is divided into two parts. The upper part displays information 
+for that trial. The bottom part (Classes Datasheet) displays the Classes that are a 
+part of that trial. 
+ The first column in the Classes Datasheet is the Class ID which is a unique identifier 
+automatically assigned by the system when the Class is created. This ID is a 
+hyperlink and clicking on it will open the Classes page with that Class displayed. 
+When navigating to a Class in this manner the open and closed filter mentioned 
+below is disabled. 
+ The logo on the right will be your club logo which is set on the Clubs page. 
+ The page is initially filtered to display only Open Trials. Change the trials displayed 
+by selecting one of the three radio buttons to display open trials, closed trials or 
+both. 
+
+
+ 
+
+
+ 
+
+ 
+
+ 
+
+
+ The Trials ribbon has 9 buttons specific to mySWT; 
+o Add a New Trial – This will add a new trial and set of Classes to mySWT. 
+o Armband Labels – This will print an armband label for each exhibitor of this 
+trial. A dialog box will open allowing you to choose if you want to print Early 
+entries, Day of show entries, a specific armband number or entries entered into 
+the system on a specifc date.. This allows you to print all of your armbands for 
+Early entries a head of time and then print Day of Show armbands after Day of 
+Show entries close. 
+ Armband labels can also be printed at the Class level, but this is not 
+recommended as labels could be duplicated. For example, an 
+exhibitor entered more than one Pre-Trial class. The labels are Avery 
+(18262) 1 and 1/3”x 4” labels. 
+
+
+o Check-In Sheets – This will print a Check-In Sheet for each Class in this trial. 
+This sheet can be used by the gate steward to check in exhibitors. 
+o 
+
+
+
+
+ 
+
+o Score Sheets – This will print an AKC score sheet for each exhibitor entered 
+in this trial or the compact score sheet list. A dialog box will open allowing 
+you to choose if you want to print all score sheets for this trial or just score 
+sheets for exhibitors that entered a Class today (i.e. Day of Show Entries). 
+This allows you to print all of your score sheets for pre-entries ahead of time 
+and then print Day of Show score sheets after Day of Show entries close. 
+
+
+
+
+
+ They can be used by the judge to record the score of each Exhibitor. 
+They can be used to enter the scores into mySWT when entering the 
+score immediately into it is not feasible, such as in an Exterior or 
+Buried trial. 
+
+
+o Handlers with Multiple Dogs – This is a report that shows handlers with 
+multiple dogs entered into this trial. This can be used to determine if any 
+accommodations or precautions need to be made in regards, to the hides. 
+
+
+
+
+ 
+
+ 
+
+o Results 
+ Results Catalog – The Results Catalog is a report that can be printed 
+and displays each class in this Trial with each exhibitor’s results and 
+placements. 
+ Result Labels – Result labels can be printed for each qualified 
+exhibitor showing their results and placements. This can be attached 
+to their qualifying ribbon. The labels are Avery (18262) 1 and 1/3”x 
+4” labels (same as Armband). 
+
+
+o AKC Reports 
+ AKC Trial Secretary Report – This will auto populate the AKC Trial 
+report PDF form. This form must be signed by the trial chairman and 
+secretary and sent to AKC with the applicable fees. mySWT will 
+calculate the number of pre-entries, day of show entries and the high 
+in trial winner from this form. 
+
+
+
+
+
+
+
+ 
+
+ 
+
+ AKC High in Trial Report 
+
+
+o Trial Statistics – This creates a nice report with some statistics for the trial 
+which includes the High in Trial winner. 
+o Close Out Trial – This button will mark the status of the trial closed and will 
+also close any open Classes associated to this trial that have not already been 
+closed. 
+
+
+
+
+ 
+
+
+3.16 Classes Page 
+
+ 
+
+ Click the “View Classes” button on the home page ribbon and choose Class Details 
+or Class List to display your Classes in one of two ways. 
+ The Class List page displays a list of Classes in columns and rows much like a 
+spreadsheet. Each column can be sorted and filtered. 
+ The Classes Details page is divided into two parts. The upper part displays 
+information for that Class such as element, class and division. 
+ The bottom part (Exhibitors’ Datasheet) displays the Exhibitors entered in that 
+Class. This is where each exhibitor’s score and time will be entered. 
+ The first column in the Exhibitors’ Datasheet is the Exhibitors ID which is a unique 
+Identifier automatically assigned by the system when an exhibitor is added. This ID 
+is a hyperlink and clicking on it will open the Exhibitors page with that exhibitor 
+displayed. 
+ The exhibitors are initially listed in Armband Number order. Placements are 
+calculated after each dog is scored. The list is re-sorted by Placement and then by 
+Armband #. This means that the next dog to run will be at the top of the list. 
+ Record the dog’s runtime and faults by clicking the Enter Results button on the row 
+of the dog. This will open the Runtime and Faults dialog box. 
+ The exclude column is used to exclude this exhibitor from placements. Check this 
+box if this exhibitor is not eligible for placements in this Class and they will be 
+excluded from the placement calculations on the judge’s book. An asterisk will be in 
+the place column of the judge’s book for these exhibitors. 
+
+
+
+ 
+
+ 
+
+
+The Hides tab on the Classes page lists the requirements for this Class based on the Element 
+and Level. 
+
+ It lists the Odor(s) used, number of Element items (containers) or Square footage 
+(interior and exterior), number of hides and the number of distractions. 
+ It also has a Random Number Generator that may be used to generate random 
+numbers for hides and distractions based on the numbers entered in the hides and 
+distractions used fields. 
+ You will enter the number of hides and distractions actually used because at the 
+Master level the judge can use 1-3 hides. 
+ You can also record which odor was in which hide position number. 
+ The example below is for a Novice Container search and shows the requirements for 
+this level are an odor of Birch, 10 boxes, 1 hide and no distractions and the 
+generator placed the hide in position number 8. 
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+ 
+
+ The Classes ribbon has 6 buttons specific to mySWT; 
+o Add a New Class – This will add a new Class to mySWT. Classes should be 
+added when creating your trial and this only needs to be used in rare 
+situations. 
+o Armband Labels – This will print an armband label for each exhibitor of 
+this Class. It is recommended to print armband labels at the trial level to 
+avoid duplication and waste of labels. The labels are Avery (18262) 1 and 
+1/3”x 4” labels. 
+o Check-In Sheets – This will print a Check-In Sheet for this Class. This sheet 
+can be used by the gate steward to check in exhibitors. 
+o Score Sheets – This will print an AKC score sheet for each exhibitor entered 
+in this Class or the compact score sheet list. This can be used by the judge if 
+they prefer keeping the score on paper or, when entering the score 
+immediately into mySWT is not feasible, such as in an exterior trial. 
+o Results 
+ Results Catalog – The Results Catalog is a report that may be printed 
+and displays each class in this Show with each exhibitor’s results and 
+placements. 
+ Result Labels – Result labels can be printed for each qualified 
+exhibitor showing their results and placements. This can be attached 
+to their qualifying ribbon. The labels are Avery (18262) 1 and 1/3”x 
+4” labels (same as Armband). 
+
+
+o Close Out Class – This button will mark the status of the Class closed. 
+
+
+
+
+
+3.17 People Page 
+
+ 
+
+ Click the “View People” button on the home page ribbon and choose People Details 
+or People List to display your Shows in one of two ways. 
+ The People List page displays a list of People in columns and rows much like a 
+spreadsheet. Each column can be sorted and filtered and exported to Excel. 
+
+
+ 
+
+ The People Details page is divided into two parts. The upper part displays 
+information for that handler and is divided into two tabs. The Contact Details tab 
+contains information about the handler such as name, address, email, phone, etc. 
+The Notes/Attachments tab is where you can place any notes or attach any 
+documents for this handler. 
+ The bottom part (Exhibitor Datasheet) displays all of the dogs for whom this person 
+is the assigned handler. 
+ The first column in the Exhibitor Datasheet is the Armband # which is a unique 
+Identifier automatically assigned by the system. This Armband # is a hyperlink and 
+clicking on it will open the Exhibitors page with that Exhibitor displayed. 
+
+
+
+ 
+
+ 
+
+ 
+
+
+3.18 Dogs Page 
+
+ 
+
+ Click the “View Dogs” button on the home page ribbon and choose Dogs Details or 
+Dogs List to display your Dogs in one of two ways. 
+ The Dogs List page displays a list of Dogs in columns and rows much like a 
+spreadsheet. Each column can be sorted and filtered and exported to Excel. 
+
+
+ 
+
+ 
+
+ The Dogs Details page is divided into two parts. The upper part displays 
+information for that exhibitor and is divided into three tabs. The K9 info tab 
+contains the dog’s information, such as AKC #, Armband #, Call Name, Registered 
+Name, Breed, etc. The Handler Details tab contains information about the handler 
+such as name, address, email, phone, etc. The notes/attachments tab is where you 
+may place any notes or attach any documents for this exhibitor. 
+ The bottom part (Classes Datasheet) displays all of the Classes that the exhibitor has 
+been entered in and their results. 
+ The first column in the Classes Datasheet is the Class ID which is the unique 
+Identifier that is automatically assigned by the system when the Class is created. 
+This ID is a hyperlink and clicking on it will open the Classes page with that Class 
+displayed. When navigating to a Class in this manner the open and closed filter is 
+disabled. 
+ The Exhibitors ribbon has 5 buttons specific to mySWT; 
+o Add a New Dog – This will add a new exhibitor to mySWT. 
+o Enter Exhibitor in a Class – This will allow you to enter this exhibitor in a 
+Trial/Class. 
+
+
+
+
+
+o AKC Entry Form – This will auto populate the AKC Scent Work entry form 
+with information stored in mySWT for this exhibitor. 
+o AKC Transfer Form - This will auto populate the AKC Transfer form with 
+information stored in mySWT for this exhibitor. 
+
+
+
+
+ 
+
+
+
+3.18.1 AKC Entry Form 
+
+ 
+
+ Clicking the AKC Entry Form button on the Exhibitors ribbon will auto populate the 
+AKC Entry PDF with the Exhibitor’s information stored in mySWT. 
+ The handler should have already completed this entry form and this is what you are 
+probably using to enter the data into mySWT. However, this is a nice feature for day 
+of show entries. 
+ You may see this warning message. Click allow. 
+
+
+ 
+
+ You may also see a banner at the top of the PDF form asking you to trust the 
+document. Click options and select Trust this Document Always. 
+
+
+ 
+
+ 
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+3.18.2 AKC Change Form 
+
+ 
+
+ Clicking the AKC Transfer Form button on the Exhibitors ribbon will auto populate 
+the AKC Transfer PDF with the Exhibitor’s information stored in mySWT. 
+ The handler can then complete the class information they wish to change or move 
+up to. 
+ You may see this warning message. Click allow. 
+
+
+
+ 
+
+You may also see a banner at the top of the PDF form asking you to trust the document. Click 
+options and select Trust this Document Always. 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+3.19 Scoreboard 
+
+ 
+
+The Scoreboard is a page that is designed to be opened on a second monitor or a second PC 
+in a networked installation of mySWT. This page displays all of the Classes in a trial sorted 
+by element, class, division and armband #. This page allows spectators and exhibitors to see 
+the scores and run times as they are entered into mySWT. If you use mySWT at the timer’s 
+table where you are recording the results immediately, then spectators and exhibitors are 
+seeing their scores live as they happen just like a Scoreboard at a football or basketball 
+game. 
+
+The Scoreboard dialog allows you to select the Trial, number of lines to scroll and number 
+of seconds between scrolling. 
+
+ 
+
+The Scoreboard will auto scroll down X number of lines every X number of seconds to the 
+bottom and then start back at the top. The form opens maximized, but can be re-sized to fit 
+the display screen. The columns can also be re-sized to ensure they are visible. 
+
+ 
+
+ 
+
+ 
+
+
+3.20 Using the Application during a Trial 
+
+The Trial and Classes pages will be the primary pages used during the running of a trial. 
+
+3.20.1 Setup 
+
+Ensure the Show, Trial and Classes are set up. The normal sequence to follow is: 
+
+1. Add a Show 
+2. Add Trials and Classes to that Show 
+3. Add any new Exhibitors 
+4. Enter the Exhibitors in their Classes 
+
+
+3.20.2 Classes 
+
+ 
+
+The exhibitors entered in that Class will be initially listed in armband number order in the 
+list at the bottom of the screen. Each time a dog is scored, the placements for the class are 
+calculated or re-calculated. The list will then be re-sorted first by Placement and then by 
+Armband number. This sorting causes the next dog to run to be at the top of the list 
+
+Follow the procedure below to record each Dog’s Run Time and Faults. 
+
+1. Open the Classes Page 
+2. Ensure that the correct Class is displayed. The dogs entered in that Class will be 
+listed in armband number order in the list at the bottom of the screen. 
+
+
+ 
+
+3. Click the Enter Results Link for the Dog that is about to run. The Results Dialog box 
+will open. The Armband number will be displayed in the upper right corner, so you 
+
+
+
+can ensure that you are recording results for the correct dog. 
+
+
+ 
+
+4. When the handler gives the search command and the dog or handler crosses the 
+start line click Start button on the Run Time Stopwatch. The button label will 
+change to Stop and the time will begin to increment. 
+5. When the handler calls alert, click the Stop button on the Search Time Stopwatch. 
+6. Record the search by selecting the appropriate Area checkbox. Area 2 and 3 will be 
+grayed out except for Interior excellent and master which have multiple search 
+areas. The Search Time can also be manually entered by typing in ALL 6 digits using 
+leading zeros of the time (mm:ss:hh). Do not type the colons. For example, if the 
+time was 1 minute and 30 seconds you would type 013000. 
+7. Check the appropriate Result. A reason must be selected for NQ, Excused and 
+Withdrawn. 
+8. Record any faults by entering a number in the appropriate Fault box or using the 
+up\down arrows. 
+
+
+
+9. Click Save and Close. 
+
+
+ 
+
+10. Call for the next exhibitor listed which will be the first row. 
+11. If an exhibitor is absent, mark them absent on the score dialog box. 
+12. After all exhibitors for that Class are scored, print the Results Catalog for that Class. 
+Results for ALL dogs entered in that Class should be recorded before printing the 
+Results Catalog. 
+13. Close out the Class by clicking the Close Out Class button on the ribbon. 
+14. If all Classes for the trial are complete, go to the Trials page and print the Trial 
+Statistics report and then click Close Out Trial. The Trial Statistics report lists the 
+High in Trial winners. 
+15. If all trials are complete for the show, go to the Show page and print the Show 
+Statistics report and then click Close Out Show. 
+
+
+ 
+
+
+ 
+
+ 
+
+
+3.21 Entries List 
+
+ 
+
+ Click the “Entries List” button on the home page ribbon to display a list of all 
+entries in the database. 
+ The Entries List is a spreadsheet type list of all entries in the system. 
+ Only the Amount Paid, Check # and Date Entered fields are editable. This is where 
+you can adjust the amount paid by an exhibitor for a specific Class, for example, 
+when offering discounts or package prices. 
+ You can use the sorting and filtering capabilities of each column to find a specific 
+entry or set of entries. For example, the list below is filtered to display only two 
+specific exhibitors' entries. 
+ The list can be exported to Excel. 
+
+
+
+ 
+
+
+ 
+
+3.22 Backup Database 
+
+ 
+
+The system has two data files as mentioned earlier. As with anything, it is important that 
+you backup this data. Clicking the Backup Database button on the home page with create a 
+backup of the mySWT_data.accdb and myShare.accdbe files. It will append the date and time 
+to the filename and place them in the backup folder in your mySWT folder. It is strongly 
+recommended that you copy these files to another computer or flash drive for safe keeping 
+in case of a hard drive or other hardware failure. 
+
+ 
+
+ 
+
+ mySWT_data.accdb 
+
+
+ 
+
+
+ myShare.accdb 
+
+
+
+ 
+
+3.23 Armband Labels 
+
+ 
+
+Armband labels can be printed from either the Trial page or the Classes page. It is 
+recommended to print them from the Trials page to avoid duplication and waste of labels. 
+For example, an exhibitor entered more than one class. The labels are Avery (18262) 1 and 
+1/3”x 4” labels. 
+
+You can choose to include additional information with the Armband number such as Dog’s 
+Call Name, Handler’s Name, Trial Date and Club logo. Check the AKC rules to see if any of 
+this additional information is prohibited. 
+
+ Shows page – This will print an armband label for each exhibitor of this Show. 
+ Trials page – This will print an armband label for each exhibitor of this Trial. 
+ Classes page – This will print an armband label for each exhibitor of this Class. 
+
+
+
+ 
+
+ 
+
+
+ 
+
+ 
+
+
+3.24 Check-In Sheets 
+
+ 
+
+The Check-in Sheets can be printed from either the Trial page or the Classes page. The 
+check-in sheet can be used by the gate steward to check in exhibitors for their Class. 
+
+ Trials page – This will print a Check-in Sheet for each Class of this trial listing the 
+exhibitors entered. 
+ Classes page – This will print a Check-in Sheet for that Class listing the exhibitors 
+entered. 
+
+
+
+ 
+
+ 
+
+ 
+
+
+3.25 Score Sheets 
+
+ 
+
+The Score Sheets can be printed from the Shows, Trials or the Classes page. The Score 
+Sheets can be used by the judge to score the Class on paper or when entering the score 
+immediately into mySWT is not feasible, such as in an exterior trial. 
+
+The score sheets are populated with the trial, Class and exhibitor’s information. 
+
+The Score sheets Dialog allows you to choose if you want to print all entries or just Day of 
+Show entries. It also allows you to choose if you want to print the full page AKC Score sheet 
+or the mySWT Compact score sheets. 
+
+ 
+
+The score sheets will open in print preview mode and then can be printed by clicking the 
+print button. 
+
+ Shows page – This will print a Score Sheet for each exhibitor entered in that Show. 
+ Trials page – This will print a Score Sheet for each exhibitor entered in that Trial. 
+ Classes page – This will print a Score Sheet for each exhibitor entered in that Class. 
+
+
+
+ 
+
+
+ 
+
+Compact Score sheet List 
+
+ 
+
+ 
+
+
+Score sheet labels can also be printed and attached to a blank score sheet. This can be used 
+when the map has been drawn and copies made for each exhibitor. 
+
+ 
+
+ 
+
+3.26 Results Catalog 
+
+The Results Catalog is a report of the results of each Class. The Results catalog can be 
+printed from the Shows, Trials or Classes pages. This controls the scope of which results are 
+printed. For example, printing from the Shows page prints Results for ALL Classes in that 
+show. Printing from the Trials page only prints the Results for the Classes in that Trial. 
+Printing from the Classes page only prints the Results for that one Class. 
+
+ 
+
+
+ 
+
+
+3.27 Result Report 
+
+ 
+
+The Result Report is a report of the results of each Class. It is a more compact version of the 
+Results Catalog. It is intended to be posted for exhibitors to view their results. The Results 
+Report can be printed from the Shows, Trials or Classes pages. This controls the scope of 
+which results are printed. For example, printing from the Shows page prints Results for ALL 
+Classes in that show. Printing from the Trials page only prints the Results for the Classes in 
+that Trial. Printing from the Classes page only prints the Results for that one Class. 
+
+ 
+
+ 
+
+ 
+
+3.28 Result Labels 
+
+ 
+
+Result Labels can be printed from either the Trials page or the Classes page. As with 
+armband labels it is recommended to print them from the Trials page to avoid wasted 
+labels. The same Avery (18262) 1 and 1/3”x 4” labels are used. The labels can then be 
+attached to placement ribbons and/or given to exhibitors for their records. Labels are only 
+printed for qualifying scores. 
+
+ Trials page – This will print a Result label for each exhibitor of this trial. 
+ Classes page – This will print a Result label for each exhibitor of this Class. 
+
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+3.29 Statistics Reports 
+
+ There are two statistic reports that can be printed. One is for the Show level which is 
+accessed from the Show page ribbon and one is for the Trial level which is accessed from 
+the Trial page ribbon. The Trial level lists the High in Trial winner. You may also calculate 
+the fastest time for the entire show. 
+
+Both the Show and Trial Statistics Reports will ask you if you want to close out the show or 
+trial. Keeping the status of Shows, Trials and Classes up to date will make use of the system 
+much easier. 
+
+3.29.1 Show Statistics Report 
+
+ 
+
+
+ 
+
+ 
+
+ 
+
+
+3.29.2 Trial Statistics Report 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+3.30 Close Out a Show, Trial or Class 
+
+ 
+
+It is important to keep the status of Shows, Trials and Classes up to date since there are 
+many places in the system that the status is used to determine what to display. 
+
+ It is recommended that when a Class completes (all dogs for that Class are finished) 
+you close that Class by clicking the Close Out Class button on the Classes page 
+ribbon. 
+
+
+ 
+
+ 
+
+ It is also recommended that a trial be closed out when that trial is completed (all 
+Classes in the trial are finished) by clicking the Close Out Trial button on the Trials 
+page ribbon. When a trial is closed out all Classes under that trial will also be 
+marked closed, if they have not been already. 
+
+
+ 
+
+ 
+
+ It is also recommended that a show be closed out when that show is completed (all 
+trials in that show are finished) by clicking the Close Out Show button on the Shows 
+page ribbon. When a show is closed out all trials and Classes under that show will 
+also be marked closed, if they have not been already. 
+
+
+ 
+
+ 
+
+
+4 Support 
+
+4.1.1 Upgrades 
+
+There are two types of upgrades. 
+
+ A change is required to one or both of your data files. 
+o If this is the case you will need to send me your data files. I will make the 
+appropriate changes to them and send back to you a new compiled 
+mySWT_setup.exe file. This installation file contains the new application, all 
+supporting files and your data files. Follow the steps below for this type of 
+upgrade. 
+ Save the mySWT_setup file to your desktop. The file will either be in 
+a compressed Zip folder or have the exe file extension changed from 
+exe to txt. This is necessary because exe files will be blocked by 
+email. Gmail also blocks Zip file attachments. This is the reason it 
+may be sent in different ways. 
+ Unzip or rename the file extension of the mySWT_setup file 
+depending on how it was sent to you. 
+ Rename your existing documents\mySWT folder to something else 
+such as mySWT-OLD. The setup file will create a new mySWT folder. 
+ Run the mySWT_setup.exe file and follow the on-screen instructions. 
+ Start mySWT and re-link it to your two data files. They will be 
+located in the same documents\mySWT folder. 
+ Login and click the about box to verify the new version number. 
+ Test the new application. 
+
+
+
+
+ No Change is required to your data files. 
+o If this is the case I will only send you the mySWT_application.accde file. 
+Follow the steps below for this type of upgrade. 
+ Save the mySWT_application.accde file to your existing 
+document\mySWT folder overwriting the existing file. 
+ Start mySWT and re-link it to your two data files. They will be 
+located in the same documents\mySWT folder. 
+ Login and click the about box to verify the new version number. 
+ Test the new application. 
+
+
+
+
+
+
+4.1.2 Support 
+
+I will do my best to ensure your happiness and satisfaction with the application and that it 
+makes administering and hosting your trial as easy as possible. If you need assistance 
+please open a support case at https://myk9t.com/support 
+
+ This user guide can be opened from within the mySWT application by clicking the 
+user guide button near the top right of the mySWT info form. 
+
+
+
+ 
+
+ The About dialog box lists the application version, build date, minimum version and 
+actual version of the two data files; myShare and mySWT_data. 
+
+
+ 
+
+ 
+
+ I have also programmed an error reporting mechanism where any unexpected 
+errors can be emailed to me along with screenshots and relevant data to help me 
+find and correct the issue. The use of this feature requires that you have Microsoft 
+Outlook installed. 
+
+
+ 
+
+Hopefully you will never need to take advantage of this feature...  
+
+ 
+
+
+Thank you for purchasing mySWT!! 
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+

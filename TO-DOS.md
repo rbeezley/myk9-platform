@@ -4,6 +4,14 @@ Items to address in future sessions.
 
 ---
 
+## Strategic Plans
+
+Higher-level planning documents that govern how the items below should be sequenced. Read these before picking up individual TODOs so the work lands in the right order.
+
+- **[Fall 2026 North Star Plan](docs/plans/strategy/2026-04-11-north-star-fall-2026.md)** — sequences pre-work (AKC XML Export, expanded Phase 2 Reports) before a four-phase stabilization effort (define journeys → simplify → polish golden paths → real-user testing). All items below should be evaluated against this plan before execution.
+
+---
+
 ## Outstanding from Code Quality Sprint (2026-02-15)
 
 - [ ] **Make E2E CI jobs blocking once tests are stable** — Investigated 2026-02-27: CI broken due to GitHub Actions billing. myK9Q 1/10 E2E passing (missing test passcodes). myK9Show E2E ~0% (AI-generated artifacts need triage). Next steps: (1) fix billing/wait for reset, (2) decide passcode seeding strategy, (3) triage myK9Show E2E files.
@@ -19,15 +27,24 @@ Items to address in future sessions.
 
 ## Report Generation Phase 2 — Access Application Reports (2026-04-06)
 
-Port 6 reports from the Access application (mySWT). Phase 1 infrastructure (report engine, preview iframe, print dialog) is complete (PR #46). 6 stub entries exist in `reportRegistry.ts` with `enabled: false`. Access screenshots are in `docs/mySWT/`. Design spec: `docs/superpowers/specs/2026-04-06-report-generation-design.md`.
+Port reports from the Access application (mySWT) to reach parity with production `mySWT`. Phase 1 infrastructure (report engine, preview iframe, print dialog) is complete (PR #46). Stub entries exist in `reportRegistry.ts` with `enabled: false`. Access screenshots are in `docs/mySWT/`. Design spec: `docs/superpowers/specs/2026-04-06-report-generation-design.md`.
 
-- [ ] **Phase 2 Reports (6 total)** — Show Catalog, Result Catalog, Judge's Schedule, Trial Secretary Report, Judge's Certification, Trial Chairman Report. Plan: `docs/superpowers/plans/2026-04-09-phase2-reports.md`. 8 tasks, TDD, ~60 steps.
+- [ ] **Phase 2 Reports (16 total)** — Plan: [`docs/superpowers/plans/2026-04-09-phase2-reports.md`](docs/superpowers/plans/2026-04-09-phase2-reports.md). 20 tasks, TDD. **Scope expanded from 6 → 16 reports.**
+  - **Original 6:** Show Catalog, Result Catalog, Judge's Schedule, Trial Secretary Report, Judge's Certification, Trial Chairman Report (Tasks 1–8).
+  - **Additional 10:** Show/Trial/Breed/Judge Entry Counts, Financial Report (Accepted + Waitlist variants), Waitlist Report, Steward Report, Result Labels, AKC Judge's Report, Trial Secretary Certification (Tasks 9–20).
+  - **Infrastructure:** new show-scoped and trial-level rendering modes in `ReportPreview` via a `getReportRenderingMode` helper; extends `ReportEntry` / `ReportProps` with class/trial metadata and `allTrials` / `allClasses`.
 
 ---
 
 ## AKC Electronic Results XML Export — 2026-04-09 08:25
 
-- **Build AKC XML results export for myK9Show** — Generate and email the AKC-format `electres.xml` results file so trial secretaries can submit results electronically directly from myK9Show. **Problem:** Trial secretaries currently use a Microsoft Access application (mySWT) to produce this XML file and email it to AKC. The goal is to replicate this workflow natively in myK9Show. **Files:** `docs/mySWT/mod_XML.bas` (VBA source — XML structure reference), `docs/mySWT/Norwegian Elkhound Association of America-Results_20260409082032.xml` (sample output — AKC schema `http://www.akc.org` / `electres.xsd`), `apps/myk9show/src/lib/reports/reportRegistry.ts`, `apps/myk9show/src/pages/secretary/ReportsPage/index.tsx`. **Solution:** (1) Build a TypeScript XML generator that produces the same `<sender>/<event>/<class>/<results>` structure (namespace `http://www.akc.org`, schema version 1.0). Map fields from existing entry/dog/owner queries — key fields: `akcDogRegnum`, `catalogNumber`, `courseTime`, `actionCode`, `resultCode`, placings, owner address, AKC JR handler info. (2) Surface as a "Export to AKC" action on the ReportsPage or trial settings page — generates the XML file and triggers download. (3) Add optional mailto link pre-filled with AKC's submission email address so the secretary can attach and send. No new migration needed if we use existing entry data.
+- [ ] **Build AKC XML results export for myK9Show** — Replace the stub `AKCScentWorkFormatter` with a real implementation that generates AKC-compliant `electres.xml` (namespace `http://www.akc.org`, schema version 1.0), wires `ResultsSubmissionPage` to real show data, and adds a one-click "Send to AKC" button that emails the XML via a new Supabase Edge Function. Plan: [`docs/superpowers/plans/2026-04-09-akc-xml-results-export.md`](docs/superpowers/plans/2026-04-09-akc-xml-results-export.md). **5 tasks, TDD.**
+  - **Task 1:** Update types in `packages/secretary` (new `AKCSubmissionData` + AKC-specific fields).
+  - **Task 2:** Implement real `AKCScentWorkFormatter` (pure TS — `<sender>/<event>/<class>/<results>`; maps `akcDogRegnum`, `catalogNumber`, `courseTime`, `actionCode`, `resultCode`, placings, owner address, AKC JR handler info).
+  - **Task 3:** Build `useAKCSubmissionData` React Query hook — fetches and assembles show/trial/entry/owner data from Supabase.
+  - **Task 4:** New `supabase/functions/send-results/` Edge Function — receives XML and sends via Resend (reuses `RESEND_API_KEY`), CC's the secretary. (Replaces the old mailto approach.)
+  - **Task 5:** Wire `ResultsSubmissionPage` to real data + Send button; update tests.
+  - **Reference:** `docs/mySWT/mod_XML.bas` (VBA source), `docs/mySWT/Norwegian Elkhound Association of America-Results_20260409082032.xml` (sample output). No new migration needed.
 
 ---
 

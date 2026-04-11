@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { TrialSecretaryCertification } from '../TrialSecretaryCertification';
 import type { ReportProps } from '@/lib/reports/types';
 
@@ -17,6 +17,11 @@ const baseProps: ReportProps = {
   ],
 };
 
+/** Find the <tr> that contains the given label text and return it for scoped assertions. */
+function getStatRow(labelPattern: RegExp) {
+  return screen.getByText(labelPattern).closest('tr')!;
+}
+
 describe('TrialSecretaryCertification', () => {
   it('renders report title', () => {
     render(<TrialSecretaryCertification {...baseProps} />);
@@ -26,29 +31,29 @@ describe('TrialSecretaryCertification', () => {
   it('shows total entries count', () => {
     render(<TrialSecretaryCertification {...baseProps} />);
     // 5 total entries
-    expect(screen.getByText(/Total Entries/i)).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();
+    const row = getStatRow(/Total Entries/i);
+    expect(within(row).getByText('5')).toBeInTheDocument();
   });
 
   it('shows total runs (present count)', () => {
     render(<TrialSecretaryCertification {...baseProps} />);
     // 4 present (e1, e2, e3, e5)
-    expect(screen.getByText(/Total Runs/i)).toBeInTheDocument();
-    expect(screen.getByText('4')).toBeInTheDocument();
+    const row = getStatRow(/Total Runs/i);
+    expect(within(row).getByText('4')).toBeInTheDocument();
   });
 
   it('shows total withdrawals', () => {
     render(<TrialSecretaryCertification {...baseProps} />);
     // 1 withdrawn (e4)
-    expect(screen.getByText(/Withdrawal/i)).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
+    const row = getStatRow(/Total Withdrawals/i);
+    expect(within(row).getByText('1')).toBeInTheDocument();
   });
 
   it('shows total qualifying scores', () => {
     render(<TrialSecretaryCertification {...baseProps} />);
     // 3 qualifying (e1, e3, e5)
-    expect(screen.getByText(/Qualifying/i)).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
+    const row = getStatRow(/Total Qualifying/i);
+    expect(within(row).getByText('3')).toBeInTheDocument();
   });
 
   it('renders a signature line', () => {

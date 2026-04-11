@@ -681,4 +681,36 @@ body {
 .total-row td {
   border-top: 2px solid #000;
 }
+
+/* ─── Statistics/counts layouts ──────────────────────────────────────── */
+
+.stats-section {
+  margin-bottom: 24px;
+}
+
+.stats-section-header {
+  font-size: 14px;
+  font-weight: bold;
+  background: #f0fdfa;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  border-left: 3px solid #14b8a6;
+}
+
+.stats-element-total {
+  font-size: 11px;
+  font-weight: bold;
+  text-align: right;
+  padding: 4px 8px;
+  border-top: 1px solid #ccc;
+  margin-bottom: 12px;
+}
+
+.stats-footer {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 8px;
+  border-top: 2px solid #000;
+  margin-top: 16px;
+}
 `.trim();

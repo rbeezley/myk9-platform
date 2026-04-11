@@ -103,7 +103,7 @@ describe('reportRegistry', () => {
     it('all phase 2 extended reports have non-placeholder components', () => {
       for (const id of PHASE_2_EXTENDED_IDS) {
         const report = getReportById(id)!;
-        const result = report.component({ showName: 'Test', entries: [], sortOrder: '' } as any);
+        const result = report.component({ showName: 'Test', entries: [], sortOrder: '' } satisfies ReportProps);
         expect(result, `${id} component should not return null`).not.toBeNull();
       }
     });

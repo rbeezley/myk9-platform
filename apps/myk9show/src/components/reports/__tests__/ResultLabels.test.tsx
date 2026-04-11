@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { ResultLabels } from '../ResultLabels';
 import type { ReportProps } from '@/lib/reports/types';
 
@@ -128,6 +128,18 @@ describe('ResultLabels', () => {
     // Scored entries with finalPlacement < 9000: e1 (place 1), e3 (place 2)
     // e2 has placement 9999 (NQ sentinel) — no Place shown; e4 is unscored
     expect(placeCells).toHaveLength(2);
+  });
+
+  it('shows handler name on each label', () => {
+    render(<ResultLabels {...baseProps} />);
+    expect(screen.getByText('Jane Mitchell')).toBeInTheDocument();
+  });
+
+  it('sorts by armband when sortOrder=armband', () => {
+    render(<ResultLabels {...baseProps} sortOrder="armband" />);
+    const armbandEls = document.querySelectorAll('.result-label-armband');
+    const armbandValues = Array.from(armbandEls).map(el => el.textContent);
+    expect(armbandValues).toEqual(['101', '102', '103', '104']);
   });
 
   it('shows element and level from classData', () => {

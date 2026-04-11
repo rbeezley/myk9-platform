@@ -87,6 +87,8 @@ The paperwork phase. Produces the documents that should have existed from day on
 
 **Note:** Phase 0 was originally scoped at 1–2 weeks. With the `mySWT User-Guide.txt` (sections 3.7–3.30 are effectively the full secretary workflow) and the 40+ workflow screenshots in `docs/mySWT/`, the secretary journey can be drafted directly from existing reference material. Estimate dropped accordingly. The exhibitor journey still requires more original work since the Access app is a desktop secretary tool and does not document an exhibitor flow.
 
+**Tooling:** Use `/ultraplan` for the Phase 0 drafting pass. The journey maps and feature audit are long-context, reference-material-heavy documents — a good fit for cloud-based planning with the `docs/mySWT/` assets attached, then reviewed and committed locally. Do not use it for Phase 1/2 execution (those are already detailed plans ready to run).
+
 ### Deliverables
 
 All deliverables live under `docs/plans/` or `docs/` as appropriate and are committed to git as they are produced.

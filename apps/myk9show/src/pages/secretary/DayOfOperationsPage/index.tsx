@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +19,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus, ArrowUpCircle, XCircle, RefreshCw } from 'lucide-react';
+import { UserPlus, ArrowUpCircle, XCircle, RefreshCw, UserCheck } from 'lucide-react';
+
+import CheckInReportPage from '../CheckInReportPage';
 
 import { useDayOfOperationsData } from './useDayOfOperationsData';
 import { ClassAvailabilityTable } from './ClassAvailabilityTable';
@@ -44,6 +47,17 @@ export default function DayOfOperationsPage() {
     moveUpEntries,
     loadData,
   } = useDayOfOperationsData();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') ?? 'entries';
+
+  const handleTabChange = (value: string) => {
+    if (value === 'entries') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ tab: value });
+    }
+  };
 
   // Dialog state
   const [showEntryDialog, setShowEntryDialog] = useState(false);
@@ -116,7 +130,7 @@ export default function DayOfOperationsPage() {
 
       {/* Tabbed Content */}
       {selectedShowId && (
-        <Tabs defaultValue="entries" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="entries" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
@@ -129,6 +143,10 @@ export default function DayOfOperationsPage() {
             <TabsTrigger value="scratches" className="flex items-center gap-2">
               <XCircle className="h-4 w-4" />
               Scratches
+            </TabsTrigger>
+            <TabsTrigger value="check-in" className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4" />
+              Check-In
             </TabsTrigger>
           </TabsList>
 
@@ -146,6 +164,10 @@ export default function DayOfOperationsPage() {
               onScratch={handleScratchClick}
               onScratchDirect={handleScratchDirect}
             />
+          </TabsContent>
+
+          <TabsContent value="check-in">
+            <CheckInReportPage />
           </TabsContent>
         </Tabs>
       )}

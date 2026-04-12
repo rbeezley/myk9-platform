@@ -26,6 +26,24 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 ---
 
+## Phase 1 — Secretary Dashboard Migration
+
+Before deleting the legacy `SecretaryDashboard` flat file, port these features into `PipelineDashboard` (Mission Control):
+
+#### Port Clone Show into PipelineDashboard
+
+The legacy dashboard has a working Clone Show button + dialog. Clubs that run the same show structure repeatedly need this. Port the clone logic into the new pipeline before removing the legacy file.
+
+#### Port quick-action shortcuts into PipelineDashboard
+
+The legacy dashboard has three quick-action cards not present in the new pipeline: (1) Result Entry shortcut with pending count, (2) Export Reports shortcut with reports-ready count, (3) Pending Issues alert with active trials badge. Add a quick-actions surface to PipelineDashboard before deleting the legacy file.
+
+#### Verify Completed Trials coverage
+
+The legacy dashboard has a Completed Trials tab with View Results and Export Report per trial. Confirm this is reachable from the new pipeline before deleting the legacy file.
+
+---
+
 ## Phase 2 — Exhibitor Golden Path Items
 
 Items identified during Phase 0 journey review. Address while walking the exhibitor golden path in Phase 2.

@@ -100,18 +100,18 @@
 
 ## Section 5: Browse / Public (shared browse and discovery pages)
 
-| Page / Feature | Route             | Classification | Rationale                                                                    |
-| -------------- | ----------------- | -------------- | ---------------------------------------------------------------------------- |
-| Browse Shows   | /shows            | critical-path  | Exhibitor journey Phase 1 Step 1 — unauthenticated discovery                 |
-| Show Details   | /shows/:id        | critical-path  | Phase 1 Step 3 — hero, class list, entry status, "Enter This Show" CTA       |
-| Browse Clubs   | /clubs            | park           | Real discovery feature; not in either journey                                |
-| Club Detail    | /clubs/:id        | park           | Real feature; not in journey                                                 |
-| Browse Dogs    | /dogs             | park           | My Dogs feature; not a named journey step                                    |
-| Dog Detail     | /dogs/:id         | park           | Real feature; not in journey                                                 |
-| Browse People  | /people           | delete/hide    | Privacy risk (searchable user directory); not in any journey                 |
-| Person Detail  | /users/:id        | delete/hide    | Privacy risk; not in any journey                                             |
-| Class Details  | /classes/:classId | park           | Real feature; exhibitors access run order through ShowDetailsPage in journey |
-| TV Display     | /tv/:showId       | park           | Real ring-TV feature; not on either golden path                              |
+| Page / Feature | Route             | Classification | Rationale                                                                                                                                                                                             |
+| -------------- | ----------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browse Shows   | /shows            | critical-path  | Exhibitor journey Phase 1 Step 1 — unauthenticated discovery                                                                                                                                          |
+| Show Details   | /shows/:id        | critical-path  | Phase 1 Step 3 — hero, class list, entry status, "Enter This Show" CTA                                                                                                                                |
+| Browse Clubs   | /clubs            | park           | Real discovery feature; not in either journey                                                                                                                                                         |
+| Club Detail    | /clubs/:id        | park           | Real feature; not in journey                                                                                                                                                                          |
+| Browse Dogs    | /dogs             | park           | My Dogs feature; not a named journey step                                                                                                                                                             |
+| Dog Detail     | /dogs/:id         | park           | Real feature; not in journey                                                                                                                                                                          |
+| Browse People  | /people           | critical-path  | Secretary needs to look up handlers for mail-in entries; admin needs for user management. **Must be restricted to secretary + admin roles only** — exhibitors must not be able to browse other users. |
+| Person Detail  | /users/:id        | critical-path  | Detail view required once a person is found. Same role restriction as Browse People.                                                                                                                  |
+| Class Details  | /classes/:classId | park           | Real feature; exhibitors access run order through ShowDetailsPage in journey                                                                                                                          |
+| TV Display     | /tv/:showId       | park           | Real ring-TV feature; not on either golden path                                                                                                                                                       |
 
 ---
 

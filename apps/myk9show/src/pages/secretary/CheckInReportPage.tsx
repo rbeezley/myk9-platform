@@ -23,8 +23,13 @@ import { DAY_ABBREVS, type ExhibitorCheckInGroup } from '@/hooks/queries/useChec
 
 type StatusFilter = 'needs-action' | 'done' | 'all';
 
-export default function CheckInReportPage() {
-  const { selectedShowId, shows } = useShowStore();
+interface CheckInReportPageProps {
+  showId?: string;
+}
+
+export default function CheckInReportPage({ showId: showIdProp }: CheckInReportPageProps = {}) {
+  const { selectedShowId: storeShowId, shows } = useShowStore();
+  const selectedShowId = showIdProp ?? storeShowId;
   const { trials } = useTrialStore();
   const queryClient = useQueryClient();
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WaitlistManagementPage from './WaitlistManagementPage/index';
@@ -55,10 +55,27 @@ import { formatDate } from '@/utils/entryManagementUtils';
 const EntryManagementPage: React.FC = () => {
   const { showId: urlShowId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
-  const [activePageTab, handlePageTabChange] = useUrlTab(
-    ['entries', 'waitlist'] as const,
-    'entries'
-  );
+  const [activePageTab] = useUrlTab(['entries', 'waitlist'] as const, 'entries');
+  const [, setSearchParams] = useSearchParams();
+
+  // Combined tab + filter reset: switching to waitlist clears trial/class params
+  // so returning to entries doesn't unexpectedly re-enter scoring mode.
+  const handlePageTabChange = (tab: string) => {
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (tab === 'entries') {
+          next.delete('tab');
+        } else {
+          next.set('tab', tab);
+          next.delete('trial');
+          next.delete('class');
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const {
     user,

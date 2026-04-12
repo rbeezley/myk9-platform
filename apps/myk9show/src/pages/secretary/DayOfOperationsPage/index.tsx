@@ -54,6 +54,8 @@ export default function DayOfOperationsPage() {
     'entries'
   );
 
+  const [isScratchingDirect, setIsScratchingDirect] = useState(false);
+
   // Dialog state
   const [showEntryDialog, setShowEntryDialog] = useState(false);
   const [showScratchDialog, setShowScratchDialog] = useState(false);
@@ -67,12 +69,18 @@ export default function DayOfOperationsPage() {
   };
 
   const handleScratchDirect = async (entry: ScratchableEntry) => {
-    const { error } = await scratchEntry(entry.id, undefined);
-    if (error) {
-      toast.error(getUserFriendlyError(error));
-    } else {
-      toast.success('Entry scratched');
-      loadData();
+    if (isScratchingDirect) return;
+    setIsScratchingDirect(true);
+    try {
+      const { error } = await scratchEntry(entry.id, undefined);
+      if (error) {
+        toast.error(getUserFriendlyError(error));
+      } else {
+        toast.success('Entry scratched');
+        loadData();
+      }
+    } finally {
+      setIsScratchingDirect(false);
     }
   };
 
@@ -157,7 +165,7 @@ export default function DayOfOperationsPage() {
           </TabsContent>
 
           <TabsContent value="check-in">
-            <CheckInReportPage />
+            <CheckInReportPage showId={selectedShowId} />
           </TabsContent>
         </Tabs>
       )}

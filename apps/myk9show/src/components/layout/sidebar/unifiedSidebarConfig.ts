@@ -6,10 +6,9 @@
  * Section Ordering (priority/visual hierarchy):
  * 1. Admin (if SITE_ADMIN)
  * 2. Manage (if SECRETARY, CLUB_ADMIN, or SITE_ADMIN)
- * 3. Judging (if JUDGE)
- * 4. My Shows (if EXHIBITOR with other roles)
- * 5. Browse (always visible for non-exhibitor-only users)
- * 6. My Club (if CLUB_ADMIN or SITE_ADMIN with club context)
+ * 3. My Shows (if EXHIBITOR with other roles)
+ * 4. Browse (always visible for non-exhibitor-only users)
+ * 5. My Club (if CLUB_ADMIN or SITE_ADMIN with club context)
  *
  * This ordering ensures primary role-based navigation appears first,
  * followed by browsing/discovery, then secondary management sections.
@@ -26,7 +25,6 @@ import {
   Users,
   Building2,
   Scale,
-  BarChart3,
   ClipboardCheck,
   FileText,
   History,
@@ -225,34 +223,7 @@ export function buildUnifiedSidebarConfig(
       });
     }
 
-    // 3. Judging section
-    if (hasAnyRole(userRoles, [UserRole.JUDGE])) {
-      groups.push({
-        title: 'Judging',
-        items: [
-          {
-            title: 'Dashboard',
-            href: '/judge/dashboard',
-            icon: LayoutDashboard,
-            description: "Today's assignments",
-          },
-          {
-            title: 'My Stats',
-            href: '/judge/stats',
-            icon: BarChart3,
-            description: 'Season performance',
-          },
-          {
-            title: 'Check-In',
-            href: '/judge/check-in',
-            icon: ClipboardCheck,
-            description: 'Class check-in management',
-          },
-        ],
-      });
-    }
-
-    // 4. My Shows section (exhibitor with other roles)
+    // 3. My Shows section (exhibitor with other roles)
     if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
       groups.push({
         title: 'My Shows',
@@ -291,7 +262,7 @@ export function buildUnifiedSidebarConfig(
       });
     }
 
-    // 5. Browse section (always visible for non-exhibitor-only users)
+    // 4. Browse section (always visible for non-exhibitor-only users)
     groups.push({
       title: 'Browse',
       items: [
@@ -303,7 +274,7 @@ export function buildUnifiedSidebarConfig(
       ],
     });
 
-    // 6. My Club section (club admin — only if club context is available)
+    // 5. My Club section (club admin — only if club context is available)
     if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
       groups.push({
         title: 'My Club',
@@ -373,11 +344,9 @@ export function buildUnifiedSidebarConfig(
     ? '/admin/dashboard'
     : isSecretary
       ? '/secretary/dashboard'
-      : isJudge
-        ? '/judge/dashboard'
-        : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
-          ? '/exhibitor/dashboard'
-          : '/shows';
+      : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
+        ? '/exhibitor/dashboard'
+        : '/shows';
 
   return {
     groups,

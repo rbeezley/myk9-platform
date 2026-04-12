@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Route } from 'react-router-dom';
+import { Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
@@ -72,11 +72,6 @@ const CloneRolePage = createEnhancedLazy(() => import('@/pages/admin/permissions
 const UserRoleManagementPage = createEnhancedLazy(
   () => import('@/pages/admin/permissions/UserRoleManagementPage'),
   { ...RouteLazyPresets.mediumPriority, displayName: 'UserRoleManagementPage' }
-);
-
-const PermissionAuditPage = createEnhancedLazy(
-  () => import('@/pages/admin/permissions/PermissionAuditPage'),
-  { ...RouteLazyPresets.lowPriority, displayName: 'PermissionAuditPage' }
 );
 
 // Performance and Data Management Dashboards - Heavy components (low priority)
@@ -295,13 +290,7 @@ export const AdminRoutes = () => (
     />
     <Route
       path="/admin/permissions/audit"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <PermissionAuditPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
+      element={adminGuard(<Navigate to="/admin/permissions?tab=audit" replace />)}
     />
 
     {/* Performance and Monitoring */}

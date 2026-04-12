@@ -8,6 +8,8 @@
  */
 
 import { useState } from 'react';
+import { useUrlTab } from '@/hooks/useUrlTab';
+import { formatDate } from '@/utils/entryManagementUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus, ArrowUpCircle, XCircle, RefreshCw } from 'lucide-react';
+import { UserPlus, ArrowUpCircle, XCircle, RefreshCw, UserCheck } from 'lucide-react';
+
+import CheckInReportPage from '../CheckInReportPage';
 
 import { useDayOfOperationsData } from './useDayOfOperationsData';
 import { ClassAvailabilityTable } from './ClassAvailabilityTable';
@@ -45,6 +49,13 @@ export default function DayOfOperationsPage() {
     loadData,
   } = useDayOfOperationsData();
 
+  const [activeTab, handleTabChange] = useUrlTab(
+    ['entries', 'moveups', 'scratches', 'check-in'] as const,
+    'entries'
+  );
+
+  const [isScratchingDirect, setIsScratchingDirect] = useState(false);
+
   // Dialog state
   const [showEntryDialog, setShowEntryDialog] = useState(false);
   const [showScratchDialog, setShowScratchDialog] = useState(false);
@@ -52,20 +63,24 @@ export default function DayOfOperationsPage() {
   const [entryToScratch, setEntryToScratch] = useState<ScratchableEntry | null>(null);
   const [entryToMoveUp, setEntryToMoveUp] = useState<ScratchableEntry | null>(null);
 
-  // Opens the full ScratchDialog (with optional reason field)
   const handleScratchClick = (entry: ScratchableEntry) => {
     setEntryToScratch(entry);
     setShowScratchDialog(true);
   };
 
-  // Inline two-tap scratch: called after the secretary confirmed inline (no reason)
   const handleScratchDirect = async (entry: ScratchableEntry) => {
-    const { error } = await scratchEntry(entry.id, undefined);
-    if (error) {
-      toast.error(getUserFriendlyError(error));
-    } else {
-      toast.success('Entry scratched');
-      loadData();
+    if (isScratchingDirect) return;
+    setIsScratchingDirect(true);
+    try {
+      const { error } = await scratchEntry(entry.id, undefined);
+      if (error) {
+        toast.error(getUserFriendlyError(error));
+      } else {
+        toast.success('Entry scratched');
+        loadData();
+      }
+    } finally {
+      setIsScratchingDirect(false);
     }
   };
 
@@ -80,7 +95,6 @@ export default function DayOfOperationsPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Day-of Operations</h1>
@@ -92,7 +106,6 @@ export default function DayOfOperationsPage() {
         </Button>
       </div>
 
-      {/* Show Selector */}
       <Card>
         <CardHeader>
           <CardTitle>Select Show</CardTitle>
@@ -105,8 +118,8 @@ export default function DayOfOperationsPage() {
             <SelectContent>
               {shows.map(show => (
                 <SelectItem key={show.id} value={show.id}>
-                  {show.name}{' '}
-                  {show.start_date && `(${new Date(show.start_date).toLocaleDateString()})`}
+                  {show.name}
+                  {show.start_date && ` (${formatDate(show.start_date)})`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -114,9 +127,8 @@ export default function DayOfOperationsPage() {
         </CardContent>
       </Card>
 
-      {/* Tabbed Content */}
       {selectedShowId && (
-        <Tabs defaultValue="entries" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="entries" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
@@ -129,6 +141,10 @@ export default function DayOfOperationsPage() {
             <TabsTrigger value="scratches" className="flex items-center gap-2">
               <XCircle className="h-4 w-4" />
               Scratches
+            </TabsTrigger>
+            <TabsTrigger value="check-in" className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4" />
+              Check-In
             </TabsTrigger>
           </TabsList>
 
@@ -147,10 +163,13 @@ export default function DayOfOperationsPage() {
               onScratchDirect={handleScratchDirect}
             />
           </TabsContent>
+
+          <TabsContent value="check-in">
+            <CheckInReportPage showId={selectedShowId} />
+          </TabsContent>
         </Tabs>
       )}
 
-      {/* Dialogs */}
       <DayOfEntryDialog
         open={showEntryDialog}
         onOpenChange={setShowEntryDialog}

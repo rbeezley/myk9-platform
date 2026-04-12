@@ -13,7 +13,9 @@ import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
 // Mission Control (replaces old SecretaryDashboard)
-const SecretaryDashboard = lazy(() => import('@/features/pipeline/components/PipelineDashboard'));
+const PipelineDashboardPage = lazy(
+  () => import('@/features/pipeline/components/PipelineDashboard')
+);
 const TrialPipelineDetail = lazy(
   () => import('@/features/pipeline/components/TrialPipelineDetail')
 );
@@ -45,14 +47,12 @@ const EntryManagementPage = lazy(() =>
   }))
 );
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
-const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistManagementPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 const SecretaryTasksPage = lazy(() => import('@/pages/secretary/SecretaryTasksPage'));
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
-const CheckInReportPage = lazy(() => import('@/pages/secretary/CheckInReportPage'));
 const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
 const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 
@@ -75,7 +75,7 @@ export const SecretaryRoutes = () => (
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
-              <SecretaryDashboard />
+              <PipelineDashboardPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -153,11 +153,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/waitlist"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <WaitlistManagementPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <Navigate to="/secretary/entries?tab=waitlist" replace />
         </ProtectedRoute>
       }
     />
@@ -177,11 +173,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/check-in"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <CheckInReportPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <Navigate to="/secretary/day-of?tab=check-in" replace />
         </ProtectedRoute>
       }
     />

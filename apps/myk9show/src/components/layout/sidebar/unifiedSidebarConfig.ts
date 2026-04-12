@@ -6,10 +6,9 @@
  * Section Ordering (priority/visual hierarchy):
  * 1. Admin (if SITE_ADMIN)
  * 2. Manage (if SECRETARY, CLUB_ADMIN, or SITE_ADMIN)
- * 3. Judging (if JUDGE)
- * 4. My Shows (if EXHIBITOR with other roles)
- * 5. Browse (always visible for non-exhibitor-only users)
- * 6. My Club (if CLUB_ADMIN or SITE_ADMIN with club context)
+ * 3. My Shows (if EXHIBITOR with other roles)
+ * 4. Browse (always visible for non-exhibitor-only users)
+ * 5. My Club (if CLUB_ADMIN or SITE_ADMIN with club context)
  *
  * This ordering ensures primary role-based navigation appears first,
  * followed by browsing/discovery, then secondary management sections.
@@ -21,40 +20,28 @@ import {
   Home,
   Activity,
   Calendar,
-  CalendarDays,
   Heart,
   Users,
   Building2,
   Scale,
-  BarChart3,
   ClipboardCheck,
   FileText,
-  History,
   Plus,
   List,
   User,
   Crown,
   Shield,
-  Bell,
-  TrendingUp,
-  Database,
-  Zap,
-  TestTube,
-  RefreshCw,
-  FileSearch,
   Compass,
-  UserPlus,
   Settings,
   Search,
   KanbanSquare,
-  UserCheck,
   MessageSquare,
-  ClipboardList,
   FileBarChart,
   Send,
+  ListChecks,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
-import type { SidebarConfig, NavGroup } from './types';
+import type { SidebarConfig, NavGroup, NavItem } from './types';
 
 export interface ClubContext {
   clubId: string;
@@ -120,8 +107,12 @@ export function buildUnifiedSidebarConfig(
           icon: Search,
           description: 'Browse and enter shows',
         },
-        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
-        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
+        {
+          title: 'Profile',
+          href: '/profile',
+          icon: User,
+          description: 'Your account and preferences',
+        },
       ],
     });
     groups.push({
@@ -132,12 +123,6 @@ export function buildUnifiedSidebarConfig(
           href: '/preferences',
           icon: Settings,
           description: 'Profile and preferences',
-        },
-        {
-          title: 'Messages',
-          href: '/messages',
-          icon: MessageSquare,
-          description: 'Chat with the trial secretary',
         },
       ],
     });
@@ -154,67 +139,12 @@ export function buildUnifiedSidebarConfig(
             icon: LayoutDashboard,
             description: 'System overview',
           },
-          { title: 'Alerts', href: '/admin/alerts', icon: Bell, description: 'System alerts' },
-          {
-            title: 'Performance',
-            href: '/admin/performance',
-            icon: TrendingUp,
-            description: 'Performance metrics',
-          },
-          {
-            title: 'Analytics',
-            href: '/admin/analytics',
-            icon: BarChart3,
-            description: 'Usage analytics',
-          },
-          {
-            title: 'Data Lifecycle',
-            href: '/admin/data-lifecycle',
-            icon: Database,
-            description: 'Data management',
-          },
-          {
-            title: 'Performance Mode',
-            href: '/admin/performance-mode',
-            icon: Zap,
-            description: 'System performance controls',
-          },
-          {
-            title: 'Load Testing',
-            href: '/admin/load-testing',
-            icon: TestTube,
-            description: 'Load testing and benchmarks',
-          },
-          {
-            title: 'Sync',
-            href: '/admin/sync',
-            icon: RefreshCw,
-            description: 'Data synchronization',
-          },
           { title: 'Users', href: '/admin/users', icon: Users, description: 'User accounts' },
           {
             title: 'Roles & Permissions',
             href: '/admin/permissions',
             icon: Shield,
             description: 'Access control',
-          },
-          {
-            title: 'Permission Audit',
-            href: '/admin/permissions/audit',
-            icon: FileSearch,
-            description: 'Security audit',
-          },
-          {
-            title: 'Templates',
-            href: '/admin/templates',
-            icon: FileText,
-            description: 'Show and class templates',
-          },
-          {
-            title: 'Onboarding',
-            href: '/admin/onboarding',
-            icon: UserPlus,
-            description: 'Club onboarding requests',
           },
         ],
       });
@@ -250,18 +180,6 @@ export function buildUnifiedSidebarConfig(
             description: 'Walk-ins, scratches, move-ups',
           },
           {
-            title: 'Check-In',
-            href: '/secretary/check-in',
-            icon: UserCheck,
-            description: 'Check-in status and management',
-          },
-          {
-            title: 'Volunteers',
-            href: '/secretary/volunteers',
-            icon: Users,
-            description: 'Schedule and manage volunteers',
-          },
-          {
             title: 'Tasks',
             href: '/secretary/tasks',
             icon: KanbanSquare,
@@ -272,18 +190,6 @@ export function buildUnifiedSidebarConfig(
             href: '/secretary/run-order',
             icon: List,
             description: 'Class scheduling and ordering',
-          },
-          {
-            title: 'Settings',
-            href: '/secretary/settings',
-            icon: Settings,
-            description: 'Results visibility and check-in settings',
-          },
-          {
-            title: 'Wait List',
-            href: '/secretary/waitlist',
-            icon: ClipboardList,
-            description: 'Manage wait lists and judge-day capacity',
           },
           {
             title: 'Messages',
@@ -298,6 +204,12 @@ export function buildUnifiedSidebarConfig(
             description: 'Generate and print reports',
           },
           {
+            title: 'Results Control',
+            href: '/secretary/results-control',
+            icon: ListChecks,
+            description: 'Verify results and release to exhibitors',
+          },
+          {
             title: 'Submit Results',
             href: '/secretary/results-submission',
             icon: Send,
@@ -307,34 +219,7 @@ export function buildUnifiedSidebarConfig(
       });
     }
 
-    // 3. Judging section
-    if (hasAnyRole(userRoles, [UserRole.JUDGE])) {
-      groups.push({
-        title: 'Judging',
-        items: [
-          {
-            title: 'Dashboard',
-            href: '/judge/dashboard',
-            icon: LayoutDashboard,
-            description: "Today's assignments",
-          },
-          {
-            title: 'My Stats',
-            href: '/judge/stats',
-            icon: BarChart3,
-            description: 'Season performance',
-          },
-          {
-            title: 'Check-In',
-            href: '/judge/check-in',
-            icon: ClipboardCheck,
-            description: 'Class check-in management',
-          },
-        ],
-      });
-    }
-
-    // 4. My Shows section (exhibitor with other roles)
+    // 3. My Shows section (exhibitor with other roles)
     if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
       groups.push({
         title: 'My Shows',
@@ -357,35 +242,27 @@ export function buildUnifiedSidebarConfig(
             icon: FileText,
             description: 'Active show entries',
           },
-          {
-            title: 'Entry History',
-            href: '/exhibitor/entries/history',
-            icon: History,
-            description: 'Past entries and records',
-          },
-          {
-            title: 'Messages',
-            href: '/messages',
-            icon: MessageSquare,
-            description: 'Chat with the trial secretary',
-          },
         ],
       });
     }
 
-    // 5. Browse section (always visible for non-exhibitor-only users)
-    groups.push({
-      title: 'Browse',
-      items: [
-        { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
-        { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
-        { title: 'People', href: '/people', icon: Users, description: 'Browse people' },
-        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
-        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
-      ],
-    });
+    // 4. Browse section (always visible for non-exhibitor-only users)
+    const browseItems: NavItem[] = [
+      { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
+      { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
+    ];
+    // People is secretary + admin only (privacy restriction — navigation-ia.md)
+    if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {
+      browseItems.push({
+        title: 'People',
+        href: '/people',
+        icon: Users,
+        description: 'Browse people',
+      });
+    }
+    groups.push({ title: 'Browse', items: browseItems });
 
-    // 6. My Club section (club admin — only if club context is available)
+    // 5. My Club section (club admin — only if club context is available)
     if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
       groups.push({
         title: 'My Club',
@@ -455,11 +332,9 @@ export function buildUnifiedSidebarConfig(
     ? '/admin/dashboard'
     : isSecretary
       ? '/secretary/dashboard'
-      : isJudge
-        ? '/judge/dashboard'
-        : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
-          ? '/exhibitor/dashboard'
-          : '/shows';
+      : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
+        ? '/exhibitor/dashboard'
+        : '/shows';
 
   return {
     groups,

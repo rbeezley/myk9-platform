@@ -99,23 +99,22 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
   const startTime = Date.now();
 
   try {
-    // Get the next available armband number
-    const { data: maxArmband } = await supabase
+    // Fetch all armbands and compute numeric max — TEXT ordering gives wrong
+    // results for 10+ entries ("9" > "100" lexicographically).
+    const { data: armbandRows } = await supabase
       .from('entries')
       .select('armband')
       .eq('show_id', entryData.showId)
       .is('deleted_at', null)
-      .not('armband', 'is', null)
-      .order('armband', { ascending: false })
-      .limit(1)
-      .single();
+      .not('armband', 'is', null);
 
     let nextArmband = 1;
-    if (maxArmband?.armband) {
-      const parsed = parseInt(maxArmband.armband, 10);
-      if (!isNaN(parsed)) {
-        nextArmband = parsed + 1;
-      }
+    if (armbandRows && armbandRows.length > 0) {
+      const maxParsed = armbandRows
+        .map(r => parseInt(r.armband!, 10))
+        .filter(n => !isNaN(n))
+        .reduce((max, n) => (n > max ? n : max), 0);
+      if (maxParsed > 0) nextArmband = maxParsed + 1;
     }
 
     // Get trial_id and entry_fee for each class

@@ -29,7 +29,7 @@ import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { DogSearchInterface } from './DogSearchInterface';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
-import { CreateDogDialog } from './CreateDogDialog';
+import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from './QuickCreateFlow';
 import { FixedSizeList as List } from 'react-window';
 import { logger } from '@/services/LoggingService';
@@ -590,10 +590,11 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         onExhibitorCreated={handleExhibitorCreated}
         searchQuery={searchQuery}
       />
-      <CreateDogDialog
+      <AddDogPanel
         open={showDogDialog}
-        onOpenChange={setShowDogDialog}
+        onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
+        variant="dialog"
       />
     </div>
   );

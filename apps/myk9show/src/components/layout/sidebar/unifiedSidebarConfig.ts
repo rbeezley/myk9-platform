@@ -109,8 +109,12 @@ export function buildUnifiedSidebarConfig(
           icon: Search,
           description: 'Browse and enter shows',
         },
-        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
-        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
+        {
+          title: 'Profile',
+          href: '/profile',
+          icon: User,
+          description: 'Your account and preferences',
+        },
       ],
     });
     groups.push({
@@ -121,12 +125,6 @@ export function buildUnifiedSidebarConfig(
           href: '/preferences',
           icon: Settings,
           description: 'Profile and preferences',
-        },
-        {
-          title: 'Messages',
-          href: '/messages',
-          icon: MessageSquare,
-          description: 'Chat with the trial secretary',
         },
       ],
     });

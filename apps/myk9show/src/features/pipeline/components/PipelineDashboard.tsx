@@ -8,7 +8,7 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
-import { Plus, Settings, Copy, FileText, Download, AlertCircle } from 'lucide-react';
+import { Plus, Settings, Copy } from 'lucide-react';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ import { CLASS_PIPELINE_STAGES } from '../mission-control-types';
 import type { ClassPipelineStage } from '../mission-control-types';
 import { stageToDefaultStatus } from '../utils/classStageMapping';
 import { AnnouncementsCard } from './AnnouncementsCard';
+import { useQuickActionStats } from '../hooks/useQuickActionStats';
+import { QuickActionsSection } from './QuickActionsSection';
 import { ShowSettingsPanel } from './ShowSettingsPanel';
 import type { DbClassUpdate } from '@/types/database-mappings';
 import { parseLocalDateString } from '@myk9/core';
@@ -42,6 +44,10 @@ export const PipelineDashboard: React.FC = () => {
     showStats,
     trialStats,
   } = useMissionControlData();
+
+  const { pendingEntriesCount, reportsReadyCount, activeTrialsCount } = useQuickActionStats(
+    selectedShow?.id ?? ''
+  );
 
   /** Contextual show timing label — replaces a static date display. */
   const timing = useMemo((): { text: string; isShowDay: boolean } => {
@@ -203,6 +209,13 @@ export const PipelineDashboard: React.FC = () => {
         <AnnouncementsCard showId={selectedShow.id} showEndDate={selectedShow.endDate} />
       )}
 
+      <QuickActionsSection
+        showId={selectedShow?.id ?? ''}
+        pendingEntriesCount={pendingEntriesCount}
+        reportsReadyCount={reportsReadyCount}
+        activeTrialsCount={activeTrialsCount}
+      />
+
       {shows.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg font-medium mb-1">No shows yet</p>
@@ -255,27 +268,6 @@ export const PipelineDashboard: React.FC = () => {
           </DndContext>
         </div>
       )}
-
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/secretary/results-control">
-            <FileText className="h-4 w-4 mr-2" />
-            Results Control
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/secretary/reports">
-            <Download className="h-4 w-4 mr-2" />
-            Reports
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/secretary/entries">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Entries
-          </Link>
-        </Button>
-      </div>
 
       {selectedShow && (
         <ShowSettingsPanel

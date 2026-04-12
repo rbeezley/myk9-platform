@@ -39,11 +39,10 @@ import {
   Settings,
   Search,
   KanbanSquare,
-  UserCheck,
   MessageSquare,
-  ClipboardList,
   FileBarChart,
   Send,
+  ListChecks,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import type { SidebarConfig, NavGroup } from './types';
@@ -187,18 +186,6 @@ export function buildUnifiedSidebarConfig(
             description: 'Walk-ins, scratches, move-ups',
           },
           {
-            title: 'Check-In',
-            href: '/secretary/check-in',
-            icon: UserCheck,
-            description: 'Check-in status and management',
-          },
-          {
-            title: 'Volunteers',
-            href: '/secretary/volunteers',
-            icon: Users,
-            description: 'Schedule and manage volunteers',
-          },
-          {
             title: 'Tasks',
             href: '/secretary/tasks',
             icon: KanbanSquare,
@@ -211,18 +198,6 @@ export function buildUnifiedSidebarConfig(
             description: 'Class scheduling and ordering',
           },
           {
-            title: 'Settings',
-            href: '/secretary/settings',
-            icon: Settings,
-            description: 'Results visibility and check-in settings',
-          },
-          {
-            title: 'Wait List',
-            href: '/secretary/waitlist',
-            icon: ClipboardList,
-            description: 'Manage wait lists and judge-day capacity',
-          },
-          {
             title: 'Messages',
             href: '/secretary/messages',
             icon: MessageSquare,
@@ -233,6 +208,12 @@ export function buildUnifiedSidebarConfig(
             href: '/secretary/reports',
             icon: FileBarChart,
             description: 'Generate and print reports',
+          },
+          {
+            title: 'Results Control',
+            href: '/secretary/results-control',
+            icon: ListChecks,
+            description: 'Verify results and release to exhibitors',
           },
           {
             title: 'Submit Results',

@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { User as UserIcon, CheckCircle, Plus, Info } from 'lucide-react';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
-import { CreateDogDialog } from './CreateDogDialog';
+import { AddDogPanel } from '@/components/panels/edit';
 import { User, Dog } from '@/types/dog-types';
 
 interface QuickCreateFlowProps {
@@ -42,7 +42,6 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
-  const [editingDogIndex, setEditingDogIndex] = useState<number | null>(null);
 
   // Calculate progress
   const getProgress = (): number => {
@@ -64,32 +63,16 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
 
   // Handle dog creation
   const handleDogCreated = (dog: Dog) => {
-    if (editingDogIndex !== null) {
-      // Editing existing dog
-      setFlowState(prev => ({
-        ...prev,
-        dogs: prev.dogs.map((d, index) => (index === editingDogIndex ? dog : d)),
-      }));
-      setEditingDogIndex(null);
-    } else {
-      // Adding new dog
-      setFlowState(prev => ({
-        ...prev,
-        dogs: [...prev.dogs, dog],
-      }));
-    }
+    setFlowState(prev => ({
+      ...prev,
+      dogs: [...prev.dogs, dog],
+    }));
     setShowDogDialog(false);
 
     // Auto-advance to review if we have dogs and in single mode
     if (mode === 'single' && flowState.dogs.length === 0) {
       setFlowState(prev => ({ ...prev, step: 'review' }));
     }
-  };
-
-  // Handle dog editing
-  const handleEditDog = (index: number) => {
-    setEditingDogIndex(index);
-    setShowDogDialog(true);
   };
 
   // Handle dog removal
@@ -119,7 +102,6 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setFlowState(INITIAL_FLOW_STATE);
     setShowExhibitorDialog(false);
     setShowDogDialog(false);
-    setEditingDogIndex(null);
     onOpenChange(false);
   };
 
@@ -240,7 +222,14 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                           <p className="text-sm text-gray-600">{dog.name}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditDog(index)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              handleRemoveDog(index);
+                              setShowDogDialog(true);
+                            }}
+                          >
                             Edit
                           </Button>
                           <Button
@@ -421,19 +410,12 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         searchQuery={searchQuery}
       />
 
-      <CreateDogDialog
+      <AddDogPanel
         open={showDogDialog}
-        onOpenChange={setShowDogDialog}
+        onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
-        ownerId={flowState.exhibitor?.id}
-        ownerInfo={flowState.exhibitor || undefined}
-        prefilledData={
-          editingDogIndex !== null
-            ? (flowState.dogs[editingDogIndex] as unknown as Parameters<
-                typeof CreateDogDialog
-              >[0]['prefilledData'])
-            : undefined
-        }
+        currentUserPersonId={flowState.exhibitor?.id}
+        variant="dialog"
       />
     </>
   );

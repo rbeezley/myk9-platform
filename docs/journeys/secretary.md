@@ -95,13 +95,14 @@ Show morning. The entry window is closed, the show is running, and your desk is 
 5. An exhibitor cannot run → you open `ScratchDialog` → select the entry → confirm the scratch → class count updates.
 6. An exhibitor hands you a move-up form → you open `MoveUpDialog` → select the entry and the destination class → confirm → armband carries over.
 7. You open `RunOrderPage` for the trial → review the class sequence, ring assignments, and start times; drag to reorder if needed → **Export** the run order for ring stewards.
-8. A class finishes → the judge returns the completed scoresheet → you open `ReportsPage` → print the **Preliminary Results** sheet for that class → post it on the wall for exhibitors to view. (Electronic release to exhibitor accounts is a future step; paper posting is the current standard.)
-9. You check the task board → `SecretaryTasksPage` (Kanban) → move open tasks to Done as stewards report back.
+8. A class finishes → the judge returns the completed scoresheet → **if myK9Q is not used for scoring:** you open `ResultsControlPage` → select the class → enter each dog's result (Pass / NQ / Absent) from the paper scoresheet → **Save**.
+9. You open `ReportsPage` → print the **Preliminary Results** sheet for that class → post it on the wall for exhibitors to view. (Electronic release to exhibitor accounts is a future step; paper posting is the current standard.)
+10. You check the task board → `SecretaryTasksPage` (Kanban) → move open tasks to Done as stewards report back.
 
 ### Current-state notes
 
 - mySWT check-in is entirely paper: you print check-in sheets (§3.24) and a gate steward marks them by hand. `DayOfOperationsPage` is the digital replacement — a significant workflow improvement.
-- Scoring is not a secretary task in myK9Show: when the club uses myK9Q, judges score in that app; when scoring from paper, the secretary enters results in `ResultsControlPage` after each class. There is no scoring step at the check-in desk.
+- **Two scoring paths:** (1) myK9Q in use — judges score directly in the app, secretary has no data-entry step; (2) paper scoresheets only — secretary enters results class-by-class in `ResultsControlPage` as each class finishes. Both paths must work in fall 2026.
 - mySWT has a live Scoreboard (§3.19) designed for a second monitor. The myK9Show equivalent is not yet built (post-fall).
 - `VolunteerSchedulingPage` lets you publish the volunteer schedule; real-time day-of volunteer reassignment is deferred to post-fall per `docs/roles/secretary.md`.
 - `RunOrderPage` currently uses mock personnel data (`RunOrderPage/mockPersonnel.ts`) — real personnel data from `VolunteerSchedulingPage` is not yet wired in.
@@ -122,8 +123,12 @@ flowchart TD
     G --> H
     H --> I[RunOrderPage\nreview + export run order]
     I --> J[Class finishes\nJudge returns scoresheet]
-    J --> K[ReportsPage\nPrint Preliminary Results → post on wall]
-    K --> L[SecretaryTasksPage\ntrack open tasks]
+    J --> K{myK9Q used?}
+    K -- No --> L[ResultsControlPage\nenter results from paper scoresheet]
+    K -- Yes --> M[Results already in system]
+    L --> N[ReportsPage\nPrint Preliminary Results → post on wall]
+    M --> N
+    N --> O[SecretaryTasksPage\ntrack open tasks]
 ```
 
 ---

@@ -30,7 +30,7 @@ export function useQuickActionStats(showId: string): QuickActionStats {
   const activeTrialsCount = useTrialStore(s => {
     if (!showId) return 0;
     return s.trials.filter(
-      t => t.showId === showId && t.status !== 'completed' && t.status !== 'cancelled'
+      t => t.showId === showId && t.status !== 'Completed' && t.status !== 'Cancelled'
     ).length;
   });
 

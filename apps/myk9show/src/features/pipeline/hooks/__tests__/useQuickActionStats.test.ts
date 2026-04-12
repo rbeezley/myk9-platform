@@ -47,7 +47,7 @@ function makeTrial(overrides: Partial<SyncableTrial> = {}): SyncableTrial {
   return {
     id: 'trial-1',
     showId: 'show-1',
-    status: 'upcoming',
+    status: 'Upcoming',
     trialNumber: 1,
     _syncStatus: 'synced',
     ...overrides,
@@ -75,7 +75,7 @@ describe('useQuickActionStats', () => {
 
   it('returns all zeros when showId is empty', () => {
     mockEntries = [makeEntry({ showId: 'show-1', status: 'submitted' })];
-    mockTrials = [makeTrial({ showId: 'show-1', status: 'upcoming' })];
+    mockTrials = [makeTrial({ showId: 'show-1', status: 'Upcoming' })];
     mockTrialClasses = { 'trial-1': [makeClass({ isScoringFinalized: true })] };
 
     const { result } = renderHook(() => useQuickActionStats(''));
@@ -123,13 +123,13 @@ describe('useQuickActionStats', () => {
     expect(result.current.reportsReadyCount).toBe(3);
   });
 
-  it('counts only upcoming and in_progress trials as active', () => {
+  it('counts only Upcoming and In Progress trials as active', () => {
     mockTrials = [
-      makeTrial({ id: 't1', showId: 'show-1', status: 'upcoming' }),
-      makeTrial({ id: 't2', showId: 'show-1', status: 'in_progress' }),
-      makeTrial({ id: 't3', showId: 'show-1', status: 'completed' }),
-      makeTrial({ id: 't4', showId: 'show-1', status: 'cancelled' }),
-      makeTrial({ id: 't5', showId: 'show-2', status: 'upcoming' }), // different show
+      makeTrial({ id: 't1', showId: 'show-1', status: 'Upcoming' }),
+      makeTrial({ id: 't2', showId: 'show-1', status: 'In Progress' }),
+      makeTrial({ id: 't3', showId: 'show-1', status: 'Completed' }),
+      makeTrial({ id: 't4', showId: 'show-1', status: 'Cancelled' }),
+      makeTrial({ id: 't5', showId: 'show-2', status: 'Upcoming' }), // different show
     ];
 
     const { result } = renderHook(() => useQuickActionStats('show-1'));

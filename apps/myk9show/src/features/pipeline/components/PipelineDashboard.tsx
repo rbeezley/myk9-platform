@@ -136,7 +136,6 @@ export const PipelineDashboard: React.FC = () => {
 
   return (
     <div className="space-y-4 px-6 py-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight">Mission Control</h1>
@@ -184,7 +183,6 @@ export const PipelineDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Show context row */}
       <ShowContextRow
         shows={shows}
         selectedShow={selectedShow}
@@ -192,7 +190,6 @@ export const PipelineDashboard: React.FC = () => {
         stats={showStats}
       />
 
-      {/* Trial context row */}
       {trials.length > 0 && (
         <TrialContextRow
           trials={trials}
@@ -202,12 +199,10 @@ export const PipelineDashboard: React.FC = () => {
         />
       )}
 
-      {/* Announcements */}
       {selectedShow && (
         <AnnouncementsCard showId={selectedShow.id} showEndDate={selectedShow.endDate} />
       )}
 
-      {/* Empty state: no shows */}
       {shows.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg font-medium mb-1">No shows yet</p>
@@ -221,7 +216,6 @@ export const PipelineDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Empty state: show selected but no trials */}
       {selectedShow && trials.length === 0 && (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg font-medium mb-1">No trials for this show</p>
@@ -232,7 +226,6 @@ export const PipelineDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Class pipeline */}
       {selectedTrial && (
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
@@ -263,7 +256,6 @@ export const PipelineDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Quick Actions */}
       <div className="flex items-center gap-3 flex-wrap">
         <Button variant="outline" size="sm" asChild>
           <Link to="/secretary/results-control">

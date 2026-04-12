@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import WaitlistManagementPage from './WaitlistManagementPage/index';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -27,17 +28,12 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-// Extracted hooks
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
 import { useEntryManagementFilters } from '@/hooks/useEntryManagementFilters';
 import { useEntryManagementActions } from '@/hooks/useEntryManagementActions';
-
-// Trial/class filter hooks
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { useClassesByTrialQuery } from '@/hooks/queries/useClassesDatabase';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
-
-// Extracted components
 import {
   ArmbandDialog,
   AutoArmbandDialog,
@@ -49,8 +45,6 @@ import {
   ScoringModeWrapper,
   RegistrationView,
 } from '@/components/entries/management';
-
-// Extracted utilities
 import { formatDate } from '@/utils/entryManagementUtils';
 
 /**
@@ -61,18 +55,11 @@ import { formatDate } from '@/utils/entryManagementUtils';
 const EntryManagementPage: React.FC = () => {
   const { showId: urlShowId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activePageTab = searchParams.get('tab') === 'waitlist' ? 'waitlist' : 'entries';
+  const [activePageTab, handlePageTabChange] = useUrlTab(
+    ['entries', 'waitlist'] as const,
+    'entries'
+  );
 
-  const handlePageTabChange = (value: string) => {
-    if (value === 'waitlist') {
-      setSearchParams({ tab: 'waitlist' });
-    } else {
-      setSearchParams({});
-    }
-  };
-
-  // Data hook
   const {
     user,
     hasRole,
@@ -90,7 +77,6 @@ const EntryManagementPage: React.FC = () => {
     tabCounts,
   } = useEntryManagementData(urlShowId);
 
-  // Filter hook
   const {
     searchTerm,
     setSearchTerm,
@@ -113,7 +99,6 @@ const EntryManagementPage: React.FC = () => {
     clearFilters,
   } = useEntryManagementFilters({ entries, tabCounts, showId: selectedShowId });
 
-  // Actions hook
   const {
     isProcessing,
     checkInDialog,
@@ -144,7 +129,6 @@ const EntryManagementPage: React.FC = () => {
     user,
   });
 
-  // Trial/class data for filter dropdowns and roster view
   const { data: rawTrials = [], isLoading: isLoadingTrials } = useShowTrials(selectedShowId);
   const trials = rawTrials as Array<{
     id: string;
@@ -161,7 +145,6 @@ const EntryManagementPage: React.FC = () => {
     trialFilter || ''
   );
 
-  // Map trial entry rows to roster entries for TrialRosterView
   const rosterEntries = useMemo(() => {
     if (!trialEntryRows.length) return [];
     return trialEntryRows.map(row => ({
@@ -181,7 +164,6 @@ const EntryManagementPage: React.FC = () => {
     }));
   }, [trialEntryRows]);
 
-  // Comp dialog state
   const [compDialog, setCompDialog] = useState<{
     open: boolean;
     entryId: string;
@@ -194,7 +176,6 @@ const EntryManagementPage: React.FC = () => {
     dogName: '',
   });
 
-  // Audit log page access
   useEffect(() => {
     auditService.log({
       action: AuditAction.READ,
@@ -207,7 +188,6 @@ const EntryManagementPage: React.FC = () => {
     });
   }, [user?.id]);
 
-  // Verify secretary role access
   if (
     !hasRole(UserRole.SECRETARY) &&
     !hasRole(UserRole.CLUB_ADMIN) &&

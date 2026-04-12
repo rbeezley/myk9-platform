@@ -66,13 +66,10 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setFlowState(prev => ({
       ...prev,
       dogs: [...prev.dogs, dog],
+      // In single-dog mode, advance to review as soon as the first dog is added
+      step: mode === 'single' && prev.dogs.length === 0 ? 'review' : prev.step,
     }));
     setShowDogDialog(false);
-
-    // Auto-advance to review if we have dogs and in single mode
-    if (mode === 'single' && flowState.dogs.length === 0) {
-      setFlowState(prev => ({ ...prev, step: 'review' }));
-    }
   };
 
   // Handle dog removal

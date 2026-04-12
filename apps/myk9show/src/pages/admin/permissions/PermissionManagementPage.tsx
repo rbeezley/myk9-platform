@@ -5,7 +5,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,8 +32,7 @@ const PermissionManagementPage: React.FC = () => {
   const { userRoles, userPermissions, effectivePermissions, isLoading } = useRBAC();
   const [roleCount, setRoleCount] = useState<number | null>(null);
   const [permissionCount, setPermissionCount] = useState<number | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') === 'audit' ? 'audit' : 'overview';
+  const [activeTab, setActiveTab] = useUrlTab(['overview', 'audit'] as const, 'overview');
 
   useEffect(() => {
     async function loadCounts() {
@@ -143,10 +143,7 @@ const PermissionManagementPage: React.FC = () => {
   }
 
   return (
-    <Tabs
-      value={activeTab}
-      onValueChange={value => setSearchParams(value === 'audit' ? { tab: 'audit' } : {})}
-    >
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList className="mb-6">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="audit">Permission Audit</TabsTrigger>

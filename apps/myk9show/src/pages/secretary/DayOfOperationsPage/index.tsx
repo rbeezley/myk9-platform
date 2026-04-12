@@ -8,7 +8,8 @@
  */
 
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useUrlTab } from '@/hooks/useUrlTab';
+import { formatDate } from '@/utils/entryManagementUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,16 +49,10 @@ export default function DayOfOperationsPage() {
     loadData,
   } = useDayOfOperationsData();
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') ?? 'entries';
-
-  const handleTabChange = (value: string) => {
-    if (value === 'entries') {
-      setSearchParams({});
-    } else {
-      setSearchParams({ tab: value });
-    }
-  };
+  const [activeTab, handleTabChange] = useUrlTab(
+    ['entries', 'moveups', 'scratches', 'check-in'] as const,
+    'entries'
+  );
 
   // Dialog state
   const [showEntryDialog, setShowEntryDialog] = useState(false);
@@ -66,13 +61,11 @@ export default function DayOfOperationsPage() {
   const [entryToScratch, setEntryToScratch] = useState<ScratchableEntry | null>(null);
   const [entryToMoveUp, setEntryToMoveUp] = useState<ScratchableEntry | null>(null);
 
-  // Opens the full ScratchDialog (with optional reason field)
   const handleScratchClick = (entry: ScratchableEntry) => {
     setEntryToScratch(entry);
     setShowScratchDialog(true);
   };
 
-  // Inline two-tap scratch: called after the secretary confirmed inline (no reason)
   const handleScratchDirect = async (entry: ScratchableEntry) => {
     const { error } = await scratchEntry(entry.id, undefined);
     if (error) {
@@ -94,7 +87,6 @@ export default function DayOfOperationsPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Day-of Operations</h1>
@@ -106,7 +98,6 @@ export default function DayOfOperationsPage() {
         </Button>
       </div>
 
-      {/* Show Selector */}
       <Card>
         <CardHeader>
           <CardTitle>Select Show</CardTitle>
@@ -119,8 +110,8 @@ export default function DayOfOperationsPage() {
             <SelectContent>
               {shows.map(show => (
                 <SelectItem key={show.id} value={show.id}>
-                  {show.name}{' '}
-                  {show.start_date && `(${new Date(show.start_date).toLocaleDateString()})`}
+                  {show.name}
+                  {show.start_date && ` (${formatDate(show.start_date)})`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -128,7 +119,6 @@ export default function DayOfOperationsPage() {
         </CardContent>
       </Card>
 
-      {/* Tabbed Content */}
       {selectedShowId && (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
@@ -172,7 +162,6 @@ export default function DayOfOperationsPage() {
         </Tabs>
       )}
 
-      {/* Dialogs */}
       <DayOfEntryDialog
         open={showEntryDialog}
         onOpenChange={setShowEntryDialog}

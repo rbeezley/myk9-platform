@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
-import { useTrialStore } from '@/store/trialStore';
+import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { useCheckInReport } from '@/hooks/queries/useCheckInReport';
 import { useShowCheckInSubscription } from '@/hooks/useShowCheckInSubscription';
 import { CheckInProgressBar } from '@/components/checkin/CheckInProgressBar';
@@ -30,11 +30,15 @@ interface CheckInReportPageProps {
 export default function CheckInReportPage({ showId: showIdProp }: CheckInReportPageProps = {}) {
   const { selectedShowId: storeShowId, shows } = useShowStore();
   const selectedShowId = showIdProp ?? storeShowId;
-  const { trials } = useTrialStore();
   const queryClient = useQueryClient();
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
-  const showTrials = trials.filter(t => t.showId === selectedShowId);
+  const { data: rawShowTrials = [] } = useShowTrials(selectedShowId || null);
+  const showTrials = rawShowTrials as Array<{
+    id: string;
+    trialDate: string;
+    trialNumber: number | string | null;
+  }>;
 
   const { data: groups = [], isLoading } = useCheckInReport(selectedShowId || undefined);
   useShowCheckInSubscription(selectedShowId || undefined);

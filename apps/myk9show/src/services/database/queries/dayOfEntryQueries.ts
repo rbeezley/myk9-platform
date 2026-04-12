@@ -110,10 +110,10 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
 
     let nextArmband = 1;
     if (armbandRows && armbandRows.length > 0) {
-      const maxParsed = Math.max(
-        0,
-        ...armbandRows.map(r => parseInt(r.armband!, 10)).filter(n => !isNaN(n))
-      );
+      const maxParsed = armbandRows
+        .map(r => parseInt(r.armband!, 10))
+        .filter(n => !isNaN(n))
+        .reduce((max, n) => (n > max ? n : max), 0);
       if (maxParsed > 0) nextArmband = maxParsed + 1;
     }
 

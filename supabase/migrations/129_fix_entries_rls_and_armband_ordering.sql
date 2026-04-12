@@ -40,6 +40,17 @@ CREATE POLICY "entries_update" ON entries
       WHERE p.auth_user_id = auth.uid()
         AND p.id = entries.handler_id
     )
+  )
+  WITH CHECK (
+    -- Same conditions as USING — prevents moving an entry to a show the user
+    -- doesn't manage, or reassigning handler_id to another person's entry.
+    (SELECT can_manage_show(entries.show_id))
+    OR
+    EXISTS (
+      SELECT 1 FROM people p
+      WHERE p.auth_user_id = auth.uid()
+        AND p.id = entries.handler_id
+    )
   );
 
 -- -------------------------------------------------------------------------

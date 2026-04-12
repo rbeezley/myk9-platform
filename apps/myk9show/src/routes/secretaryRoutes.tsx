@@ -13,7 +13,9 @@ import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
 // Mission Control (replaces old SecretaryDashboard)
-const SecretaryDashboard = lazy(() => import('@/features/pipeline/components/PipelineDashboard'));
+const PipelineDashboardPage = lazy(
+  () => import('@/features/pipeline/components/PipelineDashboard')
+);
 const TrialPipelineDetail = lazy(
   () => import('@/features/pipeline/components/TrialPipelineDetail')
 );
@@ -73,7 +75,7 @@ export const SecretaryRoutes = () => (
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
-              <SecretaryDashboard />
+              <PipelineDashboardPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

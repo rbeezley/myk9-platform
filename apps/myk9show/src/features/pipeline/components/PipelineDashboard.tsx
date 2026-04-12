@@ -8,7 +8,8 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
-import { Plus, Settings } from 'lucide-react';
+import { Plus, Settings, Copy } from 'lucide-react';
+import { ShowCloneDialog } from '@/components/shows/cloning';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
@@ -81,6 +82,7 @@ export const PipelineDashboard: React.FC = () => {
   const updateClass = useUpdateClassMutation();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -150,29 +152,35 @@ export const PipelineDashboard: React.FC = () => {
             </Button>
           )}
         </div>
-        <div className="text-right">
-          {timing.text && (
-            <div className="flex items-center gap-1.5 justify-end">
-              {timing.isShowDay && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setCloneDialogOpen(true)}>
+            <Copy className="h-4 w-4 mr-2" />
+            Clone Show
+          </Button>
+          <div className="text-right">
+            {timing.text && (
+              <div className="flex items-center gap-1.5 justify-end">
+                {timing.isShowDay && (
+                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                )}
+                <span
+                  className={
+                    timing.isShowDay
+                      ? 'text-sm text-green-400 font-medium'
+                      : 'text-sm text-muted-foreground'
+                  }
+                >
+                  {timing.text}
+                </span>
+              </div>
+            )}
+            {!timing.isShowDay && hasLiveClasses && (
+              <div className="flex items-center gap-1 justify-end mt-0.5">
                 <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-              )}
-              <span
-                className={
-                  timing.isShowDay
-                    ? 'text-sm text-green-400 font-medium'
-                    : 'text-sm text-muted-foreground'
-                }
-              >
-                {timing.text}
-              </span>
-            </div>
-          )}
-          {!timing.isShowDay && hasLiveClasses && (
-            <div className="flex items-center gap-1 justify-end mt-0.5">
-              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm text-green-400 font-medium">Live</span>
-            </div>
-          )}
+                <span className="text-sm text-green-400 font-medium">Live</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -268,6 +276,8 @@ export const PipelineDashboard: React.FC = () => {
           }))}
         />
       )}
+
+      <ShowCloneDialog open={cloneDialogOpen} onOpenChange={setCloneDialogOpen} />
     </div>
   );
 };

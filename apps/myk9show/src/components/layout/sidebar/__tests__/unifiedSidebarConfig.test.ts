@@ -98,6 +98,20 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(titles).not.toContain('Calendar');
   });
 
+  it('browse section hides People from judge-only role', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
+    const browse = config.groups.find(g => g.title === 'Browse');
+    const titles = browse?.items.map(i => i.title) ?? [];
+    expect(titles).not.toContain('People');
+  });
+
+  it('browse section shows People to secretary', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const browse = config.groups.find(g => g.title === 'Browse');
+    const titles = browse?.items.map(i => i.title) ?? [];
+    expect(titles).toContain('People');
+  });
+
   // ── My Shows (multi-role exhibitor) ──────────────────────────────────────
   it('my shows section omits Entry History', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);

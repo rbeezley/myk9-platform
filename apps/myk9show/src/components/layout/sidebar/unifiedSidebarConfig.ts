@@ -20,14 +20,12 @@ import {
   Home,
   Activity,
   Calendar,
-  CalendarDays,
   Heart,
   Users,
   Building2,
   Scale,
   ClipboardCheck,
   FileText,
-  History,
   Plus,
   List,
   User,
@@ -43,7 +41,7 @@ import {
   ListChecks,
 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
-import type { SidebarConfig, NavGroup } from './types';
+import type { SidebarConfig, NavGroup, NavItem } from './types';
 
 export interface ClubContext {
   clubId: string;
@@ -244,33 +242,25 @@ export function buildUnifiedSidebarConfig(
             icon: FileText,
             description: 'Active show entries',
           },
-          {
-            title: 'Entry History',
-            href: '/exhibitor/entries/history',
-            icon: History,
-            description: 'Past entries and records',
-          },
-          {
-            title: 'Messages',
-            href: '/messages',
-            icon: MessageSquare,
-            description: 'Chat with the trial secretary',
-          },
         ],
       });
     }
 
     // 4. Browse section (always visible for non-exhibitor-only users)
-    groups.push({
-      title: 'Browse',
-      items: [
-        { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
-        { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
-        { title: 'People', href: '/people', icon: Users, description: 'Browse people' },
-        { title: 'Clubs', href: '/clubs', icon: Building2, description: 'Browse clubs' },
-        { title: 'Calendar', href: '/calendar', icon: CalendarDays, description: 'Event calendar' },
-      ],
-    });
+    const browseItems: NavItem[] = [
+      { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
+      { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
+    ];
+    // People is secretary + admin only (privacy restriction — navigation-ia.md)
+    if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
+      browseItems.push({
+        title: 'People',
+        href: '/people',
+        icon: Users,
+        description: 'Browse people',
+      });
+    }
+    groups.push({ title: 'Browse', items: browseItems });
 
     // 5. My Club section (club admin — only if club context is available)
     if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {

@@ -45,7 +45,6 @@ const EntryManagementPage = lazy(() =>
   }))
 );
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
-const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistManagementPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 const SecretaryTasksPage = lazy(() => import('@/pages/secretary/SecretaryTasksPage'));
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
@@ -151,15 +150,7 @@ export const SecretaryRoutes = () => (
     />
     <Route
       path="/secretary/waitlist"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <WaitlistManagementPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/secretary/entries?tab=waitlist" replace />}
     />
     <Route
       path="/secretary/day-of"

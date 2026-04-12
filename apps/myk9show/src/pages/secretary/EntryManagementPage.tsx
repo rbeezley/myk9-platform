@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import WaitlistManagementPage from './WaitlistManagementPage/index';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,6 +61,16 @@ import { formatDate } from '@/utils/entryManagementUtils';
 const EntryManagementPage: React.FC = () => {
   const { showId: urlShowId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activePageTab = searchParams.get('tab') === 'waitlist' ? 'waitlist' : 'entries';
+
+  const handlePageTabChange = (value: string) => {
+    if (value === 'waitlist') {
+      setSearchParams({ tab: 'waitlist' });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   // Data hook
   const {
@@ -134,7 +146,12 @@ const EntryManagementPage: React.FC = () => {
 
   // Trial/class data for filter dropdowns and roster view
   const { data: rawTrials = [], isLoading: isLoadingTrials } = useShowTrials(selectedShowId);
-  const trials = rawTrials as Array<{ id: string; name: string | null; date: string | null; trial_number: string | number | null }>;
+  const trials = rawTrials as Array<{
+    id: string;
+    name: string | null;
+    date: string | null;
+    trial_number: string | number | null;
+  }>;
   const { data: rawTrialClasses = [], isLoading: isLoadingClasses } = useClassesByTrialQuery(
     trialFilter || '',
     !!trialFilter
@@ -302,152 +319,166 @@ const EntryManagementPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* No Show Selected */}
-      {!selectedShowId && !isLoadingShows && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Select a Show</h3>
-            <p className="text-muted-foreground">
-              Choose a show from the dropdown above to manage its entries.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Page-level tabs: Entries | Waitlist */}
+      <Tabs value={activePageTab} onValueChange={handlePageTabChange}>
+        <TabsList>
+          <TabsTrigger value="entries">Entries</TabsTrigger>
+          <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
+        </TabsList>
 
-      {/* Loading State */}
-      {isLoading && selectedShowId && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      )}
-
-      {/* Main Content - Only show when a show is selected and not loading */}
-      {selectedShowId && !isLoading && (
-        <>
-          {/* Trial / Class Filters */}
-          <TrialClassFilters
-            trials={trials}
-            classes={trialClasses}
-            trialFilter={trialFilter}
-            classFilter={classFilter}
-            onTrialChange={setTrialFilter}
-            onClassChange={setClassFilter}
-            isLoadingTrials={isLoadingTrials}
-            isLoadingClasses={isLoadingClasses}
-          />
-
-          {/* Filter Breadcrumb */}
-          <FilterBreadcrumb
-            trialName={
-              trialFilter
-                ? (() => {
-                    const t = trials.find(tr => tr.id === trialFilter);
-                    return t ? t.name || `Trial ${t.trial_number}` : null;
-                  })()
-                : null
-            }
-            className={
-              classFilter
-                ? (() => {
-                    const c = trialClasses.find(cl => cl.id === classFilter);
-                    return c?.name || null;
-                  })()
-                : null
-            }
-            onClearTrial={() => setTrialFilter(null)}
-            onClearClass={() => setClassFilter(null)}
-          />
-
-          {/* Registration view: stats, filters, bulk actions, entries tabs */}
-          {viewMode === 'registration' && (
-            <RegistrationView
-              stats={stats}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              paymentFilter={paymentFilter}
-              setPaymentFilter={setPaymentFilter}
-              onClearFilters={clearFilters}
-              selectedEntries={selectedEntries}
-              bulkActionDialog={bulkActionDialog}
-              setBulkActionDialog={setBulkActionDialog}
-              onBulkAction={handleBulkAction}
-              selectedTab={selectedTab}
-              setSelectedTab={setSelectedTab}
-              tabCounts={tabCounts}
-              filteredEntries={filteredEntries}
-              entries={entries}
-              onSelectEntry={handleSelectEntry}
-              onSelectAll={handleSelectAll}
-              onStatusChange={handleStatusChange}
-              onOpenCheckInDialog={(entry, classEntry) =>
-                setCheckInDialog({ open: true, entry, classEntry })
-              }
-              onOpenArmbandDialog={entry =>
-                setArmbandDialog({
-                  open: true,
-                  entry,
-                  value: entry.armbandNumber || '',
-                })
-              }
-              onOpenCompDialog={entry =>
-                setCompDialog({
-                  open: true,
-                  entryId: entry.id,
-                  entryNumber: entry.entryNumber,
-                  dogName: entry.dogName,
-                })
-              }
-              onUncompEntry={handleUncompEntry}
-              showId={selectedShowId}
-              onRefresh={() => loadEntries(selectedShowId)}
-            />
+        <TabsContent value="entries">
+          {/* No Show Selected */}
+          {!selectedShowId && !isLoadingShows && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-medium mb-2">Select a Show</h3>
+                <p className="text-muted-foreground">
+                  Choose a show from the dropdown above to manage its entries.
+                </p>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Roster view: trial entries grouped by class */}
-          {viewMode === 'roster' && (
-            <TrialRosterView
-              entries={rosterEntries}
-              onClassClick={classId => setClassFilter(classId)}
-              isLoading={isLoadingTrialEntries}
-            />
+          {/* Loading State */}
+          {isLoading && selectedShowId && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
           )}
 
-          {viewMode === 'scoring' && classFilter && (
-            <ScoringModeWrapper
-              classId={classFilter}
-              showId={selectedShowId}
-              trialId={trialFilter || ''}
-              onBack={() => setClassFilter(null)}
-            />
-          )}
+          {/* Main Content - Only show when a show is selected and not loading */}
+          {selectedShowId && !isLoading && (
+            <>
+              {/* Trial / Class Filters */}
+              <TrialClassFilters
+                trials={trials}
+                classes={trialClasses}
+                trialFilter={trialFilter}
+                classFilter={classFilter}
+                onTrialChange={setTrialFilter}
+                onClassChange={setClassFilter}
+                isLoadingTrials={isLoadingTrials}
+                isLoadingClasses={isLoadingClasses}
+              />
 
-          {/* Check-In Status Dialog */}
-          {checkInDialog.entry && checkInDialog.classEntry && (
-            <CheckInStatusDialog
-              open={checkInDialog.open}
-              onOpenChange={open => {
-                if (!open) {
-                  setCheckInDialog({ open: false, entry: null, classEntry: null });
+              {/* Filter Breadcrumb */}
+              <FilterBreadcrumb
+                trialName={
+                  trialFilter
+                    ? (() => {
+                        const t = trials.find(tr => tr.id === trialFilter);
+                        return t ? t.name || `Trial ${t.trial_number}` : null;
+                      })()
+                    : null
                 }
-              }}
-              currentStatus={checkInDialog.classEntry.checkInStatus || 'no-status'}
-              entryInfo={{
-                armband: checkInDialog.entry.armbandNumber || checkInDialog.entry.entryNumber,
-                dogName: checkInDialog.entry.dogName,
-                handlerName: checkInDialog.entry.handlerName,
-                className: checkInDialog.classEntry.name,
-                classNumber: checkInDialog.classEntry.number,
-              }}
-              onUpdateStatus={handleCheckInStatusUpdate}
-              readOnly={false}
-              userRole="secretary"
-            />
+                className={
+                  classFilter
+                    ? (() => {
+                        const c = trialClasses.find(cl => cl.id === classFilter);
+                        return c?.name || null;
+                      })()
+                    : null
+                }
+                onClearTrial={() => setTrialFilter(null)}
+                onClearClass={() => setClassFilter(null)}
+              />
+
+              {/* Registration view: stats, filters, bulk actions, entries tabs */}
+              {viewMode === 'registration' && (
+                <RegistrationView
+                  stats={stats}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  statusFilter={statusFilter}
+                  setStatusFilter={setStatusFilter}
+                  paymentFilter={paymentFilter}
+                  setPaymentFilter={setPaymentFilter}
+                  onClearFilters={clearFilters}
+                  selectedEntries={selectedEntries}
+                  bulkActionDialog={bulkActionDialog}
+                  setBulkActionDialog={setBulkActionDialog}
+                  onBulkAction={handleBulkAction}
+                  selectedTab={selectedTab}
+                  setSelectedTab={setSelectedTab}
+                  tabCounts={tabCounts}
+                  filteredEntries={filteredEntries}
+                  entries={entries}
+                  onSelectEntry={handleSelectEntry}
+                  onSelectAll={handleSelectAll}
+                  onStatusChange={handleStatusChange}
+                  onOpenCheckInDialog={(entry, classEntry) =>
+                    setCheckInDialog({ open: true, entry, classEntry })
+                  }
+                  onOpenArmbandDialog={entry =>
+                    setArmbandDialog({
+                      open: true,
+                      entry,
+                      value: entry.armbandNumber || '',
+                    })
+                  }
+                  onOpenCompDialog={entry =>
+                    setCompDialog({
+                      open: true,
+                      entryId: entry.id,
+                      entryNumber: entry.entryNumber,
+                      dogName: entry.dogName,
+                    })
+                  }
+                  onUncompEntry={handleUncompEntry}
+                  showId={selectedShowId}
+                  onRefresh={() => loadEntries(selectedShowId)}
+                />
+              )}
+
+              {/* Roster view: trial entries grouped by class */}
+              {viewMode === 'roster' && (
+                <TrialRosterView
+                  entries={rosterEntries}
+                  onClassClick={classId => setClassFilter(classId)}
+                  isLoading={isLoadingTrialEntries}
+                />
+              )}
+
+              {viewMode === 'scoring' && classFilter && (
+                <ScoringModeWrapper
+                  classId={classFilter}
+                  showId={selectedShowId}
+                  trialId={trialFilter || ''}
+                  onBack={() => setClassFilter(null)}
+                />
+              )}
+
+              {/* Check-In Status Dialog */}
+              {checkInDialog.entry && checkInDialog.classEntry && (
+                <CheckInStatusDialog
+                  open={checkInDialog.open}
+                  onOpenChange={open => {
+                    if (!open) {
+                      setCheckInDialog({ open: false, entry: null, classEntry: null });
+                    }
+                  }}
+                  currentStatus={checkInDialog.classEntry.checkInStatus || 'no-status'}
+                  entryInfo={{
+                    armband: checkInDialog.entry.armbandNumber || checkInDialog.entry.entryNumber,
+                    dogName: checkInDialog.entry.dogName,
+                    handlerName: checkInDialog.entry.handlerName,
+                    className: checkInDialog.classEntry.name,
+                    classNumber: checkInDialog.classEntry.number,
+                  }}
+                  onUpdateStatus={handleCheckInStatusUpdate}
+                  readOnly={false}
+                  userRole="secretary"
+                />
+              )}
+            </>
           )}
-        </>
-      )}
+        </TabsContent>
+
+        <TabsContent value="waitlist">
+          <WaitlistManagementPage />
+        </TabsContent>
+      </Tabs>
 
       {/* Armband Assignment Dialog */}
       <ArmbandDialog

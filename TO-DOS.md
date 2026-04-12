@@ -18,29 +18,11 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 - [x] **Phase 0 — Write Down the Truth** ✓ completed 2026-04-11 — All five deliverables committed to main: role definitions (`docs/roles/`), secretary journey (`docs/journeys/secretary.md`), exhibitor journey (`docs/journeys/exhibitor.md`), feature audit (`docs/feature-audit-2026.md`), navigation/IA sketch (`docs/navigation-ia.md`).
 
-- [ ] **Phase 1 — Quiet the Noise** (~1 week) — Three passes in order against the code: (1) hide/disable every feature the audit marked "park" or "delete/hide" behind a feature flag or router removal; (2) page consolidation — execute the "X should be a tab of Y" decisions from the navigation sketch; (3) canonical-path pass — for each duplicated action (starting with "add a dog"), pick one canonical implementation and redirect all other entry points to it. Triage testing TO-DOs against the golden paths. **Exit:** no hidden features in nav/routes, consolidated pages reachable at new locations, one canonical implementation per duplicated action, `pnpm typecheck`/`lint`/`build` clean.
+- [x] **Phase 1 — Quiet the Noise** ✓ completed 2026-04-11 — Nav pruned, tabs consolidated (Wait List/Check-In/Permission Audit), Clone Show and quick-action cards ported to PipelineDashboard, legacy SecretaryDashboard deleted, completed trials accessible via show picker.
 
 - [ ] **Phase 2 — Walk the Golden Paths** (~3–5 weeks) — Walk each role's journey end-to-end in a real browser with realistic data; fix every gap before moving on. Order: **(a) Secretary** (~2–3 weeks, reference against Access screenshots + knowledge base); **(b) Exhibitor** (~1–2 weeks); **(c) Admin minimum** (~few days, just enough for user to run the platform). Rules: no new features, no wandering to unrelated bugs on hidden features, fix root causes not symptoms. New unit tests for new/changed code (per `CLAUDE.md` policy). **Exit:** user completes both golden paths end-to-end on `localhost:5173` without a blocker; no TO-DOs remain on the golden paths.
 
 - [ ] **Phase 3 — Real-User Testing** (~1–2 weeks) — Recruit 2–3 non-technical test users (one secretary, one or two exhibitors — not developers, not veterans who'll fill gaps mentally). Hand them written tasks, watch silently, every hesitation is a bug. Fix confusion-level findings, not just errors. Iterate until users stop getting stuck. Once golden paths are clean, revisit the "park" pile from Phase 0 and decide what to un-hide for a post-fall release. **Exit:** 2–3 test users complete both journeys unassisted; no confusion-level findings outstanding.
-
----
-
-## Phase 1 — Secretary Dashboard Migration
-
-Before deleting the legacy `SecretaryDashboard` flat file, port these features into `PipelineDashboard` (Mission Control):
-
-#### Port Clone Show into PipelineDashboard
-
-The legacy dashboard has a working Clone Show button + dialog. Clubs that run the same show structure repeatedly need this. Port the clone logic into the new pipeline before removing the legacy file.
-
-#### Port quick-action shortcuts into PipelineDashboard
-
-The legacy dashboard has three quick-action cards not present in the new pipeline: (1) Result Entry shortcut with pending count, (2) Export Reports shortcut with reports-ready count, (3) Pending Issues alert with active trials badge. Add a quick-actions surface to PipelineDashboard before deleting the legacy file.
-
-#### Verify Completed Trials coverage
-
-The legacy dashboard has a Completed Trials tab with View Results and Export Report per trial. Confirm this is reachable from the new pipeline before deleting the legacy file.
 
 ---
 

@@ -42,6 +42,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
+  const prevOpenRef = React.useRef(false);
 
   // Calculate progress
   const getProgress = (): number => {
@@ -102,9 +103,11 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     onOpenChange(false);
   };
 
-  // Open exhibitor dialog when flow starts
+  // Open exhibitor dialog only when the outer dialog transitions from closed → open
   React.useEffect(() => {
-    if (open && flowState.step === 'exhibitor' && !flowState.exhibitor) {
+    const justOpened = open && !prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (justOpened && flowState.step === 'exhibitor' && !flowState.exhibitor) {
       setShowExhibitorDialog(true);
     }
   }, [open, flowState.step, flowState.exhibitor]);

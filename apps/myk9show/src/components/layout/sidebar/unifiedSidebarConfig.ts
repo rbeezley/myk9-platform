@@ -252,7 +252,7 @@ export function buildUnifiedSidebarConfig(
       { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
     ];
     // People is secretary + admin only (privacy restriction — navigation-ia.md)
-    if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])) {
+    if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {
       browseItems.push({
         title: 'People',
         href: '/people',

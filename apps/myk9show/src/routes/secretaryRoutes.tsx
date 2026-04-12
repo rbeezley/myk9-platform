@@ -151,7 +151,11 @@ export const SecretaryRoutes = () => (
     />
     <Route
       path="/secretary/waitlist"
-      element={<Navigate to="/secretary/entries?tab=waitlist" replace />}
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <Navigate to="/secretary/entries?tab=waitlist" replace />
+        </ProtectedRoute>
+      }
     />
     <Route
       path="/secretary/day-of"

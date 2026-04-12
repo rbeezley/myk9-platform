@@ -8,7 +8,7 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DndContext, DragOverlay, pointerWithin, type DragEndEvent } from '@dnd-kit/core';
-import { Plus, Settings, Copy } from 'lucide-react';
+import { Plus, Settings, Copy, FileText, Download, AlertCircle } from 'lucide-react';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import { Button } from '@/components/ui/button';
@@ -262,6 +262,28 @@ export const PipelineDashboard: React.FC = () => {
           </DndContext>
         </div>
       )}
+
+      {/* Quick Actions */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/secretary/results-control">
+            <FileText className="h-4 w-4 mr-2" />
+            Results Control
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/secretary/reports">
+            <Download className="h-4 w-4 mr-2" />
+            Reports
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/secretary/entries">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Entries
+          </Link>
+        </Button>
+      </div>
 
       {selectedShow && (
         <ShowSettingsPanel

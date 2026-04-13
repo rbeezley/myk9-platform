@@ -5,7 +5,7 @@ import { products } from '../stripe-config';
  * Create a Stripe checkout session for subscription or one-time payment
  */
 export async function createCheckoutSession(priceId: string, mode: 'payment' | 'subscription') {
-  const product = Object.values(products).find((p) => p.priceId === priceId);
+  const product = Object.values(products).find(p => p.priceId === priceId);
 
   if (!product) {
     throw new Error('Invalid price ID');
@@ -80,6 +80,7 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
   showId?: string;
   showName?: string;
   totalAmount?: number;
+  confirmationNumber?: string;
   error?: string;
 }> {
   if (!sessionId) {
@@ -96,15 +97,18 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
   // Query the stripe_orders table for this checkout session
   const { data: order, error } = await supabase
     .from('stripe_orders')
-    .select(`
+    .select(
+      `
       id,
       status,
       amount_cents,
       entry_ids,
       show_id,
       paid_at,
-      shows:show_id (name)
-    `)
+      shows:show_id (name),
+      enrollment:enrollment_id (confirmation_number)
+    `
+    )
     .eq('stripe_checkout_session_id', sessionId)
     .single();
 
@@ -117,6 +121,8 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
     return { success: false, error: `Payment status: ${order.status}` };
   }
 
+  const enrollment = order.enrollment as { confirmation_number: string } | null;
+
   return {
     success: true,
     orderId: order.id,
@@ -124,5 +130,6 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
     ...(order.show_id != null && { showId: order.show_id }),
     ...(order.shows && { showName: (order.shows as { name: string }).name }),
     ...(order.amount_cents != null && { totalAmount: order.amount_cents }),
+    ...(enrollment?.confirmation_number && { confirmationNumber: enrollment.confirmation_number }),
   };
 }

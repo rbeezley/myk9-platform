@@ -3731,45 +3731,54 @@ export type Database = {
           check_number: string | null;
           confirmation_number: string;
           created_at: string;
+          discount_amount: number | null;
           group_reference: string | null;
           handler_id: string;
           id: string;
           notes: string | null;
           payment_date: string | null;
+          payment_method: string | null;
           payment_notes: string | null;
           payment_reference: string | null;
           payment_status: string;
           show_id: string;
+          total_amount: number | null;
           updated_at: string;
         };
         Insert: {
           check_number?: string | null;
           confirmation_number?: string;
           created_at?: string;
+          discount_amount?: number | null;
           group_reference?: string | null;
           handler_id: string;
           id?: string;
           notes?: string | null;
           payment_date?: string | null;
+          payment_method?: string | null;
           payment_notes?: string | null;
           payment_reference?: string | null;
           payment_status?: string;
           show_id: string;
+          total_amount?: number | null;
           updated_at?: string;
         };
         Update: {
           check_number?: string | null;
           confirmation_number?: string;
           created_at?: string;
+          discount_amount?: number | null;
           group_reference?: string | null;
           handler_id?: string;
           id?: string;
           notes?: string | null;
           payment_date?: string | null;
+          payment_method?: string | null;
           payment_notes?: string | null;
           payment_reference?: string | null;
           payment_status?: string;
           show_id?: string;
+          total_amount?: number | null;
           updated_at?: string;
         };
         Relationships: [
@@ -5101,6 +5110,7 @@ export type Database = {
           created_at: string | null;
           currency: string | null;
           customer_id: string | null;
+          enrollment_id: string | null;
           entry_ids: string[] | null;
           id: string;
           metadata: Json | null;
@@ -5118,6 +5128,7 @@ export type Database = {
           created_at?: string | null;
           currency?: string | null;
           customer_id?: string | null;
+          enrollment_id?: string | null;
           entry_ids?: string[] | null;
           id?: string;
           metadata?: Json | null;
@@ -5135,6 +5146,7 @@ export type Database = {
           created_at?: string | null;
           currency?: string | null;
           customer_id?: string | null;
+          enrollment_id?: string | null;
           entry_ids?: string[] | null;
           id?: string;
           metadata?: Json | null;
@@ -5153,6 +5165,13 @@ export type Database = {
             columns: ['customer_id'];
             isOneToOne: false;
             referencedRelation: 'stripe_customers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'stripe_orders_enrollment_id_fkey';
+            columns: ['enrollment_id'];
+            isOneToOne: false;
+            referencedRelation: 'enrollments';
             referencedColumns: ['id'];
           },
           {

@@ -45,6 +45,7 @@ export default function CheckoutSuccessPage() {
     showId?: string;
     totalAmount?: number;
     entryIds?: string[];
+    confirmationNumber?: string;
   } | null>(null);
   const [entries, setEntries] = useState<EntryDetails[]>([]);
 
@@ -74,6 +75,9 @@ export default function CheckoutSuccessPage() {
             ...(result.showId !== undefined && { showId: result.showId }),
             ...(result.totalAmount !== undefined && { totalAmount: result.totalAmount }),
             ...(result.entryIds !== undefined && { entryIds: result.entryIds }),
+            ...(result.confirmationNumber !== undefined && {
+              confirmationNumber: result.confirmationNumber,
+            }),
           });
           setIsVerified(true);
 
@@ -209,6 +213,21 @@ export default function CheckoutSuccessPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            {/* Confirmation Number */}
+            {orderDetails?.confirmationNumber && (
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                  Confirmation Number
+                </p>
+                <p className="text-2xl font-mono font-bold text-green-700 dark:text-green-400">
+                  {orderDetails.confirmationNumber}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Save this number for your records
+                </p>
+              </div>
+            )}
+
             {/* Order Summary */}
             {orderDetails && (
               <Alert className="bg-muted/50">

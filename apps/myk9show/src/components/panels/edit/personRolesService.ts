@@ -4,13 +4,15 @@ import { supabase } from '@/services/database/supabaseClient';
 export async function savePersonRoles(personId: string, newRoles: string[]) {
   const mapName = (r: string) => (r === 'admin' ? 'site_admin' : r);
 
-  // Fetch current roles from DB to compute the diff
-  const { data: currentData } = await supabase
+  // Fetch current active roles
+  const { data: currentData, error: currentError } = await supabase
     .from('user_roles')
     .select('role:roles!user_roles_role_id_fkey(name)')
     .eq('user_id', personId)
     .eq('is_active', true);
-  const oldRoles = (currentData || [])
+  if (currentError) throw new Error(`Failed to fetch current roles: ${currentError.message}`);
+
+  const oldRoles = (currentData ?? [])
     .map((r: Record<string, unknown>) => {
       const name = (r.role as { name: string })?.name;
       return name === 'site_admin' ? 'admin' : name;
@@ -20,49 +22,74 @@ export async function savePersonRoles(personId: string, newRoles: string[]) {
   const toGrant = newRoles.filter(r => !oldRoles.includes(r)).map(mapName);
   const toRevoke = oldRoles.filter(r => !newRoles.includes(r)).map(mapName);
 
-  // Get the current user's people.id (granted_by FK references people table, not auth.users)
-  const authUser = (await supabase.auth.getUser()).data.user;
+  if (toGrant.length === 0 && toRevoke.length === 0) return;
+
+  // Resolve all role IDs and the granting user's people.id in parallel
+  const allRoleNames = [...new Set([...toGrant, ...toRevoke])];
+  const [{ data: roleRows, error: rolesError }, authResult] = await Promise.all([
+    supabase.from('roles').select('id, name').in('name', allRoleNames),
+    supabase.auth.getUser(),
+  ]);
+  if (rolesError) throw new Error(`Failed to fetch role ids: ${rolesError.message}`);
+
+  const roleMap = new Map((roleRows ?? []).map(r => [r.name, r.id as string]));
+
   let grantedBy: string | null = null;
-  if (authUser) {
+  if (authResult.data.user) {
     const { data: person } = await supabase
       .from('people')
       .select('id')
-      .eq('auth_user_id', authUser.id)
+      .eq('auth_user_id', authResult.data.user.id)
       .maybeSingle();
     grantedBy = person?.id ?? null;
   }
 
-  for (const roleName of toGrant) {
-    const { data: role } = await supabase.from('roles').select('id').eq('name', roleName).single();
-    if (!role) continue;
+  const grantRoleIds = toGrant.map(n => roleMap.get(n)).filter((id): id is string => !!id);
+  const revokeRoleIds = toRevoke.map(n => roleMap.get(n)).filter((id): id is string => !!id);
 
-    // Check if deactivated row exists — reactivate it
-    const { data: existing } = await supabase
-      .from('user_roles')
-      .select('id, is_active')
-      .eq('user_id', personId)
-      .eq('role_id', role.id)
-      .maybeSingle();
+  await Promise.all([
+    // Grants: check for deactivated rows, reactivate or insert in batch
+    (async () => {
+      if (grantRoleIds.length === 0) return;
 
-    if (existing && !existing.is_active) {
-      await supabase.from('user_roles').update({ is_active: true }).eq('id', existing.id);
-    } else if (!existing) {
-      await supabase.from('user_roles').insert({
-        user_id: personId,
-        role_id: role.id,
-        granted_by: grantedBy,
-      });
-    }
-  }
+      const { data: existing } = await supabase
+        .from('user_roles')
+        .select('id, role_id, is_active')
+        .eq('user_id', personId)
+        .in('role_id', grantRoleIds);
 
-  for (const roleName of toRevoke) {
-    const { data: role } = await supabase.from('roles').select('id').eq('name', roleName).single();
-    if (!role) continue;
+      const existingMap = new Map((existing ?? []).map(r => [r.role_id, r]));
+      const toReactivate = grantRoleIds.filter(id => existingMap.get(id)?.is_active === false);
+      const toInsert = grantRoleIds.filter(id => !existingMap.has(id));
 
-    await supabase
-      .from('user_roles')
-      .update({ is_active: false })
-      .eq('user_id', personId)
-      .eq('role_id', role.id);
-  }
+      await Promise.all([
+        ...toReactivate.map(roleId =>
+          supabase
+            .from('user_roles')
+            .update({ is_active: true })
+            .eq('id', existingMap.get(roleId)!.id)
+        ),
+        toInsert.length > 0
+          ? supabase
+              .from('user_roles')
+              .insert(
+                toInsert.map(roleId => ({
+                  user_id: personId,
+                  role_id: roleId,
+                  granted_by: grantedBy,
+                }))
+              )
+          : Promise.resolve(),
+      ]);
+    })(),
+
+    // Revokes: single update with .in()
+    revokeRoleIds.length > 0
+      ? supabase
+          .from('user_roles')
+          .update({ is_active: false })
+          .eq('user_id', personId)
+          .in('role_id', revokeRoleIds)
+      : Promise.resolve(),
+  ]);
 }

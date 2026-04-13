@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
+import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import {
   getAllUsers,
@@ -8,6 +9,7 @@ import {
   deleteUser,
 } from '@/services/database/queries/userQueries';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
+import { savePersonRoles } from '@/components/panels/edit/personRolesService';
 
 export function useUsers() {
   return useQuery<User[]>({
@@ -35,6 +37,11 @@ export function useAddPerson() {
         zip_code: person.zipCode || null,
       });
       if (error || !data) throw new Error(error?.message || 'Failed to create user');
+
+      const newPersonId = (data as Record<string, unknown>).id as string;
+      const roles = person.roles?.length ? person.roles : [UserRole.EXHIBITOR];
+      await savePersonRoles(newPersonId, roles);
+
       return mapDatabaseToUser(data);
     },
     onSuccess: () => {

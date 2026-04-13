@@ -35,7 +35,7 @@ export const settingsProfiles: Record<ProfileType, SettingsProfile> = {
 
       // Mobile - optimized for tablets
       hapticFeedback: true,
-      pullToRefresh: true,
+      pullToRefresh: false,
 
       // Notifications - essential only
       enableNotifications: true,
@@ -63,7 +63,7 @@ export const settingsProfiles: Record<ProfileType, SettingsProfile> = {
 
       // Mobile - optimized
       hapticFeedback: true,
-      pullToRefresh: true,
+      pullToRefresh: false,
 
       // Notifications - all enabled
       enableNotifications: true,
@@ -91,7 +91,7 @@ export const settingsProfiles: Record<ProfileType, SettingsProfile> = {
 
       // Mobile - standard
       hapticFeedback: false,
-      pullToRefresh: true,
+      pullToRefresh: false,
 
       // Notifications - results only
       enableNotifications: true,
@@ -119,7 +119,7 @@ export const settingsProfiles: Record<ProfileType, SettingsProfile> = {
 
       // Mobile - full features
       hapticFeedback: true,
-      pullToRefresh: true,
+      pullToRefresh: false,
 
       // Notifications - all types
       enableNotifications: true,

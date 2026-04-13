@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, Heart, CheckCircle } from 'lucide-react';
+import { Clock, Heart, CheckCircle, Activity } from 'lucide-react';
 import { TabBar, Tab } from '../../components/ui';
 import { getClassDisplayStatus } from '../../utils/statusUtils';
 
@@ -36,8 +36,8 @@ interface ClassEntry {
 }
 
 interface ClassFiltersProps {
-  combinedFilter: 'pending' | 'favorites' | 'completed';
-  setCombinedFilter: (filter: 'pending' | 'favorites' | 'completed') => void;
+  combinedFilter: 'pending' | 'in-progress' | 'favorites' | 'completed';
+  setCombinedFilter: (filter: 'pending' | 'in-progress' | 'favorites' | 'completed') => void;
   classes: ClassEntry[];
   hapticFeedback: {
     light: () => void;
@@ -61,6 +61,12 @@ export const ClassFilters: React.FC<ClassFiltersProps> = ({
       count: classes.filter(c => getClassDisplayStatus(c) !== 'completed').length
     },
     {
+      id: 'in-progress',
+      label: 'In Progress',
+      icon: <Activity className="tab-icon" size={16} />,
+      count: classes.filter(c => getClassDisplayStatus(c) === 'in-progress').length
+    },
+    {
       id: 'favorites',
       label: 'Favorites',
       icon: <Heart className="tab-icon" size={16} />,
@@ -76,7 +82,7 @@ export const ClassFilters: React.FC<ClassFiltersProps> = ({
 
   const handleTabChange = (tabId: string) => {
     hapticFeedback.light();
-    setCombinedFilter(tabId as 'pending' | 'favorites' | 'completed');
+    setCombinedFilter(tabId as 'pending' | 'in-progress' | 'favorites' | 'completed');
   };
 
   return (

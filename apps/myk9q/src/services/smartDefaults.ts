@@ -118,7 +118,7 @@ export async function generateSmartDefaults(
     autoLogout: 480, // Default: 8 hours
 
     // Mobile
-    pullToRefresh: true,
+    pullToRefresh: false,
     hapticFeedback: context.deviceTier !== 'low' && 'vibrate' in navigator,
 
     // Advanced

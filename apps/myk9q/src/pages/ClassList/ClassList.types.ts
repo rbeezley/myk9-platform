@@ -2,7 +2,7 @@
 export type SortOrder = 'class_order' | 'element_level' | 'level_element';
 
 /** Combined filter for class list tabs */
-export type CombinedFilter = 'pending' | 'favorites' | 'completed';
+export type CombinedFilter = 'pending' | 'in-progress' | 'favorites' | 'completed';
 
 /** State for the print dialog (which report type and which class) */
 export interface PrintDialogState {

@@ -156,7 +156,7 @@ const isEntryQualified = (entry: ClassEntry): boolean => {
 export const DogStatistics: React.FC<DogStatisticsProps> = ({ classes, dogName }) => {
   // Calculate statistics
   const stats = useMemo(() => {
-    const scoredEntries = classes.filter(c => c.is_scored);
+    const scoredEntries = classes.filter(c => c.is_scored && c.check_in_status !== 'pulled');
 
     // Only count visible qualifications based on release control settings
     const visibleQualifications = scoredEntries.filter(c => c.visibleFields?.showQualification);

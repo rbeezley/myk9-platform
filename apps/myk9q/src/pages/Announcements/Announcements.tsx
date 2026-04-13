@@ -383,8 +383,8 @@ export const Announcements: React.FC = () => {
         title="Search & Sort"
       />
 
-      {/* Content with Pull to Refresh */}
-      <PullToRefresh onRefresh={handleRefresh} enabled threshold={80}>
+      {/* Scroll container — blocks native browser pull-to-refresh */}
+      <PullToRefresh onRefresh={handleRefresh} enabled={false} threshold={80}>
         <div className={styles.content}>
           {error && (
             <div className={styles.errorBanner}>

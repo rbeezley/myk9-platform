@@ -314,38 +314,38 @@ export function PullToRefresh({
         !enabled && 'touch-pan-y',
         className
       )}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseDown={enabled ? handleMouseDown : undefined}
+      onMouseMove={enabled ? handleMouseMove : undefined}
+      onMouseUp={enabled ? handleMouseUp : undefined}
+      onMouseLeave={enabled ? handleMouseUp : undefined}
     >
-      <div
-        className={cn(
-          'absolute top-0 left-0 right-0',
-          'flex items-center justify-center',
-          'h-20 -mt-20',
-          'transition-opacity duration-200',
-          pullState === 'ready' && 'text-[var(--primary)]',
-          pullState === 'refreshing' && 'text-[var(--primary)]',
-          pullState === 'complete' && 'text-[var(--success)]'
-        )}
-        style={{
-          transform: `translateY(${pullDistance}px)`,
-          opacity: pullDistance > 0 ? 1 : 0,
-        }}
-      >
-        {renderIndicator ? (
-          renderIndicator(pullState)
-        ) : (
-          <DefaultRefreshIndicator state={pullState} distance={pullDistance} threshold={threshold} />
-        )}
-      </div>
+      {enabled && (
+        <div
+          className={cn(
+            'absolute top-0 left-0 right-0',
+            'flex items-center justify-center',
+            'h-20 -mt-20',
+            'transition-opacity duration-200',
+            pullState === 'ready' && 'text-[var(--primary)]',
+            pullState === 'refreshing' && 'text-[var(--primary)]',
+            pullState === 'complete' && 'text-[var(--success)]'
+          )}
+          style={{
+            transform: `translateY(${pullDistance}px)`,
+            opacity: pullDistance > 0 ? 1 : 0,
+          }}
+        >
+          {renderIndicator ? (
+            renderIndicator(pullState)
+          ) : (
+            <DefaultRefreshIndicator state={pullState} distance={pullDistance} threshold={threshold} />
+          )}
+        </div>
+      )}
 
       <div
         className="transition-transform duration-200"
-        style={{
-          transform: `translateY(${pullDistance}px)`,
-        }}
+        style={pullDistance ? { transform: `translateY(${pullDistance}px)` } : undefined}
       >
         {children}
       </div>

@@ -368,8 +368,6 @@ export function useSearchableSettings(): SearchableSettingmatch[] {
       // Mobile settings
       { id: 'oneHandedMode', title: 'One-Handed Mode', description: 'Optimize for thumb reach', category: 'General', sectionId: 'general-section', keywords: ['accessibility', 'thumb', 'reachability'] },
       { id: 'handPreference', title: 'Hand Preference', description: 'Which hand do you use?', category: 'General', sectionId: 'general-section', keywords: ['left', 'right', 'hand'] },
-      { id: 'pullToRefresh', title: 'Pull to Refresh', description: 'Swipe down to reload', category: 'General', sectionId: 'general-section', keywords: ['swipe', 'reload', 'refresh'] },
-      { id: 'pullSensitivity', title: 'Pull Sensitivity', description: 'How far to pull', category: 'General', sectionId: 'general-section', keywords: ['swipe', 'sensitivity'] },
       { id: 'hapticFeedback', title: 'Haptic Feedback', description: 'Vibration on touch', category: 'General', sectionId: 'general-section', keywords: ['vibration', 'touch', 'feedback'] },
 
       // Notification settings

@@ -409,10 +409,10 @@ export const Home: React.FC = () => {
 
       {/* Show info moved to hamburger menu for maximum screen space */}
 
-      {/* Pull to Refresh Wrapper */}
+      {/* Scroll container — blocks native browser pull-to-refresh */}
       <PullToRefresh
         onRefresh={handleRefresh}
-        enabled
+        enabled={false}
         threshold={100}
         maxPullDistance={140}
       >

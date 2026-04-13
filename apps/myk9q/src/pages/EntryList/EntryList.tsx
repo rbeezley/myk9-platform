@@ -349,7 +349,7 @@ export const EntryList: React.FC = () => {
         onTabChange={tabId => setActiveTab(tabId as TabType)}
       />
 
-      <PullToRefresh onRefresh={() => refresh(true)} enabled threshold={80}>
+      <PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
         <div className="entry-list-scrollable">
           <div className="entry-list-content">
             <EntryListContent

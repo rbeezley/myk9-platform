@@ -95,11 +95,12 @@ export function calculateBasicCounts(statsData: StatsQueryResult[]): BasicCounts
 
 export function calculateRates(counts: BasicCounts): Rates {
   const { scoredEntries, qualifiedCount, nqCount, excusedCount, absentCount, withdrawnCount } = counts;
+  const attempts = qualifiedCount + nqCount + excusedCount;
 
   return {
-    qualificationRate: scoredEntries > 0 ? (qualifiedCount / scoredEntries) * 100 : 0,
-    nqRate: scoredEntries > 0 ? (nqCount / scoredEntries) * 100 : 0,
-    excusedRate: scoredEntries > 0 ? (excusedCount / scoredEntries) * 100 : 0,
+    qualificationRate: attempts > 0 ? (qualifiedCount / attempts) * 100 : 0,
+    nqRate: attempts > 0 ? (nqCount / attempts) * 100 : 0,
+    excusedRate: attempts > 0 ? (excusedCount / attempts) * 100 : 0,
     absentRate: scoredEntries > 0 ? (absentCount / scoredEntries) * 100 : 0,
     withdrawnRate: scoredEntries > 0 ? (withdrawnCount / scoredEntries) * 100 : 0
   };

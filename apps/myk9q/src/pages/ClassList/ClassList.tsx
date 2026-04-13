@@ -498,7 +498,7 @@ export const ClassList: React.FC = () => {
         hapticFeedback={hapticFeedback}
       />
 
-      <PullToRefresh onRefresh={handleRefresh} enabled threshold={80}>
+      <PullToRefresh onRefresh={handleRefresh} enabled={false} threshold={80}>
         <ClassCardGrid
           filteredClasses={filteredClasses}
           isLoaded={isLoaded}

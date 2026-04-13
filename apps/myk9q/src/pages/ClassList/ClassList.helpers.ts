@@ -30,7 +30,7 @@ export function isEmptyDataError(error: Error | null): boolean {
 /** Filter classes by combined filter (pending/favorites/completed) and search term */
 export function filterClasses(
   classes: ClassEntry[],
-  combinedFilter: 'pending' | 'favorites' | 'completed',
+  combinedFilter: 'pending' | 'in-progress' | 'favorites' | 'completed',
   searchTerm: string
 ): ClassEntry[] {
   return classes.filter(classEntry => {
@@ -39,6 +39,7 @@ export function filterClasses(
 
     // Combined filter logic
     if (combinedFilter === 'pending' && isCompleted) return false;
+    if (combinedFilter === 'in-progress' && displayStatus !== 'in-progress') return false;
     if (combinedFilter === 'completed' && !isCompleted) return false;
     if (combinedFilter === 'favorites' && !classEntry.is_favorite) return false;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
@@ -47,12 +47,6 @@ export function EntryPanel({
   const [selectedResult, setSelectedResult] = useState<PaperResult | null>(initialResult);
   const [timeDigits, setTimeDigits] = useState('');
   const [faults, setFaults] = useState(0);
-
-  useEffect(() => {
-    setSelectedResult(settings.preFill === 'none' ? null : settings.preFill);
-    setTimeDigits('');
-    setFaults(0);
-  }, [entry.entryId, settings.preFill]);
 
   const handleResultClick = (result: PaperResult) => {
     setSelectedResult(result);

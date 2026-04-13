@@ -30,10 +30,6 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 Items identified during Phase 0 journey review. Address while walking the exhibitor golden path in Phase 2.
 
-#### Wire order confirmation number into checkout
-
-Today `CheckoutSuccessPage` shows a raw UUID from `stripe_orders`. The `enrollments` table has a `MK9-000001` sequence but is never written to during checkout — the two systems are disconnected. Phase 2 must: (1) insert an `enrollments` row when payment succeeds, (2) link it to `stripe_orders`, (3) display the `MK9-XXXXXX` order confirmation number on `CheckoutSuccessPage` and in the confirmation email.
-
 #### Class Details → tab of Show Details (nav-ia deferred from Phase 1)
 
 `/classes/:classId` has no Phase 1 nav action (no sidebar item). Full integration deferred to Phase 2:

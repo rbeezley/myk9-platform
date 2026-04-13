@@ -209,14 +209,6 @@ Not on the critical path for fall launch. Revisit after Phase 3 is complete.
 
 ---
 
-## Phase 2 — Secretary Golden Path Items
-
-### Paper Scoresheet Entry (myK9Show) — 2026-04-12 07:53
-
-- **Audit and optimize manual score entry UI for paper scoresheet workflow** - When clubs don't use myK9Q at ringside, the secretary must manually enter scores from paper scoresheets in myK9Show. The current scoring UI was built judge-first and likely isn't optimized for this use case. **Problem:** The secretary's paper scoresheet entry workflow is not a documented golden path and has not been audited for efficiency. It likely requires too many clicks, doesn't support fast keyboard-driven batch entry across a class, and may not handle the time-format input (search times in minutes/seconds) well for rapid data entry. This is a frequent real-world fallback when myK9Q is unavailable. **Files:** `apps/myk9show/src/pages/scoring/` (scoring pages), `apps/myk9show/src/components/scoring/` (scoring components), `apps/myk9show/src/services/scoring/` (scoring services — see `ScoreValidatorService.ts`, `PlacementCalculatorService.ts`), `apps/myk9show/src/routes/judgeRoutes.tsx` (judge/scoring route config). **Solution:** (1) Walk the secretary paper-entry flow in the browser with a real trial. (2) Identify friction: clicks required per dog, time format input ergonomics, batch vs. one-at-a-time entry, keyboard navigation. (3) Fix root causes — do not add a separate "secretary mode"; instead make the existing UI work well for both judge (myK9Q handoff) and secretary (paper entry) use cases.
-
----
-
 ## Pre-Launch Housekeeping
 
 Non-North-Star items needed before real users hit the production URL. These are independent of the stabilization phases.

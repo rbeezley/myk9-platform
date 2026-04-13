@@ -1,11 +1,15 @@
 /**
- * Hook for handling role-based redirects
- * Automatically redirects users to appropriate dashboards based on their roles
+ * Hook for handling role-based redirects.
+ * Automatically redirects users to the dashboard for their highest role on login.
+ *
+ * Priority: SITE_ADMIN > CLUB_ADMIN > SECRETARY > JUDGE > EXHIBITOR
+ * See roleUtils.ts for the route lookup table.
  */
 
 import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from './useAuthContext';
+import { getDashboardRoute } from './roleUtils';
 import { UserRole } from '@/types/auth-types';
 
 interface UseRoleRedirectOptions {
@@ -16,30 +20,16 @@ interface UseRoleRedirectOptions {
 export const useRoleRedirect = (options: UseRoleRedirectOptions = {}) => {
   const { enabled = true, redirectOnRoleChange = false } = options;
   const navigate = useNavigate();
-  const { user, userWithRoles, hasRole, loading } = useAuthContext();
+  const { user, userWithRoles, loading } = useAuthContext();
 
   const performRoleBasedRedirect = useCallback(() => {
     // Don't redirect if disabled, still loading, or not authenticated
     if (!enabled || loading || !user) return;
 
-    // Redirect based on user role (priority order)
-    if (hasRole(UserRole.SITE_ADMIN)) {
-      // Site admins go to analytics/system overview
-      navigate('/analytics', { replace: true });
-    } else if (hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)) {
-      // Club admins and secretaries go to their dashboard
-      navigate('/secretary/dashboard', { replace: true });
-    } else if (hasRole(UserRole.JUDGE)) {
-      // Judges go to their dashboard (fallback to exhibitor dashboard until judge dashboard is built)
-      navigate('/exhibitor/dashboard', { replace: true });
-    } else if (hasRole(UserRole.EXHIBITOR)) {
-      // Exhibitors go to their dashboard
-      navigate('/exhibitor/dashboard', { replace: true });
-    } else {
-      // Default fallback for any other roles
-      navigate('/exhibitor/dashboard', { replace: true });
-    }
-  }, [enabled, loading, user, hasRole, navigate]);
+    const roles: UserRole[] = userWithRoles?.roles ?? [];
+    const destination = getDashboardRoute(roles);
+    navigate(destination, { replace: true });
+  }, [enabled, loading, user, userWithRoles, navigate]);
 
   // Effect for initial auth state changes (login)
   useEffect(() => {
@@ -57,7 +47,7 @@ export const useRoleRedirect = (options: UseRoleRedirectOptions = {}) => {
   }, [redirectOnRoleChange, user, userWithRoles, performRoleBasedRedirect]);
 
   return {
-    performRoleBasedRedirect
+    performRoleBasedRedirect,
   };
 };
 

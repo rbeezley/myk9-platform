@@ -46,10 +46,10 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   };
 
   const getDogEligibilityStatus = (dog: Dog) => {
-    // Mock eligibility checks
     const issues: string[] = [];
+    const warnings: string[] = [];
 
-    // Check age (example: must be at least 6 months old)
+    // Check age (must be at least 6 months old)
     if (dog.dateOfBirth) {
       const birthDate = new Date(dog.dateOfBirth);
       const ageInMonths = (new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
@@ -58,14 +58,17 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       }
     }
 
-    // Check registrations
-    if (!dog.registrations || dog.registrations.length === 0) {
-      issues.push('No registration on file');
+    // Registration is a warning only — registrations may not be loaded in all data paths
+    // and lack of a registration does not prevent selecting a dog for entry.
+    // Class-level eligibility (including registration requirements) is validated later.
+    if (dog.registrations && dog.registrations.length === 0) {
+      warnings.push('No registration on file — verify before submitting');
     }
 
     return {
       eligible: issues.length === 0,
       issues,
+      warnings,
     };
   };
 
@@ -101,7 +104,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       <ScrollArea className="h-[400px] pr-4">
         <div className="space-y-3">
           {eligibleDogs.map(dog => {
-            const { eligible, issues } = getDogEligibilityStatus(dog);
+            const { eligible, issues, warnings } = getDogEligibilityStatus(dog);
             const isSelected = selectedDogs.includes(dog.id);
 
             return (
@@ -119,7 +122,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                     <Checkbox
                       checked={isSelected}
                       disabled={!eligible}
-                      onCheckedChange={() => eligible && handleDogToggle(dog.id)}
+                      onCheckedChange={() => handleDogToggle(dog.id)}
                       onClick={e => e.stopPropagation()}
                       className="mt-1"
                     />
@@ -133,8 +136,8 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                               ` "${dog.registrations[0].registeredName}"`}
                           </Label>
                           <p className="text-sm text-gray-600 mt-1">
-                            {dog.registrations?.[0]?.breed || 'No breed specified'} •{' '}
-                            {dog.gender || 'Unknown'} • Born {formatDateMMDDYYYY(dog.dateOfBirth)}
+                            {dog.breed || 'No breed specified'} • {dog.gender || 'Unknown'} • Born{' '}
+                            {formatDateMMDDYYYY(dog.dateOfBirth)}
                           </p>
                         </div>
 
@@ -156,11 +159,21 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </div>
                       )}
 
-                      {!eligible && (
+                      {!eligible && issues.length > 0 && (
                         <div className="mt-2">
                           {issues.map((issue, idx) => (
                             <p key={idx} className="text-xs text-red-600">
                               • {issue}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+
+                      {eligible && warnings.length > 0 && (
+                        <div className="mt-2">
+                          {warnings.map((warning, idx) => (
+                            <p key={idx} className="text-xs text-amber-600">
+                              • {warning}
                             </p>
                           ))}
                         </div>

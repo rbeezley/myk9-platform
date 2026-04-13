@@ -10,7 +10,6 @@ import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from './useAuthContext';
 import { getDashboardRoute } from './roleUtils';
-import { UserRole } from '@/types/auth-types';
 
 interface UseRoleRedirectOptions {
   enabled?: boolean;
@@ -26,7 +25,7 @@ export const useRoleRedirect = (options: UseRoleRedirectOptions = {}) => {
     // Don't redirect if disabled, still loading, or not authenticated
     if (!enabled || loading || !user) return;
 
-    const roles: UserRole[] = userWithRoles?.roles ?? [];
+    const roles = userWithRoles?.roles ?? [];
     const destination = getDashboardRoute(roles);
     navigate(destination, { replace: true });
   }, [enabled, loading, user, userWithRoles, navigate]);

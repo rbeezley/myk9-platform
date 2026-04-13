@@ -1,26 +1,13 @@
 /**
  * Role utility helpers for priority-based role resolution.
  *
- * Priority order (highest → lowest):
- *   SITE_ADMIN > CLUB_ADMIN > SECRETARY > JUDGE > EXHIBITOR
+ * Priority order follows USER_ROLE_HIERARCHY from auth-types.ts:
+ *   SITE_ADMIN > SECRETARY > JUDGE > CLUB_ADMIN > CHAIRMAN > STEWARD > EXHIBITOR
  *
- * Note: CHAIRMAN and STEWARD are not assigned dashboards and fall through
- * to EXHIBITOR as the catch-all destination.
+ * Roles without a dashboard entry (CHAIRMAN, STEWARD) fall back to /exhibitor/dashboard.
  */
 
-import { UserRole } from '@/types/auth-types';
-
-/**
- * Explicit dashboard priority order.
- * Roles not listed here have no dedicated dashboard and land on exhibitor/dashboard.
- */
-export const DASHBOARD_ROLE_PRIORITY: readonly UserRole[] = [
-  UserRole.SITE_ADMIN,
-  UserRole.CLUB_ADMIN,
-  UserRole.SECRETARY,
-  UserRole.JUDGE,
-  UserRole.EXHIBITOR,
-];
+import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 
 /**
  * Lookup table mapping each role to its dashboard route.
@@ -28,7 +15,7 @@ export const DASHBOARD_ROLE_PRIORITY: readonly UserRole[] = [
  * JUDGE intentionally shares /exhibitor/dashboard — no judge-specific
  * landing page exists yet, and this is a deliberate routing decision.
  */
-export const ROLE_DASHBOARD_ROUTES: Record<string, string> = {
+export const ROLE_DASHBOARD_ROUTES: Partial<Record<UserRole, string>> = {
   [UserRole.SITE_ADMIN]: '/admin/dashboard',
   [UserRole.CLUB_ADMIN]: '/secretary/dashboard',
   [UserRole.SECRETARY]: '/secretary/dashboard',
@@ -40,7 +27,7 @@ export const ROLE_DASHBOARD_ROUTES: Record<string, string> = {
 
 /**
  * Returns the single highest-priority role from a set of user roles.
- * Uses DASHBOARD_ROLE_PRIORITY for ordering.
+ * Uses USER_ROLE_HIERARCHY for ordering so priority is consistent app-wide.
  *
  * @example
  * getHighestRole([UserRole.EXHIBITOR, UserRole.SITE_ADMIN]) // → UserRole.SITE_ADMIN
@@ -49,11 +36,8 @@ export const ROLE_DASHBOARD_ROUTES: Record<string, string> = {
  * getHighestRole([])                                        // → UserRole.EXHIBITOR (fallback)
  */
 export function getHighestRole(roles: UserRole[]): UserRole {
-  for (const role of DASHBOARD_ROLE_PRIORITY) {
-    if (roles.includes(role)) return role;
-  }
-  // Fallback: no recognised dashboard role — treat as exhibitor
-  return UserRole.EXHIBITOR;
+  const roleSet = new Set(roles);
+  return USER_ROLE_HIERARCHY.find(role => roleSet.has(role)) ?? UserRole.EXHIBITOR;
 }
 
 /**

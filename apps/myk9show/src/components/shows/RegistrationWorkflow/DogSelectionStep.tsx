@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { getAgeInMonths } from '@/hooks/useEntryEligibility';
 import { getDogDisplayName, Dog } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -49,13 +50,8 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     const issues: string[] = [];
     const warnings: string[] = [];
 
-    // Check age (must be at least 6 months old)
-    if (dog.dateOfBirth) {
-      const birthDate = new Date(dog.dateOfBirth);
-      const ageInMonths = (new Date().getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
-      if (ageInMonths < 6) {
-        issues.push('Too young (must be 6+ months)');
-      }
+    if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < 6) {
+      issues.push('Too young (must be 6+ months)');
     }
 
     // Registration is a warning only — registrations may not be loaded in all data paths

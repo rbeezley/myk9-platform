@@ -338,8 +338,7 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
   };
 }
 
-// Helper function to calculate age in months
-function getAgeInMonths(dateOfBirth: string): number {
+export function getAgeInMonths(dateOfBirth: string): number {
   const dob = new Date(dateOfBirth);
   const now = new Date();
   const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());

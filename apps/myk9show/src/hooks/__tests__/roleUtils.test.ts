@@ -15,8 +15,8 @@ describe('getHighestRole', () => {
     expect(getHighestRole([UserRole.EXHIBITOR])).toBe(UserRole.EXHIBITOR);
   });
 
-  it('returns CLUB_ADMIN when user has CLUB_ADMIN and SECRETARY', () => {
-    expect(getHighestRole([UserRole.SECRETARY, UserRole.CLUB_ADMIN])).toBe(UserRole.CLUB_ADMIN);
+  it('returns SECRETARY when user has CLUB_ADMIN and SECRETARY (SECRETARY outranks CLUB_ADMIN per USER_ROLE_HIERARCHY)', () => {
+    expect(getHighestRole([UserRole.SECRETARY, UserRole.CLUB_ADMIN])).toBe(UserRole.SECRETARY);
   });
 
   it('returns SITE_ADMIN when user has all roles', () => {
@@ -35,8 +35,8 @@ describe('getHighestRole', () => {
     expect(getHighestRole([])).toBe(UserRole.EXHIBITOR);
   });
 
-  it('returns EXHIBITOR fallback for roles without a dashboard (STEWARD)', () => {
-    expect(getHighestRole([UserRole.STEWARD])).toBe(UserRole.EXHIBITOR);
+  it('returns STEWARD for a steward-only user (STEWARD is in USER_ROLE_HIERARCHY)', () => {
+    expect(getHighestRole([UserRole.STEWARD])).toBe(UserRole.STEWARD);
   });
 });
 
@@ -63,5 +63,9 @@ describe('getDashboardRoute', () => {
 
   it('routes SITE_ADMIN + EXHIBITOR multi-role user to /admin/dashboard', () => {
     expect(getDashboardRoute([UserRole.EXHIBITOR, UserRole.SITE_ADMIN])).toBe('/admin/dashboard');
+  });
+
+  it('routes STEWARD (no dedicated dashboard) to /exhibitor/dashboard fallback', () => {
+    expect(getDashboardRoute([UserRole.STEWARD])).toBe('/exhibitor/dashboard');
   });
 });

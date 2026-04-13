@@ -282,9 +282,7 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
               type="button"
               onClick={e => {
                 e.stopPropagation();
-                navigate(
-                  `/shows/${showId}/trials/${trialId}/classes/${item.id}/secretary?tab=bulk`
-                );
+                navigate(`/scoring/classes/${item.id}/entries`);
               }}
               className="flex items-center gap-1.5 px-3 py-2 text-sm bg-muted/60 text-foreground rounded-md hover:bg-muted font-medium"
               aria-label="Enter scores"

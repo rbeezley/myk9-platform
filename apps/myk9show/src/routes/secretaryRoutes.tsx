@@ -57,8 +57,8 @@ const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSc
 const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 
 // Scoring pages
-const ScoringEntryListPage = lazy(() =>
-  import('@/pages/scoring/ScoringEntryListPage').then(m => ({ default: m.ScoringEntryListPage }))
+const PaperScoresheetPage = lazy(() =>
+  import('@/pages/scoring/PaperScoresheetPage').then(m => ({ default: m.PaperScoresheetPage }))
 );
 const ScoresheetPage = lazy(() =>
   import('@/pages/scoring/ScoresheetPage').then(m => ({ default: m.ScoresheetPage }))
@@ -352,7 +352,7 @@ export const SecretaryRoutes = () => (
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.JUDGE, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
-              <ScoringEntryListPage />
+              <PaperScoresheetPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

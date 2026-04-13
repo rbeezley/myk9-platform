@@ -172,6 +172,7 @@ function mapResultStatusToQualification(resultStatus: string): ScoringResult['qu
     case 'q':
       return 'Qualified';
     case 'not_qualified':
+    case 'not qualified':
     case 'nq':
       return 'Not Qualified';
     case 'absent':

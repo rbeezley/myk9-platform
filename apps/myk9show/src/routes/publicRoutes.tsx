@@ -10,6 +10,7 @@ import { Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
+import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 
 // Public page lazy imports
 const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
@@ -126,16 +127,7 @@ export const PublicRoutes = () => (
       }
     />
 
-    <Route
-      path="/classes/:classId"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <ClassDetailsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
+    <Route path="/classes/:classId" element={<ClassDetailsRedirect />} />
 
     {/* Backwards-compat redirects for old URLs */}
     <Route path="/browse-shows" element={<Navigate to="/shows" replace />} />

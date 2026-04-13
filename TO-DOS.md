@@ -26,18 +26,6 @@ The four phases that follow the Pre-Work above. Full plan: [`docs/plans/strategy
 
 ---
 
-## Phase 2 — Exhibitor Golden Path Items
-
-Items identified during Phase 0 journey review. Address while walking the exhibitor golden path in Phase 2.
-
-#### Class Details → tab of Show Details (nav-ia deferred from Phase 1)
-
-`/classes/:classId` has no Phase 1 nav action (no sidebar item). Full integration deferred to Phase 2:
-add a "Classes" tab to `ShowDetailsPage` that renders `ClassDetailsPage` inline when a classId is
-present in the URL. Standalone `/classes/:classId` can then redirect to
-`/shows/:showId?tab=classes&classId=:classId`. Requires a DB lookup to resolve showId from classId —
-appropriate for Phase 2 golden-path work.
-
 ---
 
 ## Testing Findings from 2026-04-10 Session — Triage in Phase 1

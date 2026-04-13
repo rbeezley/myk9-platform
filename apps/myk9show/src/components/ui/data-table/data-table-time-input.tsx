@@ -12,6 +12,7 @@ export interface TimeInputProps {
   onCancel: () => void;
   autoFocus?: boolean;
   className?: string;
+  id?: string;
 }
 
 /**
@@ -41,6 +42,7 @@ export function TimeInput({
   onCancel,
   autoFocus = false,
   className,
+  id,
 }: TimeInputProps) {
   const digits = toDigits(value);
   const [focused, setFocused] = useState(autoFocus);
@@ -113,6 +115,7 @@ export function TimeInput({
   return (
     <input
       ref={inputRef}
+      id={id}
       type="text"
       inputMode="numeric"
       value={displayValue}

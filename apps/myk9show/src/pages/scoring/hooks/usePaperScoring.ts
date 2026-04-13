@@ -6,6 +6,7 @@ import {
   modeStorageKey,
   RESULT_STATUS_MAP,
   DEFAULT_SESSION_SETTINGS,
+  sortByExhibitorOrder,
 } from '../paper-scoring-types';
 import type { PaperResult, PaperScoringMode, SessionSettings } from '../paper-scoring-types';
 
@@ -27,7 +28,7 @@ function writeModeToStorage(userId: string, mode: PaperScoringMode) {
   }
 }
 
-export function usePaperScoring(entries: ScoringEntry[], _classId: string, userId: string) {
+export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [sessionSettings, setSessionSettingsState] =
     useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
@@ -36,14 +37,13 @@ export function usePaperScoring(entries: ScoringEntry[], _classId: string, userI
 
   const currentIndex = entries.findIndex(e => e.entryId === selectedEntryId);
 
-  const selectEntry = useCallback((entryId: string) => {
+  const selectEntry = useCallback((entryId: string | null) => {
     setSelectedEntryId(entryId);
   }, []);
 
   /** Returns entryId of the next unscored entry in run order, or null if all scored. */
   const nextUnscored = useCallback((): string | null => {
-    const sorted = [...entries].sort((a, b) => a.exhibitorOrder - b.exhibitorOrder);
-    const next = sorted.find(e => !e.isScored);
+    const next = sortByExhibitorOrder(entries).find(e => !e.isScored);
     return next?.entryId ?? null;
   }, [entries]);
 
@@ -81,9 +81,7 @@ export function usePaperScoring(entries: ScoringEntry[], _classId: string, userI
   const saveAndNext = useCallback(
     async (entryId: string, result: PaperResult, timeDigits: string, faults: number) => {
       await performSave(entryId, result, timeDigits, faults);
-      // Find next unscored (excluding the just-saved entry)
-      const sorted = [...entries].sort((a, b) => a.exhibitorOrder - b.exhibitorOrder);
-      const next = sorted.find(e => !e.isScored && e.entryId !== entryId);
+      const next = sortByExhibitorOrder(entries).find(e => !e.isScored && e.entryId !== entryId);
       setSelectedEntryId(next?.entryId ?? null);
     },
     [performSave, entries]

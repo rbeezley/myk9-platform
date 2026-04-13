@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EntryPanel } from './EntryPanel';
+import { sortByExhibitorOrder } from '../paper-scoring-types';
 import type { ScoringEntry } from '../types';
 import type { PaperResult, SessionSettings } from '../paper-scoring-types';
 
@@ -24,21 +26,19 @@ export function SequentialView({
   onSaveAndNext,
   isSaving,
 }: SequentialViewProps) {
-  const sorted = [...entries].sort((a, b) => a.exhibitorOrder - b.exhibitorOrder);
+  const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const currentEntry = sorted[currentIndex] ?? null;
-  const scoredCount = sorted.filter(e => e.isScored).length;
-  const totalUnscored = sorted.filter(e => !e.isScored).length;
+  const scoredCount = useMemo(() => sorted.filter(e => e.isScored).length, [sorted]);
   const pct = sorted.length > 0 ? (scoredCount / sorted.length) * 100 : 0;
 
   if (!currentEntry) return null;
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
-      {/* Progress header */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
-            {scoredCount} of {totalUnscored} scored
+            {scoredCount} of {sorted.length} scored
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -72,7 +72,6 @@ export function SequentialView({
         </div>
       </div>
 
-      {/* Entry panel — full width */}
       <Card>
         <EntryPanel
           entry={currentEntry}

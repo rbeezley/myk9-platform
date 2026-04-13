@@ -1,4 +1,3 @@
-// apps/myk9show/src/pages/scoring/components/ClassEntryRow.tsx
 import { cn } from '@/lib/utils';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import type { ScoringEntry } from '../types';
@@ -35,7 +34,7 @@ export function ClassEntryRow({ entry, isActive, onClick }: ClassEntryRowProps) 
         entry.isScored && !isActive && 'opacity-50'
       )}
     >
-      <ArmbandBadge armband={String(entry.armband)} />
+      <ArmbandBadge armband={entry.armband} />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium truncate">{entry.callName}</div>
         <div className="text-xs text-muted-foreground truncate">{entry.handler}</div>

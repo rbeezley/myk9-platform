@@ -73,7 +73,6 @@ export function EntryPanel({
         </div>
       </div>
 
-      {/* Result buttons */}
       <div className="space-y-1">
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Result
@@ -108,7 +107,6 @@ export function EntryPanel({
         </div>
       </div>
 
-      {/* Time field — conditional */}
       {displayTimeField && (
         <div className="space-y-1">
           <label
@@ -132,7 +130,6 @@ export function EntryPanel({
         </div>
       )}
 
-      {/* Faults — only for Q */}
       {selectedResult === 'Q' && (
         <div className="space-y-1">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -155,7 +152,6 @@ export function EntryPanel({
         </div>
       )}
 
-      {/* Save buttons */}
       {showSaveButtons && (
         <div className="flex gap-2 mt-auto pt-2">
           <Button

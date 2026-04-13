@@ -38,7 +38,7 @@ describe('SequentialView', () => {
         isSaving={false}
       />
     );
-    expect(screen.getByText(/1 of 2 scored/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 3 scored/i)).toBeInTheDocument();
   });
 
   it('renders dog name for current index', () => {

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
@@ -13,7 +13,7 @@ interface ScoringModeWrapperProps {
  * Redirects to the dedicated paper scoresheet entry page.
  * Previously rendered ClassResultsTable inline; now delegates to PaperScoresheetPage.
  */
-export const ScoringModeWrapper: React.FC<ScoringModeWrapperProps> = ({ classId }) => {
+export function ScoringModeWrapper({ classId }: ScoringModeWrapperProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -25,4 +25,4 @@ export const ScoringModeWrapper: React.FC<ScoringModeWrapperProps> = ({ classId 
       <Loader2 className="h-6 w-6 animate-spin text-primary" />
     </div>
   );
-};
+}

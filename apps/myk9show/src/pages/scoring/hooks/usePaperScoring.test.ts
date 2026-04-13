@@ -39,31 +39,31 @@ describe('usePaperScoring', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('starts with no selection', () => {
-    const { result } = renderHook(() => usePaperScoring(entries, 'class-1', 'user-1'));
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
     expect(result.current.selectedEntryId).toBeNull();
   });
 
   it('selectEntry updates selectedEntryId', () => {
-    const { result } = renderHook(() => usePaperScoring(entries, 'class-1', 'user-1'));
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
     act(() => result.current.selectEntry('e1'));
     expect(result.current.selectedEntryId).toBe('e1');
   });
 
   it('nextUnscored returns first pending entry by exhibitorOrder', () => {
-    const { result } = renderHook(() => usePaperScoring(entries, 'class-1', 'user-1'));
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
     expect(result.current.nextUnscored()).toBe('e1');
   });
 
   it('nextUnscored skips scored entries', () => {
     const allScored = entries.map(e => ({ ...e, isScored: true, status: 'scored' as const }));
-    const { result } = renderHook(() => usePaperScoring(allScored, 'class-1', 'user-1'));
+    const { result } = renderHook(() => usePaperScoring(allScored, 'user-1'));
     expect(result.current.nextUnscored()).toBeNull();
   });
 
   it('saveEntry calls updateEntry with correct fields for Q result', async () => {
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');
-    const { result } = renderHook(() => usePaperScoring(entries, 'class-1', 'user-1'));
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
     await act(() => result.current.saveEntry('e1', 'Q', '12345', 0));
     expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith(
       'e1',
@@ -83,7 +83,7 @@ describe('usePaperScoring', () => {
   it('saveEntry writes 0 seconds for empty time on NQ', async () => {
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');
-    const { result } = renderHook(() => usePaperScoring(entries, 'class-1', 'user-1'));
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
     await act(() => result.current.saveEntry('e1', 'NQ', '', 0));
     expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith(
       'e1',
@@ -95,7 +95,7 @@ describe('usePaperScoring', () => {
   });
 
   it('saveAndNext selects next unscored entry after saving', async () => {
-    const { result } = renderHook(() => usePaperScoring(entries, 'class-1', 'user-1'));
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
     await act(() => result.current.saveAndNext('e1', 'Q', '12345', 0));
     // After saving e1, next unscored is e2 (e3 is already scored)
     expect(result.current.selectedEntryId).toBe('e2');

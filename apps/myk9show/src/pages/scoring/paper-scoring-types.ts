@@ -1,5 +1,3 @@
-// apps/myk9show/src/pages/scoring/paper-scoring-types.ts
-
 /** Display codes used in UI buttons */
 export type PaperResult = 'Q' | 'NQ' | 'ABS' | 'EX';
 
@@ -50,4 +48,9 @@ export function digitsToSeconds(digits: string): number {
 /** localStorage key for persisting mode preference per user */
 export function modeStorageKey(userId: string): string {
   return `paper-scoring-mode:${userId}`;
+}
+
+/** Sort entries by exhibitorOrder ascending (stable copy). */
+export function sortByExhibitorOrder<T extends { exhibitorOrder: number }>(entries: T[]): T[] {
+  return [...entries].sort((a, b) => a.exhibitorOrder - b.exhibitorOrder);
 }

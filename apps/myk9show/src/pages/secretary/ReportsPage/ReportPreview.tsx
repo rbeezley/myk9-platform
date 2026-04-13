@@ -5,22 +5,8 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
-import type { ReportDefinition } from '@/lib/reports/types';
 import type { Show } from '@/types/show-types';
-
-type RenderingMode = 'show' | 'trial' | 'class';
-
-/**
- * Determines how the report should be rendered:
- * - 'show': one render call with all trials/classes/entries (Show Catalog, Result Catalog, Judge's Schedule)
- * - 'trial': one render call per trial with that trial's combined entries (Trial Secretary, Judge's Cert, Trial Chairman)
- * - 'class': existing behavior — one render call per class (Check-in Sheet, Scoresheet, Results Sheet)
- */
-export function getReportRenderingMode(report: ReportDefinition): RenderingMode {
-  if (report.scopes.includes('show')) return 'show';
-  if (report.scopes.includes('trial') && !report.scopes.includes('class')) return 'trial';
-  return 'class';
-}
+import { getReportRenderingMode } from './reportRenderingMode';
 
 export interface ReportPreviewProps {
   reportType: string;
@@ -165,10 +151,7 @@ export function ReportPreview({
 
     if (renderingMode === 'show') {
       // Filter to selected trial when a specific trial is chosen
-      const targetTrialIds =
-        trialId === 'all'
-          ? (trials ?? []).map(t => t.id)
-          : [trialId];
+      const targetTrialIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
 
       const filteredClasses = (classes ?? []).filter(c =>
         targetTrialIds.includes(c.trial_id ?? '')
@@ -190,8 +173,7 @@ export function ReportPreview({
           id: t.id,
           date: t.date ?? '',
           trialNumber: String(t.trial_number ?? ''),
-          judgeName:
-            ((t as Record<string, unknown>).judge_name as string) ?? undefined,
+          judgeName: ((t as Record<string, unknown>).judge_name as string) ?? undefined,
         }));
 
       const allClasses = filteredClasses.map(c => ({
@@ -200,8 +182,7 @@ export function ReportPreview({
         element: c.element ?? '',
         level: c.level ?? '',
         section: c.section ?? '',
-        judgeName:
-          ((c as Record<string, unknown>).judge_name as string) ?? undefined,
+        judgeName: ((c as Record<string, unknown>).judge_name as string) ?? undefined,
       }));
 
       const showDates =
@@ -227,9 +208,7 @@ export function ReportPreview({
     } else if (renderingMode === 'trial') {
       // One render call per trial — all that trial's entries combined
       const targetTrials =
-        trialId === 'all'
-          ? (trials ?? [])
-          : (trials ?? []).filter(t => t.id === trialId);
+        trialId === 'all' ? (trials ?? []) : (trials ?? []).filter(t => t.id === trialId);
 
       const allClasses = (classes ?? []).map(c => ({
         id: c.id,
@@ -237,8 +216,7 @@ export function ReportPreview({
         element: c.element ?? '',
         level: c.level ?? '',
         section: c.section ?? '',
-        judgeName:
-          ((c as Record<string, unknown>).judge_name as string) ?? undefined,
+        judgeName: ((c as Record<string, unknown>).judge_name as string) ?? undefined,
       }));
 
       combinedMarkup = targetTrials
@@ -252,8 +230,8 @@ export function ReportPreview({
             return mapEntries([e], trial, cls)[0];
           });
           const firstClassJudge =
-            ((trialClasses[0] as Record<string, unknown> | undefined)
-              ?.judge_name as string) ?? 'TBD';
+            ((trialClasses[0] as Record<string, unknown> | undefined)?.judge_name as string) ??
+            'TBD';
           const props: ReportProps = {
             showId: show.id,
             showName: show.name ?? '',
@@ -286,8 +264,7 @@ export function ReportPreview({
             trial: {
               date: trial.date ?? '',
               trialNumber: String(trial.trial_number ?? ''),
-              judgeName:
-                ((classData as Record<string, unknown>).judge_name as string) ?? 'TBD',
+              judgeName: ((classData as Record<string, unknown>).judge_name as string) ?? 'TBD',
             },
             classData: {
               element: classData.element ?? '',
@@ -372,13 +349,20 @@ export function ReportPreview({
     renderingMode === 'show'
       ? (() => {
           const targetIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
-          const classIds = new Set((classes ?? []).filter(c => targetIds.includes(c.trial_id ?? '')).map(c => c.id));
+          const classIds = new Set(
+            (classes ?? []).filter(c => targetIds.includes(c.trial_id ?? '')).map(c => c.id)
+          );
           return (entries ?? []).some(e => classIds.has(e.class_id ?? ''));
         })()
       : renderingMode === 'trial'
         ? (() => {
-            const targetTrials = trialId === 'all' ? (trials ?? []) : (trials ?? []).filter(t => t.id === trialId);
-            const classIds = new Set((classes ?? []).filter(c => targetTrials.some(t => t.id === c.trial_id)).map(c => c.id));
+            const targetTrials =
+              trialId === 'all' ? (trials ?? []) : (trials ?? []).filter(t => t.id === trialId);
+            const classIds = new Set(
+              (classes ?? [])
+                .filter(c => targetTrials.some(t => t.id === c.trial_id))
+                .map(c => c.id)
+            );
             return (entries ?? []).some(e => classIds.has(e.class_id ?? ''));
           })()
         : pages.some(p => p.entries.length > 0);

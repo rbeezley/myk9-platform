@@ -1,6 +1,6 @@
 /**
- * Show registration queries — CRUD operations for the registrations table.
- * One registration per person per show with auto-generated MK9-XXXXXX confirmation numbers.
+ * Show registration queries — CRUD operations for the enrollments table.
+ * One enrollment per person per show with auto-generated MK9-XXXXXX confirmation numbers.
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration, mapDbToRegistrationArray } from '../../mappers/registrationMappers';
@@ -27,7 +27,7 @@ export const createShowRegistration = async (
 
   try {
     const { data, error } = await supabase
-      .from('registrations')
+      .from('enrollments')
       .insert({
         show_id: showId,
         handler_id: handlerId,
@@ -41,23 +41,23 @@ export const createShowRegistration = async (
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'insert', duration, error?.message);
+    logQuery('enrollments', 'insert', duration, error?.message);
 
     if (error) {
       // Concurrent insert race: return the existing registration
       if (error.code === POSTGRES_UNIQUE_VIOLATION) {
         return getRegistrationByShowAndHandler(showId, handlerId);
       }
-      throw createDatabaseError(error, 'registrations', 'insert');
+      throw createDatabaseError(error, 'enrollments', 'insert');
     }
 
     return { data: mapDbToRegistration(data as DbRegistration), error: null };
   } catch (err) {
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'insert', duration, String(err));
+    logQuery('enrollments', 'insert', duration, String(err));
     const dbError = createDatabaseError(
       err instanceof Error ? err : new Error(String(err)),
-      'registrations',
+      'enrollments',
       'insert'
     );
     return { data: null, error: dbError };
@@ -79,17 +79,17 @@ export const getRegistrationByShowAndHandler = async (
 
   try {
     const { data, error } = await supabase
-      .from('registrations')
+      .from('enrollments')
       .select('*')
       .eq('show_id', showId)
       .eq('handler_id', handlerId)
       .maybeSingle();
 
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_by_show_handler', duration, error?.message);
+    logQuery('enrollments', 'select_by_show_handler', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'registrations', 'select_by_show_handler');
+      throw createDatabaseError(error, 'enrollments', 'select_by_show_handler');
     }
 
     return {
@@ -98,10 +98,10 @@ export const getRegistrationByShowAndHandler = async (
     };
   } catch (err) {
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_by_show_handler', duration, String(err));
+    logQuery('enrollments', 'select_by_show_handler', duration, String(err));
     const dbError = createDatabaseError(
       err instanceof Error ? err : new Error(String(err)),
-      'registrations',
+      'enrollments',
       'select_by_show_handler'
     );
     return { data: null, error: dbError };
@@ -122,16 +122,16 @@ export const getRegistrationByConfirmationNumber = async (
 
   try {
     const { data, error } = await supabase
-      .from('registrations')
+      .from('enrollments')
       .select('*')
       .ilike('confirmation_number', confirmationNumber.trim())
       .maybeSingle();
 
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_by_confirmation', duration, error?.message);
+    logQuery('enrollments', 'select_by_confirmation', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'registrations', 'select_by_confirmation');
+      throw createDatabaseError(error, 'enrollments', 'select_by_confirmation');
     }
 
     return {
@@ -140,10 +140,10 @@ export const getRegistrationByConfirmationNumber = async (
     };
   } catch (err) {
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_by_confirmation', duration, String(err));
+    logQuery('enrollments', 'select_by_confirmation', duration, String(err));
     const dbError = createDatabaseError(
       err instanceof Error ? err : new Error(String(err)),
-      'registrations',
+      'enrollments',
       'select_by_confirmation'
     );
     return { data: null, error: dbError };
@@ -163,16 +163,16 @@ export const getRegistrationsForShow = async (
 
   try {
     const { data, error } = await supabase
-      .from('registrations')
+      .from('enrollments')
       .select('*')
       .eq('show_id', showId)
       .order('created_at', { ascending: false });
 
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_by_show', duration, error?.message);
+    logQuery('enrollments', 'select_by_show', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'registrations', 'select_by_show');
+      throw createDatabaseError(error, 'enrollments', 'select_by_show');
     }
 
     return {
@@ -181,10 +181,10 @@ export const getRegistrationsForShow = async (
     };
   } catch (err) {
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_by_show', duration, String(err));
+    logQuery('enrollments', 'select_by_show', duration, String(err));
     const dbError = createDatabaseError(
       err instanceof Error ? err : new Error(String(err)),
-      'registrations',
+      'enrollments',
       'select_by_show'
     );
     return { data: [], error: dbError };
@@ -206,7 +206,7 @@ export const updateRegistrationPayment = async (
 
   try {
     const { data, error } = await supabase
-      .from('registrations')
+      .from('enrollments')
       .update({
         payment_status: paymentStatus,
         payment_reference: paymentReference ?? null,
@@ -216,19 +216,19 @@ export const updateRegistrationPayment = async (
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'update_payment', duration, error?.message);
+    logQuery('enrollments', 'update_payment', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'registrations', 'update_payment');
+      throw createDatabaseError(error, 'enrollments', 'update_payment');
     }
 
     return { data: mapDbToRegistration(data as DbRegistration), error: null };
   } catch (err) {
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'update_payment', duration, String(err));
+    logQuery('enrollments', 'update_payment', duration, String(err));
     const dbError = createDatabaseError(
       err instanceof Error ? err : new Error(String(err)),
-      'registrations',
+      'enrollments',
       'update_payment'
     );
     return { data: null, error: dbError };
@@ -254,15 +254,15 @@ export const getConfirmationNumbersForEntries = async (
 
   try {
     const { data, error } = await supabase
-      .from('registrations')
+      .from('enrollments')
       .select('id, confirmation_number')
       .in('id', uniqueIds);
 
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_confirmation_numbers', duration, error?.message);
+    logQuery('enrollments', 'select_confirmation_numbers', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'registrations', 'select_confirmation_numbers');
+      throw createDatabaseError(error, 'enrollments', 'select_confirmation_numbers');
     }
 
     const map = new Map<string, string>();
@@ -273,10 +273,10 @@ export const getConfirmationNumbersForEntries = async (
     return { data: map, error: null };
   } catch (err) {
     const duration = Date.now() - startTime;
-    logQuery('registrations', 'select_confirmation_numbers', duration, String(err));
+    logQuery('enrollments', 'select_confirmation_numbers', duration, String(err));
     const dbError = createDatabaseError(
       err instanceof Error ? err : new Error(String(err)),
-      'registrations',
+      'enrollments',
       'select_confirmation_numbers'
     );
     return { data: new Map(), error: dbError };

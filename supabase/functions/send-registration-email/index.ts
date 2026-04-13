@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
 
     // Fetch registration with related data (include auth_user_id for ownership check)
     const { data: registration, error: regError } = await supabase
-      .from('registrations')
+      .from('enrollments')
       .select(
         '*, show:shows(name, start_date, end_date, location, venue_name, confirmation_message, club_id, secretary_email), person:people(first_name, last_name, email, auth_user_id)'
       )

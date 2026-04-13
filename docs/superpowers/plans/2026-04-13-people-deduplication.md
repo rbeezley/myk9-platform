@@ -141,19 +141,25 @@ BEGIN
   VALUES (new_person_id, NEW.id)
   ON CONFLICT (auth_user_id) DO NOTHING;
 
-  -- user_roles unique constraint is (user_id, role_id, club_id, show_id).
-  -- club_id and show_id are NULL here; PostgreSQL does not consider NULL = NULL
-  -- in unique constraints, so ON CONFLICT won't fire reliably. Use EXISTS guard.
+  -- user_roles has an is_active column (migration 064, DEFAULT true).
+  -- The unique constraint is (user_id, role_id, club_id, show_id) but PostgreSQL
+  -- does not treat NULL = NULL in unique constraints, so ON CONFLICT won't fire
+  -- reliably for global (non-club, non-show) roles. Use UPDATE + IF NOT FOUND:
+  --   1. Try to activate an existing row (handles link path where role was
+  --      assigned by the secretary but may be inactive).
+  --   2. If no row matched the UPDATE, insert a fresh one.
   IF exhibitor_role_id IS NOT NULL THEN
-    INSERT INTO public.user_roles (user_id, role_id)
-    SELECT new_person_id, exhibitor_role_id
-    WHERE NOT EXISTS (
-      SELECT 1 FROM public.user_roles
+    UPDATE public.user_roles
+      SET is_active = true
       WHERE user_id  = new_person_id
         AND role_id  = exhibitor_role_id
         AND club_id  IS NULL
-        AND show_id  IS NULL
-    );
+        AND show_id  IS NULL;
+
+    IF NOT FOUND THEN
+      INSERT INTO public.user_roles (user_id, role_id, is_active)
+      VALUES (new_person_id, exhibitor_role_id, true);
+    END IF;
   END IF;
 
   RETURN NEW;
@@ -184,7 +190,22 @@ git commit -m "feat(db): deduplicate people rows on auth signup (migration 131)"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Push the migration**
+- [ ] **Step 1 [ADDED]: Pre-flight — confirm no duplicate emails exist**
+
+Run in the Supabase SQL editor before pushing. If this returns any rows, resolve them manually before proceeding (the unique index creation will fail if duplicates exist).
+
+```sql
+SELECT LOWER(email) AS email, COUNT(*) AS count
+FROM public.people
+WHERE email IS NOT NULL
+  AND deleted_at IS NULL
+GROUP BY LOWER(email)
+HAVING COUNT(*) > 1;
+```
+
+Expected: zero rows. If any rows appear, stop and merge the duplicates before running the migration.
+
+- [ ] **Step 2: Push the migration**
 
 ```bash
 cd "/Users/richardbeezley/AI Projects/myk9-platform"
@@ -284,8 +305,61 @@ git commit -m "fix(db): address verification findings from migration 131"
 # Only run this step if Step 2-5 required changes; skip if all passed cleanly.
 ```
 
-- [ ] **Step 7: Push to remote**
+- [ ] **Step 8: Push to remote**
 
 ```bash
 git push
 ```
+
+---
+
+## [ADDED] Rollback
+
+If migration 131 needs to be undone, run the following in a new migration (`132_rollback_people_deduplication.sql`) or directly in the SQL editor:
+
+```sql
+-- Remove the unique index
+DROP INDEX IF EXISTS public.people_email_unique;
+
+-- Restore the original handle_new_user() (always inserts a new people row)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  new_person_id UUID;
+  exhibitor_role_id UUID;
+BEGIN
+  SELECT id INTO exhibitor_role_id FROM public.roles WHERE name = 'exhibitor';
+
+  INSERT INTO public.people (
+    first_name, last_name, email, phone, auth_user_id
+  ) VALUES (
+    COALESCE(NEW.raw_user_meta_data->>'first_name', 'Unknown'),
+    COALESCE(NEW.raw_user_meta_data->>'last_name', 'User'),
+    NEW.email,
+    NEW.raw_user_meta_data->>'phone',
+    NEW.id
+  )
+  RETURNING id INTO new_person_id;
+
+  INSERT INTO public.exhibitor_profiles (person_id, auth_user_id)
+  VALUES (new_person_id, NEW.id);
+
+  IF exhibitor_role_id IS NOT NULL THEN
+    INSERT INTO public.user_roles (user_id, role_id)
+    VALUES (new_person_id, exhibitor_role_id);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+```
+
+---
+
+## [ADDED] Trigger failure behavior
+
+If `handle_new_user()` raises an unhandled exception, Supabase Auth will **reject the signup** — the user will see an error and no `auth.users` row will be created. This is intentional: a silent failure (swallowing the exception and returning NEW) would create an `auth.users` row with no corresponding `people` row, breaking auth throughout the app. Let exceptions propagate.

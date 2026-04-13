@@ -5,6 +5,7 @@ interface SubmitActionsProps {
   canSubmit: boolean;
   isSubmitting: boolean;
   entriesWithData: number;
+  totalEntries: number;
   onSubmit: () => void;
 }
 
@@ -12,8 +13,16 @@ export function SubmitActions({
   canSubmit,
   isSubmitting,
   entriesWithData,
-  onSubmit
+  totalEntries,
+  onSubmit,
 }: SubmitActionsProps) {
+  const skippedCount = totalEntries - entriesWithData;
+  const buttonLabel = isSubmitting
+    ? 'Submitting...'
+    : skippedCount > 0 && entriesWithData > 0
+      ? `Submit ${entriesWithData} results (skip ${skippedCount} incomplete)`
+      : `Submit ${entriesWithData} Results`;
+
   return (
     <div className="myk9-show-info-card">
       <div className="flex items-center justify-between">
@@ -27,7 +36,7 @@ export function SubmitActions({
           className="myk9-action-button myk9-action-button-primary"
         >
           <Save className="h-4 w-4" />
-          <span>{isSubmitting ? 'Submitting...' : `Submit ${entriesWithData} Results`}</span>
+          <span>{buttonLabel}</span>
         </Button>
       </div>
     </div>

@@ -8,35 +8,40 @@
  * - Import from CSV capability
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useBlocker } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useToastStore } from '@/store/toastStore';
 
 // UI Components
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Types
 import type {
   ScentWorkEntry,
   ScentWorkResult,
-  QualificationStatus
+  QualificationStatus,
 } from '@/types/scent-work-types';
 
 // Premium styling
 import '@/styles/myk9-show-details.css';
 
 // Extracted modules
-import type { BulkEntryData, BulkResultEntryProps, LocalCompetitionData } from './bulk-result-entry/types';
-import { formatSearchTimeFromMs, convertTimeToInputFormat, timeStringToMs, validateEntry } from './bulk-result-entry/helpers';
+import type {
+  BulkEntryData,
+  BulkResultEntryProps,
+  LocalCompetitionData,
+} from './bulk-result-entry/types';
+import {
+  formatSearchTimeFromMs,
+  convertTimeToInputFormat,
+  timeStringToMs,
+  validateEntry,
+} from './bulk-result-entry/helpers';
 import { SummaryCards } from './bulk-result-entry/SummaryCards';
 import { HeaderActions } from './bulk-result-entry/HeaderActions';
 import { EntryTableRow } from './bulk-result-entry/EntryTableRow';
@@ -51,18 +56,22 @@ export type { BulkResultEntryProps, BulkEntryData } from './bulk-result-entry/ty
  * Bulk result entry component for efficient data entry
  */
 export function BulkResultEntry({
+  classId,
   entries,
   classConfig,
   onResultsSubmit,
-  className
+  className,
 }: BulkResultEntryProps) {
   const { user } = useAuthContext();
+  const addToast = useToastStore(s => s.addToast);
 
   const [bulkData, setBulkData] = useState<BulkEntryData[]>(() =>
     entries.map(entry => {
       // Extract existing data from entry if available
       const existingData = entry.judgingState?.currentResult;
-      const competitionData: LocalCompetitionData = (entry as ScentWorkEntry & { competitionData?: LocalCompetitionData }).competitionData || {};
+      const competitionData: LocalCompetitionData =
+        (entry as ScentWorkEntry & { competitionData?: LocalCompetitionData }).competitionData ||
+        {};
 
       // Prioritize competitionData (saved data) over existingData (temp judging state)
       // Convert different time formats to the expected MM:SS.HH format
@@ -74,15 +83,13 @@ export function BulkResultEntry({
         searchTime = formatSearchTimeFromMs(existingData.searchTime);
       }
 
-      // Handle qualification properly - prioritize saved qualification over computed qualified boolean
-      let qualification: QualificationStatus | '' = '';
+      // Handle qualification — prioritize saved value, fall back to 'Qualified' default
+      // (most entries qualify; secretary only needs to override for NQ/Absent/etc.)
+      let qualification: QualificationStatus | '' = 'Qualified';
       if (competitionData.qualification) {
-        // Use the saved specific qualification status (Absent, Excused, etc.)
         qualification = competitionData.qualification as QualificationStatus;
       } else if (existingData?.qualification) {
         qualification = existingData.qualification;
-      } else if (competitionData.qualified === true) {
-        qualification = 'Qualified';
       } else if (competitionData.qualified === false) {
         qualification = 'Not Qualified';
       }
@@ -97,7 +104,8 @@ export function BulkResultEntry({
         faults: competitionData.faults?.toString() || existingData?.faults?.toString() || '0',
         notes: competitionData.judgeNotes || existingData?.judgeNotes || '',
         isValid: !!(searchTime && qualification),
-        hasChanges: !!(searchTime || qualification)
+        // hasChanges tracks user edits — the default 'Qualified' is a pre-fill, not a change
+        hasChanges: !!searchTime,
       };
     })
   );
@@ -111,7 +119,9 @@ export function BulkResultEntry({
 
   // Update bulkData when entries change (to pick up saved data)
   useEffect(() => {
-    logger.debug('BulkResultEntry useEffect triggered - entries changed', 'scoring', { entriesCount: entries.length });
+    logger.debug('BulkResultEntry useEffect triggered - entries changed', 'scoring', {
+      entriesCount: entries.length,
+    });
     setBulkData(prevData => {
       const newData = entries.map(entry => {
         // Extract existing data from entry if available
@@ -127,7 +137,11 @@ export function BulkResultEntry({
         // Debug only when needed - removed verbose logging
 
         // After a successful save, always use the saved data from store
-        if (competitionData.time && typeof competitionData.time === 'string' && competitionData.time.trim()) {
+        if (
+          competitionData.time &&
+          typeof competitionData.time === 'string' &&
+          competitionData.time.trim()
+        ) {
           // Use saved data from store
           searchTime = convertTimeToInputFormat(competitionData.time);
         } else if (prevEntry?.searchTime && prevEntry.hasChanges) {
@@ -138,41 +152,54 @@ export function BulkResultEntry({
           searchTime = formatSearchTimeFromMs(existingData.searchTime);
         }
 
-        let qualification: QualificationStatus | '' = '';
-        const savedQualification = competitionData.qualification ||
+        const savedQualification =
+          competitionData.qualification ||
           (competitionData.qualified !== undefined
-            ? (competitionData.qualified === true ? 'Qualified' : 'Not Qualified')
+            ? competitionData.qualified === true
+              ? 'Qualified'
+              : 'Not Qualified'
             : '');
 
-        // After a successful save, always use the saved data from store
+        // Resolve qualification — saved value wins; fall back to in-progress state;
+        // default to 'Qualified' when nothing is saved yet (most entries qualify)
+        let qualification: QualificationStatus | '' = 'Qualified';
         if (savedQualification) {
-          // Use saved qualification from store (specific status like Absent, Excused, etc.)
           qualification = savedQualification as QualificationStatus;
         } else if (prevEntry?.qualification && prevEntry.hasChanges) {
-          // Keep user's unsaved changes only if there's no saved data
           qualification = prevEntry.qualification;
         } else if (existingData?.qualification) {
-          // Fall back to judging state data
           qualification = existingData.qualification;
         }
 
         // Calculate if this entry has unsaved changes
         // Normalize time formats for accurate comparison
-        const savedTimeFormatted = competitionData.time ? convertTimeToInputFormat(competitionData.time) : '';
+        const savedTimeFormatted = competitionData.time
+          ? convertTimeToInputFormat(competitionData.time)
+          : '';
         const normalizedSearchTime = searchTime ? convertTimeToInputFormat(searchTime) : '';
         const hasTimeChanges = normalizedSearchTime && normalizedSearchTime !== savedTimeFormatted;
-        const hasQualificationChanges = qualification && qualification !== savedQualification;
-        const hasFaultChanges = (prevEntry?.faults || '0') !== (competitionData.faults?.toString() || '0');
+        const hasQualificationChanges =
+          !!savedQualification && qualification !== savedQualification;
+        const hasFaultChanges =
+          (prevEntry?.faults || '0') !== (competitionData.faults?.toString() || '0');
         const hasNotesChanges = (prevEntry?.notes || '') !== (competitionData.judgeNotes || '');
 
         // Enhanced logging for Submit button debugging - only log when there are changes
         if (hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges) {
           logger.debug('Entry change analysis', 'scoring', {
             entryId: entry.id,
-            hasTimeChanges: hasTimeChanges ? `${normalizedSearchTime} vs ${savedTimeFormatted}` : false,
-            hasQualificationChanges: hasQualificationChanges ? `${qualification} vs ${savedQualification}` : false,
-            hasFaultChanges: hasFaultChanges ? `${prevEntry?.faults || '0'} vs ${competitionData.faults?.toString() || '0'}` : false,
-            hasNotesChanges: hasNotesChanges ? `"${prevEntry?.notes || ''}" vs "${competitionData.judgeNotes || ''}"` : false
+            hasTimeChanges: hasTimeChanges
+              ? `${normalizedSearchTime} vs ${savedTimeFormatted}`
+              : false,
+            hasQualificationChanges: hasQualificationChanges
+              ? `${qualification} vs ${savedQualification}`
+              : false,
+            hasFaultChanges: hasFaultChanges
+              ? `${prevEntry?.faults || '0'} vs ${competitionData.faults?.toString() || '0'}`
+              : false,
+            hasNotesChanges: hasNotesChanges
+              ? `"${prevEntry?.notes || ''}" vs "${competitionData.judgeNotes || ''}"`
+              : false,
           });
         }
 
@@ -185,10 +212,15 @@ export function BulkResultEntry({
           handlerName: entry.displayInfo.handlerName,
           searchTime,
           qualification,
-          faults: competitionData.faults?.toString() || prevEntry?.faults || existingData?.faults?.toString() || '0',
+          faults:
+            competitionData.faults?.toString() ||
+            prevEntry?.faults ||
+            existingData?.faults?.toString() ||
+            '0',
           notes: competitionData.judgeNotes || prevEntry?.notes || existingData?.judgeNotes || '',
           isValid: !!(searchTime && qualification),
-          hasChanges: hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges
+          hasChanges:
+            hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges,
         };
 
         // Removed verbose bulk entry logging
@@ -198,6 +230,28 @@ export function BulkResultEntry({
       return newData;
     });
   }, [entries]);
+
+  // Unsaved-changes guard
+  const hasUnsavedChanges = useMemo(() => bulkData.some(item => item.hasChanges), [bulkData]);
+
+  // Block in-app navigation when there are unsaved changes
+  useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasUnsavedChanges &&
+      currentLocation.pathname !== nextLocation.pathname &&
+      !window.confirm('You have unsaved scores. Leave anyway? Your entries will be lost.')
+  );
+
+  // Block browser tab close / refresh
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
 
   // Calculate summary statistics
   const summary = React.useMemo(() => {
@@ -214,7 +268,7 @@ export function BulkResultEntry({
         validEntries,
         invalidEntries,
         canSubmit,
-        buttonText: `Submit ${entriesWithData} Results`
+        buttonText: `Submit ${entriesWithData} Results`,
       });
     }
 
@@ -223,7 +277,7 @@ export function BulkResultEntry({
       entriesWithData,
       validEntries,
       invalidEntries,
-      canSubmit
+      canSubmit,
     };
   }, [bulkData]);
 
@@ -234,7 +288,12 @@ export function BulkResultEntry({
       const item = { ...newData[index] };
 
       (item as Record<string, string | boolean>)[field] = value;
-      item.hasChanges = !!(item.searchTime || item.qualification || item.faults !== '0' || item.notes);
+      item.hasChanges = !!(
+        item.searchTime ||
+        item.qualification ||
+        item.faults !== '0' ||
+        item.notes
+      );
 
       const validation = validateEntry(item);
       item.isValid = validation.isValid;
@@ -247,7 +306,7 @@ export function BulkResultEntry({
         field,
         value,
         hasChanges: item.hasChanges,
-        isValid: item.isValid
+        isValid: item.isValid,
       });
 
       // Update validation errors
@@ -271,7 +330,7 @@ export function BulkResultEntry({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       try {
         const csv = e.target?.result as string;
         const lines = csv.split('\n').filter(line => line.trim());
@@ -301,22 +360,24 @@ export function BulkResultEntry({
             searchTime: rowData.time,
             qualification: rowData.qualification as QualificationStatus,
             faults: rowData.faults || '0',
-            notes: rowData.notes || ''
+            notes: rowData.notes || '',
           });
         }
 
         // Update bulk data with imported values
-        setBulkData(prev => prev.map(item => {
-          const imported = importedData.get(item.armband);
-          if (imported) {
-            const updated = { ...item, ...imported };
-            updated.hasChanges = true;
-            const validation = validateEntry(updated);
-            updated.isValid = validation.isValid;
-            return updated;
-          }
-          return item;
-        }));
+        setBulkData(prev =>
+          prev.map(item => {
+            const imported = importedData.get(item.armband);
+            if (imported) {
+              const updated = { ...item, ...imported };
+              updated.hasChanges = true;
+              const validation = validateEntry(updated);
+              updated.isValid = validation.isValid;
+              return updated;
+            }
+            return item;
+          })
+        );
 
         setImportError(null);
       } catch {
@@ -335,9 +396,14 @@ export function BulkResultEntry({
 
       // Find next input field
       const nextIndex = field === 'notes' ? index + 1 : index;
-      const nextField = field === 'searchTime' ? 'qualification' :
-                      field === 'qualification' ? 'faults' :
-                      field === 'faults' ? 'notes' : 'searchTime';
+      const nextField =
+        field === 'searchTime'
+          ? 'qualification'
+          : field === 'qualification'
+            ? 'faults'
+            : field === 'faults'
+              ? 'notes'
+              : 'searchTime';
 
       const nextInput = document.querySelector(
         `input[data-index="${nextIndex}"][data-field="${nextField}"], select[data-index="${nextIndex}"][data-field="${nextField}"]`
@@ -367,7 +433,7 @@ export function BulkResultEntry({
 
         const baseResult = {
           entryId: item.entryId,
-          classId: 'bulk-entry-class',
+          classId,
           searchTime: timeInMs,
           maxTimeAllowed: classConfig.timeLimit,
           qualification: item.qualification as QualificationStatus,
@@ -375,7 +441,7 @@ export function BulkResultEntry({
           judgeNotes: item.notes || undefined,
           recordedBy: user?.id || 'secretary',
           recordedAt: new Date(),
-          isProvisional: true
+          isProvisional: true,
         };
 
         return baseResult as ScentWorkResult;
@@ -384,31 +450,48 @@ export function BulkResultEntry({
       logger.debug('Submitting results', 'scoring', { resultsCount: results.length });
       await onResultsSubmit(results);
 
-      // The useEffect will automatically update state when store entries change
-      logger.info('Results submitted, form will refresh automatically from store', 'scoring');
+      addToast({
+        id: `bulk-submit-${Date.now()}`,
+        type: 'results_posted',
+        title: 'Scores saved',
+        body: `${results.length} result${results.length !== 1 ? 's' : ''} recorded successfully.`,
+        priority: 'normal',
+        timestamp: Date.now(),
+      });
 
+      logger.info('Results submitted, form will refresh automatically from store', 'scoring');
     } catch (error) {
       logger.error('Submit error', 'scoring', {}, error as Error);
       setSubmitError(error instanceof Error ? error.message : 'Failed to submit results');
     } finally {
       setIsSubmitting(false);
     }
-  }, [bulkData, classConfig, onResultsSubmit, user?.id]);
+  }, [addToast, bulkData, classId, classConfig, onResultsSubmit, user?.id]);
 
   // Download CSV template
   const downloadTemplate = useCallback(() => {
-    const headers = ['armband', 'dogName', 'handlerName', 'time', 'qualification', 'faults', 'notes'];
+    const headers = [
+      'armband',
+      'dogName',
+      'handlerName',
+      'time',
+      'qualification',
+      'faults',
+      'notes',
+    ];
     const csvContent = [
       headers.join(','),
-      ...entries.map(entry => [
-        entry.displayInfo.armband,
-        entry.displayInfo.dogName,
-        entry.displayInfo.handlerName,
-        '', // time
-        '', // qualification
-        '0', // faults
-        '' // notes
-      ].join(','))
+      ...entries.map(entry =>
+        [
+          entry.displayInfo.armband,
+          entry.displayInfo.dogName,
+          entry.displayInfo.handlerName,
+          '', // time
+          '', // qualification
+          '0', // faults
+          '', // notes
+        ].join(',')
+      ),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -430,13 +513,15 @@ export function BulkResultEntry({
         onCSVImport={handleCSVImport}
       />
 
-      {/* Summary Cards */}
-      <SummaryCards
-        totalEntries={summary.totalEntries}
-        entriesWithData={summary.entriesWithData}
-        validEntries={summary.validEntries}
-        invalidEntries={summary.invalidEntries}
-      />
+      {/* Summary Cards — hidden until secretary starts entering data */}
+      {(summary.entriesWithData > 0 || summary.invalidEntries > 0) && (
+        <SummaryCards
+          totalEntries={summary.totalEntries}
+          entriesWithData={summary.entriesWithData}
+          validEntries={summary.validEntries}
+          invalidEntries={summary.invalidEntries}
+        />
+      )}
 
       {/* Error Messages */}
       {importError && (
@@ -460,7 +545,7 @@ export function BulkResultEntry({
             <TableRow>
               <TableHead>Armband</TableHead>
               <TableHead>Dog & Handler</TableHead>
-              <TableHead>Time (MM:SS.HH)</TableHead>
+              <TableHead>Time</TableHead>
               <TableHead>Qualification</TableHead>
               <TableHead>Faults</TableHead>
               <TableHead>Notes</TableHead>
@@ -487,6 +572,7 @@ export function BulkResultEntry({
         canSubmit={summary.canSubmit}
         isSubmitting={isSubmitting}
         entriesWithData={summary.entriesWithData}
+        totalEntries={summary.totalEntries}
         onSubmit={handleSubmit}
       />
     </div>

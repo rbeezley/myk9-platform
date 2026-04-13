@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { StatCard, StatsGrid } from '@myk9/ui';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import { logger } from '@/services/LoggingService';
 
 // Add imports for the same data stores ClassDetailsPage uses
@@ -44,6 +45,7 @@ import { Separator } from '@/components/ui/separator/separator';
 
 // Custom components
 import { BulkResultEntry } from './BulkResultEntry';
+import { deriveSportType } from '@/pages/scoring/types';
 import { PlacementCalculator } from './PlacementCalculator';
 import { SettingsOverrideCard } from './SettingsOverrideCard';
 
@@ -114,6 +116,20 @@ export function SecretaryClassDashboard({
   const currentTrial = trialId ? trials.find(trial => trial.id === trialId) : null;
   const currentShow = showId ? shows.find(show => show.id === showId) : null;
 
+  // Detect sport type — used to show the right bulk entry UI
+  const isScentWorkClass = useMemo(() => {
+    const sportTypeCode =
+      currentShow?.organization && currentTrial?.trialType
+        ? (deriveSportType(currentShow.organization, currentTrial.trialType) ?? 'unknown')
+        : 'unknown';
+    return [
+      'akc-scent-work',
+      'akc-scent-work-nationals',
+      'ukc-nosework',
+      'asca-scent-detection',
+    ].includes(sportTypeCode);
+  }, [currentShow?.organization, currentTrial?.trialType]);
+
   // Effective visibility + check-in settings for this class (full cascade)
   const { data: classSettings, isLoading: classSettingsLoading } = useClassEffectiveSettings(
     activeClassId ?? null,
@@ -149,7 +165,7 @@ export function SecretaryClassDashboard({
     });
   }, [dbEntries.length, localEntries.length]);
 
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useUrlTab(['overview', 'bulk', 'placements'], 'overview');
   const [isCalculatingPlacements, setIsCalculatingPlacements] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -660,16 +676,38 @@ export function SecretaryClassDashboard({
           </TabsContent>
 
           <TabsContent value="bulk" className="mt-0">
-            <BulkResultEntry
-              entries={entries as ScentWorkEntry[]}
-              classConfig={classConfig}
-              onResultsSubmit={async bulkResults => {
-                // Process bulk results using our new handler
-                for (const result of bulkResults) {
-                  await handleResultUpdate(result.entryId, result);
-                }
-              }}
-            />
+            {isScentWorkClass ? (
+              <BulkResultEntry
+                classId={activeClassId ?? ''}
+                entries={entries as ScentWorkEntry[]}
+                classConfig={classConfig}
+                onResultsSubmit={async bulkResults => {
+                  for (const result of bulkResults) {
+                    await handleResultUpdate(result.entryId, result);
+                  }
+                }}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+                <FileText className="h-10 w-10 text-muted-foreground opacity-50" />
+                <div>
+                  <p className="font-medium text-foreground mb-1">
+                    Batch paper entry is not yet available for this sport type.
+                  </p>
+                  <p className="text-sm text-muted-foreground max-w-sm">
+                    Use the individual entry flow to score each dog from paper scoresheets.
+                  </p>
+                </div>
+                {activeClassId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/scoring/classes/${activeClassId}/entries`)}
+                  >
+                    Open Entry List
+                  </Button>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="placements" className="mt-0">

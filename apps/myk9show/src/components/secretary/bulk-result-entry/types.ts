@@ -3,7 +3,7 @@ import type {
   ScentWorkResult,
   MultiAreaScentWorkResult,
   ScentWorkClassConfig,
-  QualificationStatus
+  QualificationStatus,
 } from '@/types/scent-work-types';
 
 // Local type for competition data
@@ -16,6 +16,7 @@ export interface LocalCompetitionData {
 }
 
 export interface BulkResultEntryProps {
+  classId: string;
   entries: ScentWorkEntry[];
   classConfig: ScentWorkClassConfig;
   onResultsSubmit: (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => Promise<void>;

@@ -11,7 +11,16 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
-import { Circle, Settings, Play, CheckCircle, Lock, Printer, GripVertical } from 'lucide-react';
+import {
+  Circle,
+  Settings,
+  Play,
+  CheckCircle,
+  Lock,
+  Printer,
+  GripVertical,
+  ClipboardList,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -265,6 +274,24 @@ export const ClassPipelineCard: React.FC<ClassPipelineCardProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+
+          {/* Enter Scores — visible when class is active or has results to review */}
+          {(item.stage === 'in-progress' || item.stage === 'results') && (
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                navigate(
+                  `/shows/${showId}/trials/${trialId}/classes/${item.id}/secretary?tab=bulk`
+                );
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm bg-muted/60 text-foreground rounded-md hover:bg-muted font-medium"
+              aria-label="Enter scores"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              Enter Scores
+            </button>
           )}
 
           {/* Action buttons for Results stage cards */}

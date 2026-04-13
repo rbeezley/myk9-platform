@@ -359,3 +359,28 @@ Use this section to list every issue found during the walk. Bring this back to C
 - [ ] No step required workaround or developer intervention
 
 **Sign-off:** **********\_\_\_********** **Date:** ********\_********
+
+
+
+
+
+
+
+  Critical bugs (fix immediately)                                                                                                                                                                            
+                                                                                                                                                                                                             
+  1. Routes not registered — /scoring/classes/:classId/entries and /:entryId exist as pages but are absent from every route file. Every scoring link from EntryCardGrid hits a 404.                          
+  2. classId: 'bulk-entry-class' hardcoded — BulkResultEntry's submit handler always saves results with the wrong class ID. Silent data corruption.
+  3. No success state after bulk submit — secretary sees nothing after clicking Submit. Likely causes duplicate submissions.                                                                                 
+                   
+  High priority
+
+  4. Bulk entry is Scent Work-only — types are ScentWorkEntry/ScentWorkResult; the form shows a time field and Q/NQ options that don't apply to Obedience, Agility, Rally, or Tracking.                      
+  5. No direct "Enter scores" shortcut — secretary navigates Show → Trial → Classes → class card → Secretary tab = 4–5 clicks every time.
+  6. No unsaved-changes warning — navigating away mid-entry silently loses all work.                                                                                                                         
+                   
+  Quick wins                                                                                                                                                                                                 
+                   
+  - Register 2 routes in secretaryRoutes.tsx                                                                                                                                                                 
+  - Pass real classId as a prop through SecretaryClassDashboard → BulkResultEntry
+  - Add a success toast on submit                                                                                                                                                                            
+  - Default Qualification to "Qualified" (most entries are Q)

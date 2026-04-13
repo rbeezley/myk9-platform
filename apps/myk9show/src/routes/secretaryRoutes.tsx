@@ -56,6 +56,14 @@ const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmis
 const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
 const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 
+// Scoring pages
+const ScoringEntryListPage = lazy(() =>
+  import('@/pages/scoring/ScoringEntryListPage').then(m => ({ default: m.ScoringEntryListPage }))
+);
+const ScoresheetPage = lazy(() =>
+  import('@/pages/scoring/ScoresheetPage').then(m => ({ default: m.ScoresheetPage }))
+);
+
 const ShowEditRedirect = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
@@ -331,6 +339,32 @@ export const SecretaryRoutes = () => (
           <SuspenseWrapper>
             <PageTransition>
               <PersonDetailPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+
+    {/* Scoring — entry list and individual scoresheet */}
+    <Route
+      path="/scoring/classes/:classId/entries"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.JUDGE, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ScoringEntryListPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/scoring/classes/:classId/entries/:entryId"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.JUDGE, UserRole.SITE_ADMIN]}>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ScoresheetPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

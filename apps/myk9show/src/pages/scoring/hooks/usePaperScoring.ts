@@ -78,15 +78,6 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
     [performSave]
   );
 
-  const saveAndNext = useCallback(
-    async (entryId: string, result: PaperResult, timeDigits: string, faults: number) => {
-      await performSave(entryId, result, timeDigits, faults);
-      const next = sortByExhibitorOrder(entries).find(e => !e.isScored && e.entryId !== entryId);
-      setSelectedEntryId(next?.entryId ?? null);
-    },
-    [performSave, entries]
-  );
-
   const setSessionSettings = useCallback((patch: Partial<SessionSettings>) => {
     setSessionSettingsState(prev => ({ ...prev, ...patch }));
   }, []);
@@ -108,7 +99,6 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
     selectEntry,
     nextUnscored,
     saveEntry,
-    saveAndNext,
     setSessionSettings,
     setMode,
   };

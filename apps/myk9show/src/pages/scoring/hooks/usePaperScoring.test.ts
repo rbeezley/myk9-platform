@@ -93,11 +93,4 @@ describe('usePaperScoring', () => {
       })
     );
   });
-
-  it('saveAndNext selects next unscored entry after saving', async () => {
-    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
-    await act(() => result.current.saveAndNext('e1', 'Q', '12345', 0));
-    // After saving e1, next unscored is e2 (e3 is already scored)
-    expect(result.current.selectedEntryId).toBe('e2');
-  });
 });

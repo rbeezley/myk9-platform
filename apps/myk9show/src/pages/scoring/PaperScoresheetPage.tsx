@@ -64,9 +64,11 @@ export function PaperScoresheetPage() {
   const userId = user?.id ?? 'anonymous';
   const scoring = usePaperScoring(entries, userId);
 
-  const reloadEntries = async () => {
-    if (!classId) return;
-    setEntries(calculatePlacements(await loadEntriesWithDogs(classId)));
+  const reloadEntries = async (): Promise<ScoringEntry[]> => {
+    if (!classId) return entries;
+    const fresh = calculatePlacements(await loadEntriesWithDogs(classId));
+    setEntries(fresh);
+    return fresh;
   };
 
   const handleSave = async (result: PaperResult, timeDigits: string, faults: number) => {
@@ -77,8 +79,11 @@ export function PaperScoresheetPage() {
 
   const handleSaveAndNext = async (result: PaperResult, timeDigits: string, faults: number) => {
     if (!scoring.selectedEntryId) return;
-    await scoring.saveAndNext(scoring.selectedEntryId, result, timeDigits, faults);
-    await reloadEntries();
+    const currentEntryId = scoring.selectedEntryId;
+    await scoring.saveEntry(currentEntryId, result, timeDigits, faults);
+    const fresh = await reloadEntries();
+    const next = sortByExhibitorOrder(fresh).find(e => !e.isScored && e.entryId !== currentEntryId);
+    scoring.selectEntry(next?.entryId ?? null);
   };
 
   const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);

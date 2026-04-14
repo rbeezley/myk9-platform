@@ -4,11 +4,17 @@
  * @module pages/MyEntriesPage
  */
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { EntryStatus } from '@/types/show-registration-types';
+import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
+import { useShowDayData } from '@/hooks/queries/useShowDayData';
+import { useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
+import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
+import { DogStrip } from '@/components/exhibitor/DogStrip';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
@@ -26,6 +32,9 @@ import {
   Users,
   CalendarDays,
   CircleCheck,
+  Calendar as CalendarIcon,
+  Activity,
+  ChevronRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
@@ -47,8 +56,15 @@ import {
   type EntryTabFilter,
 } from './modules';
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 const MyEntriesPage: React.FC = () => {
-  const { user } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
 
   // Data and filters
   const { entries, isLoading, isError, refreshing, refreshEntries, updateEntryCheckIn } =
@@ -56,6 +72,23 @@ const MyEntriesPage: React.FC = () => {
   const { filteredEntries, selectedTab, setSelectedTab, entryStats } = useMyEntriesFilters({
     entries,
   });
+
+  const navigate = useNavigate();
+  const ownerId = userWithRoles?.databaseUserId ?? '';
+
+  const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
+  const { data: stats } = useEntryStatisticsQuery();
+  const showDayData = useShowDayData();
+
+  const statistics = useMemo(
+    () => ({
+      activeEntries: entries.filter((e: MyEntry) => e.entryStatus === EntryStatus.ACCEPTED).length,
+      totalFees: stats?.totalRevenue ?? 0,
+      upcomingShows: entries.filter((e: MyEntry) => e.showDate && e.showDate > new Date()).length,
+      totalDogs: dogs.length,
+    }),
+    [entries, stats, dogs]
+  );
 
   // Dialog states
   const [checkInDialog, setCheckInDialog] = useState<CheckInDialogState>({
@@ -156,7 +189,58 @@ const MyEntriesPage: React.FC = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-8">
-          <h1 className="sr-only">My Entries</h1>
+          {/* Greeting header */}
+          <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                  {getGreeting()}
+                </h1>
+                <p className="text-muted-foreground text-sm sm:text-base mt-1">
+                  Here&apos;s what&apos;s happening with your shows
+                </p>
+              </div>
+              <Button onClick={() => navigate('/shows')} size="sm">
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                Enter a Show
+              </Button>
+            </div>
+          </div>
+
+          {/* Show Day alert — only when exhibitor has a show today */}
+          {showDayData.isShowDay && (
+            <Link
+              to="/exhibitor/show-day"
+              className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 p-4 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-300"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 flex-shrink-0">
+                <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground">You have a show today!</p>
+                <p className="text-sm text-muted-foreground">
+                  Check in, view run order, and see live results
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            </Link>
+          )}
+
+          {/* Stats */}
+          <CompactStatsRow
+            activeEntries={statistics.activeEntries}
+            upcomingShows={statistics.upcomingShows}
+            totalDogs={statistics.totalDogs}
+            onNavigate={navigate}
+          />
+
+          {/* Dog strip */}
+          <DogStrip
+            dogs={
+              (dogs ?? []) as { id: string; call_name?: string; name?: string; breed?: string }[]
+            }
+          />
+
           {/* Breadcrumb + Actions */}
           <div className="flex items-center justify-between">
             <Breadcrumb

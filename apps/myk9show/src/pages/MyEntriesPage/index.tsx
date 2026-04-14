@@ -12,7 +12,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { EntryStatus } from '@/types/show-registration-types';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
-import { useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip } from '@/components/exhibitor/DogStrip';
 import { PaymentStatus } from '@/types/show-registration-types';
@@ -77,17 +76,15 @@ const MyEntriesPage: React.FC = () => {
   const ownerId = userWithRoles?.databaseUserId ?? '';
 
   const { data: dogs = [] } = useDogsByOwnerQuery(ownerId, !!ownerId);
-  const { data: stats } = useEntryStatisticsQuery();
   const showDayData = useShowDayData();
 
   const statistics = useMemo(
     () => ({
       activeEntries: entries.filter((e: MyEntry) => e.entryStatus === EntryStatus.ACCEPTED).length,
-      totalFees: stats?.totalRevenue ?? 0,
       upcomingShows: entries.filter((e: MyEntry) => e.showDate && e.showDate > new Date()).length,
       totalDogs: dogs.length,
     }),
-    [entries, stats, dogs]
+    [entries, dogs]
   );
 
   // Dialog states
@@ -189,7 +186,6 @@ const MyEntriesPage: React.FC = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-6 max-w-7xl">
         <div className="space-y-8">
-          {/* Greeting header */}
           <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
@@ -207,7 +203,6 @@ const MyEntriesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Show Day alert — only when exhibitor has a show today */}
           {showDayData.isShowDay && (
             <Link
               to="/exhibitor/show-day"
@@ -226,7 +221,6 @@ const MyEntriesPage: React.FC = () => {
             </Link>
           )}
 
-          {/* Stats */}
           <CompactStatsRow
             activeEntries={statistics.activeEntries}
             upcomingShows={statistics.upcomingShows}
@@ -234,14 +228,12 @@ const MyEntriesPage: React.FC = () => {
             onNavigate={navigate}
           />
 
-          {/* Dog strip */}
           <DogStrip
             dogs={
               (dogs ?? []) as { id: string; call_name?: string; name?: string; breed?: string }[]
             }
           />
 
-          {/* Breadcrumb + Actions */}
           <div className="flex items-center justify-between">
             <Breadcrumb
               items={breadcrumbItems}

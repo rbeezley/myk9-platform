@@ -25,9 +25,9 @@ interface DogStripProps {
 export const DogStrip: React.FC<DogStripProps> = ({ dogs }) => {
   const navigate = useNavigate();
   const { data: rawEntries = [] } = useEntriesQuery();
-  const now = new Date();
 
   const upcomingCountByDog = useMemo(() => {
+    const now = new Date();
     const counts: Record<string, number> = {};
     for (const entry of rawEntries as Array<{ dog_id: string; show?: { start_date?: string } }>) {
       const showDate = entry.show?.start_date ? new Date(entry.show.start_date) : null;
@@ -36,7 +36,7 @@ export const DogStrip: React.FC<DogStripProps> = ({ dogs }) => {
       }
     }
     return counts;
-  }, [rawEntries, now]);
+  }, [rawEntries]);
 
   if (dogs.length === 0) return null;
 

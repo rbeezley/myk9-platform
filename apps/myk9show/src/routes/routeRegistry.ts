@@ -64,11 +64,9 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/browse-shows': () => import('@/pages/BrowseShowsPage'),
   '/my-entries': () => import('@/pages/MyEntriesPage'),
 
-  // Exhibitor dashboard
-  '/exhibitor/dashboard': () => import('@/pages/ExhibitorDashboard'),
-  '/exhibitor/show-day': () => import('@/pages/ShowDayPage'),
-  '/exhibitor/account': () => import('@/pages/ExhibitorDashboard'),
+  // Exhibitor pages
   '/exhibitor/entries': () => import('@/pages/MyEntriesPage'),
+  '/exhibitor/show-day': () => import('@/pages/ShowDayPage'),
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
 
@@ -124,7 +122,7 @@ export const routeCategories = {
   critical: [
     '/admin/dashboard',
     '/admin/permissions',
-    '/exhibitor/dashboard',
+    '/exhibitor/entries',
     '/exhibitor/show-day',
     '/shows',
   ],
@@ -145,8 +143,8 @@ export const navigationPatterns = {
 
   // Exhibitor workflow patterns
   exhibitorDashboard: ['/shows', '/exhibitor/entries', '/dogs', '/exhibitor/show-day'],
-  exhibitorShowDay: ['/exhibitor/dashboard', '/exhibitor/entries', '/shows'],
-  browseShows: ['/shows/:id', '/exhibitor/dashboard', '/calendar'],
+  exhibitorShowDay: ['/exhibitor/entries', '/shows'],
+  browseShows: ['/shows/:id', '/exhibitor/entries', '/calendar'],
   showDetails: ['/shows/:showId/trials/:trialId', '/shows'],
 
   // Secretary workflow patterns

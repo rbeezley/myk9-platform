@@ -29,7 +29,6 @@ const LegalPage = lazy(() => import('@/pages/LegalPage'));
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
-const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
 const ShowDayPage = lazy(() => import('@/pages/ShowDayPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
@@ -148,18 +147,7 @@ export const PublicRoutes = () => (
     />
 
     {/* Exhibitor pages — flat routes, no separate layout */}
-    <Route
-      path="/exhibitor/dashboard"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ExhibitorDashboard />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/exhibitor/dashboard" element={<Navigate to="/exhibitor/entries" replace />} />
     <Route
       path="/exhibitor/show-day"
       element={
@@ -172,26 +160,8 @@ export const PublicRoutes = () => (
         </ProtectedRoute>
       }
     />
-    <Route
-      path="/exhibitor/profile"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <ProfilePage />
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/exhibitor/account"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <ProfilePage />
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/exhibitor/profile" element={<Navigate to="/profile" replace />} />
+    <Route path="/exhibitor/account" element={<Navigate to="/profile" replace />} />
     <Route
       path="/exhibitor/entries"
       element={

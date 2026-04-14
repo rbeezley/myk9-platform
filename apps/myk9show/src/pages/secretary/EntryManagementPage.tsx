@@ -346,7 +346,7 @@ const EntryManagementPage: React.FC = () => {
 
           {/* Main Content - Only show when a show is selected and not loading */}
           {selectedShowId && !isLoading && (
-            <>
+            <div className="space-y-6 mt-6">
               {/* Trial / Class Filters */}
               <TrialClassFilters
                 trials={trials}
@@ -468,7 +468,7 @@ const EntryManagementPage: React.FC = () => {
                   userRole="secretary"
                 />
               )}
-            </>
+            </div>
           )}
         </TabsContent>
 

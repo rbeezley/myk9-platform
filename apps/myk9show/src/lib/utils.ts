@@ -53,11 +53,12 @@ export function formatDate(
   return dateObj.toLocaleDateString('en-US', { ...defaultOptions, ...options });
 }
 
-/** Format a class element + level into a display label, with fallback to full class name. */
+/** Format a class element + level + section into a display label, with fallback to full class name. */
 export function formatClassLabel(
   element: string | null,
   level: string | null,
-  fallback: string
+  fallback: string,
+  section?: string | null
 ): string {
-  return [element, level].filter(Boolean).join(' ') || fallback;
+  return [element, level, section].filter(Boolean).join(' ') || fallback;
 }

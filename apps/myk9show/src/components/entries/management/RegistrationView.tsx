@@ -156,7 +156,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
     (resendCooldowns[registrationId] || 0) > Date.now();
 
   return (
-    <>
+    <div className="space-y-6">
       {/* Stats Overview */}
       <EntryStatsCards stats={stats} />
 
@@ -319,7 +319,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           </Card>
         </TabsContent>
       </Tabs>
-    </>
+    </div>
   );
 };
 

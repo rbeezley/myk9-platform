@@ -48,16 +48,21 @@ export const ShowClassSelection: React.FC<ShowClassSelectionProps> = ({
           {/* Show Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Show</label>
-            <Select
-              value={selectedShowId}
-              onValueChange={onShowChange}
-              disabled={isLoadingShows}
-            >
+            <Select value={selectedShowId} onValueChange={onShowChange} disabled={isLoadingShows}>
               <SelectTrigger>
-                <SelectValue placeholder={isLoadingShows ? 'Loading shows...' : 'Select a show'} />
+                <SelectValue placeholder={isLoadingShows ? 'Loading shows...' : 'Select a show'}>
+                  {selectedShowId
+                    ? (() => {
+                        const show = shows.find(s => s.id === selectedShowId);
+                        return show
+                          ? `${show.name || 'Unnamed Show'} (${formatDate(show.start_date)})`
+                          : undefined;
+                      })()
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {shows.map((show) => (
+                {shows.map(show => (
                   <SelectItem key={show.id} value={show.id}>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -92,7 +97,7 @@ export const ShowClassSelection: React.FC<ShowClassSelectionProps> = ({
                 />
               </SelectTrigger>
               <SelectContent>
-                {classes.map((cls) => (
+                {classes.map(cls => (
                   <SelectItem key={cls.id} value={cls.id}>
                     <div className="flex items-center gap-2">
                       <Trophy className="h-4 w-4 text-muted-foreground" />

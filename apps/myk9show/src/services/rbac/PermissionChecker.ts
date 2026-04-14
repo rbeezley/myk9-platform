@@ -25,8 +25,8 @@ interface DbUserRole {
   role_id: string;
   role_name: string;
   role_description: string;
-  club_id: string | null;
-  show_id: string | null;
+  scope_type: string;
+  scope_id: string | null;
   granted_at: string;
   expires_at: string | null;
   is_active: boolean;
@@ -170,15 +170,15 @@ export class PermissionChecker {
       // Map RPC role results to UserRoleWithDetails
       const typedRoles = roles ?? [];
       const rolesWithDetails: UserRoleWithDetails[] = typedRoles.map(userRole => {
-        const scopeType = userRole.club_id ? 'club' : userRole.show_id ? 'show' : 'global';
-        const scopeId = userRole.club_id || userRole.show_id || null;
+        const scopeType = userRole.scope_type || 'global';
+        const scopeId = userRole.scope_id || null;
 
         return {
           id: `${userId}-${userRole.role_id}`,
           user_id: userId,
           role_id: userRole.role_id,
-          club_id: userRole.club_id,
-          show_id: userRole.show_id,
+          club_id: scopeType === 'club' ? scopeId : null,
+          show_id: scopeType === 'show' ? scopeId : null,
           granted_by: null,
           granted_at: userRole.granted_at,
           expires_at: userRole.expires_at,

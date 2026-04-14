@@ -45,6 +45,10 @@ vi.mock('../../utils/classStageMapping', () => ({
   groupClassesByStage: () => ({}),
 }));
 
+vi.mock('@/hooks/useReplicationSync', () => ({
+  useReplicationSync: () => ({ status: { tablesStatus: {} } }),
+}));
+
 // Import after mocks are set up (vi.mock is hoisted)
 import { useMissionControlData } from '../useMissionControlData';
 

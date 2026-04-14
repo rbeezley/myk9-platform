@@ -21,19 +21,26 @@ interface LabelProps {
   trialNumber: string | undefined;
   element: string | undefined;
   level: string | undefined;
+  section: string | undefined;
 }
 
-const ResultLabel: React.FC<LabelProps> = ({ entry, showName, trialNumber, element, level }) => {
+const ResultLabel: React.FC<LabelProps> = ({
+  entry,
+  showName,
+  trialNumber,
+  element,
+  level,
+  section,
+}) => {
   const placement = formatPlacement(entry);
   const timeStr = formatReportTime(entry.searchTimeSeconds);
-  const classLine = [element, level].filter(Boolean).join(' ');
+  const classLine = [element, level, section].filter(Boolean).join(' ');
   const trialClassLine = [trialNumber ? `Trial ${trialNumber}` : null, classLine]
     .filter(Boolean)
     .join(' — ');
 
   const showResultLine =
-    entry.isScored &&
-    (placement !== null || timeStr !== '' || entry.totalFaults !== null);
+    entry.isScored && (placement !== null || timeStr !== '' || entry.totalFaults !== null);
 
   return (
     <div className="result-label">
@@ -41,9 +48,7 @@ const ResultLabel: React.FC<LabelProps> = ({ entry, showName, trialNumber, eleme
       <div className="result-label-callname">{entry.callName}</div>
       <div className="result-label-handler">{entry.handler}</div>
       <div className="result-label-show">{showName}</div>
-      {trialClassLine && (
-        <div className="result-label-trial-class">{trialClassLine}</div>
-      )}
+      {trialClassLine && <div className="result-label-trial-class">{trialClassLine}</div>}
       {showResultLine && (
         <div className="result-label-results">
           {placement !== null && <span>Place: {placement}</span>}
@@ -81,6 +86,7 @@ export const ResultLabels: React.FC<ReportProps> = ({
             trialNumber={trial?.trialNumber}
             element={classData?.element}
             level={classData?.level}
+            section={classData?.section}
           />
         ))}
       </div>

@@ -11,13 +11,15 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ScopeType } from '@/types/auth-types';
 import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping';
 import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
 
 export function useMissionControlData() {
   const { shows: rawShows, isLoading: showsLoading } = useShowStore();
-  const { userWithRoles, isAdmin } = useAuthContext();
+  const { userWithRoles, isAdmin, loading: authLoading } = useAuthContext();
+  const { status: syncStatus } = useReplicationSync();
 
   // Stable key for club scope IDs (avoids recomputation when AuthContext rebuilds the scopes array)
   const clubScopeKey = useMemo(
@@ -38,11 +40,13 @@ export function useMissionControlData() {
     const skipFilter = isAdmin;
     const seen = new Set<string>();
 
-    return rawShows.filter(s => {
+    const filtered = rawShows.filter(s => {
       if (seen.has(s.id)) return false;
       seen.add(s.id);
       return skipFilter || clubIdSet.has(s.clubId);
     });
+
+    return filtered;
   }, [rawShows, isAdmin, clubScopeKey]);
   const allTrials = useTrialStore(s => s.trials);
   const allTrialClasses = useTrialStore(s => s.trialClasses);
@@ -82,7 +86,8 @@ export function useMissionControlData() {
 
     return localClasses.map(cls => {
       // Build a display name from element + level (TrialClass doesn't have a "name" field)
-      const name = [cls.element, cls.level].filter(Boolean).join(' ') || 'Unnamed Class';
+      const name =
+        [cls.element, cls.level, cls.section].filter(Boolean).join(' ') || 'Unnamed Class';
 
       const isScoringFinalized = cls.isScoringFinalized ?? false;
       const isResultsReviewed = cls.isResultsReviewed ?? false;
@@ -169,9 +174,16 @@ export function useMissionControlData() {
   // Determine if any class is actively being scored
   const hasLiveClasses = pipelineClasses.some(c => c.stage === 'in-progress');
 
+  // True while:
+  // - showStore is reading from IndexedDB, OR
+  // - auth RBAC hasn't loaded yet (isAdmin would be wrong), OR
+  // - first-time sync is in progress and shows haven't arrived yet
+  const showsSyncing = syncStatus.tablesStatus['shows'] === 'syncing';
+  const isLoading = showsLoading || authLoading || (showsSyncing && rawShows.length === 0);
+
   return {
     // Loading
-    isLoading: showsLoading,
+    isLoading,
     classesLoading,
 
     // Selection

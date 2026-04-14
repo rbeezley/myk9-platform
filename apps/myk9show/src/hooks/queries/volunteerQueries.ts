@@ -196,7 +196,10 @@ export function useShowClassesForVolunteers(showId: string | undefined) {
       if (error) throw error;
       return (data ?? []).map((row): ClassInfo => {
         const trial = row.trial as unknown as Record<string, unknown>;
-        const displayName = [row.element, row.level].filter(Boolean).join(' ') || row.name;
+        const displayName =
+          [row.element, row.level, (row as Record<string, unknown>).section as string | undefined]
+            .filter(Boolean)
+            .join(' ') || row.name;
         const metaParts = [row.start_time ?? null].filter(Boolean);
         return {
           id: row.id,

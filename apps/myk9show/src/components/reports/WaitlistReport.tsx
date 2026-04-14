@@ -23,7 +23,17 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
     );
   }
 
-  const trialMap = new Map<string, { trialNumber: string; trialDate: string; classes: Map<string, { element: string; level: string; entries: ReportEntry[] }> }>();
+  const trialMap = new Map<
+    string,
+    {
+      trialNumber: string;
+      trialDate: string;
+      classes: Map<
+        string,
+        { element: string; level: string; section: string; entries: ReportEntry[] }
+      >;
+    }
+  >();
   for (const entry of waitlisted) {
     const trialKey = entry.trialId ?? 'unknown';
     if (!trialMap.has(trialKey)) {
@@ -39,6 +49,7 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
       trial.classes.set(classKey, {
         element: entry.classElement ?? '',
         level: entry.classLevel ?? '',
+        section: entry.classSection ?? '',
         entries: [],
       });
     }
@@ -59,7 +70,7 @@ export const WaitlistReport: React.FC<ReportProps> = ({ showName, organization, 
           {[...trial.classes.entries()].map(([classId, cls]) => (
             <div key={classId} className="catalog-class-section">
               <div className="catalog-class-header">
-                {[cls.element, cls.level].filter(Boolean).join(' ')}
+                {[cls.element, cls.level, cls.section].filter(Boolean).join(' ')}
               </div>
               <table className="report-table">
                 <thead>

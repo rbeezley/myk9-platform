@@ -65,7 +65,10 @@ export function mapClassWithWaitlistCount(
 ): ClassWithWaitlistCount {
   return {
     id: cls.id,
-    name: cls.name,
+    name:
+      [cls.element, cls.level, cls.section].filter(Boolean).join(' ') ||
+      cls.name ||
+      'Unnamed Class',
     class_number: null, // ReplicatedClass does not have classNumber
     max_entries: cls.maxEntries ?? null,
     trial_id: cls.trialId ?? '',

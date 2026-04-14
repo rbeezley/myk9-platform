@@ -19,10 +19,10 @@ export const ROLE_DASHBOARD_ROUTES: Partial<Record<UserRole, string>> = {
   [UserRole.SITE_ADMIN]: '/admin/dashboard',
   [UserRole.CLUB_ADMIN]: '/secretary/dashboard',
   [UserRole.SECRETARY]: '/secretary/dashboard',
-  // INTENT: JUDGE has no dedicated dashboard. Route to exhibitor/dashboard
-  // until a judge-specific landing page is built. This is intentional.
-  [UserRole.JUDGE]: '/exhibitor/dashboard',
-  [UserRole.EXHIBITOR]: '/exhibitor/dashboard',
+  // INTENT: JUDGE has no dedicated dashboard. Route to /exhibitor/entries
+  // (the consolidated My Shows page) until a judge-specific landing page is built.
+  [UserRole.JUDGE]: '/exhibitor/entries',
+  [UserRole.EXHIBITOR]: '/exhibitor/entries',
 };
 
 /**
@@ -45,5 +45,5 @@ export function getHighestRole(roles: UserRole[]): UserRole {
  */
 export function getDashboardRoute(roles: UserRole[]): string {
   const highest = getHighestRole(roles);
-  return ROLE_DASHBOARD_ROUTES[highest] ?? '/exhibitor/dashboard';
+  return ROLE_DASHBOARD_ROUTES[highest] ?? '/exhibitor/entries';
 }

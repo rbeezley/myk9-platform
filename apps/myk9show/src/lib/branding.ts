@@ -24,7 +24,7 @@ export const PRESET_COLORS: PresetColor[] = [
   { name: 'Red', hex: '#dc2626' },
   { name: 'Green', hex: '#16a34a' },
   { name: 'Purple', hex: '#9333ea' },
-  { name: 'Orange', hex: '#ea580c' },
+  { name: 'Terracotta', hex: '#c96442' },
   { name: 'Cyan', hex: '#0891b2' },
   { name: 'Gold', hex: '#ca8a04' },
   { name: 'Pink', hex: '#be185d' },

@@ -15,7 +15,7 @@ export const SETTINGS_VERSION = '1.0.0';
 export interface AppSettings {
   // Display
   theme: 'light' | 'dark' | 'auto';
-  accentColor: 'green' | 'blue' | 'orange' | 'purple';
+  accentColor: 'terracotta' | 'blue' | 'green' | 'purple';
 
   // Performance
   enableAnimations: boolean | null; // null = auto-detect
@@ -218,19 +218,19 @@ function setupSystemThemeListener() {
 /**
  * Apply accent color to document and update meta theme-color
  */
-function applyAccentColor(color: 'green' | 'blue' | 'orange' | 'purple') {
+function applyAccentColor(color: 'terracotta' | 'blue' | 'green' | 'purple') {
   const root = document.documentElement;
-  root.classList.remove('accent-green', 'accent-blue', 'accent-orange', 'accent-purple');
+  root.classList.remove('accent-terracotta', 'accent-blue', 'accent-green', 'accent-purple');
   root.classList.add(`accent-${color}`);
 
   // Update meta theme-color to match accent (affects browser chrome and mobile status bar)
   const accentColors: Record<string, string> = {
-    green: '#14b8a6', // teal
+    terracotta: '#c96442',
     blue: '#3b82f6',
-    orange: '#f97316',
+    green: '#14b8a6',
     purple: '#8b5cf6',
   };
-  const themeColor = accentColors[color] || '#14b8a6';
+  const themeColor = accentColors[color] || '#c96442';
   document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
     meta.setAttribute('content', themeColor);
   });

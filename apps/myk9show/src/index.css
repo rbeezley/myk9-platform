@@ -398,91 +398,87 @@ select:hover {
 @layer base {
   :root {
     color-scheme: light dark;
-    /* Neutral zinc backgrounds */
-    --background: #f2f2f5;
-    --foreground: #18181b;
-    --background-alt: #f2f2f5;
-    --card: #ffffff;
-    --card-foreground: #18181b;
-    --sidebar: #e8e8ec;
-    --sidebar-foreground: #18181b;
-    --card-secondary: #f2f2f5;
-    --card-secondary-foreground: #18181b;
-    /* Zinc neutrals */
-    --muted: #f2f2f5;
-    --muted-foreground: #71717a;
-    /* Default primary - teal (overridden by accent color classes) */
-    --primary: #14b8a6;
-    --primary-foreground: #ffffff;
-    --secondary: #f2f2f5;
-    --secondary-foreground: #18181b;
-    --accent: #f0fdfa; /* Teal-tinted accent */
-    --accent-foreground: #0f766e;
+    /* Warm parchment backgrounds — Claude-inspired */
+    --background: #f5f4ed;
+    --foreground: #141413;
+    --background-alt: #f5f4ed;
+    --card: #faf9f5;
+    --card-foreground: #141413;
+    --sidebar: #ede9e0;
+    --sidebar-foreground: #141413;
+    --card-secondary: #f0eee6;
+    --card-secondary-foreground: #141413;
+    /* Warm neutrals */
+    --muted: #f0eee6;
+    --muted-foreground: #87867f;
+    /* Primary overridden by accent color classes below */
+    --secondary: #e8e6dc;
+    --secondary-foreground: #4d4c48;
+    --accent: #f5f0e8;
+    --accent-foreground: #7c4a2e;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: rgba(0, 0, 0, 0.06);
-    --input: #f2f2f5;
-    --input-border: #e4e4e7; /* zinc-300 — visible input edges */
-    --input-border-hover: #d4d4d8; /* zinc-400 — hover feedback */
+    --border: #e8e6dc;
+    --input: #f5f4ed;
+    --input-border: #e8e6dc;
+    --input-border-hover: #d1cfc5;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
     --radius: 0.5rem;
-    --dialog-input-bg: #f2f2f5;
-    --popover: #ffffff;
-    --popover-foreground: #18181b;
+    --dialog-input-bg: #f5f4ed;
+    --popover: #faf9f5;
+    --popover-foreground: #141413;
     --show-secondary-bg: transparent;
-    /* Card elevation — neutral multi-layer shadows */
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03);
-    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
+    /* Card elevation — warm, whisper-soft */
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.03);
+    --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.05);
     /* Header elevation */
-    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
-    --sidebar-border: rgba(0, 0, 0, 0.06);
+    --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+    --sidebar-border: #e8e6dc;
   }
 
   .dark {
     color-scheme: dark;
-    /* Neutral dark backgrounds */
-    --background: #0f0f12;
-    --foreground: #f4f4f5;
-    --background-alt: #1a1a1f;
-    --card: #1a1a1f;
-    --card-foreground: #f4f4f5;
-    --sidebar: #141417;
-    --sidebar-foreground: #f4f4f5;
-    --card-secondary: #141417;
-    --card-secondary-foreground: #f4f4f5;
-    --muted: #1a1a1f;
-    --muted-foreground: #71717a;
-    /* Default primary - teal (overridden by accent color classes) */
-    --primary: #14b8a6;
-    --primary-foreground: #ffffff;
-    --secondary: #1a1a1f;
-    --secondary-foreground: #f4f4f5;
-    --accent: #134e4a; /* Dark teal accent */
-    --accent-foreground: #5eead4;
+    /* Warm olive-dark backgrounds */
+    --background: #141413;
+    --foreground: #faf9f5;
+    --background-alt: #1e1e1b;
+    --card: #1e1e1b;
+    --card-foreground: #faf9f5;
+    --sidebar: #141413;
+    --sidebar-foreground: #faf9f5;
+    --card-secondary: #141413;
+    --card-secondary-foreground: #faf9f5;
+    --muted: #1e1e1b;
+    --muted-foreground: #87867f;
+    /* Primary overridden by accent color classes below */
+    --secondary: #1e1e1b;
+    --secondary-foreground: #faf9f5;
+    --accent: #2a2520;
+    --accent-foreground: #d97757;
     --destructive: #dc2626;
     --destructive-foreground: #ffffff;
-    --border: rgba(255, 255, 255, 0.06);
-    --input: #1a1a1f;
-    --input-border: #27272a; /* zinc-800 — visible input edges */
-    --input-border-hover: #3f3f46; /* zinc-700 — hover feedback */
+    --border: #2e2e2b;
+    --input: #1e1e1b;
+    --input-border: #2e2e2b;
+    --input-border-hover: #3a3a36;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
-    --dialog-input-bg: #0f0f12;
-    --popover: #1a1a1f;
-    --popover-foreground: #f4f4f5;
+    --dialog-input-bg: #141413;
+    --popover: #1e1e1b;
+    --popover-foreground: #faf9f5;
     /* Card elevation — deeper shadows for dark mode */
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
     --shadow-card-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.3);
     /* Header elevation */
     --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
-    --sidebar-border: rgba(255, 255, 255, 0.06);
+    --sidebar-border: #2e2e2b;
   }
 
   * {
@@ -492,6 +488,26 @@ select:hover {
   body {
     background-color: var(--background);
     color: var(--foreground);
+  }
+
+  /* Serif for editorial/page-level headings — sans for UI/component headings */
+  h1,
+  h2 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  h3,
+  h4 {
+    font-family:
+      'Montserrat',
+      -apple-system,
+      BlinkMacSystemFont,
+      system-ui,
+      sans-serif;
+    font-weight: 600;
+    line-height: 1.3;
   }
 }
 
@@ -536,40 +552,37 @@ select:hover {
    ACCENT COLOR SYSTEM
    User-selectable accent colors that override primary theme colors
    Applied via document.documentElement.classList by settingsStore
-   Classes: accent-green, accent-blue, accent-orange, accent-purple
+   Classes: accent-green (default), accent-blue, accent-terracotta, accent-purple
    Theme classes: theme-dark, theme-light (or .dark from Tailwind)
    =================================================================== */
 
-/* Green/Teal (Default) - Brand primary color */
-:root.accent-green,
-:root:not(.accent-blue):not(.accent-orange):not(.accent-purple) {
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
-  --primary-foreground: #ffffff;
-  --accent: #f0fdfa;
-  --accent-foreground: #0f766e;
-  --accent-glow: rgba(20, 184, 166, 0.3);
-  --ring: #5eead4;
-  --accent-50: #f0fdfa;
-  --accent-100: #ccfbf1;
-  --accent-200: #99f6e4;
-  --accent-500: #14b8a6;
-  --accent-600: #0d9488;
-  --accent-700: #0f766e;
+/* Terracotta - Claude-inspired warm brand color */
+:root.accent-terracotta {
+  --primary: #c96442;
+  --primary-hover: #b05338;
+  --primary-foreground: #faf9f5;
+  --accent: #f5f0e8;
+  --accent-foreground: #7c4a2e;
+  --accent-glow: rgba(201, 100, 66, 0.3);
+  --ring: #e8a882;
+  --accent-50: #fdf5ef;
+  --accent-100: #f9e5d5;
+  --accent-200: #f2c9a8;
+  --accent-500: #c96442;
+  --accent-600: #b05338;
+  --accent-700: #7c4a2e;
 }
 
-/* Green dark mode - support both .dark and .theme-dark */
-:root.accent-green.dark,
-:root.accent-green.theme-dark,
-:root.theme-dark:not(.accent-blue):not(.accent-orange):not(.accent-purple),
-:root.dark:not(.accent-blue):not(.accent-orange):not(.accent-purple) {
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
-  --primary-foreground: #ffffff;
-  --accent: #134e4a;
-  --accent-foreground: #5eead4;
-  --accent-glow: rgba(20, 184, 166, 0.4);
-  --ring: #14b8a6;
+/* Terracotta dark mode */
+:root.accent-terracotta.dark,
+:root.accent-terracotta.theme-dark {
+  --primary: #d97757;
+  --primary-hover: #c96442;
+  --primary-foreground: #faf9f5;
+  --accent: #2a2520;
+  --accent-foreground: #d97757;
+  --accent-glow: rgba(217, 119, 87, 0.4);
+  --ring: #c96442;
 }
 
 /* Blue - Classic professional color */
@@ -601,33 +614,36 @@ select:hover {
   --ring: #3b82f6;
 }
 
-/* Orange - Energetic warm color */
-:root.accent-orange {
-  --primary: #f97316;
-  --primary-hover: #ea580c;
+/* Green/Teal (Default) - Classic myK9 brand color */
+:root.accent-green,
+:root:not(.accent-blue):not(.accent-terracotta):not(.accent-purple) {
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
-  --accent: #fff7ed;
-  --accent-foreground: #c2410c;
-  --accent-glow: rgba(249, 115, 22, 0.3);
-  --ring: #fdba74;
-  --accent-50: #fff7ed;
-  --accent-100: #ffedd5;
-  --accent-200: #fed7aa;
-  --accent-500: #f97316;
-  --accent-600: #ea580c;
-  --accent-700: #c2410c;
+  --accent: #f0fdfa;
+  --accent-foreground: #0f766e;
+  --accent-glow: rgba(20, 184, 166, 0.3);
+  --ring: #5eead4;
+  --accent-50: #f0fdfa;
+  --accent-100: #ccfbf1;
+  --accent-200: #99f6e4;
+  --accent-500: #14b8a6;
+  --accent-600: #0d9488;
+  --accent-700: #0f766e;
 }
 
-/* Orange dark mode */
-:root.accent-orange.dark,
-:root.accent-orange.theme-dark {
-  --primary: #f97316;
-  --primary-hover: #ea580c;
+/* Green dark mode */
+:root.accent-green.dark,
+:root.accent-green.theme-dark,
+:root.theme-dark:not(.accent-blue):not(.accent-terracotta):not(.accent-purple),
+:root.dark:not(.accent-blue):not(.accent-terracotta):not(.accent-purple) {
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
-  --accent: #431407;
-  --accent-foreground: #fdba74;
-  --accent-glow: rgba(249, 115, 22, 0.4);
-  --ring: #f97316;
+  --accent: #134e4a;
+  --accent-foreground: #5eead4;
+  --accent-glow: rgba(20, 184, 166, 0.4);
+  --ring: #14b8a6;
 }
 
 /* Purple - Royal elegant color */

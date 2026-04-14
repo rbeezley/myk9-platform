@@ -57,14 +57,14 @@ const colorSchemes: Array<{
   label: string;
   color: string;
   description: string;
-  accentId: 'green' | 'blue' | 'orange' | 'purple';
+  accentId: 'terracotta' | 'blue' | 'green' | 'purple';
 }> = [
   {
-    value: 'green',
-    label: 'Teal',
-    color: '#14b8a6',
-    description: 'Brand primary color',
-    accentId: 'green',
+    value: 'terracotta',
+    label: 'Terracotta',
+    color: '#c96442',
+    description: 'Warm earthy default',
+    accentId: 'terracotta',
   },
   {
     value: 'blue',
@@ -74,11 +74,11 @@ const colorSchemes: Array<{
     accentId: 'blue',
   },
   {
-    value: 'orange',
-    label: 'Sunset',
-    color: '#f97316',
-    description: 'Energetic warm',
-    accentId: 'orange',
+    value: 'green',
+    label: 'Teal',
+    color: '#14b8a6',
+    description: 'Classic myK9 brand',
+    accentId: 'green',
   },
   {
     value: 'purple',

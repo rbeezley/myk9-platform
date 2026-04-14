@@ -189,7 +189,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
   return (
     <div className="max-w-lg mx-auto p-4 pb-20">
       {/* Header */}
-      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+      <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
@@ -294,7 +294,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
               <div
                 key={entry.id}
                 className={cn(
-                  'bg-card dark:bg-gray-800 rounded-lg shadow-sm p-4 transition-all',
+                  'bg-card dark:bg-warm-900 rounded-lg shadow-sm p-4 transition-all',
                   isUser && highlightUser && 'ring-2 ring-blue-500 dark:ring-blue-400'
                 )}
               >
@@ -364,7 +364,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
 
                 {/* Special celebration for user placements */}
                 {isUser && placement && placement.place <= 3 && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-warm-600">
                     <div className="text-center text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center justify-center gap-2">
                       <PartyPopper className="h-5 w-5 text-yellow-500" />
                       Congratulations!
@@ -377,7 +377,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
           })}
         </div>
       ) : (
-        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-8 text-center">
+        <div className="bg-gray-50 dark:bg-warm-950 rounded-lg p-8 text-center">
           <Trophy className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
           <div className="text-gray-600 dark:text-gray-400 mb-2">No results posted yet</div>
           <div className="text-sm text-gray-500 dark:text-gray-500">

@@ -65,7 +65,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
   return (
     <div className="max-w-lg mx-auto p-4 pb-20">
       {/* Header */}
-      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+      <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {ringStatus.className} - Ring {ringStatus.ringNumber}
@@ -112,8 +112,8 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
       )}
 
       {/* Now in Ring */}
-      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm mb-4">
-        <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-3">
+      <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm mb-4">
+        <div className="border-b border-gray-200 dark:border-warm-600 px-6 py-3">
           <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-medium">
             <div className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse" />
             NOW IN RING
@@ -144,14 +144,14 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
       </div>
 
       {/* On Deck */}
-      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm mb-4">
-        <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-3">
+      <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm mb-4">
+        <div className="border-b border-gray-200 dark:border-warm-600 px-6 py-3">
           <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
             <Users className="w-5 h-5" />
             ON DECK
           </div>
         </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="divide-y divide-gray-200 dark:divide-warm-600">
           {ringStatus.onDeck.length > 0 ? (
             ringStatus.onDeck.slice(0, 3).map((entry, index) => {
               const isUser = entry.armband === userEntry.armband;
@@ -227,7 +227,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({ userEntry, ringStatus, onRefr
 
       {/* Estimated Time */}
       {!isUserOnDeck && ringStatus.userPosition && ringStatus.userPosition > 0 && estimatedTime && (
-        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 text-center">
+        <div className="bg-gray-50 dark:bg-warm-950 rounded-lg p-6 text-center">
           <div className="text-gray-600 dark:text-gray-400 mb-2">Your position in line</div>
           <div className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             {ringStatus.userPosition || 'TBD'}

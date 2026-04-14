@@ -56,7 +56,7 @@ export default function FAQ() {
   };
 
   return (
-    <section id="faq" className="py-16 md:py-24 bg-card dark:bg-gray-900">
+    <section id="faq" className="py-16 md:py-24 bg-card dark:bg-warm-950">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -71,10 +71,10 @@ export default function FAQ() {
           {faqItems.map(item => (
             <div
               key={item.id}
-              className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden"
+              className="border border-gray-200 dark:border-warm-600 rounded-xl overflow-hidden"
             >
               <button
-                className="w-full flex justify-between items-center p-6 text-left bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                className="w-full flex justify-between items-center p-6 text-left bg-gray-50 dark:bg-warm-900 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
                 onClick={() => toggleItem(item.id)}
                 aria-expanded={openItems.includes(item.id)}
               >
@@ -95,7 +95,7 @@ export default function FAQ() {
               </button>
 
               {openItems.includes(item.id) && (
-                <div className="p-6 bg-card dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+                <div className="p-6 bg-card dark:bg-warm-950 border-t border-gray-200 dark:border-warm-600">
                   <p className="text-gray-700 dark:text-gray-300">{item.answer}</p>
                 </div>
               )}

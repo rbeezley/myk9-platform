@@ -41,7 +41,7 @@ export function importSettingsWithMigration(
       mergedSettings.theme = defaults.theme;
     }
 
-    if (!['green', 'blue', 'orange', 'purple'].includes(mergedSettings.accentColor)) {
+    if (!['terracotta', 'blue', 'green', 'purple'].includes(mergedSettings.accentColor)) {
       mergedSettings.accentColor = defaults.accentColor;
     }
 

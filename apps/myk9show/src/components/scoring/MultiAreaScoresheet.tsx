@@ -410,9 +410,9 @@ export function MultiAreaScoresheet({
   };
 
   return (
-    <div className={cn('min-h-screen bg-gray-50 dark:bg-gray-900', className)}>
+    <div className={cn('min-h-screen bg-gray-50 dark:bg-warm-950', className)}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-card dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+      <div className="sticky top-0 z-10 bg-card dark:bg-warm-900 border-b border-gray-200 dark:border-warm-600 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {onNavigateBack && (
@@ -517,7 +517,7 @@ export function MultiAreaScoresheet({
         </Tabs>
 
         {/* Save/Cancel Actions */}
-        <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-warm-600">
           <Button variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancel
           </Button>
@@ -593,7 +593,7 @@ function MultiAreaSaveConfirmation({
 
             {/* Area Results */}
             {result.areaResults.map((area, index) => (
-              <div key={index} className="space-y-2 p-3 bg-gray-50 dark:bg-gray-800 rounded">
+              <div key={index} className="space-y-2 p-3 bg-gray-50 dark:bg-warm-900 rounded">
                 <div className="font-medium">Area {index + 1}</div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>Time: {msToDisplay(area.searchTime, 'hundredths')}</div>

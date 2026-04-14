@@ -1,10 +1,9 @@
 /**
  * User Preferences Types
  * Phase 6.4: User Preferences & UI State
- * 
+ *
  * Type definitions for user preferences system with cross-device synchronization
  */
-
 
 // Matches actual user_preferences table in Supabase
 export type UserPreferencesRow = {
@@ -28,7 +27,7 @@ export type UserPreferencesUpdate = Partial<UserPreferencesInsert>;
 
 // Theme preferences
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type ColorScheme = 'blue' | 'purple' | 'green' | 'orange';
+export type ColorScheme = 'blue' | 'purple' | 'green' | 'terracotta';
 export type LayoutDensity = 'compact' | 'comfortable' | 'spacious';
 export type FontSizeScale = 'small' | 'medium' | 'large' | 'extra-large';
 
@@ -64,7 +63,7 @@ export interface CompetitionPreferences {
 export interface QuietHours {
   enabled: boolean;
   startTime: string; // HH:MM format
-  endTime: string;   // HH:MM format
+  endTime: string; // HH:MM format
   timezone: string;
   weekendsOnly: boolean;
 }
@@ -134,24 +133,24 @@ export interface DeviceOverrides {
 export interface UserPreferences {
   id?: string;
   userId: string;
-  
+
   // Preference categories
   theme: ThemePreferences;
   competition: CompetitionPreferences;
   notifications: NotificationPreferences;
   data: DataPreferences;
   privacy: PrivacyPreferences;
-  
+
   // Device-specific settings
   deviceOverrides: Record<string, DeviceOverrides>;
-  
+
   // Sync metadata
   version: number;
   lastSyncedAt: Date;
   lastModifiedAt: Date;
   lastModifiedBy: string; // device ID
   syncConflicts?: string[];
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -195,11 +194,11 @@ export interface UseUserPreferencesReturn {
   preferences: UserPreferences | null;
   loading: boolean;
   error: string | null;
-  
+
   // Sync state
   syncState: SyncState;
   devices: DeviceInfo[];
-  
+
   // Actions
   updatePreferences: (updates: PreferencesUpdate) => Promise<void>;
   resetToDefaults: (category?: keyof PreferencesUpdate) => Promise<void>;
@@ -207,9 +206,11 @@ export interface UseUserPreferencesReturn {
   importPreferences: (data: string) => Promise<void>;
   resolveConflicts: (resolution: 'local' | 'remote' | 'merge') => Promise<void>;
   forceSync: () => Promise<void>;
-  
+
   // Device management
-  registerDevice: (deviceInfo: Omit<DeviceInfo, 'id' | 'lastSeen' | 'isCurrentDevice'>) => Promise<void>;
+  registerDevice: (
+    deviceInfo: Omit<DeviceInfo, 'id' | 'lastSeen' | 'isCurrentDevice'>
+  ) => Promise<void>;
   removeDevice: (deviceId: string) => Promise<void>;
 }
 
@@ -291,7 +292,10 @@ export const DEFAULT_PRIVACY_PREFERENCES: PrivacyPreferences = {
   enableCrashReporting: true,
 };
 
-export const DEFAULT_USER_PREFERENCES: Omit<UserPreferences, 'id' | 'userId' | 'createdAt' | 'updatedAt'> = {
+export const DEFAULT_USER_PREFERENCES: Omit<
+  UserPreferences,
+  'id' | 'userId' | 'createdAt' | 'updatedAt'
+> = {
   theme: DEFAULT_THEME_PREFERENCES,
   competition: DEFAULT_COMPETITION_PREFERENCES,
   notifications: DEFAULT_NOTIFICATION_PREFERENCES,

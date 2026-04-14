@@ -110,7 +110,7 @@ const getIconColor = (color: string) => {
 
 export default function Features() {
   return (
-    <section id="features" className="py-16 md:py-24 bg-gray-50 dark:bg-gray-800">
+    <section id="features" className="py-16 md:py-24 bg-gray-50 dark:bg-warm-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
@@ -126,7 +126,7 @@ export default function Features() {
           {features.map(feature => (
             <div
               key={feature.id}
-              className="bg-card dark:bg-gray-900 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 dark:border-gray-700"
+              className="bg-card dark:bg-warm-950 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-200 dark:border-warm-600"
             >
               <div
                 className={`p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4 ${getIconColor(feature.color)}`}

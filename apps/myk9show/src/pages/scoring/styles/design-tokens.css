@@ -13,42 +13,42 @@
   /* Brand Colors */
   --brand-blue: #007aff;
   --brand-purple: #5856d6;
-  --brand-gradient: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
+  --brand-gradient: linear-gradient(135deg, #c96442 0%, #b05338 100%);
 
   /* ===== UI COLORS (Light Theme) ===== */
-  /* Neutral zinc backgrounds */
-  --background: #f2f2f5;
-  --foreground: #18181b;
-  --card: #ffffff; /* Pure white card surface */
-  --card-foreground: #18181b;
-  --muted: #f2f2f5;
-  --muted-foreground: #71717a;
-  --border: rgba(0, 0, 0, 0.06);
-  --input: #f2f2f5;
-  --input-bg: #f2f2f5;
-  --input-border: #e4e4e7;
-  --input-text: #18181b;
-  --input-bg-hover: #e8e8ec;
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
-  --primary-foreground: #ffffff;
+  /* Warm parchment backgrounds — Claude-inspired */
+  --background: #f5f4ed;
+  --foreground: #141413;
+  --card: #faf9f5; /* Warm ivory card surface */
+  --card-foreground: #141413;
+  --muted: #f0eee6;
+  --muted-foreground: #87867f;
+  --border: #e8e6dc;
+  --input: #f5f4ed;
+  --input-bg: #f5f4ed;
+  --input-border: #e8e6dc;
+  --input-text: #141413;
+  --input-bg-hover: #ede9e0;
+  --primary: #c96442;
+  --primary-hover: #b05338;
+  --primary-foreground: #faf9f5;
   --accent-color: var(--primary);
-  --secondary: #f2f2f5;
-  --secondary-foreground: #18181b;
+  --secondary: #e8e6dc;
+  --secondary-foreground: #4d4c48;
 
-  /* Neutral Grays (Light Theme) */
-  --surface: #f2f2f5;
-  --surface-subtle: #ededf0;
-  --surface-muted: #ededf0;
-  --surface-elevated: #ffffff;
-  --background-subtle: #f2f2f5;
-  --background-soft: #f2f2f5;
-  --foreground-muted: #71717a;
-  --foreground-dark: #18181b;
-  --border-light: #e4e4e7;
-  --border-subtle: #e4e4e7;
-  --text-gray: #71717a;
-  --text-light-gray: #a1a1aa;
+  /* Neutral Grays (Light Theme) — warm olive/yellow-brown undertones */
+  --surface: #f5f4ed;
+  --surface-subtle: #ede9e0;
+  --surface-muted: #ede9e0;
+  --surface-elevated: #faf9f5;
+  --background-subtle: #f5f4ed;
+  --background-soft: #f5f4ed;
+  --foreground-muted: #87867f;
+  --foreground-dark: #141413;
+  --border-light: #e8e6dc;
+  --border-subtle: #f0eee6;
+  --text-gray: #87867f;
+  --text-light-gray: #b0aea5;
 
   /* ===== STATUS COLORS ===== */
   /* Check-in Status Colors */
@@ -164,12 +164,12 @@
   --token-error: #ff3b30;
   --token-success-contrast: var(--status-checked-in);
 
-  /* Onboarding Colors - All Teal for Brand Consistency */
-  --onboarding-color-favorites: #14b8a6; /* Teal for favorites (Heart icon) */
-  --onboarding-color-checkin: #14b8a6; /* Teal for check-in */
-  --onboarding-color-updates: #14b8a6; /* Teal for notifications */
-  --onboarding-color-status: #14b8a6; /* Teal for class status */
-  --onboarding-logo-gradient: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  /* Onboarding Colors - Terracotta for Brand Consistency */
+  --onboarding-color-favorites: #c96442; /* Terracotta for favorites (Heart icon) */
+  --onboarding-color-checkin: #c96442; /* Terracotta for check-in */
+  --onboarding-color-updates: #c96442; /* Terracotta for notifications */
+  --onboarding-color-status: #c96442; /* Terracotta for class status */
+  --onboarding-logo-gradient: linear-gradient(135deg, #c96442 0%, #b05338 100%);
   --token-warning-contrast: #c2410c;
   --token-error-contrast: #dc2626;
   --token-warning-bg: rgba(251, 191, 36, 0.1);
@@ -189,10 +189,10 @@
   --token-result-withdrawn: #7c3aed;
 
   /* Text Colors */
-  --token-text-primary: #18181b;
-  --token-text-secondary: #52525b;
-  --token-text-tertiary: #71717a;
-  --token-text-muted: #a1a1aa;
+  --token-text-primary: #141413;
+  --token-text-secondary: #5e5d59;
+  --token-text-tertiary: #87867f;
+  --token-text-muted: #b0aea5;
   --token-text-white: #ffffff;
 
   /* In Ring: Blue (active competing) */
@@ -280,8 +280,8 @@
   --overlay-dark-heavy: rgba(15, 15, 18, 0.8); /* 22x - dark glass morphism */
 
   /* ===== SKELETON LOADERS ===== */
-  --skeleton-gradient: linear-gradient(90deg, #f2f2f5 25%, #e8e8ec 50%, #f2f2f5 75%);
-  --skeleton-gradient-dark: linear-gradient(90deg, #1a1a1f 25%, #141417 50%, #1a1a1f 75%);
+  --skeleton-gradient: linear-gradient(90deg, #f5f4ed 25%, #ede9e0 50%, #f5f4ed 75%);
+  --skeleton-gradient-dark: linear-gradient(90deg, #1e1e1b 25%, #141413 50%, #1e1e1b 75%);
 
   /* ===== HOVER EFFECTS ===== */
   --token-hover-lift: translateY(-2px);
@@ -339,45 +339,45 @@
 
 /* ===== DARK THEME ===== */
 .theme-dark {
-  /* UI Colors (Dark Mode) */
-  --background: #0f0f12;
-  --foreground: #f4f4f5;
-  --card: #1a1a1f;
-  --card-foreground: #f4f4f5;
-  --muted: #1a1a1f;
-  --muted-foreground: #71717a;
-  --border: rgba(255, 255, 255, 0.06);
-  --input: #1a1a1f;
-  --input-bg: #1a1a1f;
-  --input-border: #27272a;
-  --input-text: #f4f4f5;
-  --input-bg-hover: #222227;
-  --primary: #14b8a6;
-  --primary-hover: #0d9488;
-  --primary-foreground: #ffffff;
-  --secondary: #1a1a1f;
-  --secondary-foreground: #f4f4f5;
+  /* UI Colors (Dark Mode) — warm olive-dark surfaces */
+  --background: #141413;
+  --foreground: #faf9f5;
+  --card: #1e1e1b;
+  --card-foreground: #faf9f5;
+  --muted: #1e1e1b;
+  --muted-foreground: #87867f;
+  --border: #2e2e2b;
+  --input: #1e1e1b;
+  --input-bg: #1e1e1b;
+  --input-border: #2e2e2b;
+  --input-text: #faf9f5;
+  --input-bg-hover: #252522;
+  --primary: #d97757;
+  --primary-hover: #c96442;
+  --primary-foreground: #faf9f5;
+  --secondary: #1e1e1b;
+  --secondary-foreground: #faf9f5;
 
-  /* Neutral Grays (Dark Theme) */
-  --surface: #1a1a1f;
-  --surface-subtle: #141417;
-  --surface-muted: #0f0f12;
-  --surface-elevated: #222227;
-  --background-subtle: #141417;
-  --background-soft: #222227;
-  --foreground-muted: #a1a1aa;
-  --foreground-dark: #f4f4f5;
-  --border-light: #27272a;
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --text-gray: #71717a;
-  --text-light-gray: #52525b;
+  /* Neutral Grays (Dark Theme) — warm olive-dark tones */
+  --surface: #1e1e1b;
+  --surface-subtle: #141413;
+  --surface-muted: #141413;
+  --surface-elevated: #252522;
+  --background-subtle: #141413;
+  --background-soft: #252522;
+  --foreground-muted: #b0aea5;
+  --foreground-dark: #faf9f5;
+  --border-light: #2e2e2b;
+  --border-subtle: #2e2e2b;
+  --text-gray: #87867f;
+  --text-light-gray: #5e5d59;
 
   /* Glass Morphism (Dark Mode) */
-  --glass-bg: rgba(15, 15, 18, 0.9);
+  --glass-bg: rgba(20, 20, 19, 0.9);
   --glass-border: rgba(255, 255, 255, 0.06);
 
   /* Skeleton Loaders (Dark Mode) */
-  --skeleton-gradient: linear-gradient(90deg, #1a1a1f 25%, #141417 50%, #1a1a1f 75%);
+  --skeleton-gradient: linear-gradient(90deg, #1e1e1b 25%, #141413 50%, #1e1e1b 75%);
 
   /* Check-in Status Colors (darker backgrounds for better dark mode visibility) */
   --status-no-status: #6b7280;
@@ -426,10 +426,10 @@
   --token-result-withdrawn: var(--status-at-gate);
 
   /* Text Colors (Dark Mode) */
-  --token-text-primary: #f4f4f5;
-  --token-text-secondary: #a1a1aa;
-  --token-text-tertiary: #71717a;
-  --token-text-muted: #52525b;
+  --token-text-primary: #faf9f5;
+  --token-text-secondary: #b0aea5;
+  --token-text-tertiary: #87867f;
+  --token-text-muted: #5e5d59;
   --token-text-white: #ffffff;
 
   /* Shadows (Dark Mode - stronger) */

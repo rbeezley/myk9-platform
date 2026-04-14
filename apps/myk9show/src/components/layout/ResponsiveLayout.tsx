@@ -15,7 +15,7 @@ export function ResponsiveLayout({ sidebar, children, header, className }: Respo
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className={cn('flex h-screen bg-gray-50 dark:bg-gray-900', className)}>
+    <div className={cn('flex h-screen bg-gray-50 dark:bg-warm-950', className)}>
       {/* Mobile sidebar backdrop - positioned below header */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -60,7 +60,7 @@ export function ResponsiveLayout({ sidebar, children, header, className }: Respo
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile header with menu button */}
         {header && (
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-background dark:bg-gray-900 lg:hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-warm-600 bg-background dark:bg-warm-950 lg:hidden">
             <Button
               variant="ghost"
               size="sm"
@@ -75,7 +75,7 @@ export function ResponsiveLayout({ sidebar, children, header, className }: Respo
 
         {/* Desktop header */}
         {header && (
-          <div className="hidden lg:block border-b border-gray-200 dark:border-gray-700 bg-background dark:bg-gray-900">
+          <div className="hidden lg:block border-b border-gray-200 dark:border-warm-600 bg-background dark:bg-warm-950">
             {header}
           </div>
         )}
@@ -168,7 +168,7 @@ export function MobileTable({ headers, children, className }: MobileTableProps) 
       {/* Desktop table */}
       <div className="hidden md:block">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+          <thead className="bg-gray-50 dark:bg-warm-900">
             <tr>
               {headers.map((header, index) => (
                 <th
@@ -180,7 +180,7 @@ export function MobileTable({ headers, children, className }: MobileTableProps) 
               ))}
             </tr>
           </thead>
-          <tbody className="bg-card dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="bg-card dark:bg-warm-950 divide-y divide-gray-200 dark:divide-gray-700">
             {children}
           </tbody>
         </table>
@@ -209,7 +209,7 @@ export function ResponsiveTabs({ tabs, activeTab, onTabChange, className }: Resp
     <div className={className}>
       {/* Desktop horizontal tabs */}
       <div className="hidden sm:block">
-        <nav className="flex space-x-8 border-b border-gray-200 dark:border-gray-700">
+        <nav className="flex space-x-8 border-b border-gray-200 dark:border-warm-600">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -233,7 +233,7 @@ export function ResponsiveTabs({ tabs, activeTab, onTabChange, className }: Resp
         <select
           value={activeTab}
           onChange={e => onTabChange(e.target.value)}
-          className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-800 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-card dark:bg-warm-900 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         >
           {tabs.map(tab => (
             <option key={tab.id} value={tab.id}>

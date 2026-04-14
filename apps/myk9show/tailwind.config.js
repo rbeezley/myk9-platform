@@ -12,6 +12,14 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       colors: {
+        /* Warm dark surface scale — replaces cool gray-900/800 in dark mode */
+        warm: {
+          950: '#141413',
+          900: '#1e1e1b',
+          800: '#252522',
+          700: '#2e2e2b',
+          600: '#3a3a36',
+        },
         background: 'var(--background)',
         foreground: 'var(--foreground)',
         'background-alt': 'var(--background-alt)',

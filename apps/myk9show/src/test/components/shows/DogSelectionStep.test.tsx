@@ -120,7 +120,7 @@ describe('DogSelectionStep', () => {
       isLoading: false,
     } as ReturnType<typeof useDogStoreCompat>);
 
-    const { user } = render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
+    render(<DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />);
 
     expect(screen.queryByText('Selected')).not.toBeInTheDocument();
 

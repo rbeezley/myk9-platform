@@ -121,7 +121,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
   return (
     <div className="max-w-2xl mx-auto p-4 pb-20">
       {/* Header */}
-      <div className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+      <div className="bg-card dark:bg-warm-900 rounded-lg shadow-sm p-6 mb-4">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
           Multi-Dog Schedule
         </h2>
@@ -231,7 +231,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
                     onClick={() =>
                       startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
                     }
-                    className="bg-card dark:bg-gray-800 rounded-lg shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
+                    className="bg-card dark:bg-warm-900 rounded-lg shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -295,7 +295,7 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
             return (
               <div
                 key={group.dogId}
-                className="bg-card dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden"
+                className="bg-card dark:bg-warm-900 rounded-lg shadow-sm overflow-hidden"
               >
                 <button
                   onClick={() => setSelectedDog(isSelected ? null : group.dogId)}
@@ -321,14 +321,14 @@ const MultiDogSchedule: React.FC<MultiDogScheduleProps> = ({ entries }) => {
                 </button>
 
                 {isSelected && (
-                  <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 space-y-3">
+                  <div className="border-t border-gray-200 dark:border-warm-600 px-6 py-4 space-y-3">
                     {group.entries.map(entry => (
                       <div
                         key={entry.id}
                         onClick={() =>
                           startTransition(() => navigate(`/exhibitor/check-in/${entry.id}`))
                         }
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-warm-950 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-warm-900"
                       >
                         <div>
                           <div className="font-medium text-gray-900 dark:text-gray-100">

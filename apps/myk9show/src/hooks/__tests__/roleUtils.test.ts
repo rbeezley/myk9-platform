@@ -53,19 +53,19 @@ describe('getDashboardRoute', () => {
     expect(getDashboardRoute([UserRole.SECRETARY])).toBe('/secretary/dashboard');
   });
 
-  it('routes JUDGE to /exhibitor/dashboard (intentional — no judge dashboard yet)', () => {
-    expect(getDashboardRoute([UserRole.JUDGE])).toBe('/exhibitor/dashboard');
+  it('routes JUDGE to /exhibitor/entries (intentional — no judge dashboard yet)', () => {
+    expect(getDashboardRoute([UserRole.JUDGE])).toBe('/exhibitor/entries');
   });
 
-  it('routes EXHIBITOR to /exhibitor/dashboard', () => {
-    expect(getDashboardRoute([UserRole.EXHIBITOR])).toBe('/exhibitor/dashboard');
+  it('routes EXHIBITOR to /exhibitor/entries', () => {
+    expect(getDashboardRoute([UserRole.EXHIBITOR])).toBe('/exhibitor/entries');
   });
 
   it('routes SITE_ADMIN + EXHIBITOR multi-role user to /admin/dashboard', () => {
     expect(getDashboardRoute([UserRole.EXHIBITOR, UserRole.SITE_ADMIN])).toBe('/admin/dashboard');
   });
 
-  it('routes STEWARD (no dedicated dashboard) to /exhibitor/dashboard fallback', () => {
-    expect(getDashboardRoute([UserRole.STEWARD])).toBe('/exhibitor/dashboard');
+  it('routes STEWARD (no dedicated dashboard) to /exhibitor/entries fallback', () => {
+    expect(getDashboardRoute([UserRole.STEWARD])).toBe('/exhibitor/entries');
   });
 });

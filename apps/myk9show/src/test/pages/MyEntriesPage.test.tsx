@@ -25,14 +25,32 @@ vi.mock('@/services/AuditService', () => ({
   },
 }));
 vi.mock('@/services/LoggingService', () => ({
-  logger: {
-    error: vi.fn(),
-    log: vi.fn(),
-    info: vi.fn(),
+  LoggingService: {
+    getInstance: () => ({
+      error: vi.fn(),
+      log: vi.fn(),
+      info: vi.fn(),
+    }),
   },
 }));
 vi.mock('@/services/database/queries/entryQueries', () => ({
   getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null }),
+}));
+vi.mock('@/hooks/queries/useDogsDatabase', () => ({
+  useDogsByOwnerQuery: () => ({ data: [] }),
+}));
+vi.mock('@/hooks/queries/useShowDayData', () => ({
+  useShowDayData: () => ({ isShowDay: false }),
+}));
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useEntryStatisticsQuery: () => ({ data: null }),
+  useEntriesQuery: () => ({ data: [] }),
+}));
+vi.mock('@/components/exhibitor/CompactStatsRow', () => ({
+  CompactStatsRow: () => null,
+}));
+vi.mock('@/components/exhibitor/DogStrip', () => ({
+  DogStrip: () => null,
 }));
 
 // Mock entry data
@@ -102,6 +120,7 @@ describe('MyEntriesPage UI Improvements', () => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
+      userWithRoles: null,
       isAuthenticated: true,
     });
   });
@@ -111,7 +130,7 @@ describe('MyEntriesPage UI Improvements', () => {
       renderWithProviders(<MyEntriesPage />);
 
       // Wait for initial render - use heading role to be specific
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       // Verify no fake trend percentages exist
       expect(screen.queryByText('+5%')).not.toBeInTheDocument();
@@ -123,7 +142,7 @@ describe('MyEntriesPage UI Improvements', () => {
     it('should display meaningful stat card labels', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       // Should have stat cards with meaningful titles
       expect(screen.getByText('Total Entries')).toBeInTheDocument();
@@ -136,7 +155,7 @@ describe('MyEntriesPage UI Improvements', () => {
     it('should display "Enter a Show" button in header', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       const enterShowButton = screen.getByRole('link', { name: /enter a show/i });
       expect(enterShowButton).toBeInTheDocument();
@@ -146,7 +165,7 @@ describe('MyEntriesPage UI Improvements', () => {
     it('should display Refresh button alongside Enter a Show', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
@@ -156,7 +175,7 @@ describe('MyEntriesPage UI Improvements', () => {
     it('should render tabs without redundant counts', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       // Tabs should have simple labels without counts
       expect(screen.getByRole('tab', { name: /All/i })).toBeInTheDocument();
@@ -170,7 +189,7 @@ describe('MyEntriesPage UI Improvements', () => {
     it('should have scrollable tab container for mobile', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       const tabList = screen.getByRole('tablist');
       expect(tabList).toHaveClass('overflow-x-auto');
@@ -181,7 +200,7 @@ describe('MyEntriesPage UI Improvements', () => {
     it('should display helpful empty state message', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       // When no entries, should show helpful message - use getAllBy since there may be multiple matches
       const emptyMessages = screen.getAllByText(/no entries found|haven't entered any shows/i);
@@ -191,7 +210,7 @@ describe('MyEntriesPage UI Improvements', () => {
     it('should display Browse All Shows button in empty state', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('heading', { name: 'My Entries' });
+      await screen.findByRole('tablist');
 
       const browseButton = screen.getByRole('link', { name: /browse all shows/i });
       expect(browseButton).toBeInTheDocument();
@@ -204,6 +223,7 @@ describe('Receipt Button Visibility', () => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
+      userWithRoles: null,
       isAuthenticated: true,
     });
   });
@@ -237,6 +257,7 @@ describe('Status Stepper Integration', () => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
+      userWithRoles: null,
       isAuthenticated: true,
     });
   });
@@ -244,7 +265,7 @@ describe('Status Stepper Integration', () => {
   it('should use EntryStatusStepper instead of progress bar', async () => {
     renderWithProviders(<MyEntriesPage />);
 
-    await screen.findByRole('heading', { name: 'My Entries' });
+    await screen.findByRole('tablist');
 
     // Should NOT have the old progress elements
     expect(screen.queryByText('Entry Progress')).not.toBeInTheDocument();

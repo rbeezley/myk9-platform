@@ -32,27 +32,66 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Manage ───────────────────────────────────────────────────────────────
-  it('manage sidebar includes Results Control', () => {
+  it('manage sidebar items are in lifecycle order', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
-    expect(titles).toContain('Results Control');
+    expect(titles).toEqual([
+      'Dashboard',
+      'Entries',
+      'Tasks',
+      'Schedule',
+      'Day of Show',
+      'Reports',
+      'Results Control',
+      'Submit Results',
+    ]);
   });
 
-  it('manage sidebar Results Control href is /secretary/results-control', () => {
+  it('manage sidebar omits Create Show, Messages, and parked items', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const titles = group?.items.map(i => i.title) ?? [];
+    for (const absent of [
+      'Create Show',
+      'Messages',
+      'Check-In',
+      'Volunteers',
+      'Settings',
+      'Wait List',
+      'Run Orders',
+      'Pipeline',
+    ]) {
+      expect(titles, `"${absent}" should be absent`).not.toContain(absent);
+    }
+  });
+
+  it('manage Dashboard href is /secretary/dashboard', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Dashboard');
+    expect(item?.href).toBe('/secretary/dashboard');
+  });
+
+  it('manage Schedule href is /secretary/run-order', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Schedule');
+    expect(item?.href).toBe('/secretary/run-order');
+  });
+
+  it('manage Day of Show href is /secretary/day-of', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const group = config.groups.find(g => g.title === 'Manage');
+    const item = group?.items.find(i => i.title === 'Day of Show');
+    expect(item?.href).toBe('/secretary/day-of');
+  });
+
+  it('manage Results Control href is /secretary/results-control', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Results Control');
     expect(item?.href).toBe('/secretary/results-control');
-  });
-
-  it('manage sidebar omits parked items', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const titles = group?.items.map(i => i.title) ?? [];
-    for (const parked of ['Check-In', 'Volunteers', 'Settings', 'Wait List']) {
-      expect(titles, `"${parked}" should be absent`).not.toContain(parked);
-    }
   });
 
   // ── Judging ──────────────────────────────────────────────────────────────
@@ -69,32 +108,38 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Exhibitor-only ───────────────────────────────────────────────────────
-  it('exhibitor-only sidebar omits Clubs, Calendar, Messages', () => {
+  it('exhibitor-only sidebar has exactly My Shows, Show Day, Find Shows', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    for (const hidden of ['Clubs', 'Calendar', 'Messages']) {
-      expect(allTitles, `"${hidden}" should be absent`).not.toContain(hidden);
+    expect(allTitles).toEqual(['My Shows', 'Show Day', 'Find Shows']);
+  });
+
+  it('exhibitor-only My Shows href is /exhibitor/entries', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'My Shows');
+    expect(item?.href).toBe('/exhibitor/entries');
+  });
+
+  it('exhibitor-only sidebar omits Profile, Settings, My Dogs, My Entries, Home', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
+    for (const absent of ['Profile', 'Settings', 'My Dogs', 'My Entries', 'Home']) {
+      expect(allTitles, `"${absent}" should be absent`).not.toContain(absent);
     }
   });
 
-  it('exhibitor-only sidebar includes Profile', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
-    const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toContain('Profile');
-  });
-
-  it('exhibitor-only Profile href is /profile', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
-    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'Profile');
-    expect(item?.href).toBe('/profile');
-  });
-
   // ── Browse (multi-role) ───────────────────────────────────────────────────
-  it('browse section for secretary omits Clubs and Calendar', () => {
+  it('browse section for secretary includes Shows, Dogs, Clubs, People', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const browse = config.groups.find(g => g.title === 'Browse');
     const titles = browse?.items.map(i => i.title) ?? [];
-    expect(titles).not.toContain('Clubs');
+    expect(titles).toEqual(['Shows', 'Dogs', 'Clubs', 'People']);
+  });
+
+  it('browse section for secretary omits Calendar', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const browse = config.groups.find(g => g.title === 'Browse');
+    const titles = browse?.items.map(i => i.title) ?? [];
     expect(titles).not.toContain('Calendar');
   });
 
@@ -112,11 +157,24 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(titles).toContain('People');
   });
 
-  // ── My Shows (multi-role exhibitor) ──────────────────────────────────────
-  it('my shows section omits Entry History', () => {
+  // ── As Exhibitor (multi-role exhibitor) ──────────────────────────────────
+  it('as exhibitor section has exactly one item — My Shows — for secretary+exhibitor', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
-    const myShows = config.groups.find(g => g.title === 'My Shows');
-    const titles = myShows?.items.map(i => i.title) ?? [];
-    expect(titles).not.toContain('Entry History');
+    const group = config.groups.find(g => g.title === 'As Exhibitor');
+    expect(group).toBeDefined();
+    expect(group?.items.map(i => i.title)).toEqual(['My Shows']);
+  });
+
+  it('as exhibitor My Shows href is /exhibitor/entries', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
+    const group = config.groups.find(g => g.title === 'As Exhibitor');
+    const item = group?.items.find(i => i.title === 'My Shows');
+    expect(item?.href).toBe('/exhibitor/entries');
+  });
+
+  it('no section is titled My Shows for secretary+exhibitor', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
+    const oldSection = config.groups.find(g => g.title === 'My Shows');
+    expect(oldSection).toBeUndefined();
   });
 });

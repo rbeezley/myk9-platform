@@ -19,16 +19,16 @@ interface UseRoleRedirectOptions {
 export const useRoleRedirect = (options: UseRoleRedirectOptions = {}) => {
   const { enabled = true, redirectOnRoleChange = false } = options;
   const navigate = useNavigate();
-  const { user, userWithRoles, loading } = useAuthContext();
+  const { user, userWithRoles, loading, rbacLoading } = useAuthContext();
 
   const performRoleBasedRedirect = useCallback(() => {
-    // Don't redirect if disabled, still loading, or not authenticated
-    if (!enabled || loading || !user) return;
+    // Don't redirect if disabled, still loading, RBAC not yet loaded, or not authenticated
+    if (!enabled || loading || rbacLoading || !user || !userWithRoles) return;
 
     const roles = userWithRoles?.roles ?? [];
     const destination = getDashboardRoute(roles);
     navigate(destination, { replace: true });
-  }, [enabled, loading, user, userWithRoles, navigate]);
+  }, [enabled, loading, rbacLoading, user, userWithRoles, navigate]);
 
   // Effect for initial auth state changes (login)
   useEffect(() => {

@@ -76,7 +76,8 @@ function buildColumns(
   densityMode: NonNullable<UserTableProps['densityMode']>,
   onViewUser: (user: User) => void,
   onEditUser: (user: User) => void,
-  onDeleteUser: (user: User) => void
+  onDeleteUser: (user: User) => void,
+  onManageRolesUser?: (user: User) => void
 ): ColumnDef<AdminUser, unknown>[] {
   const density = DENSITY_CONFIG[densityMode];
 
@@ -337,6 +338,7 @@ function buildColumns(
               onView={onViewUser}
               onEdit={onEditUser}
               onDelete={onDeleteUser}
+              {...(onManageRolesUser ? { onManageRoles: onManageRolesUser } : {})}
             />
           </span>
         );
@@ -356,6 +358,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   onSelectUser,
   onSelectAll,
   onUserClick,
+  onManageRoles,
   currentPage,
   totalPages,
   onPageChange,
@@ -418,7 +421,8 @@ export const UserTable: React.FC<UserTableProps> = ({
         densityMode,
         handleViewUser,
         handleEditUser,
-        handleDeleteUser
+        handleDeleteUser,
+        onManageRoles
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedUsers, onSelectUser, onSelectAll, users, searchTerm, densityMode]

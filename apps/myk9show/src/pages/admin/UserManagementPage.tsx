@@ -24,6 +24,7 @@ import { UserFilters } from '@/components/admin/users/UserFilters';
 import { CreateUserDialog } from '@/components/admin/users/CreateUserDialog';
 import { BulkActionsBar } from '@/components/admin/users/BulkActionsBar';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
+import { ManageUserRolesDialog } from '@/components/admin/permissions/ManageUserRolesDialog';
 // Extracted modules
 import type { UserFilter, SelectedUser } from './UserManagementPage.types';
 import { DEFAULT_USER_FILTER } from './UserManagementPage.types';
@@ -50,6 +51,7 @@ const UserManagementPage: React.FC = () => {
   const [showUserEditPanel, setShowUserEditPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [roleAssignTarget, setRoleAssignTarget] = useState<User | null>(null);
 
   // Data fetching with error handling
   const { data: users = [], isLoading, error, refetch } = useAdminUsersQuery(filters.showDeleted);
@@ -100,6 +102,10 @@ const UserManagementPage: React.FC = () => {
   const handleUserClick = (user: User) => {
     setSelectedUser(user);
     setShowUserEditPanel(true);
+  };
+
+  const handleManageRoles = (user: User) => {
+    setRoleAssignTarget(user);
   };
 
   const handleEditPanelSave = async (userData: Partial<User>) => {
@@ -259,6 +265,7 @@ const UserManagementPage: React.FC = () => {
               onSelectUser={handleSelectUser}
               onSelectAll={handleSelectAll}
               onUserClick={handleUserClick}
+              onManageRoles={handleManageRoles}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
@@ -295,6 +302,18 @@ const UserManagementPage: React.FC = () => {
           }
           initialUserData={selectedUser}
           onSave={handleEditPanelSave}
+        />
+      )}
+
+      {/* Manage Roles Dialog */}
+      {roleAssignTarget && (
+        <ManageUserRolesDialog
+          open={!!roleAssignTarget}
+          onOpenChange={open => {
+            if (!open) setRoleAssignTarget(null);
+          }}
+          user={roleAssignTarget}
+          onSaved={refetch}
         />
       )}
     </PageShell>

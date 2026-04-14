@@ -127,6 +127,17 @@ export class RoleManager {
       const showId = request.scopeType === 'show' ? (request.scopeId ?? null) : null;
       const currentUser = (await supabase.auth.getUser()).data.user;
 
+      // Resolve auth UUID → people.id for granted_by (FK references people.id, not auth.users)
+      let grantedByPeopleId: string | null = null;
+      if (currentUser?.id) {
+        const { data: personRow } = await supabase
+          .from('people')
+          .select('id')
+          .eq('auth_user_id', currentUser.id)
+          .maybeSingle();
+        grantedByPeopleId = personRow?.id ?? null;
+      }
+
       const { data, error } = await supabase
         .from('user_roles')
         .insert({
@@ -134,7 +145,7 @@ export class RoleManager {
           role_id: roleId,
           club_id: clubId,
           show_id: showId,
-          granted_by: currentUser?.id ?? null,
+          granted_by: grantedByPeopleId,
           granted_at: new Date().toISOString(),
           expires_at: request.expiresAt ?? null,
         })

@@ -11,6 +11,7 @@ import {
 // Home page loaded synchronously for LCP optimization
 import Home from './pages/Home';
 import { logger } from '@/services/LoggingService';
+import { getDashboardRoute } from '@/hooks/roleUtils';
 
 // Lazy load non-critical pages to improve initial bundle size
 const ExhibitorOnboardingPage = React.lazy(
@@ -103,10 +104,10 @@ const PageLoadingFallback = () => (
   </div>
 );
 
-// Redirect authenticated users to /shows, show landing page for guests
+// Redirect authenticated users to their role dashboard, show landing page for guests
 const HomeRedirect = () => {
-  const { user, loading } = useAuthContext();
-  if (loading) return <PageLoadingFallback />;
+  const { user, loading, rbacLoading, userWithRoles } = useAuthContext();
+  if (loading || rbacLoading) return <PageLoadingFallback />;
   if (user) {
     const params = new URLSearchParams(window.location.search);
     if (params.get('wizard') === 'true') {
@@ -116,7 +117,8 @@ const HomeRedirect = () => {
     if (params.get('onboarding') === 'true') {
       return <Home />;
     }
-    return <Navigate to="/exhibitor/dashboard" replace />;
+    const destination = getDashboardRoute(userWithRoles?.roles ?? []);
+    return <Navigate to={destination} replace />;
   }
   return <Home />;
 };

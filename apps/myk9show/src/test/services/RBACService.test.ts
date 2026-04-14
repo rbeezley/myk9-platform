@@ -391,42 +391,11 @@ describe('RBACService', () => {
     });
 
     it('should allow self-assignment for site admins', async () => {
-      // isUserSiteAdmin → checkPermission('admin:manage') → RPC call 1: true
-      // canAssignRole → checkPermission('role:assign') → RPC call 2: true
-      // getAllRoles → from('roles').select('*').order('name') → returns secretary role
-      // getRolePermissions → from('role_permissions').select(...).eq('role_id', id) → returns []
-      mockSupabase.rpc
-        .mockResolvedValueOnce({ data: true, error: null }) // admin:manage
-        .mockResolvedValueOnce({ data: true, error: null }); // role:assign
-
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'roles') {
-          return {
-            select: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    id: 'role1',
-                    name: 'secretary',
-                    is_system: false,
-                    permissions: [],
-                    description: null,
-                    created_at: '',
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === 'role_permissions') {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          };
-        }
-        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      // checkSiteAdminDirectly → get_user_roles RPC → returns site_admin role
+      // site admin short-circuits → isValid: true immediately
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [{ role_name: 'site_admin', is_active: true }],
+        error: null,
       });
 
       const result = await rbacService.validatePermissionEscalation(

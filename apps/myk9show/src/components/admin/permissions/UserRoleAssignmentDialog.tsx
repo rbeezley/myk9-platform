@@ -42,16 +42,20 @@ interface UserRoleAssignmentDialogProps {
     expiresAt?: string | undefined;
   }) => Promise<void>;
   roles: Role[];
+  preselectedUserId?: string;
+  preselectedUserLabel?: string;
 }
 
 export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> = ({
   open,
   onOpenChange,
   onAssign,
-  roles
+  roles,
+  preselectedUserId,
+  preselectedUserLabel,
 }) => {
   const [formData, setFormData] = useState({
-    userId: '',
+    userId: preselectedUserId ?? '',
     userEmail: '',
     roleId: '',
     scopeType: '',
@@ -61,9 +65,16 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
   const [isAssigning, setIsAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync preselectedUserId when dialog opens for a different user
+  React.useEffect(() => {
+    if (open) {
+      setFormData(prev => ({ ...prev, userId: preselectedUserId ?? '' }));
+    }
+  }, [open, preselectedUserId]);
+
   const resetForm = () => {
     setFormData({
-      userId: '',
+      userId: preselectedUserId ?? '',
       userEmail: '',
       roleId: '',
       scopeType: '',
@@ -75,7 +86,7 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.userId || !formData.roleId) {
       setError('User ID and Role are required');
       return;
@@ -126,7 +137,9 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
             Assign Role to User
           </DialogTitle>
           <DialogDescription>
-            Assign a role to a user with optional scope and expiration settings.
+            {preselectedUserLabel
+              ? `Assign a role to ${preselectedUserLabel}.`
+              : 'Assign a role to a user with optional scope and expiration settings.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -141,32 +154,54 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
 
           {/* User Information */}
           <div className="space-y-4">
-            <FormField label="User ID" fieldId="user-id" required hint="The unique identifier for the user in the system">
-              <Input
-                id="user-id"
-                value={formData.userId}
-                onChange={(e) => setFormData(prev => ({ ...prev, userId: e.target.value }))}
-                placeholder="Enter user UUID"
-                required
-              />
-            </FormField>
-
-            <FormField label="User Email (Optional)" fieldId="user-email" hint="For reference only, not used for assignment">
-              <Input
-                id="user-email"
-                type="email"
-                value={formData.userEmail}
-                onChange={(e) => setFormData(prev => ({ ...prev, userEmail: e.target.value }))}
-                placeholder="user@example.com"
-              />
-            </FormField>
+            {preselectedUserId ? (
+              <div className="rounded-md bg-muted px-3 py-2 text-sm">
+                <span className="text-muted-foreground">Assigning role to: </span>
+                <span className="font-medium">{preselectedUserLabel ?? preselectedUserId}</span>
+              </div>
+            ) : (
+              <>
+                <FormField
+                  label="User ID"
+                  fieldId="user-id"
+                  required
+                  hint="The unique identifier for the user in the system"
+                >
+                  <Input
+                    id="user-id"
+                    value={formData.userId}
+                    onChange={e => setFormData(prev => ({ ...prev, userId: e.target.value }))}
+                    placeholder="Enter user UUID"
+                    required
+                  />
+                </FormField>
+                <FormField
+                  label="User Email (Optional)"
+                  fieldId="user-email"
+                  hint="For reference only, not used for assignment"
+                >
+                  <Input
+                    id="user-email"
+                    type="email"
+                    value={formData.userEmail}
+                    onChange={e => setFormData(prev => ({ ...prev, userEmail: e.target.value }))}
+                    placeholder="user@example.com"
+                  />
+                </FormField>
+              </>
+            )}
           </div>
 
           {/* Role Selection */}
-          <FormField label="Role" fieldId="role" required hint={selectedRole?.description ?? undefined}>
+          <FormField
+            label="Role"
+            fieldId="role"
+            required
+            hint={selectedRole?.description ?? undefined}
+          >
             <Select
               value={formData.roleId}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, roleId: value }))}
+              onValueChange={value => setFormData(prev => ({ ...prev, roleId: value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a role" />
@@ -193,11 +228,13 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
             <FormField label="Scope Type" fieldId="scope-type">
               <Select
                 value={formData.scopeType}
-                onValueChange={(value) => setFormData(prev => ({
-                  ...prev,
-                  scopeType: value,
-                  scopeId: '' // Clear scope ID when type changes
-                }))}
+                onValueChange={value =>
+                  setFormData(prev => ({
+                    ...prev,
+                    scopeType: value,
+                    scopeId: '', // Clear scope ID when type changes
+                  }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -213,11 +250,15 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
             </FormField>
 
             {formData.scopeType && (
-              <FormField label="Scope ID" fieldId="scope-id" hint={`The ID of the ${formData.scopeType} this role assignment applies to`}>
+              <FormField
+                label="Scope ID"
+                fieldId="scope-id"
+                hint={`The ID of the ${formData.scopeType} this role assignment applies to`}
+              >
                 <Input
                   id="scope-id"
                   value={formData.scopeId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, scopeId: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, scopeId: e.target.value }))}
                   placeholder={`Enter ${formData.scopeType} ID`}
                 />
               </FormField>
@@ -225,16 +266,17 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
           </div>
 
           {/* Expiration Date */}
-          <FormField label="Expiration Date (Optional)" fieldId="expiration-date" hint="Leave empty for permanent assignment">
+          <FormField
+            label="Expiration Date (Optional)"
+            fieldId="expiration-date"
+            hint="Leave empty for permanent assignment"
+          >
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                >
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {expirationDate ? (
-                    format(expirationDate, "PPP")
+                    format(expirationDate, 'PPP')
                   ) : (
                     <span>Pick an expiration date</span>
                   )}
@@ -245,7 +287,7 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
                   mode="single"
                   selected={expirationDate}
                   onSelect={setExpirationDate}
-                  disabled={(date) => date < new Date()}
+                  disabled={date => date < new Date()}
                   initialFocus
                 />
               </PopoverContent>
@@ -253,9 +295,9 @@ export const UserRoleAssignmentDialog: React.FC<UserRoleAssignmentDialogProps> =
           </FormField>
 
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isAssigning}
             >

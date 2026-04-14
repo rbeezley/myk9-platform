@@ -72,50 +72,16 @@ describe('Privilege Escalation Security Tests', () => {
     });
 
     it('should allow site admins to assign roles to themselves', async () => {
-      // isUserSiteAdmin → checkPermission('admin:manage') → RPC: true
-      // canAssignRole → checkPermission('role:assign') → RPC: true
-      // getAllRoles → from('roles').select('*').order('name') → returns secretary role
-      // getRolePermissions → from('role_permissions').select(...).eq(...) → returns []
-      mockSupabase.rpc.mockImplementation((funcName: string, params: Record<string, unknown>) => {
-        if (funcName === 'user_has_permission') {
-          if (params.permission_name === 'admin:manage') {
-            return Promise.resolve({ data: true, error: null });
-          }
-          if (params.permission_name === 'role:assign') {
-            return Promise.resolve({ data: true, error: null });
-          }
+      // checkSiteAdminDirectly → get_user_roles RPC → returns site_admin
+      // site admin short-circuits → isValid: true immediately
+      mockSupabase.rpc.mockImplementation((funcName: string) => {
+        if (funcName === 'get_user_roles') {
+          return Promise.resolve({
+            data: [{ role_name: 'site_admin', is_active: true }],
+            error: null,
+          });
         }
         return Promise.resolve({ data: false, error: null });
-      });
-
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'roles') {
-          return {
-            select: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    id: 'sec-role',
-                    name: 'secretary',
-                    is_system: false,
-                    permissions: [],
-                    description: null,
-                    created_at: '',
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === 'role_permissions') {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          };
-        }
-        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
       });
 
       const validation = await rbacService.validatePermissionEscalation(
@@ -279,15 +245,16 @@ describe('Privilege Escalation Security Tests', () => {
     });
 
     it('should allow site admins to exceed normal bulk limits', async () => {
-      // Mock site admin — bulk_assign + admin:manage both true
+      // bulk_assign via user_has_permission; site admin via get_user_roles direct check
       mockSupabase.rpc.mockImplementation((funcName: string, params: Record<string, unknown>) => {
-        if (funcName === 'user_has_permission') {
-          if (params.permission_name === 'role:bulk_assign') {
-            return Promise.resolve({ data: true, error: null });
-          }
-          if (params.permission_name === 'admin:manage') {
-            return Promise.resolve({ data: true, error: null }); // Site admin
-          }
+        if (funcName === 'user_has_permission' && params.permission_name === 'role:bulk_assign') {
+          return Promise.resolve({ data: true, error: null });
+        }
+        if (funcName === 'get_user_roles') {
+          return Promise.resolve({
+            data: [{ role_name: 'site_admin', is_active: true }],
+            error: null,
+          });
         }
         return Promise.resolve({ data: false, error: null });
       });
@@ -604,12 +571,13 @@ describe('Privilege Escalation Security Tests', () => {
     });
 
     it('should properly validate site admin permissions', async () => {
-      // Mock site admin check
-      mockSupabase.rpc.mockImplementation((funcName, params) => {
-        if (funcName === 'user_has_permission') {
-          if (params.permission_name === 'admin:manage') {
-            return Promise.resolve({ data: true, error: null }); // Is site admin
-          }
+      // get_user_roles returns site_admin for any user in this mock
+      mockSupabase.rpc.mockImplementation((funcName: string) => {
+        if (funcName === 'get_user_roles') {
+          return Promise.resolve({
+            data: [{ role_name: 'site_admin', is_active: true }],
+            error: null,
+          });
         }
         return Promise.resolve({ data: true, error: null });
       });
@@ -618,7 +586,7 @@ describe('Privilege Escalation Security Tests', () => {
       expect(isSiteAdmin).toBe(true);
 
       const isRegularAdmin = await rbacService.isUserSiteAdmin(REGULAR_USER_ID);
-      expect(isRegularAdmin).toBe(true); // This is mocked to return true for all in this test
+      expect(isRegularAdmin).toBe(true); // mocked to return site_admin for all in this test
     });
   });
 

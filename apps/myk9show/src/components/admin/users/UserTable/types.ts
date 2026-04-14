@@ -22,6 +22,7 @@ export interface UserTableProps {
   onSelectUser: (user: import('@/types/user-types').User, selected: boolean) => void;
   onSelectAll: (selected: boolean) => void;
   onUserClick: (user: import('@/types/user-types').User) => void;
+  onManageRoles?: (user: import('@/types/user-types').User) => void;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;

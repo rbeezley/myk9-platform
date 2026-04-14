@@ -19,9 +19,16 @@ interface RowActionsProps {
   onView: (user: User) => void;
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
+  onManageRoles?: (user: User) => void;
 }
 
-export const RowActions: React.FC<RowActionsProps> = ({ user, onView, onEdit, onDelete }) => {
+export const RowActions: React.FC<RowActionsProps> = ({
+  user,
+  onView,
+  onEdit,
+  onDelete,
+  onManageRoles,
+}) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -38,7 +45,10 @@ export const RowActions: React.FC<RowActionsProps> = ({ user, onView, onEdit, on
           <Edit className="h-4 w-4" />
           Edit User
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onView(user)} className="myk9-table-dropdown-item">
+        <DropdownMenuItem
+          onClick={() => (onManageRoles ? onManageRoles(user) : onView(user))}
+          className="myk9-table-dropdown-item"
+        >
           <Shield className="h-4 w-4" />
           Manage Roles
         </DropdownMenuItem>

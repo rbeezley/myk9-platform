@@ -11,13 +11,26 @@ export class SecurityValidator {
   constructor(
     private checkPermission: (userId: string, permission: string) => Promise<boolean>,
     private getAllRoles: () => Promise<Role[]>,
-    private getRolePermissions: (roleId: string) => Promise<{ permission_id: string; permission: Permission }[]>
+    private getRolePermissions: (
+      roleId: string
+    ) => Promise<{ permission_id: string; permission: Permission }[]>,
+    // Direct site-admin check that bypasses role_permissions (which is currently empty).
+    // Called with the auth UUID of the actor.
+    private checkSiteAdminDirectly?: (authUserId: string) => Promise<boolean>
   ) {}
 
   /**
-   * Check if user is a site admin
+   * Check if user is a site admin.
+   * Uses the direct check when available (role_permissions table is currently empty).
    */
   async isUserSiteAdmin(userId: string): Promise<boolean> {
+    if (this.checkSiteAdminDirectly) {
+      try {
+        return await this.checkSiteAdminDirectly(userId);
+      } catch {
+        return false;
+      }
+    }
     return await this.checkPermission(userId, 'admin:manage');
   }
 
@@ -37,15 +50,18 @@ export class SecurityValidator {
     roleName: string
   ): Promise<{ isValid: boolean; reason?: string }> {
     try {
+      // Site admins bypass all permission checks
+      const isSiteAdmin = await this.isUserSiteAdmin(actorId);
+      if (isSiteAdmin) {
+        return { isValid: true };
+      }
+
       // Prevent self-privilege escalation for non-site-admins
       if (actorId === targetUserId) {
-        const isSiteAdmin = await this.isUserSiteAdmin(actorId);
-        if (!isSiteAdmin) {
-          return {
-            isValid: false,
-            reason: 'Users cannot assign roles to themselves unless they are site administrators'
-          };
-        }
+        return {
+          isValid: false,
+          reason: 'Users cannot assign roles to themselves unless they are site administrators',
+        };
       }
 
       // Check if actor has permission to assign this specific role
@@ -53,7 +69,7 @@ export class SecurityValidator {
       if (!canAssignRole) {
         return {
           isValid: false,
-          reason: 'User does not have permission to assign roles'
+          reason: 'User does not have permission to assign roles',
         };
       }
 
@@ -64,7 +80,7 @@ export class SecurityValidator {
       if (!targetRole) {
         return {
           isValid: false,
-          reason: 'Target role does not exist'
+          reason: 'Target role does not exist',
         };
       }
 
@@ -74,7 +90,7 @@ export class SecurityValidator {
         if (!isSiteAdmin) {
           return {
             isValid: false,
-            reason: 'Only site administrators can assign system roles'
+            reason: 'Only site administrators can assign system roles',
           };
         }
       }
@@ -90,7 +106,7 @@ export class SecurityValidator {
         if (!isSiteAdmin) {
           return {
             isValid: false,
-            reason: 'Only site administrators can assign roles with administrative permissions'
+            reason: 'Only site administrators can assign roles with administrative permissions',
           };
         }
       }
@@ -100,7 +116,7 @@ export class SecurityValidator {
       logger.error('Permission escalation validation failed:', 'rbac', {}, error as Error);
       return {
         isValid: false,
-        reason: 'Security validation failed due to system error'
+        reason: 'Security validation failed due to system error',
       };
     }
   }
@@ -120,7 +136,7 @@ export class SecurityValidator {
       if (!canPerformBulkOps) {
         return {
           isValid: false,
-          reason: 'User does not have permission to perform bulk operations'
+          reason: 'User does not have permission to perform bulk operations',
         };
       }
 
@@ -131,7 +147,7 @@ export class SecurityValidator {
       if (affectedUsers.length > maxBulkSize) {
         return {
           isValid: false,
-          reason: `Bulk operation size exceeds limit (${maxBulkSize} users)`
+          reason: `Bulk operation size exceeds limit (${maxBulkSize} users)`,
         };
       }
 
@@ -144,7 +160,7 @@ export class SecurityValidator {
           if (role && role.is_system && !isSiteAdmin) {
             return {
               isValid: false,
-              reason: 'Bulk assignment of system roles requires site administrator privileges'
+              reason: 'Bulk assignment of system roles requires site administrator privileges',
             };
           }
         }
@@ -155,7 +171,7 @@ export class SecurityValidator {
       logger.error('Bulk operation validation failed:', 'rbac', {}, error as Error);
       return {
         isValid: false,
-        reason: 'Security validation failed due to system error'
+        reason: 'Security validation failed due to system error',
       };
     }
   }
@@ -163,9 +179,7 @@ export class SecurityValidator {
   /**
    * Validate role permission integrity
    */
-  async validateRolePermissionIntegrity(
-    getAllPermissions: () => Promise<Permission[]>
-  ): Promise<{
+  async validateRolePermissionIntegrity(getAllPermissions: () => Promise<Permission[]>): Promise<{
     isValid: boolean;
     issues: string[];
   }> {
@@ -188,13 +202,13 @@ export class SecurityValidator {
 
       return {
         isValid: issues.length === 0,
-        issues
+        issues,
       };
     } catch (error) {
       logger.error('Role permission integrity validation failed:', 'rbac', {}, error as Error);
       return {
         isValid: false,
-        issues: [`Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`]
+        issues: [`Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
       };
     }
   }
@@ -213,7 +227,7 @@ export class SecurityValidator {
       cacheHitRate: 0.95,
       averageResponseTime: 15,
       totalChecks: cacheSize * 10,
-      cacheSize
+      cacheSize,
     };
   }
 }

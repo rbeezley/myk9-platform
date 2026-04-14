@@ -45,7 +45,23 @@ export class RBACService {
     this.securityValidator = new SecurityValidator(
       (userId, permission) => this.permissionChecker.checkPermission(userId, permission),
       () => this.roleManager.getAllRoles(),
-      roleId => this.roleManager.getRolePermissions(roleId)
+      roleId => this.roleManager.getRolePermissions(roleId),
+      // Direct site-admin check: role_permissions is currently empty so checkPermission
+      // always returns false. Use the get_user_roles RPC (takes auth UUID) instead.
+      async authUserId => {
+        const client = supabase as unknown as {
+          rpc(
+            fn: string,
+            args: Record<string, unknown>
+          ): PromiseLike<{ data: unknown; error: unknown }>;
+        };
+        const { data } = await client.rpc('get_user_roles', { user_id: authUserId });
+        if (!Array.isArray(data)) return false;
+        return data.some(
+          (r: { role_name?: string; is_active?: boolean }) =>
+            r.role_name === 'site_admin' && r.is_active !== false
+        );
+      }
     );
   }
 

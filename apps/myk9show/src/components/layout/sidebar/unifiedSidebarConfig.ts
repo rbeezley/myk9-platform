@@ -17,7 +17,6 @@
 
 import {
   LayoutDashboard,
-  Home,
   Activity,
   Calendar,
   Heart,
@@ -26,16 +25,12 @@ import {
   Scale,
   ClipboardCheck,
   FileText,
-  Plus,
   List,
-  User,
   Crown,
   Shield,
   Compass,
-  Settings,
   Search,
   KanbanSquare,
-  MessageSquare,
   FileBarChart,
   Send,
   ListChecks,
@@ -73,10 +68,10 @@ export function buildUnifiedSidebarConfig(
       title: '',
       items: [
         {
-          title: 'Home',
-          href: '/exhibitor/dashboard',
-          icon: Home,
-          description: "What's coming up",
+          title: 'My Shows',
+          href: '/exhibitor/entries',
+          icon: FileText,
+          description: 'Your entries, dogs, and upcoming shows',
         },
         {
           title: 'Show Day',
@@ -84,45 +79,11 @@ export function buildUnifiedSidebarConfig(
           icon: Activity,
           description: 'Check-in, run order, results',
         },
-      ],
-    });
-    groups.push({
-      title: '',
-      items: [
-        { title: 'My Dogs', href: '/dogs', icon: Heart, description: 'Dog profiles and history' },
-        {
-          title: 'My Entries',
-          href: '/exhibitor/entries',
-          icon: FileText,
-          description: 'Current and past entries',
-        },
-      ],
-    });
-    groups.push({
-      title: '',
-      items: [
         {
           title: 'Find Shows',
           href: '/shows',
           icon: Search,
           description: 'Browse and enter shows',
-        },
-        {
-          title: 'Profile',
-          href: '/profile',
-          icon: User,
-          description: 'Your account and preferences',
-        },
-      ],
-    });
-    groups.push({
-      title: '',
-      items: [
-        {
-          title: 'Settings',
-          href: '/preferences',
-          icon: Settings,
-          description: 'Profile and preferences',
         },
       ],
     });
@@ -156,16 +117,10 @@ export function buildUnifiedSidebarConfig(
         title: 'Manage',
         items: [
           {
-            title: 'Pipeline',
+            title: 'Dashboard',
             href: '/secretary/dashboard',
             icon: LayoutDashboard,
-            description: 'Show management pipeline',
-          },
-          {
-            title: 'Create Show',
-            href: '/secretary/create-show',
-            icon: Plus,
-            description: 'Start a new show',
+            description: 'Show management dashboard',
           },
           {
             title: 'Entries',
@@ -174,28 +129,22 @@ export function buildUnifiedSidebarConfig(
             description: 'Manage show entries',
           },
           {
-            title: 'Day-of Ops',
-            href: '/secretary/day-of',
-            icon: ClipboardCheck,
-            description: 'Walk-ins, scratches, move-ups',
-          },
-          {
             title: 'Tasks',
             href: '/secretary/tasks',
             icon: KanbanSquare,
-            description: 'Kanban task board',
+            description: 'Pre-show preparation tasks',
           },
           {
-            title: 'Run Orders',
+            title: 'Schedule',
             href: '/secretary/run-order',
             icon: List,
-            description: 'Class scheduling and ordering',
+            description: 'Class and ring scheduling',
           },
           {
-            title: 'Messages',
-            href: '/secretary/messages',
-            icon: MessageSquare,
-            description: 'Chat with exhibitors and participants',
+            title: 'Day of Show',
+            href: '/secretary/day-of',
+            icon: ClipboardCheck,
+            description: 'Walk-ins, scratches, move-ups',
           },
           {
             title: 'Reports',
@@ -213,34 +162,22 @@ export function buildUnifiedSidebarConfig(
             title: 'Submit Results',
             href: '/secretary/results-submission',
             icon: Send,
-            description: 'Send results to AKC, UKC, and others',
+            description: 'Submit results to sanctioning organizations',
           },
         ],
       });
     }
 
-    // 3. My Shows section (exhibitor with other roles)
+    // 3. As Exhibitor section (exhibitor with other roles)
     if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
       groups.push({
-        title: 'My Shows',
+        title: 'As Exhibitor',
         items: [
           {
-            title: 'Dashboard',
-            href: '/exhibitor/dashboard',
-            icon: LayoutDashboard,
-            description: 'Overview and quick actions',
-          },
-          {
-            title: 'My Account',
-            href: '/exhibitor/account',
-            icon: User,
-            description: 'Profile and preferences',
-          },
-          {
-            title: 'Current Entries',
+            title: 'My Shows',
             href: '/exhibitor/entries',
             icon: FileText,
-            description: 'Active show entries',
+            description: 'Your entries, dogs, and upcoming shows',
           },
         ],
       });
@@ -251,14 +188,22 @@ export function buildUnifiedSidebarConfig(
       { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
       { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
     ];
-    // People is secretary + admin only (privacy restriction — navigation-ia.md)
+    // Clubs and People are secretary + admin only (privacy restriction — navigation-ia.md)
     if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {
-      browseItems.push({
-        title: 'People',
-        href: '/people',
-        icon: Users,
-        description: 'Browse people',
-      });
+      browseItems.push(
+        {
+          title: 'Clubs',
+          href: '/clubs',
+          icon: Building2,
+          description: 'Browse clubs',
+        },
+        {
+          title: 'People',
+          href: '/people',
+          icon: Users,
+          description: 'Browse people',
+        }
+      );
     }
     groups.push({ title: 'Browse', items: browseItems });
 
@@ -333,7 +278,7 @@ export function buildUnifiedSidebarConfig(
     : isSecretary
       ? '/secretary/dashboard'
       : hasAnyRole(userRoles, [UserRole.EXHIBITOR])
-        ? '/exhibitor/dashboard'
+        ? '/exhibitor/entries'
         : '/shows';
 
   return {

@@ -1,5 +1,5 @@
 import { isAfter } from 'date-fns';
-import { getAllPeopleSorted } from '@/lib/people-utils';
+import { getAllPeopleSorted, filterPeopleByName } from '@/lib/people-utils';
 import type { Club } from '@/types/club-types';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
@@ -76,4 +76,39 @@ export function isValidDateRange(startDate?: string, endDate?: string): boolean 
 export function isValidEntryDates(openDate?: string, closeDate?: string): boolean {
   if (!openDate || !closeDate) return true;
   return !isAfter(new Date(openDate), new Date(closeDate));
+}
+
+/**
+ * Split all people into "suggested" (has one of the given roles) and "others".
+ * Both groups are filtered by searchTerm. Used by OfficialPicker.
+ */
+export function groupPeopleForOfficial(
+  people: User[],
+  suggestedRoles: UserRole[],
+  searchTerm: string
+): { suggested: User[]; others: User[] } {
+  const sorted = getAllPeopleSorted(people);
+  const filtered = filterPeopleByName(sorted, searchTerm);
+  return {
+    suggested: filtered.filter(p => p.roles?.some(r => suggestedRoles.includes(r as UserRole))),
+    others: filtered.filter(p => !p.roles?.some(r => suggestedRoles.includes(r as UserRole))),
+  };
+}
+
+/**
+ * Split people (minus already-selected) into "qualified" (has judge_qualifications)
+ * and "others". Both groups are filtered by searchTerm. Used by JudgesPicker.
+ */
+export function groupPeopleForJudges(
+  people: User[],
+  selectedIds: string[],
+  searchTerm: string
+): { qualified: User[]; others: User[] } {
+  const sorted = getAllPeopleSorted(people);
+  const available = sorted.filter(p => !selectedIds.includes(p.id));
+  const filtered = filterPeopleByName(available, searchTerm);
+  return {
+    qualified: filtered.filter(p => (p.judgeInfo?.qualifications?.length ?? 0) > 0),
+    others: filtered.filter(p => (p.judgeInfo?.qualifications?.length ?? 0) === 0),
+  };
 }

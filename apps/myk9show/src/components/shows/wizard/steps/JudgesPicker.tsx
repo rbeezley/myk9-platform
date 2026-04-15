@@ -146,14 +146,19 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
     >
       <div className="font-medium text-sm">
         {judge.firstName} {judge.lastName}
-        {groupKey === GROUP_QUALIFIED && judge.judgeInfo?.judgeNumber && (
+        {groupKey === GROUP_QUALIFIED && judge.judgeInfo && (
           <Badge
             variant="outline"
             className="ml-2 text-[10px] px-1.5 py-0 text-emerald-400 border-emerald-400/30"
           >
-            {judge.judgeInfo.qualifications[0]?.organization
-              ? `${judge.judgeInfo.qualifications[0].organization} #${judge.judgeInfo.judgeNumber}`
-              : `#${judge.judgeInfo.judgeNumber}`}
+            {(() => {
+              const org = judge.judgeInfo.qualifications[0]?.organization;
+              const num = judge.judgeInfo.judgeNumber;
+              if (org && num) return `${org} #${num}`;
+              if (num) return `#${num}`;
+              if (org) return org;
+              return 'Qualified';
+            })()}
           </Badge>
         )}
       </div>

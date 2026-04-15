@@ -25,7 +25,7 @@ const permissionTests: PermissionTest[] = [
   {
     id: 'show-create-button',
     name: 'Show Create Button Visibility',
-    description: 'Create Show and Clone Show buttons on Calendar page',
+    description: 'New Show and Clone Show buttons on Calendar page',
     permission: PERMISSIONS.SHOW_CREATE,
     testPath: '/calendar',
     expectedResult: {
@@ -76,7 +76,7 @@ const permissionTests: PermissionTest[] = [
   {
     id: 'browse-shows-actions',
     name: 'Browse Shows Page Actions',
-    description: 'Create Show button on Browse Shows page',
+    description: 'New Show button on Browse Shows page',
     permission: PERMISSIONS.SHOW_CREATE,
     testPath: '/shows',
     expectedResult: {

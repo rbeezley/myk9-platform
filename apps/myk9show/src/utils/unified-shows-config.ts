@@ -233,7 +233,7 @@ function generateTabActions(userRoles: UserRole[]) {
   ) {
     actions.all.unshift({
       id: 'create_show',
-      label: 'Create Show',
+      label: 'New Show',
       variant: 'default',
       requiredPermissions: [PERMISSIONS.SHOW_CREATE],
       onClick: () => logger.debug('Create new show action', 'shows'),

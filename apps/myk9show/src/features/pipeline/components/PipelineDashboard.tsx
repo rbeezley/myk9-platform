@@ -229,7 +229,7 @@ export const PipelineDashboard: React.FC = () => {
           <Button asChild>
             <Link to="/secretary/create-show">
               <Plus className="h-4 w-4 mr-2" />
-              Create Show
+              New Show
             </Link>
           </Button>
         </div>

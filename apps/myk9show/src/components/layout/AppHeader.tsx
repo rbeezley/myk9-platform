@@ -120,7 +120,7 @@ const AppHeader: React.FC = () => {
       },
       {
         id: 'create-show',
-        label: 'Create Show',
+        label: 'New Show',
         keys: 'C S',
         category: 'actions',
         action: () => navigate('/?wizard=true'),

@@ -53,7 +53,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
     for (const absent of [
-      'Create Show',
+      'New Show',
       'Messages',
       'Check-In',
       'Volunteers',

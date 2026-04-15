@@ -92,7 +92,7 @@ export default function CalendarPage() {
             <PermissionGuard permission={PERMISSIONS.SHOW_CREATE}>
               <Button onClick={() => navigate('/secretary/create-show/wizard')} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Show
+                New Show
               </Button>
             </PermissionGuard>
           </div>

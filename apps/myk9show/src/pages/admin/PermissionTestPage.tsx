@@ -40,7 +40,7 @@ export default function PermissionTestPage() {
                 <div className="space-y-1 text-sm">
                   <label className="flex items-center gap-2">
                     <input type="checkbox" className="rounded" />
-                    <span>✓ Create Show button visible on Calendar page</span>
+                    <span>✓ New Show button visible on Calendar page</span>
                   </label>
                   <label className="flex items-center gap-2">
                     <input type="checkbox" className="rounded" />

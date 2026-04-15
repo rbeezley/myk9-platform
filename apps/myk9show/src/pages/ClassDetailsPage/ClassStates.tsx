@@ -19,9 +19,7 @@ export function ClassNotFoundState() {
     <div className="myk9-class-page flex items-center justify-center min-h-screen">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-foreground mb-4">Class Not Found</h1>
-        <p className="text-muted-foreground mb-4">
-          The class you're looking for doesn't exist.
-        </p>
+        <p className="text-muted-foreground mb-4">The class you're looking for doesn't exist.</p>
         <button
           onClick={() => {
             startTransition(() => {
@@ -69,7 +67,7 @@ export function EmptyClassState() {
               </Button>
               <Button onClick={() => navigate('/shows')} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
-                Create Show
+                New Show
               </Button>
             </div>
           </div>

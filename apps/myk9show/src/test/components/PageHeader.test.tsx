@@ -37,10 +37,10 @@ describe('PageHeader', () => {
       <PageHeader
         breadcrumbs={[{ label: 'Shows', href: '/shows' }]}
         title="Shows"
-        actions={<button>Create Show</button>}
+        actions={<button>New Show</button>}
       />
     );
-    expect(screen.getByText('Create Show')).toBeInTheDocument();
+    expect(screen.getByText('New Show')).toBeInTheDocument();
   });
 
   it('renders without actions', () => {

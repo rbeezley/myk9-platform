@@ -311,11 +311,11 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       });
     });
 
-    it('should not show Create Show button for guests', async () => {
+    it('should not show New Show button for guests', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /create show/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /new show/i })).not.toBeInTheDocument();
       });
     });
   });
@@ -337,11 +337,11 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       });
     });
 
-    it('should not show Create Show button for exhibitors', async () => {
+    it('should not show New Show button for exhibitors', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /create show/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /new show/i })).not.toBeInTheDocument();
       });
     });
   });
@@ -365,12 +365,12 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       });
     });
 
-    it('should show Create Show button for secretaries', async () => {
+    it('should show New Show button for secretaries', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         // The Create Show button is rendered via tabQuickActions
-        const createButton = screen.getByRole('button', { name: /create show/i });
+        const createButton = screen.getByRole('button', { name: /new show/i });
         expect(createButton).toBeInTheDocument();
       });
     });

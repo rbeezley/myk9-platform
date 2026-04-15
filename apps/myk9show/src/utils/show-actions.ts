@@ -268,7 +268,7 @@ export function getTabQuickActions(currentTab: string, user: UserWithRoles | nul
       if (userPermissions.includes(PERMISSIONS.SHOW_CREATE)) {
         actions.push({
           id: 'create_show',
-          label: 'Create Show',
+          label: 'New Show',
           icon: 'Plus',
           variant: 'default',
           permission: PERMISSIONS.SHOW_CREATE,
@@ -317,7 +317,7 @@ export function getTabQuickActions(currentTab: string, user: UserWithRoles | nul
       if (userPermissions.includes(PERMISSIONS.SHOW_CREATE)) {
         actions.push({
           id: 'create_show',
-          label: 'Create Show',
+          label: 'New Show',
           icon: 'Plus',
           variant: 'default',
           permission: PERMISSIONS.SHOW_CREATE,
@@ -402,7 +402,7 @@ export function getEmptyStateContent(
         title: 'No upcoming shows',
         description:
           'There are no upcoming shows available at this time. Check back later or create a new show.',
-        actionLabel: userPermissions.includes(PERMISSIONS.SHOW_CREATE) ? 'Create Show' : undefined,
+        actionLabel: userPermissions.includes(PERMISSIONS.SHOW_CREATE) ? 'New Show' : undefined,
         actionIcon: 'Plus',
         onAction: userPermissions.includes(PERMISSIONS.SHOW_CREATE)
           ? () => (window.location.href = '/secretary/create-show/wizard')
@@ -434,7 +434,7 @@ export function getEmptyStateContent(
         icon: 'Settings',
         title: 'No shows to manage',
         description: 'You are not currently managing any shows.',
-        actionLabel: userPermissions.includes(PERMISSIONS.SHOW_CREATE) ? 'Create Show' : undefined,
+        actionLabel: userPermissions.includes(PERMISSIONS.SHOW_CREATE) ? 'New Show' : undefined,
         actionIcon: 'Plus',
         onAction: userPermissions.includes(PERMISSIONS.SHOW_CREATE)
           ? () => (window.location.href = '/secretary/create-show/wizard')

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,9 @@ type FormState = { type: 'none' } | { type: 'credentials'; person: User } | { ty
 // are supported in the broader platform but not in this picker per the design spec.
 const ORGS = ['AKC', 'UKC'] as const;
 
+const GROUP_QUALIFIED = 'qualified';
+const GROUP_OTHERS = 'all';
+
 export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   selectedJudges,
   people,
@@ -65,8 +68,11 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const selectedIds = selectedJudges.map(j => j.id);
-  const { qualified, others } = groupPeopleForJudges(people, selectedIds, searchTerm);
+  const selectedIds = useMemo(() => selectedJudges.map(j => j.id), [selectedJudges]);
+  const { qualified, others } = useMemo(
+    () => groupPeopleForJudges(people, selectedIds, searchTerm),
+    [people, selectedIds, searchTerm]
+  );
 
   const resetForm = () => {
     setFormState({ type: 'none' });
@@ -79,7 +85,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   };
 
   const handleSelect = (person: User, groupKey: string) => {
-    if (groupKey === 'qualified') {
+    if (groupKey === GROUP_QUALIFIED) {
       onAddJudge(person.id);
     } else {
       setFormState({ type: 'credentials', person });
@@ -140,7 +146,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
     >
       <div className="font-medium text-sm">
         {judge.firstName} {judge.lastName}
-        {groupKey === 'qualified' && judge.judgeInfo?.judgeNumber && (
+        {groupKey === GROUP_QUALIFIED && judge.judgeInfo?.judgeNumber && (
           <Badge
             variant="outline"
             className="ml-2 text-[10px] px-1.5 py-0 text-emerald-400 border-emerald-400/30"
@@ -152,7 +158,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
         )}
       </div>
       {judge.email && <div className="text-xs text-muted-foreground">{judge.email}</div>}
-      {groupKey === 'all' && (
+      {groupKey === GROUP_OTHERS && (
         <div className="text-xs text-muted-foreground italic">Tap to add credentials</div>
       )}
     </div>
@@ -214,11 +220,11 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
           onSearchChange={setSearchTerm}
           groups={[
             {
-              groupKey: 'qualified',
+              groupKey: GROUP_QUALIFIED,
               label: 'Qualified Judges — Credentials on File',
               items: qualified,
             },
-            { groupKey: 'all', label: 'All People — No Credentials Yet', items: others },
+            { groupKey: GROUP_OTHERS, label: 'All People — No Credentials Yet', items: others },
           ]}
           renderItem={renderJudgeRow}
           onSelect={handleSelect}

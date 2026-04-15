@@ -55,7 +55,7 @@ vi.mock('@/components/ui/grouped-searchable-popover', () => ({
 vi.mock('@/components/ui/select', () => ({
   Select: ({
     value,
-    onValueChange,
+    onValueChange: _onValueChange,
     children,
   }: {
     value: string;

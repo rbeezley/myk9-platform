@@ -41,6 +41,9 @@ export interface JudgesPickerProps {
 
 type FormState = { type: 'none' } | { type: 'credentials'; person: User } | { type: 'new' };
 
+// Spec intentionally limits to AKC and UKC — the two organizations whose
+// judge credentials appear on show records. Other orgs (NACSW, CPE, etc.)
+// are supported in the broader platform but not in this picker per the design spec.
 const ORGS = ['AKC', 'UKC'] as const;
 
 export const JudgesPicker: React.FC<JudgesPickerProps> = ({
@@ -131,7 +134,10 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   };
 
   const renderJudgeRow = (judge: User, groupKey: string) => (
-    <div className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0" data-judge-row>
+    <div
+      className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+      data-judge-row="true"
+    >
       <div className="font-medium text-sm">
         {judge.firstName} {judge.lastName}
         {groupKey === 'qualified' && judge.judgeInfo?.judgeNumber && (

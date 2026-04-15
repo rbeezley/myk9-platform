@@ -349,12 +349,13 @@ const ShowCreationWizardPage: React.FC = () => {
           editMode?.mode === 'add-trials'
             ? existingTrials.filter(t => t.showId === editMode.showId).length
             : 0;
-        return <TrialConfigurationStep {...stepProps} existingTrialCount={existingTrialCount} />;
+        return <TrialConfigurationStep {...stepProps} existingTrialCount={existingTrialCount} submitted={hasAttemptedNext} />;
       }
       case 2:
         return (
           <ClassSelectionStep
             {...stepProps}
+            submitted={hasAttemptedNext}
             existingDBClasses={
               editMode?.mode === 'add-classes' || editMode?.mode === 'add-trials'
                 ? existingClasses.map(c => ({

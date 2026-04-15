@@ -29,6 +29,8 @@ interface ClassSelectionStepProps {
   className?: string;
   /** Classes that already exist in the DB (for add-classes mode). */
   existingDBClasses?: ExistingClassInfo[] | undefined;
+  /** True once the user has clicked Next — gates eager validation errors. */
+  submitted?: boolean;
 }
 
 interface TrialClassState {
@@ -39,6 +41,7 @@ interface TrialClassState {
 export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   className,
   existingDBClasses = [],
+  submitted = false,
 }) => {
   const { trials, updateTrial, show, judgeDetails, judgeAssignments, assignJudgeToClass } =
     useWizardStore(
@@ -204,19 +207,21 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const errors = useMemo(() => {
     const newErrors: Record<string, string> = {};
 
-    if (totalClasses === 0) {
+    if (submitted && totalClasses === 0) {
       newErrors.classes = 'At least one class must be selected across all trials';
     }
 
     // Check that each trial has completed the class creation process
-    trials.forEach((trial, index) => {
-      if (trial.classes.length === 0) {
-        newErrors[`trial-${index}`] = `${trial.name} must have at least one class`;
-      }
-    });
+    if (submitted) {
+      trials.forEach((trial, index) => {
+        if (trial.classes.length === 0) {
+          newErrors[`trial-${index}`] = `${trial.name} must have at least one class`;
+        }
+      });
+    }
 
     return newErrors;
-  }, [totalClasses, trials]);
+  }, [totalClasses, trials, submitted]);
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
@@ -322,15 +327,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           ) : (
             <Tabs value={currentTrialId} onValueChange={setSelectedTrialId}>
               {/* Trial Tabs */}
-              <TabsList className="w-auto mx-auto bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
+              <TabsList className={`grid w-full grid-cols-${trials.length}`}>
                 {trials.map(trial => {
                   const isCompleted = trial.classes.length > 0;
                   return (
-                    <TabsTrigger
-                      key={trial.id}
-                      value={trial.id}
-                      className="flex-none px-6 py-2 rounded-lg transition-all duration-300 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm"
-                    >
+                    <TabsTrigger key={trial.id} value={trial.id}>
                       <span className="truncate">{trial.name}</span>
                       <Badge
                         variant={isCompleted ? 'default' : 'outline'}

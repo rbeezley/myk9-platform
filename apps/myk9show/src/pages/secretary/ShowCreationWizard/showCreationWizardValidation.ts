@@ -23,6 +23,7 @@ interface Trial {
   name: string;
   dateTime: string;
   eventNumber: string;
+  trialType?: string | undefined;
   classes: Array<{
     templateId: string;
     customizations: Record<string, unknown>;
@@ -53,16 +54,19 @@ export function getShowDetailsValidationMessages(show: ShowData): string[] {
 /**
  * Get validation messages for the Trial Configuration step (step 1)
  */
-export function getTrialValidationMessages(trials: Trial[]): string[] {
+export function getTrialValidationMessages(trials: Trial[], organization?: string): string[] {
   const messages: string[] = [];
+  const requiresEventNumber = organization === 'AKC';
 
   if (trials.length === 0) {
     messages.push('At least one trial is required');
   } else {
     trials.forEach((trial, index) => {
       if (!trial.name?.trim()) messages.push(`Trial ${index + 1} name is required`);
+      if (!trial.trialType) messages.push(`Trial ${index + 1} type is required`);
       if (!trial.dateTime) messages.push(`Trial ${index + 1} date and time is required`);
-      if (!trial.eventNumber?.trim()) messages.push(`Trial ${index + 1} event number is required`);
+      if (requiresEventNumber && !trial.eventNumber?.trim())
+        messages.push(`Trial ${index + 1} event number is required for AKC events`);
     });
   }
 
@@ -102,7 +106,7 @@ export function getValidationMessagesForStep(
     case 0:
       return getShowDetailsValidationMessages(show);
     case 1:
-      return getTrialValidationMessages(trials);
+      return getTrialValidationMessages(trials, show.organization);
     case 2:
       return getClassValidationMessages(trials);
     case 3:

@@ -31,11 +31,14 @@ interface TrialConfigurationStepProps {
   className?: string;
   /** Number of existing trials already in the show (for add-trials mode info banner). */
   existingTrialCount?: number;
+  /** True once the user has clicked Next — gates the "at least one trial required" error. */
+  submitted?: boolean;
 }
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   className,
   existingTrialCount = 0,
+  submitted = false,
 }) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
   const { templates } = useTemplates();
@@ -62,7 +65,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const errors = useMemo(() => {
     const newErrors: Record<string, string> = {};
 
-    if (trials.length === 0) {
+    if (submitted && trials.length === 0) {
       newErrors.trials = 'At least one trial is required';
     }
 
@@ -87,18 +90,25 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         }
       }
 
-      // Event number is optional — assigned by the sanctioning org, may not be known yet
+      // Event number required for AKC (needed for XML export); optional for UKC/Other
+      if (!trial.trialType) {
+        newErrors[`${prefix}-trialType`] = 'Trial type is required';
+      }
+
+      if (submitted && show.organization === 'AKC' && !trial.eventNumber?.trim()) {
+        newErrors[`${prefix}-eventNumber`] = 'Event number is required for AKC events';
+      }
     });
 
-    // Check for duplicate trial names
-    const names = trials.map(t => t.name.trim().toLowerCase());
+    // Check for duplicate trial names (only non-empty names)
+    const names = trials.map(t => t.name.trim().toLowerCase()).filter(Boolean);
     const duplicateNames = names.filter((name, index) => names.indexOf(name) !== index);
     if (duplicateNames.length > 0) {
       newErrors.duplicateNames = 'Trial names must be unique';
     }
 
-    // Check for duplicate event numbers
-    const eventNumbers = trials.map(t => t.eventNumber.trim());
+    // Check for duplicate event numbers (only non-empty values — empty is handled separately)
+    const eventNumbers = trials.map(t => t.eventNumber.trim()).filter(Boolean);
     const duplicateEvents = eventNumbers.filter(
       (num, index) => eventNumbers.indexOf(num) !== index
     );
@@ -107,7 +117,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     }
 
     return newErrors;
-  }, [trials, show.startDate, show.endDate]);
+  }, [trials, show.startDate, show.endDate, show.organization, submitted]);
 
   const handleAddTrial = () => {
     const trialIndex = trials.length;
@@ -232,7 +242,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Trial Type</Label>
+                      <Label>
+                        Trial Type <span className="text-destructive">*</span>
+                      </Label>
                       <Select
                         value={trial.trialType ?? ''}
                         onValueChange={value => updateTrial(trial.id, { trialType: value })}
@@ -248,11 +260,19 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors[`trial-${index}-trialType`] && (
+                        <p className="text-sm text-destructive">
+                          {errors[`trial-${index}-trialType`]}
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
                       <Label className="flex items-center gap-1.5">
                         Event Number
+                        {show.organization === 'AKC' && (
+                          <span className="text-destructive">*</span>
+                        )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -260,8 +280,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-xs">
                               <p>
-                                The number assigned to this trial by the sanctioning organization
-                                (e.g., AKC or UKC). Can be added later if not yet assigned.
+                                {show.organization === 'AKC'
+                                  ? 'Required for AKC events — needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
+                                  : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -270,7 +291,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       <Input
                         value={trial.eventNumber}
                         onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
-                        placeholder="Assigned by AKC/UKC"
+                        placeholder={show.organization === 'AKC' ? 'e.g. 2026123456' : 'Optional'}
                         className="h-10"
                       />
                       {errors[`trial-${index}-eventNumber`] && (

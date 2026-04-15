@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { ShowJudgeAssignment } from '@/types/judge-types';
 import {
@@ -37,6 +37,24 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   const [elementJudges, setElementJudges] = useState<Record<string, string>>({});
 
   const classes = useMemo(() => template.classDefinitions || [], [template.classDefinitions]);
+
+  // Sync element-level judge dropdown when judgeAssignments change externally (e.g. auto-assign).
+  // If every class in an element group shares the same judge, reflect that in the group dropdown.
+  useEffect(() => {
+    const elements = Array.from(new Set(classes.map(c => c.element)));
+    const derived: Record<string, string> = {};
+    elements.forEach(element => {
+      const elementClasses = classes.filter(c => c.element === element);
+      const assignedJudges = elementClasses
+        .map(c => judgeAssignments[c.className])
+        .filter(Boolean);
+      if (assignedJudges.length === elementClasses.length) {
+        const allSame = assignedJudges.every(j => j === assignedJudges[0]);
+        if (allSame) derived[element] = assignedJudges[0];
+      }
+    });
+    setElementJudges(prev => ({ ...prev, ...derived }));
+  }, [judgeAssignments, classes]);
 
   // Get unique elements and levels for filters
   const elements = useMemo(() => {

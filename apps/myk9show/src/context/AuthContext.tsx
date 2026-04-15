@@ -124,6 +124,8 @@ export interface AuthContextType {
 
   // Cache management
   refreshPermissions: () => Promise<void>;
+
+  firstName: string | null;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -249,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       stale = true;
     };
-  }, [auth.user?.id]);  
+  }, [auth.user?.id]);
 
   // Build userWithRoles - priority: mock user > database RBAC > default exhibitor
   const userWithRoles = useMemo((): UserWithRoles | null => {
@@ -528,6 +530,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Cache management
       refreshPermissions,
+
+      firstName: userProfile?.first_name ?? null,
     }),
     [
       auth,
@@ -548,6 +552,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       assignRole,
       revokeRole,
       refreshPermissions,
+      userProfile?.first_name,
     ]
   );
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ interface JudgeClass {
 
 const JudgeDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, firstName } = useAuthContext();
   const [selectedTab, setSelectedTab] = useState('today');
   const [assignments, setAssignments] = useState<JudgeClass[]>([]);
 
@@ -162,9 +163,10 @@ const JudgeDashboard: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Judge Dashboard
-            </h1>
+            <DashboardGreeting
+              firstName={firstName}
+              className="text-2xl sm:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
+            />
             <p className="text-muted-foreground text-lg font-medium">
               Manage your judging assignments
             </p>

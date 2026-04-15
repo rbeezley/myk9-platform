@@ -9,6 +9,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 
 // Import from module
 import {
@@ -45,22 +47,18 @@ function DashboardError() {
 /**
  * Dashboard header with title and action buttons
  */
-function DashboardHeader() {
+function DashboardHeader({ firstName }: { firstName: string | null }) {
   return (
     <div
       className="flex flex-col md:flex-row md:items-center md:justify-between mb-12"
       style={{ fontFamily: APPLE_FONT_FAMILY }}
     >
       <div>
-        <h1
+        <DashboardGreeting
+          firstName={firstName}
+          subtitle="Admin console for platform management, user administration, and system oversight"
           className="text-4xl tracking-tight mb-3"
-          style={{ fontWeight: 700, lineHeight: '1.15', letterSpacing: '-0.01em' }}
-        >
-          System Administration
-        </h1>
-        <p className="text-lg text-muted-foreground" style={{ fontWeight: 500, lineHeight: '1.4' }}>
-          Admin console for platform management, user administration, and system oversight
-        </p>
+        />
       </div>
       <div className="flex items-center gap-3 mt-6 md:mt-0">
         <Button
@@ -97,6 +95,7 @@ function DashboardHeader() {
 }
 
 const AdminDashboard: React.FC = () => {
+  const { firstName } = useAuthContext();
   // Get dashboard data
   const dashboardData = useAdminDashboardData();
 
@@ -112,7 +111,7 @@ const AdminDashboard: React.FC = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-8 pt-8 pb-12 max-w-8xl">
         {/* Header */}
-        <DashboardHeader />
+        <DashboardHeader firstName={firstName} />
 
         {/* Platform Administration Section */}
         <PlatformAdministrationSection userCount={dashboardData.users.length} />

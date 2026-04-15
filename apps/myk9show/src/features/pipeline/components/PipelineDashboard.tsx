@@ -27,8 +27,11 @@ import { QuickActionsSection } from './QuickActionsSection';
 import { ShowSettingsPanel } from './ShowSettingsPanel';
 import type { DbClassUpdate } from '@/types/database-mappings';
 import { parseLocalDateString } from '@myk9/core';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 
 export const PipelineDashboard: React.FC = () => {
+  const { firstName } = useAuthContext();
   const {
     isLoading,
     classesLoading,
@@ -144,7 +147,7 @@ export const PipelineDashboard: React.FC = () => {
     <div className="space-y-4 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Secretary Dashboard</h1>
+          <DashboardGreeting firstName={firstName} className="text-2xl font-bold tracking-tight" />
           {selectedShow && (
             <Button
               variant="ghost"

@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
+import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
 import type { WaitListEntry } from '@/types/waitlist-types';
@@ -55,15 +56,8 @@ import {
   type EntryTabFilter,
 } from './modules';
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
 const MyEntriesPage: React.FC = () => {
-  const { user, userWithRoles } = useAuthContext();
+  const { user, userWithRoles, firstName } = useAuthContext();
 
   // Data and filters
   const { entries, isLoading, isError, refreshing, refreshEntries, updateEntryCheckIn } =
@@ -189,12 +183,11 @@ const MyEntriesPage: React.FC = () => {
           <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                  {getGreeting()}
-                </h1>
-                <p className="text-muted-foreground text-sm sm:text-base mt-1">
-                  Here&apos;s what&apos;s happening with your shows
-                </p>
+                <DashboardGreeting
+                  firstName={firstName}
+                  subtitle="Here's what's happening with your shows"
+                  className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground"
+                />
               </div>
               <Button onClick={() => navigate('/shows')} size="sm">
                 <CalendarIcon className="h-4 w-4 mr-2" />

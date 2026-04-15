@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { AlertTriangle, ArrowLeft, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
@@ -41,6 +42,19 @@ const ShowCreationWizardPage: React.FC = () => {
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   const [createdShow, setCreatedShow] = useState<{ id: string; name: string } | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!createdShow) return;
+    // Two-burst confetti: immediate burst from both sides, then a second pop
+    const fire = (opts: confetti.Options) =>
+      confetti({ zIndex: 9999, disableForReducedMotion: true, ...opts });
+    fire({ particleCount: 80, spread: 70, origin: { x: 0.3, y: 0.6 } });
+    fire({ particleCount: 80, spread: 70, origin: { x: 0.7, y: 0.6 } });
+    const t = setTimeout(() => {
+      fire({ particleCount: 50, spread: 100, origin: { x: 0.5, y: 0.5 }, scalar: 0.8 });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [createdShow]);
   const editModeInitializedRef = useRef<string | null>(null);
 
   // Extract edit mode from URL params
@@ -349,7 +363,13 @@ const ShowCreationWizardPage: React.FC = () => {
           editMode?.mode === 'add-trials'
             ? existingTrials.filter(t => t.showId === editMode.showId).length
             : 0;
-        return <TrialConfigurationStep {...stepProps} existingTrialCount={existingTrialCount} submitted={hasAttemptedNext} />;
+        return (
+          <TrialConfigurationStep
+            {...stepProps}
+            existingTrialCount={existingTrialCount}
+            submitted={hasAttemptedNext}
+          />
+        );
       }
       case 2:
         return (

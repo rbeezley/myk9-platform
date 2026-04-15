@@ -19,7 +19,6 @@ import { PaymentMethodsCheckboxGroup } from '@/components/common/PaymentMethodsC
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
-import { usePanelManager } from '@/components/panels/hooks';
 import { UserRole } from '@/types/auth-types';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -36,6 +35,8 @@ import { OfficialPicker } from './OfficialPicker';
 import { JudgesPicker } from './JudgesPicker';
 import { createUser, updateUser } from '@/services/database/queries/userQueries';
 import { judgeQualificationQueries } from '@/services/database/queries/judgeQueries';
+import { createClub } from '@/services/database/queries/clubQueries';
+import type { CreateClubData } from './ShowDetailsStep.sections';
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
@@ -43,7 +44,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     useWizardStore();
   const { clubs, loadClubs, syncClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
-  const panelManager = usePanelManager();
   const { userWithRoles } = useAuthContext();
 
   // Scope clubs to user's assigned clubs (secretaries/club admins see only their clubs)
@@ -106,23 +106,13 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     [show.judgeIds, people, judgeDetails]
   );
 
-  // Handlers for opening creation panels
-  const handleCreateClub = () => {
-    panelManager.openPanel({
-      type: 'club',
-      title: 'Create New Club',
-      subtitle: 'Add a new club to host this show',
-      context: {
-        entityType: 'club',
-        mode: 'create',
-        selectionCallback: async (entity: Record<string, unknown>) => {
-          const club = entity as { id: string; name: string };
-          updateShowData({ clubId: club.id });
-          await loadClubs();
-          logger.debug('Club created and selected', 'wizard', { clubName: club.name });
-        },
-      },
-    });
+  // Inline club creation — no panelManager needed
+  const handleCreateClub = async (data: CreateClubData): Promise<void> => {
+    const result = await createClub({ name: data.name, email: data.email });
+    if (result.error) throw result.error;
+    await loadClubs();
+    updateShowData({ clubId: result.data!.id });
+    logger.debug('Club created and selected', 'wizard', { clubName: data.name });
   };
 
   const handleCreateOfficialPerson = async (data: {

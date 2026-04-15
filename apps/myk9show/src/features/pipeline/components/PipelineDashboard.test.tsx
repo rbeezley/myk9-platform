@@ -50,14 +50,10 @@ vi.mock('./QuickActionsSection', () => ({ QuickActionsSection: () => null }));
 vi.mock('./ShowSettingsPanel', () => ({ ShowSettingsPanel: () => null }));
 
 describe('PipelineDashboard', () => {
-  it('renders the New Show button in the header', () => {
-    render(<PipelineDashboard />);
-    expect(screen.getByRole('link', { name: /new show/i })).toBeInTheDocument();
-  });
-
-  it('New Show button links to the show creation wizard', () => {
+  it('renders the New Show button in the header linking to the wizard', () => {
     render(<PipelineDashboard />);
     const link = screen.getByRole('link', { name: /new show/i });
+    expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/secretary/create-show/wizard');
   });
 });

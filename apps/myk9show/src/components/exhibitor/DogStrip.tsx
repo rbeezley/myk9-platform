@@ -61,7 +61,7 @@ export const DogStrip: React.FC<DogStripProps> = ({ dogs }) => {
           className="flex-shrink-0 w-40 rounded-xl border border-dashed border-border p-3 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:bg-accent/30 active:scale-[0.98] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <PawPrint className="h-5 w-5" />
-          <span className="text-xs">Add Dog</span>
+          <span className="text-xs">New Dog</span>
         </button>
       </div>
     </div>

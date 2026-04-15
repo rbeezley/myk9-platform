@@ -266,7 +266,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
               className="gap-1.5"
             >
               <Plus className="h-4 w-4" />
-              Add Class
+              New Class
             </Button>
           )}
         </div>

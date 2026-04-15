@@ -141,7 +141,7 @@ const BrowsePeoplePage: React.FC = () => {
             {canManageUsers && (
               <Button onClick={() => setShowCreatePersonDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add User
+                New Person
               </Button>
             )}
           </CardContent>
@@ -199,7 +199,7 @@ const BrowsePeoplePage: React.FC = () => {
                 {canManageUsers && (
                   <Button onClick={() => setShowCreatePersonDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add User
+                    New Person
                   </Button>
                 )}
               </div>

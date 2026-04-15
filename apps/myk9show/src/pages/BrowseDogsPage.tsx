@@ -105,7 +105,7 @@ const BrowseDogsPage: React.FC = () => {
       canCreateDogs ? (
         <Button onClick={() => setShowCreateDogPanel(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Dog
+          New Dog
         </Button>
       ) : undefined,
     [canCreateDogs]
@@ -120,7 +120,7 @@ const BrowseDogsPage: React.FC = () => {
           description="Add your first dog to track health records, registrations, and competitions."
           action={
             canCreateDogs
-              ? { label: 'Add Dog', onClick: () => setShowCreateDogPanel(true), icon: Plus }
+              ? { label: 'New Dog', onClick: () => setShowCreateDogPanel(true), icon: Plus }
               : undefined
           }
         />

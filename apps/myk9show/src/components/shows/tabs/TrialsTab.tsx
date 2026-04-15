@@ -158,7 +158,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           {canManage && (
             <Button size="sm" onClick={openWizard} className="gap-1.5">
               <Plus className="h-4 w-4" />
-              Add Trial
+              New Trial
             </Button>
           )}
         </div>
@@ -174,7 +174,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           {canManage && (
             <Button variant="outline" className="mt-4 gap-1.5" onClick={openWizard}>
               <Plus className="h-4 w-4" />
-              Add Trial
+              New Trial
             </Button>
           )}
         </div>

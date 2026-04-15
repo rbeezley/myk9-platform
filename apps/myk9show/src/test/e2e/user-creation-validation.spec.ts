@@ -54,14 +54,14 @@ test.describe('User Creation Interface Validation', () => {
 
   test('should display "Add User" button on browse page', async ({ page }) => {
     // Verify the "Add User" button is visible on the browse page
-    const addUserButton = page.getByRole('button', { name: 'Add User' });
+    const addUserButton = page.getByRole('button', { name: 'New Person' });
     await expect(addUserButton).toBeVisible();
     await expect(addUserButton).toBeEnabled();
   });
 
   test('should open user creation dialog when "Add User" is clicked', async ({ page }) => {
     // Click the "Add User" button
-    await page.getByRole('button', { name: 'Add User' }).click();
+    await page.getByRole('button', { name: 'New Person' }).click();
 
     // Verify dialog opens with correct title
     const dialog = page.getByRole('dialog');
@@ -82,7 +82,7 @@ test.describe('User Creation Interface Validation', () => {
 
   test('should create new user successfully', async ({ page }) => {
     // Click the "Add User" button
-    await page.getByRole('button', { name: 'Add User' }).click();
+    await page.getByRole('button', { name: 'New Person' }).click();
 
     // Wait for dialog to be visible
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -134,7 +134,7 @@ test.describe('User Creation Interface Validation', () => {
 
   test('should handle form validation correctly', async ({ page }) => {
     // Click the "Add User" button
-    await page.getByRole('button', { name: 'Add User' }).click();
+    await page.getByRole('button', { name: 'New Person' }).click();
 
     // Wait for dialog to be visible
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -154,7 +154,7 @@ test.describe('User Creation Interface Validation', () => {
 
   test('should allow canceling user creation', async ({ page }) => {
     // Click the "Add User" button
-    await page.getByRole('button', { name: 'Add User' }).click();
+    await page.getByRole('button', { name: 'New Person' }).click();
 
     // Wait for dialog to be visible
     await expect(page.getByRole('dialog')).toBeVisible();

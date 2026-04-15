@@ -155,7 +155,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
 
     test('displays trial configuration form', async ({ page }) => {
       await wizardPage.expectToBeOnStep(2);
-      await expect(page.locator('text=Add Trial')).toBeVisible();
+      await expect(page.locator('text=New Trial')).toBeVisible();
     });
 
     test('can add a trial', async ({ page }) => {

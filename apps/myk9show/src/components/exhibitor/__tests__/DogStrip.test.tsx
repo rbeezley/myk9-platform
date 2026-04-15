@@ -45,6 +45,6 @@ describe('DogStrip', () => {
 
   it('renders Add Dog button', () => {
     render(<DogStrip dogs={dogs} />);
-    expect(screen.getByText('Add Dog')).toBeInTheDocument();
+    expect(screen.getByText('New Dog')).toBeInTheDocument();
   });
 });

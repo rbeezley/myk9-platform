@@ -32,7 +32,12 @@ vi.mock('@myk9/core', () => ({
 
 let mockViewMode = 'cards';
 vi.mock('@/hooks/useViewPreference', () => ({
-  useViewPreference: () => [mockViewMode, (m: string) => { mockViewMode = m; }],
+  useViewPreference: () => [
+    mockViewMode,
+    (m: string) => {
+      mockViewMode = m;
+    },
+  ],
   CARD_TABLE_MODES: [
     { key: 'cards', label: 'Cards', icon: 'grid' },
     { key: 'table', label: 'Table', icon: 'table' },
@@ -42,8 +47,12 @@ vi.mock('@/hooks/useViewPreference', () => ({
 vi.mock('@/components/common/ViewToggle', () => ({
   ViewToggle: ({ active, onChange }: { active: string; onChange: (k: string) => void }) => (
     <div data-testid="view-toggle">
-      <button data-testid="toggle-cards" onClick={() => onChange('cards')}>Cards</button>
-      <button data-testid="toggle-table" onClick={() => onChange('table')}>Table</button>
+      <button data-testid="toggle-cards" onClick={() => onChange('cards')}>
+        Cards
+      </button>
+      <button data-testid="toggle-table" onClick={() => onChange('table')}>
+        Table
+      </button>
       <span data-testid="active-view">{active}</span>
     </div>
   ),
@@ -167,7 +176,7 @@ describe('TrialsTab', () => {
 
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    expect(screen.getByText('Add Trial')).toBeInTheDocument();
+    expect(screen.getByText('New Trial')).toBeInTheDocument();
   });
 
   it('hides Add Trial button when user lacks permissions', () => {
@@ -176,7 +185,7 @@ describe('TrialsTab', () => {
 
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    expect(screen.queryByText('Add Trial')).not.toBeInTheDocument();
+    expect(screen.queryByText('New Trial')).not.toBeInTheDocument();
   });
 
   it('renders ViewToggle', () => {

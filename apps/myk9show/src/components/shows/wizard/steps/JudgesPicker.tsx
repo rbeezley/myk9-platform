@@ -85,9 +85,11 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   };
 
   const handleSelect = (person: User, groupKey: string) => {
-    if (groupKey === GROUP_QUALIFIED) {
+    if (groupKey === GROUP_QUALIFIED && person.judgeInfo?.judgeNumber) {
       onAddJudge(person.id);
     } else {
+      // Either not yet qualified, or qualified but missing a judge number —
+      // collect credentials before adding.
       setFormState({ type: 'credentials', person });
       setEmail(person.email ?? '');
     }

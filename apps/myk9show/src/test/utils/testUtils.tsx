@@ -133,4 +133,4 @@ export const expectAsyncError = async (fn: () => Promise<unknown>, errorMessage?
 // eslint-disable-next-line react-refresh/only-export-components
 export * from '@testing-library/react';
 
-export { customRender as render, userEvent };
+export { customRender as render, customRender as renderWithProviders, userEvent };

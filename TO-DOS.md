@@ -222,6 +222,10 @@ Non-North-Star items needed before real users hit the production URL. These are 
 
 - [ ] **Make E2E CI jobs blocking once tests are stable** — Investigated 2026-02-27: CI broken due to GitHub Actions billing. myK9Q 1/10 E2E passing (missing test passcodes). myK9Show E2E ~0% (AI-generated artifacts need triage). Next steps: (1) fix billing/wait for reset, (2) decide passcode seeding strategy, (3) triage myK9Show E2E files.
 
+### Pre-load AKC & UKC Judge Directory — 2026-04-15
+
+- [ ] **Pre-load judge directory before production launch** — AKC and UKC each maintain judge directories. Importing them into `people` + `judge_qualifications` before launch means secretaries will find most judges in the "Qualified Judges" suggested section without creating new entries. **Problem:** Format is TBD — need to check what export/download format each org provides. Email addresses will likely not be available from the directory; secretaries will be prompted to supply the email the first time they assign a judge to a show (the "Add credentials" form pre-fills email from the people record if present, or leaves it blank). **Files:** `supabase/migrations/` (one-time seed migration or a standalone seed script), `apps/myk9show/src/services/database/queries/judgeQueries.ts` (`judgeQualificationQueries.create` — the insert path). **Solution:** (1) Obtain directory export from AKC (check akc.org judge directory for CSV/XML download). (2) Obtain directory from UKC. (3) Write a seed script that maps each row to a `people` insert + `judge_qualifications` insert. (4) Check for existing people by email before inserting (avoid duplicate records if some judges are already in the DB). (5) Run against staging, verify counts, then production.
+
 ---
 
 ## Personalized Dashboard Greetings - 2026-04-14 19:20

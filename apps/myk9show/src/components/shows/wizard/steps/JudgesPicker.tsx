@@ -145,7 +145,9 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             variant="outline"
             className="ml-2 text-[10px] px-1.5 py-0 text-emerald-400 border-emerald-400/30"
           >
-            {judge.judgeInfo.qualifications[0]?.organization ?? ''} #{judge.judgeInfo.judgeNumber}
+            {judge.judgeInfo.qualifications[0]?.organization
+              ? `${judge.judgeInfo.qualifications[0].organization} #${judge.judgeInfo.judgeNumber}`
+              : `#${judge.judgeInfo.judgeNumber}`}
           </Badge>
         )}
       </div>

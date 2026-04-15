@@ -80,7 +80,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         officials: { ...show.officials, secretary: [userWithRoles.databaseUserId] },
       });
     }
-  }, [show.officials, userWithRoles?.databaseUserId, updateShowData]);
+    // Depend on secretary[0] primitive, not show.officials object, to avoid re-triggering
+    // on every updateShowData call that produces a new officials reference.
+  }, [show.officials.secretary[0], userWithRoles?.databaseUserId, updateShowData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');

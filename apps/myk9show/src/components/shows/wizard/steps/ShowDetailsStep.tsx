@@ -144,6 +144,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     personId: string,
     data: { organization: string; judgeNumber: string; email: string }
   ): Promise<void> => {
+    if (!data.judgeNumber.trim()) throw new Error('Judge number is required');
     await judgeQualificationQueries.create({
       person_id: personId,
       organization: data.organization,
@@ -167,6 +168,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     judgeNumber: string;
     email: string;
   }): Promise<string> => {
+    if (!data.judgeNumber.trim()) throw new Error('Judge number is required');
     const result = await createUser({
       first_name: data.firstName,
       last_name: data.lastName,

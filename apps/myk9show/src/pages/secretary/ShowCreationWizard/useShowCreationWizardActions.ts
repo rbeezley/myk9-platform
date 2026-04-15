@@ -282,14 +282,15 @@ export function useShowCreationWizardActions({
           }
         }
 
-        // Grant official roles scoped to the show, then invalidate the officials cache
+        // Grant official roles scoped to the show — fire-and-forget so this doesn't
+        // block navigation. Invalidate the officials cache after all grants settle.
         const officialGrants = [
           ...show.officials.secretary.map(id => ({ id, role: UserRole.SECRETARY })),
           ...show.officials.chairman.map(id => ({ id, role: UserRole.CHAIRMAN })),
           ...show.officials.steward.map(id => ({ id, role: UserRole.STEWARD })),
         ];
 
-        await Promise.allSettled(
+        Promise.allSettled(
           officialGrants.map(grant =>
             rbacService.ensureUserHasRole(grant.id, grant.role, { showId: realShowId }).catch(err =>
               logger.warn('Failed to auto-grant official role', 'wizard', {
@@ -299,8 +300,9 @@ export function useShowCreationWizardActions({
               })
             )
           )
-        );
-        queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
+        ).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
+        });
 
         // Seed React Query cache so pages find the show immediately while sync runs
         queryClient.setQueryData<Show>(showQueryKeys.detail(realShowId), savedShow);

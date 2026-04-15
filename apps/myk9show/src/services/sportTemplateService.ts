@@ -36,14 +36,36 @@ export async function fetchSportTemplateByCode(
 // Sport Class Rules
 // ---------------------------------------------------------------------------
 
+// Sport_class_rules are static reference data — cache them for the session so repeated
+// saves and pre-warm calls don't each pay a Supabase round-trip.
+const _classRulesCache = new Map<string, SportClassRuleRow[]>();
+
 export async function fetchClassRulesForTemplate(templateId: string): Promise<SportClassRuleRow[]> {
+  if (_classRulesCache.has(templateId)) return _classRulesCache.get(templateId)!;
   const { data, error } = await supabase
     .from('sport_class_rules')
     .select('*')
     .eq('sport_template_id', templateId)
     .order('display_order');
   if (error) throw error;
-  return data as SportClassRuleRow[];
+  const rules = data as SportClassRuleRow[];
+  _classRulesCache.set(templateId, rules);
+  return rules;
+}
+
+/**
+ * Kick off background rule fetches for a set of template IDs.
+ * Call this when class templates are loaded in the wizard so rules are
+ * cached before the user hits "Create and Publish".
+ */
+export function prewarmClassRulesCache(templateIds: string[]): void {
+  for (const id of templateIds) {
+    if (!_classRulesCache.has(id)) {
+      fetchClassRulesForTemplate(id).catch(() => {
+        // non-critical — save path handles fetch errors gracefully
+      });
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

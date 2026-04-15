@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -38,6 +38,16 @@ function GroupedSearchablePopover<T extends { id: string }>({
   const visibleGroups = groups.filter(g => g.items.length > 0);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // Focus the search input when the popover opens, without scrolling the page.
+  useEffect(() => {
+    if (!open) return;
+    // rAF ensures the popover is fully rendered before we attempt focus.
+    const id = requestAnimationFrame(() => {
+      searchRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
@@ -46,14 +56,7 @@ function GroupedSearchablePopover<T extends { id: string }>({
           <Search className="ml-auto h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-80 p-0"
-        align="start"
-        onOpenAutoFocus={e => {
-          e.preventDefault();
-          searchRef.current?.focus({ preventScroll: true });
-        }}
-      >
+      <PopoverContent className="w-80 p-0" align="start">
         <div className="p-3 border-b">
           <Input
             ref={searchRef}

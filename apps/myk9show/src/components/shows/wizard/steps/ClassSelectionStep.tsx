@@ -16,6 +16,7 @@ import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClas
 import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
+import { prewarmClassRulesCache } from '@/services/sportTemplateService';
 
 interface ExistingClassInfo {
   trialId: string;
@@ -56,6 +57,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     );
 
   const { templates } = useTemplates();
+
+  // Pre-warm class rules cache so rules are already fetched by the time the user saves.
+  useEffect(() => {
+    if (templates.length > 0) {
+      prewarmClassRulesCache(templates.map(t => t.id));
+    }
+  }, [templates]);
 
   // Track user's selected trial ID (raw state)
   const [selectedTrialId, setSelectedTrialId] = useState<string>(() =>

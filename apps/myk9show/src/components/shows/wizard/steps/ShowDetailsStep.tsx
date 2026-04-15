@@ -80,7 +80,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         officials: { ...show.officials, secretary: [userWithRoles.databaseUserId] },
       });
     }
-  }, [userWithRoles?.databaseUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [show.officials, userWithRoles?.databaseUserId, updateShowData]);
 
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');

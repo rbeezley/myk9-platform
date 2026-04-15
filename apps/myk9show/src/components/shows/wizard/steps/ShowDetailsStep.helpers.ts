@@ -23,27 +23,6 @@ export function filterClubs(clubs: Club[], searchTerm: string): Club[] {
 }
 
 /**
- * Return judges not yet selected, optionally filtered by name/judge-number,
- * sorted alphabetically by name.
- */
-export function getAvailableJudges(
-  people: User[],
-  selectedIds: string[],
-  searchTerm: string
-): User[] {
-  const sorted = getAllPeopleSorted(people);
-  return sorted
-    .filter(person => person.roles?.includes(UserRole.JUDGE) && !selectedIds.includes(person.id))
-    .filter(judge => {
-      if (!searchTerm.trim()) return true;
-      const term = searchTerm.toLowerCase();
-      const fullName = `${judge.firstName ?? ''} ${judge.lastName ?? ''}`.toLowerCase();
-      const judgeNumber = judge.judgeInfo?.judgeNumber?.toLowerCase() || '';
-      return fullName.includes(term) || judgeNumber.includes(term);
-    });
-}
-
-/**
  * Resolve selected judge IDs to display records.
  */
 export function resolveSelectedJudges(

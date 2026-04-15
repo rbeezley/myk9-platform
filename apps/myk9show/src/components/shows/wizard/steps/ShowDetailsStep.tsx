@@ -22,19 +22,20 @@ import { useUserStore } from '@/store/userStore';
 import { usePanelManager } from '@/components/panels/hooks';
 import { UserRole } from '@/types/auth-types';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ShowDetailsStepProps } from './ShowDetailsStep.types';
 import { ORGANIZATIONS } from './ShowDetailsStep.types';
 import {
   filterClubs,
-  getAllPeopleSorted,
-  filterPeopleByName,
-  getAvailableJudges,
-  getPersonName,
   resolveSelectedJudges,
   isValidDateRange,
   isValidEntryDates,
 } from './ShowDetailsStep.helpers';
-import { ClubSection, OfficialsSection, JudgesSection } from './ShowDetailsStep.sections';
+import { ClubSection } from './ShowDetailsStep.sections';
+import { OfficialPicker } from './OfficialPicker';
+import { JudgesPicker } from './JudgesPicker';
+import { createUser, updateUser } from '@/services/database/queries/userQueries';
+import { judgeQualificationQueries } from '@/services/database/queries/judgeQueries';
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
@@ -43,6 +44,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const { clubs, loadClubs, syncClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
   const panelManager = usePanelManager();
+  const { userWithRoles } = useAuthContext();
 
   // Scope clubs to user's assigned clubs (secretaries/club admins see only their clubs)
   const userClubIds = useUserClubIds();
@@ -64,15 +66,25 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     }
   }, [clubs.length, loadClubs, syncClubs]);
 
+  // Load people on mount so pickers have data regardless of navigation path
+  useEffect(() => {
+    if (people.length === 0) {
+      loadPeople();
+    }
+  }, [people.length, loadPeople]);
+
+  // Auto-fill secretary with the logged-in user (overridable)
+  useEffect(() => {
+    if (!show.officials.secretary[0] && userWithRoles?.databaseUserId) {
+      updateShowData({
+        officials: { ...show.officials, secretary: [userWithRoles.databaseUserId] },
+      });
+    }
+  }, [userWithRoles?.databaseUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');
   const [showClubSearch, setShowClubSearch] = useState(false);
-  const [chairmanSearchTerm, setChairmanSearchTerm] = useState('');
-  const [showChairmanSearch, setShowChairmanSearch] = useState(false);
-  const [secretarySearchTerm, setSecretarySearchTerm] = useState('');
-  const [showSecretarySearch, setShowSecretarySearch] = useState(false);
-  const [judgeSearchTerm, setJudgeSearchTerm] = useState('');
-  const [showJudgeSearch, setShowJudgeSearch] = useState(false);
 
   // Auto-select club if user has exactly one
   useEffect(() => {
@@ -86,26 +98,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     () => filterClubs(scopedClubs, clubSearchTerm),
     [scopedClubs, clubSearchTerm]
   );
-  const allPeopleSorted = React.useMemo(() => getAllPeopleSorted(people), [people]);
-  const filteredChairmen = React.useMemo(
-    () => filterPeopleByName(allPeopleSorted, chairmanSearchTerm),
-    [allPeopleSorted, chairmanSearchTerm]
-  );
-  const filteredSecretaries = React.useMemo(
-    () => filterPeopleByName(allPeopleSorted, secretarySearchTerm),
-    [allPeopleSorted, secretarySearchTerm]
-  );
-  const availableJudges = React.useMemo(
-    () => getAvailableJudges(people, show.judgeIds, judgeSearchTerm),
-    [people, show.judgeIds, judgeSearchTerm]
-  );
+
   const selectedJudges = React.useMemo(
     () => resolveSelectedJudges(show.judgeIds, people, judgeDetails),
     [show.judgeIds, people, judgeDetails]
-  );
-  const hasAnyJudges = React.useMemo(
-    () => people.some(p => p.roles?.includes(UserRole.JUDGE)),
-    [people]
   );
 
   // Handlers for opening creation panels
@@ -127,88 +123,66 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     });
   };
 
-  const handleCreateChairman = () => {
-    logger.debug('CREATE CHAIRMAN button clicked', 'wizard');
-    panelManager.openPanel({
-      type: 'person',
-      title: 'Create New Chairman',
-      subtitle: 'Add a new person to serve as show chairman',
-      context: {
-        entityType: 'person',
-        mode: 'create',
-        preFilledData: { role: 'chairman', roleLabel: 'Chairman' },
-        selectionCallback: async (person: Record<string, unknown>) => {
-          const latest = useWizardStore.getState().show.officials;
-          updateShowData({
-            officials: { ...latest, chairman: [person.id as string] },
-          });
-          await loadPeople();
-          logger.debug('Chairman created and selected', 'wizard', { chairmanId: person.id });
-        },
-      },
+  const handleCreateOfficialPerson = async (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  }): Promise<string> => {
+    const result = await createUser({
+      first_name: data.firstName,
+      last_name: data.lastName,
+      email: data.email,
     });
+    if (result.error) throw result.error;
+    await loadPeople();
+    return result.data!.id;
   };
 
-  const handleCreateSecretary = () => {
-    logger.debug('CREATE SECRETARY button clicked', 'wizard');
-    panelManager.openPanel({
-      type: 'person',
-      title: 'Create New Secretary',
-      subtitle: 'Add a new person to serve as show secretary',
-      context: {
-        entityType: 'person',
-        mode: 'create',
-        preFilledData: { role: 'secretary', roleLabel: 'Secretary' },
-        selectionCallback: async (person: Record<string, unknown>) => {
-          const latest = useWizardStore.getState().show.officials;
-          updateShowData({
-            officials: { ...latest, secretary: [person.id as string] },
-          });
-          await loadPeople();
-          logger.debug('Secretary created and selected', 'wizard', { secretaryId: person.id });
-        },
-      },
+  const handleSaveJudgeCredentials = async (
+    personId: string,
+    data: { organization: string; judgeNumber: string; email: string }
+  ): Promise<void> => {
+    await judgeQualificationQueries.create({
+      person_id: personId,
+      organization: data.organization,
+      qualification_level: 'General',
+      disciplines: [],
+      judge_number: data.judgeNumber,
+      date_obtained: new Date().toISOString().split('T')[0],
+      is_active: true,
     });
+    const person = people.find(p => p.id === personId);
+    if (data.email && !person?.email) {
+      await updateUser(personId, { email: data.email });
+    }
+    await loadPeople();
   };
 
-  const handleCreateJudge = () => {
-    panelManager.openPanel({
-      type: 'judge',
-      title: 'Create New Judge',
-      subtitle: 'Add a new qualified judge to the system',
-      context: {
-        entityType: 'judge',
-        mode: 'create',
-        selectionCallback: async (entity: Record<string, unknown>) => {
-          const judge = entity as {
-            id: string;
-            firstName: string;
-            lastName: string;
-            email?: string;
-            phone?: string;
-          };
-          const judgeName = `${judge.firstName} ${judge.lastName}`;
-          addJudgeToShow(judge.id, {
-            name: judgeName,
-            email: judge.email || '',
-            phone: judge.phone || '',
-          });
-          await loadPeople();
-          logger.debug('Judge created and added to show', 'wizard', { judgeName });
-        },
-      },
-      size: 'lg',
+  const handleCreateNewJudge = async (data: {
+    firstName: string;
+    lastName: string;
+    organization: string;
+    judgeNumber: string;
+    email: string;
+  }): Promise<string> => {
+    const result = await createUser({
+      first_name: data.firstName,
+      last_name: data.lastName,
+      email: data.email,
     });
-  };
-
-  const handleAddJudge = (person: (typeof people)[number]) => {
-    addJudgeToShow(person.id, {
-      name: `${person.firstName} ${person.lastName}`,
-      email: person.email || '',
-      phone: person.phone || '',
+    if (result.error) throw result.error;
+    const personId = result.data!.id;
+    await judgeQualificationQueries.create({
+      person_id: personId,
+      organization: data.organization,
+      qualification_level: 'General',
+      disciplines: [],
+      judge_number: data.judgeNumber,
+      date_obtained: new Date().toISOString().split('T')[0],
+      is_active: true,
     });
-    setShowJudgeSearch(false);
-    setJudgeSearchTerm('');
+    await loadPeople();
+    return personId;
   };
 
   // Entry close date is set manually by the secretary — no auto-populate.
@@ -391,8 +365,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
             <PaymentMethodsCheckboxGroup
               acceptCheck={show.acceptCheckPayments ?? false}
               acceptCash={show.acceptCashPayments ?? false}
-              onCheckChange={(checked) => updateShowData({ acceptCheckPayments: checked })}
-              onCashChange={(checked) => updateShowData({ acceptCashPayments: checked })}
+              onCheckChange={checked => updateShowData({ acceptCheckPayments: checked })}
+              onCashChange={checked => updateShowData({ acceptCashPayments: checked })}
             />
           </div>
         </div>
@@ -411,42 +385,67 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         />
 
         {/* Show Officials */}
-        <OfficialsSection
-          chairmanName={getPersonName(people, show.officials.chairman[0])}
-          secretaryName={getPersonName(people, show.officials.secretary[0])}
-          filteredChairmen={filteredChairmen}
-          filteredSecretaries={filteredSecretaries}
-          showChairmanSearch={showChairmanSearch}
-          setShowChairmanSearch={setShowChairmanSearch}
-          chairmanSearchTerm={chairmanSearchTerm}
-          setChairmanSearchTerm={setChairmanSearchTerm}
-          showSecretarySearch={showSecretarySearch}
-          setShowSecretarySearch={setShowSecretarySearch}
-          secretarySearchTerm={secretarySearchTerm}
-          setSecretarySearchTerm={setSecretarySearchTerm}
-          onSelectChairman={id =>
-            updateShowData({ officials: { ...show.officials, chairman: [id] } })
-          }
-          onSelectSecretary={id =>
-            updateShowData({ officials: { ...show.officials, secretary: [id] } })
-          }
-          onCreateChairman={handleCreateChairman}
-          onCreateSecretary={handleCreateSecretary}
-        />
+        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
+              Show Officials
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <OfficialPicker
+                label="Show Chairman"
+                required
+                selectedPersonId={show.officials.chairman[0]}
+                people={people}
+                suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
+                onSelect={id =>
+                  updateShowData({ officials: { ...show.officials, chairman: [id] } })
+                }
+                onCreatePerson={handleCreateOfficialPerson}
+              />
+              <OfficialPicker
+                label="Show Secretary"
+                required
+                selectedPersonId={show.officials.secretary[0]}
+                people={people}
+                suggestedRoles={[UserRole.SECRETARY]}
+                {...(show.officials.secretary[0] === userWithRoles?.databaseUserId
+                  ? { autoFillBadge: 'You' }
+                  : {})}
+                onSelect={id =>
+                  updateShowData({ officials: { ...show.officials, secretary: [id] } })
+                }
+                onCreatePerson={handleCreateOfficialPerson}
+              />
+            </div>
+          </div>
+        </div>
 
         {/* Show Judges */}
-        <JudgesSection
-          selectedJudges={selectedJudges}
-          availableJudges={availableJudges}
-          showSearch={showJudgeSearch}
-          setShowSearch={setShowJudgeSearch}
-          searchTerm={judgeSearchTerm}
-          setSearchTerm={setJudgeSearchTerm}
-          hasAnyJudges={hasAnyJudges}
-          onAddJudge={handleAddJudge}
-          onRemoveJudge={removeJudgeFromShow}
-          onCreateJudge={handleCreateJudge}
-        />
+        <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <JudgesPicker
+              selectedJudges={selectedJudges}
+              people={people}
+              onAddJudge={personId => {
+                const p = people.find(x => x.id === personId);
+                if (!p) return;
+                addJudgeToShow(p.id, {
+                  name: `${p.firstName} ${p.lastName}`,
+                  email: p.email ?? '',
+                  phone: '',
+                });
+              }}
+              onRemoveJudge={removeJudgeFromShow}
+              onSaveCredentials={handleSaveJudgeCredentials}
+              onCreateJudge={handleCreateNewJudge}
+            />
+            <p className="text-xs text-muted-foreground mt-3">
+              Judges added here will be available for class assignment in the next steps.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

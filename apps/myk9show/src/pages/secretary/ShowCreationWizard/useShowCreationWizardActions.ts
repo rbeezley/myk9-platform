@@ -125,28 +125,29 @@ export function useShowCreationWizardActions({
         });
       }
 
-      // Create new trials and collect their real UUIDs
-      for (let index = 0; index < trialsToAdd.length; index++) {
-        const wizardTrial = trialsToAdd[index];
-        const trialName = wizardTrial.name || `Trial ${index + 1}`;
-        const newTrial: TrialInput = {
-          showId,
-          showName,
-          name: trialName,
-          trialDate: wizardTrial.dateTime,
-          trialNumber: trialName,
-          status: 'Upcoming',
-          eventNumber: wizardTrial.eventNumber || '',
-          type: trialName,
-          trialType: wizardTrial.trialType || showOrganization,
-          plannedStartTime: wizardTrial.dateTime
-            ? format(new Date(wizardTrial.dateTime), 'h:mm a')
-            : '09:00 AM',
-          order: String(index + 1),
-        };
-        const savedTrial = await addTrialToStore(newTrial, user?.id || 'unknown');
-        trialIdMap[wizardTrial.id] = savedTrial.id;
-      }
+      // Create new trials in parallel and collect their real UUIDs
+      await Promise.all(
+        trialsToAdd.map(async (wizardTrial, index) => {
+          const trialName = wizardTrial.name || `Trial ${index + 1}`;
+          const newTrial: TrialInput = {
+            showId,
+            showName,
+            name: trialName,
+            trialDate: wizardTrial.dateTime,
+            trialNumber: trialName,
+            status: 'Upcoming',
+            eventNumber: wizardTrial.eventNumber || '',
+            type: trialName,
+            trialType: wizardTrial.trialType || showOrganization,
+            plannedStartTime: wizardTrial.dateTime
+              ? format(new Date(wizardTrial.dateTime), 'h:mm a')
+              : '09:00 AM',
+            order: String(index + 1),
+          };
+          const savedTrial = await addTrialToStore(newTrial, user?.id || 'unknown');
+          trialIdMap[wizardTrial.id] = savedTrial.id;
+        })
+      );
 
       return trialIdMap;
     },
@@ -195,37 +196,33 @@ export function useShowCreationWizardActions({
         classesToCreate.map(c => c.templateId).filter((id): id is string => Boolean(id))
       );
 
-      for (const templateId of templateIds) {
-        try {
-          const rules = await fetchClassRulesForTemplate(templateId);
-          for (const rule of rules) {
-            const key = `${templateId}|${rule.element}|${rule.level ?? ''}`;
-            ruleMap.set(key, rule);
+      await Promise.all(
+        [...templateIds].map(async templateId => {
+          try {
+            const rules = await fetchClassRulesForTemplate(templateId);
+            for (const rule of rules) {
+              const key = `${templateId}|${rule.element}|${rule.level ?? ''}`;
+              ruleMap.set(key, rule);
+            }
+          } catch (err) {
+            logger.warn('Failed to fetch rules for template', 'wizard', {
+              templateId,
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
-        } catch (err) {
-          logger.warn('Failed to fetch rules for template', 'wizard', {
-            templateId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      }
+        })
+      );
 
-      for (const classData of classesToCreate) {
-        // Look up matching rule before transforming
-        let rule: SportClassRuleRow | undefined;
-        if (classData.templateId) {
-          const ruleKey = `${classData.templateId}|${classData.element ?? ''}|${classData.level ?? ''}`;
-          rule = ruleMap.get(ruleKey);
-        }
-
-        const replicatedClass = classDataToReplicatedClass(classData, rule);
-
-        logger.debug('Creating class via replication', 'wizard', {
-          classId: replicatedClass.id,
-          className: replicatedClass.name,
-        });
-        await replicatedClassesTable.createClass(replicatedClass);
-      }
+      await Promise.all(
+        classesToCreate.map(classData => {
+          const rule = classData.templateId
+            ? ruleMap.get(
+                `${classData.templateId}|${classData.element ?? ''}|${classData.level ?? ''}`
+              )
+            : undefined;
+          return replicatedClassesTable.createClass(classDataToReplicatedClass(classData, rule));
+        })
+      );
 
       logger.debug(`Created ${classesToCreate.length} classes`, 'wizard');
     },
@@ -313,25 +310,19 @@ export function useShowCreationWizardActions({
           return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
         });
 
-        // Sync to Supabase so the show is persisted before navigating away.
-        // triggerSync uploads pending mutations (Phase 1), then downloads fresh
-        // data (Phase 2), then invalidates React Query caches. Awaiting it
-        // ensures the show exists in Supabase before any query refetch runs,
-        // preventing the seeded cache from being overwritten with stale server
-        // data that doesn't include the new show.
-        try {
-          await triggerSync();
-        } catch (syncError) {
-          // Sync failed — the seeded React Query cache still has the show, so
-          // the user will see it on the next navigation. It will be uploaded on
-          // the next automatic sync cycle.
+        // Trigger sync in the background — the React Query cache is already
+        // seeded above, so navigation can proceed immediately. Classes sync via
+        // the replication layer on their own schedule.
+        triggerSync().catch(syncError => {
           logger.warn('Post-create sync failed, show may not appear until next sync', 'wizard', {
             error: syncError instanceof Error ? syncError.message : String(syncError),
           });
-        }
+        });
 
-        // Reload trial classes so the show detail page has them immediately
-        await loadTrialClasses();
+        // Reload trial classes in background — don't block navigation
+        loadTrialClasses().catch(() => {
+          /* non-critical */
+        });
 
         // Invalidate schedule timeline cache so the overview page shows new trials/classes
         queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'schedule-timeline'] });

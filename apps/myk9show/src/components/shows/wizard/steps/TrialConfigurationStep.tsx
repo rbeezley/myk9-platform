@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
-import { addDays, format, isWithinInterval } from 'date-fns';
+import { addDays, format, isWithinInterval, startOfDay } from 'date-fns';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -270,9 +270,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                     <div className="space-y-2">
                       <Label className="flex items-center gap-1.5">
                         Event Number
-                        {show.organization === 'AKC' && (
-                          <span className="text-destructive">*</span>
-                        )}
+                        {show.organization === 'AKC' && <span className="text-destructive">*</span>}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -311,8 +309,12 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       onChange={date => handleTrialDateTimeChange(trial.id, date)}
                       placeholder="Pick trial date and time"
                       className="h-10"
-                      minDate={safeParseDateString(show.startDate) || new Date()}
-                      maxDate={safeParseDateString(show.endDate)}
+                      minDate={startOfDay(safeParseDateString(show.startDate) || new Date())}
+                      maxDate={
+                        show.endDate
+                          ? startOfDay(safeParseDateString(show.endDate) || new Date())
+                          : undefined
+                      }
                       showTime={true}
                       timeFormat="12h"
                     />

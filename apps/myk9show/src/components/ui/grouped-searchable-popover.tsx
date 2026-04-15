@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,6 +36,7 @@ function GroupedSearchablePopover<T extends { id: string }>({
   footer,
 }: GroupedSearchablePopoverProps<T>) {
   const visibleGroups = groups.filter(g => g.items.length > 0);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -45,14 +46,21 @@ function GroupedSearchablePopover<T extends { id: string }>({
           <Search className="ml-auto h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
+      <PopoverContent
+        className="w-80 p-0"
+        align="start"
+        onOpenAutoFocus={e => {
+          e.preventDefault();
+          searchRef.current?.focus({ preventScroll: true });
+        }}
+      >
         <div className="p-3 border-b">
           <Input
+            ref={searchRef}
             placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={e => onSearchChange(e.target.value)}
             className="h-8"
-            autoFocus
           />
         </div>
         <div className="max-h-60 overflow-auto">

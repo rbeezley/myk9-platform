@@ -65,7 +65,10 @@ export function EmptyClassState() {
                 <ArrowLeft className="h-4 w-4" />
                 Go to Shows
               </Button>
-              <Button onClick={() => navigate('/shows')} className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate('/secretary/create-show/wizard')}
+                className="flex items-center gap-2"
+              >
                 <Plus className="h-4 w-4" />
                 New Show
               </Button>

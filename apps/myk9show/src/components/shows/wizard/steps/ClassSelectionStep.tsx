@@ -192,16 +192,25 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   useEffect(() => {
     if (show.judgeIds.length !== 1) return;
     const singleJudgeId = show.judgeIds[0];
-    const unassignedClasses = trials.flatMap(trial =>
-      trial.classes
-        .map(cls => cls.customizations?.className as string)
-        .filter(className => className && judgeAssignments[className] !== singleJudgeId)
-    );
-    if (unassignedClasses.length === 0) return;
-    unassignedClasses.forEach(className => {
-      assignJudgeToClass(className, singleJudgeId);
+
+    trials.forEach(trial => {
+      // Update flat judgeAssignments map for any unassigned class
+      trial.classes.forEach(cls => {
+        const className = cls.customizations?.className as string;
+        if (className && judgeAssignments[className] !== singleJudgeId) {
+          assignJudgeToClass(className, singleJudgeId);
+        }
+      });
+
+      // Also sync judgeId into the trial class objects so ReviewStep can read it
+      const needsSync = trial.classes.some(cls => cls.judgeId !== singleJudgeId);
+      if (needsSync) {
+        updateTrial(trial.id, {
+          classes: trial.classes.map(cls => ({ ...cls, judgeId: singleJudgeId })),
+        });
+      }
     });
-  }, [show.judgeIds, trials, judgeAssignments, assignJudgeToClass]);
+  }, [show.judgeIds, trials, judgeAssignments, assignJudgeToClass, updateTrial]);
 
   // Derive validation errors (no setState needed)
   const errors = useMemo(() => {

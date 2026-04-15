@@ -19,7 +19,7 @@ export const getAllUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`.*, ${USER_ROLES_FK}(role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
+      .select(`*, ${USER_ROLES_FK}(role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`)
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });

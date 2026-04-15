@@ -45,15 +45,13 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
     const derived: Record<string, string> = {};
     elements.forEach(element => {
       const elementClasses = classes.filter(c => c.element === element);
-      const assignedJudges = elementClasses
-        .map(c => judgeAssignments[c.className])
-        .filter(Boolean);
+      const assignedJudges = elementClasses.map(c => judgeAssignments[c.className]).filter(Boolean);
       if (assignedJudges.length === elementClasses.length) {
         const allSame = assignedJudges.every(j => j === assignedJudges[0]);
         if (allSame) derived[element] = assignedJudges[0];
       }
     });
-    setElementJudges(prev => ({ ...prev, ...derived }));
+    setElementJudges(prev => ({ ...prev, ...derived })); // eslint-disable-line react-compiler/react-compiler
   }, [judgeAssignments, classes]);
 
   // Get unique elements and levels for filters

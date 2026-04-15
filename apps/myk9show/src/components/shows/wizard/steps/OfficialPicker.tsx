@@ -9,7 +9,7 @@ import { groupPeopleForOfficial, getPersonName } from './ShowDetailsStep.helpers
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 
-interface CreatePersonData {
+export interface CreatePersonData {
   firstName: string;
   lastName: string;
   email: string;

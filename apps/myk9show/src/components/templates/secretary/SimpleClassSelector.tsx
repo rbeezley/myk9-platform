@@ -51,7 +51,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
         if (allSame) derived[element] = assignedJudges[0];
       }
     });
-    setElementJudges(prev => ({ ...prev, ...derived })); // eslint-disable-line react-compiler/react-compiler
+    setElementJudges(prev => ({ ...prev, ...derived })); // eslint-disable-line react-hooks/set-state-in-effect
   }, [judgeAssignments, classes]);
 
   // Get unique elements and levels for filters

@@ -22,11 +22,13 @@ export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubPr
       .slice(0, 3);
   }, [clubShows, currentShowId]);
 
+  const resolvedClubName = clubName || otherShows[0]?.clubName || 'this club';
+
   if (otherShows.length === 0) return null;
 
   return (
     <div>
-      <h3 className="text-lg font-bold text-foreground mb-4">More from {clubName}</h3>
+      <h3 className="text-lg font-bold text-foreground mb-4">More from {resolvedClubName}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {otherShows.map(show => (
           <Link key={show.id} to={`/shows/${show.id}`} className="block group">
@@ -37,7 +39,9 @@ export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubPr
               <div className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  {formatDate(show.startDate + 'T00:00:00')}
+                  {show.startDate
+                    ? formatDate(show.startDate.includes('T') ? show.startDate : show.startDate + 'T00:00:00')
+                    : 'Date TBD'}
                 </div>
                 {show.location && (
                   <div className="flex items-center gap-1.5">

@@ -10,9 +10,11 @@ interface MyK9QAccessCardProps {
   showId: string;
   showName?: string;
   showDate?: string;
+  /** If provided, only rows whose role is in this array are shown. Defaults to all roles. */
+  visibleRoles?: string[];
 }
 
-export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardProps) {
+export function MyK9QAccessCard({ showId, showName, showDate, visibleRoles }: MyK9QAccessCardProps) {
   const passcodes = generatePasscodesFromShowId(showId);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
@@ -20,11 +22,11 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
 
   // Capture narrowed value so TypeScript can see it's non-null inside closures
   const codes = passcodes;
-  const exhibitorUrl = `https://app.myk9q.com/login?code=${codes.exhibitor}`;
+  const exhibitorUrl = `https://myk9q.com/login?code=${codes.exhibitor}`;
 
-  async function copyToClipboard(text: string, label: string) {
+  async function copyToClipboard(text: string) {
     await navigator.clipboard.writeText(text);
-    notifications.success(`${label} copied`);
+    notifications.success(`Copied: ${text}`);
   }
 
   function printSlip() {
@@ -52,7 +54,7 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
     ${showDate ? `<div class="show-date">${showDate}</div>` : ''}
     <div class="qr">${svgMarkup}</div>
     <div class="code">${codes.exhibitor}</div>
-    <div class="url">app.myk9q.com</div>
+    <div class="url">myk9q.com</div>
   </div>
 </body>
 </html>`);
@@ -61,12 +63,13 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
     win.print();
   }
 
-  const rows = [
+  const allRows = [
     { role: 'Admin', code: codes.admin },
     { role: 'Judge', code: codes.judge },
     { role: 'Steward', code: codes.steward },
     { role: 'Exhibitor', code: codes.exhibitor },
   ];
+  const rows = visibleRoles ? allRows.filter(r => visibleRoles.includes(r.role)) : allRows;
 
   return (
     <Card>
@@ -83,38 +86,45 @@ export function MyK9QAccessCard({ showId, showName, showDate }: MyK9QAccessCardP
         </div>
 
         {rows.map(({ role, code }) => (
-          <div key={role} className="flex items-center justify-between gap-2 rounded-lg border p-3">
-            <div className="flex items-center gap-3">
-              <span className="w-16 text-sm font-medium">{role}</span>
-              <code className="rounded bg-muted px-2 py-1 font-mono text-sm tracking-wider">
-                {code}
-              </code>
-            </div>
-            <div className="flex items-center gap-1">
+          <div key={role} className="rounded-lg border p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <span className="w-16 text-sm font-medium">{role}</span>
+                <code className="rounded bg-muted px-2 py-1 font-mono text-sm tracking-wider">
+                  {code}
+                </code>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
                 aria-label={`Copy ${role} code`}
-                onClick={() => copyToClipboard(code, `${role} code`)}
+                onClick={() => copyToClipboard(code)}
               >
                 <Copy className="h-4 w-4" />
               </Button>
-              {role === 'Exhibitor' && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Copy link"
-                    onClick={() => copyToClipboard(exhibitorUrl, 'Login link')}
-                  >
-                    <Link className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" aria-label="Print slip" onClick={printSlip}>
-                    <Printer className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
             </div>
+            {role === 'Exhibitor' && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={() => copyToClipboard(exhibitorUrl)}
+                >
+                  <Link className="h-3 w-3" />
+                  Copy link
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={printSlip}
+                >
+                  <Printer className="h-3 w-3" />
+                  Print slip
+                </Button>
+              </div>
+            )}
           </div>
         ))}
       </CardContent>

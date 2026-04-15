@@ -53,7 +53,7 @@ describe('MyK9QAccessCard', () => {
     await user.click(screen.getByRole('button', { name: /copy link/i }));
     await waitFor(() =>
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'https://app.myk9q.com/login?code=e979f'
+        'https://myk9q.com/login?code=e979f'
       )
     );
   });

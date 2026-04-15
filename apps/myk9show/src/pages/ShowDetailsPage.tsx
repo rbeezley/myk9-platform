@@ -323,7 +323,7 @@ const ShowDetailsPage: React.FC = () => {
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
           <TabsContent value="overview">
-            <ShowOverviewTab show={actualCurrentShow} />
+            <ShowOverviewTab show={actualCurrentShow} canManageShow={canManageShow} />
           </TabsContent>
 
           <TabsContent value="trials">

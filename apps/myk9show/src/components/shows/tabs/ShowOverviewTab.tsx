@@ -6,6 +6,7 @@ import { JudgesList } from '@/components/shows/overview/JudgesList';
 import { VenueMap } from '@/components/shows/overview/VenueMap';
 import { MoreFromClub } from '@/components/shows/overview/MoreFromClub';
 import { ShareEvent } from '@/components/shows/overview/ShareEvent';
+import { MyK9QAccessCard } from '@/components/secretary/MyK9QAccessCard';
 
 const baseUrl =
   (import.meta.env.VITE_PUBLIC_URL as string | undefined) ??
@@ -13,9 +14,10 @@ const baseUrl =
 
 interface ShowOverviewTabProps {
   show: Show;
+  canManageShow?: boolean;
 }
 
-export function ShowOverviewTab({ show }: ShowOverviewTabProps) {
+export function ShowOverviewTab({ show, canManageShow = false }: ShowOverviewTabProps) {
   const shareData = useMemo(
     () => ({
       title: show.name,
@@ -40,6 +42,11 @@ export function ShowOverviewTab({ show }: ShowOverviewTabProps) {
           <ShowOfficials showId={show.id} />
           <JudgesList judges={show.assignedJudges} />
           <ShareEvent shareData={shareData} />
+          <MyK9QAccessCard
+            showId={show.id}
+            showName={show.name}
+            {...(!canManageShow ? { visibleRoles: ['Exhibitor'] } : {})}
+          />
         </div>
       </div>
 

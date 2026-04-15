@@ -384,3 +384,4 @@ Use this section to list every issue found during the walk. Bring this back to C
   - Pass real classId as a prop through SecretaryClassDashboard → BulkResultEntry
   - Add a success toast on submit                                                                                                                                                                            
   - Default Qualification to "Qualified" (most entries are Q)
+

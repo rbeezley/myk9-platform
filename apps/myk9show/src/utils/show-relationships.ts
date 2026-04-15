@@ -44,10 +44,12 @@ export function getUserManagedShows(
 ): Show[] {
   if (!userId) return [];
 
-  // Build a set of club IDs where the user has club_admin scope
-  const adminClubIds = new Set(
+  const managementRoles = ['club_admin', 'secretary', 'chairman', 'steward'];
+
+  // Build a set of club IDs where the user has any management role scoped to a club
+  const managedClubIds = new Set(
     scopes
-      .filter(s => s.scopeType === ScopeType.CLUB && s.roleId === 'club_admin')
+      .filter(s => s.scopeType === ScopeType.CLUB && managementRoles.includes(s.roleId))
       .map(s => s.scopeId)
   );
 
@@ -62,15 +64,18 @@ export function getUserManagedShows(
       .map(s => s.scopeId)
   );
 
-  // If user has global club_admin (no specific scope), they admin all clubs
-  const hasGlobalClubAdmin = userRoles.includes('club_admin') && adminClubIds.size === 0;
+  // If user has global club_admin or secretary role (no specific scope), they manage all clubs
+  const hasGlobalManagementRole =
+    (userRoles.includes('club_admin') || userRoles.includes('secretary')) &&
+    managedClubIds.size === 0 &&
+    officialShowIds.size === 0;
 
   return shows.filter(show => {
-    // Show official (secretary/chairman/steward) via user_roles
+    // Show official (secretary/chairman/steward) via show-scoped role
     if (officialShowIds.has(show.id)) return true;
 
-    // Club admin for the show's club (scoped or global)
-    if (show.clubId && (hasGlobalClubAdmin || adminClubIds.has(show.clubId))) {
+    // Management role for the show's club (scoped or global)
+    if (show.clubId && (hasGlobalManagementRole || managedClubIds.has(show.clubId))) {
       return true;
     }
 

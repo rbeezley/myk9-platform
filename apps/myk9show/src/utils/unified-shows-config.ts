@@ -95,11 +95,11 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
         getCount: (shows, _entries, userId) => {
           if (!userId) return 0;
-          return getUserManagedShows(userId, shows, userRoles).length;
+          return getUserManagedShows(userId, shows, userRoles, user.scopes ?? []).length;
         },
         filterShows: (shows, _entries, userId) => {
           if (!userId) return [];
-          return getUserManagedShows(userId, shows, userRoles);
+          return getUserManagedShows(userId, shows, userRoles, user.scopes ?? []);
         },
       });
     }

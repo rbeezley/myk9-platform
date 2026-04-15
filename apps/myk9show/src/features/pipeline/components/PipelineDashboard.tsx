@@ -168,30 +168,13 @@ export const PipelineDashboard: React.FC = () => {
             <Copy className="h-4 w-4 mr-2" />
             Clone Show
           </Button>
-          <div className="text-right">
-            {timing.text && (
-              <div className="flex items-center gap-1.5 justify-end">
-                {timing.isShowDay && (
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                )}
-                <span
-                  className={
-                    timing.isShowDay
-                      ? 'text-sm text-green-400 font-medium'
-                      : 'text-sm text-muted-foreground'
-                  }
-                >
-                  {timing.text}
-                </span>
-              </div>
-            )}
-            {!timing.isShowDay && hasLiveClasses && (
-              <div className="flex items-center gap-1 justify-end mt-0.5">
-                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-sm text-green-400 font-medium">Live</span>
-              </div>
-            )}
-          </div>
+          {timing.isShowDay && (
+            <div className="flex items-center gap-1.5">
+              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm text-green-400 font-medium">{timing.text}</span>
+              {hasLiveClasses && <span className="text-sm text-green-400 font-medium">· Live</span>}
+            </div>
+          )}
         </div>
       </div>
 

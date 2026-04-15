@@ -158,6 +158,12 @@ export const PipelineDashboard: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild size="sm">
+            <Link to="/secretary/create-show/wizard">
+              <Plus className="h-4 w-4 mr-2" />
+              New Show
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setCloneDialogOpen(true)}>
             <Copy className="h-4 w-4 mr-2" />
             Clone Show

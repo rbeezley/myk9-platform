@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useEntryDecision } from '@/hooks/mutations/useEntryDecisionMutations';
 import { EntryDecisionRow } from './EntryDecisionRow';
@@ -57,7 +58,12 @@ export function EntriesTab({ shows }: EntriesTabProps) {
             <EntryDecisionRow
               key={entry.id}
               entry={entry}
-              onDecide={(entryId, decision) => decide.mutate({ entryId, decision })}
+              onDecide={(entryId, decision) =>
+                decide.mutate(
+                  { entryId, decision },
+                  { onError: () => toast.error('Failed to update entry. Please try again.') }
+                )
+              }
             />
           ))}
         </div>

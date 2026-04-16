@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useSecretaryTasks, useCreateTask, useUpdateTask } from '@/hooks/queries/useSecretaryTasks';
 import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
@@ -78,8 +79,10 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
             shows={shows}
             clubId={clubId}
             onAdd={input => {
-              createTask.mutate(input);
-              setShowAddForm(false);
+              createTask.mutate(input, {
+                onSuccess: () => setShowAddForm(false),
+                onError: () => toast.error('Failed to add task. Please try again.'),
+              });
             }}
             onCancel={() => setShowAddForm(false)}
           />

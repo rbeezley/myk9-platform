@@ -12,13 +12,16 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
-// Mission Control (replaces old SecretaryDashboard)
-const PipelineDashboardPage = lazy(
-  () => import('@/features/pipeline/components/PipelineDashboard')
+// Secretary Dashboard (replaces old PipelineDashboard)
+const SecretaryDashboardPage = lazy(() =>
+  import('@/pages/secretary/SecretaryDashboardPage').then(m => ({
+    default: m.SecretaryDashboardPage,
+  }))
 );
 const TrialPipelineDetail = lazy(
   () => import('@/features/pipeline/components/TrialPipelineDetail')
 );
+
 const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
 const ClassCreationPage = lazy(() =>
   import('@/pages/secretary/ClassCreationPage').then(m => ({ default: m.ClassCreationPage }))
@@ -48,13 +51,12 @@ const EntryManagementPage = lazy(() =>
 );
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
-const SecretaryTasksPage = lazy(() => import('@/pages/secretary/SecretaryTasksPage'));
+
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
-const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 
 // Scoring pages
 const PaperScoresheetPage = lazy(() =>
@@ -83,7 +85,7 @@ export const SecretaryRoutes = () => (
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
             <PageTransition>
-              <PipelineDashboardPage />
+              <SecretaryDashboardPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -197,18 +199,7 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
-    <Route
-      path="/secretary/tasks"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <SecretaryTasksPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/secretary/tasks" element={<Navigate to="/secretary/dashboard" replace />} />
     <Route
       path="/secretary/settings"
       element={
@@ -307,15 +298,7 @@ export const SecretaryRoutes = () => (
     />
     <Route
       path="/secretary/messages/:showId?"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <SecretaryMessagesPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/secretary/dashboard" replace />}
     />
 
     {/* People — browse and detail, accessible to secretaries and site admins */}

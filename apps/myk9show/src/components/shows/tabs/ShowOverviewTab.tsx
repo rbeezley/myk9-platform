@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { Show } from '@/types/show-types';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { ScheduleSummary } from '@/components/shows/overview/ScheduleSummary';
 import { ShowOfficials } from '@/components/shows/overview/ShowOfficials';
 import { JudgesList } from '@/components/shows/overview/JudgesList';
@@ -15,9 +16,10 @@ const baseUrl =
 interface ShowOverviewTabProps {
   show: Show;
   canManageShow?: boolean;
+  judges?: ShowJudgeAssignment[];
 }
 
-export function ShowOverviewTab({ show, canManageShow = false }: ShowOverviewTabProps) {
+export function ShowOverviewTab({ show, canManageShow = false, judges }: ShowOverviewTabProps) {
   const shareData = useMemo(
     () => ({
       title: show.name,
@@ -40,7 +42,7 @@ export function ShowOverviewTab({ show, canManageShow = false }: ShowOverviewTab
         {/* Sidebar — on mobile, appears above main content */}
         <div className="space-y-6 order-1 md:order-2">
           <ShowOfficials showId={show.id} />
-          <JudgesList judges={show.assignedJudges} />
+          <JudgesList judges={judges ?? show.assignedJudges} />
           <ShareEvent shareData={shareData} />
           <MyK9QAccessCard
             showId={show.id}

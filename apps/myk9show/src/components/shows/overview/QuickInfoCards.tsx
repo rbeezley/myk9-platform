@@ -58,13 +58,13 @@ export function QuickInfoCards({ show }: QuickInfoCardsProps) {
   return (
     <div className="flex flex-wrap">
       <MetadataItem label="Date" value={dateStr} secondary={entryCloseText} />
+      <MetadataItem label="Host Club" value={show.clubName || 'TBD'} />
+      <MetadataItem label="Location" value={show.location || 'TBD'} />
       <MetadataItem
         label="Entry Fee"
         value={show.preEntryFee ? formatFee(show.preEntryFee) : 'TBD'}
         secondary={show.dayOfShowFee ? `Day of show: ${formatFee(show.dayOfShowFee)}` : null}
       />
-      <MetadataItem label="Location" value={show.location || 'TBD'} />
-      <MetadataItem label="Host Club" value={show.clubName || 'TBD'} />
       <div className="flex-1 min-w-[120px] px-4 py-2.5">
         <div className="text-xs uppercase tracking-wide text-muted-foreground/70 mb-1.5">
           Payment Methods

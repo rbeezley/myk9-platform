@@ -22,6 +22,7 @@ import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import { TrialsTab, type TrialStats } from '@/components/shows/tabs/TrialsTab';
 import type { ShowInput } from '@/store/showStore';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import {
   useShowsQuery,
   useUpdateShowMutation,
@@ -176,6 +177,30 @@ const ShowDetailsPage: React.FC = () => {
     });
   }, [associatedTrials, trialClasses, userEntries]);
 
+  // Derive unique judges from class-level assignments as fallback when
+  // the judge_assignments table has no rows for this show
+  const effectiveJudges = useMemo((): ShowJudgeAssignment[] => {
+    if (actualCurrentShow?.assignedJudges && actualCurrentShow.assignedJudges.length > 0) {
+      return actualCurrentShow.assignedJudges;
+    }
+    const judgeMap = new Map<string, ShowJudgeAssignment>();
+    for (const cls of showClasses) {
+      if (!cls.judgeName) continue;
+      const existing = judgeMap.get(cls.judgeName);
+      if (existing) {
+        existing.assignedClasses = [...(existing.assignedClasses ?? []), cls.id];
+      } else {
+        judgeMap.set(cls.judgeName, {
+          judgeId: cls.judgeName,
+          judgeName: cls.judgeName,
+          assignedDate: '',
+          assignedClasses: [cls.id],
+        });
+      }
+    }
+    return Array.from(judgeMap.values());
+  }, [actualCurrentShow, showClasses]);
+
   // Trial statistics for card display (class counts, entry counts, scoring progress)
   const trialStats = useMemo(() => {
     const stats: Record<string, TrialStats> = {};
@@ -323,7 +348,7 @@ const ShowDetailsPage: React.FC = () => {
 
         <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setTab}>
           <TabsContent value="overview">
-            <ShowOverviewTab show={actualCurrentShow} canManageShow={canManageShow} />
+            <ShowOverviewTab show={actualCurrentShow} canManageShow={canManageShow} judges={effectiveJudges} />
           </TabsContent>
 
           <TabsContent value="trials">

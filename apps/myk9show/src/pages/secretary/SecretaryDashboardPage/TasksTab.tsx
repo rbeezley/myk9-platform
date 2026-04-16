@@ -48,6 +48,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
       if (t.status === 'done') return 4;
       if (!t.dueDate) return 3;
       const d = new Date(t.dueDate);
+      if (isNaN(d.getTime())) return 3;
       if (d < now && !isToday(d)) return 0;
       if (isToday(d)) return 1;
       if (d <= sevenDays) return 2;

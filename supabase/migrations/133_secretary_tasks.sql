@@ -103,15 +103,9 @@ CREATE POLICY "secretary_tasks_delete" ON secretary_tasks
     )
   );
 
--- Index for cross-show pending entry queries used by the dashboard Entries tab
-CREATE INDEX IF NOT EXISTS entries_payment_status_show_id_idx
-  ON entries (payment_status, show_id)
-  WHERE payment_status = 'pending';
-
 NOTIFY pgrst, 'reload schema';
 
 -- ROLLBACK (run manually if this migration must be reverted):
 --   DROP TABLE IF EXISTS secretary_tasks;
---   DROP INDEX IF EXISTS entries_payment_status_show_id_idx;
 --   DROP TRIGGER IF EXISTS secretary_tasks_updated_at ON secretary_tasks;
 --   -- Only drop set_updated_at() if no other table uses it.

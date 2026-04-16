@@ -61,6 +61,23 @@ describe('EntryDecisionRow', () => {
     fireEvent.click(screen.getByRole('button', { name: /reject/i }));
     expect(onDecide).toHaveBeenCalledWith('entry-1', 'rejected');
   });
+
+  it('opens detail sheet when handler name is clicked', () => {
+    render(<EntryDecisionRow entry={mockEntry} onDecide={vi.fn()} />);
+    expect(screen.queryByText('Entry Detail')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /John Smith/i }));
+    expect(screen.getByText('Entry Detail')).toBeInTheDocument();
+  });
+
+  it('calls onDecide from sheet decision buttons', () => {
+    const onDecide = vi.fn();
+    render(<EntryDecisionRow entry={mockEntry} onDecide={onDecide} />);
+    fireEvent.click(screen.getByRole('button', { name: /John Smith/i }));
+    // sheet has a second set of decision buttons — click the last Accept
+    const acceptBtns = screen.getAllByRole('button', { name: /accept/i });
+    fireEvent.click(acceptBtns[acceptBtns.length - 1]);
+    expect(onDecide).toHaveBeenCalledWith('entry-1', 'accepted');
+  });
 });
 
 describe('EntriesTab', () => {

@@ -92,7 +92,31 @@ export function useUpdateTask() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [TASKS_KEY] }),
+    onMutate: async ({ id, update }) => {
+      await qc.cancelQueries({ queryKey: [TASKS_KEY] });
+      const previous = qc.getQueriesData<SecretaryTask[]>({ queryKey: [TASKS_KEY] });
+      qc.setQueriesData<SecretaryTask[]>({ queryKey: [TASKS_KEY] }, (old = []) =>
+        old.map(t =>
+          t.id === id
+            ? {
+                ...t,
+                ...(update.title !== undefined && { title: update.title }),
+                ...(update.status !== undefined && { status: update.status }),
+                ...(update.priority !== undefined && { priority: update.priority }),
+                ...(update.dueDate !== undefined && { dueDate: update.dueDate }),
+                ...(update.assigneeId !== undefined && { assigneeId: update.assigneeId }),
+              }
+            : t
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        context.previous.forEach(([key, data]) => qc.setQueryData(key, data));
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: [TASKS_KEY] }),
   });
 }
 
@@ -103,6 +127,19 @@ export function useDeleteTask() {
       const { error } = await supabase.from('secretary_tasks').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [TASKS_KEY] }),
+    onMutate: async id => {
+      await qc.cancelQueries({ queryKey: [TASKS_KEY] });
+      const previous = qc.getQueriesData<SecretaryTask[]>({ queryKey: [TASKS_KEY] });
+      qc.setQueriesData<SecretaryTask[]>({ queryKey: [TASKS_KEY] }, (old = []) =>
+        old.filter(t => t.id !== id)
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        context.previous.forEach(([key, data]) => qc.setQueryData(key, data));
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: [TASKS_KEY] }),
   });
 }

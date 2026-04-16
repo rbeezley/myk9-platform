@@ -5,7 +5,6 @@ interface UpcomingShow {
   name: string;
   startDate: string;
   entryCloseDate?: string | null;
-  volunteerGapCount?: number;
 }
 
 interface UpcomingShowsStripProps {
@@ -26,7 +25,6 @@ export function UpcomingShowsStrip({ shows }: UpcomingShowsStripProps) {
           : null;
         const deadlineUrgent =
           daysUntilClose !== null && daysUntilClose <= 7 && daysUntilClose >= 0;
-        const hasGap = (show.volunteerGapCount ?? 0) > 0;
 
         return (
           <div
@@ -39,11 +37,6 @@ export function UpcomingShowsStrip({ shows }: UpcomingShowsStripProps) {
             <p className="mt-0.5 text-sm font-semibold text-slate-100">{show.name}</p>
             {deadlineUrgent && (
               <p className="mt-1 text-xs text-amber-400">Entry closes in {daysUntilClose} days</p>
-            )}
-            {hasGap && (
-              <p className="mt-1 text-xs text-rose-400">
-                {show.volunteerGapCount} volunteer slots open
-              </p>
             )}
           </div>
         );

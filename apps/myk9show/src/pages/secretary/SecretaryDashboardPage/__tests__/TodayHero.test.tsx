@@ -59,4 +59,42 @@ describe('TodayHero', () => {
     expect(screen.getByText(/no upcoming shows/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /create one/i })).toBeInTheDocument();
   });
+
+  it('shows entryCloseDate milestone when both dates are present', () => {
+    const closeDate = new Date(Date.now() + 10 * 86400000);
+    const openDate = new Date(Date.now() + 5 * 86400000);
+    renderHero({
+      todayShow: null,
+      nextShow: {
+        id: 'show-1',
+        name: 'Fall Classic',
+        startDate: new Date(Date.now() + 30 * 86400000).toISOString(),
+        entryCloseDate: closeDate.toISOString(),
+        entryOpenDate: openDate.toISOString(),
+      },
+      liveClassCount: 0,
+      notStartedCount: 0,
+      closedCount: 0,
+    });
+    expect(screen.getByText(/entry closes/i)).toBeInTheDocument();
+    expect(screen.queryByText(/entries open/i)).not.toBeInTheDocument();
+  });
+
+  it('falls back to entryOpenDate when entryCloseDate is null', () => {
+    const openDate = new Date(Date.now() + 5 * 86400000);
+    renderHero({
+      todayShow: null,
+      nextShow: {
+        id: 'show-1',
+        name: 'Fall Classic',
+        startDate: new Date(Date.now() + 30 * 86400000).toISOString(),
+        entryCloseDate: null,
+        entryOpenDate: openDate.toISOString(),
+      },
+      liveClassCount: 0,
+      notStartedCount: 0,
+      closedCount: 0,
+    });
+    expect(screen.getByText(/entries open/i)).toBeInTheDocument();
+  });
 });

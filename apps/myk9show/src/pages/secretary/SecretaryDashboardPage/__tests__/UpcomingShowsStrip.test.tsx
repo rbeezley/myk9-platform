@@ -7,7 +7,6 @@ const makeShow = (overrides: Record<string, unknown> = {}) => ({
   name: 'Summer Classic',
   startDate: new Date(Date.now() + 18 * 86400000).toISOString(),
   entryCloseDate: null as string | null,
-  volunteerGapCount: 0,
   ...overrides,
 });
 
@@ -44,9 +43,12 @@ describe('UpcomingShowsStrip', () => {
     expect(screen.getByText(/entry closes in \d+ days/i)).toBeInTheDocument();
   });
 
-  it('shows volunteer gap badge when gaps exist', () => {
+  it('does not show deadline alert when entry closes more than 7 days away', () => {
     const shows = [
-      makeShow({ id: 'show-1', volunteerGapCount: 2 }),
+      makeShow({
+        id: 'show-1',
+        entryCloseDate: new Date(Date.now() + 14 * 86400000).toISOString(),
+      }),
       makeShow({
         id: 'show-2',
         name: 'Show B',
@@ -54,6 +56,6 @@ describe('UpcomingShowsStrip', () => {
       }),
     ];
     render(<UpcomingShowsStrip shows={shows} />);
-    expect(screen.getByText(/2 volunteer slots open/i)).toBeInTheDocument();
+    expect(screen.queryByText(/entry closes in/i)).not.toBeInTheDocument();
   });
 });

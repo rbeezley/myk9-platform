@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { vi, describe, it, expect } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -7,6 +7,15 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 import { TaskRow } from '../TaskRow';
 import { TasksTab } from '../TasksTab';
 import type { SecretaryTask } from '../types';
+
+vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
+  useSecretaryTasks: vi.fn(() => ({ data: [], isLoading: false })),
+  useCreateTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useUpdateTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useDeleteTask: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
+
+import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(
@@ -72,6 +81,8 @@ describe('TaskRow', () => {
 });
 
 describe('TasksTab', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('shows "All Shows" chip selected by default', () => {
     render(<TasksTab shows={[{ id: 'show-1', name: 'Spring Trial' }]} clubId="club-1" />, {
       wrapper,
@@ -89,5 +100,55 @@ describe('TasksTab', () => {
       'aria-pressed',
       'true'
     );
+  });
+
+  it('hides completed tasks by default and shows them on toggle', () => {
+    const doneTask = makeTask({
+      id: 'done-1',
+      title: 'Old task',
+      status: 'done',
+      dueDate: undefined,
+    });
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [doneTask],
+      isLoading: false,
+    } as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+
+    expect(screen.queryByText('Old task')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Show completed'));
+    expect(screen.getByText('Old task')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Hide completed'));
+    expect(screen.queryByText('Old task')).not.toBeInTheDocument();
+  });
+
+  it('sorts done tasks after open tasks', () => {
+    const openTask = makeTask({
+      id: 'open-1',
+      title: 'Open task',
+      status: 'todo',
+      dueDate: undefined,
+    });
+    const doneTask = makeTask({
+      id: 'done-1',
+      title: 'Done task',
+      status: 'done',
+      dueDate: undefined,
+    });
+    vi.mocked(useSecretaryTasks).mockReturnValue({
+      data: [doneTask, openTask],
+      isLoading: false,
+    } as ReturnType<typeof useSecretaryTasks>);
+
+    render(<TasksTab shows={[]} clubId="club-1" />, { wrapper });
+
+    fireEvent.click(screen.getByText('Show completed'));
+    const items = screen.getAllByRole('checkbox');
+    // open task checkbox should appear before done task checkbox
+    expect(items[0]).not.toBeChecked();
+    expect(items[1]).toBeChecked();
   });
 });

@@ -22,6 +22,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { rbacService } from '@/services/rbac';
 import { UserRole } from '@/types/auth-types';
@@ -130,6 +131,7 @@ export function useShowCreationWizardActions({
   const { addTrial: addTrialToStore, trials: existingTrials, loadTrialClasses } = useTrialStore();
   const { classes: existingDBClasses } = useClassStoreCompat();
   const { user } = useAuthContext();
+  const { isOnline } = useNetworkStatus();
   const { triggerSync } = useReplicationSync();
 
   /**
@@ -299,6 +301,32 @@ export function useShowCreationWizardActions({
 
         const realShowId = savedShow.id;
 
+        // Seed React Query cache so pages find the show immediately while sync runs
+        queryClient.setQueryData<Show>(showQueryKeys.detail(realShowId), savedShow);
+        queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
+          if (!old) return [savedShow];
+          const exists = old.some(s => s.id === realShowId);
+          return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
+        });
+
+        // For NEW shows while online, verify the parent INSERT landed on the
+        // server BEFORE queuing any child rows (trials/classes/judges). This
+        // prevents an RLS rejection on `shows` from leaving orphaned locally-
+        // optimistic children that can never sync (FK would fail anyway). If
+        // we're offline, skip the verify — the global `replication:sync-failed`
+        // listener will surface any eventual RLS/upload failure when we
+        // reconnect.
+        if (!editMode?.showId && isOnline) {
+          await triggerSync();
+          await verifyShowCreatedOnServer({
+            showId: realShowId,
+            supabase,
+            replicatedShowsTable,
+            removeShow: useShowStore.getState().removeShow,
+            queryClient,
+          });
+        }
+
         // Create trials (awaited) and get wizard-ID → real-UUID mapping
         const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
 
@@ -341,31 +369,14 @@ export function useShowCreationWizardActions({
           queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
         });
 
-        // Seed React Query cache so pages find the show immediately while sync runs
-        queryClient.setQueryData<Show>(showQueryKeys.detail(realShowId), savedShow);
-        queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
-          if (!old) return [savedShow];
-          const exists = old.some(s => s.id === realShowId);
-          return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
-        });
-
-        // Trigger sync and AWAIT it so we can verify the show landed on the
-        // server before navigating to the success screen. For new shows, we
-        // then re-read the row from the server to gate the "Show Created!"
-        // confetti/access-code overlay on a confirmed INSERT — otherwise an
-        // RLS rejection (or any silent upload failure) would leave the UI
-        // lying about success while the row never persisted.
-        await triggerSync();
-
-        if (!editMode?.showId) {
-          await verifyShowCreatedOnServer({
-            showId: realShowId,
-            supabase,
-            replicatedShowsTable,
-            removeShow: useShowStore.getState().removeShow,
-            queryClient,
+        // Second sync pass to flush the child INSERTs (trials/classes) we just
+        // queued. Fire-and-forget — any failure flows through the global
+        // `replication:sync-failed` toast listener.
+        triggerSync().catch(syncError => {
+          logger.warn('Post-create child sync failed', 'wizard', {
+            error: syncError instanceof Error ? syncError.message : String(syncError),
           });
-        }
+        });
 
         // Reload trial classes in background — don't block navigation
         loadTrialClasses().catch(() => {
@@ -429,6 +440,7 @@ export function useShowCreationWizardActions({
       navigate,
       queryClient,
       triggerSync,
+      isOnline,
       setIsLoading,
       loadTrialClasses,
     ]

@@ -9,6 +9,7 @@ import { useShowStore } from '@/store/showStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
+import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
 import type { SecretaryTask } from './types';
 import { ScopeType } from '@/types/auth-types';
 import { TodayHero } from './TodayHero';
@@ -58,7 +59,10 @@ export function SecretaryDashboardPage() {
   // Separate today's show from upcoming shows
   const todayShow = useMemo(() => shows.find(s => isToday(new Date(s.startDate))) ?? null, [shows]);
 
-  const upcomingShows = useMemo(() => shows.filter(s => !isToday(new Date(s.startDate))), [shows]);
+  const upcomingShows = useMemo(
+    () => shows.filter(s => !isToday(new Date(s.startDate)) && new Date(s.startDate) > new Date()),
+    [shows]
+  );
 
   // Badge counts
   const { data: allTasks = [] } = useSecretaryTasks();
@@ -68,6 +72,12 @@ export function SecretaryDashboardPage() {
 
   const { data: pendingEntries = [] } = usePendingEntries();
   const pendingEntryCount = pendingEntries.length;
+
+  // Pipeline class counts for TodayHero
+  const { classesByStage } = useMissionControlData();
+  const liveClassCount = classesByStage.get('in-progress')?.length ?? 0;
+  const notStartedCount = classesByStage.get('not-started')?.length ?? 0;
+  const closedCount = classesByStage.get('closed')?.length ?? 0;
 
   // clubId for TasksTab — derive from first show's clubId
   const clubId = shows[0]?.clubId ?? '';
@@ -100,10 +110,9 @@ export function SecretaryDashboardPage() {
       <TodayHero
         todayShow={todayShow}
         nextShow={upcomingShows[0] ?? null}
-        // TODO: wire real pipeline counts from useMissionControlData
-        liveClassCount={0}
-        notStartedCount={0}
-        closedCount={0}
+        liveClassCount={liveClassCount}
+        notStartedCount={notStartedCount}
+        closedCount={closedCount}
       />
 
       {/* Upcoming Shows Strip */}

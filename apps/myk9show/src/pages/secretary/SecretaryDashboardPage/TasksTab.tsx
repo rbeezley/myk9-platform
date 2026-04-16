@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isToday } from 'date-fns';
 import { toast } from 'sonner';
 import { useSecretaryTasks, useCreateTask, useUpdateTask } from '@/hooks/queries/useSecretaryTasks';
 import { TaskRow } from './TaskRow';
@@ -33,8 +34,11 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
       if (!t.dueDate) return 3;
       const d = new Date(t.dueDate);
       const now = new Date();
-      if (d <= now) return 0;
-      return 1;
+      if (d < now && !isToday(d)) return 0; // overdue
+      if (isToday(d)) return 1; // due today
+      const sevenDays = new Date(Date.now() + 7 * 86400000);
+      if (d <= sevenDays) return 2; // due this week
+      return 3; // future (before "no due date")
     };
     return rank(a) - rank(b);
   });

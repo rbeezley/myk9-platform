@@ -17,6 +17,8 @@ import {
   replicatedClassesTable,
   type ReplicatedClass,
 } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { supabase } from '@/services/database/supabaseClient';
 import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -34,6 +36,41 @@ import {
   showToShowInput,
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
+
+/**
+ * Verify a newly-created show actually landed on the server after sync.
+ * If the row is missing (e.g., RLS rejected the INSERT), roll back the local
+ * optimistic state so the UI doesn't show a ghost record and throw a clear
+ * error for the caller to surface to the user.
+ *
+ * Exported for unit testing.
+ */
+export async function verifyShowCreatedOnServer(deps: {
+  showId: string;
+  supabase: typeof import('@/services/database/supabaseClient').supabase;
+  replicatedShowsTable: typeof import('@/services/replication/ReplicatedShowsTable').replicatedShowsTable;
+  removeShow: (id: string) => void;
+  queryClient: import('@tanstack/react-query').QueryClient;
+}): Promise<void> {
+  const { data: serverRow, error: verifyError } = await deps.supabase
+    .from('shows')
+    .select('id')
+    .eq('id', deps.showId)
+    .maybeSingle();
+
+  if (verifyError || !serverRow) {
+    deps.removeShow(deps.showId);
+    await deps.replicatedShowsTable.delete(deps.showId);
+    deps.queryClient.removeQueries({ queryKey: showQueryKeys.detail(deps.showId) });
+    deps.queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old =>
+      old ? old.filter(s => s.id !== deps.showId) : []
+    );
+    throw new Error(
+      verifyError?.message ||
+        'Show was not saved. You may not have permission to create shows for this club.'
+    );
+  }
+}
 
 /**
  * Convert wizard ClassData to ReplicatedClass for offline-first storage
@@ -312,14 +349,23 @@ export function useShowCreationWizardActions({
           return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
         });
 
-        // Trigger sync in the background — the React Query cache is already
-        // seeded above, so navigation can proceed immediately. Classes sync via
-        // the replication layer on their own schedule.
-        triggerSync().catch(syncError => {
-          logger.warn('Post-create sync failed, show may not appear until next sync', 'wizard', {
-            error: syncError instanceof Error ? syncError.message : String(syncError),
+        // Trigger sync and AWAIT it so we can verify the show landed on the
+        // server before navigating to the success screen. For new shows, we
+        // then re-read the row from the server to gate the "Show Created!"
+        // confetti/access-code overlay on a confirmed INSERT — otherwise an
+        // RLS rejection (or any silent upload failure) would leave the UI
+        // lying about success while the row never persisted.
+        await triggerSync();
+
+        if (!editMode?.showId) {
+          await verifyShowCreatedOnServer({
+            showId: realShowId,
+            supabase,
+            replicatedShowsTable,
+            removeShow: useShowStore.getState().removeShow,
+            queryClient,
           });
-        });
+        }
 
         // Reload trial classes in background — don't block navigation
         loadTrialClasses().catch(() => {

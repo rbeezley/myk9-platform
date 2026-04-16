@@ -8,6 +8,7 @@ import {
   createShow,
   updateShow,
   deleteShow,
+  hardDeleteShow,
   searchShows,
   getShowStatistics,
   getShowsWithEntryCounts,
@@ -400,6 +401,40 @@ describe('Show Queries', () => {
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
       expect(result.error.code).toBe('23503');
+    });
+  });
+
+  describe('hardDeleteShow', () => {
+    it('returns the deleted row when Supabase confirms the delete', async () => {
+      const deleted = { id: 'show-123', name: 'Expired Show' };
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [deleted], error: null }));
+
+      const result = await hardDeleteShow('show-123');
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual(deleted);
+    });
+
+    it('surfaces an error when RLS silently returns zero rows', async () => {
+      // PostgREST returns { data: [], error: null } when an RLS policy rejects
+      // a DELETE — the previous implementation accepted this as success.
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
+
+      const result = await hardDeleteShow('show-rls-blocked');
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBeDefined();
+      expect(result.error?.message).toMatch(/not deleted|permission/i);
+    });
+
+    it('propagates Postgres errors through createDatabaseError', async () => {
+      const mockError = { message: 'deadlock detected', code: '40P01', details: null };
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
+
+      const result = await hardDeleteShow('show-err');
+
+      expect(result.data).toBeNull();
+      expect(result.error).toBeDefined();
     });
   });
 

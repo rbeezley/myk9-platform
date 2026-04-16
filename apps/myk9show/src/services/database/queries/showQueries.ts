@@ -1,7 +1,7 @@
 // Show-related database queries
 // SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
 // Mutation functions (create, update, delete) remain on PostgREST.
-import { supabase, logQuery, createDatabaseError , type DatabaseError } from '../supabaseClient';
+import { supabase, logQuery, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -741,8 +741,16 @@ export const hardDeleteShow = async (id: string) => {
       throw createDatabaseError(error, 'show', 'hard_delete');
     }
 
+    // RLS silently returns 0 rows instead of an error when the policy rejects
+    // the DELETE — without this check, the UI would claim success while the
+    // row persisted. Same class of silent-failure bug as migration 135.
     const deletedShow = Array.isArray(data) ? data[0] : data;
-    return { data: deletedShow || null, error: null };
+    if (!deletedShow) {
+      throw new Error(
+        'Show was not deleted. You may not have permission to permanently delete this show, or it no longer exists.'
+      );
+    }
+    return { data: deletedShow, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'show', 'hard_delete');
@@ -813,33 +821,5 @@ export const getDeletedShows = async () => {
     const dbError = createDatabaseError(error, 'show', 'select_deleted');
     logQuery('show', 'select_deleted', duration, dbError.message);
     return { data: [], error: dbError };
-  }
-};
-
-// Legacy hard delete show (kept for compatibility)
-export const legacyDeleteShow = async (id: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('shows')
-      .delete()
-      .eq('id', id)
-      .select('id, name')
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('show', 'delete', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'show', 'delete');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'show', 'delete');
-    logQuery('show', 'delete', duration, dbError.message);
-    return { data: null, error: dbError };
   }
 };

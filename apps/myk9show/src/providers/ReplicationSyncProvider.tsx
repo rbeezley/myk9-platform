@@ -90,6 +90,21 @@ for (const { table } of REPLICATED_TABLES) {
   table.setMutationManager(mutationManager);
 }
 
+export interface SyncFailedEventDetail {
+  count: number;
+  mutations: Array<{ tableName: string; operation: string; error?: string }>;
+  message: string;
+}
+
+// Exposed for unit testing — the sync-failed event handler logic without DOM wiring
+export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
+  const first = detail.mutations[0];
+  const detailText = first
+    ? `${first.tableName} ${first.operation.toLowerCase()}${first.error ? `: ${first.error}` : ''}`
+    : detail.message;
+  return `Failed to save ${detail.count} change${detail.count === 1 ? '' : 's'}. ${detailText}`;
+}
+
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
   licenseKey = '',
@@ -351,6 +366,23 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     window.addEventListener('replication:upload-complete', handleUploadComplete);
     return () => window.removeEventListener('replication:upload-complete', handleUploadComplete);
   }, [queryClient]);
+
+  // Surface mutation sync failures so silent RLS rejections, timeouts, and
+  // other permanent failures don't end up hidden in the console. Prevents
+  // the "UI showed success but the row never persisted" class of data-loss
+  // bugs we hit on 2026-04-16 (shows_insert RLS rejecting secretary role).
+  useEffect(() => {
+    const handleSyncFailed = (event: Event) => {
+      const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
+      logger.error('Replication sync failed', 'replication', {
+        count: detail.count,
+        mutations: detail.mutations,
+      });
+      notifications.error(formatSyncFailureToast(detail));
+    };
+    window.addEventListener('replication:sync-failed', handleSyncFailed);
+    return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
+  }, []);
 
   // Expose diagnostic helpers on window for browser console debugging
   useEffect(() => {

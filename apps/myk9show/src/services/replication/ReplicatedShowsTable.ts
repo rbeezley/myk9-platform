@@ -383,17 +383,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     logger.log(`[${this.getTableName()}] Created new show ${id}`);
     return newShow;
   }
-
-  /**
-   * Delete a show locally and queue DELETE mutation for Supabase sync
-   */
-  async deleteShow(showId: string): Promise<string | null> {
-    await this.delete(showId);
-    const mutationId = await this.queueMutation('DELETE', showId, { id: showId });
-    this._lastMutationId = mutationId;
-    logger.log(`[${this.getTableName()}] Deleted show ${showId}`);
-    return mutationId;
-  }
 }
 
 // Singleton export

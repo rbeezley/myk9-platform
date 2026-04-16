@@ -17,9 +17,12 @@ import {
   replicatedClassesTable,
   type ReplicatedClass,
 } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { supabase } from '@/services/database/supabaseClient';
 import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { rbacService } from '@/services/rbac';
 import { UserRole } from '@/types/auth-types';
@@ -34,6 +37,41 @@ import {
   showToShowInput,
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
+
+/**
+ * Verify a newly-created show actually landed on the server after sync.
+ * If the row is missing (e.g., RLS rejected the INSERT), roll back the local
+ * optimistic state so the UI doesn't show a ghost record and throw a clear
+ * error for the caller to surface to the user.
+ *
+ * Exported for unit testing.
+ */
+export async function verifyShowCreatedOnServer(deps: {
+  showId: string;
+  supabase: typeof import('@/services/database/supabaseClient').supabase;
+  replicatedShowsTable: typeof import('@/services/replication/ReplicatedShowsTable').replicatedShowsTable;
+  removeShow: (id: string) => void;
+  queryClient: import('@tanstack/react-query').QueryClient;
+}): Promise<void> {
+  const { data: serverRow, error: verifyError } = await deps.supabase
+    .from('shows')
+    .select('id')
+    .eq('id', deps.showId)
+    .maybeSingle();
+
+  if (verifyError || !serverRow) {
+    deps.removeShow(deps.showId);
+    await deps.replicatedShowsTable.delete(deps.showId);
+    deps.queryClient.removeQueries({ queryKey: showQueryKeys.detail(deps.showId) });
+    deps.queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old =>
+      old ? old.filter(s => s.id !== deps.showId) : []
+    );
+    throw new Error(
+      verifyError?.message ||
+        'Show was not saved. You may not have permission to create shows for this club.'
+    );
+  }
+}
 
 /**
  * Convert wizard ClassData to ReplicatedClass for offline-first storage
@@ -93,6 +131,7 @@ export function useShowCreationWizardActions({
   const { addTrial: addTrialToStore, trials: existingTrials, loadTrialClasses } = useTrialStore();
   const { classes: existingDBClasses } = useClassStoreCompat();
   const { user } = useAuthContext();
+  const { isOnline } = useNetworkStatus();
   const { triggerSync } = useReplicationSync();
 
   /**
@@ -262,6 +301,32 @@ export function useShowCreationWizardActions({
 
         const realShowId = savedShow.id;
 
+        // Seed React Query cache so pages find the show immediately while sync runs
+        queryClient.setQueryData<Show>(showQueryKeys.detail(realShowId), savedShow);
+        queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
+          if (!old) return [savedShow];
+          const exists = old.some(s => s.id === realShowId);
+          return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
+        });
+
+        // For NEW shows while online, verify the parent INSERT landed on the
+        // server BEFORE queuing any child rows (trials/classes/judges). This
+        // prevents an RLS rejection on `shows` from leaving orphaned locally-
+        // optimistic children that can never sync (FK would fail anyway). If
+        // we're offline, skip the verify — the global `replication:sync-failed`
+        // listener will surface any eventual RLS/upload failure when we
+        // reconnect.
+        if (!editMode?.showId && isOnline) {
+          await triggerSync();
+          await verifyShowCreatedOnServer({
+            showId: realShowId,
+            supabase,
+            replicatedShowsTable,
+            removeShow: useShowStore.getState().removeShow,
+            queryClient,
+          });
+        }
+
         // Create trials (awaited) and get wizard-ID → real-UUID mapping
         const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
 
@@ -304,19 +369,11 @@ export function useShowCreationWizardActions({
           queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
         });
 
-        // Seed React Query cache so pages find the show immediately while sync runs
-        queryClient.setQueryData<Show>(showQueryKeys.detail(realShowId), savedShow);
-        queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
-          if (!old) return [savedShow];
-          const exists = old.some(s => s.id === realShowId);
-          return exists ? old.map(s => (s.id === realShowId ? savedShow : s)) : [savedShow, ...old];
-        });
-
-        // Trigger sync in the background — the React Query cache is already
-        // seeded above, so navigation can proceed immediately. Classes sync via
-        // the replication layer on their own schedule.
+        // Second sync pass to flush the child INSERTs (trials/classes) we just
+        // queued. Fire-and-forget — any failure flows through the global
+        // `replication:sync-failed` toast listener.
         triggerSync().catch(syncError => {
-          logger.warn('Post-create sync failed, show may not appear until next sync', 'wizard', {
+          logger.warn('Post-create child sync failed', 'wizard', {
             error: syncError instanceof Error ? syncError.message : String(syncError),
           });
         });
@@ -383,6 +440,7 @@ export function useShowCreationWizardActions({
       navigate,
       queryClient,
       triggerSync,
+      isOnline,
       setIsLoading,
       loadTrialClasses,
     ]

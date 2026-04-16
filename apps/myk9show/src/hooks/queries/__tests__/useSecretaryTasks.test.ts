@@ -6,8 +6,8 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 import {
   useSecretaryTasks,
   useCreateTask,
-  useUpdateTask,
-  useDeleteTask,
+  useUpdateTask as _useUpdateTask,
+  useDeleteTask as _useDeleteTask,
 } from '../useSecretaryTasks';
 import { supabase } from '@/services/database/supabaseClient';
 

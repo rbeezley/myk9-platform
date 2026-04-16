@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { MessageThread } from '@/features/messages/types';
+import { FilterChips } from './FilterChips';
 
 interface Show {
   id: string;
@@ -27,6 +28,11 @@ export function MessagesTab({ shows }: MessagesTabProps) {
   const isLoading = useMessageStore(s => s.isLoading);
 
   const showNameMap = Object.fromEntries(shows.map(s => [s.id, s.name]));
+
+  const filterOptions = ['all', ...shows.map(s => s.id)].map(v => ({
+    value: v,
+    label: v === 'all' ? 'All Shows' : (showNameMap[v] ?? v),
+  }));
 
   const filtered = (filter === 'all' ? threads : threads.filter(t => t.show_id === filter))
     .slice()
@@ -50,36 +56,7 @@ export function MessagesTab({ shows }: MessagesTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Filter chips */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          aria-pressed={filter === 'all'}
-          onClick={() => setFilter('all')}
-          className={cn(
-            'rounded-full px-3 py-1 text-sm font-medium border transition-colors',
-            filter === 'all'
-              ? 'bg-primary text-primary-foreground border-primary'
-              : 'bg-background text-muted-foreground border-border hover:border-primary/50'
-          )}
-        >
-          All Shows
-        </button>
-        {shows.map(show => (
-          <button
-            key={show.id}
-            aria-pressed={filter === show.id}
-            onClick={() => setFilter(show.id)}
-            className={cn(
-              'rounded-full px-3 py-1 text-sm font-medium border transition-colors',
-              filter === show.id
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background text-muted-foreground border-border hover:border-primary/50'
-            )}
-          >
-            {show.name}
-          </button>
-        ))}
-      </div>
+      <FilterChips options={filterOptions} active={filter} onChange={setFilter} />
 
       {/* Thread list */}
       {filtered.length === 0 ? (

@@ -9,6 +9,7 @@ import {
 } from '@/hooks/queries/useSecretaryTasks';
 import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
+import { FilterChips } from './FilterChips';
 
 interface Show {
   id: string;
@@ -34,47 +35,34 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
 
   const showNameMap = Object.fromEntries(shows.map(s => [s.id, s.name]));
 
+  const filterOptions = ['all', ...shows.map(s => s.id), 'general'].map(v => ({
+    value: v,
+    label: v === 'all' ? 'All Shows' : v === 'general' ? 'General' : (showNameMap[v] ?? v),
+  }));
+
+  const now = new Date();
+  const sevenDays = new Date(now.getTime() + 7 * 86400000);
+
   const sorted = [...tasks].sort((a, b) => {
     const rank = (t: (typeof tasks)[number]) => {
       if (t.status === 'done') return 4;
       if (!t.dueDate) return 3;
       const d = new Date(t.dueDate);
-      const now = new Date();
-      if (d < now && !isToday(d)) return 0; // overdue
-      if (isToday(d)) return 1; // due today
-      const sevenDays = new Date(Date.now() + 7 * 86400000);
-      if (d <= sevenDays) return 2; // due this week
-      return 3; // future (before "no due date")
+      if (d < now && !isToday(d)) return 0;
+      if (isToday(d)) return 1;
+      if (d <= sevenDays) return 2;
+      return 3;
     };
     return rank(a) - rank(b);
   });
 
   const visible = showCompleted ? sorted : sorted.filter(t => t.status !== 'done');
-
-  const filterOptions: Filter[] = ['all', ...shows.map(s => s.id), 'general'];
+  const hasCompletedTasks = sorted.some(t => t.status === 'done');
 
   return (
-    <div className="p-5">
+    <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-slate-500">Filter:</span>
-        {filterOptions.map(f => {
-          const label =
-            f === 'all' ? 'All Shows' : f === 'general' ? 'General' : (showNameMap[f] ?? f);
-          return (
-            <button
-              key={f}
-              aria-pressed={filter === f}
-              onClick={() => setFilter(f)}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                filter === f
-                  ? 'bg-blue-700 text-blue-200'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
+        <FilterChips options={filterOptions} active={filter} onChange={setFilter} />
         {clubId && (
           <button
             onClick={() => setShowAddForm(true)}
@@ -130,7 +118,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
         )}
       </div>
 
-      {tasks.some((t: (typeof tasks)[number]) => t.status === 'done') && (
+      {hasCompletedTasks && (
         <button
           onClick={() => setShowCompleted(v => !v)}
           className="mt-3 text-xs text-slate-500 hover:text-slate-300"
@@ -138,6 +126,6 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
           {showCompleted ? 'Hide completed' : 'Show completed'}
         </button>
       )}
-    </div>
+    </>
   );
 }

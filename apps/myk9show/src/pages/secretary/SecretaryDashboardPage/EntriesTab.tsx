@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useEntryDecision } from '@/hooks/mutations/useEntryDecisionMutations';
 import { EntryDecisionRow } from './EntryDecisionRow';
+import { FilterChips } from './FilterChips';
 
 interface Show {
   id: string;
@@ -14,37 +15,21 @@ interface EntriesTabProps {
 }
 
 export function EntriesTab({ shows }: EntriesTabProps) {
-  const [filter, setFilter] = useState<string>('all');
+  const [filter, setFilter] = useState('all');
   const { data: entries = [], isLoading } = usePendingEntries(
     filter === 'all' ? undefined : filter
   );
   const decide = useEntryDecision();
 
   const showNameMap = Object.fromEntries(shows.map(s => [s.id, s.name]));
-  const filterOptions = ['all', ...shows.map(s => s.id)];
+  const filterOptions = ['all', ...shows.map(s => s.id)].map(v => ({
+    value: v,
+    label: v === 'all' ? 'All Shows' : (showNameMap[v] ?? v),
+  }));
 
   return (
-    <div className="p-5">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-slate-500">Filter:</span>
-        {filterOptions.map(f => {
-          const label = f === 'all' ? 'All Shows' : (showNameMap[f] ?? f);
-          return (
-            <button
-              key={f}
-              aria-pressed={filter === f}
-              onClick={() => setFilter(f)}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                filter === f
-                  ? 'bg-blue-700 text-blue-200'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+    <>
+      <FilterChips options={filterOptions} active={filter} onChange={setFilter} className="mb-3" />
 
       {isLoading ? (
         <p className="py-6 text-center text-sm text-slate-500">Loading…</p>
@@ -68,6 +53,6 @@ export function EntriesTab({ shows }: EntriesTabProps) {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

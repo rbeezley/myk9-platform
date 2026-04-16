@@ -64,7 +64,6 @@ export function SecretaryDashboardPage() {
     [shows]
   );
 
-  // Badge counts
   const { data: allTasks = [] } = useSecretaryTasks();
   const openTaskCount = allTasks.filter((t: SecretaryTask) => t.status === 'todo').length;
 
@@ -73,16 +72,21 @@ export function SecretaryDashboardPage() {
   const { data: pendingEntries = [] } = usePendingEntries();
   const pendingEntryCount = pendingEntries.length;
 
-  // Pipeline class counts for TodayHero
   const { classesByStage } = useMissionControlData();
   const liveClassCount = classesByStage.get('in-progress')?.length ?? 0;
   const notStartedCount = classesByStage.get('not-started')?.length ?? 0;
   const closedCount = classesByStage.get('closed')?.length ?? 0;
 
-  // clubId for TasksTab — derive from first show's clubId
+  // first show's clubId; used by TasksTab to scope new tasks
   const clubId = shows[0]?.clubId ?? '';
 
   const tabShows = shows.map(s => ({ id: s.id, name: s.name }));
+
+  const tabs: Array<{ key: Tab; label: string; badge: number }> = [
+    { key: 'tasks', label: 'Tasks', badge: openTaskCount },
+    { key: 'messages', label: 'Messages', badge: unreadMessageCount },
+    { key: 'entries', label: 'Entries', badge: pendingEntryCount },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -120,13 +124,7 @@ export function SecretaryDashboardPage() {
 
       {/* Tab Bar */}
       <div className="flex border-b px-5">
-        {(
-          [
-            { key: 'tasks', label: 'Tasks', badge: openTaskCount },
-            { key: 'messages', label: 'Messages', badge: unreadMessageCount },
-            { key: 'entries', label: 'Entries', badge: pendingEntryCount },
-          ] as { key: Tab; label: string; badge: number }[]
-        ).map(({ key, label, badge }) => (
+        {tabs.map(({ key, label, badge }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}

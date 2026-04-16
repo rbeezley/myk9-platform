@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus, ArrowUpCircle, XCircle, RefreshCw, UserCheck } from 'lucide-react';
+import { UserPlus, ArrowUpCircle, XCircle, RefreshCw, UserCheck, GitBranch } from 'lucide-react';
+import { PipelineTab } from './PipelineTab';
 
 import CheckInReportPage from '../CheckInReportPage';
 
@@ -50,8 +51,8 @@ export default function DayOfOperationsPage() {
   } = useDayOfOperationsData();
 
   const [activeTab, handleTabChange] = useUrlTab(
-    ['entries', 'moveups', 'scratches', 'check-in'] as const,
-    'entries'
+    ['pipeline', 'entries', 'moveups', 'scratches', 'check-in'] as const,
+    'pipeline'
   );
 
   const [isScratchingDirect, setIsScratchingDirect] = useState(false);
@@ -130,6 +131,10 @@ export default function DayOfOperationsPage() {
       {selectedShowId && (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
+            <TabsTrigger value="pipeline" className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4" />
+              Pipeline
+            </TabsTrigger>
             <TabsTrigger value="entries" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Day-of Entries
@@ -147,6 +152,10 @@ export default function DayOfOperationsPage() {
               Check-In
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="pipeline">
+            <PipelineTab showId={selectedShowId} />
+          </TabsContent>
 
           <TabsContent value="entries" className="space-y-4">
             <ClassAvailabilityTable classes={classes} onAddEntry={() => setShowEntryDialog(true)} />

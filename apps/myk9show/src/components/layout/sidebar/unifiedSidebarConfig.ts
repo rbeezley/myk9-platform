@@ -30,7 +30,6 @@ import {
   Shield,
   Compass,
   Search,
-  KanbanSquare,
   FileBarChart,
   Send,
   ListChecks,
@@ -128,12 +127,7 @@ export function buildUnifiedSidebarConfig(
             icon: FileText,
             description: 'Manage show entries',
           },
-          {
-            title: 'Tasks',
-            href: '/secretary/tasks',
-            icon: KanbanSquare,
-            description: 'Pre-show preparation tasks',
-          },
+
           {
             title: 'Schedule',
             href: '/secretary/run-order',

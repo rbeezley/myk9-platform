@@ -39,7 +39,6 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(titles).toEqual([
       'Dashboard',
       'Entries',
-      'Tasks',
       'Schedule',
       'Day of Show',
       'Reports',

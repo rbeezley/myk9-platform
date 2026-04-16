@@ -103,7 +103,7 @@ export function SecretaryDashboardPage() {
         <Button
           size="sm"
           className="mt-1 shrink-0"
-          onClick={() => navigate('/secretary/shows/new')}
+          onClick={() => navigate('/secretary/create-show')}
         >
           <Plus className="mr-1.5 h-4 w-4" />
           New Show

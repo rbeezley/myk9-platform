@@ -7,7 +7,7 @@ type Decision = 'accepted' | 'waitlist' | 'rejected';
 
 const DECISION_STATUS_MAP: Record<Decision, string> = {
   accepted: 'confirmed',
-  // Waitlist entries come from submitted status; move to confirmed until waitlist system integration
+  // TODO(waitlist-system): map to 'waitlisted' once waitlist system integration is complete
   waitlist: 'confirmed',
   rejected: 'withdrawn',
 };
@@ -15,8 +15,11 @@ const DECISION_STATUS_MAP: Record<Decision, string> = {
 export function useEntryDecision() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ entryId, decision }: { entryId: string; decision: Decision }) =>
-      updateEntryStatus(entryId, DECISION_STATUS_MAP[decision]),
+    mutationFn: async ({ entryId, decision }: { entryId: string; decision: Decision }) => {
+      const result = await updateEntryStatus(entryId, DECISION_STATUS_MAP[decision]);
+      if (result.error) throw result.error;
+      return result;
+    },
 
     onMutate: async ({ entryId }) => {
       await qc.cancelQueries({ queryKey: [PENDING_ENTRIES_KEY] });

@@ -44,7 +44,10 @@ export function usePendingEntries(showIdFilter?: string) {
         query = query.eq('show_id', showIdFilter);
       }
 
-      const { data, error } = await query.order('submitted_at', { ascending: true });
+      const { data, error } = await query.order('submitted_at', {
+        ascending: true,
+        nullsFirst: false,
+      });
       if (error) throw error;
       return (data ?? []).map(toEntry);
     },

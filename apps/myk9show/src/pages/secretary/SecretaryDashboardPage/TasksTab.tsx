@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { isToday } from 'date-fns';
 import { toast } from 'sonner';
-import { useSecretaryTasks, useCreateTask, useUpdateTask } from '@/hooks/queries/useSecretaryTasks';
+import {
+  useSecretaryTasks,
+  useCreateTask,
+  useUpdateTask,
+  useDeleteTask,
+} from '@/hooks/queries/useSecretaryTasks';
 import { TaskRow } from './TaskRow';
 import { TaskAddForm } from './TaskAddForm';
 
@@ -22,9 +27,10 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const { data: tasks = [] } = useSecretaryTasks(filter === 'all' ? undefined : filter);
+  const { data: tasks = [], isLoading } = useSecretaryTasks(filter === 'all' ? undefined : filter);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
 
   const showNameMap = Object.fromEntries(shows.map(s => [s.id, s.name]));
 
@@ -69,12 +75,14 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
             </button>
           );
         })}
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="ml-auto rounded bg-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-600"
-        >
-          + Add Task
-        </button>
+        {clubId && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="ml-auto rounded bg-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-600"
+          >
+            + Add Task
+          </button>
+        )}
       </div>
 
       {showAddForm && (
@@ -94,26 +102,31 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
       )}
 
       <div className="flex flex-col gap-2">
-        {visible.map(task => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            showName={task.showId ? (showNameMap[task.showId] ?? task.showId) : 'General'}
-            onToggleDone={id =>
-              updateTask.mutate({
-                id,
-                update: { status: task.status === 'done' ? 'todo' : 'done' },
-              })
-            }
-            onDelete={() => {
-              /* handled elsewhere */
-            }}
-          />
-        ))}
-        {visible.length === 0 && (
+        {isLoading ? (
+          <p className="py-6 text-center text-sm text-slate-500">Loading…</p>
+        ) : visible.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-500">
             {filter === 'all' ? 'No open tasks.' : 'No tasks for this show.'}
           </p>
+        ) : (
+          visible.map(task => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              showName={task.showId ? (showNameMap[task.showId] ?? task.showId) : 'General'}
+              onToggleDone={id =>
+                updateTask.mutate({
+                  id,
+                  update: { status: task.status === 'done' ? 'todo' : 'done' },
+                })
+              }
+              onDelete={id =>
+                deleteTask.mutate(id, {
+                  onError: () => toast.error('Failed to delete task.'),
+                })
+              }
+            />
+          ))
         )}
       </div>
 

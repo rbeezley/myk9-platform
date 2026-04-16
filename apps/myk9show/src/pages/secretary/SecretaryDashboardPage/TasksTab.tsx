@@ -110,7 +110,7 @@ export function TasksTab({ shows, clubId }: TasksTabProps) {
         )}
       </div>
 
-      {tasks.some(t => t.status === 'done') && (
+      {tasks.some((t: (typeof tasks)[number]) => t.status === 'done') && (
         <button
           onClick={() => setShowCompleted(v => !v)}
           className="mt-3 text-xs text-slate-500 hover:text-slate-300"
